@@ -120,3 +120,66 @@ export function endOf(
   if (rule?.max_count) return { kind: 'after', count: rule.max_count };
   return { kind: 'never' };
 }
+
+/**
+ * The rule and its end, told apart — because the editor writes them together and the API takes
+ * them apart.
+ *
+ * `RecurrenceEditor` composes an RFC 5545 rule, and RFC 5545 puts the end *inside* it as `UNTIL=`
+ * or `COUNT=`. This API does not: it refuses a rule that carries either —
+ * `recurrence.rrule_carries_end`, "A rule carries no UNTIL or COUNT: send ends_at or max_count
+ * instead" — and takes the end as two fields of the request document beside the rule.
+ *
+ * Both are right. A rule that carried its own end could disagree with the fields beside it, and an
+ * editor that could not express an end would be an editor missing a third of RFC 5545. So the
+ * translation lives here, at the seam between the two, and is tested rather than trusted.
+ */
+export function splitEnd(rrule: string): {
+  rrule: string;
+  ends_at?: string | null;
+  max_count?: number | null;
+} {
+  const kept: string[] = [];
+  let endsAt: string | undefined;
+  let maxCount: number | undefined;
+
+  for (const part of rrule.split(';')) {
+    const [name, value] = part.split('=');
+    if (name === 'UNTIL' && value) endsAt = instantFromUntil(value);
+    else if (name === 'COUNT' && value) maxCount = Number(value);
+    else if (part !== '') kept.push(part);
+  }
+
+  return {
+    rrule: kept.join(';'),
+    // Null rather than absent, so that changing a series *from* having an end back to having none
+    // clears the stored one. An omitted field on a `PUT` of the whole document would be the same
+    // as a null here, and stating it is what makes that not need checking.
+    ends_at: endsAt ?? null,
+    max_count: Number.isFinite(maxCount) ? (maxCount as number) : null,
+  };
+}
+
+/** `20261231T000000Z` — RFC 5545's own form — as the instant the contract takes. */
+function instantFromUntil(value: string): string | undefined {
+  const match = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})Z?)?$/.exec(value);
+  if (!match) return undefined;
+  const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`;
+}
+
+/** …and the other way, so a stored series opens in the editor with its end showing. */
+export function withEnd(
+  rrule: string,
+  rule: { ends_at?: string | null; max_count?: number | null } | undefined,
+): string {
+  const end = endOf(rule);
+  if (end.kind === 'on') {
+    const at = new Date(end.date);
+    if (Number.isNaN(at.getTime())) return rrule;
+    const stamp = at.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    return `${rrule};UNTIL=${stamp}`;
+  }
+  if (end.kind === 'after') return `${rrule};COUNT=${end.count}`;
+  return rrule;
+}

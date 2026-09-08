@@ -33,7 +33,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { supports } from '../data/capability.svelte.ts';
   import { series } from '../data/reminders.svelte.ts';
-  import { belongsToSeries } from '../data/reminders.ts';
+  import { belongsToSeries, splitEnd, withEnd } from '../data/reminders.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -77,7 +77,9 @@
   // what it is rather than from a default.
   $effect(() => {
     if (!rule) return;
-    draft = rule.rrule;
+    // Composed back together for the editor: it writes an end into the rule, and the API stores it
+    // beside one. `splitEnd` takes them apart again on the way out.
+    draft = withEnd(rule.rrule, rule);
     mode = (rule.mode as 'ON_SCHEDULE' | 'ON_COMPLETION') ?? 'ON_SCHEDULE';
     horizon = rule.horizon_days ?? 90;
   });
@@ -117,9 +119,12 @@
 
   function save() {
     void attempt(async () => {
+      // The end travels beside the rule rather than inside it: this API refuses a rule that
+      // carries `UNTIL` or `COUNT` — `recurrence.rrule_carries_end` — and takes the two fields.
+      const { rrule, ends_at, max_count } = splitEnd(draft);
       await series.set(
         item.id,
-        { rrule: draft, time_zone: zone, mode: mode as never, horizon_days: horizon },
+        { rrule, time_zone: zone, mode: mode as never, horizon_days: horizon, ends_at, max_count },
         rule?.version,
       );
       isEditing = false;

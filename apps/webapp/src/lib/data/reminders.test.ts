@@ -15,6 +15,8 @@ import {
   mayAddAnother,
   relativeRefusal,
   reminderLimitOf,
+  splitEnd,
+  withEnd,
 } from './reminders.ts';
 
 const item = (over: Partial<WorkItem> = {}) => ({ id: 'i-1', title: 'x', ...over }) as WorkItem;
@@ -80,4 +82,39 @@ test('a rule states at most one end', () => {
   assert.deepEqual(endOf({}), { kind: 'never' });
   assert.deepEqual(endOf({ ends_at: '2026-12-31T00:00:00Z' }), { kind: 'on', date: '2026-12-31T00:00:00Z' });
   assert.deepEqual(endOf({ max_count: 10 }), { kind: 'after', count: 10 });
+});
+
+test('a rule and its end are told apart, because the editor writes them together', () => {
+  // RFC 5545 puts the end inside the rule; this API refuses a rule that carries one and takes it
+  // as two fields beside it — `recurrence.rrule_carries_end`, found by sending a composed rule at
+  // a real server. Both are right, so the translation lives at the seam.
+  assert.deepEqual(splitEnd('FREQ=DAILY;INTERVAL=3;COUNT=5'), {
+    rrule: 'FREQ=DAILY;INTERVAL=3',
+    ends_at: null,
+    max_count: 5,
+  });
+  assert.deepEqual(splitEnd('FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231T000000Z'), {
+    rrule: 'FREQ=WEEKLY;BYDAY=MO',
+    ends_at: '2026-12-31T00:00:00.000Z',
+    max_count: null,
+  });
+  // No end at all: both stated as null, so changing a series back to endless clears what is stored.
+  assert.deepEqual(splitEnd('FREQ=WEEKLY'), { rrule: 'FREQ=WEEKLY', ends_at: null, max_count: null });
+});
+
+test('a stored series opens in the editor with its end showing', () => {
+  assert.equal(withEnd('FREQ=WEEKLY', undefined), 'FREQ=WEEKLY');
+  assert.equal(withEnd('FREQ=WEEKLY', { max_count: 10 }), 'FREQ=WEEKLY;COUNT=10');
+  assert.equal(
+    withEnd('FREQ=WEEKLY', { ends_at: '2026-12-31T00:00:00.000Z' }),
+    'FREQ=WEEKLY;UNTIL=20261231T000000Z',
+  );
+});
+
+test('the round trip is the one that matters', () => {
+  // What the editor composes, split for the wire and composed again, is what the editor had.
+  for (const rule of ['FREQ=DAILY;INTERVAL=3;COUNT=5', 'FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231T000000Z', 'FREQ=MONTHLY']) {
+    const parts = splitEnd(rule);
+    assert.equal(withEnd(parts.rrule, parts), rule, rule);
+  }
 });
