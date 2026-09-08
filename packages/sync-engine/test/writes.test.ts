@@ -334,3 +334,48 @@ test('a reload repeats the question, not just the path', async () => {
   assert.equal(queries.length, 3, 'the board was not read again after the write');
   assert.deepEqual(queries.at(-1)?.body, { scope: { container_id: 'c1' } });
 });
+
+// --- bytes ------------------------------------------------------------------------------------
+
+test('a byte transfer goes to the URL the server named, and invalidates nothing by default', async () => {
+  // Putting bytes in a bucket changes nothing the client is holding: the object becomes usable at
+  // confirmation, which is an ordinary write. An engine that re-read on the bytes would reload a
+  // screen for something the server has not yet judged.
+  const transport = new FakeTransport().answer('/items/i1', { id: 'i1' });
+  const engine = engineWith(transport);
+  engine.subscribe({ path: '/items/i1' }, () => {});
+  await loaded(engine, { path: '/items/i1' });
+  // The subscription starts a load of its own; let it settle, so what is counted below is the
+  // transfer's doing rather than the subscription's.
+  await Promise.resolve();
+  await Promise.resolve();
+  const readsBefore = transport.calls.length;
+
+  await engine.transfer({
+    url: 'https://bucket.example/o/abc?signature=x',
+    method: 'PUT',
+    body: new Uint8Array([1, 2, 3]),
+    timeoutMs: 1_000,
+  });
+
+  assert.equal(transport.transfers.length, 1);
+  assert.equal(transport.transfers[0]?.url, 'https://bucket.example/o/abc?signature=x');
+  assert.equal(transport.calls.length, readsBefore, 'the bytes re-read a resource nothing changed');
+});
+
+test('a caller that does want a re-read after the bytes names the prefixes', async () => {
+  const transport = new FakeTransport().answer('/items/i1', { id: 'i1' });
+  const engine = engineWith(transport);
+  engine.subscribe({ path: '/items/i1' }, () => {});
+  await loaded(engine, { path: '/items/i1' });
+  const readsBefore = transport.calls.length;
+
+  await engine.transfer(
+    { url: 'https://bucket.example/o/abc', method: 'PUT', body: new Uint8Array([1]), timeoutMs: 1_000 },
+    { invalidates: ['/items'] },
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.ok(transport.calls.length > readsBefore, 'the named prefix was not read again');
+});
