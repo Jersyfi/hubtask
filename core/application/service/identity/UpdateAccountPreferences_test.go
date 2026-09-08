@@ -85,6 +85,36 @@ func TestAnAbsentPreferenceIsLeftAndAnEmptyOneIsCleared(t *testing.T) {
 	}
 }
 
+// The registry is what a request meets, and its enum check used to refuse the only value that
+// clears a first day of the week. The contract says an empty value clears the preference; between
+// a refused "" and a null that reads as absent there was no way to say it (issue #427).
+func TestAWeekStartCanBeClearedThroughTheRegistry(t *testing.T) {
+	monday := "MONDAY"
+	accounts := newAccounts(settled(t))
+	handler := preferencesHandler(accounts, &authorizer{}, &auditSink{})
+
+	chosen, err := handler.Execute(t.Context(), admin(), UpdateAccountPreferencesCommand{WeekStart: &monday})
+	if err != nil || chosen.WeekStart != "MONDAY" {
+		t.Fatalf("choosing a first day answered %q, %v", chosen.WeekStart, err)
+	}
+
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	out, err := registry.Invoke(t.Context(), UpdateAccountPreferencesName, admin(),
+		usecase.Input{"account_id": adminID.String(), "week_start": ""})
+	if err != nil {
+		t.Fatalf("clearing the first day of the week: %v", err)
+	}
+	if out.String("week_start") != "" {
+		t.Errorf("week_start is %q, want it cleared", out.String("week_start"))
+	}
+	if out.String("locale") != "de" || out.String("time_zone") != "Europe/Berlin" {
+		t.Errorf("clearing one preference touched another: %v", out)
+	}
+}
+
 // Changing one's own preferences is not administering anybody. Requiring the member permission for
 // it would mean a viewer could not pick their own time zone.
 func TestChangingOnesOwnPreferencesNeedsNoPermission(t *testing.T) {
