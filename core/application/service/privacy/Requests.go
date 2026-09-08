@@ -667,11 +667,16 @@ func (h UpdateDataSubjectRequest) Descriptor() usecase.Descriptor {
 			{Name: "request_id", Kind: usecase.KindID, Required: true, Description: "Which case."},
 			{
 				Name: "status", Kind: usecase.KindString,
+				// RECEIVED is where a case starts and nothing moves back to it. It is in the set
+				// anyway, because refusing it here would answer a generic validation code where
+				// `privacy.transition_refused` names both ends of the step somebody tried to take
+				// (issue #427).
 				Enum: []string{
-					string(domain.StatusInProgress), string(domain.StatusCompleted),
-					string(domain.StatusRejected),
+					string(domain.StatusReceived), string(domain.StatusInProgress),
+					string(domain.StatusCompleted), string(domain.StatusRejected),
 				},
-				Description: "Where the case moves to.",
+				Description: "Where the case moves to. RECEIVED is where one starts, and moving " +
+					"back to it is refused by name.",
 			},
 			{
 				Name: "erasure_mode", Kind: usecase.KindString,
