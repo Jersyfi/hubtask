@@ -29,6 +29,8 @@
   import { untrack } from 'svelte';
 
   import Board from '../lib/entries/Board.svelte';
+  import BulkBar from '../lib/entries/BulkBar.svelte';
+  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
@@ -39,6 +41,8 @@
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { selection } from '../lib/data/selection.svelte.ts';
+  import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -46,7 +50,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { anchorFor } from '../lib/data/rank.ts';
-  import type { TransportError } from '@hubtask/sync-engine';
+  import type { BulkOperation, BulkResult, TransportError, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
@@ -120,6 +124,27 @@
   const customFieldFilters = $derived(
     container?.type === 'COLLECTION' ? queryFieldsFor(customFields.of(container.id)) : [],
   );
+
+  /**
+   * What the last bulk did, per entry, until the reader dismisses it.
+   *
+   * Kept here rather than in the bar because it belongs to the rows: a refusal is about an entry,
+   * and the place a reader looks for it is the row it happened to. Cleared when the selection is,
+   * and when the screen changes.
+   */
+  let lastResults = $state<ReadonlyMap<string, BulkResult>>(new Map());
+
+  /** The entry being copied, if one is. The dialog is open exactly while this is set. */
+  let duplicating = $state<WorkItem | undefined>(undefined);
+
+  // A selection is about what is in front of somebody, so it does not survive the screen.
+  $effect(() => {
+    void id;
+    return () => {
+      selection.clear();
+      lastResults = new Map();
+    };
+  });
 
   // The definitions in force here, read once for the dialog and for the filter editor below.
   $effect(() => {
@@ -541,8 +566,23 @@
         custom={customFieldFilters}
       />
 
+      <!-- Above the entries, because it is about the ones below it. It draws itself only when
+           something is picked, so a reader who never selects anything never sees it. -->
+      <BulkBar
+        collectionId={container.id}
+        path={containerPath}
+        onresults={(operations: readonly BulkOperation[], results: readonly BulkResult[]) =>
+          (lastResults = byItem(operations, results))}
+      />
+
       {#if layout === 'KANBAN'}
-        <Board collectionId={container.id} isReadOnly={isReadOnly} {query} />
+        <Board
+          collectionId={container.id}
+          isReadOnly={isReadOnly}
+          {query}
+          {lastResults}
+          onduplicate={(item) => (duplicating = item)}
+        />
       {:else}
         <!-- Read-only follows the container: an archived collection's entries are archived with
              it (I-C3), and the reason travels with the controls rather than the controls
@@ -552,6 +592,8 @@
           isReadOnly={isReadOnly}
           {query}
           isExpanded={layout === 'LIST_EXPANDED'}
+          {lastResults}
+          onduplicate={(item) => (duplicating = item)}
         />
       {/if}
     {/if}
@@ -566,6 +608,16 @@
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
   />
 {/if}
+
+<DuplicateDialog
+  item={duplicating}
+  hubId={container?.type === 'COLLECTION' ? (container.parent_id ?? undefined) : container?.id}
+  onclose={() => (duplicating = undefined)}
+  onopened={(itemId) => {
+    duplicating = undefined;
+    onnavigate(`/items/${itemId}`);
+  }}
+/>
 
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
