@@ -50,6 +50,7 @@
   import { media } from '../lib/data/media.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
+  import DuePanel from '../lib/entries/DuePanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
@@ -351,6 +352,11 @@
           {t('app.people.share')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.due.title')}</h2>
+      <DuePanel {item} disabledReason={frozenReason} />
     </Stack>
 
     <Stack gap="150">

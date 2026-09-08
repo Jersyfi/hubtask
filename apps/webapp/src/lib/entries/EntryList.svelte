@@ -18,6 +18,7 @@
     Badge,
     Button,
     Checkbox,
+    Dialog,
     EmptyState,
     ErrorState,
     IconButton,
@@ -51,6 +52,8 @@
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
+  import DueMark from './DueMark.svelte';
+  import DuePanel from './DuePanel.svelte';
   import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -98,6 +101,9 @@
     lastResults,
     onduplicate,
   }: Props = $props();
+
+  /** The entry whose dates are being changed from the row, if one is. */
+  let dating = $state<WorkItem | undefined>(undefined);
 
   /** The sentence one row shows about the last bulk, or nothing where it was not in it. */
   function bulkNote(itemId: string): string | undefined {
@@ -587,6 +593,12 @@
         hasSeparatorBefore: true,
       },
       {
+        id: 'due',
+        label: t(row.item.due_at ? 'app.due.edit' : 'app.due.set'),
+        disabledReason: frozenReason(row),
+        hasSeparatorBefore: true,
+      },
+      {
         id: 'duplicate',
         label: t('app.duplicate.title'),
         // Offered on an archived entry too: copying one does not write to it, and the copy is a
@@ -703,6 +715,7 @@
     } else if (id === 'out') moveOut(row);
     else if (id === 'elsewhere') movingRow = row;
     else if (id === 'archive') void setArchived(row, row.archival !== 'archived');
+    else if (id === 'due') dating = row.item;
     else if (id === 'duplicate') onduplicate?.(row.item);
     else if (id === 'trash') void moveToTrash(row);
     else void rank(row, id as RankCommand);
@@ -852,6 +865,8 @@
                      already carries: the names come from the accounts cache rather than from an
                      expansion this server does not serve. -->
                 <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+                <!-- When it is wanted, with the word as well as the tone (rule 3). -->
+                <DueMark item={row.item} />
 
                 <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
                      the state reads in greyscale and to a screen reader — which matters more here
@@ -1011,6 +1026,20 @@
     </Inline>
   </Stack>
 {/snippet}
+
+{#if dating}
+  <!-- The same panel the entry screen draws, in a dialog: a due date is one thing, so it has one
+       control, and a second implementation of it on the row would be a second set of rules about
+       zones and all-day dates. -->
+  <Dialog
+    isOpen={true}
+    title={t('app.due.title')}
+    dismissLabel={t('app.workspace.cancel')}
+    onClose={() => (dating = undefined)}
+  >
+    <DuePanel item={dating} disabledReason={isReadOnly ? t('app.entries.read_only') : undefined} />
+  </Dialog>
+{/if}
 
 <style>
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row

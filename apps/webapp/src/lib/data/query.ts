@@ -198,9 +198,14 @@ export function sortOf(
   manifest: Capabilities | undefined,
   field: string,
   dir: 'ASC' | 'DESC',
-): readonly { field: string; dir: 'ASC' | 'DESC' }[] | undefined {
+): readonly { field: string; dir: 'ASC' | 'DESC'; nulls?: 'FIRST' | 'LAST' }[] | undefined {
   const declared = fieldNamed(manifest, field);
-  return declared?.sortable ? [{ field, dir }] : undefined;
+  if (!declared?.sortable) return undefined;
+  // `nulls` is stated for a field that can be absent, and stated as what the server already
+  // defaults to. Sorting by due date is the case that makes it worth saying: the undated are not
+  // "before everything" or "after everything" by accident, they are last because that is what a
+  // list of what is coming up means.
+  return [{ field, dir, ...(declared.nullable ? { nulls: 'LAST' as const } : {}) }];
 }
 
 /** The grouping, or nothing. Same rule: the manifest decides, never a list written here. */

@@ -220,3 +220,10 @@ test('a custom field is a second source of fields, and it filters like any other
     op: 'EQ', field: 'custom_fields.effort', value: 3,
   });
 });
+
+test('a nullable field states where the absent go, and says what the server already does', () => {
+  // Sorting by due date is the case: the undated are last because "what is coming up" means that,
+  // not because a default happened to agree. A field that cannot be absent says nothing.
+  assert.deepEqual(sortOf(tomorrow, 'due_at', 'ASC'), [{ field: 'due_at', dir: 'ASC', nulls: 'LAST' }]);
+  assert.deepEqual(sortOf(today, 'title', 'ASC'), [{ field: 'title', dir: 'ASC' }]);
+});
