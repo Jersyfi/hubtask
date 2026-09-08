@@ -1434,5 +1434,11 @@
   "app.fields.unknown_kind": "This field is of a kind this version cannot edit. A newer client will.",
   "app.fields.empty_value": "Not set",
   "app.fields.deciding": "Reading what this type carries…",
-  "app.fields.saved": "Saved."
+  "app.fields.saved": "Saved.",
+  "app.fields.pick_person": "Who this field names",
+  "app.fields.pick_filter": "Filter the people",
+  "app.fields.pick_empty": "Nobody along this entry’s path can be named here.",
+  "app.fields.pick_no_match": "Nobody here matches that.",
+  "app.fields.pick_chosen": "Named",
+  "app.fields.pick_none": "Nobody"
 }
