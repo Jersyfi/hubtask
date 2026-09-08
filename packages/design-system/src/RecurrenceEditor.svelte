@@ -297,7 +297,13 @@
     ]}
     error={hasBothEnds ? endConflictLabel : undefined}
     {disabledReason}
-    bind:value={() => end.kind, (kind: string) => setEnd(kind as RecurrenceEnd['kind'])}
+    bind:value={
+      // Nothing is chosen while the rule ends twice: ticking "it does not stop" would assert
+      // something the rule does not say, and the reader would have to work out that the tick is
+      // the editor guessing rather than the rule speaking.
+      () => (hasBothEnds ? '' : end.kind),
+      (kind: string) => setEnd(kind as RecurrenceEnd['kind'])
+    }
   />
 
   {#if end.kind === 'until'}

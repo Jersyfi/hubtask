@@ -181,7 +181,7 @@
     grid-auto-flow: column;
     /* The scale, as a step of the space scale rather than a number somebody picked (rule 15). */
     grid-auto-columns: var(--sp-300);
-    margin-inline-start: var(--sp-800);
+    margin-inline-start: var(--sp-1600);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
@@ -230,7 +230,10 @@
 
   .title {
     flex: none;
-    inline-size: var(--sp-800);
+    /* The step the scale gained for this: at the widest step it had, every entry truncated to
+       three words, which makes the axis readable and the rows useless. A value that does not
+       exist goes into tokens.json or is not needed (ADR-0029), so it went in. */
+    inline-size: var(--sp-1600);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
