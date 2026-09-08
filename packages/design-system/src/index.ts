@@ -74,6 +74,7 @@ export {
   type FieldValue,
 } from './CustomFieldRenderer.svelte';
 export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelte';
+export { default as UploadField } from './UploadField.svelte';
 
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';

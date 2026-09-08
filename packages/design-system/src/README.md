@@ -18,6 +18,14 @@ is deliberate: "a menu is fully operable from the keyboard" and "`Escape` closes
 time" are otherwise things one can only check by opening two overlays and pressing a key. As
 arithmetic they are a test that runs in `node --test`.
 
+Wave 3 has grown its people-and-fields half: `AssigneeControl` (one control for `assigneeId`
+**and** `members[]`, because the difference between them is whether choosing replaces or toggles),
+`CommentThread` (one level of replies, and *removed* as a state that keeps its author, its time
+and its place in the order rather than a hole a reply dangles under), `CustomFieldRenderer` (the
+eight kinds, `USER` as a slot so the picker is handed in rather than imported, and a ninth kind
+rendered read-only with the reason) and `UploadField` (which moves no bytes: it hands over a
+`File` and renders the progress the caller reports).
+
 Everything after them arrives through the component-layer work package (roadmap, frontend track),
 wave by wave in the order §4 proposes — not as a side effect of feature work.
 
