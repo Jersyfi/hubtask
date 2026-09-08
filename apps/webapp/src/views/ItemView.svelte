@@ -45,9 +45,11 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { customFields } from '../lib/data/customfields.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { media } from '../lib/data/media.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
@@ -92,6 +94,15 @@
   // per scope, so a re-render adds nothing.
   $effect(() => {
     if (item) people.open(peoplePath);
+  });
+
+  // The custom fields in force where this entry sits. Read here rather than passed down, because
+  // the entry is what says which collection that is, and the collection is only known once it has
+  // arrived.
+  $effect(() => {
+    const wanted = item?.collection_id;
+    if (!wanted) return;
+    return untrack(() => customFields.open(wanted));
   });
   const failure = $derived(
     entry.state.status === 'failed' ? renderProblem(entry.state.error, messages) : undefined,
@@ -340,6 +351,11 @@
           {t('app.people.share')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.fields.title')}</h2>
+      <CustomFieldPanel {item} path={peoplePath} />
     </Stack>
 
     <Stack gap="150">

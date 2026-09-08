@@ -27,6 +27,7 @@ import {
   takesValue,
   textLanguages,
 } from './query.ts';
+import { queryFieldsFor } from './customfields.ts';
 
 const field = (
   name: string,
@@ -195,4 +196,27 @@ test('sorting and grouping come from the same place as the filter', () => {
   assert.equal(sortOf(today, 'is_completed', 'ASC'), undefined, 'not sortable, so not sent');
   assert.deepEqual(groupOf(today, 'bucket_id'), { field: 'bucket_id', limit_per_group: 50 });
   assert.equal(groupOf(today, 'title'), undefined, 'not groupable, so not sent');
+});
+
+test('a custom field is a second source of fields, and it filters like any other', () => {
+  // `custom_fields.<key>` is deliberately not in `query_fields` — which keys exist is
+  // `/custom-fields`' answer — so the editor hands the definitions in force alongside the
+  // manifest's own fields rather than expecting the manifest to grow them.
+  const custom = queryFieldsFor([
+    {
+      id: 'f-1', collection_id: 'c-1', key: 'effort', kind: 'NUMBER',
+      options: [], is_required: false, applies_to: ['TASK'], version: 1,
+    } as never,
+  ]);
+
+  assert.equal(fieldNamed(today, 'custom_fields.effort'), undefined);
+  assert.equal(fieldNamed(today, 'custom_fields.effort', custom)?.kind, 'number');
+
+  const condition = { field: 'custom_fields.effort', op: 'EQ', value: '3' };
+  assert.equal(isSendable(today, condition), false, 'sendable without the definitions in hand');
+  assert.equal(isSendable(today, condition, custom), true);
+  // The value goes as a JSON number: a string sent for a NUMBER is a 422 rather than a match.
+  assert.deepEqual(filterOf(today, [condition], custom), {
+    op: 'EQ', field: 'custom_fields.effort', value: 3,
+  });
 });

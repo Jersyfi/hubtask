@@ -21,6 +21,7 @@ import {
   itemAccess,
   permissionVerdict,
   rootTypes,
+  typesWith,
 } from './capability.ts';
 
 /** The three types of `0.2.0`, as the capability matrix in domain-model.md §2 has them. */
@@ -227,4 +228,13 @@ test('the roots are the types nothing else claims as a child', () => {
 
 test('an unread manifest has no roots rather than a guess', () => {
   assert.deepEqual(rootTypes(undefined), []);
+});
+
+test('the types that carry a capability are derived, never named', () => {
+  // What a definition's `applies_to` may hold: the contract bounds it by CUSTOM_FIELDS, so an
+  // activity is not offered rather than offered and refused. An installation with a fourth type
+  // that has the capability is answered without this test knowing the type exists.
+  assert.deepEqual(typesWith(manifest, 'BUCKET'), ['TASK']);
+  assert.deepEqual(typesWith(manifest, 'NOTHING_HAS_THIS'), []);
+  assert.deepEqual(typesWith(undefined, 'BUCKET'), []);
 });

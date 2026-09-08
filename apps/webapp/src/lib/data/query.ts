@@ -25,16 +25,44 @@
 
 import type { Capabilities, FilterNode, QueryField } from '@hubtask/sync-engine';
 
+/**
+ * A field a condition can be built on.
+ *
+ * `QueryField` with its `kind` widened to a string, and both halves of that matter. The generated
+ * type closes `kind` to the eight the manifest reports, while a custom field's shape is the
+ * definition's — `number` for a `NUMBER`, which is a name the query grammar has
+ * (`core/domain/model/view/Field.go`) and the manifest's enum does not, because no column has it.
+ * Widening here is what lets the two sources be one list; a `QueryField` is a `FilterField`
+ * already, so nothing that reads the manifest changed.
+ */
+export type FilterField = Omit<QueryField, 'kind'> & { readonly kind: string };
+
 /** Every field the installation reports, in the order it reports them. */
 export function queryFields(manifest: Capabilities | undefined): readonly QueryField[] {
   return manifest?.query_fields ?? [];
 }
 
+/**
+ * The fields a condition may name: the installation's, and the ones a caller composed.
+ *
+ * The second source is the custom fields in force for the collection on screen. They are
+ * deliberately not in `query_fields` — "which keys exist is `/custom-fields`' answer" — so a
+ * caller that has read the definitions hands them in, and every function below asks this one
+ * question rather than two.
+ */
+function allFields(
+  manifest: Capabilities | undefined,
+  extra: readonly FilterField[],
+): readonly FilterField[] {
+  return [...queryFields(manifest), ...extra];
+}
+
 export function fieldNamed(
   manifest: Capabilities | undefined,
   name: string,
-): QueryField | undefined {
-  return queryFields(manifest).find((field) => field.field === name);
+  extra: readonly FilterField[] = [],
+): FilterField | undefined {
+  return allFields(manifest, extra).find((field) => field.field === name);
 }
 
 /**
@@ -44,8 +72,11 @@ export function fieldNamed(
  * why this is a filter rather than the whole list — offering `order_key` in a filter editor that
  * can express nothing about it would be offering a row that cannot be completed.
  */
-export function filterableFields(manifest: Capabilities | undefined): readonly QueryField[] {
-  return queryFields(manifest).filter((field) => (field.operators?.length ?? 0) > 0);
+export function filterableFields(
+  manifest: Capabilities | undefined,
+  extra: readonly FilterField[] = [],
+): readonly FilterField[] {
+  return allFields(manifest, extra).filter((field) => (field.operators?.length ?? 0) > 0);
 }
 
 export function sortableFields(manifest: Capabilities | undefined): readonly QueryField[] {
@@ -91,11 +122,13 @@ export function takesList(op: string): boolean {
  * identifier, a timestamp and an enum value are all strings on the wire, and a placeholder like
  * `@today` is a string this client never interprets.
  */
-function valueFor(field: QueryField, op: string, raw: string): unknown {
+function valueFor(field: FilterField, op: string, raw: string): unknown {
   const one = (text: string): unknown => {
     const trimmed = text.trim();
     if (field.kind === 'boolean') return trimmed.toLowerCase() === 'true';
-    if (field.kind === 'integer') {
+    // `number` is a custom field's; `integer` is a column's. Both travel as a JSON number, and a
+    // string sent for either is a `422` rather than a match.
+    if (field.kind === 'integer' || field.kind === 'number') {
       const parsed = Number(trimmed);
       return Number.isFinite(parsed) ? parsed : trimmed;
     }
@@ -118,8 +151,12 @@ function valueFor(field: QueryField, op: string, raw: string): unknown {
  * third one on `nullable` in so many words: "whether the field can be absent, and `IS_NULL`
  * therefore means something".
  */
-export function isSendable(manifest: Capabilities | undefined, condition: Condition): boolean {
-  const field = fieldNamed(manifest, condition.field);
+export function isSendable(
+  manifest: Capabilities | undefined,
+  condition: Condition,
+  extra: readonly FilterField[] = [],
+): boolean {
+  const field = fieldNamed(manifest, condition.field, extra);
   if (!field) return false;
   if (!field.operators?.includes(condition.op)) return false;
   if (condition.op === 'IS_NULL' && !field.nullable) return false;
@@ -140,11 +177,12 @@ export function isSendable(manifest: Capabilities | undefined, condition: Condit
 export function filterOf(
   manifest: Capabilities | undefined,
   conditions: readonly Condition[],
+  extra: readonly FilterField[] = [],
 ): FilterNode | undefined {
   const nodes = conditions
-    .filter((condition) => isSendable(manifest, condition))
+    .filter((condition) => isSendable(manifest, condition, extra))
     .map((condition) => {
-      const field = fieldNamed(manifest, condition.field)!;
+      const field = fieldNamed(manifest, condition.field, extra)!;
       const leaf: FilterNode = { op: condition.op as FilterNode['op'], field: condition.field };
       return takesValue(condition.op)
         ? { ...leaf, value: valueFor(field, condition.op, condition.value) }
