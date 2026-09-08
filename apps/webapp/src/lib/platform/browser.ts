@@ -36,6 +36,11 @@ export const platform: Platform = {
   // An object URL and a click, which is the only way a browser saves bytes it already has. The URL
   // is revoked immediately afterwards: it is a handle to memory, and one left behind keeps the
   // whole file alive for the life of the document.
+  // `navigator.languages` is the ordered list the reader configured; `language` is the first of
+  // them and is the fallback where the list is missing.
+  preferredLanguages: () =>
+    navigator.languages?.length ? [...navigator.languages] : [navigator.language].filter(Boolean),
+
   saveFile: (bytes, fileName) => {
     const url = URL.createObjectURL(bytes);
     const link = document.createElement('a');

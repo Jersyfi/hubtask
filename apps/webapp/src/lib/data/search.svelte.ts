@@ -28,7 +28,12 @@
 import type { TransportError, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { shouldWiden, widenTo } from './searchlanguages.ts';
+import {
+  canOfferRest,
+  readerLanguages,
+  remainingLanguages,
+  shouldWiden,
+} from './searchlanguages.ts';
 
 /** How many pages one search walks at most, so a slow installation cannot be asked forever. */
 const MAX_PAGES = 10;
@@ -50,6 +55,8 @@ export interface SearchAsked {
    */
   readonly readerLocale?: string;
   readonly textLanguages?: readonly string[];
+  /** The languages the reader's own browser says they read. Asked first, where indexed. */
+  readonly preferredLanguages?: readonly string[];
 }
 
 class Search {
@@ -65,6 +72,11 @@ class Search {
    * because that is the question they asked.
    */
   #foundUnder = $state<Record<string, string>>({});
+  /** The question the answers on screen belong to, so the offered widening can re-ask it. */
+  #asked = $state<SearchAsked | undefined>(undefined);
+  /** The languages already asked, and the ones left to offer. */
+  #alreadyAsked: string[] = [];
+  #remaining = $state<readonly string[]>([]);
   /** Which search the answers on screen belong to, so a slower earlier one cannot overwrite them. */
   #generation = 0;
 
@@ -94,6 +106,22 @@ class Search {
     return Object.keys(this.#foundUnder).length > 0;
   }
 
+  /**
+   * How many languages are left to look in, when looking in them is worth offering.
+   *
+   * Zero means there is nothing to offer — either something was found, or the reader chose a
+   * language, or this installation indexes nothing else.
+   */
+  get remainingCount(): number {
+    return canOfferRest({
+      found: this.#hits.length,
+      chosenLanguage: this.#asked?.language,
+      remaining: this.#remaining,
+    })
+      ? this.#remaining.length
+      : 0;
+  }
+
   /** Empties it. What clearing the field does, and what leaving the screen should do. */
   reset(): void {
     this.#generation += 1;
@@ -102,6 +130,9 @@ class Search {
     this.#error = undefined;
     this.#isPartial = false;
     this.#foundUnder = {};
+    this.#asked = undefined;
+    this.#alreadyAsked = [];
+    this.#remaining = [];
   }
 
   /**
@@ -124,6 +155,9 @@ class Search {
     this.#error = undefined;
     this.#isPartial = false;
     this.#foundUnder = {};
+    this.#asked = asked;
+    this.#alreadyAsked = [];
+    this.#remaining = [];
 
     try {
       const own = await this.#ask(term, asked, undefined, mine);
@@ -131,36 +165,90 @@ class Search {
 
       this.#hits = own;
 
-      const wider = widenTo(asked.readerLocale, asked.textLanguages ?? []);
-      if (!shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
-        this.#status = 'done';
-        return;
+      // R-08 step 8: a workspace written in one language and read in another answered "nothing
+      // matches" until somebody changed a control they had no reason to look at. So a silence is
+      // what widens, and the reader's own other languages are what it widens to — cheap, and a hit
+      // in one of them is a hit they can act on.
+      const wider = readerLanguages(
+        asked.readerLocale,
+        asked.textLanguages ?? [],
+        asked.preferredLanguages ?? [],
+      );
+      if (shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
+        if (!(await this.#widen(term, asked, wider, mine))) return;
       }
 
-      // R-08 step 8: a workspace written in one language and read in another answered "nothing
-      // matches" until somebody changed a control they had no reason to look at. So the silence is
-      // what triggers this, and every language the installation indexes is asked in turn.
-      const gathered: WorkItem[] = [];
-      const under: Record<string, string> = {};
-      for (const language of wider) {
-        const hits = await this.#ask(term, asked, language, mine);
-        if (hits === undefined) return;
-        for (const hit of hits) {
-          // The first language to find it is the one credited: asking further is about finding it
-          // at all, and two labels on one row would be a fact nobody asked for.
-          if (under[hit.id] !== undefined) continue;
-          under[hit.id] = language;
-          gathered.push(hit);
-        }
-        this.#hits = [...gathered];
-        this.#foundUnder = { ...under };
-      }
+      // What is left, for the control that offers it. Thirty round trips is not something to spend
+      // without being asked, and a subset of an alphabetical list is a guess.
+      this.#alreadyAsked = [...wider];
+      this.#remaining = remainingLanguages(asked.readerLocale, asked.textLanguages ?? [], wider);
       this.#status = 'done';
     } catch (error) {
       if (mine !== this.#generation) return;
       this.#error = error as TransportError;
       this.#status = 'failed';
     }
+  }
+
+  /**
+   * Looks in every language left, because the reader asked for it.
+   *
+   * Unbounded on purpose: a subset of a list that arrives alphabetically is a guess, and the whole
+   * of it is an answer. It costs what it costs because somebody pressed a control that said so.
+   */
+  async widenToRest(): Promise<void> {
+    const asked = this.#asked;
+    if (!asked || this.#remaining.length === 0) return;
+
+    this.#generation += 1;
+    const mine = this.#generation;
+    this.#status = 'searching';
+    this.#error = undefined;
+
+    const rest = this.#remaining;
+    try {
+      if (!(await this.#widen(asked.q.trim(), asked, rest, mine))) return;
+      this.#alreadyAsked = [...this.#alreadyAsked, ...rest];
+      this.#remaining = [];
+      this.#status = 'done';
+    } catch (error) {
+      if (mine !== this.#generation) return;
+      this.#error = error as TransportError;
+      this.#status = 'failed';
+    }
+  }
+
+  /**
+   * Asks each language in turn, adding what each finds.
+   *
+   * Answers `false` when a later search has started, which is the caller's cue to stop writing to
+   * a screen that has moved on.
+   */
+  async #widen(
+    term: string,
+    asked: SearchAsked,
+    languages: readonly string[],
+    mine: number,
+  ): Promise<boolean> {
+    const gathered: WorkItem[] = [...this.#hits];
+    const under: Record<string, string> = { ...this.#foundUnder };
+    const known = new Set(gathered.map((hit) => hit.id));
+
+    for (const language of languages) {
+      const hits = await this.#ask(term, asked, language, mine);
+      if (hits === undefined) return false;
+      for (const hit of hits) {
+        // The first language to find it is the one credited: asking further is about finding it at
+        // all, and two labels on one row would be a fact nobody asked for.
+        if (known.has(hit.id)) continue;
+        known.add(hit.id);
+        under[hit.id] = language;
+        gathered.push(hit);
+      }
+      this.#hits = [...gathered];
+      this.#foundUnder = { ...under };
+    }
+    return true;
   }
 
   /**

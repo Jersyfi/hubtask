@@ -72,6 +72,15 @@ export interface Platform {
    * (ADR-0031).
    */
   saveFile(bytes: Blob, fileName: string): void;
+
+  /**
+   * The languages this reader's device says they read, best first.
+   *
+   * Here rather than read from `navigator` in a view, for the reason every platform difference is:
+   * a shell asks its own operating system. It orders a widened search — a hit in a language
+   * somebody reads is a hit they can act on — and never decides whether one happens.
+   */
+  preferredLanguages(): readonly string[];
 }
 
 export { platform } from './browser.ts';

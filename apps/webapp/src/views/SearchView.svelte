@@ -16,6 +16,7 @@
 
   import {
     Badge,
+    Button,
     EmptyState,
     ErrorState,
     Inline,
@@ -30,6 +31,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { platform } from '../lib/platform/index.ts';
   import { textLanguages } from '../lib/data/query.ts';
   import { search } from '../lib/data/search.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -61,6 +63,10 @@
     language: language || undefined,
     readerLocale: actor.locale ?? messages.locale,
     textLanguages: languages,
+    // What the browser says this reader reads. It goes through the platform seam for the reason
+    // every platform difference does — a shell has its own answer — and it only ever orders the
+    // widening, never decides whether one happens.
+    preferredLanguages: platform.preferredLanguages(),
   });
 
   $effect(() => {
@@ -79,7 +85,7 @@
     if (search.status !== 'done') return;
     announcer.say(
       search.hits.length === 0
-        ? t(languages.length > 1 && !language ? 'app.search.widened_none' : 'app.search.none')
+        ? t(search.didWiden ? 'app.search.widened_none' : 'app.search.none')
         : t('app.search.found', { count: search.hits.length }),
     );
   });
@@ -150,11 +156,25 @@
          about exactly that — the emptiness has a cause and the sentence names it. And when the
          other languages were asked too, the sentence says so — otherwise "nothing matches" would
          be hiding how hard this looked. -->
-    <EmptyState
-      kind="filtered"
-      title={t(languages.length > 1 && !language ? 'app.search.widened_none' : 'app.search.none')}
-      icon="search"
-    />
+    <Stack gap="150">
+      <EmptyState
+        kind="filtered"
+        title={t(search.didWiden || languages.length <= 1 || language ? 'app.search.widened_none' : 'app.search.none')}
+        icon="search"
+      />
+      {#if search.remainingCount > 0}
+        <!-- Offered rather than spent. Thirty languages is thirty round trips, and the list comes
+             alphabetically, so a subset of it would be a guess — this asks the whole of it, once
+             somebody says the silence was worth the wait. It is not the picker R-08 objected to:
+             it makes no choice and needs no knowledge, and it is here exactly when it is useful. -->
+        <div>
+          <Button tone="secondary" onclick={() => void search.widenToRest()}>
+            {t('app.search.look_wider', { count: String(search.remainingCount) })}
+          </Button>
+          <p class="hint">{t('app.search.look_wider_hint')}</p>
+        </div>
+      {/if}
+    </Stack>
   {:else}
     <Stack gap="050">
       {#if search.didWiden}
