@@ -37,7 +37,10 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actorCodes, changesOf } from '../lib/data/activity.ts';
+  import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
+  import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -57,6 +60,25 @@
   const history = resource<ActivityPage>(untrack(() => activityPath(id)));
 
   const item = $derived(entry.state.status === 'ready' ? entry.state.data : undefined);
+
+  /**
+   * The path this entry sits on, which is what the memberships are composed along.
+   *
+   * The collection is on the entry; the hub is the collection's parent and comes from the
+   * container tree the frame already holds. A hub that has not arrived yet simply contributes no
+   * scope — the picker grows when it does, rather than blocking on a second request.
+   */
+  const peoplePath = $derived({
+    hubId: item ? containers.find(item.collection_id)?.parent_id ?? undefined : undefined,
+    collectionId: item?.collection_id,
+    itemId: item?.id,
+  });
+
+  // The scopes are opened once the entry has told us where it sits. `people.open` is idempotent
+  // per scope, so a re-render adds nothing.
+  $effect(() => {
+    if (item) people.open(peoplePath);
+  });
   const failure = $derived(
     entry.state.status === 'failed' ? renderProblem(entry.state.error, messages) : undefined,
   );
@@ -246,6 +268,11 @@
         </div>
       </Stack>
     {/if}
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.people.title')}</h2>
+      <AssigneePanel {item} path={peoplePath} />
+    </Stack>
 
     <Stack gap="150">
       <h2 class="section">{t('app.activity.title')}</h2>
