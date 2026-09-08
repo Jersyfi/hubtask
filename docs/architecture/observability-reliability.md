@@ -240,7 +240,7 @@ schema version — everything is reported as a code with a severity, not as free
 | Object storage (S3/MinIO) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
 | SMTP / push | Notifications stay in the queue and are caught up; no loss | The reminder arrives late, with an in-app notice |
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
-| AI provider | AI suggestions disappear, every manual route remains. One breaker **per endpoint** (J-03), because a provider is per tenant and a single breaker would let one workspace's dead endpoint switch off everybody's; `/meta/health` reports the installation's view — `disabled` until this process has called a provider at all, then `ok` or `down` — and never names an endpoint | The feature is greyed out with a reason |
+| AI provider | AI suggestions disappear, every manual route remains. One breaker **per endpoint** (J-03), because a provider is per tenant and a single breaker would let one workspace's dead endpoint switch off everybody's; `/meta/health` reports the installation's view — `disabled` until this process has called a provider at all, then `ok` or `down` — and never names an endpoint. Proved against a real stopped container in `TestRT1AStoppedContainerDegradesExactlyItsOwnFeature` (J-04, evidence [RT-1-2026-09-09.md](../evidence/RT-1-2026-09-09.md)) | The feature is greyed out with a reason |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
 | NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart (H-14, proved in `test/resilience/rt1_bus_dependency_test.go`) | No visible change |
 | Webhook recipient | Retries over 24 h, then dead letter plus a subscription warning | A warning in the integration settings |
@@ -378,7 +378,7 @@ that `slo.json` has a row for every objective, and that every panel in `tenant.j
 
 | Test | Contents | When |
 |---|---|---|
-| RT-1 Dependency failure | The test container for S3/SMTP/AI is stopped: the core stays writable, `degraded_features` is correct, recovery happens without a restart | PR |
+| RT-1 Dependency failure | The test container for S3/SMTP/AI is stopped: the core stays writable, `degraded_features` is correct, recovery happens without a restart. All three since J-04; the AI container serves the provider's wire format rather than a model, and the evidence file says why | PR |
 | RT-2 Database outage and return | Pause PostgreSQL: no panic, `readyz` red, and after it returns, operation resumes automatically without a restart | PR |
 | RT-3 Process death mid-job | `SIGKILL` during job processing: the lease expires, and the job takes effect exactly once | PR |
 | RT-4 Duplicate delivery | An event delivered twice: no duplicate effect (idempotency) | PR |

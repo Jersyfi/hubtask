@@ -12,11 +12,14 @@
 // breaker, the guarded client, the health registry, and the metrics - because the property is a
 // property of their composition, not of any one of them.
 //
-// The optional dependency here is an HTTP service standing in for the one adapter that does not
-// exist yet: the AI provider - 0.7.0 builds it, and fills this row of the degradation table with
-// a container the way C-12 filled the other two. Object storage and SMTP have outgrown the
-// stand-in: their RT-1 runs against real containers, stopped mid-flight, in
-// rt1_container_dependency_test.go. The composition both files check is the same one.
+// The optional dependency here is an in-process HTTP service. Every row of the degradation table
+// has outgrown it - object storage and SMTP since C-12, the AI provider since J-04 - and their
+// RT-1 runs against real containers, stopped mid-flight, in rt1_container_dependency_test.go.
+//
+// What this file keeps proving is the part a container makes slower rather than stronger: the
+// composition itself, against a dependency whose failure mode the test writes by hand. A handler
+// that answers 500 on demand is a worse outage and a better microscope, and it costs milliseconds -
+// so it stays as the fast half, and the container test is the true one.
 package resilience
 
 import (
