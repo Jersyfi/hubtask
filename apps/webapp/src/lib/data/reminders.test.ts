@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import type { Reminder, WorkItem } from '@hubtask/sync-engine';
 
 import {
+  belongsToSeries,
   endOf,
   isPending,
   isRelative,
@@ -14,7 +15,6 @@ import {
   mayAddAnother,
   relativeRefusal,
   reminderLimitOf,
-  seriesSourceOf,
 } from './reminders.ts';
 
 const item = (over: Partial<WorkItem> = {}) => ({ id: 'i-1', title: 'x', ...over }) as WorkItem;
@@ -66,9 +66,11 @@ test('the add control is bounded by the manifest, and an absent bound is not a b
   assert.equal(mayAddAnother(9000, undefined), true);
 });
 
-test('an occurrence names the entry it came from', () => {
-  assert.equal(seriesSourceOf(item({ recurrence_source_id: 'i-0' } as never)), 'i-0');
-  assert.equal(seriesSourceOf(item()), undefined);
+test('belonging to a series is one question, because the contract answers one', () => {
+  // `recurrence_rule_id` is on the template and on every occurrence alike, so it says "this
+  // belongs to a series" and nothing about which end. Telling them apart is a request per row.
+  assert.equal(belongsToSeries(item({ recurrence_rule_id: 'r-1' } as never)), true);
+  assert.equal(belongsToSeries(item()), false);
 });
 
 test('a rule states at most one end', () => {

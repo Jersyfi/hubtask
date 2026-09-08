@@ -23,6 +23,7 @@ import type {
   ReminderInput,
   ReminderUpdate,
   ResourceState,
+  TransportError,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -123,10 +124,15 @@ class Series {
     return state?.status === 'failed' && state.error.status === 404;
   }
 
-  /** A failure that is not the absence of a series. */
-  failureOf(itemId: string): ResourceState<Recurrence> | undefined {
+  /**
+   * A failure that is not the absence of a series — the error itself, ready to be rendered.
+   *
+   * The error rather than the state, so a caller does not have to narrow a union to reach it: the
+   * one question worth asking here is "is something wrong", and 404 is not.
+   */
+  failureOf(itemId: string): TransportError | undefined {
     const state = this.#rules[recurrencePath(itemId)];
-    return state?.status === 'failed' && state.error.status !== 404 ? state : undefined;
+    return state?.status === 'failed' && state.error.status !== 404 ? state.error : undefined;
   }
 
   isReading(itemId: string): boolean {

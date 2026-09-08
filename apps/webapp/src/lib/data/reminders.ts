@@ -93,13 +93,18 @@ export function reminderLimitOf(limits: Record<string, unknown> | undefined): nu
 // --- the series ---------------------------------------------------------------------------------
 
 /**
- * Whether the entry is an occurrence of a series rather than the entry the series belongs to.
+ * Whether the entry belongs to a series at all — as its template, or as one of its occurrences.
  *
- * The contract carries `recurrence_source_id` on an occurrence, naming the entry it was copied
- * from. A row that has one links up to it; a row that *is* one carries the series itself.
+ * **One question, because the contract answers only one.** `recurrence_rule_id` is set on the
+ * template *and* on every occurrence (`MaterializeOccurrences.go` writes it onto each copy), so it
+ * says "this belongs to a series" and nothing about which end. Telling the two apart takes reading
+ * `/items/{id}/recurrence`, which finds the rule by `source_item_id` and therefore answers `404`
+ * for an occurrence — a request per row, which a list will not make.
+ *
+ * So a row carries one mark. The entry screen, which does read the rule, can say which end it is.
  */
-export function seriesSourceOf(item: WorkItem): string | undefined {
-  return (item as { recurrence_source_id?: string | null }).recurrence_source_id ?? undefined;
+export function belongsToSeries(item: WorkItem): boolean {
+  return Boolean((item as { recurrence_rule_id?: string | null }).recurrence_rule_id);
 }
 
 /**
