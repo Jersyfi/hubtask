@@ -253,3 +253,21 @@ export type ReminderChannel = components['schemas']['ReminderChannel'];
 export type Recurrence = components['schemas']['Recurrence'];
 export type RecurrenceInput = components['schemas']['RecurrenceInput'];
 export type RecurrenceMode = components['schemas']['RecurrenceMode'];
+
+/**
+ * A shape the workspace stamps out.
+ *
+ * The tree is nested rather than flat — "each node carries its own children, so the document is the
+ * shape the template stamps out rather than a flat list with parent pointers" — and it travels
+ * whole on an update, because half a shape is a different shape.
+ */
+export type Template = components['schemas']['Template'];
+/** One node of that tree. Its due date is an offset from the anchor, never an absolute date. */
+export type TemplateNode = components['schemas']['TemplateNode'];
+export type TemplateInput = components['schemas']['TemplateInput'];
+export type TemplateUpdate = components['schemas']['TemplateUpdate'];
+export type TemplatePage = components['schemas']['TemplatePage'];
+export type TemplateScope = components['schemas']['TemplateScope'];
+export type TemplateInstantiation = components['schemas']['TemplateInstantiation'];
+/** What one stamping produced: the root, how many entries, and what the destination could not carry. */
+export type TemplateInstance = components['schemas']['TemplateInstance'];
