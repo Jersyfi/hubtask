@@ -20,6 +20,7 @@
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
 
   import { containers } from '../data/containers.svelte.ts';
+  import { live } from '../data/live.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -63,8 +64,17 @@
     if (hubId && !expanded.includes(hubId)) expanded = [...expanded, hubId];
   });
 
+  /**
+   * The tree, with what this reader has lost taken out of it.
+   *
+   * `offline-sync.md` §6 and §9 rule 3: a client deletes what it holds for a container it lost. The
+   * server will stop answering it on the next read, and the sidebar is what somebody is looking at
+   * in the meantime — a row they can click and be refused by is worse than a row that has gone.
+   */
   const nodes = $derived(
-    containers.hubs.map((hub) => ({
+    containers.hubs
+      .filter((hub) => !live.hasLost(hub.id))
+      .map((hub) => ({
       id: hub.id,
       label: hub.name,
       icon: 'hub' as const,
@@ -72,11 +82,14 @@
       // any is not known until it is opened, and a hub with no twist is a hub nobody can open to
       // find out. `isBranch` is what says so without inventing a placeholder child.
       isBranch: true,
-      children: containers.collectionsOf(hub.id).map((collection) => ({
-        id: collection.id,
-        label: collection.name,
-        icon: 'collection' as const,
-      })),
+      children: containers
+        .collectionsOf(hub.id)
+        .filter((collection) => !live.hasLost(collection.id))
+        .map((collection) => ({
+          id: collection.id,
+          label: collection.name,
+          icon: 'collection' as const,
+        })),
     })),
   );
 
