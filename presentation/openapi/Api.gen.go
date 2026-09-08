@@ -6161,10 +6161,17 @@ type WorkItem struct {
 	OrderKey  *string               `json:"order_key,omitempty"`
 
 	// OriginJumbleId The jumble entry this item was converted out of (G-10). Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
-	OriginJumbleId   *openapi_types.UUID `json:"origin_jumble_id,omitempty"`
-	ParentId         *openapi_types.UUID `json:"parent_id,omitempty"`
-	Path             *string             `json:"path,omitempty"`
+	OriginJumbleId *openapi_types.UUID `json:"origin_jumble_id,omitempty"`
+	ParentId       *openapi_types.UUID `json:"parent_id,omitempty"`
+	Path           *string             `json:"path,omitempty"`
+
+	// RecurrenceRuleId The series this entry belongs to, and null for an entry that repeats never. It is set on the template *and* on every occurrence, so it says that a series is involved rather than which end of one this is - `recurrence_source_id` says that.
 	RecurrenceRuleId *openapi_types.UUID `json:"recurrence_rule_id,omitempty"`
+
+	// RecurrenceSourceId The entry this one was copied from as an occurrence, and null on the template and on everything that is not an occurrence. It is what an occurrence links up to: `GET /items/{id}/recurrence` resolves a rule by the entry it belongs to, so an occurrence asking for its own series answers 404 and has to ask its source instead.
+	//
+	// Provenance, set once by the materialisation and never cleared - a copy does not stop having come from somewhere when the entry it came from is deleted. Server-owned: a client that sent one would be claiming an occurrence it did not produce.
+	RecurrenceSourceId *openapi_types.UUID `json:"recurrence_source_id,omitempty"`
 
 	// Retention Set for as long as a retention rule applies to this object.
 	Retention *RetentionState `json:"retention,omitempty"`

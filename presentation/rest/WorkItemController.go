@@ -324,6 +324,14 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		originID := uuidValue(origin)
 		item.OriginJumbleId = &originID
 	}
+	if rule := out.String("recurrence_rule_id"); rule != "" {
+		ruleID := uuidValue(rule)
+		item.RecurrenceRuleId = &ruleID
+	}
+	if source := out.String("recurrence_source_id"); source != "" {
+		sourceID := uuidValue(source)
+		item.RecurrenceSourceId = &sourceID
+	}
 	// Present exactly when automatic assignment ran (C-02): the outcome of an :auto-assign call,
 	// or of a create a policy applied to. Absent means it did not run, which is a different
 	// answer from "it ran and assigned nobody".
