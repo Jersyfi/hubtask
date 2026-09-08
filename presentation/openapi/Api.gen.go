@@ -1881,6 +1881,7 @@ func (e ReminderChannel) Valid() bool {
 // Defines values for ReminderState.
 const (
 	ReminderStateCANCELLED ReminderState = "CANCELLED"
+	ReminderStateLAPSED    ReminderState = "LAPSED"
 	ReminderStatePENDING   ReminderState = "PENDING"
 	ReminderStateSENT      ReminderState = "SENT"
 )
@@ -1889,6 +1890,8 @@ const (
 func (e ReminderState) Valid() bool {
 	switch e {
 	case ReminderStateCANCELLED:
+		return true
+	case ReminderStateLAPSED:
 		return true
 	case ReminderStatePENDING:
 		return true
@@ -5060,6 +5063,8 @@ type Reminder struct {
 	Recipients []openapi_types.UUID `json:"recipients"`
 
 	// State Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+	//
+	// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
 	State     ReminderState `json:"state"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
@@ -5079,6 +5084,8 @@ type ReminderInput struct {
 }
 
 // ReminderState Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+//
+// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
 type ReminderState string
 
 // ReminderUpdate A merge patch. An absent member is not touched; a member that is sent replaces what is stored, lists included - channels and recipients are chosen whole.
@@ -6761,8 +6768,8 @@ type DeleteCommentParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// EditCommentJSONBody defines parameters for EditComment.
-type EditCommentJSONBody struct {
+// EditCommentApplicationMergePatchPlusJSONBody defines parameters for EditComment.
+type EditCommentApplicationMergePatchPlusJSONBody struct {
 	Body string `json:"body"`
 }
 
@@ -7197,8 +7204,8 @@ type ShareSavedViewParams struct {
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
-// UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
-type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
+// UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
+type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
@@ -7209,8 +7216,8 @@ type InviteAccountJSONRequestBody = AccountInvite
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
-// UpdateTenantQuotasJSONRequestBody defines body for UpdateTenantQuotas for application/json ContentType.
-type UpdateTenantQuotasJSONRequestBody = TenantQuotas
+// UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
+type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
 
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
@@ -7266,8 +7273,8 @@ type StartInboundRunJSONRequestBody StartInboundRunJSONBody
 // CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
 type CreateRuleJSONRequestBody = AutomationRuleCreate
 
-// UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
-type UpdateRuleJSONRequestBody = AutomationRuleUpdate
+// UpdateRuleApplicationMergePatchPlusJSONRequestBody defines body for UpdateRule for application/merge-patch+json ContentType.
+type UpdateRuleApplicationMergePatchPlusJSONRequestBody = AutomationRuleUpdate
 
 // TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
 type TestRuleJSONRequestBody = RuleTest
@@ -7320,8 +7327,8 @@ type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefi
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
 
-// UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
-type UpdateGroupJSONRequestBody = GroupUpdate
+// UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
+type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
@@ -7335,8 +7342,8 @@ type HttpRequestJSONRequestBody = HttpRequestCall
 // CreateWebhookSubscriptionJSONRequestBody defines body for CreateWebhookSubscription for application/json ContentType.
 type CreateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionCreate
 
-// UpdateWebhookSubscriptionJSONRequestBody defines body for UpdateWebhookSubscription for application/json ContentType.
-type UpdateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionUpdate
+// UpdateWebhookSubscriptionApplicationMergePatchPlusJSONRequestBody defines body for UpdateWebhookSubscription for application/merge-patch+json ContentType.
+type UpdateWebhookSubscriptionApplicationMergePatchPlusJSONRequestBody = WebhookSubscriptionUpdate
 
 // RotateWebhookSecretJSONRequestBody defines body for RotateWebhookSecret for application/json ContentType.
 type RotateWebhookSecretJSONRequestBody = WebhookSecretRotation
@@ -7353,8 +7360,8 @@ type UpdateWorkItemApplicationMergePatchPlusJSONRequestBody = WorkItemUpdate
 // AddCommentJSONRequestBody defines body for AddComment for application/json ContentType.
 type AddCommentJSONRequestBody AddCommentJSONBody
 
-// EditCommentJSONRequestBody defines body for EditComment for application/json ContentType.
-type EditCommentJSONRequestBody EditCommentJSONBody
+// EditCommentApplicationMergePatchPlusJSONRequestBody defines body for EditComment for application/merge-patch+json ContentType.
+type EditCommentApplicationMergePatchPlusJSONRequestBody EditCommentApplicationMergePatchPlusJSONBody
 
 // SetCoverJSONRequestBody defines body for SetCover for application/json ContentType.
 type SetCoverJSONRequestBody = CoverInput
@@ -7371,8 +7378,8 @@ type SetRecurrenceJSONRequestBody = RecurrenceInput
 // CreateReminderJSONRequestBody defines body for CreateReminder for application/json ContentType.
 type CreateReminderJSONRequestBody = ReminderInput
 
-// UpdateReminderJSONRequestBody defines body for UpdateReminder for application/json ContentType.
-type UpdateReminderJSONRequestBody = ReminderUpdate
+// UpdateReminderApplicationMergePatchPlusJSONRequestBody defines body for UpdateReminder for application/merge-patch+json ContentType.
+type UpdateReminderApplicationMergePatchPlusJSONRequestBody = ReminderUpdate
 
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
@@ -7431,8 +7438,8 @@ type WithdrawConsentJSONRequestBody = ConsentWithdrawal
 // CreateDataSubjectRequestJSONRequestBody defines body for CreateDataSubjectRequest for application/json ContentType.
 type CreateDataSubjectRequestJSONRequestBody = DataSubjectRequestCreate
 
-// UpdateDataSubjectRequestJSONRequestBody defines body for UpdateDataSubjectRequest for application/json ContentType.
-type UpdateDataSubjectRequestJSONRequestBody = DataSubjectRequestUpdate
+// UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody defines body for UpdateDataSubjectRequest for application/merge-patch+json ContentType.
+type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubjectRequestUpdate
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -7452,8 +7459,8 @@ type SyncPushJSONRequestBody = SyncPushRequest
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = TemplateInput
 
-// UpdateTemplateJSONRequestBody defines body for UpdateTemplate for application/json ContentType.
-type UpdateTemplateJSONRequestBody = TemplateUpdate
+// UpdateTemplateApplicationMergePatchPlusJSONRequestBody defines body for UpdateTemplate for application/merge-patch+json ContentType.
+type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation

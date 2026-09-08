@@ -114,7 +114,7 @@ func (c *RestController) UpdateTemplate(
 		return
 	}
 
-	var body openapi.UpdateTemplateJSONRequestBody
+	var body openapi.UpdateTemplateApplicationMergePatchPlusJSONRequestBody
 	if err := decodeJSON(r, &body); err != nil {
 		WriteProblem(w, err, requestID)
 		return

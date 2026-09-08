@@ -511,9 +511,13 @@ func (h CreateSavedView) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "sharing", Kind: usecase.KindString,
-				Enum: []string{"PRIVATE", "SCOPE"},
+				// PUBLIC_LINK is in the set the contract declares, so that the domain's refusal
+				// by name is the answer a caller gets. Leaving it out made the registry refuse it
+				// first, with a generic code, and `views.public_link_not_available` unreachable
+				// (issue #427).
+				Enum: []string{"PRIVATE", "SCOPE", "PUBLIC_LINK"},
 				Description: "Who sees the view. Omitted is PRIVATE. SCOPE at creation asks the " +
-					"same STRUCTURE permission :share does.",
+					"same STRUCTURE permission :share does. PUBLIC_LINK is refused by name.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

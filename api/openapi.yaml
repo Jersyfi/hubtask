@@ -144,7 +144,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/TemplateUpdate"
       responses:
@@ -639,7 +639,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/AutomationRuleUpdate"
       responses:
@@ -1182,7 +1182,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/WebhookSubscriptionUpdate"
       responses:
@@ -2310,7 +2310,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/AccountPreferences"
       responses:
@@ -3131,7 +3131,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/TenantQuotas"
       responses:
@@ -3486,7 +3486,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema: { $ref: "#/components/schemas/DataSubjectRequestUpdate" }
       responses:
         "200":
@@ -3720,7 +3720,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/GroupUpdate"
       responses:
@@ -4772,7 +4772,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               type: object
               required: [body]
@@ -5536,7 +5536,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/ReminderUpdate"
       responses:
@@ -9281,11 +9281,18 @@ components:
 
     ReminderState:
       type: string
-      enum: [PENDING, SENT, CANCELLED]
+      enum: [PENDING, SENT, CANCELLED, LAPSED]
       description: >
         Where the reminder stands, written by the server and never by a client: PENDING until it
         fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it
         rather than cancelling it.
+
+
+        LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder
+        whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an
+        auditor reading hundreds of cancellations nobody made, and not PENDING, which would have
+        the scheduler send every one of them at once. To a device it means what a cancellation
+        means - do not remind (offline-sync.md §8).
 
     ReminderInput:
       type: object

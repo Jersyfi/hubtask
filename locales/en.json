@@ -724,6 +724,7 @@
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",
   "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working.",
+  "ai.unavailable": "AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.",
   "dependency.timeout": "{dependency} did not answer in time. Please try again in a moment.",
   "dependency.circuit_open": "{dependency} is unreachable at the moment. Hubtask has stopped calling it and will try again shortly.",
   "dependency.saturated": "{dependency} is busy. Please try again in a moment.",

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -451,20 +452,39 @@ func TestDeletingAViewRemovesAndRecords(t *testing.T) {
 
 // The untyped door: PUBLIC_LINK is refused by name wherever it arrives, and the update refuses an
 // empty patch.
+// Through the registry rather than through the handler, because the registry is what a request
+// meets: it validates the input against the descriptor before the handler is entered. Calling the
+// handler directly skips that step, which is how PUBLIC_LINK came to be tested here and refused
+// with a generic code in production (issue #427).
 func TestTheViewChannelsRefuseWhatTheModelRefuses(t *testing.T) {
 	h := newSavedViewHarness(t)
 	own := h.withView(accountID, view.SharingPrivate)
+	registry, err := usecase.NewRegistry(nil,
+		h.share.Descriptor(), h.update.Descriptor(), h.get.Descriptor(), h.create.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused an entry: %v", err)
+	}
 
-	_, err := h.share.Descriptor().Handler.Invoke(context.Background(), viewActor(),
-		map[string]any{"view_id": own.ID.String(), "sharing": "PUBLIC_LINK"})
-	refusal := shared.AsError(err)
-	if refusal == nil || refusal.DetailCode != "views.public_link_not_available" {
-		t.Fatalf("PUBLIC_LINK answered %v", err)
+	for name, in := range map[string]usecase.Input{
+		ShareSavedViewName: {"view_id": own.ID.String(), "sharing": "PUBLIC_LINK"},
+		CreateSavedViewName: {
+			"scope_type": "ACCOUNT", "name": "Mine", "layout": "LIST",
+			"query": map[string]any{
+				"filter": map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
+			},
+			"sharing": "PUBLIC_LINK",
+		},
+	} {
+		_, err := registry.Invoke(context.Background(), name, viewActor(), in)
+		refusal := shared.AsError(err)
+		if refusal == nil || refusal.DetailCode != "views.public_link_not_available" {
+			t.Errorf("%s answered %v, want views.public_link_not_available", name, err)
+		}
 	}
 
 	_, err = h.update.Descriptor().Handler.Invoke(context.Background(), viewActor(),
 		map[string]any{"view_id": own.ID.String()})
-	refusal = shared.AsError(err)
+	refusal := shared.AsError(err)
 	if refusal == nil || refusal.DetailCode != "views.update_empty" {
 		t.Fatalf("an empty patch answered %v", err)
 	}

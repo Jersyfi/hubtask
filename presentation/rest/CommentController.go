@@ -86,7 +86,7 @@ func (c *RestController) EditComment(
 		return
 	}
 
-	var body openapi.EditCommentJSONRequestBody
+	var body openapi.EditCommentApplicationMergePatchPlusJSONRequestBody
 	if err := decodeJSON(r, &body); err != nil {
 		WriteProblem(w, err, requestID)
 		return
