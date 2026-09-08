@@ -21,7 +21,7 @@ Which means:
 | File | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
-| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and the whole of `make gate-selftest`, whose probes for those two are skipped where there is no PostgreSQL, the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
+| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and the whole of `make gate-selftest`, whose probes for those two are skipped where there is no PostgreSQL, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `codeql.yml` | PR, schedule | Static security analysis |

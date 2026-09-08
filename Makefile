@@ -48,6 +48,12 @@ PROMTOOL_SHA256_linux_arm64  := f7e66b9d47e86988fe8e7cb5a5b326cab6c56f5a74ba7133
 # The chart declares kubeVersion >= 1.28. helm renders against a much older version unless it is
 # told otherwise, so the gate says which cluster it is rendering for.
 KUBE_VERSION          := 1.30.0
+# The CloudNativePG operator gate-pitr installs, pinned by version *and* by checksum for the same
+# reason promtool is: a manifest fetched without one is a supply chain decision made by whoever
+# happens to be on the network (ADR-0015). It is applied to a throwaway kind cluster and never to
+# anything this project runs - production's operator is the platform's.
+CNPG_VERSION          := 1.30.0
+CNPG_SHA256           := f8bede43fe4ee0d478c2355b204a36876b2ae4faac60f2a9452280b293da3b88
 
 export CGO_ENABLED := 0
 
@@ -598,6 +604,21 @@ gate-observability:
 	@# The structural half - every alert has a runbook, every runbook an alert - is a Go test, so
 	@# that it runs in `make verify` without needing a downloaded tool (test/observability).
 	$(call go_test,,./test/observability/...,)
+
+## gate-pitr: RT-9 against a real CloudNativePG operator and object store (expects a kind cluster)
+# The one gate that proves the point-in-time recovery rather than rendering it: a base backup into
+# MinIO, WAL archiving, two marker writes, a temporary cluster recovered to a moment between them,
+# and the first marker present with the second absent. It also scrapes the operator's real metrics
+# endpoint, because a rule reading a name nobody publishes is silent rather than noisy - the half
+# a promtool test cannot reach (observability-reliability.md §11).
+#
+# Nightly rather than per pull request, like every other gate that needs a cluster: it installs an
+# operator, waits for a base backup and restores a database, which is fifteen minutes on a good
+# day. What it measures is the runner, so no number it produces is recorded anywhere.
+.PHONY: gate-pitr
+gate-pitr: docker-build
+	$(call require_tool,helm)
+	CNPG_VERSION=$(CNPG_VERSION) CNPG_SHA256=$(CNPG_SHA256) scripts/pitr-drill.sh $(VERSION)
 
 ## gate-kind: Install the chart into a real cluster (expects a kind cluster to exist)
 .PHONY: gate-kind

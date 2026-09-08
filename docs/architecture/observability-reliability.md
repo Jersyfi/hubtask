@@ -373,7 +373,7 @@ that `slo.json` has a row for every objective, and that every panel in `tenant.j
 | RT-6 Overload | A load test beyond capacity: load shedding engages, P95 on the interactive paths stays within target, no OOM | Nightly *(in `gate-load` since H-11; first run in [docs/evidence/RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md))* |
 | RT-7 Automation loop | A rule pair A↔B: the causality bound stops it, the rule is disabled, the alert metric rises | PR |
 | RT-8 Rolling update | A deployment with the N−1/N schema under load: no `5xx`, no data loss | Nightly |
-| RT-9 Restore | Import a backup, run the consistency and isolation checks | Per release |
+| RT-9 Restore | A point-in-time recovery to a moment between two writes, then the consistency and isolation checks against what came back | Per release *(in the cluster, as a release hook and a weekly `CronJob`; the path itself is proved nightly in `gate-pitr` on kind with a real CloudNativePG operator and object store, because production does not exist yet — `backup-restore.md` §8.5)* |
 | RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double firing and no missed firing | PR *(in `gate-resilience` since D-05; first run in [docs/evidence/RT-10-2026-08-26.md](../evidence/RT-10-2026-08-26.md))* |
 | RT-11 Memory leak test | 1 h of sustained load: `GOMEMLIMIT` held, the goroutine count stable | Nightly |
 | RT-12 Observability completeness | Every use case produces a metric plus a span; reconciled against the use case registry | PR (gate) |

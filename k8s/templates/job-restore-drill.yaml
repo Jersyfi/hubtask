@@ -7,10 +7,15 @@ what it does is in its own documentation. What this template decides is when it 
 may touch.
 
 After the release rather than before it, because the drill proves the archive the *running*
-version writes, and because a drill that fails must not stop a rollout: a release whose PITR
-proof failed is a page (the record stays on the previous success and A-20 keeps counting), not a
-release that did not happen. Under Argo CD the Helm hook is ignored in favour of the PostSync
-annotation, which says the same thing in Argo's words.
+version writes. Under Argo CD the Helm hook is ignored in favour of the PostSync annotation, which
+says the same thing in Argo's words.
+
+**And a failed hook fails the sync**, in both Helm and Argo CD - which is the wrong outcome for
+this one hook, so the drill decides its own exit code (`restoreDrill.failRelease`, off by default).
+A release whose recovery proof failed is a page rather than a release that should not have
+happened, and blocking deploys on a broken archive blocks the deploy that would fix it. The finding
+travels in the record, in A-20 and in an error line instead. A drill that could not *start* is a
+different thing and fails the job whatever that value says.
 
 The drill is the one thing in this chart that talks to the Kubernetes API: it creates and deletes
 a Cluster and writes a ConfigMap, so it gets a ServiceAccount with a token mounted, a Role naming
@@ -92,6 +97,8 @@ spec:
           value: {{ $drill.timeout | quote }}
         - name: HUBTASK_DRILL_KEEP_ON_FAILURE
           value: {{ $drill.keepOnFailure | quote }}
+        - name: HUBTASK_DRILL_FAIL_RELEASE
+          value: {{ $drill.failRelease | quote }}
         {{- if $drill.evidence.bucket }}
         # The operator's location for what the drill measured. Opaque here: a bucket, a prefix.
         - name: HUBTASK_DRILL_EVIDENCE_BUCKET

@@ -16,11 +16,22 @@
 # so that joining it is a decision. The chart ships this file as a PrometheusRule when
 # `database.enabled` and `serviceMonitor.enabled` (k8s/templates/prometheusrule.yaml).
 #
-# **The metric names are the operator's, and they are checked rather than trusted.** A rule
-# reading a series that does not exist is silent, not noisy, which is the failure mode
-# `make gate-selftest` exists for. `scripts/pitr-drill.sh` scrapes a real CloudNativePG instance
-# in CI and fails if any name below is missing from it - so a rename in a future operator version
-# turns a build red rather than turning this file into decoration.
+# **The metric names are the operator's, and they are checked rather than trusted.** A rule reading
+# a series that does not exist is silent, not noisy, which is the failure mode `make gate-selftest`
+# exists for - and a synthetic rules test cannot catch it, because a test invents its own input.
+# `scripts/pitr-drill.sh` scrapes a real CloudNativePG instance in CI and fails if any name below is
+# missing from that scrape, so a rename in a future operator version turns a build red rather than
+# turning this file into decoration. Every name here was read from the operator's own source and
+# sample scrape at v1.30.0 before it was written down.
+#
+# **Two of them are deprecated, and are used anyway - deliberately.**
+# `cnpg_collector_last_available_backup_timestamp` and `cnpg_collector_first_recoverability_point`
+# carry a deprecation notice since operator 1.26, and the notice says they keep working for exactly
+# the backup method this installation uses: the in-core Barman Cloud one. That method is itself on
+# the operator's deprecation path in favour of the Barman Cloud plugin (see
+# k8s/templates/cnpg-cluster.yaml), so these two rules move when the backup method does - one
+# migration, not two. Until then a working deprecated series is better than no series, and the CI
+# scrape above is what will notice the day they stop being published.
 #
 # What is deliberately *not* alerted on here: the measured RPO and RTO of a drill. Those are
 # numbers, they stay internal (decision 7 of the 0.6.0 backlog), and a threshold in a public
@@ -55,21 +66,30 @@ groups:
             the database. Every queued segment is data a recovery would not replay.
           runbook: RB-A12-backup-stale.md
 
-      - alert: HubtaskArchiveFailing
-        # The same gap seen from the other side: the archiver reporting failures. It can fail
-        # without a queue building - credentials that expired, a bucket policy that changed - and
-        # then the ready-count above stays low while nothing is being archived at all.
+      - alert: HubtaskArchiveBacklog
+        # The same queue, seen slowly. The rule above catches a queue that jumps; this one catches
+        # one that never drains - half an hour in which the backlog did not once fall below five
+        # segments. That is the shape of an archiver that is failing rather than lagging:
+        # credentials that expired, a bucket policy that changed. A failed archive_command leaves
+        # its `.ready` file in place, so the queue is the failure signal as well as the lag signal,
+        # and the two rules are the same series read over two windows.
+        #
+        # `min_over_time` rather than an average: one drain to zero inside the window means the
+        # archiver is working, however badly, and this rule is about the case where it is not.
         expr: |
-          increase(cnpg_pg_stat_archiver_failed_count[15m]) > 0
-        for: 15m
+          min by (namespace, pod) (
+            min_over_time(cnpg_collector_pg_wal_archive_status{value="ready"}[30m])
+          ) > 5
+        for: 10m
         labels:
           severity: page
           alert_id: A-12
         annotations:
-          summary: "The WAL archiver is failing"
+          summary: "The WAL archive backlog is not draining"
           description: >
-            Archiving to the object store is returning errors. The backup target, its credentials
-            or its policy is the place to look; until it works, the recovery window stands still.
+            Segments have been waiting to be archived for half an hour without the queue once
+            clearing. The backup target, its credentials or its policy is the place to look; until
+            it works, the recovery window stands still.
           runbook: RB-A12-backup-stale.md
 
       - alert: HubtaskBaseBackupStale

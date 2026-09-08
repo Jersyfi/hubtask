@@ -58,6 +58,14 @@ func main() {
 	defer cancel()
 
 	if err := newDrill(cfg, kube, logger).run(ctx); err != nil {
-		os.Exit(1)
+		// The drill ran and found something. Whether that ends the release is a decision, not a
+		// property of the failure - see config.FailRelease. The finding is already in the record,
+		// in the alerts that read it, and in the error line the run wrote.
+		if cfg.FailRelease {
+			os.Exit(1)
+		}
+		logger.Warn("the drill failed and this job reports success by configuration",
+			slog.String("error_code", "restore_drill.failed"),
+			slog.String("remedy", "set restoreDrill.failRelease to stop a release on this"))
 	}
 }

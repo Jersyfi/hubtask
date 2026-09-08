@@ -46,14 +46,14 @@ tests:
         alertname: HubtaskArchiveGap
         exp_alerts: []
 
-  # The archiver counts a failure a minute for twenty minutes.
+  # A backlog that never drains: eight segments waiting, below the spike threshold, for an hour.
   - interval: 1m
     input_series:
-      - series: 'cnpg_pg_stat_archiver_failed_count{namespace="hubtask", pod="hubtask-db-1"}'
-        values: '0+1x40'
+      - series: 'cnpg_collector_pg_wal_archive_status{namespace="hubtask", pod="hubtask-db-1", value="ready"}'
+        values: '8x90'
     alert_rule_test:
-      - eval_time: 25m
-        alertname: HubtaskArchiveFailing
+      - eval_time: 60m
+        alertname: HubtaskArchiveBacklog
         exp_alerts:
           - exp_labels:
               namespace: hubtask
@@ -61,19 +61,24 @@ tests:
               severity: page
               alert_id: A-12
             exp_annotations:
-              summary: "The WAL archiver is failing"
-              description: "Archiving to the object store is returning errors. The backup target, its credentials or its policy is the place to look; until it works, the recovery window stands still.\n"
+              summary: "The WAL archive backlog is not draining"
+              description: "Segments have been waiting to be archived for half an hour without the queue once clearing. The backup target, its credentials or its policy is the place to look; until it works, the recovery window stands still.\n"
               runbook: RB-A12-backup-stale.md
+      # And the spike rule stays quiet at eight: the two thresholds are different questions.
+      - eval_time: 60m
+        alertname: HubtaskArchiveGap
+        exp_alerts: []
 
-  # An old failure that stopped: the counter stands still, and the alert clears rather than
-  # remembering it forever. This is the direction a counter-based rule gets wrong.
+  # A busy database whose queue does drain: it reaches eight repeatedly and returns to zero, which
+  # is an archiver working under load rather than one that has stopped. This is the direction a
+  # rule written with avg_over_time gets wrong.
   - interval: 1m
     input_series:
-      - series: 'cnpg_pg_stat_archiver_failed_count{namespace="hubtask", pod="hubtask-db-1"}'
-        values: '0 1 2 3 3x60'
+      - series: 'cnpg_collector_pg_wal_archive_status{namespace="hubtask", pod="hubtask-db-1", value="ready"}'
+        values: '8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0 8 8 8 8 8 0'
     alert_rule_test:
-      - eval_time: 55m
-        alertname: HubtaskArchiveFailing
+      - eval_time: 60m
+        alertname: HubtaskArchiveBacklog
         exp_alerts: []
 
   # The newest base backup is three days old. The test clock starts at zero, so a backup 48 hours

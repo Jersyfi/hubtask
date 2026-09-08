@@ -21,6 +21,16 @@ what gives the RPO, and the retention window is bounded on both sides - it must 
 the bucket's Object Lock retention (or the plan's own cleanup fails against the lock) and at or
 below P-5's 35 days (or data-protection.md §12's promise is not kept). Both are 35 days by
 decision, and the inequality is written on the key rather than assumed.
+
+**`barmanObjectStore` is deprecated in the operator, and is used anyway - with an end in sight.**
+CloudNativePG deprecated the in-core Barman Cloud integration in 1.26 in favour of the Barman Cloud
+plugin, and `backup.retentionPolicy` with it; both still work and `barmanObjectStore` is still the
+default backup method for backward compatibility. Moving to the plugin means installing a component
+into the cluster - which is the platform's decision, not this chart's - and it moves the two
+deprecated metrics A-12's rules read at the same time. So it is one migration to make deliberately
+rather than two to stumble into, and it is written down in
+docs/backlog/blocked-production-namespace.md rather than left for somebody to discover from a
+release note.
 */}}
 {{- if .Values.database.enabled }}
 {{- $db := .Values.database }}

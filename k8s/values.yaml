@@ -166,6 +166,13 @@ restoreDrill:
   # Leave a failed drill's temporary cluster behind for somebody to look at. Off, because a
   # cluster left behind is quota the next drill does not have.
   keepOnFailure: false
+  # Whether a drill that ran and found something fails the release that ran it. Off, and the
+  # reasoning is the reason the drill is a *post*-release hook at all: a release whose recovery
+  # proof failed is a page, not a release that should not have happened - and blocking deploys on a
+  # broken archive blocks the deploy that would fix it. The finding is carried by the record, by
+  # A-20 and by an error line, which is where somebody can act on it. A configuration error fails
+  # the job regardless: a drill that could not start is a deployment defect.
+  failRelease: false
   # Where the measured RPO and RTO go: an S3-compatible bucket the operator names, treated as
   # opaque. Empty: the record ConfigMap carries the last run's evidence instead.
   evidence:

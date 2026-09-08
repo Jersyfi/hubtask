@@ -43,6 +43,20 @@ type config struct {
 	// KeepOnFailure leaves the temporary cluster behind when a check fails, for somebody to look
 	// at. Off by default, because a cluster left behind is quota the next drill does not have.
 	KeepOnFailure bool
+	// FailRelease decides whether a drill that *ran* and found something exits non-zero.
+	//
+	// The drill is a release hook, and a hook that fails fails the sync - both Helm and Argo CD
+	// work that way. That is the wrong outcome for this particular hook: a release whose recovery
+	// proof failed is a page, not a release that should not have happened, and blocking deploys
+	// on a broken archive also blocks the deploy that would fix it. So by default the outcome is
+	// carried by the record and the alerts (A-20, and the never-ran ticket) rather than by an exit
+	// code, and the log line says `result=fail` at error level either way.
+	//
+	// CI sets it, because a build wants the exit code; an installation that would rather stop a
+	// release than proceed unproven can set it too. It never covers a *configuration* error: a
+	// drill that could not start is a deployment defect, exits non-zero whatever this says, and
+	// has no record to carry anything.
+	FailRelease bool
 
 	Kube kubeConfig
 }
@@ -220,6 +234,7 @@ func loadConfig(get func(string) string, readFile func(string) ([]byte, error)) 
 		},
 		MarkerRetention: duration("HUBTASK_DRILL_MARKER_RETENTION", 35*24*time.Hour),
 		KeepOnFailure:   boolean("HUBTASK_DRILL_KEEP_ON_FAILURE"),
+		FailRelease:     boolean("HUBTASK_DRILL_FAIL_RELEASE"),
 		Kube: kubeConfig{
 			APIURL:        get("HUBTASK_DRILL_KUBE_API"),
 			TokenFile:     withDefault("HUBTASK_DRILL_KUBE_TOKEN_FILE", defaultTokenFile),

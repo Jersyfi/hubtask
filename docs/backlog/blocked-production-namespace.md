@@ -32,6 +32,27 @@ between two writes, and the build going red if the wrong marker survives.
 | 6 | **The quota holds two databases.** A drill bootstraps a temporary cluster beside the live one, and whether the namespace's real quota admits both is the platform's number ([PLATFORM-INTERFACE.md §4](../../deploy/production/PLATFORM-INTERFACE.md#4-what-the-quota-has-to-hold)) | Drill 1 passing is itself the proof; a quota refusal is how it fails | The interface note, if the quota has to move |
 | 7 | **The `AppProject` admits what the chart renders.** Above all the drill's two namespaced RBAC objects, or the decision to create them by hand and set `restoreDrill.rbac.create: false` ([§3](../../deploy/production/PLATFORM-INTERFACE.md#3-two-things-the-operator-has-to-decide-before-the-first-sync)) | The first sync completing without a refused resource | — |
 
+## One migration that is already visible
+
+**CloudNativePG deprecated the in-core Barman Cloud integration in 1.26**, in favour of the Barman
+Cloud plugin, and `spec.backup.retentionPolicy` with it. Everything here uses the deprecated form,
+deliberately: it still works, it is still the operator's default backup method for backward
+compatibility, and the alternative means installing a plugin component into a cluster this project
+does not operate — which is the platform's decision to take, not a chart's to assume.
+
+Three things move together on the day it is taken, which is why it is one task and not three
+surprises:
+
+* the `Cluster`'s backup stanza and the `ScheduledBackup`'s method;
+* `database.backup.retentionPolicy`, whose replacement lives in the plugin's own retention
+  configuration;
+* the two deprecated series A-12's rules read — `cnpg_collector_last_available_backup_timestamp`
+  and `cnpg_collector_first_recoverability_point` — which the operator's notice says keep working
+  for the in-core method and volume snapshots, and therefore stop meaning what they mean today.
+
+The restore drill itself does not move: it names an external cluster's object store and a recovery
+target, which is the shape a plugin-based archive keeps.
+
 ## Two questions that are the owner's, not the cluster's
 
 * **Whether the quota sets `limits.cpu`.** If it does, every pod needs a CPU limit or the namespace
