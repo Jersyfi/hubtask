@@ -121,7 +121,7 @@
           ...(scope === 'COLLECTION' || scope === 'HUB' ? { scope_id: collectionId } : {}),
           name,
           layout,
-          query: queryDocumentOf(query),
+          query: queryDocumentOf(query, collectionId),
           ...(query?.group ? { grouping: query.group as never } : {}),
         } as never,
         crypto.randomUUID(),
@@ -153,7 +153,7 @@
         view.id,
         {
           layout,
-          query: queryDocumentOf(query) as never,
+          query: queryDocumentOf(query, collectionId) as never,
           ...(query?.group ? { grouping: query.group as never } : {}),
         },
         view.version,

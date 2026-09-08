@@ -32,14 +32,32 @@ test('saving privately asks no permission, and saving anywhere else does', () =>
   assert.equal(needsStructure('TENANT'), true);
 });
 
-test('a view saves the question and not the place it was asked', () => {
-  // A view saved on one collection and opened on another asks the same thing of different entries,
-  // which is what a saved question is for.
+test('a view stores a whole query document, anchored where it was saved', () => {
+  // `:export` executes the stored query, and an unanchored one is refused with
+  // `query.scope_required` before a row is rendered — found by exporting a view against a running
+  // server. A view that stored only the question would be a view nobody could export.
   const query = { filter: { op: 'EQ', field: 'is_completed', value: false } as never, sort: [{ field: 'due_at', dir: 'ASC' as const }] };
-  const stored = queryDocumentOf(query);
-  assert.deepEqual(Object.keys(stored).sort(), ['filter', 'sort']);
+  const stored = queryDocumentOf(query, 'c-1');
+  // …and the scope is **flat**: the REST layer flattens `scope: {container_id}` before the use
+  // case sees it, and the export reads the stored document in that form. Storing the body shape
+  // saves without complaint and refuses at every export.
+  assert.deepEqual(stored['scope_container_id'], 'c-1');
+  assert.equal(stored['include_descendants'], false);
   assert.equal('scope' in stored, false);
-  assert.deepEqual(queryDocumentOf(undefined), {});
+  // A view with no conditions is still a query, and still anchored.
+  assert.deepEqual(queryDocumentOf(undefined, 'c-1'), {
+    scope_container_id: 'c-1',
+    include_descendants: false,
+  });
+});
+
+test('opening a view applies the question half, not the scope it was saved in', () => {
+  // The screen is already looking at a collection; re-anchoring it would make opening a view a
+  // navigation nobody asked for.
+  const stored = queryDocumentOf({ filter: { op: 'EQ', field: 'is_completed', value: false } as never }, 'c-1');
+  const applied = queryOf(stored, undefined);
+  assert.equal('scope_container_id' in applied, false);
+  assert.deepEqual(applied.filter, { op: 'EQ', field: 'is_completed', value: false });
 });
 
 test('opening a view asks what it saved, grouping included', () => {

@@ -11,11 +11,16 @@
  * only a client knows what to do with. A client that applied the query alone would drop the half
  * the field was added for.
  *
- * **The scope is not in the query.** Where a view lives is `scope_type`, and where it is *applied*
- * is the screen somebody opens it on — so what is saved is the question (a filter, an order, a
- * grouping) and never the collection the question was asked in. A view saved on one collection and
- * opened on another asks the same thing of different entries, which is what a saved question is
- * for.
+ * **The stored query is a whole query document, scope included.** That is the contract's own
+ * wording — "the query document of `POST /items:query`, stored as sent" — and it is not decoration:
+ * `:export` *executes* the stored query on the server, and an unanchored one is refused with
+ * `query.scope_required` before a single row is rendered. A view that stored only the question
+ * would be a view nobody could export, which the walk against a running server is what showed.
+ *
+ * **Applying one on screen uses the question half alone.** The list already knows which collection
+ * it is looking at, so opening a view there asks its filter and its order of *those* entries. The
+ * stored scope is what the export runs against; the screen's scope is what the screen runs against,
+ * and the two are different questions that happen to share a filter.
  *
  * **`PUBLIC_LINK` is declared and refused.** The switcher shows all three, because one that omitted
  * it would disagree with the contract, and offers two — the third carries the server's own reason.
@@ -50,15 +55,38 @@ export function needsStructure(scope: ViewScope): boolean {
   return scope !== 'ACCOUNT';
 }
 
-/** What a view stores as its query: the question, without the place it was asked. */
-export function queryDocumentOf(query: ItemsQuery | undefined): Record<string, unknown> {
+/**
+ * What a view stores as its query: a whole, anchored query — in the shape the **use case** takes.
+ *
+ * Two things the walk against a running server settled, and neither was guessable from the schema.
+ *
+ * The scope has to be there: `:export` runs the stored query and refuses one without it
+ * (`query.scope_required`), so a view that stored only the question is a view nobody can export.
+ *
+ * And the scope is **flat**. `POST /items:query` takes `scope: {container_id}` as a request body,
+ * and `presentation/rest` flattens it to `scope_container_id` before the use case sees it — which
+ * is the form `ExportView` reads back out of the stored document. A view storing the *body* shape
+ * saves without complaint and refuses at every export, because nothing reads it until then.
+ */
+export function queryDocumentOf(
+  query: ItemsQuery | undefined,
+  collectionId: string,
+): Record<string, unknown> {
   return {
+    scope_container_id: collectionId,
+    include_descendants: false,
     ...(query?.filter ? { filter: query.filter } : {}),
     ...(query?.sort ? { sort: query.sort } : {}),
   };
 }
 
-/** …and back, so opening a view asks what it saved. */
+/**
+ * …and back — the question half, which is what a screen applies.
+ *
+ * The stored scope is deliberately left behind: the list is already looking at a collection, and
+ * re-anchoring it to the one the view was saved in would make opening a view a navigation nobody
+ * asked for.
+ */
 export function queryOf(
   stored: Record<string, unknown> | undefined,
   grouping: Record<string, unknown> | undefined,
