@@ -32,8 +32,13 @@ const (
 	// an on-call rota behind it. A third file for the same reason the second is one - the
 	// self-hosting pin must keep reading a file that never grows.
 	providerRulesFile = "../../deploy/observability/alerts/prometheus-rules-provider.yaml"
-	runbookDir        = "../../deploy/observability/runbooks"
-	dashboardDir      = "../../deploy/observability/dashboards"
+	// pitrRulesFile is A-12's point-in-time recovery half (H-10): rules over the database
+	// operator's own series, loaded only where that operator runs. A fourth file for the reason
+	// there is a third - the pinned self-hosting set must keep reading a file that never grows,
+	// and an installation with a database of its own has none of these series.
+	pitrRulesFile = "../../deploy/observability/alerts/prometheus-rules-pitr.yaml"
+	runbookDir    = "../../deploy/observability/runbooks"
+	dashboardDir  = "../../deploy/observability/dashboards"
 )
 
 // ruleFile is the part of the Prometheus rule format this gate reads. Deliberately not the whole
@@ -76,7 +81,7 @@ func alerts(t *testing.T) []struct {
 		Labels      map[string]string `yaml:"labels"`
 		Annotations map[string]string `yaml:"annotations"`
 	}
-	for _, path := range []string{rulesFile, tenantRulesFile, providerRulesFile} {
+	for _, path := range []string{rulesFile, tenantRulesFile, providerRulesFile, pitrRulesFile} {
 		for _, group := range load(t, path).Groups {
 			for _, rule := range group.Rules {
 				if rule.Alert == "" {

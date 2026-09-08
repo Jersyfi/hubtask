@@ -7,6 +7,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -451,5 +453,42 @@ func TestTheOutboxLagBucketsStraddleTheObjective(t *testing.T) {
 
 	if !strings.Contains(scrape(t, m), `hubtask_outbox_lag_seconds_bucket{le="30"}`) {
 		t.Error("the outbox lag histogram has no boundary at the SLO-4 target of 30 seconds")
+	}
+}
+
+// The restore drill gauge is read from a file at every scrape (backup-restore.md §10): a drill
+// that passed after the process started is visible without a restart, and nothing at all is
+// visible while no drill has recorded anything - the series is absent, never 1970.
+func TestTheRestoreDrillGaugeIsReadFromTheRecordAtScrapeTime(t *testing.T) {
+	const gauge = "hubtask_restore_drill_last_success_timestamp_seconds"
+	record := filepath.Join(t.TempDir(), "last_success_unix")
+
+	cfg := env.Config{Version: "test"}
+	cfg.Backup.RestoreDrillRecordFile = record
+	m := newTestMetrics(t, cfg)
+
+	if body := scrape(t, m); strings.Contains(body, gauge+" ") {
+		t.Errorf("no record exists and the gauge reports a value:\n%s", body)
+	}
+
+	if err := os.WriteFile(record, []byte("1757236800\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if body := scrape(t, m); !strings.Contains(body, gauge+" 1.7572368e+09") {
+		t.Errorf("the record was written and the gauge does not report it:\n%s", body)
+	}
+
+	if err := os.WriteFile(record, []byte("not a timestamp"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if body := scrape(t, m); strings.Contains(body, gauge+" ") {
+		t.Errorf("a garbled record still reports a value:\n%s", body)
+	}
+}
+
+func TestWithoutARecordPathNoDrillGaugeExists(t *testing.T) {
+	m := newTestMetrics(t, env.Config{Version: "test"})
+	if body := scrape(t, m); strings.Contains(body, "restore_drill") {
+		t.Errorf("the gauge exists without a record path:\n%s", body)
 	}
 }

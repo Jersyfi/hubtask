@@ -2261,4 +2261,16 @@ SELECT ensure_stream_partition('activity_entry', (date_trunc('month', now()) + i
 SELECT ensure_stream_partition('outbox_event', (date_trunc('month', now()) + interval '1 month')::date);
 SELECT ensure_stream_partition('rule_run', (date_trunc('month', now()) + interval '1 month')::date);
 
+-- ============================ Restore drill (H-10) ==========================
+-- Two marker rows per drill run, written by the owner at a recorded moment; the drill restores to
+-- a point between them and expects the first and not the second (backup-restore.md §8.5).
+-- Installation-scoped, no tenant column, and the application role has no access at all.
+CREATE TABLE restore_drill_marker (
+  run_id     text NOT NULL,
+  seq        smallint NOT NULL CHECK (seq IN (1, 2)),
+  written_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  PRIMARY KEY (run_id, seq)
+);
+REVOKE ALL ON restore_drill_marker FROM hubtask_app;
+
 COMMIT;

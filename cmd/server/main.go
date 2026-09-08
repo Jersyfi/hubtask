@@ -65,6 +65,7 @@ import (
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
@@ -2321,6 +2322,11 @@ func run() error {
 // for one, and a shutdown that cannot wait is a shutdown that only looks graceful.
 func start(ctx context.Context, name string, loop func(context.Context)) <-chan struct{} {
 	done := make(chan struct{})
+	// The name the loop is started under is also what its log lines say they came from
+	// (observability-reliability.md §3.1). Set here rather than inside each loop: this is the one
+	// place that knows every one of them, and a field each author has to remember is the field
+	// missing from the line somebody is reading during an incident.
+	ctx = correlation.ContextWithComponent(ctx, name)
 	concurrency.Go(ctx, name, func(ctx context.Context) {
 		defer close(done)
 		loop(ctx)

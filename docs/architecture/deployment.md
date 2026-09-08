@@ -46,6 +46,12 @@ The operations port is published on loopback only (`127.0.0.1:9090`). It carries
 the health report — `curl localhost:9090/readyz` after an update, and a Prometheus on the same
 host — and neither belongs on the network (observability-reliability.md §3.2).
 
+**The system backup is the self-hoster's own.** Two containers have no operator to do continuous
+archiving, so what this stack gives is a documented `pg_dump` and the tenant archives beside it —
+and [backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)
+says plainly which four guarantees that does not carry, rather than leaving the difference to be
+discovered on the day it matters.
+
 Updating:
 
 ```bash
@@ -67,8 +73,13 @@ Four deployments from **one** image, distinguished by `HUBTASK_ROLES` ([ADR-0014
 | `scheduler` | `scheduler` | Two replicas, but only one active (advisory lock leader) |
 | `automation` | `automation` | Its own pool — a rule storm must not starve the interactive path |
 
-The migration runs as a Helm hook (`pre-upgrade`) with an advisory lock. Pods with an incompatible
-migration state report themselves not ready rather than writing inconsistently.
+The migration runs as a Helm hook (`pre-install,pre-upgrade`) with an advisory lock. Pods with an
+incompatible migration state report themselves not ready rather than writing inconsistently. Under
+Argo CD the same Job is a `Sync`-phase hook in a sync wave after the database, so that a chart
+which also renders its CloudNativePG `Cluster` ([§3.2](#32-where-production-runs)) migrates a
+database that exists; the migrator itself waits for the database to accept connections
+(`migration.connectWait`) rather than trusting the wave to have waited for it, because whether Argo
+CD knows what a healthy `Cluster` looks like is the platform's, not ours to assume.
 
 ---
 
@@ -78,11 +89,13 @@ migration state report themselves not ready rather than writing inconsistently.
 |---|---|---|---|
 | **local** | `make run` or Compose | — | Development |
 | **integration** | Every push to `main` | Automatic | Dogfooding, load tests, migration rehearsals |
-| **production** | Tag `v*` | Manual approval through the GitHub environment | Real operation |
+| **production** | A tag bump in the operator's Argo CD Application — the cluster pulls | Manual approval through the GitHub environment publishes the version; the deploy is the operator's | Real operation |
 
 The approval hangs off the GitHub `production` environment, not off a convention. That way even an
-accidentally created tag cannot trigger anything without a human agreeing — and the AI path never
-gets anywhere near a release ([ADR-0022](../adr/ADR-0022-github-platform.md)).
+accidentally created tag cannot publish anything without a human agreeing — and the AI path never
+gets anywhere near a release ([ADR-0022](../adr/ADR-0022-github-platform.md)). What the approval
+releases is an image and a chart under a version; **it deploys nothing.** Production pulls what was
+published ([§4](#4-push-or-pull)).
 
 ### 3.1 Where `integration` runs
 
@@ -119,20 +132,20 @@ port is not among them: it stays unrouted, inside the cluster ([observability-re
 ### 3.2 Where `production` runs
 
 *Decided 2026-09-04 ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), open points
-D-1 and D-2).*
+D-1 and D-2); amended 2026-09-07 with the platform's facts (the same ADR).*
 
 | | |
 |---|---|
-| Cluster | A Kubernetes cluster operated by a platform, not by this project |
-| Namespace | `hubtask` — the only one, and nothing this project deploys is cluster-scoped |
-| Deploy identity | A namespace-bound ServiceAccount, its kubeconfig a GitHub secret; never a `ClusterRole` |
-| Ingress | Traefik, with cert-manager for TLS, both the platform's |
-| Host name | `hubtask.prho.cloud` — one public hostname, and the operations port is not among them |
-| Database | PostgreSQL through the platform's CloudNativePG operator; the `Cluster` resource is ours, in our namespace |
-| System backups | CNPG's continuous WAL archiving to object storage with Object Lock, plus the platform's volume snapshots as a second net |
+| Cluster | A single private k3s cluster operated by a platform from a private operator repository, not by this project |
+| Namespace | One, and nothing this project deploys is cluster-scoped; the Argo `AppProject` admits that namespace and a fixed list of kinds |
+| Deploy identity | **None in GitHub.** Argo CD in the cluster pulls this chart at a pinned tag; no kubeconfig, token or endpoint exists in this repository or its workflows, and none will |
+| Ingress | The platform's; TLS is a platform-issued wildcard, referenced by secret *name* from values. The chart creates no `Certificate` |
+| Host name | One, reachable through the VPN only, set by the operator — and not written in this public repository. The operations port is not routed |
+| Database | PostgreSQL through the platform's CloudNativePG operator; the `Cluster` is a template of our chart (`database.enabled`), in our namespace |
+| System backups | CNPG's continuous WAL archiving and a daily base backup to object storage with Object Lock, plus the platform's volume snapshots as a second net |
 | Media | An S3 bucket of its own, separate from the backup bucket |
-| Monitoring | The platform's operator-based Prometheus scrapes our namespace; our `ServiceMonitor` and rules, their stack, their alert routing |
-| Deployed by | The tag `v*`, through the `production` environment's manual approval ([§7](#7-what-happens-during-a-release)) |
+| Monitoring | The platform's Prometheus Operator scrapes our `ServiceMonitor`s and evaluates our `PrometheusRule`s; alerts route by namespace to Slack; dashboards ship as ConfigMaps for the platform's Grafana. Which labels the selectors match on is set by the operator |
+| Deployed by | The operator bumps the tag in its Argo CD Application (a multi-source Application: this chart at the tag, its values file in the private repository); Argo CD renders and applies |
 
 **Why a namespace on somebody else's cluster.** The alternative — a second node of our own, shaped
 like `integration` — was the plan until the offer existed, and it answers no question this does not.
@@ -142,11 +155,14 @@ bucket policy belong to somebody else, and that is a trade a privately financed 
 knowingly rather than a compromise nobody named.
 
 **What we own, and what we must never assume.** Inside the namespace: every application manifest,
-the CNPG `Cluster` and its backup stanza, the migrations, the metrics endpoints and rules, the
-resource requests and limits, and secrets the owner creates and we reference by name. Outside it,
-and outside our RBAC by design: cluster-scoped resources, other namespaces, cluster-admin, any
-public exposure beyond the one hostname — and the platform runs neither our migrations nor our
-application-level restores.
+the CNPG `Cluster` and its backup stanza, the migrations, the metrics endpoints, rules and
+dashboards, the resource requests and limits, and secrets the owner creates and we reference by
+name. Outside it, and outside our reach by design: cluster-scoped resources, other namespaces,
+cluster-admin, any exposure beyond the one hostname — and the platform runs neither our migrations
+nor our application-level restores. **What must run against production therefore runs from the
+chart, inside the cluster:** the migration as a hook in a sync wave, the restore drill as a
+`PostSync` hook of every release and as a `CronJob` between them
+([backup-restore.md §8.5](./backup-restore.md#85-the-operator-procedure-point-in-time-recovery)).
 
 **Two consequences worth stating before they bite.** The restore drill has nowhere to restore *to*
 except our own namespace, as a second CNPG cluster bootstrapped from the object store — so the
@@ -154,9 +170,12 @@ resource quota is the bound on how large the live database may grow, because it 
 once. And the restore runbook has to be executable by a person alone: the platform does not do
 app-level restores, and a runbook whose only operator is a session cannot be paged.
 
-**What is still the platform's to state** — the Prometheus selector labels, the authoritative quota,
-the bucket names and paths, the lock retention, and the secret names — is listed as named unknowns
-in [`deploy/production/README.md`](../../deploy/production/README.md) rather than guessed at.
+**What is the platform's to state is never guessed at, and never written here.** This repository
+is public and the environment is private: no hostname, bucket, endpoint, quota, label value, secret
+name or credential of production is committed. Every such value is a values key marked *set by the
+operator*, and the complete list — keys and Secret names, nothing else — is
+[`deploy/production/PLATFORM-INTERFACE.md`](../../deploy/production/PLATFORM-INTERFACE.md), the one
+artefact the operator side reads from here.
 
 ---
 
@@ -173,6 +192,14 @@ Moving to GitOps (Argo CD or Flux) is prepared for and becomes worthwhile at the
 several clusters or several operators appear: the chart is already a versioned OCI artefact, and
 the per-environment values live in their own files. At that point cluster access in GitHub
 disappears entirely — the cluster pulls its own desired state.
+
+**Amended for production (ADR-0046, 2026-09-07): production pulls.** The platform runs Argo CD, and
+its Application renders this chart at a pinned tag with a values file that lives in the operator's
+private repository. A tag bump there is the deploy; nothing in this repository's workflows touches
+that cluster, and there is no credential that could. `integration` stays push-based, because it is
+our own single node and the push path is the cheaper one to understand there. The two paths share
+the chart and differ only in who runs `helm`: for `integration` the workflow, for production Argo
+CD. What was "prepared for" cost nothing when it arrived, which is the point of preparing.
 
 ---
 
@@ -224,6 +251,7 @@ Everything else has a self-hosting default:
 |---|---|---|
 | `HUBTASK_ROLES` | `api,worker,scheduler,automation` | Which roles this process starts (ADR-0014) |
 | `HUBTASK_BACKUP_LOCAL_PATH` | `/var/lib/hubtask/backups` | The volume a `local` backup target writes inside. A target's own path is relative to it and cannot leave it, which is what keeps "write my backups to /etc" out of reach of somebody who administers the instance but not the machine. Empty means this installation serves no local targets |
+| `HUBTASK_RESTORE_DRILL_RECORD_FILE` | — | A file holding the Unix timestamp of the last restore drill that passed, written by `hubtask-restore-drill` (backup-restore.md §8.5) and read at every scrape as `hubtask_restore_drill_last_success_timestamp_seconds`, the gauge A-20 watches. The chart mounts the drill's record ConfigMap here; in a Compose stack there is no drill and the operator writes the file after a restore they checked ([backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)). Empty leaves the series absent rather than at zero |
 | `HUBTASK_BACKUP_TENANT_TARGETS` | `false` | Lets a tenant configure its own backup target in provider operation (`backup-restore.md` §2). A backup target is an egress channel, and one a tenant chose is an egress channel the operator did not. It has no meaning in single-tenant operation, where the tenant's owner *is* the instance administrator. A target on a private network additionally needs `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` |
 | `HUBTASK_ENCRYPTION_KEYS` | — | The master keyring for envelope encryption, as key identifiers separated by commas, **current first** (E-02). Lower-case letters, digits and underscores. Empty means this installation encrypts nothing: it starts, and refuses to store anything that would have to be sealed rather than storing it in the clear |
 | `HUBTASK_ENCRYPTION_KEY_<ID>` (`_FILE`) | — | The material of one key named above, at least 32 characters, one variable per key so that each can be its own mounted secret. A key named and not supplied fails startup — a ring quietly missing a key is a value nobody notices until an old archive will not open |
@@ -298,10 +326,11 @@ Durations are Go syntax (`30s`, `5m`, `1h30m`). A bare number is rejected rather
 5. Produce the SBOM, sign the image keylessly, attach provenance.
 6. Package and publish the Helm chart with `version` and `appVersion` from the tag.
 7. GitHub release with a changelog generated from the Conventional Commits.
-8. Deployment to `production`.
+8. The operator bumps the tag in its Argo CD Application, and production pulls the published
+   chart and image. Nothing in this workflow touches the cluster ([§4](#4-push-or-pull)).
 
 Every step fails loudly. There is no path on which an image is published without gates, without a
-signature, or without approval.
+signature, or without approval — and no path on which this repository deploys to production.
 
 ---
 
@@ -311,5 +340,5 @@ signature, or without approval.
 |---|---|---|
 | D-1 | ~~Decide the target environment for `production`~~ — a **namespace on a platform-operated Kubernetes cluster** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10), described in [§3.2](#32-where-production-runs). Not a second node of our own: that was the plan until the offer existed, and it answers no question this does not while adding a bill and a bootstrap. The cost is control over the cluster, the alert routing and the bucket policy, which is a trade made knowingly | Closed (H-10) |
 | D-2 | ~~Database: own container, operator, or managed service~~ — **PostgreSQL through the platform's CloudNativePG operator** (ADR-0046, H-10). The operator is theirs; the `Cluster` resource is ours, in our namespace, with its backup stanza pointed at the object storage they provide. So it is neither a container we hand-roll nor a service whose recovery we cannot reach: PITR is ours to configure and theirs to host, which is exactly what the restore drill needs in order to be ours to run | Closed (H-10) |
-| D-3 | Evaluate moving to GitOps once there is more than one cluster or more than one operator | `0.9.0` |
+| D-3 | Evaluate moving to GitOps once there is more than one cluster or more than one operator — **answered for production by the platform** (ADR-0046, amended 2026-09-07): Argo CD pulls the chart at a pinned tag, and there is no push path to that cluster. Open only for our own environments, where `integration` stays push-based until a second cluster or operator appears | `0.9.0` (integration) |
 | ~~D-4~~ | ~~Domain, TLS approach, and ingress controller~~ — decided in [§3.1](#31-where-integration-runs): `<service>.<environment>.hubtask.eu`, cert-manager with Let's Encrypt, and Traefik | `0.2.0` |

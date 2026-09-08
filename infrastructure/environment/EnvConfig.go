@@ -167,8 +167,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			SampleRatio: getFloat("HUBTASK_TRACING_SAMPLE_RATIO", 0.05),
 		},
 		Backup: env.BackupConfig{
-			LocalRoot:     get("HUBTASK_BACKUP_LOCAL_PATH", "/var/lib/hubtask/backups"),
-			TenantTargets: getBool("HUBTASK_BACKUP_TENANT_TARGETS", false),
+			LocalRoot:              get("HUBTASK_BACKUP_LOCAL_PATH", "/var/lib/hubtask/backups"),
+			TenantTargets:          getBool("HUBTASK_BACKUP_TENANT_TARGETS", false),
+			RestoreDrillRecordFile: get("HUBTASK_RESTORE_DRILL_RECORD_FILE", ""),
 		},
 		Locale: env.LocaleConfig{
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),

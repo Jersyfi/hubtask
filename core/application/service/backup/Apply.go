@@ -222,13 +222,16 @@ func (a Applier) precheck(
 	}
 	newest := chain[0]
 
-	// INSTANCE has nothing to restore yet (0.6.0): no writer produces an instance-scoped archive,
-	// and a tenant archive under the INSTANCE mode would be an approximation §8's table does not
-	// allow. backup-restore.md §8 says the scope check refuses the mode; it used to fall out of
-	// the comparison below by accident, and now it is said.
+	// INSTANCE stays refused, and since H-10 the refusal says what to do instead. No writer here
+	// produces an instance-scoped archive, and a tenant archive under the INSTANCE mode would be
+	// an approximation §8's table does not allow - but the reason it will not simply arrive one
+	// day is B-2's answer: a system restore is the operator's, from the database's own continuous
+	// archive, with a person in front of it (backup-restore.md §8.5, ADR-0046). Answering
+	// "that archive belongs to another workspace" said the wrong thing about an archive that
+	// belongs to nobody, and sent the reader looking for a permission problem.
 	if restore.Mode == domain.RestoreInstance {
 		return nil, secret.Bytes{}, shared.ErrValidation.
-			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
+			WithDetail(domain.CodeRestoreInstanceIsTheOperators).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
 	}
 

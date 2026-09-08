@@ -82,8 +82,8 @@ func run(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 
-	if err := pool.PingContext(ctx); err != nil {
-		return fmt.Errorf("the database is unreachable: %w", err)
+	if err := waitForDatabase(ctx, pool, connectWait()); err != nil {
+		return err
 	}
 
 	goose.SetBaseFS(db.Migrations)
@@ -243,6 +243,53 @@ func lock(ctx context.Context, pool *sql.DB) (func(), error) {
 		}
 		_ = conn.Close()
 	}, nil
+}
+
+// waitForDatabase keeps pinging until the database answers or the wait is spent.
+//
+// A migration that starts before its database has finished starting is the ordinary case rather
+// than the exception in the one place it matters: a first Kubernetes sync creates the database
+// in an earlier wave than this job, and whether the sync waited for the database to be healthy
+// is the platform's knowledge, not ours (deployment.md §2.2). Without a wait the job fails, the
+// job controller retries with its own backoff, and the release reports a failure for a database
+// that was thirty seconds away from answering. The wait is bounded, and zero - the default when
+// nothing configures it - keeps the old behaviour of one attempt.
+func waitForDatabase(ctx context.Context, pool *sql.DB, wait time.Duration) error {
+	const between = 5 * time.Second
+	deadline := time.Now().Add(wait)
+	for {
+		ping, cancel := context.WithTimeout(ctx, between)
+		err := pool.PingContext(ping)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if wait == 0 || time.Now().After(deadline) {
+			return fmt.Errorf("the database is unreachable: %w", err)
+		}
+		slog.Info("the database is not answering yet - waiting",
+			slog.String("giving_up_at", deadline.UTC().Format(time.RFC3339)))
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("the database is unreachable: %w", ctx.Err())
+		case <-time.After(between):
+		}
+	}
+}
+
+// connectWait reads how long waitForDatabase may keep trying. Unset or unparsable means one
+// attempt, and an unparsable value is said rather than silently treated as zero.
+func connectWait() time.Duration {
+	raw := os.Getenv("HUBTASK_DB_CONNECT_WAIT")
+	if raw == "" {
+		return 0
+	}
+	wait, err := time.ParseDuration(raw)
+	if err != nil || wait < 0 {
+		slog.Warn("HUBTASK_DB_CONNECT_WAIT is not a duration - trying once", slog.String("value", raw))
+		return 0
+	}
+	return wait
 }
 
 // dataSource reads the one variable this program needs. It fails closed, like every other entry

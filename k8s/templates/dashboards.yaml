@@ -1,0 +1,36 @@
+{{/*
+The Grafana dashboards, as ConfigMaps a sidecar imports.
+
+Same arrangement as the rules next door, and for the same reason: the dashboards are shipped
+files, the chart is the only path into a cluster we do not operate, and a dashboard edited in a
+user interface is a dashboard nobody can review or roll back. `make chart-files` copies them from
+`deploy/observability/dashboards/`, and `make gate-chart` fails on drift.
+
+One ConfigMap per dashboard rather than one holding all four: a sidecar keys what it imported by
+the ConfigMap, and four in one object means a change to any of them re-imports all of them.
+
+The label the sidecar watches for and the folder it files them under are the platform's, so both
+are values marked "set by the operator" (deploy/production/PLATFORM-INTERFACE.md). Every panel
+reads its data source through a template variable, so the same file serves integration and
+production without a name from either being written into it.
+*/}}
+{{- if .Values.dashboards.enabled }}
+{{- range $path, $_ := .Files.Glob "files/dashboards/*.json" }}
+{{- $name := base $path | trimSuffix ".json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-dashboard-%s" (include "hubtask.fullname" $) $name }}
+  labels: {{- include "hubtask.labels" (dict "root" $) | nindent 4 }}
+    {{- with $.Values.dashboards.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $.Values.dashboards.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

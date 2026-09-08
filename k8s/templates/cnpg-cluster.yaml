@@ -1,0 +1,153 @@
+{{/*
+The database, where an installation lets this chart own it (deployment.md §3.2, ADR-0046).
+
+Off by default, for the same reason the ServiceMonitor is: the kind does not exist without the
+CloudNativePG operator, and a chart that assumes a CRD fails to install where it is missing. An
+installation with a database of its own leaves this off and hands the chart a DSN, exactly as
+before.
+
+Two annotations carry the safety this object needs and nothing else in the chart does:
+
+  - helm.sh/resource-policy: keep, and its Argo CD twin. `helm uninstall` and a pruning sync
+    remove the release; neither may remove the database. What deletes a Cluster is a person
+    deleting a Cluster, on purpose, by name.
+  - argocd.argoproj.io/sync-wave: the migration hook sits in a later wave than this object, so
+    that a first sync creates the database before anything tries to migrate it (deployment.md
+    §2.2). Whether Argo CD then waits for the Cluster to be healthy is the platform's knowledge;
+    the migrator waits for the database itself and does not depend on it.
+
+The backup stanza is what ADR-0046's D-2 is about: continuous WAL archiving to object storage is
+what gives the RPO, and the retention window is bounded on both sides - it must stay at or above
+the bucket's Object Lock retention (or the plan's own cleanup fails against the lock) and at or
+below P-5's 35 days (or data-protection.md §12's promise is not kept). Both are 35 days by
+decision, and the inequality is written on the key rather than assumed.
+
+**`barmanObjectStore` is deprecated in the operator, and is used anyway - with an end in sight.**
+CloudNativePG deprecated the in-core Barman Cloud integration in 1.26 in favour of the Barman Cloud
+plugin, and `backup.retentionPolicy` with it; both still work and `barmanObjectStore` is still the
+default backup method for backward compatibility. Moving to the plugin means installing a component
+into the cluster - which is the platform's decision, not this chart's - and it moves the two
+deprecated metrics A-12's rules read at the same time. So it is one migration to make deliberately
+rather than two to stumble into, and it is written down in
+docs/backlog/blocked-production-namespace.md rather than left for somebody to discover from a
+release note.
+*/}}
+{{- if .Values.database.enabled }}
+{{- $db := .Values.database }}
+{{- if and $db.backup.enabled (not $db.backup.destinationPath) }}
+{{- fail "database.backup.enabled needs database.backup.destinationPath: the object store path the archive is written to (set by the operator)" }}
+{{- end }}
+{{- if and $db.backup.enabled (not $db.backup.existingSecret) }}
+{{- fail "database.backup.enabled needs database.backup.existingSecret: the name of the Secret holding access-key and secret-key for the backup bucket (set by the operator)" }}
+{{- end }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "hubtask.databaseName" . }}
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "database") | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+    {{- if $db.keepOnDelete }}
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    {{- end }}
+spec:
+  # One instance by default. A second would be a replica sharing the same quota, and what
+  # protects the installation against losing data is the archive, not a standby
+  # (backup-restore.md §1).
+  instances: {{ $db.instances }}
+  imageName: {{ $db.imageName | quote }}
+
+  storage:
+    size: {{ $db.storage.size }}
+    {{- with $db.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+
+  resources: {{- toYaml $db.resources | nindent 4 }}
+
+  {{- with $db.postgresql }}
+  postgresql: {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- if $db.appRole.enabled }}
+  # The application's role, created by the operator because the migration may not.
+  #
+  # `db/migrations/0001_init.sql` creates both roles and catches the refusal a managed PostgreSQL
+  # answers with, leaving a notice and carrying on - and every grant after that would then apply to
+  # a role that does not exist. This is the other half it describes: "the operator creates the two
+  # roles beforehand". The owner above is the second one, which is why it is `hubtask_migrator`.
+  #
+  # No login credential is written here. The Secret is the owner's, created outside this chart and
+  # named in values, and it is the same password `db-dsn` carries.
+  managed:
+    roles:
+      - name: {{ $db.appRole.name }}
+        ensure: present
+        login: true
+        # The boundary, stated rather than defaulted: row level security is the last one, and it
+        # only is one for a role that cannot step over it (multi-tenancy.md §2.1).
+        superuser: false
+        bypassrls: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: {{ required "database.appRole.passwordSecret is required: a basic-auth Secret with username and password for the application role (set by the operator)" $db.appRole.passwordSecret }}
+  {{- end }}
+
+  bootstrap:
+    initdb:
+      database: {{ $db.databaseName }}
+      # The owner runs the migrations, and it is `hubtask_migrator` because that is the role the
+      # schema names: migration 0001's `ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator` has to
+      # apply to whoever actually owns the objects. The application connects as a different role
+      # (managed.roles above), never as this one (multi-tenancy.md §2.1).
+      owner: {{ $db.owner }}
+      postInitSQL:
+        # The one attribute a managed database has to be told to give the migrator, and the reason
+        # is in the schema rather than here.
+        #
+        # `item_capability_profile` holds the system defaults as rows with `tenant_id IS NULL`, and
+        # its policy deliberately lets everyone *read* them while its `WITH CHECK` lets nobody
+        # *write* them - "never write to the system defaults" (0001_init.sql). Migration 0002 seeds
+        # exactly those rows. Everywhere else the migrator is the PostgreSQL superuser and bypasses
+        # row level security implicitly; here it is an ordinary owner, and `FORCE ROW LEVEL
+        # SECURITY` applies to owners too, so the seed is refused and the migration stops.
+        #
+        # So the migrator gets `BYPASSRLS` explicitly - strictly less than the superuser every
+        # other environment hands it, and pointedly not given to the application role, which is the
+        # one the boundary exists for.
+        - ALTER ROLE {{ $db.owner }} BYPASSRLS
+
+  {{- if $db.metrics.podMonitor }}
+  # The operator's own PodMonitor. Only where the installation's Prometheus selects PodMonitors
+  # from this namespace; the chart's ServiceMonitor (cnpg-metrics.yaml) is the default route.
+  monitoring:
+    enablePodMonitor: true
+  {{- end }}
+
+  {{- if $db.backup.enabled }}
+  backup:
+    # Must stay >= the bucket's Object Lock retention and <= data-protection.md §12's 35 days.
+    retentionPolicy: {{ $db.backup.retentionPolicy | quote }}
+    barmanObjectStore:
+      destinationPath: {{ $db.backup.destinationPath | quote }}
+      {{- with $db.backup.endpointURL }}
+      endpointURL: {{ . | quote }}
+      {{- end }}
+      {{- with $db.backup.serverName }}
+      serverName: {{ . | quote }}
+      {{- end }}
+      s3Credentials:
+        accessKeyId:
+          name: {{ $db.backup.existingSecret }}
+          key: access-key
+        secretAccessKey:
+          name: {{ $db.backup.existingSecret }}
+          key: secret-key
+      wal:
+        compression: {{ $db.backup.compression }}
+      data:
+        compression: {{ $db.backup.compression }}
+  {{- end }}
+{{- end }}

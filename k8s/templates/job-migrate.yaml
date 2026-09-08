@@ -17,12 +17,20 @@ metadata:
   labels: {{- include "hubtask.labels" (dict "root" . "role" "migrate") | nindent 4 }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
-    # Before everything else the hook phase does; there is nothing else today, and the weight says
-    # what the order has to be when there is.
+    # Before everything else the hook phase does. The restore drill runs after the release
+    # (job-restore-drill.yaml), so the two never meet.
     "helm.sh/hook-weight": "-5"
     # The failed job is kept: a migration that did not work is the one thing an operator needs the
     # logs of. before-hook-creation clears the previous one at the next attempt.
     "helm.sh/hook-delete-policy": before-hook-creation
+    # Under Argo CD the Helm hook above is ignored in favour of these (gitops-engine reads its own
+    # annotations first), and they say something Helm cannot: a Sync-phase hook in a wave. A
+    # PreSync hook would run before every wave - before the Cluster of cnpg-cluster.yaml exists on
+    # a first sync - so the migration sits in wave -5, after the database's -10 and before the
+    # deployments' 0 (deployment.md §2.2).
+    "argocd.argoproj.io/hook": Sync
+    "argocd.argoproj.io/sync-wave": "-5"
+    "argocd.argoproj.io/hook-delete-policy": BeforeHookCreation
 spec:
   backoffLimit: {{ .Values.migration.backoffLimit }}
   template:
@@ -52,8 +60,14 @@ spec:
             - name: HUBTASK_DB_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "hubtask.secretName" . }}
+                  name: {{ include "hubtask.migrationSecretName" . }}
                   key: {{ .Values.migration.dsnSecretKey }}
+            {{- with .Values.migration.connectWait }}
+            # The database may still be starting when this job does (a first sync, a rolled
+            # database); the migrator keeps trying for this long rather than failing the release.
+            - name: HUBTASK_DB_CONNECT_WAIT
+              value: {{ . | quote }}
+            {{- end }}
             {{- if .Values.migration.appPasswordSecretKey }}
             # The migrator is the operator that grants hubtask_app its login (A-11): the migration
             # creates the role without one, because a credential has no business in a migration.

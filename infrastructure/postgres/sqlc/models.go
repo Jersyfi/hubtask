@@ -1054,6 +1054,12 @@ type Reminder struct {
 	UpdatedAt  pgtype.Timestamptz
 }
 
+type RestoreDrillMarker struct {
+	RunID     string
+	Seq       int16
+	WrittenAt pgtype.Timestamptz
+}
+
 type RestoreRun struct {
 	ID            pgtype.UUID
 	TargetID      pgtype.UUID

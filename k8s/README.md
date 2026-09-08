@@ -22,6 +22,12 @@ helm install hubtask oci://ghcr.io/jersyfi/charts/hubtask --version 0.1.0 \
 | `Ingress` | release | when `ingress.enabled`; needs a host |
 | `NetworkPolicy` | release | on by default |
 | `ServiceMonitor` | release | when `serviceMonitor.enabled` (Prometheus operator) |
+| `Cluster` (CloudNativePG) | release | when `database.enabled`; the chart owns the database, with WAL archiving and a daily base backup to object storage (ADR-0046). Kept on uninstall and never pruned |
+| `ScheduledBackup` | release | with the database: the daily base backup, and one at creation |
+| `Service` + `ServiceMonitor` | database | with the database and `serviceMonitor.enabled`: the instance's metrics port, which A-12's PITR half reads |
+| `Job` | release | when `restoreDrill.enabled`: RT-9 as a `post-install,post-upgrade` hook (`PostSync` under Argo CD) — a point-in-time restore between two writes, checked and torn down |
+| `CronJob` | release | with `restoreDrill.schedule`: the same drill between releases |
+| `ServiceAccount`, `Role`, `RoleBinding` | release | for the drill alone — the one pod that talks to the Kubernetes API; `restoreDrill.rbac.create` off where the deploy identity may not create RBAC |
 
 ## The one thing that is mandatory
 

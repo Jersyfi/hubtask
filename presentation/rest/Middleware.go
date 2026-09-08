@@ -31,6 +31,10 @@ const RequestIDHeader = "X-Request-Id"
 // (§3.2).
 const routeUnmatched = "unmatched"
 
+// componentREST is what a line written while serving a request says it came from (§3.1). The
+// background loops name themselves where they are started (cmd/server).
+const componentREST = "rest"
+
 // maxRequestIDLength bounds an adopted request ID. It lands in a log line and in an error
 // response, and an unbounded header value from outside belongs in neither.
 const maxRequestIDLength = 64
@@ -100,6 +104,9 @@ func (o Observed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// job one trace rather than three (§3.3).
 	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	ctx = correlation.ContextWithRequestID(ctx, requestID)
+	// Which part of the system the line came from, for a reader who has role=api,worker in front
+	// of them and needs to know whether this was a request or a loop (§3.1).
+	ctx = correlation.ContextWithComponent(ctx, componentREST)
 
 	ctx, span := o.Tracer.Start(ctx, r.Method+" "+route,
 		trace.WithSpanKind(trace.SpanKindServer),
