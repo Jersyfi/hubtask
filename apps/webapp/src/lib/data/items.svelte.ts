@@ -204,7 +204,10 @@ class Items {
   /** Retitles or renotes one, against the version the reader had (ADR-0025). */
   async update(
     id: string,
-    body: { title?: string; notes?: string | null },
+    // `start_at` is a plain scalar on the patch, which is D-01's own decision: a start is one
+    // instant with nothing qualifying it, while a due date is three fields that only mean
+    // something together and therefore has a writer of its own.
+    body: { title?: string; notes?: string | null; start_at?: string | null },
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
@@ -435,6 +438,32 @@ class Items {
       undefined,
       { idempotencyKey, invalidates: TOUCHES },
     );
+  }
+
+  /**
+   * Puts a due date on the entry: the instant, the all-day flag and the zone, together.
+   *
+   * One call rather than three fields on a patch, because "the three describe one date" — and the
+   * same three on the create and update paths dispatch into this writer anyway, so a client that
+   * spread them across a `PATCH` would be taking a longer road to the same place.
+   */
+  async setDue(
+    id: string,
+    due: { due_at: string; due_date_only: boolean; due_time_zone: string },
+    version: number,
+  ): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('PUT', `/items/${id}/due`, due, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /** Takes it off — all three, because none of them means anything alone. */
+  async clearDue(id: string, version: number): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('DELETE', `/items/${id}/due`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
   }
 
   /**
