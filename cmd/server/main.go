@@ -67,6 +67,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	dbfiles "github.com/Jersyfi/hubtask/db"
+	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
@@ -267,6 +268,14 @@ func run() error {
 	// (C-09). Both are built whatever the roles are, because the pieces are the same; what the
 	// roles decide is which loops run (ADR-0014).
 	mailSender := buildMailSender(cfg, registry, metrics)
+
+	// The AI provider (J-01, ADR-0012). NoopAi until a real adapter exists and a tenant
+	// configures one: the product is complete without it (QS-09), so the default is the provider
+	// that calls nothing and says so. Nothing consumes the port yet - what is wired here is the
+	// health registry's view of it, where it reports `disabled` rather than `down`, because an
+	// installation that configured no AI is not one whose AI is broken. The breaker is nil for
+	// the same reason: a provider that calls nothing can open nothing.
+	registry.Register(aiadapter.NewProbe(aiadapter.Noop{}, nil))
 	renderer, err := i18n.NewRenderer()
 	if err != nil {
 		return fmt.Errorf("message catalogue: %w", err)
