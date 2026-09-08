@@ -62,6 +62,24 @@ func TestTheApplicationRoleCannotBypassRowLevelSecurity(t *testing.T) {
 	}
 }
 
+// rlsExceptions are the tables that deliberately carry no row level security, each with the reason
+// it does not.
+//
+// One list for the whole package, because there used to be two: this file's, and a second inline
+// one in migration_test.go's re-run check. Adding `restore_drill_marker` to the first left the
+// second red, which is the cheap version of the expensive failure - two lists that disagree about
+// where the tenant boundary is (H-10). The drill keeps a third copy of its own, in another binary,
+// and says so where it stands.
+var rlsExceptions = map[string]string{
+	"job":              "system jobs are partly tenant-less; access is restricted by privileges (db/schema.sql)",
+	"goose_db_version": "the migration ledger; the application role has no access at all",
+	"instance_event": "the installation's own evidence journal (H-06, audit.md §6): its rows " +
+		"outlive the tenants they name, and a policy comparing current_tenant_id() would make " +
+		"them unreachable under every honest scope; bounded instead by append-only grants",
+	"restore_drill_marker": "the restore drill's two marker rows per run (H-10, migration 0071): " +
+		"installation-scoped, no tenant column, and the application role has no access at all",
+}
+
 // Every tenant table carries RLS, and it is FORCE - without that the owner would be exempt.
 // The list comes from the catalogue rather than from a constant in this file: a table added
 // later without a policy has to turn this red on its own.
@@ -69,16 +87,7 @@ func TestRowLevelSecurityIsActiveOnEveryTenantTable(t *testing.T) {
 	ctx := context.Background()
 	admin := adminPool(ctx, t)
 
-	// The documented exceptions. Anything else missing RLS is a finding.
-	exceptions := map[string]string{
-		"job":              "system jobs are partly tenant-less; access is restricted by privileges (db/schema.sql)",
-		"goose_db_version": "the migration ledger; the application role has no access at all",
-		"instance_event": "the installation's own evidence journal (H-06, audit.md §6): its rows " +
-			"outlive the tenants they name, and a policy comparing current_tenant_id() would make " +
-			"them unreachable under every honest scope; bounded instead by append-only grants",
-		"restore_drill_marker": "the restore drill's two marker rows per run (H-10, migration 0071): " +
-			"installation-scoped, no tenant column, and the application role has no access at all",
-	}
+	exceptions := rlsExceptions
 
 	rows, err := admin.Query(ctx, `
 		SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
