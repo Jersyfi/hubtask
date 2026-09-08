@@ -90,7 +90,7 @@ func (c *RestController) UpdateReminder(
 		return
 	}
 
-	var body openapi.UpdateReminderJSONRequestBody
+	var body openapi.UpdateReminderApplicationMergePatchPlusJSONRequestBody
 	if err := decodeJSON(r, &body); err != nil {
 		WriteProblem(w, err, requestID)
 		return

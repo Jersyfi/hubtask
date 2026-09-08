@@ -144,7 +144,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/TemplateUpdate"
       responses:
@@ -639,7 +639,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/AutomationRuleUpdate"
       responses:
@@ -1182,7 +1182,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/WebhookSubscriptionUpdate"
       responses:
@@ -2310,7 +2310,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/AccountPreferences"
       responses:
@@ -3131,7 +3131,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/TenantQuotas"
       responses:
@@ -3486,7 +3486,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema: { $ref: "#/components/schemas/DataSubjectRequestUpdate" }
       responses:
         "200":
@@ -3720,7 +3720,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/GroupUpdate"
       responses:
@@ -4772,7 +4772,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               type: object
               required: [body]
@@ -5536,7 +5536,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/ReminderUpdate"
       responses:
