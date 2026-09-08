@@ -48,6 +48,12 @@ PROMTOOL_SHA256_linux_arm64  := f7e66b9d47e86988fe8e7cb5a5b326cab6c56f5a74ba7133
 # The chart declares kubeVersion >= 1.28. helm renders against a much older version unless it is
 # told otherwise, so the gate says which cluster it is rendering for.
 KUBE_VERSION          := 1.30.0
+# The CloudNativePG operator gate-pitr installs, pinned by version *and* by checksum for the same
+# reason promtool is: a manifest fetched without one is a supply chain decision made by whoever
+# happens to be on the network (ADR-0015). It is applied to a throwaway kind cluster and never to
+# anything this project runs - production's operator is the platform's.
+CNPG_VERSION          := 1.30.0
+CNPG_SHA256           := f8bede43fe4ee0d478c2355b204a36876b2ae4faac60f2a9452280b293da3b88
 
 export CGO_ENABLED := 0
 
@@ -459,10 +465,33 @@ licenses:
 		rm -rf "$$bundled" "$$readme"
 	@echo "THIRD-PARTY-LICENSES.md written"
 
+## chart-files: Copy the shipped rules and dashboards into the chart
+# A chart may only read files inside itself, and the rules and dashboards live where the gate
+# tests them (deploy/observability/). So the chart carries a copy, made here and checked for drift
+# by gate-chart - because the alternative, transcribing them into a template, is how "what runs is
+# what is tested" stops being true (observability-reliability.md §13.1).
+.PHONY: chart-files
+chart-files:
+	@mkdir -p k8s/files/alerts k8s/files/dashboards
+	@rm -f k8s/files/alerts/*.yaml k8s/files/dashboards/*.json
+	@cp deploy/observability/alerts/*.yaml k8s/files/alerts/
+	@cp deploy/observability/dashboards/*.json k8s/files/dashboards/
+	@echo "chart: rules and dashboards copied into k8s/files"
+
 ## gate-chart: helm lint and template, with every optional object switched on
 .PHONY: gate-chart
 gate-chart:
 	$(call require_tool,helm)
+	@# The chart's copy of the rules and dashboards is the one the gate tests, or it is a lie.
+	@# Compared against the state before copying, so an uncommitted work tree can still run this.
+	@before="$$(git status --porcelain k8s/files)"; \
+		$(MAKE) --no-print-directory chart-files >/dev/null; \
+		after="$$(git status --porcelain k8s/files)"; \
+		if [ "$$before" != "$$after" ]; then \
+			echo "chart: k8s/files is out of date - run 'make chart-files' and commit it:"; \
+			diff <(echo "$$before") <(echo "$$after") || true; \
+			exit 1; \
+		fi
 	@# The secret is a name, not a value: the chart refuses to render without one, because a
 	@# secret in values.yaml would end up in the release history (deployment.md §6).
 	$(TOOLS_DIR)/helm lint k8s --set existingSecret=hubtask-secrets
@@ -478,6 +507,55 @@ gate-chart:
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
+	@# With the database the chart may own (ADR-0046): the Cluster, its backup and its metrics
+	@# route rendered together, and the backup refused without the path it needs.
+	$(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets \
+		--set database.enabled=true \
+		--set database.backup.destinationPath=s3://backups/hubtask \
+		--set database.backup.endpointURL=https://s3.example.com \
+		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set database.appRole.passwordSecret=hubtask-app-role \
+		--set migration.dsnSecretName=hubtask-db-app --set migration.dsnSecretKey=uri \
+		--set restoreDrill.enabled=true --set restoreDrill.schedule='0 4 * * 1' \
+		--set restoreDrill.evidence.bucket=evidence --set restoreDrill.evidence.existingSecret=hubtask-evidence-s3 \
+		--set serviceMonitor.enabled=true \
+		--set prometheusRules.enabled=true --set prometheusRules.sets.provider=true \
+		--set prometheusRules.sets.tenant=true --set dashboards.enabled=true > /dev/null
+	@# Every shipped rule file and every dashboard has to come out of the render, or the chart is
+	@# quietly shipping fewer alerts than the catalogue says it does.
+	@rendered="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.backup.destinationPath=s3://backups/hubtask \
+		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set database.appRole.passwordSecret=hubtask-app-role \
+		--set prometheusRules.enabled=true --set prometheusRules.sets.provider=true \
+		--set prometheusRules.sets.tenant=true --set dashboards.enabled=true)"; \
+		for id in A-01 A-03 A-12 A-18 A-20; do \
+			printf '%s' "$$rendered" | grep -q "alert_id: $$id" || \
+				{ echo "chart: $$id is in the catalogue and not in the rendered rules"; exit 1; }; \
+		done; \
+		for board in overview pipeline slo tenant; do \
+			printf '%s' "$$rendered" | grep -q "$$board.json" || \
+				{ echo "chart: the $$board dashboard is not in the render"; exit 1; }; \
+		done; \
+		printf '%s' "$$rendered" | grep -q 'datasource' || \
+			{ echo "chart: no dashboard carries a data source variable"; exit 1; }
+	@echo "chart: every rule file and dashboard is in the render"
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set restoreDrill.enabled=true > /dev/null 2>&1; then \
+		echo "chart: the restore drill rendered without a database to restore - it must refuse"; exit 1; fi
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.appRole.passwordSecret=hubtask-app-role > /dev/null 2>&1; then \
+		echo "chart: a database with a backup and no destination path rendered - it must refuse"; exit 1; fi
+	@# And the application role's Secret is as mandatory: without it the migration's grants land on
+	@# a role a managed PostgreSQL would not let it create (db/migrations/0001_init.sql).
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.backup.enabled=false > /dev/null 2>&1; then \
+		echo "chart: a database rendered without the application role's secret - it must refuse"; exit 1; fi
+	@echo "chart: the database renders, and refuses a backup or an application role without its secret"
 	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
 	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
 	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have
@@ -525,14 +603,31 @@ gate-observability:
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules.yaml
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-tenant.yaml
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-provider.yaml
+	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-pitr.yaml
 	@# The synthetic firing tests (H-12): every alert's condition driven from crafted series, and
 	@# the burn pair's multiwindow shape proved in both directions.
 	$(TOOLS_DIR)/promtool test rules deploy/observability/alerts/tests/selfhosting.test.yaml \
 		deploy/observability/alerts/tests/tenant.test.yaml \
-		deploy/observability/alerts/tests/provider.test.yaml
+		deploy/observability/alerts/tests/provider.test.yaml \
+		deploy/observability/alerts/tests/pitr.test.yaml
 	@# The structural half - every alert has a runbook, every runbook an alert - is a Go test, so
 	@# that it runs in `make verify` without needing a downloaded tool (test/observability).
 	$(call go_test,,./test/observability/...,)
+
+## gate-pitr: RT-9 against a real CloudNativePG operator and object store (expects a kind cluster)
+# The one gate that proves the point-in-time recovery rather than rendering it: a base backup into
+# MinIO, WAL archiving, two marker writes, a temporary cluster recovered to a moment between them,
+# and the first marker present with the second absent. It also scrapes the operator's real metrics
+# endpoint, because a rule reading a name nobody publishes is silent rather than noisy - the half
+# a promtool test cannot reach (observability-reliability.md §11).
+#
+# Nightly rather than per pull request, like every other gate that needs a cluster: it installs an
+# operator, waits for a base backup and restores a database, which is fifteen minutes on a good
+# day. What it measures is the runner, so no number it produces is recorded anywhere.
+.PHONY: gate-pitr
+gate-pitr: docker-build
+	$(call require_tool,helm)
+	CNPG_VERSION=$(CNPG_VERSION) CNPG_SHA256=$(CNPG_SHA256) scripts/pitr-drill.sh $(VERSION)
 
 ## gate-kind: Install the chart into a real cluster (expects a kind cluster to exist)
 .PHONY: gate-kind

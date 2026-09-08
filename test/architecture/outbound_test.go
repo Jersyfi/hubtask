@@ -30,6 +30,7 @@ var outboundExceptions = map[string]string{
 	// network the guard blocks. Deadlines, refused redirects, the breaker and the bulkhead keep
 	// what rule 6 actually protects (C-05).
 	"infrastructure/storage/S3Storage.go": "the operator-configured object storage endpoint",
+	"cmd/restore-drill/kube.go":           "the pod's own API server, reached through the injected address and token (H-10)",
 }
 
 // forbiddenOutbound is what makes a call without the guard: the package-level helpers, the

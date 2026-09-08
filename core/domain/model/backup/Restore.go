@@ -407,6 +407,13 @@ const (
 	// `auth.step_up_required` from the port, minted in one place for every privileged operation,
 	// and `backup.restore_step_up_unavailable` died with the verifier that made a step-up
 	// satisfiable - see the tombstone in the restore tests.
+	// CodeRestoreInstanceIsTheOperators is the INSTANCE mode, which stays refused: no archive this
+	// build writes has an instance-wide scope, and a system restore is not this application's to
+	// perform (B-2, ADR-0046). The refusal names the operator procedure rather than a shortcoming
+	// - point-in-time recovery is CloudNativePG's, from the WAL archive, with a person in front of
+	// it (backup-restore.md §8.5). It used to answer `restore_archive_scope_mismatch`, which said
+	// "that archive belongs to another workspace" about an archive that belonged to nobody.
+	CodeRestoreInstanceIsTheOperators = "backup.restore_instance_is_the_operators"
 	// CodeRestoreArchiveScopeMismatch is an archive of one tenant being restored into another,
 	// which is BK-10's refusal. It is the one every mode is checked for, at the listing, at the
 	// dry run and at the execution.

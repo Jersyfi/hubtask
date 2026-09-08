@@ -71,9 +71,24 @@ spec:
             - name: media
               mountPath: /var/lib/hubtask/media
             {{- end }}
+            {{- if $.Values.restoreDrill.enabled }}
+            # The drill's record, read at every scrape for the restore drill gauge. A ConfigMap
+            # rather than the API: nothing in these pods talks to Kubernetes (ADR-0015), and a
+            # mounted file is not the API. Optional, because it does not exist until the first
+            # drill has run.
+            - name: restore-drill-record
+              mountPath: /var/run/hubtask/restore-drill
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if $.Values.restoreDrill.enabled }}
+        - name: restore-drill-record
+          configMap:
+            name: {{ $.Values.restoreDrill.recordConfigMap | default (printf "%s-restore-drill" (include "hubtask.fullname" $)) }}
+            optional: true
+        {{- end }}
         {{- if and (eq $.Values.storage.kind "local") $.Values.storage.persistence.enabled }}
         - name: media
           persistentVolumeClaim:

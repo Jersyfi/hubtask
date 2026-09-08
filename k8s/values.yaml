@@ -64,8 +64,91 @@ config:
 
 # Secrets come from an existing secret, not from values.yaml.
 existingSecret: ""            # expects the keys: db-dsn, secret-key, smtp-password
+
+# The database, when this chart owns it: a CloudNativePG `Cluster` in the release's namespace
+# (deployment.md §3.2, ADR-0046). Off by default - the kind needs the operator's CRDs, and an
+# installation with a database of its own hands the chart a DSN instead. With it on, the
+# migration should read the owner's DSN from the secret the operator generates (see
+# migration.dsnSecretName) and the application connects as hubtask_app through db-dsn.
 database:
   createSecret: false
+  enabled: false
+  # The Cluster's name, and therefore the host names the operator creates: <name>-rw, <name>-ro.
+  # Empty: <release>-db.
+  name: ""
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+  databaseName: hubtask
+  # The database's owner, and deliberately the role the schema was written for: migration 0001
+  # creates objects, sets `ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator`, and grants the
+  # application role its rights. Under a managed PostgreSQL the migration cannot create roles at
+  # all - 0001 says so and carries on - so the owner has to *be* hubtask_migrator, or those grants
+  # apply to a role nobody is.
+  owner: hubtask_migrator
+  # The application's role, which the operator creates because the migration may not. This is the
+  # "operator creates the two roles beforehand" path db/migrations/0001_init.sql describes: with a
+  # managed database, CREATE ROLE is refused, the migration notices and continues, and every grant
+  # after it would then land on a role that does not exist.
+  #
+  # No BYPASSRLS and no SUPERUSER, stated rather than defaulted: this is the role row level
+  # security is the last boundary for (multi-tenancy.md §2.1), and it is worth being explicit
+  # about in the one place somebody might loosen it.
+  appRole:
+    enabled: true
+    name: hubtask_app
+    # A Secret of type kubernetes.io/basic-auth with `username` and `password`, created by the
+    # owner. The same password has to be the one in `db-dsn`, because that is the credential the
+    # application connects with.
+    passwordSecret: ""   # set by the operator
+  storage:
+    # Sized for the live database *and* the temporary cluster a restore drill bootstraps beside
+    # it from the object store: both have to fit the namespace's quota at once (ADR-0046).
+    size: 8Gi
+    storageClass: ""
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { memory: 2Gi }
+  # Anything under the Cluster's `postgresql` stanza - parameters above all.
+  postgresql:
+    parameters:
+      # What actually bounds the recovery point objective, and the setting most easily left out.
+      #
+      # A WAL segment is archived when it fills. On a busy database that is often; on a quiet one
+      # it may be hours, and until it happens everything in that segment is unrecoverable - so an
+      # installation can archive continuously, watch every metric stay green, and still lose an
+      # afternoon. archive_timeout closes the segment after this long *if there was activity*, so
+      # an idle database still produces nothing and a slow one is bounded.
+      #
+      # Five minutes is the RPO observability-reliability.md §2 promises, which is where the number
+      # comes from rather than from taste. Lowering it trades archive volume for a tighter window:
+      # each switch writes a whole segment, mostly empty, and the archive is compressed.
+      archive_timeout: "5min"
+  # `helm uninstall`, and a pruning sync, must not take the database with the release.
+  keepOnDelete: true
+  metrics:
+    # The chart's own Service + ServiceMonitor over the instance's metrics port, rendered when
+    # serviceMonitor.enabled. The operator's PodMonitor instead, where Prometheus selects those.
+    serviceMonitor: true
+    podMonitor: false
+  backup:
+    # Continuous WAL archiving plus a daily base backup to S3-compatible object storage. This is
+    # what gives the installation its RPO (observability-reliability.md §2), so it is on whenever
+    # the database is - an operator who wants none says so.
+    enabled: true
+    # Must stay >= the bucket's Object Lock retention (or the plan's own cleanup fails against the
+    # lock) and <= the 35 days data-protection.md §12 promises. Both are 35 days by decision.
+    retentionPolicy: "35d"
+    destinationPath: ""       # s3://<bucket>/<path> - set by the operator
+    endpointURL: ""           # the S3-compatible endpoint - set by the operator; empty means AWS
+    # The archive's name inside the path. Empty: the Cluster's name. A restore drill and an
+    # operator's recovery read the archive under this name, so changing it is starting a new
+    # archive.
+    serverName: ""
+    existingSecret: ""        # keys: access-key, secret-key - the name is set by the operator
+    compression: gzip
+    # The base backup, in the operator's six-field cron (seconds first). The first one runs at
+    # creation regardless, so a fresh installation is restorable on its first day.
+    schedule: "0 30 2 * * *"
 
 smtp:
   # The key inside existingSecret that holds the SMTP password. Empty means no SMTP: notifications
@@ -80,10 +163,65 @@ migration:
   # role and give db-dsn the application role (hubtask_app, no BYPASSRLS) - migrations create
   # objects, the application must not be able to (multi-tenancy.md §2.1).
   dsnSecretKey: db-dsn
+  # The Secret that key lives in, when it is not existingSecret. With database.enabled the
+  # operator generates one per Cluster, `<database.name>-app`, whose `uri` key is the owner's
+  # complete DSN - so the owner's credential never has to be copied anywhere by hand.
+  dsnSecretName: ""
+  # How long the migrator keeps trying to reach the database before it gives up. A first sync
+  # creates the Cluster in an earlier wave and the database takes a minute or two to accept
+  # connections; whether the sync waited for it is the platform's knowledge, so the migrator does
+  # not depend on it (deployment.md §2.2). Empty: one attempt, as before.
+  connectWait: 5m
   # The key holding the password for hubtask_app. Set it and the migrator grants that role its
   # login after migrating, so the application never has to connect as the owner (A-11). Leave it
   # empty where the cluster manages database roles itself.
   appPasswordSecretKey: ""
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+
+# RT-9 where the data is (backup-restore.md §8.5, ADR-0046 amended 2026-09-07): after every
+# release, and with a schedule between releases, hubtask-restore-drill writes two markers,
+# restores a temporary cluster from the archive to a moment between them, checks what came back
+# and tears the cluster down. Needs the database this chart owns, with its backup on.
+restoreDrill:
+  enabled: false
+  # A CronJob beside the release hook, five-field cron. Empty: the hook alone.
+  schedule: ""
+  # The application role's DSN, a key in existingSecret: the isolation checks run as that role.
+  appDsnSecretKey: db-dsn
+  # The ConfigMap the result lands in and the gauge is read from. Empty: <release>-restore-drill.
+  recordConfigMap: ""
+  # The temporary cluster's name. Empty: <database name>-drill.
+  temporaryCluster: ""
+  timeout: 45m
+  activeDeadlineSeconds: 3600
+  # Leave a failed drill's temporary cluster behind for somebody to look at. Off, because a
+  # cluster left behind is quota the next drill does not have.
+  keepOnFailure: false
+  # Whether a drill that ran and found something fails the release that ran it. Off, and the
+  # reasoning is the reason the drill is a *post*-release hook at all: a release whose recovery
+  # proof failed is a page, not a release that should not have happened - and blocking deploys on a
+  # broken archive blocks the deploy that would fix it. The finding is carried by the record, by
+  # A-20 and by an error line, which is where somebody can act on it. A configuration error fails
+  # the job regardless: a drill that could not start is a deployment defect.
+  failRelease: false
+  # Where the measured RPO and RTO go: an S3-compatible bucket the operator names, treated as
+  # opaque. Empty: the record ConfigMap carries the last run's evidence instead.
+  evidence:
+    bucket: ""              # set by the operator
+    endpoint: ""            # set by the operator; empty means AWS
+    prefix: ""              # set by the operator
+    region: us-east-1
+    existingSecret: ""      # keys: access-key, secret-key - the name is set by the operator
+  serviceAccount:
+    create: true
+    name: ""
+  # The Role and RoleBinding the drill needs (clusters: create/get/list/watch/delete; configmaps:
+  # get/create/update). Off where the deploy identity may not create RBAC objects; the two are
+  # then created once by hand (deploy/production/PLATFORM-INTERFACE.md).
+  rbac:
+    create: true
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits:   { memory: 256Mi }
@@ -139,6 +277,33 @@ serviceMonitor:
   enabled: false     # for prometheus-operator
   interval: 30s
   labels: {}         # what the operator's serviceMonitorSelector looks for
+
+# The shipped alert rules, as objects the Prometheus Operator evaluates. Off by default: the kind
+# does not exist without that operator. The files are the ones the gate tests, copied into the
+# chart by `make chart-files` (observability-reliability.md §11).
+prometheusRules:
+  enabled: false
+  # What the operator's ruleSelector matches on - set by the operator.
+  labels: {}
+  sets:
+    # Where doing nothing loses data. A self-hoster loads this one and is never paged by the rest.
+    selfhosting: true
+    # A-18, the capacity signal a provider adds.
+    tenant: false
+    # The rest of the catalogue, with an on-call rota behind it.
+    provider: false
+    # A-12's point-in-time recovery half. Reads the database operator's metrics, so it is rendered
+    # only where this chart owns the database.
+    pitr: true
+
+# The Grafana dashboards, as ConfigMaps a sidecar imports. One per dashboard, so that a change to
+# one does not re-import the others. Never hand-edited in a user interface: the file is the source.
+dashboards:
+  enabled: false
+  # The label the platform's sidecar watches for (e.g. grafana_dashboard: "1") - set by the operator.
+  labels: {}
+  # The folder annotation the sidecar files them under - set by the operator.
+  annotations: {}
 
 storage:
   kind: s3           # s3 | local

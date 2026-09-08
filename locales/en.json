@@ -1010,6 +1010,7 @@
   "backup.restore_not_running": "That restore is already over, so its outcome cannot be written any more.",
   "backup.restore_confirmation_required": "This would replace everything in {name}. Type the workspace's name into confirmation to confirm it.",
   "backup.restore_archive_scope_mismatch": "That archive belongs to another workspace, so it cannot be restored here.",
+  "backup.restore_instance_is_the_operators": "Restoring the whole installation is not something Hubtask does: the database's own point-in-time recovery does it, and an operator runs it from the archive with the procedure in backup-restore.md \u00a78.5. To bring one workspace back from a Hubtask archive, use NEW_TENANT or REPLACE_TENANT.",
   "backup.restore_tenant_not_new": "A restore into a new workspace needs a workspace that does not exist yet, and this one already does. Ask for the restore again.",
   "backup.restore_schema_ahead": "That archive comes from a newer version of Hubtask ({archive}) than this one ({installed}). Update first, then restore.",
   "backup.restore_in_progress": "A restore is already running here. Wait for it to finish.",

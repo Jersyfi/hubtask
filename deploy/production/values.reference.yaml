@@ -1,0 +1,164 @@
+# The production environment's values — as a reference, not as the file that deploys.
+#
+# The deploy is pull-based (deployment.md §4, ADR-0046 amended 2026-09-07): Argo CD renders this
+# chart at a pinned tag against a values file in the operator's own, private repository, and a tag
+# bump there is the deploy. *That* file is the one with the real values in it. This one is what it
+# is written from — the shape, the keys, and the reason each one is there.
+#
+# So every environment-specific value below is empty, and empty on purpose. This repository is
+# public and the environment is not: no host name, bucket, endpoint, quota number, label value or
+# Secret name of production is committed here. What each key wants is in PLATFORM-INTERFACE.md,
+# which is the one file the operator side reads from this repository.
+#
+# The image tag is deliberately absent too: the release sets it from the git tag, and the Argo CD
+# Application pins it. A values file that names a version is a values file somebody has to edit to
+# deploy.
+
+roles:
+  # Two, so a rolling update has somewhere to send traffic. Sized against the namespace's quota
+  # rather than against the chart's defaults, which assume a cluster with room.
+  api:
+    replicas: 2
+    resources:
+      requests: { cpu: 200m, memory: 384Mi }
+      limits:   { memory: 768Mi }
+  # One. The bulkhead is what matters (ADR-0016), and a bulkhead exists at one replica.
+  worker:
+    replicas: 1
+    resources:
+      requests: { cpu: 200m, memory: 384Mi }
+      limits:   { memory: 768Mi }
+  # Two, one of them a standby. The leader lock matters more here than in integration, not less:
+  # a scheduler that is gone is reminders that do not fire (ADR-0008).
+  scheduler:
+    replicas: 2
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits:   { memory: 256Mi }
+  automation:
+    replicas: 1
+    resources:
+      requests: { cpu: 150m, memory: 256Mi }
+      limits:   { memory: 512Mi }
+  # No CPU limit anywhere, deliberately: on a latency-sensitive path a CPU limit buys throttling
+  # rather than safety. If the namespace's quota sets limits.cpu, every pod needs one — which is
+  # the question PLATFORM-INTERFACE.md §3 asks the operator to settle before the first rollout.
+
+config:
+  tenancyMode: multi
+  logFormat: json
+  logLevel: info
+  # The installation's own absolute URL. Set by the operator.
+  baseUrl: ""
+  extraEnv:
+    # Exactly the origin the browser sends, scheme included: the chart refuses a bare host name
+    # rather than silently matching nothing (security.md §9). Set by the operator.
+    HUBTASK_CORS_ALLOWED_ORIGINS: ""
+    # The sender address is decided; the relay it goes through is the operator's.
+    HUBTASK_SMTP_FROM: noreply@hubtask.eu
+    # HUBTASK_SMTP_HOST / _PORT / _USER: set by the operator.
+
+# Created by the owner, referenced by name — the platform's rule and ours.
+# Keys: db-dsn, secret-key, smtp-password.
+existingSecret: ""
+
+migration:
+  # CloudNativePG generates a Secret per cluster whose `uri` key is the owner's complete DSN, so
+  # the owner's credential is never copied by hand. Set by the operator: `<cluster>-app`.
+  dsnSecretName: ""
+  dsnSecretKey: uri
+  # The database is created in an earlier sync wave and takes a moment to accept connections;
+  # whether the sync waited for it is the platform's knowledge, so the migrator does not rely on it.
+  connectWait: 5m
+
+# The database this chart owns: a CloudNativePG Cluster in the namespace, with continuous WAL
+# archiving to object storage. PITR is ours to configure and theirs to host — D-2's whole answer.
+database:
+  enabled: true
+  storage:
+    # Big enough for the live database *and* the temporary cluster a restore drill bootstraps
+    # beside it: there is no second namespace to restore into, so the quota holds two at once.
+    size: ""            # set by the operator
+    storageClass: ""    # set by the operator
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { memory: 2Gi }
+  backup:
+    enabled: true
+    # 35 days: P-5's period (data-protection.md §12), and the same number the bucket's Object Lock
+    # retention is set to. It must stay at or above the lock — a lock outliving the plan makes the
+    # plan's own cleanup fail — and at or below P-5, or the promise is not kept by the storage that
+    # has to keep it. Both at 35 is the decided shape (B-3).
+    retentionPolicy: "35d"
+    destinationPath: ""     # s3://<bucket>/<path> — set by the operator
+    endpointURL: ""         # set by the operator
+    serverName: ""          # set by the operator; changing it starts a new archive
+    existingSecret: ""      # keys: access-key, secret-key — the writer may not delete (B-3)
+    schedule: "0 30 2 * * *"
+
+# RT-9 after every release, and weekly between them. The drill needs the database above and its
+# backup: it restores from that archive to a point between two writes it makes itself.
+restoreDrill:
+  enabled: true
+  # Weekly, well inside A-20's ninety days, so a drill that starts failing is noticed by the alert
+  # rather than by the incident.
+  schedule: "0 4 * * 1"
+  evidence:
+    # Where the measured RPO and RTO go. Internal by decision 7, and opaque to this repository.
+    bucket: ""            # set by the operator
+    endpoint: ""          # set by the operator
+    prefix: ""            # set by the operator
+    existingSecret: ""    # keys: access-key, secret-key
+  rbac:
+    # The drill's Role and RoleBinding. If the AppProject does not admit the two namespaced RBAC
+    # kinds, set this to false and create them once by hand (PLATFORM-INTERFACE.md §3).
+    create: true
+
+ingress:
+  enabled: true
+  className: ""       # set by the operator
+  host: ""            # set by the operator
+  # The platform issues a wildcard certificate; the chart creates no Certificate and needs no
+  # issuer annotation. The Secret's name is the operator's.
+  annotations: {}
+  tls:
+    enabled: true
+    secretName: ""    # set by the operator
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  labels: {}          # what the operator's serviceMonitorSelector matches — set by the operator
+
+prometheusRules:
+  enabled: true
+  labels: {}          # what its ruleSelector matches — set by the operator
+  sets:
+    selfhosting: true
+    # One workspace on one installation, and the alerts of provider operation want an on-call rota
+    # behind them. Both are the owner's to turn on the day that is true.
+    tenant: false
+    provider: false
+    pitr: true
+
+dashboards:
+  enabled: true
+  labels: {}          # the Grafana sidecar's label — set by the operator
+  annotations: {}     # the folder annotation — set by the operator
+
+storage:
+  kind: s3
+  existingSecret: ""  # keys: access-key, secret-key — set by the operator
+  bucket: ""          # set by the operator
+  endpoint: ""        # set by the operator
+  region: ""          # set by the operator
+
+networkPolicy:
+  enabled: true
+  # Left at the default. Narrowing it needs to know which namespaces the ingress controller and
+  # the scraper live in, and a rule written for one of two callers is a rule that breaks when the
+  # other arrives.
+  ingressFrom: []
+  # Egress is not default-deny on this cluster, and SMTP, S3 and webhooks need no exception; the
+  # link-local exclusion is in the template rather than in this list.
+  allowedEgressCIDRs: []

@@ -45,17 +45,30 @@ func TestTheMigrationRunsAgainstAnExistingDatabase(t *testing.T) {
 
 	// And the boundary still stands afterwards - a re-run that dropped a policy would be worse
 	// than one that failed.
-	var unprotected int
-	if err := admin.QueryRow(ctx, `
-		SELECT count(*) FROM pg_class c
+	//
+	// The exceptions come from the package's one list rather than from a second copy written into
+	// this query. There *was* a second copy, and a table added to the first left this one red -
+	// which is the cheap version of two lists disagreeing about where the boundary is (H-10).
+	rows, err := admin.Query(ctx, `
+		SELECT c.relname FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE n.nspname = 'public' AND c.relkind IN ('r','p')
-		  AND c.relname NOT IN ('job', 'goose_db_version', 'instance_event')
-		  AND NOT (c.relrowsecurity AND c.relforcerowsecurity)`).Scan(&unprotected); err != nil {
+		  AND NOT (c.relrowsecurity AND c.relforcerowsecurity)`)
+	if err != nil {
 		t.Fatalf("catalogue query: %v", err)
 	}
-	if unprotected != 0 {
-		t.Errorf("%d tables lost their row level security in the second run", unprotected)
+	defer rows.Close()
+	for rows.Next() {
+		var table string
+		if err := rows.Scan(&table); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if _, documented := rlsExceptions[table]; !documented {
+			t.Errorf("%s lost its row level security in the second run", table)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
 	}
 }
 

@@ -21,6 +21,7 @@ const (
 	requestIDKey contextKey = iota
 	tenantIDKey
 	apiClientKey
+	componentKey
 )
 
 // ContextWithRequestID carries the request ID through the call chain. It is what a user quotes
@@ -50,6 +51,26 @@ func ContextWithTenant(ctx context.Context, tenantID string) context.Context {
 func TenantFrom(ctx context.Context) string {
 	id, _ := ctx.Value(tenantIDKey).(string)
 	return id
+}
+
+// ContextWithComponent carries which part of the system a line came from: `rest`, `worker.runner`,
+// `worker.scheduler`, and so on (observability-reliability.md §3.1).
+//
+// It is not the same as `role`, and the difference is why it exists. The role is the *process* and
+// one process may serve several (ADR-0014), so a line from a combined deployment reads
+// `role=api,worker` and says nothing about which loop wrote it. The component is the loop, and it
+// is set once where each one starts rather than at every call site - a field a caller has to
+// remember is a field that is missing from exactly the line being read at three in the morning.
+//
+// A name, never a workspace or a person: it belongs here for the same reason the other three do.
+func ContextWithComponent(ctx context.Context, component string) context.Context {
+	return context.WithValue(ctx, componentKey, component)
+}
+
+// ComponentFrom returns the component, or the empty string where nothing named one.
+func ComponentFrom(ctx context.Context) string {
+	component, _ := ctx.Value(componentKey).(string)
+	return component
 }
 
 // ContextWithAPIClient carries the OAuth client a request acts under (H-05): an identifier of a

@@ -12,8 +12,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// NewCorrelatingHandler adds trace_id, span_id, request_id and tenant_id from the context to
-// every record.
+// NewCorrelatingHandler adds trace_id, span_id, request_id, tenant_id and component from the
+// context to every record.
 //
 // It is a handler rather than a rule every call site has to remember, because the call sites are
 // many and the one that forgets is the one being debugged. The fields are mandatory in
@@ -48,6 +48,9 @@ func (h correlatingHandler) Handle(ctx context.Context, record slog.Record) erro
 	}
 	if id := correlation.TenantFrom(ctx); id != "" {
 		record.AddAttrs(slog.String("tenant_id", id))
+	}
+	if component := correlation.ComponentFrom(ctx); component != "" {
+		record.AddAttrs(slog.String("component", component))
 	}
 	return h.inner.Handle(ctx, record)
 }

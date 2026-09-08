@@ -1,102 +1,89 @@
 # The production environment
 
-A namespace on a Kubernetes cluster this project does not operate. What it is and why it is that
-rather than a second node of our own is in
+A namespace on a Kubernetes cluster this project does not operate. What it is, and why it is that
+rather than a second node of our own, is in
 [deployment.md §3.2](../../docs/architecture/deployment.md#32-where-production-runs) and
-[ADR-0046](../../docs/adr/ADR-0046-production-on-a-platform-namespace.md); this directory is the
-shape it takes.
+[ADR-0046](../../docs/adr/ADR-0046-production-on-a-platform-namespace.md).
+
+**This directory is not what deploys.** The deploy is pull-based: Argo CD in the cluster renders
+the chart at a pinned tag against a values file that lives in the operator's own, private
+repository, and a tag bump there is the deploy. What is here is the reference that file is written
+from, and the interface between the two sides.
 
 | | |
 |---|---|
-| API | `https://hubtask.prho.cloud` |
-| Namespace | `hubtask` |
-| Database | `postgres.yaml` — a CloudNativePG `Cluster`, ours, on the platform's operator |
-| Values | `values.yaml` |
-| Deployed by | the tag `v*`, through the `production` environment's manual approval |
+| [`PLATFORM-INTERFACE.md`](./PLATFORM-INTERFACE.md) | **The one file the operator side reads from here**: which Secrets to create, which values only the platform knows, and the two decisions to take before the first sync |
+| [`values.reference.yaml`](./values.reference.yaml) | The shape of the operator's values file, with every environment-specific value left empty on purpose |
+| The database | A CloudNativePG `Cluster`, rendered by the chart (`database.enabled`), not a manifest applied by hand |
+| The restore drill | RT-9, rendered by the chart (`restoreDrill.enabled`): after every release, and weekly between them |
 
-Unlike [`../integration`](../integration/README.md) there is no `bootstrap.sh`, and that is the
-point: the cluster, the ingress controller, the certificate issuer, the operator and the object
-storage already exist. What we bring is a Helm release and a database resource.
+## Why nothing here names the environment
+
+This repository is public and the environment is private. So no host name, bucket, endpoint, quota
+number, label value, Secret name, IP address or credential of production is committed — each one is
+a values key with an empty default, named in the interface note and set on the operator's side. A
+chart that renders without one of them refuses rather than guessing, which is what makes an empty
+key a question instead of a wrong answer nobody checked.
+
+The same rule covers what a drill measures. The RPO and RTO it records are internal (decision 7 of
+[milestone 0.6.0](../../docs/backlog/milestone-0.6.0.md)): the drill writes them to a location the
+operator names, and what reaches this repository is the mechanism and a pass/fail trail.
 
 ## What is ours and what is not
 
 **Ours, inside the namespace:** every application manifest and rollout, the CNPG `Cluster` and its
-backup stanza, the migrations, the metrics endpoints and the alert rules, the resource requests and
-limits, and secrets the owner creates and we reference by name.
+backup stanza, the migrations, the metrics endpoints, the alert rules and the dashboards, the
+resource requests and limits, and Secrets the owner creates and we reference by name.
 
-**Never assumed:** cluster-admin, a second namespace, any public exposure beyond the one hostname,
-or that the platform runs our migrations or our application-level restores. Cluster-scoped
-resources are outside the deploy identity's RBAC by design.
+**Never assumed:** cluster-admin, a second namespace, any exposure beyond the one host name, or
+that the platform runs our migrations or our application-level restores. Cluster-scoped resources
+are outside what this chart renders, by design.
 
-## The arithmetic behind the sizing
+**And never available:** a kubeconfig, a token or a cluster endpoint in GitHub Actions. There is no
+CI-to-cluster path and there will be none, which is why everything that has to run *against*
+production runs *inside* it, from the chart: the migration as a sync-wave hook, the restore drill
+as a `PostSync` hook and a `CronJob`.
 
-The namespace has a quota, so the chart's defaults do not fit — they assume a cluster with room.
-What `values.yaml` asks for:
+## Sizing, and the one number that is not free
 
-| | replicas | cpu request | memory request | memory limit |
-|---|---|---|---|---|
-| api | 2 | 400m | 768Mi | 1536Mi |
-| worker | 1 | 200m | 384Mi | 768Mi |
-| scheduler | 2 | 100m | 256Mi | 512Mi |
-| automation | 1 | 150m | 256Mi | 512Mi |
-| database (`postgres.yaml`) | 1 | 500m | 1Gi | 2Gi |
-| **total** | | **1350m** | **~2.6Gi** | **~5.3Gi** |
+The chart's defaults assume a cluster with room; a namespace has a quota, so the operator's values
+file sets replicas and requests against it. The arithmetic is ordinary, except in one place:
 
-Against a provisional quota of 2 CPU / 4Gi requested and 4 CPU / 6Gi limited, with room left for
-the migration job — which runs beside the deployments during a rollout rather than instead of them.
+**Storage has to hold two databases.** There is no second namespace to restore into, so a restore
+drill bootstraps a temporary cluster beside the live one and removes it again. While it runs, the
+namespace holds two clusters of `database.storage.size` plus the drill's own pod — so the live
+database can grow to somewhat less than half of what the quota admits, and past that the drill
+fails first. That is a loud failure and the right one: it says the installation can no longer prove
+it can recover, which is a thing to fix before the day it matters.
 
-**Storage is the tighter one.** 20Gi holds the database's 8Gi *and* the temporary cluster a restore
-drill bootstraps from the object store into this same namespace, because there is no second
-namespace to restore into. So the live database cannot pass roughly 9Gi without the drill failing
-first — a loud failure, and years away for one workspace, but the reason 8Gi is written down rather
-than guessed.
+## Rebuilding it
 
-## What the platform still owes
+There is no `bootstrap.sh` here, and that is the point: the cluster, the ingress controller, the
+certificate handling, the CloudNativePG operator, the Prometheus Operator and the object storage
+all exist already. What this project brings is a Helm release, and what the owner brings is the
+Secrets and the values file.
 
-These are named unknowns rather than guesses. `PLATFORM_*` placeholders in the files below are
-meant to fail loudly if anybody deploys before they are filled in from `PLATFORM-CONTRACT.md`.
-
-| # | Unknown | Where it goes |
-|---|---|---|
-| 1 | The `serviceMonitorSelector` labels the platform's Prometheus matches on | `values.yaml`, `serviceMonitor.labels` |
-| 2 | Whether `PrometheusRule` objects from this namespace are evaluated, and under what selector | the alert rules of `deploy/observability/alerts/` |
-| 3 | The `cert-manager` cluster issuer's name | `values.yaml`, the ingress annotation |
-| 4 | The media bucket's name, endpoint, and the secret holding its credentials | `values.yaml`, `storage.*` |
-| 5 | The backup bucket's path and endpoint, its secret's name, and its Object Lock retention | `postgres.yaml`, `backup.barmanObjectStore` |
-| 6 | The `imagePullSecret`'s name, if the image is private | `values.yaml` |
-| 7 | The SMTP relay: host, port and user (`noreply@hubtask.eu` is decided) | `values.yaml`, `config.extraEnv` |
-| 8 | The authoritative ResourceQuota | the table above |
-
-**And one question back to the platform.** If the quota sets `limits.cpu`, every pod must carry a
-CPU limit or the namespace refuses it — and this chart deliberately sets none, because a CPU limit
-on a latency-sensitive path buys throttling rather than safety. Either the quota leaves
-`limits.cpu` out, or a `LimitRange` supplies a default. It is worth settling before the first
-rollout rather than during it.
+The order of a first sync, and what happens if the drill finds nothing to restore yet, is
+[PLATFORM-INTERFACE.md §5](./PLATFORM-INTERFACE.md#5-the-order-of-the-first-sync).
 
 ## The one manual step
 
 A credential does not belong in a script's output, in a repository, or in a chat window. The owner
-creates the secrets and this directory only names them:
+creates the Secrets; this repository only names them
+([PLATFORM-INTERFACE.md §1](./PLATFORM-INTERFACE.md#1-secrets-the-owner-creates)).
 
-```bash
-kubectl -n hubtask create secret generic hubtask-secrets \
-  --from-literal=db-dsn='postgres://…' \
-  --from-literal=db-dsn-owner='postgres://…' \
-  --from-literal=secret-key='…' \
-  --from-literal=smtp-password='…'
-```
+The database's own credentials are the exception that proves it: CloudNativePG generates them, and
+the migration reads the owner's DSN straight out of the Secret the operator made — so the one
+credential nobody has to handle is the most powerful one.
 
-The two DSNs come from the credentials CloudNativePG generates for the cluster: the owner role runs
-the migrations, the application role runs everything else, and the application must not be able to
-create objects (multi-tenancy.md §2.1). The media and backup bucket credentials are two more
-secrets, named in the table above.
+## What is not proved here yet
 
-## What is not here yet
+The namespace does not exist at the time of writing. Everything above is rendered, linted and — for
+the part that matters most — **executed in CI**: `make gate-pitr` runs the drill against a real
+CloudNativePG operator and a real object store on a kind cluster, restores to a point between two
+writes, and fails if the wrong marker survives.
 
-The second half of H-10: a production deploy job, A-12's PITR half emitting, and **RT-9** — the
-per-release drill that restores to a point between two writes, proves the first survived and the
-second did not, and writes its evidence. It waits for the namespace to exist rather than for a
-decision. Until then [#267](https://github.com/Jersyfi/hubtask/issues/267) stays open.
-
-**The restore runbook has to be executable by a person alone.** The platform does not do app-level
-restores, and a runbook whose only operator is a session cannot be paged.
+What only production can close is listed in
+[docs/backlog/blocked-production-namespace.md](../../docs/backlog/blocked-production-namespace.md):
+the first real drill, the measured RPO and RTO, and A-12 firing against the operator's live
+metrics.

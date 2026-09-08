@@ -4,6 +4,12 @@
 *.exe
 *.test
 *.out
+# `go build ./cmd/<name>` writes its binary into the working directory rather than into /bin, so
+# each one is named here. Without this a stray build lands in a commit, which is how a 30 MB
+# `restore-drill` very nearly did.
+/hubtask
+/hubtask-migrate
+/restore-drill
 
 # Dependencies
 /vendor/
