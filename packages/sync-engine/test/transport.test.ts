@@ -192,3 +192,189 @@ test('a refusal the server cannot explain is still retryable when it is a 5xx', 
     (error: unknown) => error instanceof TransportError && error.isRetryable && error.code === undefined,
   );
 });
+
+// ---- The stream (F3-04): a response that does not end, read from the body and never through
+// `EventSource`, which cannot carry a bearer.
+
+/** A body that a test feeds line by line, the way a server's chunks arrive. */
+function feed() {
+  let push: (chunk: Uint8Array) => void = () => {};
+  let close: () => void = () => {};
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      push = (chunk) => controller.enqueue(chunk);
+      close = () => controller.close();
+    },
+  });
+  return { body, write: (text: string) => push(encoder.encode(text)), close: () => close() };
+}
+
+const STREAM = { connectTimeoutMs: 1000, idleTimeoutMs: 1000 };
+
+test('a stream carries the bearer and the cursor, and reads events as they arrive', async () => {
+  const { body, write, close } = feed();
+  const { fetch, calls } = recordingFetch(() => new Response(body, {
+    status: 200, headers: { 'Content-Type': 'text/event-stream' },
+  }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+  const connection = await transport.stream('/stream', { ...STREAM, token: 'tok', lastEventId: 'c-41' });
+  const headers = new Headers(calls[0]?.init.headers);
+  assert.equal(headers.get('Authorization'), 'Bearer tok');
+  assert.equal(headers.get('Last-Event-ID'), 'c-41');
+  assert.equal(headers.get('Accept'), 'text/event-stream');
+  assert.equal(calls[0]?.url, '/api/v1/stream');
+
+  // A heartbeat comment, a retry hint, an event whose data spans two lines and arrives in two
+  // chunks, and CRLF line endings: the framing, not the happy path.
+  write(': heartbeat\n\nretry: 250\n\nid: c-42\r\nevent: work_item\r\ndata: {"op":"UPSERT",\n');
+  write('data: "entity":"work_item"}\n\nid: c-43\nevent: container\ndata: {"op":"DELETE"}\n\n');
+  close();
+
+  const events = [];
+  for await (const event of connection.events) events.push(event);
+
+  assert.deepEqual(events, [
+    { id: 'c-42', event: 'work_item', data: '{"op":"UPSERT",\n"entity":"work_item"}', retryMs: 250 },
+    { id: 'c-43', event: 'container', data: '{"op":"DELETE"}', retryMs: 250 },
+  ]);
+});
+
+test('a refused stream is a TransportError carrying the status, the code and Retry-After', async () => {
+  const body = { code: 'unavailable', detail_code: 'sync.stream_unavailable', params: { reason: 'tenant_cap' } };
+  const { fetch } = recordingFetch(() => new Response(JSON.stringify(body), {
+    status: 503, headers: { 'Retry-After': '7', 'Content-Type': 'application/problem+json' },
+  }));
+
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).stream('/stream', STREAM),
+    (error: unknown) => {
+      assert.ok(error instanceof TransportError);
+      assert.equal(error.status, 503);
+      assert.equal(error.detailCode, 'sync.stream_unavailable');
+      assert.equal(error.retryAfterMs, 7000);
+      return true;
+    },
+  );
+});
+
+test('a cursor too old is a refusal the engine can tell apart', async () => {
+  const body = { code: 'gone', detail_code: 'sync.cursor_too_old', params: { window_days: '90' } };
+  const { fetch } = recordingFetch(() => new Response(JSON.stringify(body), { status: 410 }));
+
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).stream('/stream', { ...STREAM, lastEventId: 'old' }),
+    (error: unknown) => error instanceof TransportError && error.isCursorTooOld && !error.isCursorInvalid,
+  );
+});
+
+test('a stream without deadlines is refused before it is opened', async () => {
+  const { fetch, calls } = recordingFetch(() => ok({}));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+  await assert.rejects(() => transport.stream('/stream', { connectTimeoutMs: 0, idleTimeoutMs: 1000 }), TypeError);
+  await assert.rejects(() => transport.stream('/stream', { connectTimeoutMs: 1000, idleTimeoutMs: Number.NaN }), TypeError);
+  assert.equal(calls.length, 0);
+});
+
+test('silence for longer than the idle deadline ends the stream rather than hanging it', async () => {
+  const { body, write } = feed();
+  const { fetch } = recordingFetch(() => new Response(body, { status: 200 }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+  const connection = await transport.stream('/stream', { connectTimeoutMs: 1000, idleTimeoutMs: 20 });
+  write('id: c-1\ndata: {}\n\n');
+
+  const events = [];
+  for await (const event of connection.events) events.push(event);
+  // The one event arrived; then nothing did, and the iteration ended on its own. Reconnecting
+  // with the cursor is the engine's, and it needs the loop to end to do it.
+  assert.equal(events.length, 1);
+});
+
+test('the caller ends the stream through its signal', async () => {
+  const { body } = feed();
+  const { fetch } = recordingFetch(() => new Response(body, { status: 200 }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+  const stop = new AbortController();
+
+  const connection = await transport.stream('/stream', { ...STREAM, signal: stop.signal });
+  const drained = (async () => {
+    const events = [];
+    for await (const event of connection.events) events.push(event);
+    return events;
+  })();
+  stop.abort();
+
+  assert.deepEqual(await drained, []);
+});
+
+// ---- The bytes (F3-04): the one request that leaves for an address the engine did not compose.
+
+test('a byte transfer sends no bearer, honours its deadline and reports progress', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+  const bytes = new Uint8Array(200_000);
+  const progress: [number, number][] = [];
+
+  await transport.transfer({
+    url: 'https://bucket.example.org/objects/o1?X-Amz-Signature=abc',
+    method: 'PUT', body: bytes, contentType: 'image/png', timeoutMs: 5000,
+    onProgress: (sent, total) => progress.push([sent, total]),
+  });
+
+  const call = calls[0];
+  assert.equal(call?.url, 'https://bucket.example.org/objects/o1?X-Amz-Signature=abc');
+  assert.equal(call?.init.method, 'PUT');
+  const headers = new Headers(call?.init.headers);
+  assert.equal(headers.get('Authorization'), null, 'a bearer left for a bucket');
+  assert.equal(headers.get('Content-Type'), 'image/png');
+  assert.equal(call?.init.credentials, 'omit');
+  assert.ok(call?.init.signal instanceof AbortSignal, 'no deadline travelled with the bytes');
+
+  assert.ok(progress.length >= 1);
+  assert.deepEqual(progress.at(-1), [200_000, 200_000]);
+  for (const [sent, total] of progress) assert.ok(sent <= total);
+});
+
+test('a byte transfer never carries a bearer even when the caller has one to hand', async () => {
+  // The port has no `token` on a transfer at all, which is the stronger guarantee: there is no
+  // field through which one could travel. This test pins the absence of the header regardless.
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 200 }));
+  await new FetchTransport({ baseUrl: '/api/v1', fetch }).transfer({
+    url: 'http://localhost/api/v1/media/m1:content?token=t', method: 'PUT',
+    body: new Blob(['hello']), timeoutMs: 1000,
+  });
+  assert.equal(new Headers(calls[0]?.init.headers).has('Authorization'), false);
+});
+
+test('a byte transfer without a deadline is refused, and an aborted one is a timeout', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+  await assert.rejects(
+    () => transport.transfer({ url: 'https://b/o', method: 'PUT', body: new Uint8Array(1), timeoutMs: 0 }),
+    TypeError,
+  );
+  assert.equal(calls.length, 0);
+
+  const aborting = recordingFetch(() => Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+  const stop = new AbortController();
+  stop.abort();
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch: aborting.fetch }).transfer({
+      url: 'https://b/o', method: 'PUT', body: new Uint8Array(1), timeoutMs: 1000, signal: stop.signal,
+    }),
+    (error: unknown) => error instanceof TransportError && error.kind === 'timeout',
+  );
+});
+
+test('a bucket refusing the bytes is a problem with its status, readable body or not', async () => {
+  const { fetch } = recordingFetch(() => new Response('<Error><Code>AccessDenied</Code></Error>', { status: 403 }));
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).transfer({
+      url: 'https://b/o', method: 'PUT', body: new Uint8Array(3), timeoutMs: 1000,
+    }),
+    (error: unknown) => error instanceof TransportError && error.kind === 'problem' && error.status === 403,
+  );
+});

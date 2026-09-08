@@ -135,3 +135,14 @@ export type ActivityPage = components['schemas']['ActivityPage'];
 export type ContainerPage = components['schemas']['ContainerPage'];
 export type WorkItemPage = components['schemas']['WorkItemPage'];
 export type ItemQueryResult = components['schemas']['ItemQueryResult'];
+
+/**
+ * One change record, as `/stream` sends it and as `:pull` returns it.
+ *
+ * It is a **signal to re-read**, never data to apply: applying `payload` to local state would be a
+ * merge, and merging is the server's (ADR-0021, `offline-sync.md` §4). The engine reads `entity`,
+ * `entity_id`, `container_id` and `op`, hands them to the application's path mapping, and drops
+ * the rest — the stream also carries ordering and audit fields (`seq`, `occurred_at`, `actor_id`)
+ * that no client decision depends on.
+ */
+export type ChangeRecord = components['schemas']['SyncChange'];

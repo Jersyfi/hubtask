@@ -45,6 +45,34 @@ a fifth:
   loaded with so a query keeps its document; unwatched ones are forgotten, because reloading a
   cache nobody is looking at is a burst of requests for nothing.
 
+**F3-04 gave it the two network primitives it did not have.** Both belong here because both are
+`fetch`, and there is one caller of `fetch`:
+
+* **A response that does not end.** `Transport.stream` reads `GET /stream` from the response body,
+  and `engine.listen` keeps one connection open per tab. It is **never `EventSource`**: that API
+  cannot carry a header, so authenticating it would mean a token in the URL, which `security.md`
+  forbids and which access logs and browser history would keep — `test/rules.test.ts` fails on the
+  name. A stream is the one call whose deadline is not a deadline: `connectTimeoutMs` bounds the
+  wait for the headers, and `idleTimeoutMs` bounds the silence between chunks, because the body is
+  meant never to end.
+
+  A record is **a signal to re-read, never data to apply**. Applying `payload` would be a merge.
+  So a record invalidates prefixes exactly as a write does, and which prefixes comes from
+  `pathsFor`, which the application supplies — the engine does not learn what a hub is. The four
+  refusals are four recoveries and the engine tells them apart: `401` ends the session through the
+  one hook, `sync.cursor_too_old` drops everything held and restarts with no cursor (a delta across
+  a gap would be silently wrong, `offline-sync.md` §7), `sync.cursor_invalid` restarts with no
+  cursor and drops nothing, and a `503` waits exactly the `Retry-After` the server named. The
+  cursor advances on the frame rather than on the record, so a reconnect never asks for a record it
+  already has, and it lives in memory for the tab's lifetime — the store that would keep it is F6's.
+
+* **A body that is bytes.** `Transport.transfer` is the middle step of the three-step upload
+  (arc42 §8.4) and the **one** request that may leave for an address the engine did not compose.
+  It carries **no bearer** and `credentials: 'omit'`: a presigned URL is its own credential, and a
+  bearer sent to a bucket is a bearer leaked to a third party. Its deadline is sized by the bytes
+  rather than by the API's, and progress is reported as they leave. Staging and confirming are
+  ordinary `mutate` calls, not a second write path.
+
 ## What must not happen here
 
 * **No merging. Ever.** Merging is the server's (ADR-0021, `offline-sync.md` §4). The engine
