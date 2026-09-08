@@ -52,6 +52,7 @@ tags:
   - name: webhooks
   - name: jumble
   - name: jobs
+  - name: ai
 
 paths:
   /templates:
@@ -144,7 +145,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/TemplateUpdate"
       responses:
@@ -639,7 +640,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/AutomationRuleUpdate"
       responses:
@@ -1182,7 +1183,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/WebhookSubscriptionUpdate"
       responses:
@@ -2310,7 +2311,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/AccountPreferences"
       responses:
@@ -3131,7 +3132,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/TenantQuotas"
       responses:
@@ -3226,6 +3227,75 @@ paths:
         The configuration and its sealed secret go. Accounts provisioned through it keep their
         rows and their sessions - what they lose is the way to sign in again, which is why an
         account with no password is worth a thought before this call. Auditable.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /ai-provider:
+    get:
+      tags: [ai]
+      operationId: readAiProvider
+      summary: The workspace's AI provider, and whether it may be used
+      description: >
+        Which provider this workspace would ask, under which models, and whether AI processing is
+        allowed here at all (J-02, ai-first.md §2). Needs the permission that manages structure,
+        or the auditor's read-only configuration permission (A-4): where a workspace's content
+        may be sent is exactly what an auditor reads.
+
+        The API key is never a member of this answer. It is sealed at configuration time (E-02)
+        and opened only by the adapter that makes the call.
+      responses:
+        "200":
+          description: The configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [ai]
+      operationId: configureAiProvider
+      summary: Configure the workspace's AI provider
+      description: >
+        Sets the provider whole - the kind, the endpoint, the models, the jurisdiction it operates
+        in, the key, and whether AI processing is allowed here.
+
+        A provider whose `jurisdiction` is `THIRD_COUNTRY` is refused unless the operator of this
+        installation has confirmed third-country transfers
+        (`HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`, data-protection.md §6, ADR-0018 decision 7).
+        The confirmation is the installation's rather than the workspace's on purpose: it is the
+        operator who signs the processing agreement and who owes the transfer impact assessment,
+        and a workspace administrator cannot take that on for them. Refused as
+        `403 forbidden`, detail code `ai.third_country_not_confirmed`.
+
+        The key is sealed on the way in and appears in no answer afterwards. Auditable - the
+        entry names the provider, the jurisdiction and the models, and never the key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiProviderConfiguration"
+      responses:
+        "200":
+          description: Configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [ai]
+      operationId: removeAiProvider
+      summary: Remove the workspace's AI provider
+      description: >
+        The configuration and its sealed key go, and the workspace is back to the installation's
+        default, which calls nothing. Nothing else is affected: no suggestion already accepted is
+        undone, because accepting one was a person's own write. Auditable.
       responses:
         "204":
           description: Removed
@@ -3486,7 +3556,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema: { $ref: "#/components/schemas/DataSubjectRequestUpdate" }
       responses:
         "200":
@@ -3720,7 +3790,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/GroupUpdate"
       responses:
@@ -4772,7 +4842,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               type: object
               required: [body]
@@ -5536,7 +5606,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/merge-patch+json:
             schema:
               $ref: "#/components/schemas/ReminderUpdate"
       responses:
@@ -6490,6 +6560,95 @@ components:
           type: string
           description: The handle `/auth/oidc:start` answered.
 
+    AiProvider:
+      type: object
+      description: >
+        How this workspace uses AI, if it does. The API key is not a member: it is sealed at
+        configuration time and opened only by the adapter that makes the call.
+      required: [kind, jurisdiction, processing_allowed, created_at, version]
+      properties:
+        kind:
+          $ref: "#/components/schemas/AiProviderKind"
+        base_url:
+          type: string
+          format: uri
+          description: >
+            The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the
+            guarded client, so an address inside this installation's own network is refused
+            wherever it was typed (ADR-0015, T-07).
+        completion_model:
+          type: string
+          description: The model a suggestion is asked of. Empty means this provider does not complete.
+        embedding_model:
+          type: string
+          description: The model a vector is asked of. Empty means this provider does not embed.
+        jurisdiction:
+          $ref: "#/components/schemas/AiJurisdiction"
+        processing_allowed:
+          type: boolean
+          description: >
+            Whether this workspace's content may be sent to the provider at all
+            (`ai_processing_allowed`, ai-first.md §2). Checked before every call, and false by
+            default - configuring a provider is not the same act as consenting to use it.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version:
+          type: integer
+          description: The optimistic lock, as everywhere else.
+
+    AiProviderConfiguration:
+      type: object
+      description: >
+        The provider, set whole. A half-changed provider is one nobody can reason about, and the
+        endpoint, the models and the key have to agree with each other.
+      required: [kind, jurisdiction]
+      properties:
+        kind:
+          $ref: "#/components/schemas/AiProviderKind"
+        base_url:
+          type: string
+          format: uri
+          description: Required for every kind but `NOOP`, which calls nothing.
+        completion_model: { type: string }
+        embedding_model: { type: string }
+        api_key:
+          type: string
+          description: >
+            Sealed on the way in and answered by nothing afterwards. Omit it on a later write to
+            keep the key already stored; send an empty string to clear it, which is what a local
+            provider that needs none wants.
+        jurisdiction:
+          $ref: "#/components/schemas/AiJurisdiction"
+        processing_allowed:
+          type: boolean
+          default: false
+          description: >
+            Defaults to false. Configuring a provider and consenting to send this workspace's
+            content to it are two decisions, and a default that ran them together would make the
+            second one by accident.
+
+    AiProviderKind:
+      type: string
+      enum: [NOOP, OPENAI_COMPATIBLE, OLLAMA]
+      description: >
+        Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure,
+        Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model;
+        `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+
+    AiJurisdiction:
+      type: string
+      enum: [SELF_HOSTED, EEA, ADEQUACY, THIRD_COUNTRY]
+      description: >
+        Where the provider processes what is sent to it, as the operator declares it. It is a
+        declaration rather than something this software can verify, and it exists so that the
+        decision is documented rather than made by accident (ADR-0018 decision 7).
+
+        `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody.
+        `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and
+        needs the operator's confirmation in the installation's configuration; the adequacy
+        decision or the standard contractual clauses, and the transfer impact assessment, remain
+        the operator's obligation (data-protection.md §6).
+
     IdentityProvider:
       type: object
       description: >
@@ -7258,7 +7417,20 @@ components:
         query:
           type: object
           additionalProperties: true
-          description: The query document of POST /items:query, stored as sent.
+          description: >
+            The query a view asks, in the shape the use case takes rather than the shape
+            `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or
+            `scope_item_id` - because `presentation/rest` flattens the request body's `scope`
+            object before any use case sees it, and this document is read back as an input.
+
+
+            It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that
+            stored only the question - a filter and an order, so that it could be asked anywhere -
+            is a view nobody can export.
+          example:
+            scope_container_id: "0192f000-0000-7000-8000-0000000000c0"
+            filter: { field: due_at, op: LTE, value: "@today+P7D" }
+            sort: [{ field: due_at, direction: ASC }]
         grouping:
           type: object
           additionalProperties: true
@@ -7289,6 +7461,13 @@ components:
         query:
           type: object
           additionalProperties: true
+          description: >
+            The query, anchored, in the use case's input shape - `scope_container_id`, not a nested
+            `scope` object. See `SavedView.query`; both shapes are refused here rather than at the
+            first export.
+          example:
+            scope_container_id: "0192f000-0000-7000-8000-0000000000c0"
+            filter: { field: due_at, op: LTE, value: "@today+P7D" }
         grouping:
           type: object
           additionalProperties: true
@@ -7314,6 +7493,9 @@ components:
         query:
           type: object
           additionalProperties: true
+          description: >
+            The whole query, replaced. Anchored and in the use case's input shape, as at creation -
+            see `SavedView.query`.
         grouping:
           type: object
           additionalProperties: true
@@ -9277,11 +9459,18 @@ components:
 
     ReminderState:
       type: string
-      enum: [PENDING, SENT, CANCELLED]
+      enum: [PENDING, SENT, CANCELLED, LAPSED]
       description: >
         Where the reminder stands, written by the server and never by a client: PENDING until it
         fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it
         rather than cancelling it.
+
+
+        LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder
+        whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an
+        auditor reading hundreds of cancellations nobody made, and not PENDING, which would have
+        the scheduler send every one of them at once. To a device it means what a cancellation
+        means - do not remind (offline-sync.md §8).
 
     ReminderInput:
       type: object

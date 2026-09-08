@@ -130,6 +130,8 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_secret_reseals_total` | Counter | `store`, `outcome` | What a re-sealing round moved under the current master key, and what it had to leave (ADR-0045). The key identifier is deliberately not a label - it is read from `/admin/encryption` |
 | `hubtask_media_reclaimed_total` | Counter | — | Media objects removed because nothing referenced them |
 | `hubtask_media_reclaim_failed_total` | Counter | — | Orphans a pass could not reclaim. A number that keeps rising is a bucket that will not let go, not a backlog that clears |
+| `hubtask_ai_requests_total` | Counter | `provider_kind`, `operation`, `result` | AI provider calls (J-03). The endpoint is deliberately not a label — it is a tenant's configuration, and a label per endpoint would grow a series per customer (§3.2). `provider_kind` is the closed set `noop`, `openai_compatible`, `ollama` |
+| `hubtask_ai_tokens_total` | Counter | `provider_kind`, `operation`, `direction` | What a provider reported consuming. The unit every provider agrees on, and the input to the per-tenant budget (J-15) — not a price, which this project does not have |
 
 ### 4.1 The `result` label
 
@@ -238,7 +240,7 @@ schema version — everything is reported as a code with a severity, not as free
 | Object storage (S3/MinIO) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
 | SMTP / push | Notifications stay in the queue and are caught up; no loss | The reminder arrives late, with an in-app notice |
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
-| AI provider | AI suggestions disappear, every manual route remains | The feature is greyed out with a reason |
+| AI provider | AI suggestions disappear, every manual route remains. One breaker **per endpoint** (J-03), because a provider is per tenant and a single breaker would let one workspace's dead endpoint switch off everybody's; `/meta/health` reports the installation's view — `disabled` until this process has called a provider at all, then `ok` or `down` — and never names an endpoint | The feature is greyed out with a reason |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
 | NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart (H-14, proved in `test/resilience/rt1_bus_dependency_test.go`) | No visible change |
 | Webhook recipient | Retries over 24 h, then dead letter plus a subscription warning | A warning in the integration settings |

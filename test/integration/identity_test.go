@@ -11,10 +11,13 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -389,9 +392,74 @@ func TestAMembershipIsGrantedFoundAndRevoked(t *testing.T) {
 	if found.Role != identity.RoleMember || found.AccountID != account.ID {
 		t.Errorf("found %+v", found)
 	}
+	// The tenant is a column the statement could leave out and row level security would not
+	// notice: it bounds the read either way. The grant read back is what the revocation writes
+	// its audit entry from, and an entry without a tenant is refused by the port - which made
+	// revoking a real membership answer 500 with nothing in the log (issue #426).
+	if found.TenantID != tenantA {
+		t.Errorf("the grant came back without its tenant: %+v", found)
+	}
 	if !removed {
 		t.Error("the revocation reported that nothing was there")
 	}
+}
+
+// The use case, not the repository: with the real audit sink behind it, which is what turned a
+// missing column into a 500. The grant is read in one transaction and the entry is written from
+// what came back, so a repository that answers a grant without its tenant produces an entry the
+// port refuses - and the caller sees `internal` on a membership that plainly exists (issue #426).
+func TestRevokingAMembershipRemovesItAndRecordsIt(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	account := invitedIn(t, tenantA)
+
+	grant, err := identity.NewGrant(freshID(t), tenantA, account.ID, "",
+		identity.TenantScope(), identity.RoleMember)
+	if err != nil {
+		t.Fatalf("building the grant: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+	}); err != nil {
+		t.Fatalf("granting: %v", err)
+	}
+
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	fixed := portclock.Fixed(created)
+	sink := postgres.NewAuditSink(clockadapter.NewUUIDv7(fixed))
+	revoke := identityservice.RevokeMembership{
+		Grants: postgres.NewMembershipGrantRepository(pageCursors()),
+		Authorizer: access.Service{
+			Memberships: postgres.NewMembershipRepository(),
+			UnitOfWork:  unitOfWork,
+			Audit:       sink,
+			Clock:       fixed,
+		},
+		Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,
+	}
+
+	if err := revoke.Execute(ctx, memberAdministrator(tenantA, authorA),
+		identityservice.RevokeMembershipCommand{MembershipID: grant.ID}); err != nil {
+		t.Fatalf("revoking a membership that exists: %v", err)
+	}
+
+	if rows := countIn(ctx, t,
+		`SELECT count(*) FROM membership WHERE id = $1`, grant.ID.String()); rows != 0 {
+		t.Errorf("the membership is still there")
+	}
+	if rows := countIn(ctx, t,
+		`SELECT count(*) FROM audit_log WHERE target_id = $1 AND action = 'membership.revoked'`,
+		grant.ID.String()); rows != 1 {
+		t.Errorf("%d audit entries for the revocation, want 1", rows)
+	}
+}
+
+// The actor the membership operations ask for: an administrator of the workspace, with the token
+// scope those use cases declare.
+func memberAdministrator(tenant, account shared.ID) appshared.ActorContext {
+	actor := administrator(tenant, account)
+	actor.Scopes = []string{"members:write", "members:read"}
+	return actor
 }
 
 // A granted membership takes effect on the next request, and a revoked one stops applying - read

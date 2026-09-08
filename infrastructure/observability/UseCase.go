@@ -5,6 +5,7 @@ package observability
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -52,12 +53,43 @@ func (o *Observer) UseCase(ctx context.Context, name string, fn func(context.Con
 		span.SetStatus(codes.Error, "")
 		if domainErr := shared.AsError(err); domainErr != nil {
 			span.SetAttributes(attribute.String("hubtask.error_code", domainErr.Code))
+			logFailure(ctx, name, err, domainErr)
 		}
 	}
 	span.SetAttributes(attribute.String("hubtask.result", result))
 
 	o.metrics.UseCase(ctx, name, result, correlation.TenantFrom(ctx))
 	return err
+}
+
+// logFailure writes the line an operator needs for a failure that is ours.
+//
+// Here rather than where the response is written, because this is the one place that sees the
+// error, the use case's name and the correlation fields of the context at once - the `use_case`
+// and `error_code` fields §3.1 makes mandatory, whichever channel the call arrived through.
+// Without it an internal error was a request ID with nothing to look up: the technical cause a
+// domain error carries exists for the log (`shared.Error`), and reached no log (issue #426).
+//
+// Only the two categories that are the installation's problem. A validation error or a 404 is the
+// API working as designed, and a line per refused request is a log nobody reads (§3.1 level
+// policy).
+func logFailure(ctx context.Context, name string, err error, domainErr *shared.Error) {
+	level := slog.LevelWarn
+	switch domainErr.Category {
+	case shared.CategoryInternal:
+		// A defect. ERROR is for states that require human action, and this one does.
+		level = slog.LevelError
+	case shared.CategoryUnavailable:
+		// A dependency saying "later". Worth a line, not worth waking anybody: the alert for a
+		// dependency that stays down comes from the metric, not from one occurrence.
+	default:
+		return
+	}
+
+	slog.Log(ctx, level, "the use case failed",
+		slog.String("use_case", name),
+		slog.String("error_code", domainErr.Code),
+		slog.String("error", err.Error()))
 }
 
 // ResultClass is the `result` label of hubtask_usecase_total: ok, or the error category in lower

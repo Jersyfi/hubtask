@@ -26,7 +26,10 @@ func viewInput() NewSavedViewInput {
 		ScopeType: ViewScopeCollection, ScopeID: viewCollection,
 		Name: "Due this week", Layout: "KANBAN",
 		Query: map[string]any{
-			"filter": map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
+			// Anchored, in the shape the use case takes: a view whose query names no scope is one
+			// `:export` refuses (issue #431).
+			"scope_container_id": viewCollection.String(),
+			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
 		},
 		Sharing: SharingPrivate,
 		Now:     savedAt,
@@ -145,18 +148,36 @@ func TestTheStoredQueryPassesTheGrammar(t *testing.T) {
 			wantCode: "query.field_not_groupable",
 		},
 		"a scope naming both anchors": {
-			query: map[string]any{"scope": map[string]any{
-				"container_id": viewCollection.String(), "item_id": viewID.String(),
-			}},
+			query: map[string]any{
+				"scope_container_id": viewCollection.String(), "scope_item_id": viewID.String(),
+			},
 			wantCode: "query.scope_ambiguous",
 		},
 		"a scope whose identifier is not one": {
-			query:    map[string]any{"scope": map[string]any{"container_id": "not-a-uuid"}},
+			query:    map[string]any{"scope_container_id": "not-a-uuid"},
 			wantCode: "query.value_type_invalid",
+		},
+		// The trap this shape closes: a query anchored the way `POST /items:query` takes its
+		// *body* anchors nothing, because the controller flattens that before the use case sees
+		// it. Stored as sent, it would be refused at every export and never at creation.
+		"a scope in the request body's nested shape": {
+			query: map[string]any{
+				"scope": map[string]any{"container_id": viewCollection.String()},
+			},
+			wantCode: "query.scope_required",
+		},
+		"a query that names no scope at all": {
+			query:    map[string]any{"filter": map[string]any{"field": "title", "op": "EQ", "value": "x"}},
+			wantCode: "query.scope_required",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			in := viewInput()
+			// The anchor unless the case is about the anchor: every other query here is refused
+			// for its own reason, and an unanchored one would be refused for this one first.
+			if _, names := test.query["scope_container_id"]; !names && test.wantCode != "query.scope_required" {
+				test.query["scope_container_id"] = viewCollection.String()
+			}
 			in.Query = test.query
 
 			_, err := NewSavedView(in)
