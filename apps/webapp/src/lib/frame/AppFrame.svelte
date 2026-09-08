@@ -79,6 +79,9 @@
     { path: '/search', name: 'search', label: 'app.nav.search' },
     { path: '/trash', name: 'trash', label: 'app.nav.trash' },
     { path: '/installation', name: 'installation', label: 'app.nav.installation' },
+    // Reachable from every screen, because it is where somebody goes when the product is speaking
+    // to them in the wrong language — which is exactly the moment a buried link is no use.
+    { path: '/profile', name: 'profile', label: 'app.nav.profile' },
   ];
   /**
    * The two transitions worth hearing, announced through the region that already exists.

@@ -67,3 +67,20 @@ test('the first match wins, so the table is ordered specific-first', () => {
   ];
   assert.equal(resolve(shadowing, '/x/fixed').name, 'wildcard');
 });
+
+test('a route declares its area, and end-user is what most screens are', () => {
+  // ADR-0032's one restriction is by area: the mobile shell ships end-user and profile in full and
+  // reaches administration through the web app. Declaring it here is what stops the shell having
+  // to classify a route by reading it.
+  const declared: Route[] = [
+    { name: 'home', pattern: '/' },
+    { name: 'profile', pattern: '/profile', area: 'profile' },
+    { name: 'installation', pattern: '/installation', area: 'administration' },
+  ];
+
+  assert.equal(resolve(declared, '/').area, 'end-user', 'an undeclared route is an end-user one');
+  assert.equal(resolve(declared, '/profile').area, 'profile');
+  assert.equal(resolve(declared, '/installation').area, 'administration');
+  // A path that matches nothing is not administration by accident.
+  assert.equal(resolve(declared, '/nowhere').area, 'end-user');
+});

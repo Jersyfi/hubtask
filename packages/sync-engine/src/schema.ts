@@ -293,3 +293,16 @@ export type CalendarFeed = components['schemas']['CalendarFeed'];
 export type CalendarFeedCreate = components['schemas']['CalendarFeedCreate'];
 /** The only answer that ever carries the token. It exists here and nowhere else afterwards. */
 export type CalendarFeedSecret = components['schemas']['CalendarFeedSecret'];
+
+/** Locale, time zone and the first day of the week. An empty value clears one. */
+export type AccountPreferences = components['schemas']['AccountPreferences'];
+/**
+ * One row per category and channel, with the effective value.
+ *
+ * `is_default` is the field that matters: a pair nobody has written is answered with the
+ * installation's default and marked, because "not stored" and "off" are different facts and a form
+ * that showed a default as a choice somebody made would be lying about who made it.
+ */
+export type NotificationPreference = components['schemas']['NotificationPreference'];
+export type NotificationPreferenceList = components['schemas']['NotificationPreferenceList'];
+export type NotificationPreferenceUpdate = components['schemas']['NotificationPreferenceUpdate'];

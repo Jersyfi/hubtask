@@ -19,6 +19,7 @@
   import HomeView from './views/HomeView.svelte';
   import ItemView from './views/ItemView.svelte';
   import InstallationView from './views/InstallationView.svelte';
+  import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
   import SignInView from './views/SignInView.svelte';
@@ -30,6 +31,10 @@
   const router = new Router([
     { name: 'home', pattern: '/' },
     { name: 'installation', pattern: '/installation' },
+    // ADR-0032's profile area, declared now rather than reclassified later: the mobile shell ships
+    // this area in full and excludes administration, and a route that carried no area would be one
+    // somebody has to classify by reading it.
+    { name: 'profile', pattern: '/profile', area: 'profile' },
     // No parameter, and that is the point: `/search` is a `POST` because a search term is content
     // and a query string travels through access logs, proxies and browser history. A route that
     // carried the term would undo that in the address bar (security.md §9, ADR-0018).
@@ -85,6 +90,8 @@
     <HomeView />
   {:else if route.name === 'installation'}
     <InstallationView />
+  {:else if route.name === 'profile'}
+    <ProfileView />
   {:else if route.name === 'search'}
     <SearchView />
   {:else if route.name === 'trash'}
