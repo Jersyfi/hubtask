@@ -5489,7 +5489,9 @@ type SavedView struct {
 	Name    string             `json:"name"`
 	OwnerId openapi_types.UUID `json:"owner_id"`
 
-	// Query The query document of POST /items:query, stored as sent.
+	// Query The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because `presentation/rest` flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.
+	//
+	// It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.
 	Query map[string]interface{} `json:"query"`
 
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
@@ -5513,7 +5515,9 @@ type SavedViewCreate struct {
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 	Layout   string                  `json:"layout"`
 	Name     string                  `json:"name"`
-	Query    map[string]interface{}  `json:"query"`
+
+	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
+	Query map[string]interface{} `json:"query"`
 
 	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
 	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
@@ -5540,9 +5544,11 @@ type SavedViewShareSharing string
 
 // SavedViewUpdate JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share.
 type SavedViewUpdate struct {
-	Grouping      *map[string]interface{} `json:"grouping,omitempty"`
-	Layout        *string                 `json:"layout,omitempty"`
-	Name          *string                 `json:"name,omitempty"`
+	Grouping *map[string]interface{} `json:"grouping,omitempty"`
+	Layout   *string                 `json:"layout,omitempty"`
+	Name     *string                 `json:"name,omitempty"`
+
+	// Query The whole query, replaced. Anchored and in the use case's input shape, as at creation - see `SavedView.query`.
 	Query         *map[string]interface{} `json:"query,omitempty"`
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }

@@ -493,8 +493,10 @@ func (h CreateSavedView) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "query", Kind: usecase.KindObject, Required: true,
-				Description: "The query document of queryItems, stored as sent. Validated " +
-					"against the same catalogue, depth and node bounds as an ad-hoc query.",
+				Description: "The query, as queryItems takes it: the anchor flat - " +
+					"scope_container_id or scope_item_id, never a nested scope object - and " +
+					"present, because :export executes this document. Validated against the same " +
+					"catalogue, depth and node bounds as an ad-hoc query, and stored as sent.",
 			},
 			{
 				Name: "grouping", Kind: usecase.KindObject,

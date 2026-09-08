@@ -348,7 +348,7 @@ func (h UpdateSavedView) Descriptor() usecase.Descriptor {
 			{
 				Name: "query", Kind: usecase.KindObject,
 				Description: "The new query document, replacing the stored one whole, validated " +
-					"like an ad-hoc query. Omitted leaves it.",
+					"like an ad-hoc query and anchored like the one it replaces. Omitted leaves it.",
 			},
 			{
 				Name: "grouping", Kind: usecase.KindObject,
