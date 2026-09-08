@@ -32,6 +32,9 @@
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
+  import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
+  import ExportDialog from '../lib/entries/ExportDialog.svelte';
+  import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
@@ -42,6 +45,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
+  import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
@@ -53,7 +57,13 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { anchorFor } from '../lib/data/rank.ts';
-  import type { BulkOperation, BulkResult, TransportError, WorkItem } from '@hubtask/sync-engine';
+  import type {
+    BulkOperation,
+    BulkResult,
+    SavedView,
+    TransportError,
+    WorkItem,
+  } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
@@ -148,6 +158,15 @@
       lastResults = new Map();
     };
   });
+
+  // The views that apply here, and this reader's own feeds. Both read once for their dialogs.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION') return;
+    const wanted = container.id;
+    return untrack(() => savedViews.open(wanted));
+  });
+
+  $effect(() => untrack(() => feeds.open()));
 
   // The templates that apply here, read once for the dialog.
   $effect(() => {
@@ -310,6 +329,11 @@
   let isManagingLabels = $state(false);
   let isManagingFields = $state(false);
   let isUsingTemplates = $state(false);
+  let isManagingViews = $state(false);
+  let isManagingFeeds = $state(false);
+  /** The view an export or a subscription is about, if either is open. */
+  let exporting = $state<SavedView | undefined>(undefined);
+  let subscribing = $state<SavedView | undefined>(undefined);
   let isManagingMembers = $state(false);
 
   let isTrashing = $state(false);
@@ -492,6 +516,11 @@
             >
               {t('app.labels.choose')}
             </Button>
+            <!-- What F2-13 kept on the device, saved. The button is here rather than in the query
+                 panel because a view is a property of the collection, like its labels. -->
+            <Button size="sm" tone="secondary" onclick={() => (isManagingViews = true)}>
+              {t('app.views.title')}
+            </Button>
             <!-- The templates that apply here, for the same reason: a collection's own, its hub's
                  and the workspace-wide ones are one question asked from one screen. -->
             <Button
@@ -653,6 +682,31 @@
     collectionId={container.id}
     role={structureRole}
   />
+  <ViewsPanel
+    bind:isOpen={isManagingViews}
+    collectionId={container.id}
+    {query}
+    {layout}
+    role={structureRole}
+    onapply={(asked, appliedLayout, name) => {
+      // Both halves: the query the server validated, and the layout only a client knows what to do
+      // with — which is what the `layout` field has been for since it was declared uninterpreted.
+      query = asked;
+      layout = appliedLayout;
+      announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
+    }}
+    onexport={(view) => {
+      isManagingViews = false;
+      exporting = view;
+    }}
+    onsubscribe={(view) => {
+      isManagingViews = false;
+      subscribing = view;
+      isManagingFeeds = true;
+    }}
+  />
+  <ExportDialog view={exporting} onclose={() => (exporting = undefined)} />
+  <FeedsDialog bind:isOpen={isManagingFeeds} view={subscribing} collectionId={container.id} />
   <TemplatesDialog
     bind:isOpen={isUsingTemplates}
     collectionId={container.id}
