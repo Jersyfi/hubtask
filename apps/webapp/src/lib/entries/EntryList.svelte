@@ -17,6 +17,7 @@
   import {
     Badge,
     Button,
+    Checkbox,
     EmptyState,
     ErrorState,
     IconButton,
@@ -49,6 +50,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { selection } from '../data/selection.svelte.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -202,6 +204,19 @@
   }
 
   const rows = $derived(flatten(items.inCollection(collectionId), 0, null, isReadOnly));
+
+  /**
+   * The entries on screen, in the order they are drawn.
+   *
+   * What a range is measured through and what "select every entry on screen" means. Rows that have
+   * left — filtered away, moved, trashed by somebody else — are dropped from the selection here,
+   * because a bar acting on an entry nobody can see is a bar acting in the dark.
+   */
+  const visibleIds = $derived(rows.map((row) => row.item.id));
+
+  $effect(() => {
+    selection.keepVisible(visibleIds);
+  });
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
   const levelState = $derived(items.stateOf(`container:${collectionId}`));
@@ -734,6 +749,24 @@
               : undefined}
             style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
           >
+            <!-- The pick, first in the row and first in the tab order, so a keyboard reaches it
+                 the way a pointer does. Shift is read from the event rather than from a mode: one
+                 code path for the pointer and the keyboard is what keeps the two from drifting
+                 apart, and `selection.pick` is where it lives. -->
+            <span class="pick">
+              <Checkbox
+                label={t('app.bulk.select', { title: row.item.title })}
+                isLabelHidden={true}
+                checked={selection.has(row.item.id)}
+                onclick={(event: MouseEvent) =>
+                  selection.pick(visibleIds, row.item.id, { range: event.shiftKey })}
+                onkeydown={(event: KeyboardEvent) => {
+                  if (event.key !== ' ' && event.key !== 'Enter') return;
+                  event.preventDefault();
+                  selection.pick(visibleIds, row.item.id, { range: event.shiftKey });
+                }}
+              />
+            </span>
             <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
                  menu at the end of the row, and it is a real one — so a second focusable element
                  that does nothing for the keyboard would be noise in the tab order rather than
@@ -944,6 +977,8 @@
   /* `touch-action: none` is what makes a drag possible on a touch screen at all: without it the
      browser claims the gesture for scrolling and the pointer events stop arriving after the first
      few. It is on the grip alone, so the page still scrolls everywhere else. */
+  .pick { display: flex; align-items: center; }
+
   .grip {
     display: inline-flex;
     flex: none;

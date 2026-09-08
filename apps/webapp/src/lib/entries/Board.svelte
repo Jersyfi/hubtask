@@ -18,6 +18,7 @@
   import {
     BucketColumn,
     Button,
+    Checkbox,
     Dialog,
     EmptyState,
     ErrorState,
@@ -44,6 +45,7 @@
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { media } from '../data/media.svelte.ts';
+  import { selection } from '../data/selection.svelte.ts';
   import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -120,6 +122,23 @@
   function countOf(bucketId: string | null): number | null {
     return groups.find((group) => group.key === bucketId)?.count ?? null;
   }
+
+  /**
+   * Every card on the board, column by column and in the order each column draws them.
+   *
+   * A range therefore runs *through the board as it is read* — down a column and on into the next
+   * — rather than through one column alone, which is what somebody shift-clicking across two
+   * columns means. Cards that have left the board leave the selection with them.
+   */
+  const visibleIds = $derived(
+    columns.flatMap((column) => cardsOf(column.id).map((card) => card.id)).concat(
+      cardsOf(null).map((card) => card.id),
+    ),
+  );
+
+  $effect(() => {
+    selection.keepVisible(visibleIds);
+  });
 
   const available = $derived(labels.of(collectionId));
 
@@ -507,6 +526,23 @@
                   : undefined}
                 style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
               >
+                <!-- The same pick the list has, and deliberately the same code behind it: one
+                     selection across both layouts, and shift read from the event rather than from
+                     a mode this component would have to keep. -->
+                <span class="pick">
+                  <Checkbox
+                    label={t('app.bulk.select', { title: card.title })}
+                    isLabelHidden={true}
+                    checked={selection.has(card.id)}
+                    onclick={(event: MouseEvent) =>
+                      selection.pick(visibleIds, card.id, { range: event.shiftKey })}
+                    onkeydown={(event: KeyboardEvent) => {
+                      if (event.key !== ' ' && event.key !== 'Enter') return;
+                      event.preventDefault();
+                      selection.pick(visibleIds, card.id, { range: event.shiftKey });
+                    }}
+                  />
+                </span>
                 <!-- A picture, not a control: the menu on the card is SC 2.5.7's single-pointer
                      alternative, and a second focusable element that does nothing for the keyboard
                      would be noise in the tab order rather than access. -->
@@ -606,6 +642,8 @@
   /* `touch-action: none` is what makes a drag possible on a touch screen: without it the browser
      claims the gesture for scrolling, and the board scrolls sideways, so it would claim it at
      once. On the grip alone, so the board still scrolls everywhere else. */
+  .pick { display: flex; align-items: center; }
+
   .grip {
     display: inline-flex;
     flex: none;
