@@ -48,6 +48,19 @@ export interface Platform {
    * (`offline-sync.md` §9.6), because this seam knows about a token and not about a cache.
    */
   releaseBearer(): void;
+
+  /**
+   * Follows a download target the server minted.
+   *
+   * Here rather than in a component for the reason the bearer is: this is exactly what differs
+   * between targets. A browser navigates to the URL and lets `Content-Disposition: attachment` do
+   * the rest; a shell hands the URL to the platform's own downloader, which is what puts a file in
+   * the folder a person expects rather than in a sandbox (ADR-0031).
+   *
+   * The URL is always one the server answered — a presigned bucket URL or this server's content
+   * route — never one composed here, and it expires.
+   */
+  openDownload(url: string): void;
 }
 
 export { platform } from './browser.ts';

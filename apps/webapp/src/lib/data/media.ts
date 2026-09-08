@@ -96,11 +96,6 @@ export function imageCover(mediaId: string): CoverInput {
   return { kind: 'IMAGE', media_id: mediaId, color_token: null };
 }
 
-/** The document that sets a colour cover. */
-export function colorCover(colorToken: string): CoverInput {
-  return { kind: 'COLOR', color_token: colorToken, media_id: null };
-}
-
 /**
  * What the file dialog offers first for a usage.
  *

@@ -8,7 +8,6 @@ import type { Capabilities, MediaObject } from '@hubtask/sync-engine';
 
 import {
   acceptFor,
-  colorCover,
   coverImageIdOf,
   downloadUrlOf,
   imageCover,
@@ -91,7 +90,6 @@ test('a cover document carries exactly one of the two fields', () => {
   // The contract says "exactly one of the two, matching the kind", and sending both is
   // `items.cover_contradictory` rather than a preference the server resolves.
   assert.deepEqual(imageCover('m-9'), { kind: 'IMAGE', media_id: 'm-9', color_token: null });
-  assert.deepEqual(colorCover('amber'), { kind: 'COLOR', color_token: 'amber', media_id: null });
 });
 
 test('the accept hint offers images for a cover and everything for an attachment', () => {

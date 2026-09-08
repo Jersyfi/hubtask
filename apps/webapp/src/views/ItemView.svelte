@@ -40,6 +40,8 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
+  import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import CommentPanel from '../lib/people/CommentPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
@@ -309,6 +311,16 @@
           {t('app.people.share')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.media.cover')}</h2>
+      <CoverPanel {item} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.media.attachments')}</h2>
+      <AttachmentPanel {item} />
     </Stack>
 
     <Stack gap="150">
