@@ -15,6 +15,7 @@
   // (ADR-0034).
 
   import {
+    Badge,
     EmptyState,
     ErrorState,
     Inline,
@@ -28,6 +29,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
   import { textLanguages } from '../lib/data/query.ts';
   import { search } from '../lib/data/search.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -47,13 +49,27 @@
    * is an effect rather than a handler because the language is part of the question too: changing
    * it re-asks without the reader typing anything.
    */
+  /**
+   * The question, including what to widen to when the reader's own language finds nothing.
+   *
+   * The reader's locale and the installation's languages travel with it rather than being read in
+   * the store: the manifest is read once, in one place, and a data module that reached for it would
+   * be a second answer to what the installation says about itself.
+   */
+  const asked = $derived({
+    q: term,
+    language: language || undefined,
+    readerLocale: actor.locale ?? messages.locale,
+    textLanguages: languages,
+  });
+
   $effect(() => {
-    const asked = { q: term, language: language || undefined };
-    if (asked.q.trim() === '') {
+    const question = asked;
+    if (question.q.trim() === '') {
       search.reset();
       return;
     }
-    const timer = setTimeout(() => void search.run(asked), 250);
+    const timer = setTimeout(() => void search.run(question), 250);
     return () => clearTimeout(timer);
   });
 
@@ -63,7 +79,7 @@
     if (search.status !== 'done') return;
     announcer.say(
       search.hits.length === 0
-        ? t('app.search.none')
+        ? t(languages.length > 1 && !language ? 'app.search.widened_none' : 'app.search.none')
         : t('app.search.found', { count: search.hits.length }),
     );
   });
@@ -123,7 +139,7 @@
       reference={failure.reference}
       referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')}
-      onRetry={() => search.run({ q: term, language: language || undefined })}
+      onRetry={() => void search.run(asked)}
     />
   {:else if search.status === 'searching' && search.hits.length === 0}
     <div aria-busy="true"><Skeleton lines={4} /></div>
@@ -131,10 +147,22 @@
     <EmptyState kind="unused" title={t('app.search.start')} icon="search" />
   {:else if search.hits.length === 0}
     <!-- `filtered`, not `unused`: something excluded everything, and voice-and-tone.md §4.2 is
-         about exactly that — the emptiness has a cause and the sentence names it. -->
-    <EmptyState kind="filtered" title={t('app.search.none')} icon="search" />
+         about exactly that — the emptiness has a cause and the sentence names it. And when the
+         other languages were asked too, the sentence says so — otherwise "nothing matches" would
+         be hiding how hard this looked. -->
+    <EmptyState
+      kind="filtered"
+      title={t(languages.length > 1 && !language ? 'app.search.widened_none' : 'app.search.none')}
+      icon="search"
+    />
   {:else}
     <Stack gap="050">
+      {#if search.didWiden}
+        <!-- Said once, above the results, rather than inferred from the labels: the reader asked a
+             question that found nothing and got an answer to a wider one, and that is worth a
+             sentence rather than a badge they have to interpret. -->
+        <p class="hint">{t('app.search.widened')}</p>
+      {/if}
       {#each search.hits as hit (hit.id)}
         {@const isCompleted = hit.completion?.is_completed ?? false}
         <TaskRow
@@ -146,7 +174,16 @@
             title: hit.title,
           })}
           onToggleComplete={() => toggleComplete(hit.id, isCompleted)}
-        />
+        >
+          {#snippet trailing()}
+            {#if search.languageOf(hit.id)}
+              <!-- Which language found it. A language tag rather than a name: the installation
+                   reports tags, and naming them would be a table this client would be wrong about
+                   on the installation that indexes one more. -->
+              <Badge>{t('app.search.found_under', { language: search.languageOf(hit.id) ?? '' })}</Badge>
+            {/if}
+          {/snippet}
+        </TaskRow>
       {/each}
     </Stack>
     {#if search.isPartial}
