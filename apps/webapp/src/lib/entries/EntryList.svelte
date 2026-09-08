@@ -36,7 +36,7 @@
     rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
+  import type { BulkResult, DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
   import type { Archival } from '../data/containers.ts';
 
@@ -51,6 +51,7 @@
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
+  import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -71,9 +72,33 @@
      * rows as they arrive rather than reading a subtree the reader has not asked for.
      */
     isExpanded?: boolean;
+    /**
+     * What the last bulk did, by entry.
+     *
+     * Handed in rather than read from a store, because the report belongs to the rows: a refusal
+     * is about an entry and the place a reader looks for it is the row it happened to. An entry
+     * that is not in the map was not part of that bulk.
+     */
+    lastResults?: ReadonlyMap<string, BulkResult>;
   }
 
-  const { collectionId, isReadOnly = false, query, isExpanded = false }: Props = $props();
+  const {
+    collectionId,
+    isReadOnly = false,
+    query,
+    isExpanded = false,
+    lastResults,
+  }: Props = $props();
+
+  /** The sentence one row shows about the last bulk, or nothing where it was not in it. */
+  function bulkNote(itemId: string): string | undefined {
+    const result = lastResults?.get(itemId);
+    if (!result) return undefined;
+    const outcome = outcomeOf(result);
+    if (outcome === 'applied') return undefined;
+    if (outcome === 'not_applied') return t('app.bulk.rolled_back');
+    return renderProblem(result.problem as never, messages).message;
+  }
 
   /** The entries whose children are shown. Expanding one is what reads its level. */
   let expanded = $state<string[]>([]);
@@ -889,6 +914,10 @@
 
           </div>
 
+          {#if bulkNote(row.item.id)}
+            <p class="bulk-note">{bulkNote(row.item.id)}</p>
+          {/if}
+
           {#if addingUnder === row.item.id}
             {@render addForm()}
           {/if}
@@ -978,6 +1007,8 @@
      browser claims the gesture for scrolling and the pointer events stop arriving after the first
      few. It is on the grip alone, so the page still scrolls everywhere else. */
   .pick { display: flex; align-items: center; }
+
+  .bulk-note { margin: 0 0 0 var(--sp-300); color: var(--text-danger); font-size: var(--fs-075); }
 
   .grip {
     display: inline-flex;

@@ -33,7 +33,7 @@
     rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { Bucket, WorkItem } from '@hubtask/sync-engine';
+  import type { Bucket, BulkResult, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
@@ -46,6 +46,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
+  import { outcomeOf } from '../data/bulk.ts';
   import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -64,9 +65,27 @@
      * installation that groups by something else renders that instead.
      */
     query?: ItemsQuery;
+    /**
+     * What the last bulk did, by entry.
+     *
+     * Handed in rather than read from a store, because the report belongs to the rows: a refusal
+     * is about an entry and the place a reader looks for it is the row it happened to. An entry
+     * that is not in the map was not part of that bulk.
+     */
+    lastResults?: ReadonlyMap<string, BulkResult>;
   }
 
-  const { collectionId, isReadOnly = false, query }: Props = $props();
+  const { collectionId, isReadOnly = false, query, lastResults }: Props = $props();
+
+  /** The sentence one card shows about the last bulk, or nothing where it was not in it. */
+  function bulkNote(itemId: string): string | undefined {
+    const result = lastResults?.get(itemId);
+    if (!result) return undefined;
+    const outcome = outcomeOf(result);
+    if (outcome === 'applied') return undefined;
+    if (outcome === 'not_applied') return t('app.bulk.rolled_back');
+    return renderProblem(result.problem as never, messages).message;
+  }
 
   $effect(() => {
     const wanted = collectionId;
@@ -585,6 +604,9 @@
                     </Inline>
                   {/snippet}
                 </WorkItemCard>
+                {#if bulkNote(card.id)}
+                  <p class="bulk-note">{bulkNote(card.id)}</p>
+                {/if}
               </div>
             {/each}
           </BucketColumn>
@@ -643,6 +665,8 @@
      claims the gesture for scrolling, and the board scrolls sideways, so it would claim it at
      once. On the grip alone, so the board still scrolls everywhere else. */
   .pick { display: flex; align-items: center; }
+
+  .bulk-note { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 
   .grip {
     display: inline-flex;

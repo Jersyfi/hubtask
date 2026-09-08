@@ -20,6 +20,14 @@ class Selection {
   #ids = $state<readonly string[]>([]);
   /** Where a range starts: the last entry picked without one. */
   #anchor = $state<string | undefined>(undefined);
+  /**
+   * What is drawn, as the layout last reported it.
+   *
+   * Held so that a control *outside* the list — "select every entry on screen", in the bar above
+   * it — can mean the same thing the list means by it. The list and the board are the only writers
+   * and they write it on every render, which is what keeps it from going stale.
+   */
+  #visible = $state<readonly string[]>([]);
 
   get ids(): readonly string[] {
     return this.#ids;
@@ -55,8 +63,23 @@ class Selection {
     this.#anchor = undefined;
   }
 
+  /** The same, from a control that is not inside the list. */
+  allVisible(): void {
+    this.all(this.#visible);
+  }
+
+  /** Whether everything drawn is picked, which is what the select-all control shows. */
+  get isAllVisible(): boolean {
+    return this.#visible.length > 0 && this.#visible.every((id) => this.#ids.includes(id));
+  }
+
+  get visibleCount(): number {
+    return this.#visible.length;
+  }
+
   /** Drops what is no longer drawn, and keeps the drawn order. Safe to call on every render. */
   keepVisible(visible: readonly string[]): void {
+    this.#visible = visible;
     const kept = stillVisible(visible, this.#ids);
     if (kept.length !== this.#ids.length) this.#ids = kept;
   }
