@@ -282,7 +282,7 @@ rules than this table has rows.
 | A-09 | Webhook error rate > 20% (30 min, excluding 4xx recipient errors) | ticket | Delivery problems |
 | A-10 | Circuit breaker open > 10 min | ticket | A third-party system persistently disrupted |
 | A-11 | Database pool utilisation > 80% (10 min) | ticket | Saturation approaching |
-| A-12 | A replication/PITR gap, or a backup older than 24 h, per target | page | Risk of data loss |
+| A-12 | A replication/PITR gap, or a backup older than 24 h, per target | page | Risk of data loss. **Both halves ship since H-10.** The backup half has watched `hubtask_backup_last_success_timestamp_seconds` per target since E-05; the PITR half is a fourth rule file over the database operator's own series — the unarchived WAL queue, the archiver's failures, the age of the newest base backup, an archive with no recoverability point at all, and a replica past the objective. It is loaded only where CloudNativePG runs, because an installation with a database of its own has none of those series ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md)) |
 | A-13 | Migration versions inconsistent across the cluster > 15 min | ticket | The rollout is stuck |
 | A-14 | `hubtask_config_invalid_total` > 0 after startup | ticket | Misconfiguration |
 | A-15 | Auth error rate > 5%, or refresh reuse detected | ticket/page | Misconfiguration or an attack |
@@ -290,7 +290,7 @@ rules than this table has rows.
 | A-17 | A certificate or signing key expires in < 14 days | ticket | Preventive |
 | A-18 | A tenant exceeds 90% of a quota | info | Capacity planning |
 | A-19 | A data subject request is approaching its statutory deadline | ticket | The deadline is legal, not internal ([ADR-0018](../adr/ADR-0018-privacy-by-design.md), `data-protection.md` §4). Built with E-10: `hubtask_dsr_deadline_total{stage}`, incremented by the per-tenant deadline watch, with `RB-A19-dsr-deadline.md`. A counter rather than a gauge, because a gauge would need a tenant label to be true in provider operation and an unlabelled one would carry the last workspace's number |
-| A-20 | The last restore drill is older than 90 days | ticket | A backup nobody has restored is a hypothesis (`backup-restore.md` §10) |
+| A-20 | The last restore drill is older than 90 days | ticket | A backup nobody has restored is a hypothesis (`backup-restore.md` §10). **The gauge under it exists since H-10**: the drill writes a record, the record reaches every process as a mounted file, and the process reports it at every scrape. The rule still carries no `absent()` — an installation that runs no drill must not be paged for a feature it never installed — and the never-ran case is a *ticket* in the PITR file, which is loaded only where the drill is meant to run |
 
 For **self-hosting** there is a reduced variant: a standard Grafana dashboard and an alert rule file
 with A-03, A-04, A-05, A-07, A-08, A-12, A-19, A-20 — plus the warnings from `/meta/health`, which are visible even
@@ -323,11 +323,23 @@ Shipped under `deploy/observability/`:
 * `alerts/prometheus-rules-provider.yaml` — the rest of the catalogue, with an on-call rota behind
   it *(shipped with H-12: A-01/A-02 as multiwindow burn rates over recorded `hubtask:slo1_error_ratio:*`
   series, then A-06, A-09, A-10, A-11, A-13, A-14, A-15, A-16, A-17)*
+* `alerts/prometheus-rules-pitr.yaml` — A-12's point-in-time recovery half and A-20's never-ran
+  companion, over the **database operator's** series rather than the application's *(shipped with
+  H-10; the chart renders it as a `PrometheusRule` where it owns the database)*
 * `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
 
 A provider loads all three rule files; a self-hoster loads only the first and is deliberately never
 paged by anything in the other two. Three files rather than one growing file, so that the pinned
-set keeps reading a file that never changes.
+set keeps reading a file that never changes. The fourth is orthogonal to that split: it belongs to
+whoever runs CloudNativePG, provider or not, and to nobody else — a rule reading a series the
+installation has no component for is silent, which is worse than absent, so it is loaded by the
+chart that creates the component.
+
+One thing the synthetic tests cannot prove about that fourth file: that the operator publishes
+those series under those names. A `promtool` test invents its own input, so a rule reading a
+metric nobody emits passes it and stays quiet in production — the failure mode §11 already worries
+about, one step further out. `scripts/pitr-drill.sh` closes it in CI by scraping a real
+CloudNativePG instance and failing on a name that is missing from the scrape.
 
 Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in
 both directions — an alert whose runbook is missing, and a runbook no alert points at — and

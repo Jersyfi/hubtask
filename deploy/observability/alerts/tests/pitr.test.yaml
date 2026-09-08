@@ -1,0 +1,171 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# Synthetic firing tests for A-12's point-in-time recovery half (H-10): every rule driven to fire
+# from crafted series, and the two that could plausibly fire when nothing is wrong driven the
+# other way as well. Run by `make gate-observability` through `promtool test rules`.
+#
+# What this cannot prove is that the operator publishes these series under these names - a test
+# invents its own input, so a rule reading a metric nobody emits passes here and is silent in
+# production. That half is `scripts/pitr-drill.sh`, which scrapes a real CloudNativePG instance in
+# CI and fails on a name that is missing from it.
+rule_files:
+  - ../prometheus-rules-pitr.yaml
+evaluation_interval: 30s
+tests:
+  # The archive queue does not drain: 30 segments waiting, well past the threshold.
+  - interval: 1m
+    input_series:
+      - series: 'cnpg_collector_pg_wal_archive_status{namespace="hubtask", pod="hubtask-db-1", value="ready"}'
+        values: '30x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HubtaskArchiveGap
+        exp_alerts:
+          - exp_labels:
+              namespace: hubtask
+              pod: hubtask-db-1
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "WAL segments are queueing up unarchived"
+              description: "The archiver is not keeping up, so the point-in-time recovery window is falling behind the database. Every queued segment is data a recovery would not replay.\n"
+              runbook: RB-A12-backup-stale.md
+
+  # A handful of segments in flight is the normal state of a busy database, and it must not page.
+  # The `done` series is there for a second reason: the selector has to pick the queue rather than
+  # everything the operator publishes under that name, and a rule that summed both would fire here.
+  - interval: 1m
+    input_series:
+      - series: 'cnpg_collector_pg_wal_archive_status{namespace="hubtask", pod="hubtask-db-1", value="ready"}'
+        values: '3x20'
+      - series: 'cnpg_collector_pg_wal_archive_status{namespace="hubtask", pod="hubtask-db-1", value="done"}'
+        values: '400+30x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HubtaskArchiveGap
+        exp_alerts: []
+
+  # The archiver counts a failure a minute for twenty minutes.
+  - interval: 1m
+    input_series:
+      - series: 'cnpg_pg_stat_archiver_failed_count{namespace="hubtask", pod="hubtask-db-1"}'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HubtaskArchiveFailing
+        exp_alerts:
+          - exp_labels:
+              namespace: hubtask
+              pod: hubtask-db-1
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "The WAL archiver is failing"
+              description: "Archiving to the object store is returning errors. The backup target, its credentials or its policy is the place to look; until it works, the recovery window stands still.\n"
+              runbook: RB-A12-backup-stale.md
+
+  # An old failure that stopped: the counter stands still, and the alert clears rather than
+  # remembering it forever. This is the direction a counter-based rule gets wrong.
+  - interval: 1m
+    input_series:
+      - series: 'cnpg_pg_stat_archiver_failed_count{namespace="hubtask", pod="hubtask-db-1"}'
+        values: '0 1 2 3 3x60'
+    alert_rule_test:
+      - eval_time: 55m
+        alertname: HubtaskArchiveFailing
+        exp_alerts: []
+
+  # The newest base backup is three days old. The test clock starts at zero, so a backup 48 hours
+  # before it is a negative timestamp - the same arithmetic the rule does in production, without
+  # simulating three days of scrapes.
+  - interval: 5m
+    input_series:
+      - series: 'cnpg_collector_last_available_backup_timestamp{namespace="hubtask", pod="hubtask-db-1"}'
+        values: '-259200x30'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: HubtaskBaseBackupStale
+        exp_alerts:
+          - exp_labels:
+              namespace: hubtask
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "The newest base backup is more than 48 hours old"
+              description: "The daily base backup has not succeeded for two days. WAL archiving alone restores nothing: a recovery replays the archive onto a base copy, and this is that copy.\n"
+              runbook: RB-A12-backup-stale.md
+
+  # Yesterday's backup: within the window, and silent.
+  - interval: 5m
+    input_series:
+      - series: 'cnpg_collector_last_available_backup_timestamp{namespace="hubtask", pod="hubtask-db-1"}'
+        values: '-86400x30'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: HubtaskBaseBackupStale
+        exp_alerts: []
+
+  # Backups are configured and none has ever completed: the operator publishes zero.
+  - interval: 5m
+    input_series:
+      - series: 'cnpg_collector_first_recoverability_point{namespace="hubtask", pod="hubtask-db-1"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: HubtaskNoRecoverabilityPoint
+        exp_alerts:
+          - exp_labels:
+              namespace: hubtask
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "The archive has no point it can recover to"
+              description: "No base backup has ever completed, so there is nothing to recover to and the restore drill has nothing to prove. Check the backup stanza's credentials and its destination.\n"
+              runbook: RB-A12-backup-stale.md
+
+  # A replica five and a half minutes behind.
+  - interval: 1m
+    input_series:
+      - series: 'cnpg_pg_replication_lag{namespace="hubtask", pod="hubtask-db-2"}'
+        values: '330x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskReplicationLag
+        exp_alerts:
+          - exp_labels:
+              namespace: hubtask
+              pod: hubtask-db-2
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "A replica is more than five minutes behind"
+              description: "Replication is lagging past the recovery point objective §2 names. A failover now would lose everything written in that window.\n"
+              runbook: RB-A12-backup-stale.md
+
+  # Nothing has ever recorded a drill. The series is absent for a day - which is the state a fresh
+  # installation is in until its first release hook has run.
+  - interval: 15m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: HubtaskRestoreDrillNeverRan
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-20
+            exp_annotations:
+              summary: "No restore drill has ever recorded a success"
+              description: "The drill runs after every release and on its schedule, and none has yet written a record. Either it has never run or every run has failed - both mean this installation's point-in-time recovery is untested.\n"
+              runbook: RB-A20-restore-drill-stale.md
+
+  # A drill that recorded a success: the never-ran ticket must go quiet, and it is A-20's own
+  # ninety-day rule that watches from there on.
+  - interval: 15m
+    input_series:
+      - series: 'hubtask_restore_drill_last_success_timestamp_seconds'
+        values: '1757236800x120'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: HubtaskRestoreDrillNeverRan
+        exp_alerts: []
