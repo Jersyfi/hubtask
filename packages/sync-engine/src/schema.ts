@@ -109,6 +109,12 @@ export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
 export type Bucket = components['schemas']['Bucket'];
 /**
+ * One comment, including a removed one: `body` is null exactly when `deleted_at` is set, so a
+ * tombstone still carries who wrote it and when — which is what keeps a reply from dangling.
+ */
+export type Comment = components['schemas']['Comment'];
+export type CommentPage = components['schemas']['CommentPage'];
+/**
  * What a move answered: the entry where it landed, and what the destination could not carry.
  *
  * The second half is the point of the type. Invariant I-W6 is that an unresolvable reference is
