@@ -77,6 +77,11 @@ export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelt
 export { default as UploadField } from './UploadField.svelte';
 export { default as DueDateControl, type DueDate } from './DueDateControl.svelte';
 export {
+  default as Timeline,
+  type TimelineRow,
+  type TimelineTick,
+} from './Timeline.svelte';
+export {
   default as RecurrenceEditor,
   type Frequency,
   type RecurrenceEnd,

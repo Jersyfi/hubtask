@@ -228,7 +228,11 @@
   }
 </script>
 
-<div class="editor">
+<fieldset class="editor">
+  <!-- The whole thing is one question - "how does this repeat?" - and the fields inside it are its
+       parts. A group with no name is a group a screen reader reads as six unrelated controls. -->
+  <legend>{label}</legend>
+
   <Radio
     label={frequencyLabel}
     options={frequencyChoices}
@@ -347,10 +351,18 @@
 
   <!-- What this component does not do, said where somebody would otherwise go looking for it. -->
   <p class="source">{sourceLabel}</p>
-</div>
+</fieldset>
 
 <style>
-  .editor { display: flex; flex-direction: column; gap: var(--sp-150); min-width: 0; }
+  .editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-150);
+    margin: 0;
+    border: 0;
+    padding: 0;
+    min-width: 0;
+  }
 
   .group { display: flex; flex-direction: column; gap: var(--sp-050); margin: 0; border: 0; padding: 0; }
 
