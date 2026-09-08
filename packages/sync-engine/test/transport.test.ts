@@ -47,6 +47,22 @@ test('a read sends no content type and no body', async () => {
   assert.equal(new Headers(calls[0]?.init.headers).get('Content-Type'), null);
 });
 
+test('a PATCH is announced as a merge patch, and nothing else is', async () => {
+  for (const [method, mediaType] of [
+    ['PATCH', 'application/merge-patch+json'],
+    ['POST', 'application/json'],
+    ['PUT', 'application/json'],
+    ['DELETE', 'application/json'],
+  ] as const) {
+    const { fetch, calls } = recordingFetch(() => ok({}));
+    const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+    await transport.send(method, '/items/i1', { title: 'x' }, { timeoutMs: 1000 });
+
+    assert.equal(new Headers(calls[0]?.init.headers).get('Content-Type'), mediaType, method);
+  }
+});
+
 test('a call without a deadline is refused before it is made', async () => {
   const { fetch, calls } = recordingFetch(() => ok({}));
   const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
