@@ -37,6 +37,7 @@
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
@@ -108,6 +109,16 @@
     people
       .along(containerPath)
       .find((membership) => membership.account_id === actor.account?.id)?.role as string | undefined,
+  );
+
+  /**
+   * The definitions in force here, as fields the query editor can offer.
+   *
+   * Only for a collection: a hub's screen lists containers rather than entries, and a definition
+   * belongs to a collection or to the workspace — so there is no one set in force above one.
+   */
+  const customFieldFilters = $derived(
+    container?.type === 'COLLECTION' ? queryFieldsFor(customFields.of(container.id)) : [],
   );
 
   // The definitions in force here, read once for the dialog and for the filter editor below.
@@ -527,6 +538,7 @@
         drawable={DRAWABLE}
         onlayout={(id) => (layout = id)}
         onquery={(asked) => (query = asked)}
+        custom={customFieldFilters}
       />
 
       {#if layout === 'KANBAN'}
