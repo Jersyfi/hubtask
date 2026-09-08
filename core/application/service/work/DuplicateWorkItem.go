@@ -151,6 +151,10 @@ type duplication struct {
 	// series is the rule an occurrence belongs to, and empty for an ordinary duplicate: a copy
 	// belongs to no series (db/queries/Work.sql, CopyWorkItem).
 	series shared.ID
+	// seriesSource is the entry the occurrence was copied from, and empty wherever series is. The
+	// pair travels together because one without the other is what issue #428 was: the rule
+	// identifier is on the template as well, and says nothing about which end this copy is.
+	seriesSource shared.ID
 	// createdBy overrides who the copy was made by, and is empty for an ordinary duplicate, where
 	// it is the actor. The materialisation sets it to whoever created the template: the system has
 	// no account, an entry needs one, and the person who wrote the series is the honest answer -
@@ -355,6 +359,7 @@ func (h DuplicateWorkItem) copyInto(
 		fresh.ownEntriesOnly = plan.ownEntriesOnly
 		fresh.dueOverride = plan.dueOverride
 		fresh.series = plan.series
+		fresh.seriesSource = plan.seriesSource
 		fresh.createdBy = plan.createdBy
 		if err := fresh.destination.EnsureAcceptsItems(); err != nil {
 			return err
@@ -604,7 +609,7 @@ func (h DuplicateWorkItem) copyOf(
 	// A copy belongs to no series, whatever the entry it was copied from belongs to: duplicating a
 	// recurring task gives somebody a task like it rather than a second template. The
 	// materialisation is the one caller that says otherwise, for the root it creates (D-05).
-	copied.RecurrenceRuleID = noID
+	copied.RecurrenceRuleID, copied.RecurrenceSourceID = noID, noID
 
 	switch {
 	case isRoot:
@@ -619,6 +624,7 @@ func (h DuplicateWorkItem) copyOf(
 		}
 		if !plan.series.IsZero() {
 			copied.RecurrenceRuleID = plan.series
+			copied.RecurrenceSourceID = plan.seriesSource
 		}
 	default:
 		parent, found := made.newIDs[source.ParentID]

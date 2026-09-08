@@ -193,6 +193,19 @@ func TestTwoPassesOverOneSeriesProduceOneSetOfOccurrences(t *testing.T) {
 		t.Fatal("two passes produced no occurrences at all")
 	}
 
+	// Both pointers survive the round trip through the statement that owns them. The rule
+	// identifier alone is what the template carries too, so it says a series is involved and not
+	// which end - the source is what an occurrence links up by (issue #428).
+	for _, occurrence := range occurrences {
+		if occurrence.RecurrenceSourceID != template {
+			t.Errorf("occurrence %s names %q as the entry it repeats from, want %s",
+				occurrence.ID, occurrence.RecurrenceSourceID, template)
+		}
+	}
+	if item := findWorkItem(ctx, t, tenant, template); !item.RecurrenceSourceID.IsZero() {
+		t.Errorf("the template names %q as the entry it was copied from", item.RecurrenceSourceID)
+	}
+
 	moments := map[string]int{}
 	for _, occurrence := range occurrences {
 		moments[occurrence.Due.At.UTC().Format(time.RFC3339)]++

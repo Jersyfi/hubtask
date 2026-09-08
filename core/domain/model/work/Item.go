@@ -164,14 +164,28 @@ type WorkItem struct {
 	// cleared: where an item came from does not stop being true.
 	OriginJumbleID shared.ID
 
-	// RecurrenceRuleID is the series this entry is the template of, and empty for an entry that
-	// repeats never (D-04). The link is on the entry rather than the rule holding a list, because
-	// a series has exactly one template - and it is what tells a reader, without a second query,
-	// that changing this entry changes what every occurrence will look like.
+	// RecurrenceRuleID is the series this entry belongs to, and empty for an entry that repeats
+	// never (D-04). The link is on the entry rather than the rule holding a list, because a series
+	// has exactly one template - and it is what tells a reader, without a second query, that this
+	// entry has something to do with a series at all.
+	//
+	// It does not say *which end*: the materialisation writes it onto every occurrence as well as
+	// onto the template, which is what RecurrenceSourceID is for.
 	//
 	// The server decides it: it is set by the writer that stores a rule and cleared by the one
 	// that removes it, and a client that sent one would be claiming a series exists.
 	RecurrenceRuleID shared.ID
+
+	// RecurrenceSourceID is the entry this one was copied from as an occurrence, and empty on the
+	// template and on everything that is not an occurrence at all (D-04). With RecurrenceRuleID it
+	// is what tells the two ends of a series apart, and it is the only thing on an occurrence that
+	// names the entry it repeats from - `GET /items/{id}/recurrence` resolves a rule by its source
+	// entry, so an occurrence asking for its own series answers 404 (issue #428).
+	//
+	// Provenance, like OriginJumbleID: written once by the materialisation, beside the rule
+	// identifier, and never cleared. Where an entry came from does not stop being true when the
+	// entry it came from is deleted.
+	RecurrenceSourceID shared.ID
 
 	// Retention is what a retention rule has announced about this entry, and nil while none has
 	// (data-retention.md §6). It is on the entry rather than fetched beside it because §6's whole
