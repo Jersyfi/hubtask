@@ -210,3 +210,19 @@ export type CustomFieldDefinitionUpdate = components['schemas']['CustomFieldDefi
 export type CustomFieldKind = components['schemas']['CustomFieldKind'];
 /** One value for one key. `value` is required and may be null, which clears the key. */
 export type CustomFieldValue = components['schemas']['CustomFieldValue'];
+
+/**
+ * One operation of a bulk: the same operation the route of the same name performs, on one entry.
+ *
+ * What a bulk may do is what a caller may do one entry at a time and never more — each operation
+ * carries its own permission check, its own event and its own history entry, which is why one
+ * bulk of five hundred is five hundred records rather than one.
+ */
+export type BulkOperation = components['schemas']['BulkOperation'];
+/**
+ * What one operation did. `status` is the status it would have answered on its own — and `409`
+ * for an operation of an atomic bulk that never ran because another one failed.
+ */
+export type BulkResult = components['schemas']['BulkResult'];
+/** What a duplicate produced: the copy, what it could not carry over, and how big it was. */
+export type DuplicateResult = components['schemas']['DuplicateResult'];
