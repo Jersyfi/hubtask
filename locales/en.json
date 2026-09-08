@@ -1736,5 +1736,10 @@
   "app.profile.category_RETENTION": "Something I hold is about to be removed",
   "app.nav.profile": "Your settings",
   "app.profile.no_locales": "This workspace has not said which languages it serves, so there is nothing to choose between. It speaks the installation’s own.",
-  "app.profile.week_start_fixed": "Once a first day is chosen, this version cannot put it back to the workspace’s. Choose a different day instead."
+  "app.profile.week_start_fixed": "Once a first day is chosen, this version cannot put it back to the workspace’s. Choose a different day instead.",
+  "app.search.widened": "Nothing matched in your language, so the other languages this workspace writes in were searched too.",
+  "app.search.found_under": "Found under {language}",
+  "app.search.widened_none": "Nothing matches those words, in any language this workspace writes in.",
+  "app.search.look_wider": "Look in the other {count} languages this workspace can index",
+  "app.search.look_wider_hint": "Your own languages have been searched already. This asks the rest, one by one, so it takes a moment."
 }
