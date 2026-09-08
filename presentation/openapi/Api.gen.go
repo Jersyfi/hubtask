@@ -228,6 +228,51 @@ func (e AdminTenantStatus) Valid() bool {
 	}
 }
 
+// Defines values for AiJurisdiction.
+const (
+	ADEQUACY     AiJurisdiction = "ADEQUACY"
+	EEA          AiJurisdiction = "EEA"
+	SELFHOSTED   AiJurisdiction = "SELF_HOSTED"
+	THIRDCOUNTRY AiJurisdiction = "THIRD_COUNTRY"
+)
+
+// Valid indicates whether the value is a known member of the AiJurisdiction enum.
+func (e AiJurisdiction) Valid() bool {
+	switch e {
+	case ADEQUACY:
+		return true
+	case EEA:
+		return true
+	case SELFHOSTED:
+		return true
+	case THIRDCOUNTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiProviderKind.
+const (
+	NOOP             AiProviderKind = "NOOP"
+	OLLAMA           AiProviderKind = "OLLAMA"
+	OPENAICOMPATIBLE AiProviderKind = "OPENAI_COMPATIBLE"
+)
+
+// Valid indicates whether the value is a known member of the AiProviderKind enum.
+func (e AiProviderKind) Valid() bool {
+	switch e {
+	case NOOP:
+		return true
+	case OLLAMA:
+		return true
+	case OPENAICOMPATIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -3082,6 +3127,61 @@ type AdminTenant struct {
 
 // AdminTenantStatus defines model for AdminTenant.Status.
 type AdminTenantStatus string
+
+// AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
+// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+type AiJurisdiction string
+
+// AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
+type AiProvider struct {
+	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed (ADR-0015, T-07).
+	BaseUrl *string `json:"base_url,omitempty"`
+
+	// CompletionModel The model a suggestion is asked of. Empty means this provider does not complete.
+	CompletionModel *string   `json:"completion_model,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+
+	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed.
+	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// ProcessingAllowed Whether this workspace's content may be sent to the provider at all (`ai_processing_allowed`, ai-first.md §2). Checked before every call, and false by default - configuring a provider is not the same act as consenting to use it.
+	ProcessingAllowed bool       `json:"processing_allowed"`
+	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// AiProviderConfiguration The provider, set whole. A half-changed provider is one nobody can reason about, and the endpoint, the models and the key have to agree with each other.
+type AiProviderConfiguration struct {
+	// ApiKey Sealed on the way in and answered by nothing afterwards. Omit it on a later write to keep the key already stored; send an empty string to clear it, which is what a local provider that needs none wants.
+	ApiKey *string `json:"api_key,omitempty"`
+
+	// BaseUrl Required for every kind but `NOOP`, which calls nothing.
+	BaseUrl         *string `json:"base_url,omitempty"`
+	CompletionModel *string `json:"completion_model,omitempty"`
+	EmbeddingModel  *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// ProcessingAllowed Defaults to false. Configuring a provider and consenting to send this workspace's content to it are two decisions, and a default that ran them together would make the second one by accident.
+	ProcessingAllowed *bool `json:"processing_allowed,omitempty"`
+}
+
+// AiProviderKind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+type AiProviderKind string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -7212,6 +7312,9 @@ type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
 
+// ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
+type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
+
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
 
@@ -7514,6 +7617,15 @@ type ServerInterface interface {
 	// SuspendTenant Suspend a workspace
 	// (POST /admin/tenants/{tenantId}:suspend)
 	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// RemoveAiProvider Remove the workspace's AI provider
+	// (DELETE /ai-provider)
+	RemoveAiProvider(w http.ResponseWriter, r *http.Request)
+	// ReadAiProvider The workspace's AI provider, and whether it may be used
+	// (GET /ai-provider)
+	ReadAiProvider(w http.ResponseWriter, r *http.Request)
+	// ConfigureAiProvider Configure the workspace's AI provider
+	// (PUT /ai-provider)
+	ConfigureAiProvider(w http.ResponseWriter, r *http.Request)
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
@@ -8541,6 +8653,48 @@ func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SuspendTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) ReadAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureAiProvider(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16303,6 +16457,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ai-provider", wrapper.RemoveAiProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-provider", wrapper.ReadAiProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)
