@@ -541,6 +541,7 @@ CREATE TABLE work_item (
   -- key from resurrecting the old value (C-07, migration 0018).
   custom_field_refs  jsonb NOT NULL DEFAULT '{}'::jsonb,
   recurrence_rule_id uuid,
+  recurrence_source_id uuid,
   origin_jumble_id   uuid,
   content_language   text,
   search_vector      tsvector GENERATED ALWAYS AS

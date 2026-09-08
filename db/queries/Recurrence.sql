@@ -60,6 +60,21 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 UPDATE work_item SET recurrence_rule_id = sqlc.narg('recurrence_rule_id')
 WHERE id = sqlc.arg('id')::uuid;
 
+-- name: SetOccurrenceSeries :execrows
+-- An occurrence's two pointers, written together: which series it belongs to, and which entry it
+-- was copied from.
+--
+-- Both, because one without the other is what issue #428 was: every occurrence carried the rule
+-- identifier the template carries, so the column distinguished neither and nothing on an occurrence
+-- named the entry it repeats from.
+--
+-- No version and no stamp, for SetWorkItemRecurrence's reasons: neither column is one a client
+-- owns, and what serialises two writers is the rule's own lock, in whose transaction this runs.
+UPDATE work_item SET
+  recurrence_rule_id   = sqlc.arg('recurrence_rule_id'),
+  recurrence_source_id = sqlc.arg('recurrence_source_id')
+WHERE id = sqlc.arg('id')::uuid;
+
 -- name: ClaimRulesToMaterialize :many
 -- What the materialisation pass takes: this tenant's series whose rolling window may owe
 -- something, oldest bookkeeping first (D-05).
