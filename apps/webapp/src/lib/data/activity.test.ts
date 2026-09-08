@@ -9,7 +9,15 @@ import assert from 'node:assert/strict';
 
 import type { ActivityEntry } from '@hubtask/sync-engine';
 
-import { accountsNamedBy, actorCodes, changesOf, mediaNamedBy, namesMedia, namesPeople } from './activity.ts';
+import {
+  accountsNamedBy,
+  actorCodes,
+  changesOf,
+  mediaNamedBy,
+  namesInstant,
+  namesMedia,
+  namesPeople,
+} from './activity.ts';
 
 const step = (extra: Partial<ActivityEntry> = {}): ActivityEntry =>
   ({
@@ -154,4 +162,15 @@ test('an attachment change names a file, and a cover change names no identifier 
   assert.equal(namesMedia('media_id'), true);
   assert.equal(namesMedia('cover'), false);
   assert.deepEqual(mediaNamedBy(changes), ['m-1']);
+});
+
+test('a due date in the history is an instant to be drawn, not a string to be printed', () => {
+  // `item.due_set` carries both sides as ISO instants — the right thing to store and the wrong
+  // thing to read. A history showing `2026-07-16T07:00:00Z` shows the storage format of a date
+  // somebody set at nine in the morning.
+  assert.equal(namesInstant('due_at'), true);
+  assert.equal(namesInstant('start_at'), true);
+  // The zone beside it is a string and stays one: it is already the name a reader would say.
+  assert.equal(namesInstant('due_time_zone'), false);
+  assert.equal(namesInstant('title'), false);
 });

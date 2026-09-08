@@ -85,6 +85,20 @@ export function namesPeople(field: string): boolean {
 }
 
 /**
+ * The change-set fields whose values are instants.
+ *
+ * `item.due_set` carries both sides of a move and `item.due_cleared` carries the side it lost, and
+ * both arrive as ISO instants — which is the right thing to store and the wrong thing to read. A
+ * history that showed `2026-07-16T07:00:00Z` would be showing the reader the storage format of a
+ * date they set at nine in the morning.
+ */
+const INSTANT_FIELDS = new Set(['due_at', 'start_at', 'completed_at', 'archived_at', 'deleted_at']);
+
+export function namesInstant(field: string): boolean {
+  return INSTANT_FIELDS.has(field);
+}
+
+/**
  * The change-set fields whose values are files.
  *
  * `item.attachment_added` and `item.attachment_removed` carry `media_id`, and a UUID in front of

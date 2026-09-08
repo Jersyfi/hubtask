@@ -24,6 +24,7 @@
 
 import type { Account, ResourceState } from '@hubtask/sync-engine';
 
+import { deviceZone } from '../i18n/zone.ts';
 import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
 
@@ -43,6 +44,22 @@ class Actor {
   /** The account's locale, when there is an account and it has one. */
   get locale(): string | undefined {
     return this.account?.locale ?? undefined;
+  }
+
+  /**
+   * The zone this reader's dates are read in.
+   *
+   * The account's, and the device's where the account states none — which is the chain
+   * `i18n-l10n.md` §2 describes, stopping one link short: the tenant's and the installation's
+   * defaults are already resolved into the account document by the time it arrives here.
+   */
+  get zone(): string {
+    return this.account?.time_zone ?? deviceZone();
+  }
+
+  /** Which day a week begins on for this reader. `null` where the account states none. */
+  get weekStart(): string | null {
+    return this.account?.week_start ?? null;
   }
 
   start(): () => void {

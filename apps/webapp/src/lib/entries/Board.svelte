@@ -46,6 +46,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
+  import DueMark from './DueMark.svelte';
   import { outcomeOf } from '../data/bulk.ts';
   import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -596,6 +597,7 @@
                     <Inline gap="050">
                       <!-- The same two facts the list row carries, in the space a card has. -->
                       <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
+                      <DueMark item={card} />
                       {#each (card.label_ids ?? []) as labelId (labelId)}
                         {@const label = available.find((each) => each.id === labelId)}
                         {#if label}

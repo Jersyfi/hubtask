@@ -31,6 +31,7 @@
   import Board from '../lib/entries/Board.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
+  import TimelineView from '../lib/entries/TimelineView.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
@@ -86,7 +87,7 @@
   let query = $state<ItemsQuery>({});
 
   /** The layouts this client can actually draw. `TIMELINE` needs F3's time work and is not here. */
-  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN'];
+  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'];
 
   const container = $derived(containers.find(id));
 
@@ -575,7 +576,13 @@
           (lastResults = byItem(operations, results))}
       />
 
-      {#if layout === 'KANBAN'}
+      {#if layout === 'TIMELINE'}
+        <TimelineView
+          collectionId={container.id}
+          {query}
+          onopen={(itemId) => onnavigate(`/items/${itemId}`)}
+        />
+      {:else if layout === 'KANBAN'}
         <Board
           collectionId={container.id}
           isReadOnly={isReadOnly}
