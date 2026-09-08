@@ -216,3 +216,61 @@ export function groupOf(
   const declared = fieldNamed(manifest, field);
   return declared?.groupable ? { field, limit_per_group: 50 } : undefined;
 }
+
+/**
+ * The filter a timeline window asks for: what falls inside it, and what has no dates at all.
+ *
+ * Three branches under an `OR`, and the third is the one worth explaining: an entry with neither a
+ * start nor a due date cannot be placed on an axis, and the layout shows those beside it rather
+ * than pretending they are not there — so they have to come back from the same read, or the list
+ * beside the axis would be empty on every collection with more than a page of entries.
+ *
+ * **Every branch is checked against the manifest first.** A field the installation does not report,
+ * or one that does not declare the operator, contributes nothing — and if none of them survives,
+ * the whole window contributes nothing and the timeline draws what the level already read. That is
+ * the same rule `filterOf` keeps: this client does not send a filter the server refuses by name.
+ */
+export function windowFilter(
+  manifest: Capabilities | undefined,
+  from: string,
+  to: string,
+): FilterNode | undefined {
+  const branches: FilterNode[] = [];
+
+  const between = (field: string): FilterNode | undefined => {
+    const declared = fieldNamed(manifest, field);
+    if (!declared?.operators?.includes('BETWEEN')) return undefined;
+    return { op: 'BETWEEN', field, value: [from, to] } as FilterNode;
+  };
+
+  for (const field of ['start_at', 'due_at']) {
+    const node = between(field);
+    if (node) branches.push(node);
+  }
+
+  const undated = ['start_at', 'due_at']
+    .map((field) => fieldNamed(manifest, field))
+    .filter((declared) => declared?.nullable && declared.operators?.includes('IS_NULL'));
+  if (undated.length === 2) {
+    branches.push({
+      op: 'AND',
+      nodes: [
+        { op: 'IS_NULL', field: 'start_at' },
+        { op: 'IS_NULL', field: 'due_at' },
+      ],
+    } as FilterNode);
+  }
+
+  if (branches.length === 0) return undefined;
+  return branches.length === 1 ? branches[0] : ({ op: 'OR', nodes: branches } as FilterNode);
+}
+
+/** Two filters, both kept. The reader's question and the window's, which are different questions. */
+export function bothOf(
+  first: FilterNode | undefined,
+  second: FilterNode | undefined,
+): FilterNode | undefined {
+  if (!first) return second;
+  if (!second) return first;
+  return { op: 'AND', nodes: [first, second] } as FilterNode;
+}

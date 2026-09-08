@@ -156,6 +156,22 @@ class Items {
     return this.#open(`item:${itemId}`, level({ item_id: itemId }));
   }
 
+  /**
+   * The entries of a collection whose dates a timeline can place, plus the ones with none.
+   *
+   * A level read like any other, with the window in the filter and `start_at` as the order — the
+   * timeline is a layout over the same query rather than a second kind of read. Its own key, so
+   * that switching layouts does not make the list and the timeline overwrite each other's answer.
+   */
+  openTimeline(containerId: string, query: ItemsQuery = {}): () => void {
+    return this.#open(`timeline:${containerId}`, level({ container_id: containerId }, query));
+  }
+
+  /** The entries a timeline has read. */
+  onTimeline(containerId: string): readonly WorkItem[] {
+    return rowsOf(this.#levels[`timeline:${containerId}`]);
+  }
+
   /** Starts the board. **From `untrack`**, like every other subscription here. */
   openBoard(containerId: string, query: ItemsQuery = {}): () => void {
     return this.#open(`board:${containerId}`, board(containerId, query));
