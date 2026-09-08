@@ -6,6 +6,7 @@ package ai_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -66,24 +67,34 @@ func TestTheDefaultProviderCanDoNothingAndSaysSo(t *testing.T) {
 }
 
 // `disabled` is not `down`, and the difference is a decision somebody made against an outage
-// somebody has. An installation that never configured AI must not report itself degraded, or the
-// alert catalogue teaches its operator to ignore the row.
-func TestAnUnconfiguredProviderIsDisabledRatherThanDown(t *testing.T) {
-	result := ai.NewProbe(ai.Noop{}, nil).Check(context.Background())
+// somebody has. An installation nothing has called an AI provider from must not report itself
+// degraded, or the alert catalogue teaches its operator to ignore the row.
+func TestAnInstallationCallingNoProviderIsDisabledRatherThanDown(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		pool *ai.BreakerPool
+	}{
+		{"no pool at all", nil},
+		{"a pool nothing has used", &ai.BreakerPool{New: func(string) ai.Breaker { return nil }}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := ai.NewProbe(testCase.pool).Check(context.Background())
 
-	if result.Status != health.StatusDisabled {
-		t.Fatalf("status %q, want %q", result.Status, health.StatusDisabled)
-	}
-	if len(result.Impact) != 0 {
-		t.Errorf("an unconfigured provider degrades %v; it should degrade nothing", result.Impact)
-	}
-	if result.ErrorCode != "" {
-		t.Errorf("an unconfigured provider reports the error %q", result.ErrorCode)
+			if result.Status != health.StatusDisabled {
+				t.Fatalf("status %q, want %q", result.Status, health.StatusDisabled)
+			}
+			if len(result.Impact) != 0 {
+				t.Errorf("it degrades %v; it should degrade nothing", result.Impact)
+			}
+			if result.ErrorCode != "" {
+				t.Errorf("it reports the error %q", result.ErrorCode)
+			}
+		})
 	}
 }
 
 func TestTheProbeIsOptionalAndNamedForTheMetric(t *testing.T) {
-	probe := ai.NewProbe(ai.Noop{}, nil)
+	probe := ai.NewProbe(nil)
 
 	if probe.Required() {
 		t.Error("the AI provider is required; the failure of an optional dependency must never block the write path")
@@ -93,24 +104,24 @@ func TestTheProbeIsOptionalAndNamedForTheMetric(t *testing.T) {
 	}
 }
 
-// A provider that can do something, whose breaker has opened, is the only state that degrades a
-// feature - and it degrades exactly one, named for what a person loses rather than for the vendor.
+// An endpoint whose breaker has opened is the one state that degrades a feature - and it degrades
+// exactly one, named for what a person loses rather than for the vendor.
 func TestAnOpenBreakerDegradesSuggestionsAndNothingElse(t *testing.T) {
-	breaker := resilience.NewBreaker(resilience.BreakerConfig{
-		Dependency: port.Dependency, FailureThreshold: 2, SuccessThreshold: 1,
-		OpenFor: 30 * time.Second,
-	})
+	pool := &ai.BreakerPool{New: func(string) ai.Breaker {
+		return resilience.NewBreaker(resilience.BreakerConfig{
+			Dependency: port.Dependency, FailureThreshold: 2, SuccessThreshold: 1,
+			OpenFor: 30 * time.Second,
+		})
+	}}
+	breaker := pool.For("https://api.example.org/v1")
 	dead := func(context.Context) error { return shared.ErrUnavailable }
 	for range 2 {
 		if err := breaker.Do(context.Background(), dead); err == nil {
 			t.Fatal("the dead dependency answered")
 		}
 	}
-	if breaker.State() == resilience.BreakerClosed {
-		t.Fatal("the breaker did not open; the rest of this test proves nothing")
-	}
 
-	result := ai.NewProbe(stubProvider{}, breaker).Check(context.Background())
+	result := ai.NewProbe(pool).Check(context.Background())
 
 	if result.Status != health.StatusDown {
 		t.Fatalf("status %q, want %q", result.Status, health.StatusDown)
@@ -123,10 +134,46 @@ func TestAnOpenBreakerDegradesSuggestionsAndNothingElse(t *testing.T) {
 	}
 }
 
-// stubProvider is a provider that reports itself able, so that the probe reaches the breaker. It
-// calls nothing: the probe never invokes a provider, which is the point of reading the breaker.
-type stubProvider struct{ ai.Noop }
+// A pool that has handed out a breaker which is closed is an installation calling a provider that
+// works, and that is `ok` rather than `disabled`.
+func TestAWorkingEndpointIsOkRatherThanDisabled(t *testing.T) {
+	pool := &ai.BreakerPool{New: func(string) ai.Breaker {
+		return resilience.NewBreaker(resilience.BreakerConfig{Dependency: port.Dependency})
+	}}
+	pool.For("https://api.example.org/v1")
 
-func (stubProvider) Capabilities() port.ProviderCapabilities {
-	return port.ProviderCapabilities{Kind: "stub", Completion: true, CompletionModel: "stub-1"}
+	if result := ai.NewProbe(pool).Check(context.Background()); result.Status != health.StatusOK {
+		t.Fatalf("status %q, want %q", result.Status, health.StatusOK)
+	}
+}
+
+// The pool is bounded, because its key comes from a tenant's configuration. What it must never do
+// is grow without limit.
+func TestThePoolIsBounded(t *testing.T) {
+	pool := &ai.BreakerPool{Cap: 4, New: func(string) ai.Breaker { return nil }}
+
+	for index := range 20 {
+		pool.For("https://endpoint-" + strconv.Itoa(index) + ".example.org")
+	}
+	if size := pool.Size(); size > 4 {
+		t.Errorf("the pool holds %d breakers with a cap of 4", size)
+	}
+}
+
+// The same endpoint gets the same breaker, or a workspace's provider would start every call with a
+// closed breaker and the guard would never engage.
+func TestOneEndpointGetsOneBreaker(t *testing.T) {
+	built := 0
+	pool := &ai.BreakerPool{New: func(string) ai.Breaker {
+		built++
+		return nil
+	}}
+
+	pool.For("https://api.example.org/v1")
+	pool.For("https://api.example.org/v1")
+	pool.For("https://other.example.org/v1")
+
+	if built != 2 {
+		t.Errorf("%d breakers built for two endpoints", built)
+	}
 }
