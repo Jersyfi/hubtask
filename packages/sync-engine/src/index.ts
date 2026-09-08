@@ -6,9 +6,17 @@
 // One entry point, so that a consumer imports the seam rather than a file inside it - and so that
 // the day the queue lands behind `SyncEngine`, nothing outside this package has a path to change.
 
-export { SyncEngine, DEFAULT_TIMEOUT_MS } from './SyncEngine.ts';
+export {
+  SyncEngine,
+  DEFAULT_TIMEOUT_MS,
+  DEFAULT_CONNECT_TIMEOUT_MS,
+  DEFAULT_IDLE_TIMEOUT_MS,
+  RECONNECT_BASE_MS,
+  RECONNECT_MAX_MS,
+} from './SyncEngine.ts';
 export type {
   Listener,
+  ListenOptions,
   MutateOptions,
   ResourceRequest,
   ResourceState,
@@ -23,7 +31,17 @@ export { TransportError } from './errors.ts';
 export type { FailureKind, FieldProblem } from './errors.ts';
 
 export { systemClock } from './ports.ts';
-export type { Clock, RequestOptions, Response, Storage, Transport } from './ports.ts';
+export type {
+  ByteTransfer,
+  Clock,
+  RequestOptions,
+  Response,
+  Storage,
+  StreamConnection,
+  StreamEvent,
+  StreamOptions,
+  Transport,
+} from './ports.ts';
 
 export type {
   Account,
@@ -32,6 +50,7 @@ export type {
   ActivityPage,
   Bucket,
   Capabilities,
+  ChangeRecord,
   Collection,
   Container,
   ContainerPage,
