@@ -18,6 +18,9 @@
 
 import type {
   AutoAssignOutcome,
+  BulkOperation,
+  BulkResult,
+  DuplicateResult,
   FilterNode,
   ItemMembers,
   ItemQueryResult,
@@ -432,6 +435,55 @@ class Items {
       undefined,
       { idempotencyKey, invalidates: TOUCHES },
     );
+  }
+
+  /**
+   * One bulk, one request, one idempotency key.
+   *
+   * The key belongs to the intent, which is the whole bulk rather than an operation in it: a retry
+   * of "complete these twelve" is the same intent, and twelve keys would let a retry trash twice.
+   *
+   * `/trash` is invalidated as well as `/items`, because `TRASH_ITEM` is one of the nine — and the
+   * seam matches by prefix, so naming both costs one extra reload of a screen that is usually not
+   * open.
+   */
+  async bulk(
+    operations: readonly BulkOperation[],
+    atomic: boolean,
+    idempotencyKey: string,
+  ): Promise<readonly BulkResult[]> {
+    const answer = await engine.mutate<{ results?: readonly BulkResult[] }>(
+      'POST',
+      '/items:bulk',
+      { atomic, operations },
+      { idempotencyKey, invalidates: ['/items', '/trash'] },
+    );
+    // HTTP 200 says the bulk was carried out, never that every operation in it succeeded. What
+    // happened is in the results, and a caller that read the status would learn nothing.
+    return answer.results ?? [];
+  }
+
+  /**
+   * Copies an entry, and everything below it when asked.
+   *
+   * The title is the caller's: the server copies the original's unchanged, because a server that
+   * invented "Copy of …" would be writing display text (ADR-0011). What the destination could not
+   * resolve comes back in `dropped_references` rather than being lost quietly (I-W6).
+   */
+  async duplicate(
+    id: string,
+    body: {
+      include_subtree?: boolean;
+      target_parent_id?: string | null;
+      target_collection_id?: string;
+      title?: string;
+    },
+    idempotencyKey: string,
+  ): Promise<DuplicateResult> {
+    return engine.mutate<DuplicateResult>('POST', `/items/${id}:duplicate`, body, {
+      idempotencyKey,
+      invalidates: TOUCHES,
+    });
   }
 
   async removeMember(id: string, accountId: string): Promise<ItemMembers> {
