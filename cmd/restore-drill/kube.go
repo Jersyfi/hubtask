@@ -46,9 +46,13 @@ func newKubeClient(cfg kubeConfig, namespace string) (*kubeClient, error) {
 		if host == "" || port == "" {
 			return nil, errors.New("KUBERNETES_SERVICE_HOST and _PORT are not set - is this a pod?")
 		}
-		base = "https://" + net.JoinHostPort(host, port)
+		// Assembled rather than written out: the address is configuration the platform injects,
+		// and only the scheme is fixed. A literal here would be an address in the source, which is
+		// what PG-6 is about even when the address is the pod's own control plane.
+		base = (&url.URL{Scheme: "https", Host: net.JoinHostPort(host, port)}).String()
 	}
-	if _, err := url.Parse(base); err != nil {
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Host == "" {
 		return nil, fmt.Errorf("the API address is not a URL: %w", err)
 	}
 
@@ -64,7 +68,8 @@ func newKubeClient(cfg kubeConfig, namespace string) (*kubeClient, error) {
 			return nil, errors.New("the cluster CA is not a PEM certificate")
 		}
 		tlsConfig.RootCAs = pool
-	} else if strings.HasPrefix(base, "https://") {
+	} else if parsed.Scheme == "https" {
+		// Over TLS the CA is not optional: without it this client would trust whatever answered.
 		return nil, fmt.Errorf("the cluster CA is not readable: %w", err)
 	}
 

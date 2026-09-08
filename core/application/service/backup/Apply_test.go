@@ -631,8 +631,10 @@ func TestAnAbandonedRestoreIsClosedUnderItsOwnCode(t *testing.T) {
 	}
 }
 
-// INSTANCE has nothing to restore until 0.6.0, and the refusal is explicit rather than an
-// accident of the scope comparison: even the asker's own tenant archive is refused under it.
+// INSTANCE stays refused, and the refusal is explicit rather than an accident of the scope
+// comparison: even the asker's own tenant archive is refused under it. Since H-10 it carries its
+// own code, because "that archive belongs to another workspace" was the wrong sentence about an
+// archive that belongs to nobody - the message now names the operator procedure (§8.5).
 func TestAnInstanceRestoreIsRefused(t *testing.T) {
 	h := newApplyHarness(t, containerRows)
 	in := h.accept(t, func(r *domain.Restore) {
@@ -642,7 +644,7 @@ func TestAnInstanceRestoreIsRefused(t *testing.T) {
 	_, err := h.applier().Apply(context.Background(), in)
 
 	var domainErr *shared.Error
-	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreArchiveScopeMismatch {
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreInstanceIsTheOperators {
 		t.Fatalf("refused with %v", err)
 	}
 	if h.imports.writes != 0 {

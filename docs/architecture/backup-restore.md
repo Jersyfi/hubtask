@@ -297,10 +297,15 @@ Four things E-06 had to decide about the table above:
   collection I named" falls out of the declarations. Only the containers need a pass of their own,
   because the order within an entity is by change time and a sub-collection can be written before
   its hub.
-* **`INSTANCE` has nothing to restore yet, and is refused rather than approximated.** No archive
-  this build writes has an instance-wide scope — B-2 is answered, and it leaves system backups to the
-  operator (ADR-0046) — so the mode is accepted, the archive's manifest is read, and the scope check refuses it.
-  The day an instance-wide archive exists the mode works without anything changing shape.
+* **`INSTANCE` is refused rather than approximated, and the refusal now says what to do instead.**
+  No archive this build writes has an instance-wide scope — B-2 is answered, and it leaves system
+  backups to the operator (ADR-0046) — so the mode is accepted, the archive's manifest is read, and
+  the scope check refuses it. Until H-10 it answered `backup.restore_archive_scope_mismatch`, which
+  said "that archive belongs to another workspace" about an archive that belongs to nobody and sent
+  the reader looking for a permission problem. It now answers
+  `backup.restore_instance_is_the_operators`, whose message names [§8.5](#85-the-operator-procedure-point-in-time-recovery)
+  — the recovery that *does* restore an installation, and who runs it. The day an instance-wide
+  archive exists the mode works without anything changing shape.
 
 ### 8.3 The procedure
 
