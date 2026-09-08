@@ -379,3 +379,33 @@ test('a caller that does want a re-read after the bytes names the prefixes', asy
 
   assert.ok(transport.calls.length > readsBefore, 'the named prefix was not read again');
 });
+
+test('a document is a read that answers a file, and it invalidates nothing', () => {
+  // An export is a read whatever its verb: a `POST` because a view's query is the caller's content
+  // and a query string travels through access logs, not because anything changes.
+  const transport = new FakeTransport()
+    .answer('/items/i1', { id: 'i1' })
+    .answerDocument('/views/v1:export', {
+      body: new Blob(['title\n']),
+      contentType: 'text/csv',
+      headers: new Map([['export-truncated', 'true']]),
+    });
+  const engine = engineWith(transport);
+
+  return (async () => {
+    engine.subscribe({ path: '/items/i1' }, () => {});
+    await loaded(engine, { path: '/items/i1' });
+    await Promise.resolve();
+    await Promise.resolve();
+    const readsBefore = transport.calls.length;
+
+    const answer = await engine.document('/views/v1:export', { format: 'CSV' });
+
+    assert.equal(answer.contentType, 'text/csv');
+    // The header a caller has to read comes back rather than being interpreted here: what
+    // `Export-Truncated` means is the application's business.
+    assert.equal(answer.headers.get('export-truncated'), 'true');
+    assert.deepEqual(transport.documents, [{ path: '/views/v1:export', body: { format: 'CSV' } }]);
+    assert.equal(transport.calls.length, readsBefore, 'an export re-read a resource it did not change');
+  })();
+});

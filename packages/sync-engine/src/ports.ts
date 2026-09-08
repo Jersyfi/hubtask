@@ -143,6 +143,31 @@ export interface Transport {
    * are stored; rejects with a `TransportError` otherwise.
    */
   transfer(transfer: ByteTransfer): Promise<void>;
+  /**
+   * A response that is a **document rather than data**: `POST /views/{id}:export`, which answers
+   * CSV, JSON or an iCalendar file for a person to keep.
+   *
+   * It is a `POST` for the reason `/search` is — what a view selects is the caller's content, and a
+   * query string travels through access logs, proxies and browser history — so it cannot be a
+   * navigation, and a navigation is what a browser downloads by. Hence a request that carries a
+   * bearer like every other and hands back bytes.
+   *
+   * The headers come back with them because one of them is the answer: `Export-Truncated` says the
+   * file is the first page of a larger result, and a client that dropped it would hand somebody a
+   * file that looks complete. They are handed over as a map rather than interpreted here — what
+   * `Export-Truncated` means is the application's business, not the transport's.
+   */
+  document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument>;
+}
+
+/** Bytes, what they are, what they should be called, and what the answer said about them. */
+export interface TransportDocument {
+  readonly body: Blob;
+  readonly contentType?: string;
+  /** From `Content-Disposition`, where the server named one. */
+  readonly fileName?: string;
+  /** Lower-cased header names to values, for the few a caller has to read. */
+  readonly headers: ReadonlyMap<string, string>;
 }
 
 /**
