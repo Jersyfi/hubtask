@@ -73,9 +73,11 @@
      * that is not in the map was not part of that bulk.
      */
     lastResults?: ReadonlyMap<string, BulkResult>;
+    /** Asked to copy a card. Handed up, because a duplicate ends on the copy and that is a route. */
+    onduplicate?: (item: WorkItem) => void;
   }
 
-  const { collectionId, isReadOnly = false, query, lastResults }: Props = $props();
+  const { collectionId, isReadOnly = false, query, lastResults, onduplicate }: Props = $props();
 
   /** The sentence one card shows about the last bulk, or nothing where it was not in it. */
   function bulkNote(itemId: string): string | undefined {
@@ -335,10 +337,20 @@
             hasSeparatorBefore: index === 0,
           }))
         : []),
+      {
+        id: 'duplicate',
+        label: t('app.duplicate.title'),
+        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
+        hasSeparatorBefore: true,
+      },
     ];
   }
 
   function chose(card: WorkItem, cards: readonly WorkItem[], id: string) {
+    if (id === 'duplicate') {
+      onduplicate?.(card);
+      return;
+    }
     if (!id.startsWith('bucket:')) {
       void rank(card, cards, id as RankCommand);
       return;

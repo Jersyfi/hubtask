@@ -1486,12 +1486,6 @@
   "app.duplicate.here": "Beside the original",
   "app.duplicate.go": "Duplicate",
   "app.duplicate.copied": "{count} entries copied.",
-  "app.duplicate.dropped": "The copy could not carry these over:",
-  "app.duplicate.dropped_LABEL": "Labels",
-  "app.duplicate.dropped_BUCKET": "Columns",
-  "app.duplicate.dropped_MEMBER": "Members",
-  "app.duplicate.dropped_ASSIGNEE": "Assignees",
-  "app.duplicate.dropped_ATTACHMENT": "Attachments",
-  "app.duplicate.dropped_CUSTOM_FIELD": "Custom fields",
-  "app.duplicate.open": "Open the copy"
+  "app.duplicate.open": "Open the copy",
+  "app.duplicate.left_behind": "The copy of {title} could not carry these over:"
 }

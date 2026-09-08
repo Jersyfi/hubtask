@@ -30,6 +30,7 @@
 
   import Board from '../lib/entries/Board.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
+  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
@@ -49,7 +50,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { anchorFor } from '../lib/data/rank.ts';
-  import type { BulkOperation, BulkResult, TransportError } from '@hubtask/sync-engine';
+  import type { BulkOperation, BulkResult, TransportError, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
@@ -132,6 +133,9 @@
    * and when the screen changes.
    */
   let lastResults = $state<ReadonlyMap<string, BulkResult>>(new Map());
+
+  /** The entry being copied, if one is. The dialog is open exactly while this is set. */
+  let duplicating = $state<WorkItem | undefined>(undefined);
 
   // A selection is about what is in front of somebody, so it does not survive the screen.
   $effect(() => {
@@ -572,7 +576,13 @@
       />
 
       {#if layout === 'KANBAN'}
-        <Board collectionId={container.id} isReadOnly={isReadOnly} {query} {lastResults} />
+        <Board
+          collectionId={container.id}
+          isReadOnly={isReadOnly}
+          {query}
+          {lastResults}
+          onduplicate={(item) => (duplicating = item)}
+        />
       {:else}
         <!-- Read-only follows the container: an archived collection's entries are archived with
              it (I-C3), and the reason travels with the controls rather than the controls
@@ -583,6 +593,7 @@
           {query}
           isExpanded={layout === 'LIST_EXPANDED'}
           {lastResults}
+          onduplicate={(item) => (duplicating = item)}
         />
       {/if}
     {/if}
@@ -597,6 +608,16 @@
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
   />
 {/if}
+
+<DuplicateDialog
+  item={duplicating}
+  hubId={container?.type === 'COLLECTION' ? (container.parent_id ?? undefined) : container?.id}
+  onclose={() => (duplicating = undefined)}
+  onopened={(itemId) => {
+    duplicating = undefined;
+    onnavigate(`/items/${itemId}`);
+  }}
+/>
 
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />

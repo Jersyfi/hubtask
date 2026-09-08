@@ -80,6 +80,14 @@
      * that is not in the map was not part of that bulk.
      */
     lastResults?: ReadonlyMap<string, BulkResult>;
+    /**
+     * Asked to copy an entry.
+     *
+     * Handed up rather than handled here, because a duplicate ends on the copy — and navigation is
+     * the view's, not a list's. The same reason `MoveDialog` is opened from here and the move's
+     * destination comes from the tree the view holds.
+     */
+    onduplicate?: (item: WorkItem) => void;
   }
 
   const {
@@ -88,6 +96,7 @@
     query,
     isExpanded = false,
     lastResults,
+    onduplicate,
   }: Props = $props();
 
   /** The sentence one row shows about the last bulk, or nothing where it was not in it. */
@@ -575,6 +584,15 @@
         hasSeparatorBefore: true,
       },
       {
+        id: 'duplicate',
+        label: t('app.duplicate.title'),
+        // Offered on an archived entry too: copying one does not write to it, and the copy is a
+        // new entry in an active place. What stops it is a read-only collection, which the copy
+        // would have to be written into.
+        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
+        hasSeparatorBefore: true,
+      },
+      {
         id: 'trash',
         label: t('app.entries.trash'),
         // **Archived is not frozen against this one.** §3.4's state machine reads "active *or
@@ -682,6 +700,7 @@
     } else if (id === 'out') moveOut(row);
     else if (id === 'elsewhere') movingRow = row;
     else if (id === 'archive') void setArchived(row, row.archival !== 'archived');
+    else if (id === 'duplicate') onduplicate?.(row.item);
     else if (id === 'trash') void moveToTrash(row);
     else void rank(row, id as RankCommand);
   }
