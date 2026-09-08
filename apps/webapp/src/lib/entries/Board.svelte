@@ -43,6 +43,8 @@
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { media } from '../data/media.svelte.ts';
+  import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
@@ -517,6 +519,8 @@
                   isCompleted={card.completion?.is_completed ?? false}
                   coverKind={card.cover?.kind ?? null}
                   coverColorToken={card.cover?.color_token ?? null}
+                  coverImageUrl={media.coverUrl(coverImageIdOf(card.cover), Date.now()) ?? null}
+                  coverAlt=""
                 >
                   {#snippet footer()}
                     <Inline gap="050">

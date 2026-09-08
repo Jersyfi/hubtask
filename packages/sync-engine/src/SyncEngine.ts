@@ -17,7 +17,7 @@
 // the reason this package can be exercised headlessly at all (ADR-0033 §2).
 
 import { TransportError } from './errors.ts';
-import type { Clock, RequestOptions, Transport } from './ports.ts';
+import type { ByteTransfer, Clock, RequestOptions, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
 
@@ -283,6 +283,26 @@ export class SyncEngine {
     }
     this.#invalidate(options.invalidates);
     return answer.body;
+  }
+
+  /**
+   * transfer sends bytes to a URL the server handed over, and invalidates what they changed.
+   *
+   * It is a pass-through and deliberately little else. The engine has nothing to add to a byte
+   * transfer - there is no cursor in it, no entity to cache, no version to carry - and it is here
+   * only so that an application holds one seam rather than two: `apps/webapp` constructs the
+   * transport once, in one file, and everything after that goes through the engine.
+   *
+   * **No bearer, and no `invalidates` by default.** The URL is its own credential (`ByteTransfer`),
+   * and putting bytes in a bucket changes nothing the client is holding - the object becomes usable
+   * at confirmation, which is an ordinary `mutate`. A caller that does want a re-read after the
+   * bytes may name the prefixes.
+   */
+  async transfer(bytes: ByteTransfer, options: { invalidates?: readonly string[] } = {}): Promise<void> {
+    await this.#transport.transfer(bytes);
+    // Named prefixes only. `#invalidate(undefined)` means "everything", which is the right default
+    // for a write and the wrong one here: the bytes changed nothing the client is holding.
+    if (options.invalidates) this.#invalidate(options.invalidates);
   }
 
   /**

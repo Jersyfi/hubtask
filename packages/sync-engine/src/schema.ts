@@ -175,3 +175,22 @@ export type ItemQueryResult = components['schemas']['ItemQueryResult'];
  * that no client decision depends on.
  */
 export type ChangeRecord = components['schemas']['SyncChange'];
+
+/**
+ * A media object: what was staged, what was judged, and where the bytes are.
+ *
+ * `content_type` is a **claim** while `PENDING` and the sniffed judgement once `READY` (T-11), and
+ * `upload`/`download` are the two sides of the byte transfer — a presigned bucket URL, or this
+ * server's token-protected content route. Both expire, and neither is a bearer's business: the URL
+ * is its own credential, which is why `Transport.transfer` sends no token with it.
+ */
+export type MediaObject = components['schemas']['MediaObject'];
+/** One side of the transfer: the URL, the verb, and the moment it stops working. */
+export type MediaTransfer = components['schemas']['MediaTransfer'];
+export type MediaUploadRequest = components['schemas']['MediaUploadRequest'];
+export type MediaPage = components['schemas']['MediaPage'];
+/** The cover as the entry carries it: a colour token, or an image by its media identifier. */
+export type Cover = components['schemas']['Cover'];
+export type CoverInput = components['schemas']['CoverInput'];
+/** What one entry carries, answered by attaching and detaching — never the entry itself. */
+export type ItemAttachments = components['schemas']['ItemAttachments'];

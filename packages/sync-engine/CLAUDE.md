@@ -71,7 +71,10 @@ a fifth:
   It carries **no bearer** and `credentials: 'omit'`: a presigned URL is its own credential, and a
   bearer sent to a bucket is a bearer leaked to a third party. Its deadline is sized by the bytes
   rather than by the API's, and progress is reported as they leave. Staging and confirming are
-  ordinary `mutate` calls, not a second write path.
+  ordinary `mutate` calls, not a second write path. `engine.transfer` is a pass-through so that
+  an application holds one seam rather than two, and it invalidates **only** what a caller
+  names — unlike `mutate`, whose omitted `invalidates` means everything, because bytes in a
+  bucket change nothing the client is holding until the confirmation says so.
 
 ## What must not happen here
 

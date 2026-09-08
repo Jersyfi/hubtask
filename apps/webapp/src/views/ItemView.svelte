@@ -36,10 +36,20 @@
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { accountsNamedBy, actorCodes, changesOf, namesPeople } from '../lib/data/activity.ts';
+  import {
+    accountsNamedBy,
+    actorCodes,
+    changesOf,
+    mediaNamedBy,
+    namesMedia,
+    namesPeople,
+  } from '../lib/data/activity.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
+  import { media } from '../lib/data/media.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
+  import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import CommentPanel from '../lib/people/CommentPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
@@ -101,12 +111,26 @@
     return accounts.nameOf(value) ?? t('app.people.unnamed');
   }
 
+  /**
+   * An identifier that names a file, as its name.
+   *
+   * The same courtesy `personOf` extends: `item.attachment_added` carries a media identifier, and
+   * a UUID answers nobody asking which file was attached. A record that was refused or is already
+   * gone — a detached object the reconciliation took — falls back to the sentence true of any
+   * unnamed file.
+   */
+  function fileOf(value: string | undefined, field: string): string | undefined {
+    if (value === undefined) return undefined;
+    if (!namesMedia(field)) return value;
+    return media.fileNameOf(value) ?? t('app.media.unnamed');
+  }
+
   function detailOf(change: ReturnType<typeof changesOf>[number]): string {
     // A field whose values the history does not keep says so and nothing else. A note is the
     // worked example, and looking for its text would be looking for what ADR-0017 kept out.
     if (change.isOpaque) return t('app.activity.changed');
-    const from = personOf(change.from, change.field);
-    const to = personOf(change.to, change.field);
+    const from = fileOf(personOf(change.from, change.field), change.field);
+    const to = fileOf(personOf(change.to, change.field), change.field);
     // Handing an entry from one person to another is one step with both sides, which is what the
     // model says a hand-over is (domain-model.md §3.5) rather than an unassignment and an
     // assignment that happen to be adjacent.
@@ -169,6 +193,13 @@
     accounts.resolve(
       (history.state.data.data ?? []).flatMap((step) =>
         accountsNamedBy(changesOf(step.change_set as Record<string, unknown>)),
+      ),
+    );
+
+    // …and the files they name, which is the same courtesy for a different kind of identifier.
+    media.resolve(
+      (history.state.data.data ?? []).flatMap((step) =>
+        mediaNamedBy(changesOf(step.change_set as Record<string, unknown>)),
       ),
     );
   });
@@ -309,6 +340,16 @@
           {t('app.people.share')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.media.cover')}</h2>
+      <CoverPanel {item} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.media.attachments')}</h2>
+      <AttachmentPanel {item} />
     </Stack>
 
     <Stack gap="150">

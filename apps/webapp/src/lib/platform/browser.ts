@@ -26,4 +26,10 @@ export const platform: Platform = {
   holdBearer: (token) => store.write(token),
 
   releaseBearer: () => store.clear(),
+
+  // A navigation rather than a new window: the target answers `Content-Disposition: attachment`,
+  // so the browser downloads and the page the reader was on stays where it was. A window opened
+  // from an asynchronous callback is also the shape popup blockers refuse, and minting the target
+  // when it is clicked makes the callback asynchronous by definition.
+  openDownload: (url) => window.location.assign(url),
 };

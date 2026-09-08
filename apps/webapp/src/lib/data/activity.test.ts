@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import type { ActivityEntry } from '@hubtask/sync-engine';
 
-import { accountsNamedBy, actorCodes, changesOf, namesPeople } from './activity.ts';
+import { accountsNamedBy, actorCodes, changesOf, mediaNamedBy, namesMedia, namesPeople } from './activity.ts';
 
 const step = (extra: Partial<ActivityEntry> = {}): ActivityEntry =>
   ({
@@ -140,4 +140,18 @@ test('handing an entry over names both sides, each once', () => {
   // Both sides, because the history renders the hand-over as one step with both of them - and the
   // person who appears twice is asked for once.
   assert.deepEqual([...accountsNamedBy(changes)].sort(), ['a-1', 'a-2']);
+});
+
+test('an attachment change names a file, and a cover change names no identifier at all', () => {
+  // `media_id` is an identifier a reader cannot read, and the record that carries the name is one
+  // request away — the same shape the account fields have. `cover` carries the whole cover object,
+  // which `textOf` refuses to print, so it contributes nothing to look up.
+  const changes = changesOf({
+    media_id: { to: 'm-1' },
+    cover: { to: { kind: 'IMAGE', media_id: 'm-2' } },
+  });
+
+  assert.equal(namesMedia('media_id'), true);
+  assert.equal(namesMedia('cover'), false);
+  assert.deepEqual(mediaNamedBy(changes), ['m-1']);
 });
