@@ -45,8 +45,19 @@ over new features until it recovers. This rule lives in the repository, not just
 
 ### 3.1 Logs
 Structured JSON through `log/slog`. Mandatory fields: `ts`, `level`, `msg`, `service`, `role`,
-`version`, `request_id`, `trace_id`, `span_id`, `tenant_id`, `actor_type`, `use_case`,
-`error_code`. **No** user content (titles, notes, comments, attachment names), no tokens, no email
+`version`, `component`, `request_id`, `trace_id`, `span_id`, `tenant_id`, `actor_type`,
+`use_case`, `error_code`.
+
+**`component` is not `role`, and the difference is the point.** The role is the process, and one
+process may serve several (ADR-0014) — so a line from a combined deployment reads `role=api,worker`
+and does not say which loop wrote it. The component is the loop: `rest`, `worker.runner`,
+`worker.scheduler`, `worker.job_listener`, `api.change_listener`, `restore-drill`. Both are set
+where a unit of work begins rather than at each call site, through the same context seam the
+request ID travels in (`core/shared/correlation`), because a field every author has to remember is
+the field missing from the line somebody is reading during an incident.
+
+`error_code` is the other one worth stating plainly: it is a **stable** code, never a sentence, so
+that a query over the logs finds every instance of one failure rather than every phrasing of it. **No** user content (titles, notes, comments, attachment names), no tokens, no email
 addresses in clear text (hashed, or the account ID). Level policy: `ERROR` only for states that
 require human action — otherwise `WARN`. Expected business errors (validation, `404`) are `INFO`.
 

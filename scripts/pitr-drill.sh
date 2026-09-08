@@ -284,6 +284,19 @@ printf '%s' "$app_metrics" | grep -q "^hubtask_restore_drill_last_success_timest
 	|| fail "the drill passed and the gauge A-20 reads is still absent"
 echo "  the gauge reports the drill"
 
+# While the scrape is here: the families a production dashboard and the burn alerts are built on
+# (observability-reliability.md §4). They are emitted by seeding rather than by traffic, so their
+# absence is a wiring defect rather than a quiet cluster - which is exactly what this catches.
+for family in \
+	hubtask_http_requests_total \
+	hubtask_http_request_duration_seconds \
+	hubtask_db_pool_connections \
+	hubtask_job_queue_depth \
+	hubtask_build_info; do
+	printf '%s' "$app_metrics" | grep -q "^# TYPE $family " || fail "$family is not on /metrics"
+done
+echo "  the RED, pool and queue families are on the endpoint"
+
 # 3. The temporary cluster is gone. A drill that leaves one behind is a drill that fails the next
 #    one on quota, and it is the property most easily lost in a refactor of the teardown.
 if kubectl -n "$NAMESPACE" get cluster "$DRILL_CLUSTER" >/dev/null 2>&1; then

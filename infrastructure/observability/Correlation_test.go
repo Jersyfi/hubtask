@@ -70,10 +70,31 @@ func TestTheCorrelationFieldsAreAbsentOutsideARequest(t *testing.T) {
 		l.Info("starting")
 	})
 
-	for _, field := range []string{"trace_id", "span_id", "request_id", "tenant_id"} {
+	for _, field := range []string{"trace_id", "span_id", "request_id", "tenant_id", "component"} {
 		if _, ok := entry[field]; ok {
 			t.Errorf("%s appears although there is no request", field)
 		}
+	}
+}
+
+// component says which loop a line came from, and it is the field `role` cannot be: one process
+// may serve several roles (ADR-0014), so `role=api,worker` on a line says nothing about whether a
+// request or the scheduler wrote it. It is set where each unit of work begins - the REST
+// middleware, and the composition root's `start` for every background loop.
+func TestTheLogSaysWhichPartOfTheSystemWroteIt(t *testing.T) {
+	cfg := env.Config{Roles: []env.Role{env.RoleAPI, env.RoleWorker}}
+	ctx := correlation.ContextWithComponent(context.Background(), "worker.scheduler")
+
+	entry := logAndParse(t, cfg, func(l *slog.Logger) {
+		l.InfoContext(ctx, "a tick was late")
+	})
+
+	if got, _ := entry["component"].(string); got != "worker.scheduler" {
+		t.Errorf("component = %q, want worker.scheduler", got)
+	}
+	// And the role is still the process, unchanged: the two answer different questions.
+	if got, _ := entry["role"].(string); got != "api,worker" {
+		t.Errorf("role = %q, want api,worker", got)
 	}
 }
 

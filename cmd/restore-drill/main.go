@@ -38,6 +38,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With(
 		slog.String("service", "hubtask"),
 		slog.String("role", "restore-drill"),
+		slog.String("component", "restore-drill"),
 	)
 
 	cfg, err := loadConfig(os.Getenv, os.ReadFile)
