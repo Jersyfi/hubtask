@@ -6,6 +6,7 @@ package observability
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"regexp"
 	"strings"
 	"testing"
@@ -64,6 +65,56 @@ func TestTheErrorPathIsCountedToo(t *testing.T) {
 	body := scrape(t, observer.metrics)
 	if !strings.Contains(body, `result="conflict"`) {
 		t.Errorf("the conflict was not classified:\n%s", body)
+	}
+}
+
+// A 500 nobody can diagnose is a 500 nobody fixes: the response deliberately carries no detail,
+// so the log line is the only place the cause exists. Issue #426 was found through a revocation
+// that answered `internal` and wrote nothing at all.
+func TestAFailureThatIsOursIsLogged(t *testing.T) {
+	cases := map[string]struct {
+		err    error
+		want   string
+		silent bool
+	}{
+		"a defect":               {err: shared.ErrInternal.WithDetail("audit.entry_incomplete"), want: "ERROR"},
+		"a dependency saying no": {err: shared.ErrUnavailable.WithDetail("postgres.query_failed"), want: "WARN"},
+		"a refused input":        {err: shared.ErrValidation, silent: true},
+		"something that is gone": {err: shared.ErrNotFound, silent: true},
+		"a limit doing its job":  {err: shared.ErrRateLimited, silent: true},
+		"an error nobody typed":  {err: errors.New("boom"), want: "ERROR"},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			logger, buf := newTestLogger(t, "text")
+			previous := slog.Default()
+			slog.SetDefault(logger)
+			t.Cleanup(func() { slog.SetDefault(previous) })
+
+			observer := newTestObserver(t, env.Config{})
+			_ = observer.UseCase(context.Background(), "RevokeMembership", func(context.Context) error {
+				return c.err
+			})
+
+			line := buf.String()
+			if c.silent {
+				if line != "" {
+					t.Errorf("an expected business error was logged: %s", line)
+				}
+				return
+			}
+			if !strings.Contains(line, "level="+c.want) {
+				t.Errorf("the level is not %s: %s", c.want, line)
+			}
+			// The two fields §3.1 makes mandatory and nothing else was emitting.
+			if !strings.Contains(line, "use_case=RevokeMembership") {
+				t.Errorf("the line does not say which use case: %s", line)
+			}
+			if !strings.Contains(line, "error_code=") {
+				t.Errorf("the line carries no stable code: %s", line)
+			}
+		})
 	}
 }
 
