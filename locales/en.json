@@ -1734,5 +1734,7 @@
   "app.profile.category_REMINDER": "A reminder I set falls due",
   "app.profile.category_INTEGRATION": "Something I connected needs attention",
   "app.profile.category_RETENTION": "Something I hold is about to be removed",
-  "app.nav.profile": "Your settings"
+  "app.nav.profile": "Your settings",
+  "app.profile.no_locales": "This workspace has not said which languages it serves, so there is nothing to choose between. It speaks the installation’s own.",
+  "app.profile.week_start_fixed": "Once a first day is chosen, this version cannot put it back to the workspace’s. Choose a different day instead."
 }

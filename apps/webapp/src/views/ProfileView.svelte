@@ -37,6 +37,7 @@
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import {
     WEEK_STARTS,
+    canBeCleared,
     categoriesOf,
     channelsOf,
     clearedOr,
@@ -86,12 +87,15 @@
     failure = undefined;
     notice = undefined;
     try {
+      const clearedWeek = clearedOr(weekStart) === '';
       await preferences.setAccount(accountId, {
-        // Null, not an empty string: "no preference" and "a value that happens to be empty" are
-        // different statements, and the schema types all three as nullable for that reason.
+        // The empty string, not null: a present-but-nil entry reads as "not sent" and the value
+        // stays. Walked against a running server, both ways round.
         locale: clearedOr(locale),
         time_zone: clearedOr(zone),
-        week_start: clearedOr(weekStart) as never,
+        // …except this one, which cannot be cleared at all — so an empty choice sends nothing
+        // rather than sending something that is refused.
+        ...(clearedWeek ? {} : { week_start: clearedOr(weekStart) as never }),
       });
       notice = t('app.profile.saved');
       // The frame applies the language itself once the account re-reads; this only says it landed.
@@ -127,13 +131,22 @@
     <h1 class="name">{t('app.profile.title')}</h1>
 
     <Stack gap="150">
-      <Select
-        label={t('app.profile.language')}
-        hint={t('app.profile.language_hint')}
-        bind:value={locale}
-        placeholder={t('app.profile.use_workspace')}
-        options={locales.map((each) => ({ value: each.locale, label: each.locale }))}
-      />
+      {#if locales.length > 0}
+        <Select
+          label={t('app.profile.language')}
+          hint={t('app.profile.language_hint')}
+          bind:value={locale}
+          placeholder={t('app.profile.use_workspace')}
+          options={locales.map((each) => ({ value: each.locale, label: each.locale }))}
+        />
+      {:else}
+        <!-- An installation that declares no locales has none to choose between, and an empty
+             dropdown says that badly. Found by reading a real manifest, which reports none. -->
+        <Stack gap="050">
+          <span class="label">{t('app.profile.language')}</span>
+          <p class="quiet">{t('app.profile.no_locales')}</p>
+        </Stack>
+      {/if}
 
       {#if zones.length > 0}
         <Select
@@ -149,11 +162,16 @@
         <Input label={t('app.profile.zone')} hint={t('app.profile.zone_free')} bind:value={zone} />
       {/if}
 
+      <!-- The empty choice is offered only while there is nothing to clear. Once a day is chosen
+           this version cannot un-choose it — `""` is refused and `null` reads as "not sent" — and a
+           control that offered the choice would be offering one that quietly does nothing. -->
       <Select
         label={t('app.profile.week_start')}
-        hint={t('app.profile.week_start_hint')}
+        hint={weekStart === '' || canBeCleared('week_start')
+          ? t('app.profile.week_start_hint')
+          : t('app.profile.week_start_fixed')}
         bind:value={weekStart}
-        placeholder={t('app.profile.use_workspace')}
+        placeholder={weekStart === '' ? t('app.profile.use_workspace') : undefined}
         options={WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) }))}
       />
 
@@ -256,6 +274,8 @@
   .meta { display: block; color: var(--text-secondary); font-size: var(--fs-075); max-width: 48ch; }
 
   .switches { display: flex; flex-wrap: wrap; gap: var(--sp-200); }
+
+  .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
 

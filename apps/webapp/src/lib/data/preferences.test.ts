@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import type { Capabilities, NotificationPreference } from '@hubtask/sync-engine';
 
 import {
+  canBeCleared,
   categoriesOf,
   channelsOf,
   clearedOr,
@@ -26,12 +27,23 @@ const manifest = {
   notification_channels: ['EMAIL'],
 } as unknown as Capabilities;
 
-test('clearing a preference sends null, not an empty string', () => {
-  // "No preference" and "a value that happens to be empty" are different statements, and the
-  // schema types the three fields as nullable for exactly that reason.
-  assert.equal(clearedOr(''), null);
-  assert.equal(clearedOr('   '), null);
+test('clearing a preference sends the empty string, not null', () => {
+  // `Input.Present()` reports a present-but-nil entry as *absent*, so an explicit JSON null looks
+  // exactly like a field nobody sent and the value stays. Walked: `{"locale": null}` left it,
+  // `{"locale": ""}` cleared it.
+  assert.equal(clearedOr(''), '');
+  assert.equal(clearedOr('   '), '');
   assert.equal(clearedOr(' Europe/Berlin '), 'Europe/Berlin');
+});
+
+test('the first day of the week cannot be put back to the workspace’s', () => {
+  // `""` is refused — the descriptor's enum lists the three days and nothing else — and `null`
+  // reads as "not sent". So this version cannot un-choose it, and the control says so rather than
+  // offering a choice that quietly does nothing. The contract declares `null` in the enum and the
+  // descriptor does not; reported rather than worked around.
+  assert.equal(canBeCleared('locale'), true);
+  assert.equal(canBeCleared('time_zone'), true);
+  assert.equal(canBeCleared('week_start'), false);
 });
 
 test('the locales are the installation’s, direction included', () => {

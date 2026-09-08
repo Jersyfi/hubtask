@@ -24,14 +24,31 @@ import type { Capabilities, NotificationPreference } from '@hubtask/sync-engine'
 export const WEEK_STARTS = ['MONDAY', 'SUNDAY', 'SATURDAY'] as const;
 
 /**
- * What a `PATCH` sends for a field somebody cleared.
+ * What a `PATCH` sends for a field somebody cleared: **the empty string**.
  *
- * `null` rather than `''`: the schema types the three as `[string, "null"]`, and a null is the
- * unambiguous way to say "no preference" — an empty string is a value that happens to be empty, and
- * this client has met a server that reads the two differently often enough to say which it means.
+ * Not `null`, and the difference is not cosmetic. `usecase.Input.Present()` reports a
+ * present-but-nil entry as *absent*, so an explicit JSON null reaches the use case looking exactly
+ * like a field nobody sent — and the value stays. Walked against a running server:
+ * `{"locale": null}` left the locale as it was; `{"locale": ""}` cleared it.
  */
-export function clearedOr(value: string): string | null {
-  return value.trim() === '' ? null : value.trim();
+export function clearedOr(value: string): string {
+  return value.trim();
+}
+
+/**
+ * Whether a field can be put back to the workspace's default at all.
+ *
+ * `week_start` cannot, on this server. `""` is refused — `usecase.field_not_in_enum` at
+ * `/week_start`, because the descriptor's enum lists the three days and nothing else — and `null`
+ * is read as "not sent" like every other null. So once somebody has chosen a first day, this
+ * version has no way to un-choose it, and the control says so rather than offering a choice that
+ * quietly does nothing.
+ *
+ * The contract disagrees: `AccountPreferences.week_start` declares `enum: [MONDAY, SUNDAY,
+ * SATURDAY, null]`. Reported rather than worked around.
+ */
+export function canBeCleared(field: 'locale' | 'time_zone' | 'week_start'): boolean {
+  return field !== 'week_start';
 }
 
 /**
