@@ -275,6 +275,30 @@ func TestAnIllegitimateStepIsRefusedByName(t *testing.T) {
 	}
 }
 
+// The step nothing takes: back to RECEIVED. The contract offers the value, so the answer has to be
+// the sentence naming both ends of the step rather than a generic validation code from a descriptor
+// that never let it through (issue #427).
+func TestMovingACaseBackToReceivedIsRefusedByName(t *testing.T) {
+	h := newHarness()
+	recorded, _ := (CreateDataSubjectRequest{Cases: h.cases()}).
+		Execute(context.Background(), actor(), createCommand(func(*CreateCommand) {}))
+
+	registry, err := usecase.NewRegistry(nil, (UpdateDataSubjectRequest{Cases: h.cases()}).Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	_, err = registry.Invoke(context.Background(), UpdateDataSubjectRequestName, actor(),
+		usecase.Input{"request_id": recorded.ID.String(), "status": string(domain.StatusReceived)})
+
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != domain.CodeTransitionRefused {
+		t.Fatalf("the refusal came back as %v", err)
+	}
+	if problem.Params["to"] != string(domain.StatusReceived) {
+		t.Errorf("the refusal does not say where the case was going: %v", problem.Params)
+	}
+}
+
 func TestTheListAnswersWhatIsStillOwed(t *testing.T) {
 	h := newHarness()
 	create := CreateDataSubjectRequest{Cases: h.cases()}

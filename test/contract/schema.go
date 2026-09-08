@@ -35,6 +35,9 @@ type schema struct {
 	Items                *schema            `yaml:"items"`
 	Enum                 []any              `yaml:"enum"`
 	AdditionalProperties any                `yaml:"additionalProperties"`
+	// AllOf is read but not composed: the validator does not need it, and InputEnums refuses a
+	// request body that uses it rather than reporting an empty set.
+	AllOf []*schema `yaml:"allOf"`
 }
 
 // specification is the part of the document this validator needs.
@@ -44,7 +47,8 @@ type schema struct {
 type specification struct {
 	Paths      map[string]map[string]yaml.Node `yaml:"paths"`
 	Components struct {
-		Schemas map[string]*schema `yaml:"schemas"`
+		Schemas    map[string]*schema    `yaml:"schemas"`
+		Parameters map[string]*parameter `yaml:"parameters"`
 	} `yaml:"components"`
 }
 
@@ -55,8 +59,27 @@ var httpMethods = []string{"get", "put", "post", "delete", "options", "head", "p
 // told apart from "not declared": an empty list makes the operation public, an absent one leaves
 // the document-wide requirement in force (OpenAPI 3.1 §4.8.2).
 type operation struct {
-	OperationID string `yaml:"operationId"`
-	Security    *[]any `yaml:"security"`
+	OperationID string       `yaml:"operationId"`
+	Security    *[]any       `yaml:"security"`
+	Parameters  []*parameter `yaml:"parameters"`
+	RequestBody *requestBody `yaml:"requestBody"`
+}
+
+// parameter is one declared input outside the body. It carries a $ref of its own, because most of
+// them are declared once under components.parameters and referenced from every path that takes one.
+type parameter struct {
+	Ref    string  `yaml:"$ref"`
+	Name   string  `yaml:"name"`
+	In     string  `yaml:"in"`
+	Schema *schema `yaml:"schema"`
+}
+
+// requestBody is the body an operation reads. Only the schema per media type is needed: what the
+// media type is called is checked elsewhere, and the enums are the same whichever one it is.
+type requestBody struct {
+	Content map[string]struct {
+		Schema *schema `yaml:"schema"`
+	} `yaml:"content"`
 }
 
 // route is a method and a path as the router registers them, which is also the form the metric
@@ -330,4 +353,113 @@ func decode(t interface{ Fatalf(string, ...any) }, body []byte) map[string]any {
 		t.Fatalf("the response is not JSON: %v", err)
 	}
 	return out
+}
+
+// Operations returns every operation the specification declares, keyed by its operationId. That
+// identifier is what a use case descriptor names as its REST operation, so it is the join between
+// the contract and the catalogue.
+func (s *specification) Operations() (map[string]*operation, error) {
+	operations := map[string]*operation{}
+	for path, item := range s.Paths {
+		for method, node := range item {
+			if !slices.Contains(httpMethods, strings.ToLower(method)) {
+				continue
+			}
+			var op operation
+			if err := node.Decode(&op); err != nil {
+				return nil, fmt.Errorf("%s %s: %w", method, path, err)
+			}
+			if op.OperationID == "" {
+				return nil, fmt.Errorf("%s %s declares no operationId", method, path)
+			}
+			operations[op.OperationID] = &op
+		}
+	}
+	return operations, nil
+}
+
+// InputEnums returns the closed sets an operation declares for its inputs, keyed by the name the
+// caller sends: the properties of the request body, and the query parameters.
+//
+// Only the top level of a body is read. A nested object is flattened by the controller before the
+// use case sees it (`scope` becomes `scope_container_id`), so its properties have no field of the
+// same name to be compared against.
+func (s *specification) InputEnums(op *operation) (map[string][]string, error) {
+	enums := map[string][]string{}
+
+	for _, declared := range op.Parameters {
+		param, err := s.resolveParameter(declared)
+		if err != nil {
+			return nil, err
+		}
+		if param.In != "query" || param.Schema == nil {
+			continue
+		}
+		if values := enumOf(param.Schema); len(values) > 0 {
+			enums[param.Name] = values
+		}
+	}
+
+	if op.RequestBody == nil {
+		return enums, nil
+	}
+	for media, content := range op.RequestBody.Content {
+		body, problems := s.resolve(content.Schema)
+		if len(problems) > 0 {
+			return nil, fmt.Errorf("%s, %s: %s", op.OperationID, media, strings.Join(problems, "; "))
+		}
+		if body == nil {
+			continue
+		}
+		if len(body.Properties) == 0 && len(body.AllOf) > 0 {
+			// Every allOf in the document describes a response today. If one ever describes a
+			// request body, this reader would report "no enums declared" and the gate would go
+			// quiet on it - so it says so instead.
+			return nil, fmt.Errorf(
+				"%s: the request body is an allOf, which this reader does not compose", op.OperationID)
+		}
+		for name, property := range body.Properties {
+			resolved, problems := s.resolve(property)
+			if len(problems) > 0 {
+				return nil, fmt.Errorf("%s, %s: %s", op.OperationID, name, strings.Join(problems, "; "))
+			}
+			if values := enumOf(resolved); len(values) > 0 {
+				enums[name] = values
+			}
+		}
+	}
+	return enums, nil
+}
+
+// resolveParameter follows a parameter's $ref into components.parameters. Most of them are
+// declared once and referenced from every path that takes one.
+func (s *specification) resolveParameter(declared *parameter) (*parameter, error) {
+	if declared == nil {
+		return &parameter{}, nil
+	}
+	if declared.Ref == "" {
+		return declared, nil
+	}
+	name, ok := strings.CutPrefix(declared.Ref, "#/components/parameters/")
+	if !ok {
+		return nil, fmt.Errorf("unsupported parameter $ref %q", declared.Ref)
+	}
+	resolved, ok := s.Components.Parameters[name]
+	if !ok {
+		return nil, fmt.Errorf("$ref points at the unknown parameter %q", declared.Ref)
+	}
+	return resolved, nil
+}
+
+// enumOf reads a schema's enum as the values a caller may send. A `null` entry is not one of them:
+// it says the field is clearable, which a descriptor expresses by being optional and reading an
+// empty value as absent. A non-string entry is one this comparison could not make either way.
+func enumOf(node *schema) []string {
+	values := make([]string, 0, len(node.Enum))
+	for _, option := range node.Enum {
+		if text, ok := option.(string); ok {
+			values = append(values, text)
+		}
+	}
+	return values
 }
