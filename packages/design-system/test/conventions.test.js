@@ -217,6 +217,26 @@ test('the picture of a control never takes the click meant for it', () => {
   }
 });
 
+test('no component renders a string as markup', () => {
+  // The rule `JumbleInboxItem` made explicit and every other component here already kept: content
+  // that arrived from outside is drawn as characters. A jumble intake address is public, a comment
+  // is written by whoever can comment, an entry's title is whatever somebody typed — and `{@html}`
+  // is the one construct in Svelte that turns any of those into markup the browser executes.
+  //
+  // Package-wide rather than per component, because the failure is not "this component is wrong":
+  // it is that a component nobody was thinking about acquires one, years from now, to make a bold
+  // word work. The match needs the space: `{@html}` written inside a comment - which is how
+  // Icon.svelte explains why it does not use one - is prose, not a call.
+  for (const component of ALL) {
+    assert.doesNotMatch(
+      component.source,
+      /\{@html\s/,
+      `${component.relative} renders a string as markup. Content that arrives from outside is ` +
+        'drawn as text; there is no case in this package for `{@html}`.',
+    );
+  }
+});
+
 test('no component hides a control from the accessibility tree', () => {
   // The Checkbox, Radio and Switch pattern: the native input is transparent and on top, never
   // `display: none`, which would take the keyboard and the screen reader with it.
