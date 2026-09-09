@@ -21,7 +21,7 @@
       Self-hosting is the default here, not a stripped-down edition of something else. The same
       image runs a single box and a multi-workspace platform, with the full feature set on both.
     </p>
-    <pre class="shell"><code><span class="c"># The whole thing, on one machine</span>
+    <pre class="site-shell"><code><span class="c"># The whole thing, on one machine</span>
 git clone https://github.com/Jersyfi/hubtask.git &amp;&amp; cd hubtask
 cp deploy/docker/.env.example .env      <span class="c"># set the secrets</span>
 docker compose -f deploy/docker/compose.yaml up -d
@@ -131,15 +131,15 @@ docker compose -f deploy/docker/compose.yaml up -d
       <p class="kicker">Running it</p>
       <h2>It tells you what is wrong before you have to guess</h2>
     </div>
-    <div class="cards">
-      <div class="card">
+    <div class="site-cards">
+      <div class="site-card">
         <h3>Four health levels</h3>
         <p>
           Liveness, startup and readiness for the orchestrator, and a meta endpoint for a person —
           which names what is degraded and what is missing instead of the process falling over.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Degrade, do not crash</h3>
         <p>
           A missing optional dependency switches a feature off and says so. Timeouts, circuit
@@ -147,14 +147,14 @@ docker compose -f deploy/docker/compose.yaml up -d
           first outage.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Metrics, traces, logs</h3>
         <p>
           OpenTelemetry throughout, traces that survive the outbox and the job queue, structured
           logs with your content redacted, and a dashboard in the repository.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Objectives and alerts</h3>
         <p>
           Eight service level objectives — availability, read and write latency, event delivery,
@@ -162,14 +162,14 @@ docker compose -f deploy/docker/compose.yaml up -d
           zero — with an alert catalogue and a runbook per alert.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Process roles</h3>
         <p>
           One image, several roles: API, worker, scheduler and automation. Run them together on one
           box or separately in a cluster with autoscaling and a disruption budget.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Upgrades that roll</h3>
         <p>
           Forward-only migrations designed to expand before they contract, so a new version and the
@@ -201,7 +201,7 @@ docker compose -f deploy/docker/compose.yaml up -d
         </p>
       </div>
       <div>
-        <pre class="shell"><code>helm upgrade --install hubtask ./k8s \
+        <pre class="site-shell"><code>helm upgrade --install hubtask ./k8s \
   -f ./k8s/values.yaml
 
 <span class="c"># Roles as separate deployments</span>

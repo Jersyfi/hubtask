@@ -162,15 +162,15 @@
       <p class="kicker">Editions</p>
       <h2>One code path. The differences are legal, never functional.</h2>
     </div>
-    <div class="cards">
-      <div class="card">
+    <div class="site-cards">
+      <div class="site-card">
         <h3>Community</h3>
         <p>
           Private individuals, non-profits, evaluation, development. Every feature active, no
           licence key, no telemetry, no limits that are not operational.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Commercial</h3>
         <p>
           Companies and service providers. The same image, plus a licence key as legal evidence and
@@ -178,7 +178,7 @@
           extended retention.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Hosted</h3>
         <p>
           Later, and only if it is wanted: multi-workspace mode plus billing, for people who would

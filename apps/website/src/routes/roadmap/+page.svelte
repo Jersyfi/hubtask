@@ -111,8 +111,8 @@
         underneath them. It is unusual enough for a project this size to be worth describing.
       </p>
     </div>
-    <div class="cards cards-2">
-      <div class="card">
+    <div class="site-cards site-cards-2">
+      <div class="site-card">
         <h3>Decisions are written down before they are coded</h3>
         <p>
           Every architectural choice is an numbered decision record with the alternatives that were
@@ -122,7 +122,7 @@
         </p>
         <Proof href="{docs}/adr/README.md" label="the decision records" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>The specification moves first</h3>
         <p>
           An API change starts in the contract, then the code is generated, then it is implemented.
@@ -130,7 +130,7 @@
           not a style question here; the build notices.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Gates block the merge</h3>
         <p>
           Architecture boundaries, the concurrency rule, security, privacy, licences of every
@@ -140,7 +140,7 @@
         </p>
         <Proof href="{docs}/architecture/ci-cd.md" label="ci-cd.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Evidence rather than assertion</h3>
         <p>
           Resilience runs, load figures, restore drills and maturity decisions are written to

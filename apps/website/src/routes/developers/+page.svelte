@@ -40,9 +40,9 @@
         is why they cannot fall out of step, and why a check in the build fails if they ever do.
       </p>
     </div>
-    <div class="cards">
-      <div class="card">
-        <p class="card-index">REST</p>
+    <div class="site-cards">
+      <div class="site-card">
+        <p class="site-card-index">REST</p>
         <h3>For your scripts and services</h3>
         <p>
           Cursor pagination and no page numbers, <code>Idempotency-Key</code> on every mutation,
@@ -50,8 +50,8 @@
           machine-readable code and parameters instead of prose to regex.
         </p>
       </div>
-      <div class="card">
-        <p class="card-index">MCP</p>
+      <div class="site-card">
+        <p class="site-card-index">MCP</p>
         <h3>For agents, inside your instance</h3>
         <p>
           Tools named after the use case, input schemas identical to the REST bodies, read-only and
@@ -59,8 +59,8 @@
           prepared prompts.
         </p>
       </div>
-      <div class="card">
-        <p class="card-index">RULES</p>
+      <div class="site-card">
+        <p class="site-card-index">RULES</p>
         <h3>For things that should happen without you</h3>
         <p>
           The same catalogue as rule actions, with conditions in an expression language, a dry run,
@@ -98,7 +98,7 @@
         </p>
       </div>
       <div>
-        <pre class="shell"><code><span class="c"># What can this installation do?</span>
+        <pre class="site-shell"><code><span class="c"># What can this installation do?</span>
 GET /api/v1/meta/capabilities
 
 <span class="c"># What is degraded right now?</span>
@@ -157,8 +157,8 @@ POST /api/v1/items:query
       <p class="kicker">The rest of the surface</p>
       <h2>Everything else you would ask for</h2>
     </div>
-    <div class="cards cards-2">
-      <div class="card">
+    <div class="site-cards site-cards-2">
+      <div class="site-card">
         <h3><code>hubctl</code></h3>
         <p>
           The command line client. Its types are generated from the same specification, it prints a
@@ -166,7 +166,7 @@ POST /api/v1/items:query
           document on standard output and every diagnostic on standard error, so it composes.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Events out</h3>
         <p>
           Webhook subscriptions with an HMAC signature, retries and a dead-letter path, carrying
@@ -174,7 +174,7 @@ POST /api/v1/items:query
           and Zapier.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>SDKs</h3>
         <p>
           TypeScript, Go and Python clients generated from the contract — so a rename in the
@@ -182,7 +182,7 @@ POST /api/v1/items:query
           somebody’s production two months later.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Offline conformance</h3>
         <p>
           Building your own client? The synchronisation contract is specified — client-assigned

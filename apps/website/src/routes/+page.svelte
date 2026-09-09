@@ -71,8 +71,8 @@
       </p>
     </div>
 
-    <div class="rows">
-      <div class="row">
+    <div class="site-rows">
+      <div class="site-row">
         <h3>Hub</h3>
         <div>
           <p>
@@ -81,7 +81,7 @@
           </p>
         </div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Collection</h3>
         <div>
           <p>
@@ -90,7 +90,7 @@
           </p>
         </div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Task</h3>
         <div>
           <p>
@@ -100,7 +100,7 @@
           </p>
         </div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Work package</h3>
         <div>
           <p>
@@ -109,7 +109,7 @@
           </p>
         </div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Activity</h3>
         <div>
           <p>
@@ -146,9 +146,9 @@
       </p>
     </div>
 
-    <div class="cards">
-      <div class="card">
-        <p class="card-index">01</p>
+    <div class="site-cards">
+      <div class="site-card">
+        <p class="site-card-index">01</p>
         <h3>REST</h3>
         <p>
           A documented HTTP API with a composable query language, idempotency keys, optimistic
@@ -157,8 +157,8 @@
         </p>
         <Proof href="{docs}/architecture/api-guidelines.md" label="api-guidelines.md" />
       </div>
-      <div class="card">
-        <p class="card-index">02</p>
+      <div class="site-card">
+        <p class="site-card-index">02</p>
         <h3>MCP</h3>
         <p>
           A Model Context Protocol server inside your own installation. An agent gets tools,
@@ -167,8 +167,8 @@
         </p>
         <Proof href="{docs}/architecture/ai-first.md" label="ai-first.md §1" />
       </div>
-      <div class="card">
-        <p class="card-index">03</p>
+      <div class="site-card">
+        <p class="site-card-index">03</p>
         <h3>Automation</h3>
         <p>
           A rule engine with triggers, conditions and a dry run, plus signed webhooks with retries
@@ -201,8 +201,8 @@
       </p>
     </div>
 
-    <div class="cards cards-2 cards-signature">
-      <div class="card">
+    <div class="site-cards site-cards-2 site-cards-signature">
+      <div class="site-card">
         <h3>Backups that have been restored</h3>
         <p>
           Encrypted archives on a target you choose — local, S3-compatible, SFTP or WebDAV — with
@@ -211,7 +211,7 @@
         </p>
         <Proof href="{docs}/architecture/backup-restore.md" label="backup-restore.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>A trail that verifies</h3>
         <p>
           Every auditable action lands in a hash chain that stores no content of yours. One call
@@ -220,7 +220,7 @@
         </p>
         <Proof href="{docs}/architecture/audit.md" label="audit.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Deletion with brakes</h3>
         <p>
           A retention rule says what it would delete before it deletes anything, keeps a grace
@@ -229,7 +229,7 @@
         </p>
         <Proof href="{docs}/architecture/data-retention.md" label="data-retention.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>GDPR as use cases</h3>
         <p>
           Access, export and erasure are operations with a statutory deadline the system watches,
@@ -264,7 +264,7 @@
         <Proof href="{docs}/architecture/deployment.md" label="deployment.md" />
       </div>
       <div>
-        <pre class="shell"><code><span class="c"># One box, everything on it</span>
+        <pre class="site-shell"><code><span class="c"># One box, everything on it</span>
 docker compose up -d
 
 <span class="c"># A fleet, the same image</span>
@@ -283,8 +283,8 @@ curl /api/v1/meta/capabilities</code></pre>
       <p class="kicker">Who runs it</p>
       <h2>Four people this was built for</h2>
     </div>
-    <div class="cards">
-      <div class="card">
+    <div class="site-cards">
+      <div class="site-card">
         <h3>You, on your own hardware</h3>
         <p>
           Free, complete, with no feature held back and nothing phoning home. The licence converts
@@ -292,7 +292,7 @@ curl /api/v1/meta/capabilities</code></pre>
         </p>
         <a href="/use-cases/#individual">How that looks</a>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>An agency with several clients</h3>
         <p>
           One instance, one workspace per client, a boundary the database enforces — and a backup
@@ -300,7 +300,7 @@ curl /api/v1/meta/capabilities</code></pre>
         </p>
         <a href="/use-cases/#provider">How that looks</a>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>A team with obligations</h3>
         <p>
           An audit trail that verifies, retention with a legal hold, data subject requests with a
@@ -308,7 +308,7 @@ curl /api/v1/meta/capabilities</code></pre>
         </p>
         <a href="/security/">What it gives you</a>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Somebody automating their work</h3>
         <p>
           A real API, a rule engine, signed webhooks, a CLI that speaks the published contract, and

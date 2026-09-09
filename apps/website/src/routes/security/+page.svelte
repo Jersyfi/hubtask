@@ -65,28 +65,28 @@
       <p class="kicker">Getting in</p>
       <h2>Sign-in, sessions and credentials</h2>
     </div>
-    <div class="cards">
-      <div class="card">
+    <div class="site-cards">
+      <div class="site-card">
         <h3>Passwords, done properly</h3>
         <p>Argon2id, and every token stored as a hash. A credential that leaks from the database is not a credential.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Your identity provider</h3>
         <p>OpenID Connect for sign-in, and an OAuth2 provider for third-party applications that want to act for a user.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Multi-factor</h3>
         <p>Time-based one-time codes with single-use recovery codes, enforceable per workspace for the owner and administrator roles.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Step-up</h3>
         <p>Sensitive operations ask again. Sessions are listable and revocable, and a revoked session stops working immediately.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Tokens with scopes</h3>
         <p>Personal access tokens and service accounts, scoped rather than all-powerful — the credential an integration or an agent should hold.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Secrets, sealed</h3>
         <p>Envelope encryption with key rotation for the credentials the system stores on your behalf, such as a backup target’s.</p>
       </div>
@@ -136,8 +136,8 @@
       <p class="kicker">Data protection</p>
       <h2>GDPR as operations, not as a policy document</h2>
     </div>
-    <div class="rows">
-      <div class="row">
+    <div class="site-rows">
+      <div class="site-row">
         <h3>Rights with deadlines</h3>
         <div><p>
           Access, rectification, erasure, restriction and portability are use cases. A request is a
@@ -145,7 +145,7 @@
           attached to it.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>A catalogue of every field</h3>
         <div><p>
           Personal data is inventoried with its legal basis, its storage location and the path that
@@ -154,7 +154,7 @@
         </p>
         <Proof href="{docs}/privacy/data-catalog.md" label="data-catalog.md" /></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Retention with brakes</h3>
         <div><p>
           A rule previews what it would delete, warns in advance, keeps a grace period and can be
@@ -162,7 +162,7 @@
           because a standing instruction to destroy work is not an administrator’s errand.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>No content in telemetry</h3>
         <div><p>
           Titles, notes and comments never reach a log line, a metric label, a trace attribute or an
@@ -170,7 +170,7 @@
           per call site.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Where the data sits</h3>
         <div><p>
           Wherever you put it. Self-hosted means self-hosted: there is no control plane, no vendor
@@ -192,28 +192,28 @@
         change, and a red one blocks the merge.
       </p>
     </div>
-    <div class="cards">
-      <div class="card">
+    <div class="site-cards">
+      <div class="site-card">
         <h3>Known vulnerabilities</h3>
         <p>Dependency scanning, secret scanning, an SBOM published with every release, and a signature on every image.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>No unguarded outbound call</h3>
         <p>Every outbound HTTP request goes through a guarded client with timeouts and server-side request forgery protection. There is a gate for the ones that try not to.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>No string-built SQL</h3>
         <p>Queries are generated and parameterised. No byte from a request becomes SQL text, including in the filter language.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>No cross-tenant read</h3>
         <p>A negative test per repository method, and a gate that notices a missing one.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Headers and rate limits</h3>
         <p>A content security policy without inline execution, security headers, and limits that shed load rather than falling over.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>A gate that fails on purpose</h3>
         <p>A self-test deliberately breaks each rule and proves the gate turns red. A gate nobody has seen fail is a gate nobody should trust.</p>
       </div>

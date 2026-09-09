@@ -165,7 +165,7 @@ body {
 }
 
 /* Skip link: the first thing a keyboard reader meets, and invisible until it is theirs. */
-.skip {
+.site-skip {
   position: absolute;
   inset-inline-start: var(--sp-400);
   inset-block-start: var(--sp-025);
@@ -180,7 +180,7 @@ body {
   transform: translateY(-200%);
 }
 
-.skip:focus {
+.site-skip:focus {
   transform: translateY(0);
 }
 
@@ -219,14 +219,14 @@ body {
   color: var(--text-primary);
 }
 
-.mark {
+.site-mark {
   display: block;
   flex: none;
   inline-size: var(--sp-400);
   block-size: var(--sp-400);
 }
 
-.mark[data-size='lg'] {
+.site-mark[data-size='lg'] {
   inline-size: var(--sp-600);
   block-size: var(--sp-600);
 }
@@ -530,7 +530,7 @@ p + p,
 p + ul,
 p + ol,
 ul + p,
-.stack > * + * {
+.site-stack > * + * {
   margin-block-start: var(--sp-300);
 }
 
@@ -642,7 +642,7 @@ main {
   gap: var(--sp-100);
 }
 
-.chip {
+.site-chip {
   font-family: var(--font-mono);
   font-size: var(--fs-075);
   padding: var(--sp-050) var(--sp-200);
@@ -650,14 +650,14 @@ main {
   white-space: nowrap;
 }
 
-.chip-slate { background: var(--label-slate-bg); color: var(--label-slate-fg); }
-.chip-blue { background: var(--label-blue-bg); color: var(--label-blue-fg); }
-.chip-teal { background: var(--label-teal-bg); color: var(--label-teal-fg); }
-.chip-green { background: var(--label-green-bg); color: var(--label-green-fg); }
-.chip-amber { background: var(--label-amber-bg); color: var(--label-amber-fg); }
-.chip-orange { background: var(--label-orange-bg); color: var(--label-orange-fg); }
-.chip-red { background: var(--label-red-bg); color: var(--label-red-fg); }
-.chip-violet { background: var(--label-violet-bg); color: var(--label-violet-fg); }
+.site-chip-slate { background: var(--label-slate-bg); color: var(--label-slate-fg); }
+.site-chip-blue { background: var(--label-blue-bg); color: var(--label-blue-fg); }
+.site-chip-teal { background: var(--label-teal-bg); color: var(--label-teal-fg); }
+.site-chip-green { background: var(--label-green-bg); color: var(--label-green-fg); }
+.site-chip-amber { background: var(--label-amber-bg); color: var(--label-amber-fg); }
+.site-chip-orange { background: var(--label-orange-bg); color: var(--label-orange-fg); }
+.site-chip-red { background: var(--label-red-bg); color: var(--label-red-fg); }
+.site-chip-violet { background: var(--label-violet-bg); color: var(--label-violet-fg); }
 
 .sep {
   color: var(--text-subtle);
@@ -744,18 +744,18 @@ main {
 
 /* ── Cards ────────────────────────────────────────────────────────────────── */
 
-.cards {
+.site-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(28ch, 100%), 1fr));
   gap: var(--sp-300);
   margin-block-start: var(--sp-500);
 }
 
-.cards-2 {
+.site-cards-2 {
   grid-template-columns: repeat(auto-fit, minmax(min(38ch, 100%), 1fr));
 }
 
-.card {
+.site-card {
   display: flex;
   flex-direction: column;
   align-items: start;
@@ -766,25 +766,25 @@ main {
   box-shadow: var(--shadow-raised);
 }
 
-.card p {
+.site-card p {
   font-size: var(--fs-100);
 }
 
-.card > * + * {
+.site-card > * + * {
   margin-block-start: var(--sp-150);
 }
 
-.card .proof {
+.site-card .proof {
   margin-block-start: auto;
   padding-block-start: var(--sp-025);
 }
 
 /* The signature rim: the cards of the section the product cares most about. */
-.cards-signature .card {
+.site-cards-signature .site-card {
   border-color: var(--rim-ember);
 }
 
-.card-index {
+.site-card-index {
   font-family: var(--font-mono);
   font-size: var(--fs-050);
   color: var(--accent-signature);
@@ -819,12 +819,12 @@ main {
 
 /* ── Definition lists as feature rows ─────────────────────────────────────── */
 
-.rows {
+.site-rows {
   margin-block-start: var(--sp-500);
   border-block-start: var(--bw-hairline) solid var(--border-subtle);
 }
 
-.row {
+.site-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-150) var(--sp-500);
@@ -832,33 +832,33 @@ main {
   border-block-end: var(--bw-hairline) solid var(--border-subtle);
 }
 
-.row > h3 {
+.site-row > h3 {
   flex: 0 1 20ch;
   min-width: 0;
 }
 
-.row > div {
+.site-row > div {
   flex: 1 1 46ch;
   min-width: 0;
   max-width: 78ch;
 }
 
-.row > h3 {
+.site-row > h3 {
   margin: 0;
 }
 
-.row > div > * + * {
+.site-row > div > * + * {
   margin-block-start: var(--sp-150);
 }
 
-.row p {
+.site-row p {
   font-size: var(--fs-100);
 }
 
 /* ── Lists ────────────────────────────────────────────────────────────────── */
 
 .ticks,
-.plain {
+.site-plain {
   list-style: none;
   margin: var(--sp-400) 0 0;
   padding: 0;
@@ -893,16 +893,16 @@ main {
   display: block;
 }
 
-ul.prose,
-ol.prose {
+ul.site-prose,
+ol.site-prose {
   margin: var(--sp-300) 0 0;
   padding-inline-start: var(--sp-400);
   color: var(--text-secondary);
   font-size: var(--fs-200);
 }
 
-ul.prose li + li,
-ol.prose li + li {
+ul.site-prose li + li,
+ol.site-prose li + li {
   margin-block-start: var(--sp-150);
 }
 
@@ -961,7 +961,7 @@ td .part {
 
 /* ── Code ─────────────────────────────────────────────────────────────────── */
 
-.shell {
+.site-shell {
   margin-block-start: var(--sp-400);
   background: var(--bg-surface-sunken);
   border: var(--bw-hairline) solid var(--border-subtle);
@@ -971,7 +971,7 @@ td .part {
   overflow-x: auto;
 }
 
-.shell code {
+.site-shell code {
   display: block;
   background: transparent;
   padding: 0;
@@ -981,7 +981,7 @@ td .part {
   white-space: pre;
 }
 
-.shell .c {
+.site-shell .c {
   color: var(--text-subtle);
 }
 
@@ -1087,7 +1087,7 @@ a:hover {
 }
 
 a:focus-visible,
-.skip:focus-visible {
+.site-skip:focus-visible {
   outline: var(--bw-ring) solid var(--focus-ring);
   outline-offset: var(--bw-ring);
   border-radius: var(--r-xs);

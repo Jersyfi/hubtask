@@ -24,7 +24,7 @@
   const current = $derived(page.url.pathname);
 </script>
 
-<a class="skip" href="#main">Skip to content</a>
+<a class="site-skip" href="#main">Skip to content</a>
 
 <header class="masthead">
   <div class="wrap">

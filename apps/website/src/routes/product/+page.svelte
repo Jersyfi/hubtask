@@ -92,12 +92,12 @@
       <h2>Four layouts and a query language</h2>
     </div>
 
-    <div class="cards">
-      <div class="card">
+    <div class="site-cards">
+      <div class="site-card">
         <h3>List</h3>
         <p>Collapsed or expanded, with the subtree visible where you want it and folded where you do not.</p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Kanban</h3>
         <p>
           Buckets under a collection, with a work-in-progress limit and a done column that are
@@ -105,7 +105,7 @@
           limit somebody set as a reminder to themselves.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Timeline</h3>
         <p>
           A span where an item has a start and a due date, a point where it only has a due date, and
@@ -113,7 +113,7 @@
           filter nobody chose.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Saved views</h3>
         <p>
           A query, a layout hint and a share setting, stored and re-openable. Exportable as CSV,
@@ -203,8 +203,8 @@
       <p class="kicker">Working with other people</p>
       <h2>Collaboration and content</h2>
     </div>
-    <div class="rows">
-      <div class="row">
+    <div class="site-rows">
+      <div class="site-row">
         <h3>Members and assignment</h3>
         <div><p>
           An assignee or a set of members, depending on the level. Automatic assignment by policy
@@ -212,14 +212,14 @@
           never a silent drop.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Comments</h3>
         <div><p>
           Threaded, editable, with “removed” as a visible state of its own rather than a hole in
           the conversation.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Attachments and covers</h3>
         <div><p>
           Files go to object storage or the local volume by a presigned upload the server never
@@ -227,14 +227,14 @@
           A cover is a colour from the palette or an image.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Custom fields</h3>
         <div><p>
           Eight kinds of field, defined per collection, filterable in the query language like any
           built-in field.
         </p></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>Roles</h3>
         <div><p>
           Seven roles across four scopes — workspace, hub, collection, item — with an auditor role
@@ -243,7 +243,7 @@
         </p>
         <Proof href="{docs}/architecture/domain-model.md" label="domain-model.md §3 · the role matrix" /></div>
       </div>
-      <div class="row">
+      <div class="site-row">
         <h3>History</h3>
         <div><p>
           Every change on an item, with the actor and what changed — and for activities, a compact
@@ -260,8 +260,8 @@
       <p class="kicker">While you are away</p>
       <h2>Automation, intake and agents</h2>
     </div>
-    <div class="cards cards-2">
-      <div class="card">
+    <div class="site-cards site-cards-2">
+      <div class="site-card">
         <h3>Rules</h3>
         <p>
           Triggers on what happens, conditions in a real expression language, and actions drawn
@@ -270,7 +270,7 @@
         </p>
         <Proof href="{docs}/architecture/automation.md" label="automation.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>The inbox for anything unsorted</h3>
         <p>
           Quick capture, an inbound webhook and an e-mail address that can be rotated — everything
@@ -278,14 +278,14 @@
           suggestion attached, which changes nothing until it is accepted.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Webhooks out</h3>
         <p>
           Signed subscriptions with retries and a dead-letter path, carrying published CloudEvents
           schemas — and n8n and Zapier connectors generated from the same contract.
         </p>
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>AI, entirely optional</h3>
         <p>
           Suggestions for the inbox and for breaking a task down, summaries, semantic search — with

@@ -116,8 +116,8 @@
         accessibility statement?”
       </p>
     </div>
-    <div class="cards cards-2 cards-signature">
-      <div class="card">
+    <div class="site-cards site-cards-2 site-cards-signature">
+      <div class="site-card">
         <h3>The trail, and its verification</h3>
         <p>
           Auditable actions form a hash chain that stores no content. One call walks it and names
@@ -126,7 +126,7 @@
         </p>
         <Proof href="{docs}/architecture/audit.md" label="audit.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Data subject rights</h3>
         <p>
           Access, export, rectification and erasure are use cases with the statutory deadline
@@ -135,7 +135,7 @@
         </p>
         <Proof href="{docs}/architecture/data-protection.md" label="data-protection.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Retention and legal hold</h3>
         <p>
           Rules that announce what they would delete, keep a grace period and can be stopped — and a
@@ -143,7 +143,7 @@
         </p>
         <Proof href="{docs}/architecture/data-retention.md" label="data-retention.md" />
       </div>
-      <div class="card">
+      <div class="site-card">
         <h3>Accessibility</h3>
         <p>
           The clients are built to WCAG 2.2 AA with a published statement — the standard the
@@ -180,7 +180,7 @@
         <a href="/developers/">The developer page</a>
       </div>
       <div>
-        <pre class="shell"><code><span class="c"># The whole product, from a terminal</span>
+        <pre class="site-shell"><code><span class="c"># The whole product, from a terminal</span>
 hubctl item create --collection "$C" \
   --type TASK --title "Renew the domain"
 

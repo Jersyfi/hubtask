@@ -7,13 +7,13 @@
 </script>
 
 <p class="levels" data-tone={tone} aria-label="The five levels: hub, collection, task, work package, activity">
-  <span class="chip chip-slate">Hub</span>
+  <span class="site-chip site-chip-slate">Hub</span>
   <span class="sep" aria-hidden="true">/</span>
-  <span class="chip chip-blue">Collection</span>
+  <span class="site-chip site-chip-blue">Collection</span>
   <span class="sep" aria-hidden="true">/</span>
-  <span class="chip chip-teal">Task</span>
+  <span class="site-chip site-chip-teal">Task</span>
   <span class="sep" aria-hidden="true">/</span>
-  <span class="chip chip-violet">Work&nbsp;package</span>
+  <span class="site-chip site-chip-violet">Work&nbsp;package</span>
   <span class="sep" aria-hidden="true">/</span>
-  <span class="chip chip-amber">Activity</span>
+  <span class="site-chip site-chip-amber">Activity</span>
 </p>

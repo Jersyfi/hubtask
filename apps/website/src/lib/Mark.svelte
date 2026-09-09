@@ -8,7 +8,7 @@
   let { size = 'md' }: { size?: 'md' | 'lg' } = $props();
 </script>
 
-<svg class="mark" data-size={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+<svg class="site-mark" data-size={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
   <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--blue-700)" />
   <rect x="5" y="5" width="14" height="14" rx="4" fill="var(--blue-500)" opacity=".8" />
   <rect x="8.5" y="8.5" width="7" height="7" rx="2.2" fill="var(--ember-400)" />

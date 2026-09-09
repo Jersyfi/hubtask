@@ -32,7 +32,7 @@
     </div>
     <div class="two-up">
       <div>
-        <pre class="shell"><code><span class="c"># One box</span>
+        <pre class="site-shell"><code><span class="c"># One box</span>
 git clone https://github.com/Jersyfi/hubtask.git
 cd hubtask
 cp deploy/docker/.env.example .env
@@ -110,7 +110,7 @@ helm upgrade --install hubtask ./k8s \
       <p class="kicker">First five minutes</p>
       <h2>From nothing to a completed task</h2>
     </div>
-    <pre class="shell"><code><span class="c"># Sign in with a personal access token</span>
+    <pre class="site-shell"><code><span class="c"># Sign in with a personal access token</span>
 echo "$TOKEN" | hubctl auth login --url https://tasks.example.org
 
 <span class="c"># A hub, a collection, a task</span>
