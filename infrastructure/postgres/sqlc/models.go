@@ -416,6 +416,26 @@ type AiProvider struct {
 	Version           int32
 }
 
+type AiSuggestion struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	TargetType    string
+	TargetID      pgtype.UUID
+	Kind          string
+	Status        string
+	Payload       []byte
+	Source        string
+	Model         string
+	PromptID      string
+	PromptVersion string
+	ProducedAt    pgtype.Timestamptz
+	InputDigest   []byte
+	CreatedAt     pgtype.Timestamptz
+	DecidedAt     pgtype.Timestamptz
+	DecidedBy     pgtype.UUID
+	Version       int32
+}
+
 type AuditAnchor struct {
 	TenantID    pgtype.UUID
 	AnchoredAt  pgtype.Timestamptz

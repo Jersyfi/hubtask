@@ -1830,6 +1830,42 @@ CREATE TABLE set_element (
   PRIMARY KEY (tenant_id, item_id, set_name, element_id)
 );
 
+-- What AI proposed, and did not do (J-05, ADR-0012). A suggestion is a record: it becomes a change
+-- when somebody accepts it, as their own write with their own rights. The provenance columns are
+-- why the table exists rather than the answer being applied and forgotten - "why does this task say
+-- that" has to be answerable a year later.
+CREATE TABLE ai_suggestion (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  -- No foreign key: the two target kinds live in two tables, and a polymorphic reference cannot
+  -- be one. The application checks the target, which it must do anyway to authorise the read.
+  target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY')),
+  target_id     uuid NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION')),
+  status        text NOT NULL DEFAULT 'PROPOSED'
+                  CHECK (status IN ('PROPOSED', 'ACCEPTED', 'DISMISSED')),
+  payload       jsonb NOT NULL,
+  source        text NOT NULL DEFAULT 'AI' CHECK (source IN ('AI')),
+  model         text NOT NULL CHECK (length(model) BETWEEN 1 AND 200),
+  prompt_id     text NOT NULL CHECK (length(prompt_id) BETWEEN 1 AND 200),
+  prompt_version text NOT NULL CHECK (length(prompt_version) BETWEEN 1 AND 50),
+  -- When the provider answered, which is not when this row was written.
+  produced_at   timestamptz NOT NULL,
+  -- What the suggestion was made from. Acceptance compares it and refuses a stale one.
+  input_digest  bytea NOT NULL,
+  created_at    timestamptz NOT NULL,
+  decided_at    timestamptz,
+  decided_by    uuid,
+  version       integer NOT NULL DEFAULT 1,
+  CONSTRAINT ai_suggestion_decision CHECK (
+    (status = 'PROPOSED' AND decided_at IS NULL AND decided_by IS NULL) OR
+    (status <> 'PROPOSED' AND decided_at IS NOT NULL)
+  )
+);
+CREATE INDEX ai_suggestion_target_idx
+  ON ai_suggestion (tenant_id, target_type, target_id, status, created_at DESC, id DESC);
+CREATE INDEX ai_suggestion_age_idx ON ai_suggestion (tenant_id, created_at);
+
 -- ============================ Row Level Security ===========================
 -- For every tenant-scoped table: a policy on current_tenant_id().
 DO $$
@@ -1840,7 +1876,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'identity_provider','oidc_flow','ai_provider',
+    'identity_provider','oidc_flow','ai_provider','ai_suggestion',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
