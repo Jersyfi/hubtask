@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -368,5 +369,172 @@ func TestTheManifestAnswersTheNotificationCategoriesAndChannels(t *testing.T) {
 	}
 	if len(capabilities.NotificationChannels) != 1 || capabilities.NotificationChannels[0] != "EMAIL" {
 		t.Errorf("channels %v, want EMAIL alone", capabilities.NotificationChannels)
+	}
+}
+
+// providerFake is a provider that calls nothing and reports whatever it was built with, which is
+// the whole of what the manifest reads (core/port/ai: "it answers from configuration rather than
+// by calling anybody").
+type providerFake struct {
+	capabilities aiprovider.ProviderCapabilities
+}
+
+func (p providerFake) Complete(context.Context, aiprovider.CompletionRequest) (aiprovider.CompletionResult, error) {
+	return aiprovider.CompletionResult{}, aiprovider.ErrUnavailable
+}
+
+func (p providerFake) Embed(context.Context, []string) (aiprovider.EmbeddingResult, error) {
+	return aiprovider.EmbeddingResult{}, aiprovider.ErrUnavailable
+}
+
+func (p providerFake) Capabilities() aiprovider.ProviderCapabilities { return p.capabilities }
+
+// resolverFake stands in for infrastructure/ai.Resolver, and records whether it was asked at all -
+// which is the assertion an anonymous caller needs.
+type resolverFake struct {
+	provider providerFake
+	asked    int
+}
+
+func (r *resolverFake) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {
+	r.asked++
+	return r.provider, nil
+}
+
+// store is the embedding store's presence, as the database answers it (J-09, ADR-0050).
+type store struct{ present bool }
+
+func (s store) Available(context.Context) (bool, error) { return s.present, nil }
+
+// aiManifest is the handler with both AI seams wired, for a signed-in caller.
+func aiManifest(present bool, capabilities aiprovider.ProviderCapabilities) (GetCapabilities, *resolverFake) {
+	resolver := &resolverFake{provider: providerFake{capabilities: capabilities}}
+	handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	handler.Semantic = store{present: present}
+	handler.Providers = resolver
+	return handler, resolver
+}
+
+func member() appshared.ActorContext {
+	return appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenant}
+}
+
+// The two names one provider carries, and they are the two names /meta/health degrades under
+// (observability-reliability.md §7). A client reading either learns about one feature.
+func TestTheManifestNamesTheTwoFeaturesOneProviderCarries(t *testing.T) {
+	handler, resolver := aiManifest(true, aiprovider.ProviderCapabilities{
+		Kind: "openai_compatible", Completion: true, Embedding: true,
+		CompletionModel: "gpt-4o-mini", EmbeddingModel: "text-embedding-3-small",
+		EmbeddingDimensions: 1536,
+	})
+
+	capabilities, err := handler.Execute(t.Context(), member())
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if !capabilities.Features["ai_suggestions"] {
+		t.Error("a workspace with a completing provider is told it cannot ask for a suggestion")
+	}
+	if !capabilities.Features["semantic_search"] {
+		t.Error("a workspace with a store and an embedding provider is told it cannot search by meaning")
+	}
+	if resolver.asked != 1 {
+		t.Errorf("the resolver was asked %d times, want exactly one", resolver.asked)
+	}
+}
+
+// The reference stack until somebody configures a provider: deploy/docker/compose.yaml runs
+// pgvector, so the store is there and always empty. Publishing `semantic_search: true` would send
+// a client to render a control that silently answers a lexical search to every query (issue 502).
+func TestAStoreWithNobodyToFillItIsNotSemanticSearch(t *testing.T) {
+	handler, _ := aiManifest(true, aiprovider.ProviderCapabilities{})
+
+	capabilities, err := handler.Execute(t.Context(), member())
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if capabilities.Features["semantic_search"] {
+		t.Error("a database carrying pgvector with no provider to fill it claims semantic search")
+	}
+	if capabilities.Features["ai_suggestions"] {
+		t.Error("a workspace with no provider claims it can ask for a suggestion")
+	}
+}
+
+// And the other way round, which is an ordinary supported configuration: an endpoint serving a
+// chat model that cannot embed (core/port/ai.ProviderCapabilities). One control, not two.
+func TestAProviderThatCannotEmbedOffersSuggestionsAndNotMeaning(t *testing.T) {
+	handler, _ := aiManifest(true, aiprovider.ProviderCapabilities{
+		Kind: "ollama", Completion: true, CompletionModel: "llama3.1",
+	})
+
+	capabilities, err := handler.Execute(t.Context(), member())
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if !capabilities.Features["ai_suggestions"] {
+		t.Error("a completing provider is not offered as one")
+	}
+	if capabilities.Features["semantic_search"] {
+		t.Error("a provider that cannot embed is offered as one that can")
+	}
+}
+
+// A provider that embeds against a database with no store is the ADR-0050 half, and it is still
+// not the feature: there is nowhere to put the vectors.
+func TestAnEmbeddingProviderWithoutAStoreIsNotSemanticSearch(t *testing.T) {
+	handler, _ := aiManifest(false, aiprovider.ProviderCapabilities{
+		Kind: "openai_compatible", Completion: true, Embedding: true,
+		EmbeddingModel: "text-embedding-3-small", EmbeddingDimensions: 1536,
+	})
+
+	capabilities, err := handler.Execute(t.Context(), member())
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if capabilities.Features["semantic_search"] {
+		t.Error("a provider that embeds into nothing claims semantic search")
+	}
+}
+
+// An anonymous caller has no workspace, so there is no provider to ask about - and asking anyway
+// would run the resolver's read outside any tenant, which is a question with no answer rather than
+// a permissive one. Both false, and nobody asked.
+func TestAnAnonymousCallerIsToldNeither(t *testing.T) {
+	handler, resolver := aiManifest(true, aiprovider.ProviderCapabilities{
+		Kind: "openai_compatible", Completion: true, Embedding: true,
+	})
+
+	capabilities, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if capabilities.Features["ai_suggestions"] || capabilities.Features["semantic_search"] {
+		t.Errorf("an anonymous caller is offered AI: %+v", capabilities.Features)
+	}
+	if resolver.asked != 0 {
+		t.Errorf("the resolver was asked %d times for a caller with no workspace", resolver.asked)
+	}
+}
+
+// Both keys are answered whichever way they come out, because an absent key and a false one are
+// different statements and a client acting on the difference would be right to.
+func TestBothKeysArePresentEvenWhenTheAnswerIsNo(t *testing.T) {
+	handler, _ := aiManifest(false, aiprovider.ProviderCapabilities{})
+
+	capabilities, err := handler.Execute(t.Context(), member())
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	for _, key := range []string{"ai_suggestions", "semantic_search"} {
+		if _, answered := capabilities.Features[key]; !answered {
+			t.Errorf("the manifest does not mention %q at all", key)
+		}
 	}
 }

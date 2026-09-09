@@ -181,11 +181,15 @@ const semanticSearchAvailable = `-- name: SemanticSearchAvailable :one
 SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available
 `
 
-// Whether this installation can search by meaning (J-09, ADR-0050).
+// Whether this installation has somewhere to keep meaning (J-09, ADR-0050).
 //
 // The *table's* existence rather than the extension's, and the difference matters: an installation
 // where somebody installed pgvector after the migrations ran has the extension and no store, which
 // is not a working semantic search. One question, asked of the object the search actually reads.
+//
+// The store is half of the answer and this query is deliberately only that half. Searching by
+// meaning also needs a provider that embeds, which is a workspace's configuration rather than an
+// installation's schema, and the two are joined where both are known - in the manifest (issue 502).
 func (q *Queries) SemanticSearchAvailable(ctx context.Context) (bool, error) {
 	row := q.db.QueryRow(ctx, semanticSearchAvailable)
 	var available bool

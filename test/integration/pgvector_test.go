@@ -72,10 +72,15 @@ func TestWhereTheExtensionIsThereTheStoreIsBehindTheBoundary(t *testing.T) {
 	}
 }
 
-// The manifest answers from the database rather than from configuration, which is the whole point
-// of the capability being detected: an installation says what it can do rather than what the build
-// can do.
-func TestTheManifestAnswersWhatThisDatabaseCanDo(t *testing.T) {
+// The store's presence is read from the database rather than from configuration, which is the whole
+// point of the capability being detected: an installation says what it has rather than what the
+// build can do.
+//
+// This is the repository compared with the database, and it is deliberately no more than that. It
+// used to be named for the manifest and it was not one: the manifest also needs a provider that
+// embeds, and this test could not have noticed that it did not ask for one (issue 502). The
+// manifest's own claim is in `manifest_ai_test.go`.
+func TestTheEmbeddingStoreIsDetectedRatherThanConfigured(t *testing.T) {
 	ctx := context.Background()
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 
@@ -96,6 +101,6 @@ func TestTheManifestAnswersWhatThisDatabaseCanDo(t *testing.T) {
 	}
 
 	if available != present {
-		t.Errorf("the manifest says semantic_search=%v and the database says %v", available, present)
+		t.Errorf("the repository says the store is %v and the database says %v", available, present)
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -106,6 +107,13 @@ func roleMatrix() []RoleDescription {
 	return described
 }
 
+// AiProviders answers which provider the caller's workspace uses (J-02). An interface here rather
+// than the adapter, because the application layer may not import one (ADR-0001) - the same
+// declaration work.AiProviders and suggestion.Providers make, for the same reason.
+type AiProviders interface {
+	For(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, error)
+}
+
 // GetCapabilities reads the manifest.
 //
 // The item types come from the database, never from a constant here: a tenant may narrow a
@@ -117,7 +125,11 @@ type GetCapabilities struct {
 	// a build wired without it answers `false`, which is the honest reading of "nothing here says
 	// otherwise" and the safe direction - a client offers one control fewer rather than one that
 	// will always refuse.
-	Semantic   repository.SemanticSearch
+	Semantic repository.SemanticSearch
+	// Providers answers what the caller's workspace can ask a model to do (issue 502). Optional,
+	// like Semantic and for the same reason: a build wired without it answers `false`, which is
+	// the honest reading of "nothing here says otherwise".
+	Providers  AiProviders
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 }
@@ -159,6 +171,24 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 	})
 	if err != nil {
 		return Capabilities{}, err
+	}
+
+	// What the workspace's provider can do, asked outside the transaction above because the
+	// resolver opens its own - and asked of the resolver rather than of the row, so that "there
+	// is no AI here" is decided in one place. The resolver already answers NoopAi for a workspace
+	// that configured nothing, chose NOOP, or has not consented (ai-first.md §2); a second copy of
+	// that rule here would eventually answer what the first one used to say.
+	//
+	// Only for an authenticated caller, because a provider is configured per workspace and an
+	// anonymous one has no workspace to ask about. `false` is then not merely the safe direction
+	// but the accurate answer: an anonymous caller can run no search and ask for no suggestion.
+	var ai aiprovider.ProviderCapabilities
+	if g.Providers != nil && actor.IsAuthenticated() {
+		provider, err := g.Providers.For(ctx, actor)
+		if err != nil {
+			return Capabilities{}, err
+		}
+		ai = provider.Capabilities()
 	}
 
 	return Capabilities{
@@ -213,12 +243,25 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// this installation serves one tenant - there the owner is the operator - and the
 			// operator's switch otherwise (backup-restore.md §2).
 			"backup_targets": g.Config.Tenancy != env.TenancyMulti || g.Config.Backup.TenantTargets,
-			// Whether this installation can search by meaning (J-09, ADR-0050). Read from the
+			// Whether the caller's workspace can ask a model for a suggestion (issue 502).
+			//
+			// Named `ai_suggestions` rather than `ai`, because it is the name /meta/health already
+			// gives the same feature in `degraded_features` (observability-reliability.md §7) -
+			// one feature, one name, whichever of the two a client reads. It is also the honest
+			// scope: what a person loses is suggestions, not "AI".
+			"ai_suggestions": ai.Completion,
+			// Whether the caller's workspace can search by meaning (J-09, ADR-0050, issue 502).
+			//
+			// Both halves, because either alone is not the feature. The store is read from the
 			// database rather than from configuration, for the reason the text languages are: the
 			// answer is what this PostgreSQL carries, and pgvector is detected rather than
-			// demanded. An installation without it searches lexically, which is complete - so this
-			// is a manifest entry and not a warning.
-			"semantic_search": semantic,
+			// demanded. The provider is read from the workspace, because a database full of
+			// pgvector with nobody to produce vectors embeds nothing and matches nothing - the
+			// reference stack is exactly that installation until somebody configures a provider.
+			//
+			// An installation missing either searches lexically, which is complete - so this is a
+			// manifest entry and not a warning.
+			"semantic_search": semantic && ai.Embedding,
 		},
 	}, nil
 }
