@@ -941,3 +941,16 @@ func (pending) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {
 func (pending) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// The suggestions (J-05). RestController serves all three.
+func (pending) ListSuggestions(w http.ResponseWriter, r *http.Request, _ openapi.ListSuggestionsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) AcceptSuggestion(w http.ResponseWriter, r *http.Request, _ openapi.SuggestionId) {
+	notAvailable(w, r)
+}
+
+func (pending) DismissSuggestion(w http.ResponseWriter, r *http.Request, _ openapi.SuggestionId) {
+	notAvailable(w, r)
+}
