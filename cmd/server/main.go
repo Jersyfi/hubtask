@@ -1622,8 +1622,16 @@ func run() error {
 				// one prompt comes to exist in two versions - and a suggestion's recorded prompt
 				// version would then name a text that depends on who is reading it.
 				Prompts: aiPrompts,
-				Name:    "hubtask",
-				Version: version,
+				// The streaming half (J-13). `Streams` is the *same* registry the change stream
+				// uses, deliberately: an agent's stream is not a different kind of connection from
+				// a browser's, so a pod's capacity is one number whoever is holding it and a
+				// refusal shows up in the same metric.
+				Sessions: security.NewMcpSessionIssuer(cfg.SecretKey),
+				Streams:  streams,
+				Wakeups:  changeListener,
+				Signals:  metrics,
+				Name:     "hubtask",
+				Version:  version,
 			},
 		}
 

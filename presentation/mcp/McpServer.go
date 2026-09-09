@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 // Catalogue is the slice of the use case registry this server needs.
@@ -40,10 +42,37 @@ type Server struct {
 	// installation running without it, and then the prompts capability is not declared and the two
 	// methods answer "method not found" - the rule this file has always stated about itself.
 	Prompts Prompts
+	// Sessions mints and checks the `Mcp-Session-Id` a handshake hands out (J-13). Nil is an
+	// installation running without the streaming half: no session is issued, none is checked, and
+	// `GET /mcp` is not served.
+	Sessions Sessions
+	// Streams bounds the server-initiated connections, and it is the *same* registry the change
+	// stream uses: an agent's stream is not a different kind of connection from a browser's and
+	// must not have a different kind of limit.
+	Streams *stream.Registry
+	// Wakeups tells an open stream that a workspace changed, so a `listChanged` notification is
+	// sent because something happened rather than because a timer fired.
+	Wakeups Wakeups
+	Signals StreamSignals
+	// Clock is injectable so the tests do not have to wait. Nil means the system clock.
+	Clock func() time.Time
 	// Name and Version identify the server on initialize.
 	Name    string
 	Version string
 }
+
+// Sessions is the slice of the session issuer this server needs (infrastructure/security).
+//
+// An interface because presentation may not import infrastructure, and a narrow one because this
+// is the whole of what the transport does with a session: hand one out, and check one against the
+// actor presenting it.
+type Sessions interface {
+	Issue(tenantID, accountID shared.ID, now time.Time) string
+	Validate(session string, tenantID, accountID shared.ID, now time.Time) error
+}
+
+// SessionHeader is where MCP carries the session identifier, in both directions.
+const SessionHeader = "Mcp-Session-Id"
 
 // Prompts is the slice of the prompt store this server needs (core/port/ai.Prompts, filtered).
 type Prompts interface {
@@ -90,11 +119,32 @@ type rpcError struct {
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		// The GET half of the streamable transport opens a server-initiated stream. This server
-		// initiates nothing, and saying so is better than holding a connection that never speaks.
-		w.Header().Set("Allow", http.MethodPost)
+	switch r.Method {
+	case http.MethodPost:
+	case http.MethodGet:
+		// The server-initiated stream (J-13). It used to be a 405 with a comment saying this
+		// server initiates nothing; J-11 and J-12 gave it lists that can change.
+		s.stream(w, r)
+		return
+	case http.MethodDelete:
+		// A client ending its session. There is nothing to forget - the identifier is a signed
+		// statement rather than a row - so this succeeds by saying so, which is what lets a
+		// well-behaved client close cleanly instead of abandoning a session it thinks still exists.
+		w.WriteHeader(http.StatusNoContent)
+		return
+	default:
+		w.Header().Set("Allow", "GET, POST, DELETE")
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// A session presented has to be this actor's. It is checked before the body is read, because a
+	// request that belongs to nobody's conversation should not reach a use case.
+	if actor, held := actorOf(r); held && !s.sessionAccepted(r, actor) {
+		// 404 rather than 403, which is what MCP asks for and is also the honest answer: the
+		// session does not exist as far as this actor is concerned, and saying "forbidden" would
+		// confirm that it exists for somebody.
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -116,8 +166,50 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The handshake is where a session begins, so the header goes on before the body is written.
+	if call.Method == "initialize" {
+		if actor, held := actorOf(r); held && s.Sessions != nil {
+			w.Header().Set(SessionHeader,
+				s.Sessions.Issue(actor.TenantID, actor.AccountID, s.now()))
+		}
+	}
+
 	write(w, r, s.answer(r.Context(), call))
 }
+
+// actorOf answers the authenticated actor, or that there is none. The middleware puts it there;
+// this is the fail-closed read of it.
+func actorOf(r *http.Request) (appshared.ActorContext, bool) {
+	actor, ok := appshared.ActorFrom(r.Context())
+	if !ok || !actor.IsAuthenticated() {
+		return appshared.ActorContext{}, false
+	}
+	return actor, true
+}
+
+// sessionAccepted judges the `Mcp-Session-Id` on a request, where there is one.
+//
+// A request without the header is accepted: the handshake itself carries none, and a client that
+// never asks for the streaming half never needs one. What is refused is a header that is *not this
+// actor's session* - forged, expired, or somebody else's - because a session says which conversation
+// a request belongs to, and a request that authenticated as one person may not continue another's.
+func (s Server) sessionAccepted(r *http.Request, actor appshared.ActorContext) bool {
+	presented := r.Header.Get(SessionHeader)
+	if presented == "" {
+		// The stream requires one, and asks for it separately: an unbound stream would be a
+		// connection belonging to no conversation.
+		return r.Method != http.MethodGet
+	}
+	if s.Sessions == nil {
+		// Nothing issued it, so nothing can have minted it.
+		return false
+	}
+	return s.Sessions.Validate(presented, actor.TenantID, actor.AccountID, s.now()) == nil
+}
+
+// credentialOf is the per-credential key this stream is counted under - `presentation/stream`'s,
+// shared with the change stream, so the same token lands in the same counter at either endpoint.
+func credentialOf(r *http.Request) string { return stream.Credential(r) }
 
 func (s Server) answer(ctx context.Context, call request) response {
 	answer := response{JSONRPC: "2.0", ID: call.ID}
@@ -232,14 +324,26 @@ func (s Server) call(ctx context.Context, params json.RawMessage) (map[string]an
 // a resource it subscribed to has moved.
 func (s Server) capabilities() map[string]any {
 	capabilities := map[string]any{
-		"tools":     map[string]any{"listChanged": false},
-		"resources": map[string]any{"subscribe": false, "listChanged": false},
+		// The tool list is generated from the use case registry, which does not change while a
+		// process runs, so a notification about it would be a message that is never sent.
+		"tools": map[string]any{"listChanged": false},
+		// Resources move whenever a workspace does, and since J-13 this server says so - but only
+		// where a stream can actually carry the notification. `subscribe` stays false: MCP's
+		// subscription is per resource URI, and what this server watches is a workspace.
+		"resources": map[string]any{"subscribe": false, "listChanged": s.notifies()},
 	}
 	if s.Prompts != nil {
+		// Prompts are compiled in, so their list cannot move while a process runs either.
 		capabilities["prompts"] = map[string]any{"listChanged": false}
 	}
 	return capabilities
 }
+
+// notifies reports whether this server can actually send a `listChanged`. Both halves are needed:
+// a stream to carry it, and a subscription to know when. Claiming it without either would leave a
+// client waiting for a message that never comes, which is the failure this file has always
+// refused to ship.
+func (s Server) notifies() bool { return s.Streams != nil && s.Wakeups != nil }
 
 type promptGet struct {
 	Name      string            `json:"name"`

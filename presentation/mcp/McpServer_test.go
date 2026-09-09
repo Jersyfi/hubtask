@@ -326,7 +326,9 @@ func TestAToolCallWithoutAnActorIsRefused(t *testing.T) {
 
 // The transport is POST. A GET opens the server-initiated stream of the streamable transport,
 // which this server does not have.
-func TestOnlyPostIsServed(t *testing.T) {
+// A server with no stream registry serves POST alone, and says so - which is what an installation
+// running without the streaming half looks like from outside.
+func TestWithoutAStreamRegistryOnlyPostIsServed(t *testing.T) {
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, Path, nil)
 	recorder := httptest.NewRecorder()
 	serverWith(&catalogue{}).ServeHTTP(recorder, request)
@@ -335,6 +337,20 @@ func TestOnlyPostIsServed(t *testing.T) {
 		t.Errorf("status %d, want 405", recorder.Code)
 	}
 	if allow := recorder.Header().Get("Allow"); allow != http.MethodPost {
+		t.Errorf("Allow is %q", allow)
+	}
+}
+
+// A method the transport does not define at all is refused with what it does define.
+func TestAMethodTheTransportDoesNotDefineIsRefused(t *testing.T) {
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, Path, nil)
+	recorder := httptest.NewRecorder()
+	serverWith(&catalogue{}).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status %d, want 405", recorder.Code)
+	}
+	if allow := recorder.Header().Get("Allow"); allow != "GET, POST, DELETE" {
 		t.Errorf("Allow is %q", allow)
 	}
 }

@@ -131,14 +131,11 @@ func (c StreamController) StreamChanges(
 func (c StreamController) admit(
 	r *http.Request, actor appshared.ActorContext,
 ) (stream.Slot, stream.Refusal) {
-	// The credential is fingerprinted rather than used as the key, for the reason the rate
-	// limiter's is: the map ends up in a heap dump, and a heap dump with live tokens in it is a
-	// second incident on top of the first (rule 10).
-	credential := ""
-	if presented, err := bearerCredential(r); err == nil && presented != "" {
-		credential = fingerprint(presented)
-	}
-	return c.Registry.Admit(credential, actor.TenantID.String())
+	// The key is `presentation/stream`'s rather than this package's, and that is not tidiness: the
+	// per-credential cap only means anything if this stream and the agent's key a credential the
+	// same way, or a client could double its allowance by opening half its connections at the
+	// other endpoint (J-13).
+	return c.Registry.Admit(stream.Credential(r), actor.TenantID.String())
 }
 
 func (c StreamController) subscribe(tenantID shared.ID) (<-chan struct{}, func()) {
