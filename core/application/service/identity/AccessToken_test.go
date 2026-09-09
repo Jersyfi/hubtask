@@ -6,6 +6,7 @@ package identity
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -409,5 +410,54 @@ func TestAnAbsentServiceAccountIsNotFound(t *testing.T) {
 	_, err := ListAccessTokens{Writer: writer}.Execute(t.Context(), holder(), serviceAccountID)
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("error = %v, want not found", err)
+	}
+}
+
+// The agent capability is set on a token like any other scope, is stored on the row, and is in the
+// entry the mint writes (J-14).
+//
+// "Set on the token, visible when the token is read, audited when it changes" is what ai-first.md
+// §1.3's "must be enabled explicitly" needs in order to be operable: an operator has to be able to
+// grant it, see who has it, and find out when somebody granted it. Making it a scope is what gets
+// all three at once - and this is the test that says so rather than assuming it.
+func TestTheAgentCapabilityIsMintedStoredAndAudited(t *testing.T) {
+	accounts, auth, sink := newAccounts(), &authorizer{}, &auditSink{}
+	writer := tokenWriter(t, accounts, auth, sink)
+	// The installation declares it, as catalogue.Scopes does.
+	writer.KnownScopes = append(slices.Clone(buildScopes), usecase.AgentDestructiveScope)
+
+	command := validCommand()
+	command.Scopes = []string{"items:read", usecase.AgentDestructiveScope}
+
+	if _, err := (CreateAccessToken{Writer: writer}).Execute(t.Context(), holder(), command); err != nil {
+		t.Fatalf("minting a token with the capability failed: %v", err)
+	}
+
+	row := writer.Tokens.(*tokens).minted[0]
+	if !slices.Contains(row.Scopes, usecase.AgentDestructiveScope) {
+		t.Errorf("the stored token does not carry the capability: %v", row.Scopes)
+	}
+
+	// And the trail. `scopes` is what an auditor reads to answer "when did this credential become
+	// able to delete things", which is the question the capability exists to make answerable.
+	entry := sink.entries[0]
+	if rendered := fmt.Sprintf("%v", entry.Changes["scopes"]); !strings.Contains(
+		rendered, usecase.AgentDestructiveScope) {
+		t.Errorf("the mint recorded scopes as %s, without the capability it granted", rendered)
+	}
+}
+
+// And an installation that does not declare it refuses it by name rather than storing a bound
+// nothing reads - the ordinary rule, which holds for this scope too.
+func TestTheAgentCapabilityIsRefusedWhereItIsNotDeclared(t *testing.T) {
+	accounts, auth, sink := newAccounts(), &authorizer{}, &auditSink{}
+	writer := tokenWriter(t, accounts, auth, sink)
+
+	command := validCommand()
+	command.Scopes = []string{usecase.AgentDestructiveScope}
+
+	_, err := CreateAccessToken{Writer: writer}.Execute(t.Context(), holder(), command)
+	if err == nil {
+		t.Fatal("a scope this build does not declare was accepted")
 	}
 }
