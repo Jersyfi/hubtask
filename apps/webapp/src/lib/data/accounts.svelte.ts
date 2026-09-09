@@ -25,6 +25,15 @@ import { engine } from './engine.ts';
 
 class Accounts {
   #names = $state<Record<string, string>>({});
+  /**
+   * The standing beside the name, from the same answer.
+   *
+   * `AccountSummary` carries it, so keeping it costs a field rather than a request — and F4-09's
+   * people screen needs it: an invitation that has not been redeemed is an `INVITED` row, and a
+   * screen that could not tell it from an active person would say somebody is in the workspace
+   * who has not arrived yet.
+   */
+  #statuses = $state<Record<string, string>>({});
   /** Asked for and not answered yet, so a second caller does not ask again. */
   #asking = new Set<string>();
   /** Asked for and refused, so nobody asks again at all. */
@@ -33,6 +42,11 @@ class Accounts {
   /** The display name, when it is known. `undefined` means "say what is true of every actor". */
   nameOf(id: string | null | undefined): string | undefined {
     return id ? this.#names[id] : undefined;
+  }
+
+  /** The account's standing — `ACTIVE`, `INVITED`, `DISABLED` — where it is known. */
+  statusOf(id: string | null | undefined): string | undefined {
+    return id ? this.#statuses[id] : undefined;
   }
 
   /**
@@ -54,6 +68,7 @@ class Accounts {
       const state = await engine.refresh<AccountSummary>({ path: `/accounts/${id}` });
       if (state.status === 'ready' && state.data.display_name) {
         this.#names = { ...this.#names, [id]: state.data.display_name };
+        if (state.data.status) this.#statuses = { ...this.#statuses, [id]: state.data.status };
       } else {
         this.#unknown.add(id);
       }

@@ -21,6 +21,7 @@
 
   const screens = [
     { path: '/administration/workspace', label: 'app.admin.workspace', hint: 'app.admin.workspace_hint' },
+    { path: '/administration/people', label: 'app.admin.people', hint: 'app.admin.people_hint' },
     { path: '/administration/quotas', label: 'app.admin.quotas', hint: 'app.admin.quotas_hint' },
     {
       path: '/administration/identity-provider',

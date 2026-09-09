@@ -24,6 +24,7 @@
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
+  import PeopleView from './views/PeopleView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
@@ -94,6 +95,8 @@
     <AdministrationView />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
+  {:else if route.name === 'people'}
+    <PeopleView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}

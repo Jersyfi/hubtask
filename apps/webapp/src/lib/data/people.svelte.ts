@@ -84,9 +84,9 @@ class People {
   /**
    * Grants a role at a scope, to an account or to a group.
    *
-   * `OWNER` is a privileged action and needs a step-up this client cannot produce until F4 brings
-   * sessions (`security.md` §5). The control that offers it is switched off with that reason
-   * rather than hidden, so nothing here has to refuse it a second time.
+   * `OWNER` is a privileged action and needs a step-up (`security.md` §5). F4-04 made one
+   * possible, so the control is switched on and the proof is asked for by the wrapper below —
+   * which is the whole of what a caller has to know about it.
    */
   async grant(subject: { accountId?: string; groupId?: string }, role: MembershipRole, scope: Scope): Promise<void> {
     // The idempotency key is minted once, outside the step-up wrapper, so that the retry carrying
