@@ -523,6 +523,39 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/entries/{entryId}:suggest:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: suggestFromJumbleEntry
+      summary: Ask AI what this entry should become
+      description: >
+        Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
+        entry (J-06, `ai-first.md` §2). It **proposes** and changes nothing: what comes back is a
+        suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody
+        converts the entry.
+
+        Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never
+        sits in a request — the suggestion appears when the provider has answered. Asking twice
+        produces two proposals rather than one refusal: a duplicate suggestion is something
+        somebody dismisses, which is the whole safety of a suggestion being a record.
+
+        A workspace with no provider, or one that has not consented to AI processing, is answered
+        `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: The provider will be asked; the suggestion appears under /suggestions
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /jumble/entries/{entryId}:dismiss:
     parameters:
       - name: entryId
@@ -3293,6 +3326,19 @@ paths:
         A suggestion made against an entry that has since been rewritten is **stale** and is refused
         (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one
         state of the entry to a different one. Ask for a new suggestion instead.
+
+        The optional body carries what the person changed or added before accepting — an edited
+        title, or the destination collection a jumble suggestion cannot know. It is merged over the
+        proposal, and it is the caller's own input checked by the use case with the caller's own
+        rights, exactly as if they had made the call themselves. The suggestion's target is never
+        taken from either the proposal or the overrides: a proposal about one entry cannot be made
+        to change another.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestionAcceptance"
       responses:
         "200":
           description: Accepted; the suggestion as it now stands
@@ -6711,6 +6757,19 @@ components:
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    SuggestionAcceptance:
+      type: object
+      description: >
+        What the person changed or added before accepting. Merged over the proposal; every value
+        is checked by the use case that performs the change, with the accepting person's rights.
+      properties:
+        overrides:
+          type: object
+          additionalProperties: true
+          description: >
+            Fields of the proposal to replace or add. A jumble suggestion needs the destination
+            collection here, because a model cannot know which collections a workspace has.
 
     SuggestionPage:
       type: object

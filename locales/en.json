@@ -724,6 +724,8 @@
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",
   "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working.",
+  "suggestions.job_without_tenant": "That suggestion job names no workspace, so nothing could be read for it.",
+  "jumble.entry_already_settled": "Somebody has already decided about that entry, so there is nothing to suggest for it.",
   "suggestions.not_found": "There is no such suggestion.",
   "suggestions.incomplete": "That suggestion is missing something Hubtask needs to record it.",
   "suggestions.target_type_unknown": "{value} is not something a suggestion can be about.",

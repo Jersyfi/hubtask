@@ -68,7 +68,7 @@ func (q *Queries) DeleteExpiredJumbleEntries(ctx context.Context, arg DeleteExpi
 }
 
 const findJumbleEntry = `-- name: FindJumbleEntry :one
-SELECT id, channel, sender, raw_subject, raw_body, attachments, suggestion, status,
+SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE id = $1
@@ -81,7 +81,6 @@ type FindJumbleEntryRow struct {
 	RawSubject   *string
 	RawBody      *string
 	Attachments  []pgtype.UUID
-	Suggestion   []byte
 	Status       string
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
@@ -98,7 +97,6 @@ func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumb
 		&i.RawSubject,
 		&i.RawBody,
 		&i.Attachments,
-		&i.Suggestion,
 		&i.Status,
 		&i.TargetItemID,
 		&i.ReceivedAt,
@@ -184,7 +182,7 @@ func (q *Queries) InsertJumbleEntry(ctx context.Context, arg InsertJumbleEntryPa
 }
 
 const listJumbleEntries = `-- name: ListJumbleEntries :many
-SELECT id, channel, sender, raw_subject, raw_body, attachments, suggestion, status,
+SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE ($1::text IS NULL OR status = $1::text)
@@ -208,7 +206,6 @@ type ListJumbleEntriesRow struct {
 	RawSubject   *string
 	RawBody      *string
 	Attachments  []pgtype.UUID
-	Suggestion   []byte
 	Status       string
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
@@ -239,7 +236,6 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 			&i.RawSubject,
 			&i.RawBody,
 			&i.Attachments,
-			&i.Suggestion,
 			&i.Status,
 			&i.TargetItemID,
 			&i.ReceivedAt,

@@ -924,9 +924,15 @@ func run() error {
 		Meter: metrics, Breakers: aiBreakers,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers))
-	// Nothing asks the resolver or the prompts yet: the first caller is the jumble's suggestion
-	// (J-06). They are built here so the seam is assembled once and a use case receives it.
-	_, _ = aiResolver, aiPrompts
+	// What asking a provider does when the job runs (J-06). It acts for the person who asked, so
+	// the reads it performs go through the catalogue with their rights - which is the same
+	// arrangement the acceptance has, and for the same reason.
+	produceSuggestion := suggestionservice.Produce{
+		Providers: aiResolver, Prompts: aiPrompts,
+		Sources:     suggestionservice.CatalogueSources{Catalogue: suggestionCatalogue},
+		Suggestions: postgres.NewSuggestionRepository(cursors),
+		UnitOfWork:  unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
 		Session:    sessionWriter,
@@ -1070,6 +1076,11 @@ func run() error {
 			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
 		}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.SuggestFromJumbleEntry{
+			Writer: jumbleWriter,
+			AI:     suggestionservice.Availability{Providers: aiResolver},
+			Queue:  jobs,
+		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2141,6 +2152,7 @@ func run() error {
 		queueport.KindRetentionSweep:        retention,
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
+		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindNotificationDeliver:   notificationDelivery,
 		queueport.KindWebhookDeliver:        webhookDelivery,
 		queueport.KindAutomationRun:         automationRun,

@@ -942,6 +942,14 @@ func (pending) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// Asking AI what an entry should become (J-06). RestController serves it; this stands behind it.
+func (pending) SuggestFromJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID,
+	_ openapi.SuggestFromJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
 // The suggestions (J-05). RestController serves all three.
 func (pending) ListSuggestions(w http.ResponseWriter, r *http.Request, _ openapi.ListSuggestionsParams) {
 	notAvailable(w, r)

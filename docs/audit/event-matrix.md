@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**205 use cases, 181 distinct action codes, 146 of them recorded on every call.** A use case that
+**206 use cases, 182 distinct action codes, 147 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -233,6 +233,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `jumble.entry_read` | ListJumbleEntries | `jumble_entry` | INFO | When refused |
 | `jumble.entry_submitted` | SubmitJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |
+| `jumble.suggestion_asked` | SuggestFromJumbleEntry | `jumble_entry` | NOTICE | Every time |
 
 ## Oauth
 

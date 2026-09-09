@@ -5865,6 +5865,12 @@ type Suggestion struct {
 // SuggestionSource Where the proposal came from (`ai-first.md` §2). One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
 type SuggestionSource string
 
+// SuggestionAcceptance What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights.
+type SuggestionAcceptance struct {
+	// Overrides Fields of the proposal to replace or add. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has.
+	Overrides *map[string]interface{} `json:"overrides,omitempty"`
+}
+
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 type SuggestionKind string
 
@@ -7262,6 +7268,12 @@ type DismissJumbleEntryParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// SuggestFromJumbleEntryParams defines parameters for SuggestFromJumbleEntry.
+type SuggestFromJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // RotateJumbleIntakeParams defines parameters for RotateJumbleIntake.
 type RotateJumbleIntakeParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -7705,6 +7717,9 @@ type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
+
+// AcceptSuggestionJSONRequestBody defines body for AcceptSuggestion for application/json ContentType.
+type AcceptSuggestionJSONRequestBody = SuggestionAcceptance
 
 // SyncPullJSONRequestBody defines body for SyncPull for application/json ContentType.
 type SyncPullJSONRequestBody = SyncPullRequest
@@ -8215,6 +8230,9 @@ type ServerInterface interface {
 	// DismissJumbleEntry Decide against an entry
 	// (POST /jumble/entries/{entryId}:dismiss)
 	DismissJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params DismissJumbleEntryParams)
+	// SuggestFromJumbleEntry Ask AI what this entry should become
+	// (POST /jumble/entries/{entryId}:suggest)
+	SuggestFromJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params SuggestFromJumbleEntryParams)
 	// StartJumbleIntake Deliver something into the jumble from outside
 	// (POST /jumble/inbound/{token})
 	StartJumbleIntake(w http.ResponseWriter, r *http.Request, token string)
@@ -14547,6 +14565,56 @@ func (siw *ServerInterfaceWrapper) DismissJumbleEntry(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// SuggestFromJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) SuggestFromJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SuggestFromJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuggestFromJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartJumbleIntake operation middleware
 func (siw *ServerInterfaceWrapper) StartJumbleIntake(w http.ResponseWriter, r *http.Request) {
 
@@ -16670,6 +16738,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:suggest", wrapper.SuggestFromJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
