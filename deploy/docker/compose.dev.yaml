@@ -6,7 +6,8 @@ name: hubtask-dev
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector, for the reason deploy/docker/compose.yaml gives (ADR-0050).
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: hubtask
       POSTGRES_PASSWORD: hubtask-dev

@@ -166,7 +166,7 @@ func postgresImage() string {
 	if image := os.Getenv("HUBTASK_TEST_POSTGRES_IMAGE"); image != "" {
 		return image
 	}
-	return "postgres:16-alpine"
+	return "pgvector/pgvector:pg16"
 }
 
 func startDatabase(ctx context.Context) (*tcpostgres.PostgresContainer, string, error) {

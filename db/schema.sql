@@ -13,7 +13,8 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS unaccent;
--- CREATE EXTENSION IF NOT EXISTS vector;   -- optional, semantic search
+CREATE EXTENSION IF NOT EXISTS vector;   -- optional, semantic search (ADR-0050): installed by
+                                         -- migration 0075 only where it is available
 
 -- ---------------------------------------------------------------------------
 -- Roles (created once, outside the migration)
@@ -1870,6 +1871,32 @@ CREATE INDEX ai_suggestion_target_idx
   ON ai_suggestion (tenant_id, target_type, target_id, status, created_at DESC, id DESC);
 CREATE INDEX ai_suggestion_age_idx ON ai_suggestion (tenant_id, created_at);
 
+-- Semantic search's store (J-09, ADR-0050), where the database can carry it.
+--
+-- **Conditional.** Migration 0075 creates this table only where `pg_available_extensions` offers
+-- `vector`; an installation without pgvector has no such table and a search that is lexical,
+-- complete, and honest about itself in `/meta/capabilities`. It is mirrored here because every
+-- gate that starts a PostgreSQL runs one that has the extension, which is what lets
+-- `support-matrix.md` call semantic search supported at all.
+--
+-- Its own table rather than a column of `work_item`: a conditional column would give one table two
+-- shapes, and a vector has no business in the row every write of an entry touches. The index is
+-- built in the same migration and not CONCURRENTLY, because the table it indexes was created empty
+-- one statement earlier - the lock is over a table no pod has ever read.
+CREATE TABLE item_embedding (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id    uuid NOT NULL,
+  -- Vectors are only comparable within one model's space, so a row that does not name its model is
+  -- one nothing can decide about after a reconfiguration.
+  model      text NOT NULL CHECK (length(model) BETWEEN 1 AND 200),
+  embedding  vector(1536) NOT NULL,
+  source_digest bytea NOT NULL,
+  updated_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, item_id),
+  FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX item_embedding_vector_idx ON item_embedding USING hnsw (embedding vector_cosine_ops);
+
 -- ============================ Row Level Security ===========================
 -- For every tenant-scoped table: a policy on current_tenant_id().
 DO $$
@@ -1880,7 +1907,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'identity_provider','oidc_flow','ai_provider','ai_suggestion',
+    'identity_provider','oidc_flow','ai_provider','ai_suggestion','item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',

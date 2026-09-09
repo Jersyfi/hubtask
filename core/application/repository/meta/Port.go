@@ -48,3 +48,15 @@ type TextLanguages interface {
 	// exact words answers an empty list, which is a statement rather than a failure.
 	List(ctx context.Context) ([]string, error)
 }
+
+// SemanticSearch reads whether this installation can search by meaning (J-09, ADR-0050).
+//
+// A port for TextLanguages' reason exactly: the answer is the installation's rather than the
+// product's. pgvector is detected rather than demanded, so whether the embedding store exists is a
+// property of the database this binary was pointed at - and an application that assumed either way
+// would either refuse a feature an installation has or offer one it does not.
+type SemanticSearch interface {
+	// Available reports whether the embedding store is there. False is a statement rather than a
+	// failure: search is then lexical, which is complete.
+	Available(ctx context.Context) (bool, error)
+}

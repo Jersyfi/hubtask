@@ -4,7 +4,10 @@ name: hubtask
 
 services:
   db:
-    image: postgres:16-alpine
+    # pgvector rather than plain postgres, so the reference stack has semantic search (ADR-0050).
+    # The extension is detected rather than demanded, so an operator who swaps this back gets a
+    # working installation with lexical search - and `/meta/capabilities` says which they have.
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hubtask}
