@@ -1880,7 +1880,9 @@ CREATE INDEX ai_suggestion_age_idx ON ai_suggestion (tenant_id, created_at);
 -- `support-matrix.md` call semantic search supported at all.
 --
 -- Its own table rather than a column of `work_item`: a conditional column would give one table two
--- shapes, and a vector has no business in the row every write of an entry touches.
+-- shapes, and a vector has no business in the row every write of an entry touches. The index is
+-- built in the same migration and not CONCURRENTLY, because the table it indexes was created empty
+-- one statement earlier - the lock is over a table no pod has ever read.
 CREATE TABLE item_embedding (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   item_id    uuid NOT NULL,

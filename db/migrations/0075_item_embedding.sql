@@ -16,19 +16,43 @@
 -- is one object that is either there or not, which a capability check answers with one question -
 -- and it keeps a vector out of the row that every write of an entry touches.
 
--- Forward-only and safe for a rolling update: one new table, conditionally, and nothing altered.
+-- Forward-only and safe for a rolling update: one new table with its index, conditionally, and
+-- nothing altered. The index is built here rather than CONCURRENTLY in a migration of its own,
+-- because the table it indexes was created empty in the statement above - the lock is over a table
+-- no pod has ever read.
 
 -- +goose Up
 
 -- +goose StatementBegin
 DO $vector$
+DECLARE
+  usable boolean := false;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+  -- Three states, not two. The extension may already be installed - by an operator, by a managed
+  -- service's console, by a previous run - in which case nothing needs creating and no privilege
+  -- is needed. It may be available and creatable. Or it may be neither, and then this migration
+  -- does nothing at all.
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+    usable := true;
+  ELSIF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+    -- `vector` is not a trusted extension, so creating it needs a superuser. A migrator role on a
+    -- managed PostgreSQL is not one (the lesson H-10 met under CloudNativePG), and refusing to
+    -- migrate over it would be exactly the breakage ADR-0050 exists to prevent - so the attempt is
+    -- made and a refusal is treated as "not available here". The operator installs it and the next
+    -- migration run picks it up.
+    BEGIN
+      CREATE EXTENSION vector;
+      usable := true;
+    EXCEPTION WHEN insufficient_privilege THEN
+      RAISE NOTICE 'pgvector is available and this role may not create it; semantic search stays '
+        'off until an operator installs it (ADR-0050)';
+    END;
+  END IF;
+
+  IF NOT usable THEN
     RAISE NOTICE 'pgvector is not available here; semantic search stays off (ADR-0050)';
     RETURN;
   END IF;
-
-  CREATE EXTENSION IF NOT EXISTS vector;
 
   -- 1536 dimensions: what the OpenAI-compatible embedding models in common use produce, and what
   -- an installation configuring a model of another width has to re-index for. The width is fixed
@@ -60,6 +84,20 @@ BEGIN
   CREATE POLICY tenant_isolation ON item_embedding
     USING (tenant_id = current_tenant_id())
     WITH CHECK (tenant_id = current_tenant_id());
+
+  -- The index, here rather than in a migration of its own with CONCURRENTLY.
+  --
+  -- The search document's discipline (0019, 0020) applies to an index over a *populated* table,
+  -- where ACCESS EXCLUSIVE would block the previous version's pods for as long as the build takes.
+  -- This table was created empty three statements ago: nothing is reading it, nothing is writing
+  -- it, and the lock is over in microseconds. CONCURRENTLY is also impossible here - it cannot run
+  -- inside a transaction block, and a DO block is one.
+  --
+  -- HNSW rather than IVFFlat: it needs no training pass over data that does not exist yet, which
+  -- is exactly the situation a table that starts empty is in. Cosine distance, because the
+  -- embedding models in question produce vectors normalised for it.
+  CREATE INDEX IF NOT EXISTS item_embedding_vector_idx
+    ON item_embedding USING hnsw (embedding vector_cosine_ops);
 
   GRANT SELECT, INSERT, UPDATE, DELETE ON item_embedding TO hubtask_app;
 END $vector$;

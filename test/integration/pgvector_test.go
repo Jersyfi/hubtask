@@ -58,7 +58,8 @@ func TestWhereTheExtensionIsThereTheStoreIsBehindTheBoundary(t *testing.T) {
 		t.Errorf("%d tenant_isolation policies on the embedding store, want one", policies)
 	}
 
-	// And the index the search will need, which is its own migration for the rolling update's sake.
+	// And the index the search will need, built in the same migration because the table it indexes
+	// was created empty one statement earlier.
 	var indexes int
 	if err := adminPool(ctx, t).QueryRow(ctx,
 		`SELECT count(*) FROM pg_indexes

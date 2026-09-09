@@ -34,10 +34,14 @@ Three constraints shape it:
 
 ## Decision
 
-**1. The extension is detected, never demanded.** Migration 0075 asks `pg_available_extensions`
-before it installs anything, exactly as migration 0019 asks `pg_ts_config` before it names a text
-search configuration. Where the extension is available it is installed and the embedding store is
-created; where it is not, the migration succeeds, the store is absent, and nothing else changes.
+**1. The extension is detected, never demanded, and creating it is the operator's act.** Migration
+0075 asks three questions in order, the way migration 0019 asks `pg_ts_config` before it names a
+text search configuration: is the extension already installed — by an operator, by a managed
+service's console, by an earlier run — then use it; is it *available* — then try to create it, and
+treat a refusal as absence, because `vector` is not a trusted extension and a migrator role on a
+managed PostgreSQL is not a superuser (the wall H-10 met under CloudNativePG); otherwise do nothing
+at all. In every case the migration succeeds, and where the store is absent search is lexical and
+nothing else changes.
 
 **2. The embeddings live in their own table, not in a column of `work_item`.** A conditional
 *column* would give one table two shapes and every query over it two meanings. A conditional
@@ -97,7 +101,15 @@ deliberately has no extension rather than by the default gate. The reference Com
 which is a line in an upgrade note. And an operator on the chart who wants semantic search has to
 choose an image, which is one more thing to know.
 
-**Countermeasures:** the capability is read once at startup and answered from one place, so the two
-paths meet in one function rather than at every call site; a migration test runs against a
-PostgreSQL *without* the extension and asserts that it applies and that the store is absent; and
-`deployment.md` documents the chart value beside the image it defaults to.
+**Countermeasures:** the capability is read once and answered from one place, so the two paths meet
+in one function rather than at every call site; a migration test runs against a PostgreSQL *without*
+the extension and asserts that it applies and that the store is absent; and `deployment.md`
+documents the chart value beside the image it defaults to.
+
+**One thing this ADR got wrong on its first attempt**, recorded because the reasoning is worth
+keeping: the index was to be built `CONCURRENTLY` in a migration of its own, on the discipline
+migrations 0019 and 0020 established for the search document. That discipline is about an index over
+a *populated* table, where `ACCESS EXCLUSIVE` blocks the previous version's pods for as long as the
+build takes. Here the table is created empty in the same migration, so the lock is over something no
+pod has ever read — and `CREATE INDEX CONCURRENTLY` cannot run inside a `DO` block at all, which is
+what a conditional migration has to be. The index is built in place, plainly.
