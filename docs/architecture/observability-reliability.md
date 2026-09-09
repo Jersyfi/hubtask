@@ -103,10 +103,10 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_notifications_recorded_total` | Counter | `category`, `channel`, `state` | Who is told what, and how much of it is suppressed (C-09) |
 | `hubtask_notification_send_duration_seconds` | Histogram | `category`, `channel` | How long a message takes to leave |
 | `hubtask_notification_failures_total` | Counter | `category`, `channel`, `reason` | A mail server that is down, told apart from an address that is refused |
-| `hubtask_stream_connections` | Gauge | — | Change streams a process is holding open (C-10) |
+| `hubtask_stream_connections` | Gauge | — | Long-lived connections a process is holding open: change streams (C-10) **and agent streams** (J-13), counted together because they are the same resource and share one set of caps. Which endpoint a connection came in at is deliberately not a label — an operator watching a pod's capacity is watching one number |
 | `hubtask_stream_duration_seconds` | Histogram | — | A one-second stream is a client reconnecting in a loop; a day-long one is working |
 | `hubtask_stream_refused_total` | Counter | `reason` | Which cap refused a connection: credential, tenant, process, or a drain |
-| `hubtask_stream_records_total` | Counter | — | Change records delivered; against the log's growth, whether the streams keep up |
+| `hubtask_stream_records_total` | Counter | — | Change records delivered; against the log's growth, whether the streams keep up. The change stream alone: an agent is told *that* its resource list moved and re-reads what it needs, so there are no records to count |
 | `hubtask_rule_runs_total` | Counter | `result`, `trigger_type` | SLO-7 |
 | `hubtask_rule_disabled_total` | Counter | `reason` | Makes self-protection visible |
 | `hubtask_webhook_deliveries_total` | Counter | `result` (`ok`/`retry`/`dead`), `status_class` | SLO-6 |

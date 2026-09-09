@@ -14,7 +14,7 @@ AI provider, Hubtask remains fully functional (QS-09).
 
 ### 1.1 MCP server
 
-`presentation/mcp` exposes the use case catalogue as **MCP tools** (streamable HTTP under `/mcp`).
+`presentation/mcp` exposes the use case catalogue as **MCP tools** (streamable HTTP under `/mcp`). Both halves of that transport are served since J-13: `POST /mcp` carries the client's calls, `GET /mcp` the server's notifications, and `Mcp-Session-Id` binds the two into one conversation.
 The tool list is generated from `core/application/usecase.Registry` — every new use case is
 automatically available as a tool.
 
@@ -26,6 +26,7 @@ automatically available as a tool.
 | Auth | Service account or PAT with scopes; every tool call is audited as `actor.type = AI_AGENT` |
 | Read/write marking | Tools carry `annotations.readOnlyHint` / `destructiveHint`, so that clients can ask for confirmation |
 | Resources | Containers, items and views are additionally readable as MCP resources (`hubtask://items/{id}`). **Shipped in J-11**: a resource is a read that is already in the catalogue, addressed by URI instead of by argument, so `resources/read` carries no authorisation of its own — exactly as `tools/call` carries none ([ADR-0051](../adr/ADR-0051-mcp-resources-are-catalogue-reads.md)). `resources/list` enumerates the hubs and the caller's saved views, paged; entries are reached by URI or found with `search_items`, because no unanchored item list exists and one built for this would be a tenant asking for everything |
+| Session and stream | `initialize` hands out an `Mcp-Session-Id` and `GET /mcp` opens the server-initiated stream (J-13). The identifier is a **signed statement rather than a row**, so any pod checks it with no shared state — a map would bind a client to whichever pod answered its handshake. The stream is held to the *same* per-credential, per-tenant and per-process caps as `GET /stream`, in the same registry and the same metric: an agent's stream is not a different kind of connection from a browser's |
 | Prompts | Prepared MCP prompts, e.g. "weekly review from collection X". **Shipped in J-12**: the same versioned files under `infrastructure/ai/prompts/` the outbound adapters read — one store, because two is how one prompt comes to exist in two versions. A prompt is published by describing itself; the four this product asks its own provider carry no title and stay unpublished. Arguments are declared and refused by name when unknown, and a resource argument becomes a link into the URI space above, so the permission is asked where the read happens |
 
 ### 1.2 Why the REST API is already agent-friendly
