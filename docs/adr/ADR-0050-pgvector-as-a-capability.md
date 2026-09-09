@@ -69,7 +69,16 @@ and a minor release that demanded a different image would be exactly the kind of
 exists to prevent. What they get instead is a documented value and a manifest that tells them where
 they stand.
 
-**5. The support matrix says `supported` for semantic search and names the job**, because after
+**5. The store's statements are hand-written, in the one place hand-written SQL already lives.**
+sqlc reads `db/migrations`, and a table created inside a `DO` block is invisible to it — which is
+not a limitation of sqlc but a direct consequence of decision 1: a conditional table cannot be
+generated against. So the statements the store needs are constants with bound parameters in
+`infrastructure/postgres`, beside the query compiler [ADR-0026](./ADR-0026-query-dsl-sql-construction.md)
+already excepted from rule 9. What they keep is the half of that rule that matters: **no byte of a
+request becomes SQL text** — every value is bound, and the only thing assembled is the search's
+ranking expression, which is the exception ADR-0026 bounds.
+
+**6. The support matrix says `supported` for semantic search and names the job**, because after
 decision 4 a job does run it. `PostgreSQL without pgvector` is a supported configuration too, and
 what it is supported *for* is lexical search — which is what the row will say.
 
