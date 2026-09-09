@@ -8,6 +8,7 @@
   "exports": {
     ".": "./dist/tokens.ts",
     "./components": "./src/index.ts",
+    "./icons": "./src/icons/index.ts",
     "./tokens.css": "./dist/tokens.css",
     "./fonts.css": "./dist/fonts.css",
     "./fonts/*": "./dist/fonts/*",

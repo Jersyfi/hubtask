@@ -18,26 +18,34 @@ import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cssName } from '../../../packages/design-system/build/naming.js';
+// Through the package's own entry points, never a relative path out of this app: ADR-0033's
+// workspace map, and `build/lint-workspace-map.mjs` is what enforces it.
+import { tokens } from '@hubtask/design-system';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const css = fs.readFileSync(path.join(here, '..', 'src', 'site.css'), 'utf8');
-const tokens = JSON.parse(
-  fs.readFileSync(path.join(here, '..', '..', '..', 'packages', 'design-system', 'tokens', 'tokens.json'), 'utf8'),
-);
 
-/** Every semantic custom property name the design system declares, in either mode. */
+/**
+ * Every semantic custom property name the design system declares.
+ *
+ * Read off `tokens` rather than derived from the source with a copy of the naming rules: that
+ * export *is* the semantic layer, and its values are the `var(--x)` strings a consumer binds to
+ * (the package's README is explicit that this is what components use). So the check asserts
+ * against what this site can actually reach, which is the thing it is about.
+ */
 function semanticNames() {
   const names = new Set();
-  const walk = (node, trail) => {
-    if (node && typeof node === 'object') {
-      if ('$value' in node) return names.add(`--${cssName(trail)}`);
-      for (const [key, value] of Object.entries(node)) {
-        if (!key.startsWith('$')) walk(value, [...trail, key]);
+  const walk = (node) => {
+    for (const value of Object.values(node)) {
+      if (typeof value === 'string') {
+        const match = /^var\((--[\w-]+)\)$/.exec(value);
+        if (match) names.add(match[1]);
+      } else if (value && typeof value === 'object') {
+        walk(value);
       }
     }
   };
-  walk(tokens.semantic.light, ['semantic', 'light']);
+  walk(tokens);
   return names;
 }
 
@@ -94,7 +102,7 @@ test('no semantic token is neutralised that the design system does not declare',
 // months. So the shapes are asserted here: an upgrade that changes one fails this test, and the
 // stylesheet is corrected in the same change rather than found later.
 
-import { BASE_ICONS } from '../../../packages/design-system/src/icons/base.ts';
+import { BASE_ICONS } from '@hubtask/design-system/icons';
 
 /** The tag sequence of an icon, which is what an `nth-child` rule actually depends on. */
 const shapeOf = (name) => (BASE_ICONS[name] ?? []).map(([tag]) => tag);
