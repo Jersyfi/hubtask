@@ -8,8 +8,8 @@
 <!-- § 5 DDG. The site is German-operated, so the legal pages are German while the product pages
      stay English; the whole page carries lang="de" for that reason. Minimal by design: name,
      address, contact - a private individual, no VAT id, nothing sold yet. -->
-<main lang="de">
-  <nav class="crumb"><a href="/">← hubtask.eu</a></nav>
+<div class="section legal" lang="de">
+  <div class="wrap narrow">
 
   <h1>Impressum</h1>
   <p class="lede">Angaben gemäß § 5 DDG</p>
@@ -25,7 +25,7 @@
 
   <section>
     <h2>Kontakt</h2>
-    <p>E-Mail: <a href="mailto:thejersyy@gmail.com">thejersyy@gmail.com</a></p>
+    <p>E-Mail: <a href="mailto:info@hubtask.eu">info@hubtask.eu</a></p>
   </section>
 
   <section>
@@ -36,4 +36,5 @@
       Umsatzsteuer-Identifikationsnummer besteht nicht.
     </p>
   </section>
-</main>
+  </div>
+</div>

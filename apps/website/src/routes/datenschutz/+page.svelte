@@ -9,8 +9,8 @@
      forms, no accounts. What remains is the hoster's access log and the e-mail address on the
      Impressum - and this page says exactly that, instead of a generator's twenty sections about
      features this site does not have. -->
-<main lang="de">
-  <nav class="crumb"><a href="/">← hubtask.eu</a></nav>
+<div class="section legal" lang="de">
+  <div class="wrap narrow">
 
   <h1>Datenschutzerklärung</h1>
   <p class="lede">Stand: August 2026</p>
@@ -21,7 +21,7 @@
       Jérôme Bastian Winkel<br />
       Albrecht-Dürer-Weg 10<br />
       89179 Beimerstetten, Deutschland<br />
-      E-Mail: <a href="mailto:thejersyy@gmail.com">thejersyy@gmail.com</a>
+      E-Mail: <a href="mailto:info@hubtask.eu">info@hubtask.eu</a>
     </p>
   </section>
 
@@ -101,4 +101,5 @@
       den Widerspruch formlos an die oben genannte E-Mail-Adresse.
     </p>
   </section>
-</main>
+  </div>
+</div>
