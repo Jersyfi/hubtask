@@ -7171,7 +7171,7 @@ components:
       description: >
         How this workspace uses AI, if it does. The API key is not a member: it is sealed at
         configuration time and opened only by the adapter that makes the call.
-      required: [kind, jurisdiction, processing_allowed, created_at, version]
+      required: [kind, jurisdiction, has_api_key, processing_allowed, created_at, version]
       properties:
         kind:
           $ref: "#/components/schemas/AiProviderKind"
@@ -7190,6 +7190,14 @@ components:
           description: The model a vector is asked of. Empty means this provider does not embed.
         jurisdiction:
           $ref: "#/components/schemas/AiJurisdiction"
+        has_api_key:
+          type: boolean
+          description: >
+            Whether a key is stored, which is the whole of what this surface says about one (J-02).
+            The key itself is sealed on the way in and answered by nothing afterwards - so this is
+            the only way an operator can tell "configured with a key" from "configured without
+            one", and a setup screen that could not tell them apart would have to ask for the key
+            again to find out.
         processing_allowed:
           type: boolean
           description: >

@@ -41,14 +41,26 @@ func (s CatalogueSources) Material(
 
 // entry is the subject and the body of one inbox arrival - the least trusted text in the system
 // (G-10), which travels to a provider as user content and never as instruction.
+//
+// The listing is unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that
+// asking about an entry somebody had already converted answered nothing at all, rather than
+// answering what the entry says.
+//
+// Unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that asking about an
+// entry somebody had already converted answered nothing at all, rather than answering what the
+// entry says.
 func (s CatalogueSources) entry(
 	ctx context.Context, actor appshared.ActorContext, entryID shared.ID,
 ) (Material, error) {
-	out, err := s.Catalogue.Invoke(ctx, "ListJumbleEntries", actor, usecase.Input{"status": "NEW"})
+	out, err := s.Catalogue.Invoke(ctx, "ListJumbleEntries", actor, usecase.Input{})
 	if err != nil {
 		return Material{}, err
 	}
-	entries, _ := out["items"].([]usecase.Output)
+	// `data`, which is what a page answers under (api-guidelines.md §4). It was `items` until
+	// J-16: the key was wrong, so the loop below always saw an empty list and every suggestion
+	// about a jumble entry was refused `suggestions.not_found` - and the test fakes invented the
+	// wrong key too, so nothing but a real registry could say so.
+	entries, _ := out["data"].([]usecase.Output)
 	for _, entry := range entries {
 		if entry.String("id") != entryID.String() {
 			continue

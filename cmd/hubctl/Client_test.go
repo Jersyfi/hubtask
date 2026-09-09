@@ -32,6 +32,9 @@ type installation struct {
 	server  *httptest.Server
 	request *http.Request
 	body    string
+	// sessions records the Mcp-Session-Id each call carried, for the one command that has to
+	// hold state across two round trips (J-16).
+	sessions *[]string
 }
 
 func serve(t *testing.T, handler http.HandlerFunc) *installation {

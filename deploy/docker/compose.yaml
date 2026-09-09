@@ -82,6 +82,13 @@ services:
       # and passed through here for the same reason: the end-to-end session overrides it, and a
       # workspace that can name no target can neither back itself up nor be exported.
       HUBTASK_BACKUP_TENANT_TARGETS: ${HUBTASK_BACKUP_TENANT_TARGETS:-false}
+      # Whether an outbound call may reach a private address. Off by default and it should stay
+      # off: it is what stops a webhook target or an AI endpoint somebody configured from reaching
+      # this installation's own network (ADR-0015, T-07), and the process warns about it at
+      # start-up when it is on. It is passed through here for the reason the switch above is - the
+      # end-to-end session overrides it, because the AI provider it configures is a stub container
+      # on its own compose network and has no public address to have.
+      HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS: ${HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS:-false}
       # Where a restore drill's last success is recorded. Two containers have no operator doing
       # continuous archiving, so nothing writes this file by itself: an operator who has restored a
       # dump and checked it writes the Unix timestamp into it, and the process then reports

@@ -3388,6 +3388,9 @@ type AiProvider struct {
 	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed.
 	EmbeddingModel *string `json:"embedding_model,omitempty"`
 
+	// HasApiKey Whether a key is stored, which is the whole of what this surface says about one (J-02). The key itself is sealed on the way in and answered by nothing afterwards - so this is the only way an operator can tell "configured with a key" from "configured without one", and a setup screen that could not tell them apart would have to ask for the key again to find out.
+	HasApiKey bool `json:"has_api_key"`
+
 	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
 	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
 	Jurisdiction AiJurisdiction `json:"jurisdiction"`

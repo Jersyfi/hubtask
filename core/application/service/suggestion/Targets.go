@@ -77,14 +77,30 @@ func (t EntryTargets) Digest(
 // The subject and the body, which is what a proposal about an entry is made from - and what
 // changes about an entry between the asking and the accepting is its *settlement*, not its text,
 // so a settled entry is refused by the conversion rather than by the fingerprint.
+//
+// The listing is **unfiltered**, and it said `status: NEW` until J-16 - which did the opposite of
+// the sentence above. A converted or dismissed entry left the NEW list, so this answered
+// not-found, so every suggestion *about* that entry became unreadable: `ListSuggestions` runs this
+// first as its visibility check. Settlement was hiding the record of what AI had proposed, which
+// is the one thing a suggestion being a record rather than a change exists to prevent (J-05).
+//
+// The listing is **unfiltered**, and it said `status: NEW` until J-16 - which did the opposite of
+// the paragraph above. A converted or dismissed entry left the NEW list, so this answered
+// not-found, so every suggestion *about* that entry became unreadable: the visibility check above
+// runs this first. Settlement was hiding the record of what AI had proposed, which is the one
+// thing a suggestion being a record rather than a change exists to prevent (J-05).
 func (t EntryTargets) entryDigest(
 	ctx context.Context, actor appshared.ActorContext, name string, entryID shared.ID,
 ) ([]byte, error) {
-	out, err := t.Catalogue.Invoke(ctx, name, actor, usecase.Input{"status": "NEW"})
+	out, err := t.Catalogue.Invoke(ctx, name, actor, usecase.Input{})
 	if err != nil {
 		return nil, err
 	}
-	entries, _ := out["items"].([]usecase.Output)
+	// `data`, which is what a page answers under (api-guidelines.md §4). It was `items` until
+	// J-16: the key was wrong, so the loop below always saw an empty list and every suggestion
+	// about a jumble entry was refused `suggestions.not_found` - and the test fakes invented the
+	// wrong key too, so nothing but a real registry could say so.
+	entries, _ := out["data"].([]usecase.Output)
 	for _, entry := range entries {
 		if entry.String("id") != entryID.String() {
 			continue
