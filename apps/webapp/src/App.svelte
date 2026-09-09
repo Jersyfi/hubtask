@@ -25,6 +25,7 @@
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
+  import ConsentView from './views/ConsentView.svelte';
   import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
   import PermissionsView from './views/PermissionsView.svelte';
@@ -83,6 +84,10 @@
          provider's redirect into a fresh document, and the screen's own business is finishing that
          exchange. It sends the reader on once there is a session. -->
     <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+  {:else if session.isSignedIn && route.name === 'consent'}
+    <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
+         arrives here signed out meets the sign-in screen first and lands back on this address. -->
+    <ConsentView />
   {:else if !session.isSignedIn && route.name === 'redeem'}
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->

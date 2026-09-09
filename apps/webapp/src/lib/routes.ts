@@ -24,6 +24,9 @@ export const ROUTES: readonly Route[] = [
   // the server's rather than this table's choice: nothing about where an authorization code comes
   // back may be taken from a request (H-04).
   { name: 'oidc-callback', pattern: '/auth/callback' },
+  // Where a third-party app sends somebody to be asked. `end-user`, because being asked whether
+  // to allow an app is not administration — it is a decision every member makes for themselves.
+  { name: 'consent', pattern: '/oauth/consent' },
   { name: 'installation', pattern: '/installation' },
   // ADR-0032's profile area, declared now rather than reclassified later: the mobile shell ships
   // this area in full and excludes administration, and a route that carried no area would be one
