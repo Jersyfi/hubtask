@@ -582,6 +582,21 @@ func (w Writer) authorizeWrite(
 				WithParams(map[string]string{"scope": scope})
 		}
 	}
+	// And the agent's own bound, which the scopes above do not cover (J-14).
+	//
+	// A rule runs as an *automation*, not as an agent, so the guardrail that closes a destructive
+	// use case to an agent would not fire when the rule fires. Without this an agent that may not
+	// purge an entry could write a rule that purges entries and have it happen a second later -
+	// laundering through a rule exactly the right it was refused directly, which is the general
+	// shape of leak `canDelegateTo` below exists to close.
+	//
+	// Asked of the writer at the moment of writing, like everything else here: "the moment it is
+	// written is the last moment anybody looks at it".
+	for _, action := range checked {
+		if err := action.descriptor.PermitAgent(actor); err != nil {
+			return err
+		}
+	}
 
 	return w.canDelegateTo(ctx, actor, rule)
 }

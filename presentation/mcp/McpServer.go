@@ -177,13 +177,30 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	write(w, r, s.answer(r.Context(), call))
 }
 
-// actorOf answers the authenticated actor, or that there is none. The middleware puts it there;
-// this is the fail-closed read of it.
+// actorOf answers the authenticated actor, or that there is none.
+//
+// **It stamps the actor as an agent**, and that is this adapter's one substantive act rather than a
+// detail of it. `ai-first.md` §1.1 promises every call through this door is audited as
+// `actor.type = AI_AGENT`, and §1.3 wants an agent held to guardrails a person is not - and until
+// J-14 nothing in the running system ever produced that kind. Authentication answers `USER` or
+// `SERVICE_ACCOUNT` from the account behind the credential, which is the right answer to "who owns
+// this token" and the wrong one to "what is acting": the same service account may drive a nightly
+// import through REST and an agent through here, and an auditor has to be able to tell those apart
+// (audit.md §2).
+//
+// What decides it is therefore **the door**, not the credential. A person calling `/mcp` with their
+// own token is acting through the agent interface, is recorded as having done so, and is held to
+// the agent's guardrails - which is the safe direction to be wrong in, and the only one that makes
+// `destructiveHint` mean anything.
+//
+// The account behind it is not lost: `AccountID` still names it, which is what a trail needs in
+// order to say who is answerable for what an agent did.
 func actorOf(r *http.Request) (appshared.ActorContext, bool) {
 	actor, ok := appshared.ActorFrom(r.Context())
 	if !ok || !actor.IsAuthenticated() {
 		return appshared.ActorContext{}, false
 	}
+	actor.Kind = appshared.ActorAIAgent
 	return actor, true
 }
 
@@ -300,8 +317,8 @@ func (s Server) call(ctx context.Context, params json.RawMessage) (map[string]an
 		return nil, &rpcError{Code: codeInvalidParams, Message: "unknown tool"}
 	}
 
-	actor, ok := appshared.ActorFrom(ctx)
-	if !ok || !actor.IsAuthenticated() {
+	actor, ok := agentFromContext(ctx)
+	if !ok {
 		// Unreachable behind the authentication middleware; a fail-closed guard rather than an
 		// assumption, because a tool call without an actor would run without a tenant.
 		return nil, &rpcError{Code: codeInternalError, Message: "unauthenticated"}
@@ -492,11 +509,22 @@ func (s Server) read(ctx context.Context, params json.RawMessage) (map[string]an
 // authentication middleware; a guard rather than an assumption, because a read without an actor
 // would run without a tenant.
 func agentFrom(ctx context.Context) (appshared.ActorContext, *rpcError) {
-	actor, ok := appshared.ActorFrom(ctx)
-	if !ok || !actor.IsAuthenticated() {
+	actor, ok := agentFromContext(ctx)
+	if !ok {
 		return appshared.ActorContext{}, &rpcError{Code: codeInternalError, Message: "unauthenticated"}
 	}
 	return actor, nil
+}
+
+// agentFromContext is actorOf for the paths that hold a context rather than a request. One
+// function decides the kind, so no door into this server can forget to.
+func agentFromContext(ctx context.Context) (appshared.ActorContext, bool) {
+	actor, ok := appshared.ActorFrom(ctx)
+	if !ok || !actor.IsAuthenticated() {
+		return appshared.ActorContext{}, false
+	}
+	actor.Kind = appshared.ActorAIAgent
+	return actor, true
 }
 
 // refusal renders a use case's refusal as a JSON-RPC error carrying the problem document.

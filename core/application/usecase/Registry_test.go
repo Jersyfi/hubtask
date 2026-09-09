@@ -285,3 +285,105 @@ func TestFindingsAreOrdered(t *testing.T) {
 		t.Errorf("the findings are not in a stable order: %v", paths)
 	}
 }
+
+// The agent's guardrail (J-14, ai-first.md §1.3): a destructive use case is closed to an agent
+// token unless the token says otherwise, and the refusal names what to change.
+//
+// It is asked of `Invoke` rather than of the descriptor, because `Invoke` is the single door all
+// three channels come through - a check the handler could be reached without would be a check that
+// holds for REST and not for MCP.
+func TestADestructiveUseCaseIsClosedToAnAgentByDefault(t *testing.T) {
+	registry, err := NewRegistry(nil, destructiveDescriptor())
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+
+	_, err = registry.Invoke(t.Context(), "PurgeEverything", agentActor(), Input{})
+
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "agent.destructive_not_permitted" {
+		t.Fatalf("an agent purged without permission: %v", err)
+	}
+	// The refusal has to be actionable. One an operator reads as a bug is one that gets worked
+	// around; one that names the scope is one they can set.
+	if refusal.Params["scope"] != AgentDestructiveScope {
+		t.Errorf("the refusal does not name the scope to set: %v", refusal.Params)
+	}
+	if refusal.Params["use_case"] != "PurgeEverything" {
+		t.Errorf("the refusal does not name what was refused: %v", refusal.Params)
+	}
+}
+
+// With the capability the same call goes through, which is what makes it a switch rather than a
+// wall.
+func TestAnAgentWithTheCapabilityMayCallADestructiveUseCase(t *testing.T) {
+	registry, err := NewRegistry(nil, destructiveDescriptor())
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+
+	permitted := agentActor()
+	permitted.Scopes = append(permitted.Scopes, AgentDestructiveScope)
+
+	if _, err := registry.Invoke(t.Context(), "PurgeEverything", permitted, Input{}); err != nil {
+		t.Errorf("an agent with the capability was refused: %v", err)
+	}
+}
+
+// Nobody else is affected. The guardrail is about what an *agent* may do, and a person or a rule
+// reaching the same use case is judged by the authorisation service as it always was - a change
+// that quietly closed a destructive operation to everybody would be a different feature.
+func TestTheGuardrailAppliesToAgentsAlone(t *testing.T) {
+	registry, err := NewRegistry(nil, destructiveDescriptor())
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+
+	for _, kind := range []appshared.ActorKind{
+		appshared.ActorUser, appshared.ActorServiceAccount,
+		appshared.ActorAutomation, appshared.ActorSystem,
+	} {
+		actor := agentActor()
+		actor.Kind = kind
+		if _, err := registry.Invoke(t.Context(), "PurgeEverything", actor, Input{}); err != nil {
+			t.Errorf("a %s was refused by the agent guardrail: %v", kind, err)
+		}
+	}
+}
+
+// And a use case that is not destructive is open to an agent, which is the ordinary case: an agent
+// that had to be granted a capability to read something would be an agent nobody uses.
+func TestAnAgentMayCallWhatIsNotDestructive(t *testing.T) {
+	safe := destructiveDescriptor()
+	safe.Name, safe.Destructive, safe.ReadOnly = "ReadEverything", false, true
+
+	registry, err := NewRegistry(nil, safe)
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), "ReadEverything", agentActor(), Input{}); err != nil {
+		t.Errorf("an agent was refused an ordinary read: %v", err)
+	}
+}
+
+func agentActor() appshared.ActorContext {
+	return appshared.ActorContext{
+		Kind:      appshared.ActorAIAgent,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		Scopes:    []string{"items:write", "containers:write"},
+	}
+}
+
+func destructiveDescriptor() Descriptor {
+	return Descriptor{
+		Name:        "PurgeEverything",
+		Summary:     "Removes something for good.",
+		SideEffects: "Deletes. There is no undo.",
+		Destructive: true,
+		Handler: HandlerFunc(
+			func(context.Context, appshared.ActorContext, Input) (Output, error) {
+				return Output{"done": true}, nil
+			}),
+	}
+}

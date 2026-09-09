@@ -44,10 +44,29 @@ automatically available as a tool.
 
 ### 1.3 Security guidelines for agents
 
+**Enforced since J-14**, not merely written down. Until then `Descriptor.Destructive` fed
+`destructiveHint` and stopped there, and nothing in the running system ever produced the actor kind
+`AI_AGENT` at all — so the first two bullets were a description of an intention.
+
 * Agents get **their own** service accounts with minimal scopes, never user credentials.
 * Destructive operations (`purge`, `delete_container`, `empty_trash`, `delete_tenant`) are blocked
-  by default for agent tokens and must be enabled explicitly.
-* Rate limits and quotas apply to agents just like to any other token.
+  by default for agent tokens and must be enabled explicitly. The permission is the scope
+  `agent:destructive`, checked in `usecase.Registry.Invoke` — the single door all three channels
+  come through — for every descriptor marked `Destructive`, so a use case added tomorrow is closed
+  with nothing for anybody to remember. The refusal names the scope to set, because one an operator
+  reads as a bug is one that gets worked around. **A rule cannot be used to launder it**: an agent
+  writing an automation whose actions are destructive is refused at the moment of writing, since the
+  rule would later run as an automation and the guardrail would not fire.
+* **What makes a call an agent's is the door, not the credential.** Authentication answers `USER` or
+  `SERVICE_ACCOUNT` from the account behind the token, which is the right answer to "who owns this"
+  and the wrong one to "what is acting" — the same service account may drive a nightly import through
+  REST and an agent through `/mcp`. So `presentation/mcp` stamps every call it serves as `AI_AGENT`,
+  and a person calling `/mcp` with their own token is held to the agent's guardrails: the safe
+  direction to be wrong in, and the only one that makes `destructiveHint` mean anything.
+* Rate limits and quotas apply to agents just like to any other token — proved rather than
+  assumed, and proved as *sharing a bucket*: a credential spending half its traffic through `/mcp`
+  finds the same budget already spent. Neither the limiter nor the quota guard can see what kind of
+  actor it is dealing with, which a gate holds them to.
 * Content from items, comments, and the jumble is **data, not instructions**: prompt templates mark
   user content clearly as context, and server-side AI calls never carry out actions "demanded" in
   the text. Actions arise only from explicitly configured automation actions.

@@ -71,11 +71,14 @@ func readCatalogueFor(t *testing.T) *usecase.Registry {
 	return registry
 }
 
-// agentFor is the actor an MCP call arrives as: an agent, with the scopes an agent token carries
-// for reading.
+// agentFor is the actor an MCP call arrives as - which is to say a *person's*, with the scopes an
+// agent token carries for reading.
+//
+// The kind is deliberately not set here (J-14). What makes a call an agent's is the door it came
+// through, and the adapter stamps it: a test that stamped it itself would pass on the day the
+// adapter stopped, which is exactly the state this suite was in before J-14.
 func agentFor(tenant, account shared.ID) appshared.ActorContext {
 	actor := administrator(tenant, account)
-	actor.Kind = appshared.ActorAIAgent
 	actor.Scopes = []string{"containers:read", "items:read", "views:read"}
 	return actor
 }
@@ -204,6 +207,8 @@ func TestARefusedResourceReadIsAuditedAsTheAgentItWas(t *testing.T) {
 		Scan(&actorType, &outcome); err != nil {
 		t.Fatalf("reading the audit entry: %v", err)
 	}
+	// AI_AGENT, and the actor that arrived was a person's: the door decided it, which is what
+	// makes ai-first.md §1.1's promise about resources true and not only about tools (J-14).
 	if actorType != string(appshared.ActorAIAgent) {
 		t.Errorf("the refusal was recorded as %s, want the agent it was", actorType)
 	}

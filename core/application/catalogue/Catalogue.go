@@ -273,6 +273,13 @@ func Scopes() []string {
 		seen[descriptor.TokenScope] = true
 		scopes = append(scopes, descriptor.TokenScope)
 	}
+	// And the one scope that is not an operation's (J-14). `agent:destructive` is a *capability*:
+	// it says an agent token may reach the destructive use cases at all, and no descriptor declares
+	// it because no single operation is what it permits. It is named here rather than derived so
+	// that CreateAccessToken accepts it - a scope a token cannot be minted with is a guardrail
+	// nobody can switch off, which sounds safe and means the feature does not exist.
+	scopes = append(scopes, usecase.AgentDestructiveScope)
+
 	slices.Sort(scopes)
 	return scopes
 }
@@ -285,6 +292,13 @@ func SessionScopes() []string {
 	scopes := make([]string, 0, len(Scopes()))
 	for _, scope := range Scopes() {
 		if strings.HasPrefix(scope, "admin:") {
+			continue
+		}
+		// Nor the agent capability. A session is a person at a keyboard, never an actor this
+		// system calls an agent, so the scope would be one a session could carry and nothing
+		// would ever read - and a bound that is never read is one its holder believes in
+		// (J-14).
+		if scope == usecase.AgentDestructiveScope {
 			continue
 		}
 		scopes = append(scopes, scope)
