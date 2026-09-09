@@ -232,10 +232,55 @@ func (r *Registry) Invoke(ctx context.Context, name string, actor appshared.Acto
 			WithDetail("usecase.unknown").
 			WithParams(map[string]string{"use_case": name})
 	}
+	if err := descriptor.PermitAgent(actor); err != nil {
+		return nil, err
+	}
 	if err := descriptor.ValidateInput(in); err != nil {
 		return nil, err
 	}
 	return descriptor.Handler.Invoke(ctx, actor, in)
+}
+
+// AgentDestructiveScope is the explicit permission an agent token needs before it may call
+// anything destructive (ai-first.md §1.3, ADR-0012).
+//
+// A scope rather than a field of its own, because a scope is what this system already means by
+// "what this credential may do, independently of the role its owner holds": it is set when the
+// token is minted, it is visible whenever the token is read, and minting is audited. A second
+// mechanism beside scopes would be a second place to look when answering "what can this credential
+// do", which is the question an incident asks first.
+//
+// It is a capability rather than an operation, which is why it is not derived from a descriptor
+// like every other scope - `catalogue.Scopes` names it explicitly and says so there.
+const AgentDestructiveScope = "agent:destructive"
+
+// PermitAgent applies ai-first.md §1.3's first bullet: **destructive operations are blocked by
+// default for agent tokens and must be enabled explicitly.**
+//
+// Here rather than in an adapter, because it is an authorisation decision (rule 2, ADR-0005) - and
+// here rather than in each destructive use case, because the whole point is that it holds for every
+// one of them including the next one somebody writes. `Registry.Invoke` is the single door all
+// three channels come through, so a use case cannot be reached with this skipped.
+//
+// It refuses by naming what to change. A refusal an operator reads as a bug is a refusal that gets
+// worked around; one that says "this token needs `agent:destructive`" is one they can act on.
+//
+// Nothing here asks whether the *person* behind the token may do it. That question is the
+// authorisation service's and is asked as it always was - this is a second, independent bound, and
+// a narrower one, in exactly the way a token scope is (ADR-0005).
+func (d Descriptor) PermitAgent(actor appshared.ActorContext) error {
+	if !d.Destructive || actor.Kind != appshared.ActorAIAgent {
+		return nil
+	}
+	if actor.HasScope(AgentDestructiveScope) {
+		return nil
+	}
+	return shared.ErrForbidden.
+		WithDetail("agent.destructive_not_permitted").
+		WithParams(map[string]string{
+			"use_case": d.Name,
+			"scope":    AgentDestructiveScope,
+		})
 }
 
 func lowerFirst(name string) string {

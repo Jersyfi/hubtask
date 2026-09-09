@@ -63,6 +63,7 @@
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
+  "agent.destructive_not_permitted": "An agent may not do this. {use_case} deletes or replaces something, so a token that is to perform it needs the scope {scope} set on it explicitly.",
   "access.scheme_unsupported": "This API expects a bearer token in the Authorization header.",
   "access.tenant_mismatch": "The token belongs to a different workspace than the one requested.",
   "access.rate_limit_exceeded": "Too many requests for this {level}. Please slow down.",

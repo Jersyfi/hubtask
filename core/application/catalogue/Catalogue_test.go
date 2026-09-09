@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // The catalogue is a list, so what is worth testing about it is what a list can get wrong: that it
@@ -91,12 +93,18 @@ func TestScopesAreTheDescriptorsOwnSetSortedAndUnique(t *testing.T) {
 	}
 }
 
-// Sessions never carry the control plane (H-06, 0.6.0 decision 6): whatever admin:* scopes this
-// build declares, SessionScopes leaves them out - and changes nothing else.
-func TestSessionScopesLeaveOutTheControlPlane(t *testing.T) {
+// Sessions never carry the control plane (H-06, 0.6.0 decision 6), nor the agent capability
+// (J-14): whatever this build declares, SessionScopes leaves those two out - and changes nothing
+// else.
+func TestSessionScopesLeaveOutTheControlPlaneAndTheAgentCapability(t *testing.T) {
 	session := catalogue.SessionScopes()
 	for _, scope := range session {
 		if strings.HasPrefix(scope, "admin:") {
+			t.Errorf("a session carries %q", scope)
+		}
+		// A session is a person at a keyboard, never an actor this system calls an agent - so the
+		// scope would be one a session could carry and nothing would ever read.
+		if scope == usecase.AgentDestructiveScope {
 			t.Errorf("a session carries %q", scope)
 		}
 	}
@@ -106,8 +114,71 @@ func TestSessionScopesLeaveOutTheControlPlane(t *testing.T) {
 		kept[scope] = true
 	}
 	for _, scope := range catalogue.Scopes() {
-		if !strings.HasPrefix(scope, "admin:") && !kept[scope] {
-			t.Errorf("SessionScopes dropped %q, which is not the control plane's", scope)
+		if strings.HasPrefix(scope, "admin:") || scope == usecase.AgentDestructiveScope {
+			continue
+		}
+		if !kept[scope] {
+			t.Errorf("SessionScopes dropped %q, which is neither the control plane's nor the agent's", scope)
 		}
 	}
+}
+
+// The agent capability is mintable. A scope a token cannot be created with is a guardrail nobody
+// can switch off, which sounds safe and means the feature does not exist: every destructive use
+// case would be permanently closed to agents, and the first person to notice would work around it.
+func TestTheAgentCapabilityCanBeMinted(t *testing.T) {
+	if !slices.Contains(catalogue.Scopes(), usecase.AgentDestructiveScope) {
+		t.Errorf("%q is not a scope a token can be minted with", usecase.AgentDestructiveScope)
+	}
+}
+
+// A hint can never say safe where the server would say no (J-14). `readOnlyHint` and
+// `destructiveHint` are what an agent's client decides whether to ask for confirmation on, so a
+// descriptor claiming both would be one whose client asks nothing and whose server refuses.
+func TestNoDescriptorIsBothReadOnlyAndDestructive(t *testing.T) {
+	for _, descriptor := range catalogue.Descriptors() {
+		if descriptor.ReadOnly && descriptor.Destructive {
+			t.Errorf("%s is announced as read-only and enforced as destructive", descriptor.Name)
+		}
+	}
+}
+
+// Every descriptor marked destructive is closed to an agent, rather than one example of one.
+//
+// What this catches is the use case somebody adds next: it goes in the catalogue, it is marked, and
+// it is closed - with nothing for anybody to remember. And the other direction too, because a
+// guardrail that also refused ordinary reads would be one somebody switches off wholesale.
+func TestEveryDestructiveUseCaseIsClosedToAnAgent(t *testing.T) {
+	agent := appshared.ActorContext{
+		Kind:      appshared.ActorAIAgent,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		Scopes:    []string{"items:write"},
+	}
+	permitted := agent
+	permitted.Scopes = append(slices.Clone(agent.Scopes), usecase.AgentDestructiveScope)
+
+	destructive := 0
+	for _, descriptor := range catalogue.Descriptors() {
+		if !descriptor.Destructive {
+			if err := descriptor.PermitAgent(agent); err != nil {
+				t.Errorf("%s is not destructive and was refused: %v", descriptor.Name, err)
+			}
+			continue
+		}
+		destructive++
+
+		if err := descriptor.PermitAgent(agent); err == nil {
+			t.Errorf("%s is destructive and open to an agent that holds no capability", descriptor.Name)
+		}
+		if err := descriptor.PermitAgent(permitted); err != nil {
+			t.Errorf("%s is closed to an agent that holds the capability: %v", descriptor.Name, err)
+		}
+	}
+
+	// A catalogue with nothing destructive in it would make every assertion above vacuous.
+	if destructive == 0 {
+		t.Fatal("no descriptor is marked destructive, so this test proved nothing")
+	}
+	t.Logf("%d destructive use cases are closed to an agent by default", destructive)
 }
