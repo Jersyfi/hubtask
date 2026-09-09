@@ -1655,6 +1655,10 @@ func run() error {
 			Providers:  budgetedAi,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
+			// The same catalogue the mint validates against, so the manifest cannot offer a scope
+			// `CreateAccessToken` would refuse. Handed in here for the reason KnownScopes is: the
+			// catalogue is assembled from these very use cases.
+			Scopes: catalogue.Scopes(),
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and

@@ -4046,7 +4046,11 @@ type Capabilities struct {
 
 	// TextLanguages The languages this installation can index the text of, as BCP-47 tags, and what a client's language picker for `content_language` is built from. It is the installation's answer rather than the product's: the mapping from a tag to a text search configuration is in the database, and which of those configurations exist is what its PostgreSQL was built with (ADR-0034). A language that is not in this list is not refused - an entry declaring one is stored and matched word by word, which is the same treatment a script without word boundaries gets.
 	TextLanguages *[]string `json:"text_languages,omitempty"`
-	ViewLayouts   *[]string `json:"view_layouts,omitempty"`
+
+	// TokenScopes Every scope a personal access token or an authorized app may be granted here, sorted. It is the union of what this build's use cases declare plus the one capability scope no operation owns, and it is answered for the same reason the role matrix is: a client that offers a scope list of its own is a client that is wrong on somebody's installation, and asking for a scope this installation does not declare is refused as a field error naming it (`access.token_scope_unknown`).
+	// Anonymous callers read it too. What a token may be asked for is not a secret, and the screen that mints one is behind a session anyway.
+	TokenScopes *[]string `json:"token_scopes,omitempty"`
+	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 }
 
 // CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.

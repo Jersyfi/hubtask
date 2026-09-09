@@ -63,6 +63,10 @@ type Capabilities struct {
 	// it off - the form shows it and the domain ignores the switch.
 	NotificationCategories []string
 	NotificationChannels   []string
+	// TokenScopes is every scope a credential may be granted here, sorted. Passed in rather than
+	// read, for the reason AccessTokenWriter.KnownScopes gives: the catalogue is assembled from
+	// these very use cases, and a package that imported it would close the circle (ADR-0001).
+	TokenScopes []string
 	// Roles is the role matrix as this installation enforces it (domain-model.md §3.2).
 	//
 	// Read from the matrix rather than restated here, for the reason the item types come from the
@@ -132,6 +136,9 @@ type GetCapabilities struct {
 	Providers  AiProviders
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
+	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
+	// for the reason the field on Capabilities records.
+	Scopes []string
 }
 
 // Execute answers for the actor, who may be anonymous.
@@ -201,6 +208,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		TextLanguages:          languages,
 		NotificationCategories: notificationCategories(),
 		NotificationChannels:   notificationChannels(),
+		TokenScopes:            g.Scopes,
 		Roles:                  roleMatrix(),
 		Limits: map[string]int64{
 			"max_body_bytes":            g.Config.Request.MaxBodyBytes,
