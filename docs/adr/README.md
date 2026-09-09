@@ -56,3 +56,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0047](./ADR-0047-media-origin-in-the-interface-policy.md) | The interface's policy names the installation's media origin | proposed | Security, clients, storage |
 | [0048](./ADR-0048-browser-job-driver.md) | The browser job's driver: Playwright, pinned, in one workflow job | proposed | Clients, tooling, supply chain |
 | [0049](./ADR-0049-ai-provider-surface.md) | The AI provider surface: two adapters, no dependency, prompts as files | proposed | AI, supply chain, ports |
+| [0050](./ADR-0050-pgvector-as-a-capability.md) | pgvector is a capability, not a requirement | proposed | Search, persistence, deployment |
