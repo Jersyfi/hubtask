@@ -28,6 +28,7 @@
   import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
   import PermissionsView from './views/PermissionsView.svelte';
+  import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
@@ -106,6 +107,8 @@
     <GroupsView />
   {:else if route.name === 'permissions'}
     <PermissionsView />
+  {:else if route.name === 'service-accounts'}
+    <ServiceAccountsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}

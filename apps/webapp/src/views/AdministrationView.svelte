@@ -24,6 +24,11 @@
     { path: '/administration/people', label: 'app.admin.people', hint: 'app.admin.people_hint' },
     { path: '/administration/groups', label: 'app.admin.groups', hint: 'app.admin.groups_hint' },
     { path: '/administration/permissions', label: 'app.admin.permissions', hint: 'app.admin.permissions_hint' },
+    {
+      path: '/administration/service-accounts',
+      label: 'app.admin.service_accounts',
+      hint: 'app.admin.service_accounts_hint',
+    },
     { path: '/administration/quotas', label: 'app.admin.quotas', hint: 'app.admin.quotas_hint' },
     {
       path: '/administration/identity-provider',
