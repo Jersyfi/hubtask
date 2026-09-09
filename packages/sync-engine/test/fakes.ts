@@ -57,6 +57,7 @@ export class FakeTransport implements Transport {
   #etags = new Map<string, string>();
   #sequences = new Map<string, unknown[]>();
   #failures = new Map<string, Error>();
+  #oneTimeFailures = new Map<string, Error>();
   #sessions: StreamSession[] = [];
 
   /** Sets what a path answers with, and the `ETag` it answers with where one matters. */
@@ -81,6 +82,15 @@ export class FakeTransport implements Transport {
   /** Sets what a path fails with. */
   fail(path: string, error: Error): this {
     this.#failures.set(path, error);
+    return this;
+  }
+
+  /**
+   * Fails a path once and answers normally afterwards - which is exactly the shape of an expired
+   * access token: the first call is refused, the exchange happens, the retry succeeds.
+   */
+  failOnce(path: string, error: Error): this {
+    this.#oneTimeFailures.set(path, error);
     return this;
   }
 
@@ -171,6 +181,11 @@ export class FakeTransport implements Transport {
     // A turn of the microtask queue, so `loading` is a state a test can observe.
     await Promise.resolve();
 
+    const once = this.#oneTimeFailures.get(path);
+    if (once) {
+      this.#oneTimeFailures.delete(path);
+      throw once;
+    }
     const failure = this.#failures.get(path);
     if (failure) throw failure;
 

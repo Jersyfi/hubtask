@@ -191,3 +191,106 @@ test('reset forgets everything, which is what sign-out means', async () => {
   assert.equal(engine.peek(ME).status, 'idle');
   assert.equal(seen.length > 0, true);
 });
+
+test('an expired access token is exchanged once and the request is retried', async () => {
+  // What a person never sees: fifteen minutes pass, the next read is refused, the pair is
+  // exchanged behind the screen, and the read succeeds (F4-03).
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const transport = new FakeTransport().failOnce('/accounts/me', refused).answer('/accounts/me', { id: 'a' });
+  let exchanges = 0;
+  let refusals = 0;
+  const engine = new SyncEngine({
+    transport,
+    onUnauthorized: () => (refusals += 1),
+    onRefresh: async () => {
+      exchanges += 1;
+      return true;
+    },
+  });
+
+  const state = await engine.refresh<{ id: string }>(ME);
+
+  assert.equal(state.status, 'ready');
+  assert.equal(exchanges, 1, 'one exchange');
+  assert.equal(refusals, 0, 'and the session did not end');
+  assert.equal(transport.calls.length, 2, 'the refused call and its retry');
+});
+
+test('ten concurrent refusals share one exchange', async () => {
+  // Presenting a retired refresh token is theft as far as the server is concerned and costs the
+  // whole family (security.md §5). Ten requests meeting one expired token must not present it ten
+  // times.
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const transport = new FakeTransport();
+  const paths = Array.from({ length: 10 }, (_, index) => `/items/${index}`);
+  for (const path of paths) transport.failOnce(path, refused).answer(path, { id: path });
+
+  let exchanges = 0;
+  const engine = new SyncEngine({
+    transport,
+    onRefresh: async () => {
+      exchanges += 1;
+      // The exchange is a request of its own, so it does not settle in the same microtask the
+      // refusals arrive in - which is the situation the single-flight has to survive.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return true;
+    },
+  });
+
+  const states = await Promise.all(paths.map((path) => engine.refresh<{ id: string }>({ path })));
+
+  assert.equal(exchanges, 1, 'one exchange for ten refusals');
+  for (const state of states) assert.equal(state.status, 'ready');
+});
+
+test('a second refusal after a fresh credential ends the session', async () => {
+  // Not an expiry: the account, the scope, or the session itself. Arguing past a server that has
+  // answered twice is not a client's job.
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const transport = new FakeTransport().fail('/accounts/me', refused);
+  let exchanges = 0;
+  let refusals = 0;
+  const engine = new SyncEngine({
+    transport,
+    onUnauthorized: () => (refusals += 1),
+    onRefresh: async () => {
+      exchanges += 1;
+      return true;
+    },
+  });
+
+  await engine.refresh(ME);
+
+  assert.equal(exchanges, 1, 'exchanged once');
+  assert.equal(refusals, 1, 'and then gave up');
+  assert.equal(transport.calls.length, 2, 'without a third attempt');
+});
+
+test('a refused exchange ends the session at once', async () => {
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const transport = new FakeTransport().fail('/accounts/me', refused);
+  let refusals = 0;
+  const engine = new SyncEngine({
+    transport,
+    onUnauthorized: () => (refusals += 1),
+    onRefresh: async () => false,
+  });
+
+  await engine.refresh(ME);
+
+  assert.equal(refusals, 1);
+  assert.equal(transport.calls.length, 1, 'nothing was retried with a credential nobody replaced');
+});
+
+test('a permission refusal is not a session refusal', async () => {
+  // A 403 is an answer, not an expiry. Exchanging on one would be a client asking for a better
+  // answer to a question it already got right.
+  const transport = new FakeTransport().fail('/accounts/me',
+    new TransportError('problem', { status: 403, code: 'forbidden' }));
+  let exchanges = 0;
+  const engine = new SyncEngine({ transport, onRefresh: async () => (exchanges += 1) > 0 });
+
+  await engine.refresh(ME);
+
+  assert.equal(exchanges, 0);
+});

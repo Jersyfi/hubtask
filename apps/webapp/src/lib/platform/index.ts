@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
+import type { SessionPair } from './tokenStore.ts';
+
 /**
  * The platform seam of ADR-0033: everything conditioned on where this bundle runs lives behind
  * this interface, so no `isTauri` conditional ever lands in a component. The implementation is
@@ -31,21 +33,30 @@ export interface Platform {
   bearer(): string | undefined;
 
   /**
-   * Holds a bearer for the calls that follow.
+   * The credential the exchange at `/auth/sessions:refresh` presents, or `undefined`.
    *
-   * **Temporary, and the milestone that replaces it is named:** a personal access token typed by
-   * the person using it is what F1 can honestly build, because `api/openapi.yaml` declares one
-   * security scheme and no login route. Session management and the OIDC connection are `0.6.0`,
-   * and they replace this method and everything behind it - the browser keeps its token where
-   * script can reach it, and a session the browser holds instead is the point of that work.
+   * Beside `bearer` rather than inside it, because the two are used by different callers at
+   * different moments: every request reads the bearer, and exactly one caller - the engine's
+   * refresher - ever reads this one, when a request has been refused.
    */
-  holdBearer(token: string): void;
+  refreshToken(): string | undefined;
 
   /**
-   * Forgets it. What sign-out calls, and what a `401` calls before returning to the token screen.
+   * Holds the pair a sign-in answered for the calls that follow (F4-03).
    *
-   * The credential only; everything else the client holds is dropped by the caller
-   * (`offline-sync.md` §9.6), because this seam knows about a token and not about a cache.
+   * `POST /auth/sessions` answers an access token of fifteen minutes and a refresh token of
+   * thirty days, and every route takes the first as its bearer. *Where* the pair is kept is
+   * exactly what differs between targets - the browser holds it for the tab's lifetime, and the
+   * shells hold it in the platform keystore (ADR-0031) - which is why it is here rather than in
+   * the sync engine.
+   */
+  holdSession(pair: SessionPair): void;
+
+  /**
+   * Forgets it. What sign-out calls, and what a refused exchange calls before the sign-in screen.
+   *
+   * The credentials only; everything else the client holds is dropped by the caller
+   * (`offline-sync.md` §9.6), because this seam knows about a pair and not about a cache.
    */
   releaseBearer(): void;
 
@@ -83,4 +94,5 @@ export interface Platform {
   preferredLanguages(): readonly string[];
 }
 
+export type { SessionPair } from './tokenStore.ts';
 export { platform } from './browser.ts';
