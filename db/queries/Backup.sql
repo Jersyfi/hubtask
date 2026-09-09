@@ -222,3 +222,47 @@ SELECT target_id, max(COALESCE(finished_at, started_at))::timestamptz AS last_su
 FROM backup_run
 WHERE status = 'SUCCEEDED'
 GROUP BY target_id;
+
+-- The lifecycle F4-02 added: a schedule that can be changed and removed, and a target that can be
+-- removed once nothing points at it.
+
+-- name: UpdateBackupSchedule :execrows
+-- Everything a schedule may change, plus the moment it is next owed, guarded on the row version.
+-- The target and the scope are not among the columns: a schedule that moved either would be a
+-- different schedule under an old identifier.
+UPDATE backup_schedule
+SET rrule = sqlc.arg('rrule'),
+    time_zone = sqlc.arg('time_zone'),
+    mode = sqlc.arg('mode'),
+    full_rrule = sqlc.narg('full_rrule'),
+    include_media = sqlc.arg('include_media'),
+    include_audit = sqlc.arg('include_audit'),
+    retention = sqlc.arg('retention'),
+    notify_on = sqlc.arg('notify_on'),
+    enabled = sqlc.arg('enabled'),
+    next_run_at = sqlc.narg('next_run_at'),
+    version = version + 1
+WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
+-- name: DeleteBackupSchedule :execrows
+DELETE FROM backup_schedule WHERE id = sqlc.arg('id');
+
+-- name: CountSchedulesForTarget :one
+-- What stands between a target and its removal. Counted rather than listed for the caller that
+-- only asks whether any exist; the listing below is what the refusal names.
+SELECT count(*) FROM backup_schedule WHERE target_id = sqlc.arg('target_id');
+
+-- name: ListSchedulesForTarget :many
+-- The schedules the refusal names, so that an operator is told what to switch off rather than
+-- being told no.
+SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+FROM backup_schedule
+WHERE target_id = sqlc.arg('target_id')
+ORDER BY created_at;
+
+-- name: DeleteBackupTarget :execrows
+-- The row and its sealed credential go; nothing at the target is touched. The caller has already
+-- established that no schedule names it - this statement has no way to check, because a schedule
+-- of another workspace is invisible to it and would not be counted.
+DELETE FROM backup_target WHERE id = sqlc.arg('id');

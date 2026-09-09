@@ -35,6 +35,8 @@ func (double) RecordTest(context.Context, shared.ID, time.Time, bool, string) er
 
 func (double) Coverage(context.Context) (Coverage, error) { return Coverage{}, nil }
 
+func (double) Delete(context.Context, shared.ID) (bool, error) { return false, nil }
+
 var _ Targets = double{}
 
 // The shape the whole "never returned by any read" requirement rests on: a target that comes back

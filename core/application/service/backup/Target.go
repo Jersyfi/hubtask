@@ -80,7 +80,11 @@ type Authorizer interface {
 // collect theirs: three use cases over one aggregate that disagreed about which encryptor to use
 // would be three chances for a credential to be sealed under a key the others cannot open.
 type Writer struct {
-	Targets    repository.Targets
+	Targets repository.Targets
+	// Schedules is read by the one operation that has to know whether anything points at a
+	// target before it is removed (F4-02). A target is deleted by name and a schedule is what
+	// stands in the way, so the check belongs where the deletion is.
+	Schedules  repository.Schedules
 	Opener     backupstorage.Opener
 	Encryptor  crypto.Encryptor
 	Authorizer Authorizer

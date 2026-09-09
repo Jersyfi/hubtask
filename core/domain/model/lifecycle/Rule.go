@@ -460,5 +460,8 @@ const (
 	CodeExportUnavailable     = "lifecycle.export_unavailable"
 	CodeRuleNotFound          = "lifecycle.rule_not_found"
 	CodeRuleAlreadyExists     = "lifecycle.rule_already_exists"
-	CodeNotMarked             = "lifecycle.not_marked"
+	// CodeRuleVersionConflict is a correction written against a version that no longer stands
+	// (F4-02): either the caller's form was stale, or somebody committed in between.
+	CodeRuleVersionConflict = "lifecycle.rule_version_conflict"
+	CodeNotMarked           = "lifecycle.not_marked"
 )

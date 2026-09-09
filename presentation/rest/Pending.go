@@ -165,9 +165,9 @@ func (pending) UpdateWorkspace(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
-// The configuration lifecycle of F4-02: the reads and the writes that let a schedule, a target
-// and a retention rule be revised rather than only created. Overridden by RestController, for the
-// reason given at CreateContainer.
+// The configuration lifecycle of F4-02. All six are overridden by RestController, for the reason
+// given at CreateContainer: the route exists because the contract declares it, and the pending set
+// is what the contract test compares the router against.
 func (pending) ListBackupSchedules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) UpdateBackupSchedule(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateBackupScheduleParams) {

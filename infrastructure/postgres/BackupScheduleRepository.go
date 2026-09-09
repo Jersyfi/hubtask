@@ -177,6 +177,88 @@ func (r BackupScheduleRepository) SetNextRun(
 	return nil
 }
 
+// Update writes a changed schedule and the moment it is next owed (F4-02).
+//
+// The target and the scope are not among the columns the statement writes, for the reason the
+// contract gives: a schedule that moved either would be a different schedule under an old
+// identifier, and the archives already at the target would disagree with it.
+func (r BackupScheduleRepository) Update(
+	ctx context.Context, schedule domain.Schedule, nextRunAt time.Time, expectedVersion int,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(schedule.ID)
+	if err != nil {
+		return false, err
+	}
+	retention, err := json.Marshal(retentionRow{
+		KeepLast: schedule.Retention.KeepLast, KeepDaily: schedule.Retention.KeepDaily,
+		KeepWeekly: schedule.Retention.KeepWeekly, KeepMonthly: schedule.Retention.KeepMonthly,
+		KeepYearly: schedule.Retention.KeepYearly, MinKeep: schedule.Retention.MinKeep,
+	})
+	if err != nil {
+		return false, shared.ErrInternal.WithDetail("backup.schedule_unserialisable").WithCause(err)
+	}
+
+	rows, err := queries.UpdateBackupSchedule(ctx, sqlc.UpdateBackupScheduleParams{
+		ID: id, Rrule: schedule.RRULE, TimeZone: schedule.TimeZone, Mode: string(schedule.Mode),
+		FullRrule:    optionalText(schedule.FullRRULE),
+		IncludeMedia: schedule.IncludeMedia, IncludeAudit: schedule.IncludeAudit,
+		Retention: retention, NotifyOn: notificationsOf(schedule.NotifyOn),
+		Enabled: schedule.Enabled, NextRunAt: optionalTimestamp(timeOrNil(nextRunAt)),
+		//nolint:gosec // G115: a row version, bounded far below either type's range
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("changing backup schedule %s: %w", schedule.ID, err))
+	}
+	return rows > 0, nil
+}
+
+// Delete removes one schedule. What it produced stays: the archives at the target, and the runs
+// in the log.
+func (r BackupScheduleRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	scheduleID, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.DeleteBackupSchedule(ctx, scheduleID)
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing backup schedule %s: %w", id, err))
+	}
+	return rows > 0, nil
+}
+
+// ForTarget answers the schedules that name a target - what a refused deletion names.
+func (r BackupScheduleRepository) ForTarget(
+	ctx context.Context, targetID shared.ID,
+) ([]domain.Schedule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(targetID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListSchedulesForTarget(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the schedules of target %s: %w", targetID, err))
+	}
+	return schedulesOf(rows)
+}
+
 // retentionRow is the plan as the jsonb column holds it, in the names the contract uses.
 type retentionRow struct {
 	KeepLast    int `json:"keep_last"`

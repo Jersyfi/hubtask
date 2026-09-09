@@ -69,6 +69,46 @@ func (q *Queries) CountBackupTargets(ctx context.Context) (CountBackupTargetsRow
 	return i, err
 }
 
+const countSchedulesForTarget = `-- name: CountSchedulesForTarget :one
+SELECT count(*) FROM backup_schedule WHERE target_id = $1
+`
+
+// What stands between a target and its removal. Counted rather than listed for the caller that
+// only asks whether any exist; the listing below is what the refusal names.
+func (q *Queries) CountSchedulesForTarget(ctx context.Context, targetID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countSchedulesForTarget, targetID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteBackupSchedule = `-- name: DeleteBackupSchedule :execrows
+DELETE FROM backup_schedule WHERE id = $1
+`
+
+func (q *Queries) DeleteBackupSchedule(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteBackupSchedule, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteBackupTarget = `-- name: DeleteBackupTarget :execrows
+DELETE FROM backup_target WHERE id = $1
+`
+
+// The row and its sealed credential go; nothing at the target is touched. The caller has already
+// established that no schedule names it - this statement has no way to check, because a schedule
+// of another workspace is invisible to it and would not be counted.
+func (q *Queries) DeleteBackupTarget(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteBackupTarget, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const dueBackupSchedules = `-- name: DueBackupSchedules :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
        include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
@@ -750,6 +790,54 @@ func (q *Queries) ListBackupTargets(ctx context.Context) ([]ListBackupTargetsRow
 	return items, nil
 }
 
+const listSchedulesForTarget = `-- name: ListSchedulesForTarget :many
+SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+FROM backup_schedule
+WHERE target_id = $1
+ORDER BY created_at
+`
+
+// The schedules the refusal names, so that an operator is told what to switch off rather than
+// being told no.
+func (q *Queries) ListSchedulesForTarget(ctx context.Context, targetID pgtype.UUID) ([]BackupSchedule, error) {
+	rows, err := q.db.Query(ctx, listSchedulesForTarget, targetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BackupSchedule{}
+	for rows.Next() {
+		var i BackupSchedule
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.TenantID,
+			&i.ScopeKind,
+			&i.ScopeID,
+			&i.Rrule,
+			&i.TimeZone,
+			&i.Mode,
+			&i.FullRrule,
+			&i.IncludeMedia,
+			&i.IncludeAudit,
+			&i.Retention,
+			&i.NotifyOn,
+			&i.Enabled,
+			&i.NextRunAt,
+			&i.CreatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const nextBackupScheduleDue = `-- name: NextBackupScheduleDue :one
 SELECT min(next_run_at)::timestamptz AS due
 FROM backup_schedule
@@ -872,4 +960,62 @@ type SetBackupScheduleNextRunParams struct {
 func (q *Queries) SetBackupScheduleNextRun(ctx context.Context, arg SetBackupScheduleNextRunParams) error {
 	_, err := q.db.Exec(ctx, setBackupScheduleNextRun, arg.NextRunAt, arg.ID)
 	return err
+}
+
+const updateBackupSchedule = `-- name: UpdateBackupSchedule :execrows
+
+UPDATE backup_schedule
+SET rrule = $1,
+    time_zone = $2,
+    mode = $3,
+    full_rrule = $4,
+    include_media = $5,
+    include_audit = $6,
+    retention = $7,
+    notify_on = $8,
+    enabled = $9,
+    next_run_at = $10,
+    version = version + 1
+WHERE id = $11 AND version = $12
+`
+
+type UpdateBackupScheduleParams struct {
+	Rrule           string
+	TimeZone        string
+	Mode            string
+	FullRrule       *string
+	IncludeMedia    bool
+	IncludeAudit    bool
+	Retention       []byte
+	NotifyOn        []string
+	Enabled         bool
+	NextRunAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The lifecycle F4-02 added: a schedule that can be changed and removed, and a target that can be
+// removed once nothing points at it.
+// Everything a schedule may change, plus the moment it is next owed, guarded on the row version.
+// The target and the scope are not among the columns: a schedule that moved either would be a
+// different schedule under an old identifier.
+func (q *Queries) UpdateBackupSchedule(ctx context.Context, arg UpdateBackupScheduleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateBackupSchedule,
+		arg.Rrule,
+		arg.TimeZone,
+		arg.Mode,
+		arg.FullRrule,
+		arg.IncludeMedia,
+		arg.IncludeAudit,
+		arg.Retention,
+		arg.NotifyOn,
+		arg.Enabled,
+		arg.NextRunAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

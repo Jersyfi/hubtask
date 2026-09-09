@@ -44,6 +44,11 @@ type Targets interface {
 	// Coverage is what the installation's health surface asks: how many targets there are, and
 	// how many of them store an archive unencrypted (backup-restore.md §10).
 	Coverage(ctx context.Context) (Coverage, error)
+
+	// Delete removes the target and its sealed credential from the workspace's configuration.
+	// **Nothing at the target is touched** - the archives stay where they are, and an operator
+	// who wants them gone removes them there (F4-02). False is "there was none".
+	Delete(ctx context.Context, id shared.ID) (bool, error)
 }
 
 // Coverage is the answer to "is this tenant backed up, and how badly".
@@ -241,6 +246,19 @@ type Schedules interface {
 	// SetNextRun records when the schedule is next owed. The zero time clears it, which is what a
 	// rule that has run out of occurrences leaves behind.
 	SetNextRun(ctx context.Context, id shared.ID, nextRunAt time.Time) error
+
+	// Update writes a changed schedule and the moment it is next owed, guarded on the version the
+	// caller read. False means the guard did not hold. The target and the scope are not written:
+	// a schedule that moved either would be a different schedule under an old identifier (F4-02).
+	Update(ctx context.Context, schedule domain.Schedule, nextRunAt time.Time, expectedVersion int) (bool, error)
+
+	// Delete removes one. False is "there was none", which is not an error - a caller asking for
+	// it to be gone got what they asked for.
+	Delete(ctx context.Context, id shared.ID) (bool, error)
+
+	// ForTarget answers the schedules that name a target, so that refusing to delete it can say
+	// which they are rather than only that something does.
+	ForTarget(ctx context.Context, targetID shared.ID) ([]domain.Schedule, error)
 }
 
 // Runs stores what happened (E-05).

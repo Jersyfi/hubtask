@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**212 use cases, 188 distinct action codes, 152 of them recorded on every call.** A use case that
+**218 use cases, 192 distinct action codes, 157 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -114,11 +114,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.restore_started` | GetRestoreRun | `restore_run` | INFO | When refused |
 | `backup.restore_started` | StartRestore | `restore_run` | WARNING | Every time |
 | `backup.schedule_changed` | CreateBackupSchedule | `backup_schedule` | WARNING | Every time |
+| `backup.schedule_changed` | UpdateBackupSchedule | `backup_schedule` | WARNING | Every time |
+| `backup.schedule_read` | ListBackupSchedules | `backup_schedule` | INFO | When refused |
+| `backup.schedule_removed` | DeleteBackupSchedule | `backup_schedule` | WARNING | Every time |
 | `backup.started` | GetBackupRun | `backup_run` | INFO | When refused |
 | `backup.started` | StartBackup | `backup_run` | WARNING | Every time |
 | `backup.target_changed` | CreateBackupTarget | `backup_target` | WARNING | Every time |
 | `backup.target_changed` | ListBackupTargets | `backup_target` | INFO | When refused |
 | `backup.target_changed` | ListBackupsAtTarget | `backup_target` | INFO | When refused |
+| `backup.target_removed` | DeleteBackupTarget | `backup_target` | WARNING | Every time |
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
@@ -294,6 +298,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `lifecycle.rule_changed` | CreateRetentionPolicy | `retention_policy` | WARNING | Every time |
 | `lifecycle.rule_changed` | ListRetentionPolicies | `retention_policy` | INFO | When refused |
 | `lifecycle.rule_changed` | PreviewRetentionPolicy | `retention_policy` | INFO | When refused |
+| `lifecycle.rule_changed` | UpdateRetentionPolicy | `retention_policy` | WARNING | Every time |
+| `lifecycle.rule_withdrawn` | DeleteRetentionPolicy | `retention_policy` | WARNING | Every time |
 
 ## Structure: buckets and labels
 
