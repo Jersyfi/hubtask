@@ -69,13 +69,24 @@ everything — the thing every list in this system is paged to prevent (`api-gui
 `resources/list` is paged with the same cursor the underlying reads use, and its page size is
 bounded by the same ceiling.
 
-**4. A URI naming something the actor may not see is a not-found.** This is the property that would
-be easiest to lose and worst to lose. `GetWorkItem` already answers `ErrNotFound` where an entry
-belongs to another tenant, because row level security has made "not yours" and "not there" the same
-answer (multi-tenancy.md §2); and `resources/read` must not turn that into anything that confirms
-existence. A refused read is therefore reported exactly as `tools/call` reports one — a *result*,
-not a JSON-RPC error — while an unknown URI **scheme** is a protocol error, because that is the
-client having called wrongly rather than the server saying no.
+**4. A URI naming something the actor may not see is a not-found, and a refusal is a JSON-RPC error
+carrying the problem document.** The first half is the property that would be easiest to lose and
+worst to lose: `GetWorkItem` already answers `ErrNotFound` where an entry belongs to another tenant,
+because row level security has made "not yours" and "not there" the same answer (multi-tenancy.md
+§2), and nothing in `presentation/mcp` may turn that into anything that confirms existence.
+
+The second half **departs from what the backlog proposed**, and the reason is the protocol. J-11's
+acceptance says "refused use cases are a result with `isError`, the distinction `McpServer.go`
+already keeps" — which is exactly right for `tools/call`, whose result schema carries `isError`.
+`resources/read`'s result schema does not: it is `{contents: [...]}` and has nowhere to put a
+refusal, so a refusal rendered as a result is a refusal no client can see. It is therefore a
+JSON-RPC error with MCP's own `-32002`, carrying the same problem document `failure` builds for a
+tool call in its `data` — an agent still reads `forbidden` or `not_found` off a code rather than out
+of prose (ADR-0011).
+
+What the distinction the backlog cares about becomes is the *code*: `-32602` for a URI this server
+cannot address, decided before the catalogue is reached, and `-32002` for a read the application
+layer refused. "I called this wrongly" and "the server said no" stay two different answers.
 
 **5. The capability is declared because the methods exist.** `initialize` answers
 `resources: {subscribe: false, listChanged: false}`. Both are false and both are honest: this
@@ -87,6 +98,8 @@ comes.
 
 * An agent can browse a workspace's structure — its hubs, collections and saved views — and read any
   addressable entry, without a second interface to keep in step for anything but the three shapes.
+* A client that only understands JSON-RPC codes sees one code for every refusal; one that reads
+  `data` sees the same document REST puts in its problem body. Neither sees prose.
 * Every resource read is audited exactly as the same read through REST is, as `AI_AGENT`, by the
   application layer and nowhere else. `GetContainer` and `GetWorkItem` declare their audit as *not
   required*, so an ordinary read writes nothing and a refused one writes a denial — which is the
