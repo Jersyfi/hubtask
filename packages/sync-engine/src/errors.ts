@@ -111,6 +111,17 @@ export class TransportError extends Error {
    * The recovery is always the same and the UI owes the reader both halves of it: what they wrote
    * is not lost, and the row moved underneath them. Re-read, then reapply.
    */
+  /**
+   * Whether the server refused because it wants a fresh re-authentication (H-03).
+   *
+   * Its own question rather than a caller comparing the code, because the recovery is specific and
+   * repeatable: prove yourself again, then present the grant on the very same request. A `403`
+   * that is *not* this is a permission, and no amount of proving changes it.
+   */
+  get needsStepUp(): boolean {
+    return this.detailCode === 'auth.step_up_required';
+  }
+
   get isVersionConflict(): boolean {
     return this.code === 'version_conflict' || this.detailCode === 'version_conflict';
   }
