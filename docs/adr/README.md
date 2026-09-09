@@ -58,3 +58,5 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0049](./ADR-0049-ai-provider-surface.md) | The AI provider surface: two adapters, no dependency, prompts as files | proposed | AI, supply chain, ports |
 | [0050](./ADR-0050-pgvector-as-a-capability.md) | pgvector is a capability, not a requirement | proposed | Search, persistence, deployment |
 | [0051](./ADR-0051-mcp-resources-are-catalogue-reads.md) | An MCP resource is a catalogue read with a URI for an argument | proposed | Agent interface, MCP |
+| [0052](./ADR-0052-managed-postgresql-support.md) | Managed PostgreSQL is supported, and migration 0002 is corrected to allow it | accepted | Persistence, deployment, multi-tenancy |
+| [0053](./ADR-0053-totp-qr-code.md) | The TOTP QR code: a dependency, an encoder, or neither | proposed | Clients, security, supply chain |

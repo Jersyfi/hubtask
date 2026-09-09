@@ -51,6 +51,7 @@ type targetStore struct {
 	credential crypto.Sealed
 	tested     []string
 	failFind   bool
+	removed    []shared.ID
 }
 
 func (s *targetStore) Insert(_ context.Context, target domain.Target, credential crypto.Sealed) error {
@@ -75,6 +76,17 @@ func (s *targetStore) Find(_ context.Context, id shared.ID) (domain.Target, erro
 
 func (s *targetStore) Credential(context.Context, shared.ID) (crypto.Sealed, error) {
 	return s.credential, nil
+}
+
+func (s *targetStore) Delete(_ context.Context, id shared.ID) (bool, error) {
+	for index, target := range s.stored {
+		if target.ID == id {
+			s.stored = append(s.stored[:index], s.stored[index+1:]...)
+			s.removed = append(s.removed, id)
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *targetStore) RecordTest(_ context.Context, _ shared.ID, _ time.Time, ok bool, code string) error {

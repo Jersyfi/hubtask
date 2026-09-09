@@ -23,6 +23,7 @@ type Overrides struct {
 	AutomationRunsPerHour *int64
 	WebhookTargets        *int64
 	ExportJobs            *int64
+	AiTokensPerDay        *int64
 }
 
 // Store reads and writes the overrides in the tenant's own settings document
@@ -58,6 +59,20 @@ type Usage interface {
 
 	// LiveExports counts the pending and running export jobs.
 	LiveExports(ctx context.Context) (int64, error)
+
+	// MeteredSince sums one metered thing since the instant (J-15).
+	//
+	// **Read from the billing ledger, which every other quota here refuses to do** - and the
+	// exception is the point rather than an oversight. The ledger is barred as an enforcement
+	// source because it is a lagging copy of something countable: items are in `work_item`, media
+	// in `media_object`, and a count that read the tally could lag behind the rows. A token has no
+	// row. It was spent on somebody else's machine and the tally *is* the record, so there is
+	// nothing more authoritative to count - and a budget that refused to read the only record of
+	// what it bounds would not be a budget.
+	// Generic in the metric, like `Meter.Add` beside it: the vocabulary is the application
+	// layer's - `quota.Names()` - and an adapter that spelled one of those names would be a second
+	// place the spelling lives.
+	MeteredSince(ctx context.Context, metric string, since time.Time) (int64, error)
 }
 
 // Meter records usage into the billing ledger (`usage_record`) - daily tallies for capacity

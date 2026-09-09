@@ -98,6 +98,12 @@ func (s *storeFake) SetOverrides(
 
 type usageFake struct {
 	items, media, webhooks, runs, exports int64
+	// metered is what the ledger holds, and the three below record how it was asked - which is
+	// the interesting half for a budget measured over a period (J-15).
+	metered       int64
+	meteredCalls  int
+	meteredMetric string
+	meteredSince  time.Time
 }
 
 func (u *usageFake) Items(context.Context) (int64, error)          { return u.items, nil }
@@ -106,6 +112,14 @@ func (u *usageFake) WebhookTargets(context.Context) (int64, error) { return u.we
 func (u *usageFake) LiveExports(context.Context) (int64, error)    { return u.exports, nil }
 func (u *usageFake) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return u.runs, nil
+}
+
+func (u *usageFake) MeteredSince(
+	_ context.Context, metric string, since time.Time,
+) (int64, error) {
+	u.meteredCalls++
+	u.meteredMetric, u.meteredSince = metric, since
+	return u.metered, nil
 }
 
 type meterFake struct{ added map[string]int64 }
@@ -307,5 +321,89 @@ func TestTheQuotasRoundTripThroughTheRegistry(t *testing.T) {
 	}
 	if rows[0].String("quota") != APIRequestsPerMinute || rows[0]["limit"] != int64(6_000) {
 		t.Errorf("first row %v", rows[0])
+	}
+}
+
+// The AI budget (J-15): §4's newest row, resolved and enforced by the same machinery as the rest.
+func TestTheAiBudgetDefaultsToTheModesNumber(t *testing.T) {
+	if single := Defaults(env.TenancySingle).AiTokensPerDay; single != Unlimited {
+		t.Errorf("single mode defaults the AI budget to %d, want unlimited - a self-hoster's "+
+			"tokens are their own", single)
+	}
+	if multi := Defaults(env.TenancyMulti).AiTokensPerDay; multi == Unlimited {
+		t.Error("multi mode defaults the AI budget to unlimited, and AI is the one feature whose " +
+			"marginal cost leaves the installation")
+	}
+}
+
+// The guard reports room against what the day has spent, and reports the ratio on the way - the
+// same metric A-18 watches for every other quota, which is why the alert needed no new rule.
+func TestTheAiBudgetIsMeasuredAgainstTheDaysSpend(t *testing.T) {
+	for name, c := range map[string]struct {
+		limit, spent int64
+		room         bool
+	}{
+		"well under":    {limit: 1000, spent: 10, room: true},
+		"one short":     {limit: 1000, spent: 999, room: true},
+		"exactly at it": {limit: 1000, spent: 1000, room: false},
+		"well past it":  {limit: 1000, spent: 9000, room: false},
+		"unlimited":     {limit: Unlimited, spent: 9_000_000, room: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			usage := &usageFake{metered: c.spent}
+			signals := &signalsFake{}
+			guard := Guard{
+				Store:   &storeFake{overrides: repository.Overrides{AiTokensPerDay: &c.limit}},
+				Usage:   usage,
+				Signals: signals,
+				Tenancy: env.TenancySingle,
+			}
+
+			room, err := guard.AiTokens(t.Context(), "a-tenant",
+				time.Date(2026, 9, 9, 11, 0, 0, 0, time.UTC))
+			if err != nil {
+				t.Fatalf("asking the budget: %v", err)
+			}
+			if room != c.room {
+				t.Errorf("room = %v, want %v", room, c.room)
+			}
+			if c.limit == Unlimited {
+				// Nothing is counted and nothing is reported: an unlimited budget is not a wall
+				// somebody is approaching.
+				if usage.meteredCalls != 0 {
+					t.Error("an unlimited budget counted the ledger anyway")
+				}
+				return
+			}
+			if _, reported := signals.ratios[AiTokensPerDay]; !reported {
+				t.Errorf("the ratio was not reported: %v", signals.ratios)
+			}
+		})
+	}
+}
+
+// The day is a UTC calendar day, which is what the ledger is keyed on - so what the guard measures
+// and what `GET /quotas` shows are the same number.
+func TestTheAiBudgetMeasuresACalendarDay(t *testing.T) {
+	limit := int64(1000)
+	usage := &usageFake{}
+	guard := Guard{
+		Store:   &storeFake{overrides: repository.Overrides{AiTokensPerDay: &limit}},
+		Usage:   usage,
+		Tenancy: env.TenancySingle,
+	}
+
+	if _, err := guard.AiTokens(t.Context(), "a-tenant",
+		time.Date(2026, 9, 9, 23, 59, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("asking the budget: %v", err)
+	}
+
+	want := time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC)
+	if !usage.meteredSince.Equal(want) {
+		t.Errorf("the budget counted from %s, want the start of the UTC day %s",
+			usage.meteredSince, want)
+	}
+	if usage.meteredMetric != AiTokensPerDay {
+		t.Errorf("the budget counted %q", usage.meteredMetric)
 	}
 }

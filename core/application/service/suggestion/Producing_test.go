@@ -298,7 +298,10 @@ func (w *producerWorld) Invoke(
 	w.performed = append(w.performed, performed{name: name, actor: actor, in: in})
 	switch name {
 	case "ListJumbleEntries":
-		return usecase.Output{"items": []usecase.Output{{
+		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
+		// `items` is how the wrong key survived until an end-to-end session asked for a
+		// suggestion (J-16).
+		return usecase.Output{"data": []usecase.Output{{
 			"id": targetID.String(), "raw_subject": w.subject, "raw_body": w.body,
 		}}}, nil
 	case "GetWorkItem":

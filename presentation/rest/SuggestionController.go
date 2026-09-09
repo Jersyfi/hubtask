@@ -159,6 +159,16 @@ func (c *RestController) DismissSuggestion(
 
 // decideSuggestion is both answers: they differ in the use case they name and in nothing else,
 // which is the same shape the application layer has for the same reason.
+//
+// The body is read, and it was not until J-16 - which made a whole class of suggestion impossible
+// to accept over REST. `SuggestionAcceptance` carries the overrides a person changed or added
+// before accepting, and a proposal about a jumble entry *needs* one: accepting it converts the
+// entry, and `ConvertJumbleEntry` requires a destination collection a model cannot name. Dropping
+// the body meant every such acceptance answered `usecase.field_required` for a field the caller
+// had in fact sent.
+//
+// Optional, because a dismissal carries none and an acceptance of a work item's fields needs none:
+// an absent body is an empty input rather than a refusal.
 func (c *RestController) decideSuggestion(
 	w http.ResponseWriter, r *http.Request, name string, suggestionID openapi.SuggestionId,
 ) {
@@ -168,9 +178,19 @@ func (c *RestController) decideSuggestion(
 		return
 	}
 
-	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), usecase.Input{
-		"suggestion_id": suggestionID.String(),
-	})
+	in := usecase.Input{"suggestion_id": suggestionID.String()}
+	if r.ContentLength > 0 {
+		var body openapi.SuggestionAcceptance
+		if err := decodeJSON(r, &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		if body.Overrides != nil {
+			in["overrides"] = *body.Overrides
+		}
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return

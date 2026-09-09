@@ -376,7 +376,10 @@ func (w *world) Invoke(
 		}
 		// The same two words the work item answers, so a proposal about an entry is fresh against
 		// it and a test about the *applier* is not stopped by the fingerprint.
-		return usecase.Output{"items": []usecase.Output{{
+		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
+		// `items` is how the wrong key survived until an end-to-end session asked for a
+		// suggestion (J-16).
+		return usecase.Output{"data": []usecase.Output{{
 			"id": targetID.String(), "raw_subject": w.title, "raw_body": "",
 		}}}, nil
 	}

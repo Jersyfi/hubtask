@@ -7,7 +7,50 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const findWorkspace = `-- name: FindWorkspace :one
+SELECT id, slug, display_name, status, default_locale, default_time_zone,
+       settings, created_at, updated_at, version
+FROM tenant
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+`
+
+type FindWorkspaceRow struct {
+	ID              pgtype.UUID
+	Slug            string
+	DisplayName     string
+	Status          TenantStatus
+	DefaultLocale   string
+	DefaultTimeZone string
+	Settings        []byte
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+// The tenant's own row, read from inside the tenant (F4-01). No tenant parameter: row level
+// security has already bound the transaction to exactly one, which is what makes another
+// workspace invisible rather than forbidden (ADR-0010).
+func (q *Queries) FindWorkspace(ctx context.Context) (FindWorkspaceRow, error) {
+	row := q.db.QueryRow(ctx, findWorkspace)
+	var i FindWorkspaceRow
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.DisplayName,
+		&i.Status,
+		&i.DefaultLocale,
+		&i.DefaultTimeZone,
+		&i.Settings,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
 
 const listCapabilityProfiles = `-- name: ListCapabilityProfiles :many
 
@@ -148,4 +191,43 @@ func (q *Queries) SemanticSearchAvailable(ctx context.Context) (bool, error) {
 	var available bool
 	err := row.Scan(&available)
 	return available, err
+}
+
+const updateWorkspace = `-- name: UpdateWorkspace :execrows
+UPDATE tenant
+SET display_name = $1,
+    default_locale = $2,
+    default_time_zone = $3,
+    settings = settings || $4::jsonb,
+    updated_at = $5, version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND version = $6
+`
+
+type UpdateWorkspaceParams struct {
+	DisplayName     string
+	DefaultLocale   string
+	DefaultTimeZone string
+	Settings        []byte
+	Now             pgtype.Timestamptz
+	ExpectedVersion int32
+}
+
+// The three columns and the settings keys this build models, guarded on the row version so that
+// two administrators changing one workspace see each other. The settings document is merged
+// rather than replaced: `||` keeps every key this version does not know, which is what stops an
+// older binary from discarding what a newer one wrote.
+func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateWorkspace,
+		arg.DisplayName,
+		arg.DefaultLocale,
+		arg.DefaultTimeZone,
+		arg.Settings,
+		arg.Now,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

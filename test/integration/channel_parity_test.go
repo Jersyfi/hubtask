@@ -87,8 +87,10 @@ func throughMCP(ctx context.Context, t *testing.T, registry *usecase.Registry, n
 	t.Helper()
 
 	server := mcp.Server{Catalogue: registry, Name: "hubtask", Version: "test"}
+	// A person's actor, deliberately: the door is what makes this an agent's call, not the
+	// credential (J-14). If the adapter stopped stamping it, this test would notice - which is what
+	// it could not do while it set the kind by hand.
 	agent := administrator(tenantA, authorA)
-	agent.Kind = appshared.ActorAIAgent
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"create_container",` +
 		`"arguments":{"type":"HUB","name":"` + name + `"}}}`

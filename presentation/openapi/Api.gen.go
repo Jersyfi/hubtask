@@ -696,6 +696,45 @@ func (e BackupScheduleScopeKind) Valid() bool {
 	}
 }
 
+// Defines values for BackupScheduleUpdateMode.
+const (
+	BackupScheduleUpdateModeFULL        BackupScheduleUpdateMode = "FULL"
+	BackupScheduleUpdateModeINCREMENTAL BackupScheduleUpdateMode = "INCREMENTAL"
+)
+
+// Valid indicates whether the value is a known member of the BackupScheduleUpdateMode enum.
+func (e BackupScheduleUpdateMode) Valid() bool {
+	switch e {
+	case BackupScheduleUpdateModeFULL:
+		return true
+	case BackupScheduleUpdateModeINCREMENTAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupScheduleUpdateNotifyOn.
+const (
+	BackupScheduleUpdateNotifyOnFAILURE                  BackupScheduleUpdateNotifyOn = "FAILURE"
+	BackupScheduleUpdateNotifyOnFIRSTSUCCESSAFTERFAILURE BackupScheduleUpdateNotifyOn = "FIRST_SUCCESS_AFTER_FAILURE"
+	BackupScheduleUpdateNotifyOnSUCCESS                  BackupScheduleUpdateNotifyOn = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the BackupScheduleUpdateNotifyOn enum.
+func (e BackupScheduleUpdateNotifyOn) Valid() bool {
+	switch e {
+	case BackupScheduleUpdateNotifyOnFAILURE:
+		return true
+	case BackupScheduleUpdateNotifyOnFIRSTSUCCESSAFTERFAILURE:
+		return true
+	case BackupScheduleUpdateNotifyOnSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupStartMode.
 const (
 	BackupStartModeFULL        BackupStartMode = "FULL"
@@ -1862,6 +1901,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
 	ExportJobs            QuotaStandingQuota = "export_jobs"
@@ -1873,6 +1913,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiTokensPerDay:
+		return true
 	case ApiRequestsPerMinute:
 		return true
 	case AutomationRunsPerHour:
@@ -2111,19 +2153,19 @@ func (e RetentionPolicyAction) Valid() bool {
 
 // Defines values for RetentionPolicyNotifyRecipients.
 const (
-	COLLECTIONADMINS RetentionPolicyNotifyRecipients = "COLLECTION_ADMINS"
-	ITEMMEMBERS      RetentionPolicyNotifyRecipients = "ITEM_MEMBERS"
-	TENANTADMINS     RetentionPolicyNotifyRecipients = "TENANT_ADMINS"
+	RetentionPolicyNotifyRecipientsCOLLECTIONADMINS RetentionPolicyNotifyRecipients = "COLLECTION_ADMINS"
+	RetentionPolicyNotifyRecipientsITEMMEMBERS      RetentionPolicyNotifyRecipients = "ITEM_MEMBERS"
+	RetentionPolicyNotifyRecipientsTENANTADMINS     RetentionPolicyNotifyRecipients = "TENANT_ADMINS"
 )
 
 // Valid indicates whether the value is a known member of the RetentionPolicyNotifyRecipients enum.
 func (e RetentionPolicyNotifyRecipients) Valid() bool {
 	switch e {
-	case COLLECTIONADMINS:
+	case RetentionPolicyNotifyRecipientsCOLLECTIONADMINS:
 		return true
-	case ITEMMEMBERS:
+	case RetentionPolicyNotifyRecipientsITEMMEMBERS:
 		return true
-	case TENANTADMINS:
+	case RetentionPolicyNotifyRecipientsTENANTADMINS:
 		return true
 	default:
 		return false
@@ -2175,6 +2217,87 @@ func (e RetentionPolicyThenAction) Valid() bool {
 	case RetentionPolicyThenActionLessThannil:
 		return true
 	case RetentionPolicyThenActionTRASH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionPolicyUpdateAction.
+const (
+	RetentionPolicyUpdateActionANONYMIZE        RetentionPolicyUpdateAction = "ANONYMIZE"
+	RetentionPolicyUpdateActionARCHIVE          RetentionPolicyUpdateAction = "ARCHIVE"
+	RetentionPolicyUpdateActionEXPORTTHENDELETE RetentionPolicyUpdateAction = "EXPORT_THEN_DELETE"
+	RetentionPolicyUpdateActionHARDDELETE       RetentionPolicyUpdateAction = "HARD_DELETE"
+	RetentionPolicyUpdateActionNOTIFYONLY       RetentionPolicyUpdateAction = "NOTIFY_ONLY"
+	RetentionPolicyUpdateActionTRASH            RetentionPolicyUpdateAction = "TRASH"
+)
+
+// Valid indicates whether the value is a known member of the RetentionPolicyUpdateAction enum.
+func (e RetentionPolicyUpdateAction) Valid() bool {
+	switch e {
+	case RetentionPolicyUpdateActionANONYMIZE:
+		return true
+	case RetentionPolicyUpdateActionARCHIVE:
+		return true
+	case RetentionPolicyUpdateActionEXPORTTHENDELETE:
+		return true
+	case RetentionPolicyUpdateActionHARDDELETE:
+		return true
+	case RetentionPolicyUpdateActionNOTIFYONLY:
+		return true
+	case RetentionPolicyUpdateActionTRASH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionPolicyUpdateNotifyRecipients.
+const (
+	RetentionPolicyUpdateNotifyRecipientsCOLLECTIONADMINS RetentionPolicyUpdateNotifyRecipients = "COLLECTION_ADMINS"
+	RetentionPolicyUpdateNotifyRecipientsITEMMEMBERS      RetentionPolicyUpdateNotifyRecipients = "ITEM_MEMBERS"
+	RetentionPolicyUpdateNotifyRecipientsTENANTADMINS     RetentionPolicyUpdateNotifyRecipients = "TENANT_ADMINS"
+)
+
+// Valid indicates whether the value is a known member of the RetentionPolicyUpdateNotifyRecipients enum.
+func (e RetentionPolicyUpdateNotifyRecipients) Valid() bool {
+	switch e {
+	case RetentionPolicyUpdateNotifyRecipientsCOLLECTIONADMINS:
+		return true
+	case RetentionPolicyUpdateNotifyRecipientsITEMMEMBERS:
+		return true
+	case RetentionPolicyUpdateNotifyRecipientsTENANTADMINS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionPolicyUpdateThenAction.
+const (
+	RetentionPolicyUpdateThenActionANONYMIZE        RetentionPolicyUpdateThenAction = "ANONYMIZE"
+	RetentionPolicyUpdateThenActionARCHIVE          RetentionPolicyUpdateThenAction = "ARCHIVE"
+	RetentionPolicyUpdateThenActionEXPORTTHENDELETE RetentionPolicyUpdateThenAction = "EXPORT_THEN_DELETE"
+	RetentionPolicyUpdateThenActionHARDDELETE       RetentionPolicyUpdateThenAction = "HARD_DELETE"
+	RetentionPolicyUpdateThenActionLessThannil      RetentionPolicyUpdateThenAction = "<nil>"
+	RetentionPolicyUpdateThenActionTRASH            RetentionPolicyUpdateThenAction = "TRASH"
+)
+
+// Valid indicates whether the value is a known member of the RetentionPolicyUpdateThenAction enum.
+func (e RetentionPolicyUpdateThenAction) Valid() bool {
+	switch e {
+	case RetentionPolicyUpdateThenActionANONYMIZE:
+		return true
+	case RetentionPolicyUpdateThenActionARCHIVE:
+		return true
+	case RetentionPolicyUpdateThenActionEXPORTTHENDELETE:
+		return true
+	case RetentionPolicyUpdateThenActionHARDDELETE:
+		return true
+	case RetentionPolicyUpdateThenActionLessThannil:
+		return true
+	case RetentionPolicyUpdateThenActionTRASH:
 		return true
 	default:
 		return false
@@ -2895,6 +3018,27 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceStatus.
+const (
+	WorkspaceStatusACTIVE          WorkspaceStatus = "ACTIVE"
+	WorkspaceStatusPENDINGDELETION WorkspaceStatus = "PENDING_DELETION"
+	WorkspaceStatusSUSPENDED       WorkspaceStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStatus enum.
+func (e WorkspaceStatus) Valid() bool {
+	switch e {
+	case WorkspaceStatusACTIVE:
+		return true
+	case WorkspaceStatusPENDINGDELETION:
+		return true
+	case WorkspaceStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -3243,6 +3387,9 @@ type AiProvider struct {
 
 	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed.
 	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// HasApiKey Whether a key is stored, which is the whole of what this surface says about one (J-02). The key itself is sealed on the way in and answered by nothing afterwards - so this is the only way an operator can tell "configured with a key" from "configured without one", and a setup screen that could not tell them apart would have to ask for the key again to find out.
+	HasApiKey bool `json:"has_api_key"`
 
 	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
 	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
@@ -3638,6 +3785,28 @@ type BackupScheduleNotifyOn string
 
 // BackupScheduleScopeKind defines model for BackupSchedule.Scope.Kind.
 type BackupScheduleScopeKind string
+
+// BackupScheduleUpdate Every field optional; an omitted one is left alone. The target and the scope are not among them: a schedule that moved either would be a different schedule under an old identifier, and the archives already at the target would disagree with it.
+type BackupScheduleUpdate struct {
+	// Enabled Off keeps the rule and owes nothing: `next_run_at` is cleared, and switching it back on computes the next moment afresh rather than resuming a missed one.
+	Enabled      *bool                           `json:"enabled,omitempty"`
+	FullRrule    *string                         `json:"full_rrule,omitempty"`
+	IncludeAudit *bool                           `json:"include_audit,omitempty"`
+	IncludeMedia *bool                           `json:"include_media,omitempty"`
+	Mode         *BackupScheduleUpdateMode       `json:"mode,omitempty"`
+	NotifyOn     *[]BackupScheduleUpdateNotifyOn `json:"notify_on,omitempty"`
+
+	// Retention The generation principle. `min_keep` prevents no backup being left at all.
+	Retention *BackupRetention `json:"retention,omitempty"`
+	Rrule     *string          `json:"rrule,omitempty"`
+	Timezone  *string          `json:"timezone,omitempty"`
+}
+
+// BackupScheduleUpdateMode defines model for BackupScheduleUpdate.Mode.
+type BackupScheduleUpdateMode string
+
+// BackupScheduleUpdateNotifyOn defines model for BackupScheduleUpdate.NotifyOn.
+type BackupScheduleUpdateNotifyOn string
 
 // BackupStart A backup asked for by hand rather than by a schedule.
 type BackupStart struct {
@@ -5447,6 +5616,36 @@ type RetentionPolicyScopeKind string
 // RetentionPolicyThenAction defines model for RetentionPolicy.ThenAction.
 type RetentionPolicyThenAction string
 
+// RetentionPolicyUpdate Every field optional; an omitted one is left alone. The kind and the scope are not among them: a rule that changed either would be a different rule under an old identifier.
+type RetentionPolicyUpdate struct {
+	Action *RetentionPolicyUpdateAction `json:"action,omitempty"`
+
+	// Condition An optional CEL expression. Null clears it.
+	Condition      *string             `json:"condition,omitempty"`
+	Enabled        *bool               `json:"enabled,omitempty"`
+	ExportTargetId *openapi_types.UUID `json:"export_target_id,omitempty"`
+	GraceDays      *int                `json:"grace_days,omitempty"`
+
+	// Justification Why the period exceeds the kind's upper bound. Required whenever the period after the change does, and replaced rather than kept: a justification belongs to the period it justifies.
+	Justification *string `json:"justification,omitempty"`
+	Notify        *struct {
+		BeforeDays *int                                     `json:"before_days,omitempty"`
+		Recipients *[]RetentionPolicyUpdateNotifyRecipients `json:"recipients,omitempty"`
+	} `json:"notify,omitempty"`
+	RetainDays    *int                             `json:"retain_days,omitempty"`
+	ThenAction    *RetentionPolicyUpdateThenAction `json:"then_action,omitempty"`
+	ThenAfterDays *int                             `json:"then_after_days,omitempty"`
+}
+
+// RetentionPolicyUpdateAction defines model for RetentionPolicyUpdate.Action.
+type RetentionPolicyUpdateAction string
+
+// RetentionPolicyUpdateNotifyRecipients defines model for RetentionPolicyUpdate.Notify.Recipients.
+type RetentionPolicyUpdateNotifyRecipients string
+
+// RetentionPolicyUpdateThenAction defines model for RetentionPolicyUpdate.ThenAction.
+type RetentionPolicyUpdateThenAction string
+
 // RetentionState Visible on the object for as long as a retention rule applies.
 type RetentionState struct {
 	Action      *string                  `json:"action,omitempty"`
@@ -6166,6 +6365,8 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each §4 limit, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
+	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports (J-15). Unlimited in single mode by default and a real number in multi, like every other row of multi-tenancy.md §4. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
@@ -6525,6 +6726,46 @@ type WorkItemUpdate struct {
 	Title       *string    `json:"title,omitempty"`
 }
 
+// Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
+type Workspace struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation (i18n-l10n.md §2).
+	DefaultLocale string `json:"default_locale"`
+
+	// DefaultTimeZone An IANA zone, for the same position in the same chain.
+	DefaultTimeZone string             `json:"default_time_zone"`
+	DisplayName     string             `json:"display_name"`
+	Id              openapi_types.UUID `json:"id"`
+
+	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
+	RequireAdminTotp bool `json:"require_admin_totp"`
+
+	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
+	Slug string `json:"slug"`
+
+	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
+	Status    WorkspaceStatus `json:"status"`
+	UpdatedAt *time.Time      `json:"updated_at,omitempty"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
+type WorkspaceStatus string
+
+// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
+type WorkspaceUpdate struct {
+	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
+	DefaultLocale *string `json:"default_locale,omitempty"`
+
+	// DefaultTimeZone An IANA zone. One that does not load is a field error.
+	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
+	DisplayName      *string `json:"display_name,omitempty"`
+	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+}
+
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
@@ -6767,6 +7008,12 @@ type ListRuleRunsParamsTrigger string
 type ReplayRuleRunParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateBackupScheduleParams defines parameters for UpdateBackupSchedule.
+type UpdateBackupScheduleParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
@@ -7407,6 +7654,12 @@ type ListRetentionPoliciesParams struct {
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
 
+// UpdateRetentionPolicyParams defines parameters for UpdateRetentionPolicy.
+type UpdateRetentionPolicyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -7454,6 +7707,12 @@ type UpdateTemplateParams struct {
 type InstantiateTemplateParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateWorkspaceParams defines parameters for UpdateWorkspace.
+type UpdateWorkspaceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -7590,6 +7849,9 @@ type TestRuleJSONRequestBody = RuleTest
 
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
+
+// UpdateBackupScheduleApplicationMergePatchPlusJSONRequestBody defines body for UpdateBackupSchedule for application/merge-patch+json ContentType.
+type UpdateBackupScheduleApplicationMergePatchPlusJSONRequestBody = BackupScheduleUpdate
 
 // CreateBackupTargetJSONRequestBody defines body for CreateBackupTarget for application/json ContentType.
 type CreateBackupTargetJSONRequestBody = BackupTargetCreate
@@ -7765,6 +8027,9 @@ type StartRestoreJSONRequestBody = RestoreRequest
 // CreateRetentionPolicyJSONRequestBody defines body for CreateRetentionPolicy for application/json ContentType.
 type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
 
+// UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody defines body for UpdateRetentionPolicy for application/merge-patch+json ContentType.
+type UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody = RetentionPolicyUpdate
+
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
 
@@ -7785,6 +8050,9 @@ type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation
+
+// UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
+type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -7962,15 +8230,27 @@ type ServerInterface interface {
 	// ReplayRuleRun Complete a failed run
 	// (POST /automation/runs/{runId}:replay)
 	ReplayRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID, params ReplayRuleRunParams)
+	// ListBackupSchedules The schedules the workspace has
+	// (GET /backup-schedules)
+	ListBackupSchedules(w http.ResponseWriter, r *http.Request)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
+	// DeleteBackupSchedule Remove a schedule
+	// (DELETE /backup-schedules/{scheduleId})
+	DeleteBackupSchedule(w http.ResponseWriter, r *http.Request, scheduleId openapi_types.UUID)
+	// UpdateBackupSchedule Change a schedule, or switch it off
+	// (PATCH /backup-schedules/{scheduleId})
+	UpdateBackupSchedule(w http.ResponseWriter, r *http.Request, scheduleId openapi_types.UUID, params UpdateBackupScheduleParams)
 	// ListBackupTargets List the backup targets
 	// (GET /backup-targets)
 	ListBackupTargets(w http.ResponseWriter, r *http.Request)
 	// CreateBackupTarget Create a backup target
 	// (POST /backup-targets)
 	CreateBackupTarget(w http.ResponseWriter, r *http.Request)
+	// DeleteBackupTarget Remove a backup target from the workspace's configuration
+	// (DELETE /backup-targets/{targetId})
+	DeleteBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID)
 	// ListBackupsAtTarget List the backups present at the target
 	// (GET /backup-targets/{targetId}/backups)
 	ListBackupsAtTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID, params ListBackupsAtTargetParams)
@@ -8394,6 +8674,12 @@ type ServerInterface interface {
 	// CreateRetentionPolicy Create a retention rule
 	// (POST /retention-policies)
 	CreateRetentionPolicy(w http.ResponseWriter, r *http.Request)
+	// DeleteRetentionPolicy Withdraw a retention rule
+	// (DELETE /retention-policies/{policyId})
+	DeleteRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
+	// UpdateRetentionPolicy Correct a retention rule, or take it out of enforcement
+	// (PATCH /retention-policies/{policyId})
+	UpdateRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID, params UpdateRetentionPolicyParams)
 	// PreviewRetentionPolicy Determine the effect of a rule without executing it
 	// (POST /retention-policies/{policyId}:preview)
 	PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
@@ -8439,6 +8725,12 @@ type ServerInterface interface {
 
 	// (POST /templates/{templateId}:instantiate)
 	InstantiateTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params InstantiateTemplateParams)
+	// ReadWorkspace The workspace the caller is in, and how it is set up
+	// (GET /tenant)
+	ReadWorkspace(w http.ResponseWriter, r *http.Request)
+	// UpdateWorkspace Change how the workspace is set up
+	// (PATCH /tenant)
+	UpdateWorkspace(w http.ResponseWriter, r *http.Request, params UpdateWorkspaceParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -10071,11 +10363,101 @@ func (siw *ServerInterfaceWrapper) ReplayRuleRun(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListBackupSchedules operation middleware
+func (siw *ServerInterfaceWrapper) ListBackupSchedules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBackupSchedules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateBackupSchedule operation middleware
 func (siw *ServerInterfaceWrapper) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateBackupSchedule(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBackupSchedule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBackupSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scheduleId" -------------
+	var scheduleId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scheduleId", r.PathValue("scheduleId"), &scheduleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scheduleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBackupSchedule(w, r, scheduleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateBackupSchedule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateBackupSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scheduleId" -------------
+	var scheduleId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scheduleId", r.PathValue("scheduleId"), &scheduleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scheduleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateBackupScheduleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateBackupSchedule(w, r, scheduleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10104,6 +10486,32 @@ func (siw *ServerInterfaceWrapper) CreateBackupTarget(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateBackupTarget(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBackupTarget(w, r, targetId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15850,6 +16258,82 @@ func (siw *ServerInterfaceWrapper) CreateRetentionPolicy(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteRetentionPolicy operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRetentionPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyId" -------------
+	var policyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyId", r.PathValue("policyId"), &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRetentionPolicy(w, r, policyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRetentionPolicy operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRetentionPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyId" -------------
+	var policyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyId", r.PathValue("policyId"), &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateRetentionPolicyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRetentionPolicy(w, r, policyId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PreviewRetentionPolicy operation middleware
 func (siw *ServerInterfaceWrapper) PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request) {
 
@@ -16377,6 +16861,61 @@ func (siw *ServerInterfaceWrapper) InstantiateTemplate(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InstantiateTemplate(w, r, templateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWorkspace(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateWorkspaceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWorkspace(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16969,9 +17508,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:export", wrapper.ExportAuditTrail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets", wrapper.ListBackupTargets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets", wrapper.CreateBackupTarget)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/backup-targets/{targetId}", wrapper.DeleteBackupTarget)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets/{targetId}:test", wrapper.TestBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets/{targetId}/backups", wrapper.ListBackupsAtTarget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-schedules", wrapper.ListBackupSchedules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-schedules", wrapper.CreateBackupSchedule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/backup-schedules/{scheduleId}", wrapper.DeleteBackupSchedule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/backup-schedules/{scheduleId}", wrapper.UpdateBackupSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backups/{backupId}", wrapper.GetBackupRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
@@ -16986,6 +17529,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/legal-holds/{holdId}:release", wrapper.ReleaseLegalHold)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies", wrapper.CreateRetentionPolicy)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/retention-policies/{policyId}", wrapper.DeleteRetentionPolicy)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/retention-policies/{policyId}", wrapper.UpdateRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:retain", wrapper.RetainItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:pull", wrapper.SyncPull)
@@ -17025,6 +17570,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)

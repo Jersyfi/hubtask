@@ -1756,6 +1756,29 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
 
+  /backup-targets/{targetId}:
+    parameters:
+      - { name: targetId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [backup]
+      operationId: deleteBackupTarget
+      summary: Remove a backup target from the workspace's configuration
+      description: >
+        Removes the target and its sealed credential. **Nothing at the target is touched.**
+        `backup-restore.md`'s rule that Hubtask never deletes a file it did not write applies at
+        least as strongly to the files it did write: the archives stay where they are, and an
+        operator who wants them gone removes them at the target.
+
+        A target a schedule still names is refused with `409` and the schedules named in the
+        problem document. Deleting one silently would disarm a backup that runs every night, and
+        the disarming would be discovered by whoever needed the archive.
+
+        Deleting one that is not there is not an error. Auditable.
+      responses:
+        "204":
+          description: Removed
+        "4XX": { $ref: "#/components/responses/Problem" }
+
   /backup-targets/{targetId}:test:
     post:
       tags: [backup]
@@ -1795,6 +1818,27 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
 
   /backup-schedules:
+    get:
+      tags: [backup]
+      operationId: listBackupSchedules
+      summary: The schedules the workspace has
+      description: >
+        What runs on its own, and when it next will. Needs the permission that manages structure,
+        or the auditor's read-only configuration permission - a schedule is what a workspace has
+        decided will leave it every night, which is exactly what an auditor reads.
+
+        `next_run_at` is absent for a schedule that is switched off and for one whose recurrence
+        is exhausted. The second is not an error: the rule may be perfectly good and simply spent,
+        and the schedule stays visible and editable rather than disappearing.
+      responses:
+        "200":
+          description: The schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BackupSchedule" }
+        "4XX": { $ref: "#/components/responses/Problem" }
     post:
       tags: [backup]
       operationId: createBackupSchedule
@@ -1812,6 +1856,56 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BackupSchedule" }
         "400": { $ref: "#/components/responses/Problem" }
+
+  /backup-schedules/{scheduleId}:
+    parameters:
+      - { name: scheduleId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [backup]
+      operationId: updateBackupSchedule
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      summary: Change a schedule, or switch it off
+      description: >
+        Merge-patch: an absent key changes nothing. `enabled` is the field that matters most and
+        the reason a `DELETE` is not the only answer - switching a schedule off keeps what
+        somebody worked out about hours, zones and generations, and turning it back on costs one
+        request rather than a form filled in again.
+
+        Changing the rule, the zone or the switch recomputes when it is next owed, here rather
+        than on every read. A rule with no occurrence inside a year stores no next moment and is
+        not refused, for the reason creating one is not.
+
+        The scope does not move: a schedule that changed from one hub to another would be a
+        different schedule wearing an old identifier, and the archives already at the target
+        would disagree with it. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/BackupScheduleUpdate" }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupSchedule" }
+        "4XX": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [backup]
+      operationId: deleteBackupSchedule
+      summary: Remove a schedule
+      description: >
+        The schedule stops existing and nothing else changes: the archives it produced stay at
+        the target, and the runs it started stay in the log. Removing one that is not there is
+        not an error. Auditable.
+
+        Switching a schedule off is usually the right operation and this one is not - `PATCH`
+        with `enabled: false` keeps the rule for the night somebody wants it back.
+      responses:
+        "204":
+          description: Removed
+        "4XX": { $ref: "#/components/responses/Problem" }
 
   /backups:
     post:
@@ -2134,6 +2228,57 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/RetentionPolicy" }
         "400": { $ref: "#/components/responses/Problem" }
+
+  /retention-policies/{policyId}:
+    parameters:
+      - { name: policyId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [retention]
+      operationId: updateRetentionPolicy
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      summary: Correct a retention rule, or take it out of enforcement
+      description: >
+        Merge-patch: an absent key changes nothing. A rule that deletes data has to be
+        correctable, and `mode` is what takes one out of enforcement without losing what it says -
+        `NOTIFY_ONLY` reports what it would remove and removes nothing, which is where a new rule
+        starts when its first run would affect more than 5% of the holdings (`data-retention.md`
+        §7) and where a rule somebody has doubts about belongs.
+
+        Extending a period beyond the data kind's upper bound needs a `justification`, here as
+        much as at creation, and the one stored is replaced rather than kept: the justification
+        belongs to the period it justifies.
+
+        The kind and the scope do not move. A rule that changed either would be a different rule
+        under an old identifier, and the unique index over the pair is what makes "the rule for
+        this kind at this level" a thing one can name at all. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/RetentionPolicyUpdate" }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetentionPolicy" }
+        "4XX": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [retention]
+      operationId: deleteRetentionPolicy
+      summary: Withdraw a retention rule
+      description: >
+        The rule stops applying. What it already did stands - retention deletes, and a deletion is
+        not undone by withdrawing the instruction that caused it - and what it had marked for a
+        future pass is unmarked, because an entry counting down towards a rule nobody holds any
+        more would be deleted by a rule that does not exist.
+
+        Withdrawing one that is not there is not an error. Auditable.
+      responses:
+        "204":
+          description: Withdrawn
+        "4XX": { $ref: "#/components/responses/Problem" }
 
   /retention-policies/{policyId}:preview:
     post:
@@ -3201,6 +3346,71 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/QuotaStanding"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant:
+    get:
+      tags: [meta]
+      operationId: readWorkspace
+      summary: The workspace the caller is in, and how it is set up
+      description: >
+        The workspace's own view of itself: the slug it is reached by, its display name, its
+        standing, the locale and time zone every member without a preference of their own falls
+        back to (i18n-l10n.md §2), and the settings it configures - today the one switch that
+        demands a second factor of its administrators.
+
+        Needs `READ`, or the auditor's read-only configuration permission: how a workspace is set
+        up is configuration, and an auditor reads configuration without holding `READ`.
+
+        This is not `/admin/tenants`. That listing is the installation operator's and crosses
+        workspaces; this answers one workspace to the people inside it, and answers no other.
+      responses:
+        "200":
+          description: The workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [meta]
+      operationId: updateWorkspace
+      summary: Change how the workspace is set up
+      description: >
+        Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs
+        the permission that manages structure. Auditable, with the before and the after of every
+        field that moved.
+
+        `require_admin_totp` is the field with a consequence beyond its own row: switching it on
+        makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not
+        enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is
+        recorded like the security decision it is.
+
+        The slug does not move here. It is the hostname in multi mode and the base of the OIDC
+        redirect this installation registered, so renaming it is the operator's operation at
+        `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown
+        field rather than accepted and quietly ignored.
+
+        Settings this version does not model are left where they are. A workspace's settings
+        document outlives any one release of this client, and a partial write that rewrote it
+        whole would discard what a later one put there.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceUpdate"
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -6961,7 +7171,7 @@ components:
       description: >
         How this workspace uses AI, if it does. The API key is not a member: it is sealed at
         configuration time and opened only by the adapter that makes the call.
-      required: [kind, jurisdiction, processing_allowed, created_at, version]
+      required: [kind, jurisdiction, has_api_key, processing_allowed, created_at, version]
       properties:
         kind:
           $ref: "#/components/schemas/AiProviderKind"
@@ -6980,6 +7190,14 @@ components:
           description: The model a vector is asked of. Empty means this provider does not embed.
         jurisdiction:
           $ref: "#/components/schemas/AiJurisdiction"
+        has_api_key:
+          type: boolean
+          description: >
+            Whether a key is stored, which is the whole of what this surface says about one (J-02).
+            The key itself is sealed on the way in and answered by nothing afterwards - so this is
+            the only way an operator can tell "configured with a key" from "configured without
+            one", and a setup screen that could not tell them apart would have to ask for the key
+            again to find out.
         processing_allowed:
           type: boolean
           description: >
@@ -7044,6 +7262,72 @@ components:
         needs the operator's confirmation in the installation's configuration; the adequacy
         decision or the standard contractual clauses, and the transfer impact assessment, remain
         the operator's obligation (data-protection.md §6).
+
+    Workspace:
+      type: object
+      description: >
+        A workspace as the people inside it see it. `AdminTenant` is the same row as the
+        installation operator sees it, across workspaces; this one is answered to a member and
+        carries what a member may act on.
+      required:
+        [id, slug, display_name, status, default_locale, default_time_zone,
+         require_admin_totp, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        slug:
+          type: string
+          description: >
+            The subdomain label the workspace is reached by in multi mode. Read-only here - see
+            the note on the `PATCH`.
+        display_name: { type: string }
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, PENDING_DELETION]
+          description: >
+            The workspace's standing. A suspended one refuses every request before a use case is
+            reached, so a member reading this field is reading it from an installation that let
+            them in.
+        default_locale:
+          type: string
+          description: >
+            The locale a member without one of their own falls back to - the third link of the
+            chain request, account, tenant, installation (i18n-l10n.md §2).
+        default_time_zone:
+          type: string
+          description: An IANA zone, for the same position in the same chain.
+        require_admin_totp:
+          type: boolean
+          description: >
+            Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role
+            holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0`
+            and, until this operation, was writable by nothing.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version:
+          type: integer
+          description: The optimistic lock, as everywhere else.
+
+    WorkspaceUpdate:
+      type: object
+      description: >
+        Every field optional; an omitted one is left alone, which is what merge-patch means. An
+        explicit `null` is read as an absent key rather than as "clear it", and nothing is lost
+        by that: none of these four has an absent state - a workspace always has a name, a
+        locale, a zone and an answer to the enforcement question - so there is nothing for a null
+        to mean here.
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        default_locale:
+          type: string
+          description: A BCP-47 tag. One this installation cannot resolve is a field error.
+        default_time_zone:
+          type: string
+          description: An IANA zone. One that does not load is a field error.
+        require_admin_totp:
+          type: boolean
 
     IdentityProvider:
       type: object
@@ -7317,7 +7601,7 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day]
         limit:
           type: integer
           format: int64
@@ -7346,6 +7630,17 @@ components:
         automation_runs_per_hour: { type: [integer, "null"], format: int64, minimum: 0 }
         webhook_targets: { type: [integer, "null"], format: int64, minimum: 0 }
         export_jobs: { type: [integer, "null"], format: int64, minimum: 0 }
+        ai_tokens_per_day:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            What the workspace may spend on AI in a day, counted in the tokens every provider
+            reports (J-15). Unlimited in single mode by default and a real number in multi, like
+            every other row of multi-tenancy.md §4. A workspace over its budget stops making
+            suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent
+            provider and an open circuit answer, so nothing that calls AI needs a second way to
+            degrade.
 
     TenantDeletionScheduled:
       type: object
@@ -10331,6 +10626,29 @@ components:
         enabled: { type: boolean, default: true }
         next_run_at: { type: [string, "null"], format: date-time, readOnly: true }
 
+    BackupScheduleUpdate:
+      type: object
+      description: >
+        Every field optional; an omitted one is left alone. The target and the scope are not among
+        them: a schedule that moved either would be a different schedule under an old identifier,
+        and the archives already at the target would disagree with it.
+      properties:
+        rrule: { type: string, example: "FREQ=DAILY;BYHOUR=3;BYMINUTE=0" }
+        timezone: { type: string }
+        mode: { type: string, enum: [FULL, INCREMENTAL] }
+        full_rrule: { type: [string, "null"] }
+        include_media: { type: boolean }
+        include_audit: { type: boolean }
+        retention: { $ref: "#/components/schemas/BackupRetention" }
+        notify_on:
+          type: array
+          items: { type: string, enum: [FAILURE, SUCCESS, FIRST_SUCCESS_AFTER_FAILURE] }
+        enabled:
+          type: boolean
+          description: >
+            Off keeps the rule and owes nothing: `next_run_at` is cleared, and switching it back
+            on computes the next moment afresh rather than resuming a missed one.
+
     BackupRetention:
       type: object
       description: The generation principle. `min_keep` prevents no backup being left at all.
@@ -10622,6 +10940,34 @@ components:
             (`container_id`). Absent from a listing that named no container: with nothing to be in
             force *in*, the question has no answer. The narrower rule wins, and a rule switched off
             in a collection lets the wider one through rather than stopping it.
+
+    RetentionPolicyUpdate:
+      type: object
+      description: >
+        Every field optional; an omitted one is left alone. The kind and the scope are not among
+        them: a rule that changed either would be a different rule under an old identifier.
+      properties:
+        condition: { type: [string, "null"], description: An optional CEL expression. Null clears it. }
+        retain_days: { type: integer, minimum: 0 }
+        action: { type: string, enum: [ARCHIVE, TRASH, ANONYMIZE, HARD_DELETE, EXPORT_THEN_DELETE, NOTIFY_ONLY] }
+        then_after_days: { type: [integer, "null"] }
+        then_action: { type: [string, "null"], enum: [ARCHIVE, TRASH, ANONYMIZE, HARD_DELETE, EXPORT_THEN_DELETE, null] }
+        grace_days: { type: integer }
+        notify:
+          type: object
+          properties:
+            before_days: { type: integer }
+            recipients:
+              type: array
+              items: { type: string, enum: [ITEM_MEMBERS, COLLECTION_ADMINS, TENANT_ADMINS] }
+        justification:
+          type: [string, "null"]
+          description: >
+            Why the period exceeds the kind's upper bound. Required whenever the period after
+            the change does, and replaced rather than kept: a justification belongs to the period
+            it justifies.
+        enabled: { type: boolean }
+        export_target_id: { type: [string, "null"], format: uuid }
 
     LegalHold:
       type: object

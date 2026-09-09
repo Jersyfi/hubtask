@@ -107,6 +107,30 @@ func (q *Queries) SumTenantMediaBytes(ctx context.Context) (int64, error) {
 	return column_1, err
 }
 
+const sumTenantUsageSince = `-- name: SumTenantUsageSince :one
+SELECT coalesce(sum(value), 0)::bigint FROM usage_record
+WHERE metric = $1 AND period >= $2
+`
+
+type SumTenantUsageSinceParams struct {
+	Metric string
+	Since  pgtype.Date
+}
+
+// What the workspace has spent on one metered thing since a day (J-15).
+//
+// The ledger as an enforcement source, which the statement below is at pains to say it is not -
+// and the exception is the point rather than an oversight. `usage_record` is barred elsewhere
+// because it is a lagging copy of something countable: items are in `work_item`, media in
+// `media_object`. A token has no row. It was spent on somebody else's machine and this tally *is*
+// the record, so there is nothing more authoritative to count.
+func (q *Queries) SumTenantUsageSince(ctx context.Context, arg SumTenantUsageSinceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumTenantUsageSince, arg.Metric, arg.Since)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const tenantQuotaOverrides = `-- name: TenantQuotaOverrides :one
 
 SELECT coalesce(settings->'quotas', '{}'::jsonb)::text FROM tenant WHERE id = current_tenant_id()

@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	port "github.com/Jersyfi/hubtask/core/port/ai"
 )
 
 // catalogue is the registry as this server sees it, built from a real descriptor so that the
@@ -32,6 +33,9 @@ type catalogue struct {
 	calls []invocation
 	// errs refuses one named use case and lets the rest through.
 	errs map[string]error
+	// acted records the kind the actor had when it reached the catalogue, which is the whole of
+	// what this adapter decides about an actor.
+	acted appshared.ActorKind
 }
 
 type invocation struct {
@@ -50,8 +54,8 @@ func (c *catalogue) ByMCPTool(tool string) (usecase.Descriptor, bool) {
 	return usecase.Descriptor{}, false
 }
 
-func (c *catalogue) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-	c.invokedName, c.invokedIn = name, in
+func (c *catalogue) Invoke(_ context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	c.invokedName, c.invokedIn, c.acted = name, in, actor.Kind
 	c.calls = append(c.calls, invocation{name: name, in: in})
 	if err, refused := c.errs[name]; refused {
 		return nil, err
@@ -352,5 +356,41 @@ func TestAMethodTheTransportDoesNotDefineIsRefused(t *testing.T) {
 	}
 	if allow := recorder.Header().Get("Allow"); allow != "GET, POST, DELETE" {
 		t.Errorf("Allow is %q", allow)
+	}
+}
+
+// Every call through this door is an agent's, whatever the credential behind it says (J-14).
+//
+// Authentication answers USER or SERVICE_ACCOUNT from the account that owns the token, which is the
+// right answer to "who owns this" and the wrong one to "what is acting". A person calling /mcp with
+// their own token is acting through the agent interface: they are recorded as having done so, and
+// they are held to the agent's guardrails.
+func TestEveryCallThroughThisDoorIsAnAgents(t *testing.T) {
+	for _, presented := range []appshared.ActorKind{
+		appshared.ActorUser, appshared.ActorServiceAccount,
+	} {
+		store := &catalogue{descriptors: []usecase.Descriptor{descriptor()}, out: usecase.Output{"id": "x"}}
+		server := serverWith(store)
+		server.Prompts = promptStore{prompts: []port.Prompt{weeklyReview()}}
+
+		ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+			Kind:      presented,
+			TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		})
+
+		for _, body := range []string{
+			`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"create_container","arguments":{}}}`,
+			`{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"hubtask://items/0192f000-0000-7000-8000-000000000401"}}`,
+			`{"jsonrpc":"2.0","id":1,"method":"resources/list"}`,
+		} {
+			store.acted = ""
+			request := httptest.NewRequestWithContext(ctx, http.MethodPost, Path, strings.NewReader(body))
+			server.ServeHTTP(httptest.NewRecorder(), request)
+
+			if store.acted != appshared.ActorAIAgent {
+				t.Errorf("a %s calling %s acted as %q, want an agent", presented, body[:60], store.acted)
+			}
+		}
 	}
 }

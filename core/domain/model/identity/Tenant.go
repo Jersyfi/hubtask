@@ -88,40 +88,80 @@ func NewTenant(in NewTenantInput) (Tenant, error) {
 			WithFields(shared.FieldError{Path: "/slug", Code: "admin.slug_invalid"})
 	}
 
-	name := strings.TrimSpace(in.DisplayName)
-	if name == "" || utf8.RuneCountInString(name) > 200 || strings.ContainsFunc(name, unicode.IsControl) {
-		return Tenant{}, shared.ErrValidation.
-			WithDetail("admin.display_name_invalid").
-			WithFields(shared.FieldError{Path: "/display_name", Code: "admin.display_name_invalid"})
+	name, err := ValidDisplayName(in.DisplayName)
+	if err != nil {
+		return Tenant{}, err
 	}
 
+	// Provisioning may leave either empty and mean "the installation's own": a workspace always
+	// has both, because they are the last two links of every person's resolution chain
+	// (i18n-l10n.md §2). Changing one later is a different act and has no such default, which is
+	// why the defaulting lives here and not in the validator.
 	locale := strings.TrimSpace(in.DefaultLocale)
 	if locale == "" {
 		locale = "en"
 	}
-	tag, ok := shared.LanguageTag(locale)
-	if !ok {
-		return Tenant{}, shared.ErrValidation.
-			WithDetail("admin.locale_invalid").
-			WithParams(map[string]string{"value": locale}).
-			WithFields(shared.FieldError{Path: "/default_locale", Code: "admin.locale_invalid"})
+	tag, err := ValidDefaultLocale(locale)
+	if err != nil {
+		return Tenant{}, err
 	}
 
 	zone := strings.TrimSpace(in.DefaultTimeZone)
 	if zone == "" {
 		zone = "UTC"
 	}
-	if _, err := time.LoadLocation(zone); err != nil {
-		return Tenant{}, shared.ErrValidation.
-			WithDetail("admin.time_zone_invalid").
-			WithParams(map[string]string{"value": zone}).
-			WithFields(shared.FieldError{Path: "/default_time_zone", Code: "admin.time_zone_invalid"})
+	zone, err = ValidDefaultTimeZone(zone)
+	if err != nil {
+		return Tenant{}, err
 	}
 
 	return Tenant{
 		ID: in.ID, Slug: slug, DisplayName: name, Status: TenantActive,
 		DefaultLocale: tag, DefaultTimeZone: zone, CreatedAt: in.Now.UTC(),
 	}, nil
+}
+
+// ValidDisplayName is the name rule, shared by provisioning and by a workspace changing its own
+// (F4-01) so that one refusal cannot drift into two.
+func ValidDisplayName(value string) (string, error) {
+	name := strings.TrimSpace(value)
+	if name == "" || utf8.RuneCountInString(name) > 200 || strings.ContainsFunc(name, unicode.IsControl) {
+		return "", shared.ErrValidation.
+			WithDetail("admin.display_name_invalid").
+			WithFields(shared.FieldError{Path: "/display_name", Code: "admin.display_name_invalid"})
+	}
+	return name, nil
+}
+
+// ValidDefaultLocale answers the canonical tag, or the field error. Empty is refused here: the
+// caller that has a default applies it before asking.
+func ValidDefaultLocale(value string) (string, error) {
+	locale := strings.TrimSpace(value)
+	// Empty is refused explicitly: `LanguageTag` reads it as "no preference", which is a legal
+	// answer for an account and not one for a workspace - the chain has to end somewhere.
+	tag, ok := shared.LanguageTag(locale)
+	if locale == "" || !ok {
+		return "", shared.ErrValidation.
+			WithDetail("admin.locale_invalid").
+			WithParams(map[string]string{"value": locale}).
+			WithFields(shared.FieldError{Path: "/default_locale", Code: "admin.locale_invalid"})
+	}
+	return tag, nil
+}
+
+// ValidDefaultTimeZone answers the zone if this installation can load it. A zone the binary's
+// database does not know is refused here rather than at the first date somebody formats.
+func ValidDefaultTimeZone(value string) (string, error) {
+	zone := strings.TrimSpace(value)
+	// Empty is refused explicitly: `LoadLocation("")` answers UTC without complaining, and a
+	// workspace that meant UTC says so.
+	if _, err := time.LoadLocation(zone); zone == "" || err != nil {
+		return "", shared.ErrValidation.
+			WithDetail("admin.time_zone_invalid").
+			WithParams(map[string]string{"value": zone}).
+			WithFields(shared.FieldError{Path: "/default_time_zone", Code: "admin.time_zone_invalid"})
+	}
+	return zone, nil
 }
 
 // validTenantSlug is the database's check constraint, decided here first so the refusal is a

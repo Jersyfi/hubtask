@@ -136,6 +136,9 @@ var rlsExceptions = map[string]string{
 	"job":              "system jobs are partly tenant-less; access is restricted by privileges (db/schema.sql)",
 	"goose_db_version": "the migration ledger; the application role has no access at all",
 	"instance_event":   "the installation's own evidence journal (H-06): its rows outlive the tenants they name",
+	"item_capability_profile": "the system defaults (tenant_id IS NULL) are the owner's to seed and " +
+		"nobody else's to write, and FORCE would bind the owner too (ADR-0052). The policy still " +
+		"applies in full to every role that is not the owner, hubtask_app among them",
 }
 
 // rowLevelSecurityForced is T-20's structural half: every table carrying a tenant column has row

@@ -54,8 +54,12 @@ const defaultRetryAfter = time.Second
 // defends a server from targets its *users* named; here the user is the principal, and the most
 // ordinary thing they do is run `hubctl --url http://localhost:8080` against `make run`.
 type Client struct {
-	base  string
-	token secret.Secret
+	base string
+	// origin is the installation without the API path, for the one endpoint that is not under it:
+	// `/mcp` is JSON-RPC over a single path and belongs in no OpenAPI document, so it is mounted
+	// beside the specification's routes rather than on them (ai-first.md §1.1).
+	origin string
+	token  secret.Secret
 	// transport is the GuardedClient itself rather than the port, because the CLI is the one
 	// consumer of the streaming half - Do for the calls, Stream for `hubctl watch` - and the port
 	// deliberately does not know about streams (nothing in core consumes one).
@@ -117,6 +121,7 @@ func newClient(profile Profile, catalogue i18n.Catalogue, timeout time.Duration)
 	}
 	return &Client{
 		base:      profile.BaseURL + APIPath,
+		origin:    profile.BaseURL,
 		token:     profile.Credential(),
 		tenant:    profile.Tenant,
 		transport: httpclient.NewGuardedClient(cfg, httpclient.NewGuard(cfg)),
@@ -335,6 +340,44 @@ func (c *Client) exchange(
 		return response.Status, nil, c.problem(response)
 	}
 	return response.Status, response.Body, nil
+}
+
+// RPC calls the MCP endpoint, which is JSON-RPC over one path outside the API's own (J-16).
+//
+// It exists rather than being folded into `exchange` because two things about it differ and both
+// matter: the path hangs off the installation rather than off `/api/v1`, and a refusal comes back
+// as a JSON-RPC error object with a `200` rather than as a problem document with a status - so
+// `exchange`'s "status >= 400 is a refusal" reading would call every refusal a success.
+//
+// The session identifier is carried across calls by the caller, because the handshake is what
+// issues it and only the caller knows whether it has done one yet.
+func (c *Client) RPC(ctx context.Context, session string, body any) (int, map[string][]string, []byte, error) {
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("building the request: %w", err)
+	}
+
+	request := port.Request{
+		Method:      http.MethodPost,
+		URL:         c.origin + mcpPath,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":       {"application/json"},
+			"Content-Type": {"application/json"},
+			"User-Agent":   {"hubctl/" + version},
+		},
+		Body: encoded,
+	}
+	c.identify(request.Header)
+	if session != "" {
+		request.Header[mcpSessionHeader] = []string{session}
+	}
+
+	response, err := c.send(ctx, request)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	return response.Status, response.Header, response.Body, nil
 }
 
 // Download posts a request whose answer is a file rather than a payload, and hands the bytes back

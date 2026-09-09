@@ -20,6 +20,7 @@ import type { GroupDetail, Membership, MembershipPage, MembershipRole, Membershi
 
 import { accounts } from './accounts.svelte.ts';
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
@@ -88,22 +89,34 @@ class People {
    * rather than hidden, so nothing here has to refuse it a second time.
    */
   async grant(subject: { accountId?: string; groupId?: string }, role: MembershipRole, scope: Scope): Promise<void> {
-    await engine.mutate('POST', '/memberships', {
-      account_id: subject.accountId ?? null,
-      group_id: subject.groupId ?? null,
-      scope_type: scope.scopeType,
-      scope_id: scope.scopeId ?? null,
-      role,
-    }, {
-      idempotencyKey: crypto.randomUUID(),
-      invalidates: TOUCHES,
-    });
+    // The idempotency key is minted once, outside the step-up wrapper, so that the retry carrying
+    // the proof is the *same* intent rather than a second one - which is exactly what an
+    // idempotency key is for (`api-guidelines.md`).
+    const intent = crypto.randomUUID();
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('POST', '/memberships', {
+        account_id: subject.accountId ?? null,
+        group_id: subject.groupId ?? null,
+        scope_type: scope.scopeType,
+        scope_id: scope.scopeId ?? null,
+        role,
+      }, {
+        idempotencyKey: intent,
+        invalidates: TOUCHES,
+        stepUpToken,
+      }),
+    );
     await this.#reread(scope);
   }
 
   /** Revokes one grant. Only a grant made *here* can be revoked here; the row says which. */
   async revoke(membershipId: string, scope: Scope): Promise<void> {
-    await engine.mutate('DELETE', `/memberships/${membershipId}`, undefined, { invalidates: TOUCHES });
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('DELETE', `/memberships/${membershipId}`, undefined, {
+        invalidates: TOUCHES,
+        stepUpToken,
+      }),
+    );
     await this.#reread(scope);
   }
 

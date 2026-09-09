@@ -22,6 +22,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Resource | Path | Core operations |
 |---|---|---|
 | Capabilities/meta | `/meta/capabilities`, `/meta/health` | `GET` |
+| The workspace itself | `/tenant` | `GET`, `PATCH` — one workspace as the people inside it see it: the display name, the two defaults every member falls back to, and the switch that demands a second factor of its administrators (F4-01). Not `/admin/tenants`, which crosses workspaces and is the installation operator's |
 | Tenants (admin) | `/admin/tenants` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :export` |
 | Encryption (admin) | `/admin/encryption` | `GET`, `POST :reseal` — the keyring's census and the re-seal that lets a key retire (ADR-0045) |
 | Accounts | `/accounts`, `/accounts/me`, `/accounts/{id}/notification-preferences` | `GET`, `POST`, `PATCH`, `PUT` |
@@ -45,6 +46,8 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Views | `/views` | CRUD, `:share`, `:export` |
 | Jumble | `/jumble/entries` | `GET`, `POST`, `:convert`, `:dismiss` |
 | Jumble intake | `/jumble/intake:rotate-token`, `/jumble/inbound/{token}`, `/jumble/mail/{token}` | `POST` (the address, shown once), `POST` (public, token-protected, capped), `POST` (the same, with `message/rfc822` as the body and a bound of its own — G-11). The intake authenticates the tenant rather than a person (G-10), on the discipline `/automation/inbound/{token}` set: every reason not to serve answers the same 404 |
+| Backup targets and schedules | `/backup-targets`, `/backup-schedules` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :test` — the lifecycle F4-02 completed: a target and a schedule could be created and never revised, and a schedule could not be listed at all. Deleting a target a schedule still names is a `409`, and nothing at the target is ever touched |
+| Retention rules | `/retention-policies` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :preview` — a rule that deletes data has to be correctable (F4-02) |
 | Trash/archive | `/trash`, `/archive` | `GET`, `:restore`, `:purge` |
 | Automation | `/automation/rules`, `/automation/runs` | CRUD, `:test`, `:trigger`, `:replay` |
 | Webhooks | `/integrations/webhooks`, `/integrations/webhooks/{id}/deliveries` | CRUD, `:replay`, `:rotate-secret` |

@@ -255,3 +255,42 @@ WHERE w.deleted_at IS NOT NULL
   AND (sqlc.arg('scope_kind')::text = 'TENANT'
        OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
        OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));
+
+-- The lifecycle F4-02 added: a rule that deletes data has to be correctable and withdrawable.
+
+-- name: UpdateRetentionRule :execrows
+-- Everything a rule may change, guarded on the row version. The kind and the scope are not among
+-- the columns: the unique index over the pair is what makes "the rule for this kind at this level"
+-- a thing one can name, and a rule that moved either would be a different rule under an old
+-- identifier.
+UPDATE retention_rule
+SET condition        = sqlc.narg('condition'),
+    retain_days      = sqlc.arg('retain_days'),
+    action           = sqlc.arg('action'),
+    then_after_days  = sqlc.narg('then_after_days'),
+    then_action      = sqlc.narg('then_action'),
+    grace_days       = sqlc.arg('grace_days'),
+    notify           = sqlc.arg('notify'),
+    justification    = sqlc.narg('justification'),
+    enabled          = sqlc.arg('enabled'),
+    export_target_id = sqlc.narg('export_target_id'),
+    updated_at       = sqlc.arg('now'),
+    version          = version + 1
+WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
+-- name: DeleteRetentionRule :execrows
+DELETE FROM retention_rule WHERE id = sqlc.arg('id');
+
+-- name: ClearRetentionMarksOfRule :execrows
+-- What a withdrawn rule leaves behind. An entry counting down towards a rule nobody holds any more
+-- would be deleted by a rule that does not exist, so the marking goes with the rule - and only the
+-- marking: what the rule already did stands, because retention deletes and a deletion is not undone
+-- by withdrawing the instruction that caused it.
+UPDATE work_item SET
+  retention_pending_until = NULL,
+  retention_action        = NULL,
+  retention_blocked_by    = NULL,
+  retention_rule_id       = NULL,
+  updated_at              = sqlc.arg('now')::timestamptz,
+  version                 = version + 1
+WHERE retention_rule_id = sqlc.arg('rule_id');

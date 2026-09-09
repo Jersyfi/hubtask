@@ -355,15 +355,16 @@ func run() error {
 	// The three backup use cases share one writer, so that they cannot disagree about which
 	// encryptor sealed a credential - three that did would be three chances to seal one under a
 	// key the others cannot open.
-	backupWriter := backupservice.Writer{
-		Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
-		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
-	}
 	// The run use cases share theirs for the same reason: three that disagreed about the clock
 	// would record a run at a moment nothing else agrees with (E-05).
 	backupRuns := postgres.NewBackupRunRepository()
 	backupSchedules := postgres.NewBackupScheduleRepository()
+	backupWriter := backupservice.Writer{
+		Targets: backupTargets, Schedules: backupSchedules,
+		Opener: backupAdapters, Encryptor: encryptor,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+	}
 	backupRunner := backupservice.Runner{
 		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -926,16 +927,49 @@ func run() error {
 		Meter: metrics, Breakers: aiBreakers,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers))
+	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside it
+	// (J-15). It is a quota like every other row of multi-tenancy.md §4 - resolved from the
+	// workspace's settings, reported on the same ratio metric, watched by the same alert - and a
+	// workspace that has spent its day's budget gets a provider that refuses exactly as an absent
+	// one does, which is why nothing downstream needed changing.
+	//
+	// Everything below takes the wrapped resolver, so there is no path to a provider that skips
+	// the counter.
+	budgetedAi := integrationservice.Budgeted{
+		Providers: aiResolver, Budget: quotaGuard,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	// What asking a provider does when the job runs (J-06). It acts for the person who asked, so
 	// the reads it performs go through the catalogue with their rights - which is the same
 	// arrangement the acceptance has, and for the same reason.
+	//
+	// Through the scoped catalogue, because a job presents no credential (J-16): the token that
+	// asked was checked when it asked, and by the time the job runs there is nothing left for the
+	// scope bound to narrow - so each call is granted the scope its own use case declares, exactly
+	// as a rule's run is. Without it every read the job makes is refused, which is the state this
+	// was in until an end-to-end session waited a minute for a suggestion that was never coming.
+	scopedSuggestions := suggestionservice.ScopedCatalogue{
+		Catalogue: suggestionCatalogue, Scopes: useCaseScopes{catalogue: suggestionCatalogue},
+	}
 	produceSuggestion := suggestionservice.Produce{
-		Providers: aiResolver, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: suggestionCatalogue},
+		Providers: budgetedAi, Prompts: aiPrompts,
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions},
 		Suggestions: postgres.NewSuggestionRepository(cursors),
 		// An applied answer is accepted through the use case, never around it.
-		Catalogue:  suggestionCatalogue,
+		Catalogue: scopedSuggestions,
+		// And a proposal is narrowed to what that use case can take: `suggest-fields` proposes
+		// four fields and `ConvertJumbleEntry` declares one of them, so without this a jumble
+		// suggestion was produced, stored, listed - and refused by every acceptance (J-16).
+		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	workspaceWriter := identity.WorkspaceWriter{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Authorizer: authorizer,
+		Audit:      auditSink,
+		UnitOfWork: unitOfWork,
+		Clock:      clockadapter.System{},
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
@@ -1011,6 +1045,8 @@ func run() error {
 		identity.ExchangeOauthCode{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthGrants{Writer: oauthWriter}.Descriptor(),
 		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
+		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
+		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
@@ -1022,7 +1058,7 @@ func run() error {
 		suggestionservice.DismissSuggestion{Cases: suggestionCases}.Descriptor(),
 		suggestionservice.SuggestDecomposition{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		// automation.md §1.3's three AI actions, which have been refused by name since G-05 with a
@@ -1030,17 +1066,17 @@ func run() error {
 		// a rule cannot name them (J-08).
 		suggestionservice.AiSuggestFields{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiSummarize{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiClassify{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
@@ -1105,7 +1141,7 @@ func run() error {
 		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.SuggestFromJumbleEntry{
 			Writer: jumbleWriter,
-			AI:     suggestionservice.Availability{Providers: aiResolver},
+			AI:     suggestionservice.Availability{Providers: budgetedAi},
 			Queue:  jobs,
 		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
@@ -1254,7 +1290,7 @@ func run() error {
 			// the consent, and whether it answers in time - and every one of those is a lexical
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
-				Providers: aiResolver, Semantic: postgres.NewSemanticSearchRepository(),
+				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
 				UnitOfWork: unitOfWork,
 			},
 		}.Descriptor(),
@@ -1290,6 +1326,8 @@ func run() error {
 		}.Descriptor(),
 		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),
+		lifecycle.UpdateRetentionPolicy{Rules: retentionRules}.Descriptor(),
+		lifecycle.DeleteRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.PreviewRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.PlaceLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
@@ -1426,12 +1464,16 @@ func run() error {
 		}.Descriptor(),
 
 		backupservice.CreateBackupTarget{Writer: backupWriter}.Descriptor(),
+		backupservice.DeleteBackupTarget{Writer: backupWriter}.Descriptor(),
 		backupservice.ListBackupTargets{Writer: backupWriter}.Descriptor(),
 		backupservice.TestBackupTarget{Writer: backupWriter}.Descriptor(),
 		backupservice.StartBackup{Runner: backupRunner}.Descriptor(),
 		backupservice.GetBackupRun{Runner: backupRunner}.Descriptor(),
 		backupservice.VerifyBackup{Runner: backupRunner}.Descriptor(),
 		backupservice.CreateBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
+		backupservice.ListBackupSchedules{Scheduling: backupScheduling}.Descriptor(),
+		backupservice.UpdateBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
+		backupservice.DeleteBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
 		backupservice.ListBackupsAtTarget{Restorer: backupRestorer}.Descriptor(),
 		backupservice.StartRestore{Restorer: backupRestorer}.Descriptor(),
 		backupservice.GetRestoreRun{Restorer: backupRestorer}.Descriptor(),
@@ -2210,7 +2252,7 @@ func run() error {
 		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
-				Embeddings: postgres.NewEmbeddingRepository(), Providers: aiResolver,
+				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
 				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{},
 			},
@@ -2662,6 +2704,34 @@ func (d dispatchActions) Dispatch(
 		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params}, supplied)
 }
 
+// useCaseScopes answers which token scope a use case declares, by name. `actionScopes` beside it
+// answers the same question for an automation action; both exist because the two callers name a use
+// case differently - one by its action kind, one by its own name.
+type useCaseScopes struct{ catalogue *deferredCatalogue }
+
+func (s useCaseScopes) ForUseCase(name string) (string, bool) {
+	descriptor, found := s.catalogue.Lookup(name)
+	if !found {
+		return "", false
+	}
+	return descriptor.TokenScope, true
+}
+
+// useCaseFields answers the input names a use case declares, for the narrowing above.
+type useCaseFields struct{ catalogue *deferredCatalogue }
+
+func (f useCaseFields) InputsOf(name string) ([]string, bool) {
+	descriptor, found := f.catalogue.Lookup(name)
+	if !found {
+		return nil, false
+	}
+	names := make([]string, 0, len(descriptor.Input))
+	for _, field := range descriptor.Input {
+		names = append(names, field.Name)
+	}
+	return names, true
+}
+
 // actionScopes answers which token scope an action's use case declares, which is the one the engine
 // grants a run. See automationservice.Scopes for why a rule is granted a scope rather than narrowed
 // by one.
@@ -2758,6 +2828,13 @@ func (d *deferredCatalogue) ByAutomationAction(kind string) (usecase.Descriptor,
 		return usecase.Descriptor{}, false
 	}
 	return d.catalogue.ByAutomationAction(kind)
+}
+
+func (d *deferredCatalogue) Lookup(name string) (usecase.Descriptor, bool) {
+	if d.catalogue == nil {
+		return usecase.Descriptor{}, false
+	}
+	return d.catalogue.Lookup(name)
 }
 
 // masterKeys is the configured keyring as the envelope adapter takes it. A translation of two

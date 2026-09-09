@@ -160,6 +160,8 @@ func (t *memoryTargets) Coverage(context.Context) (repository.Coverage, error) {
 	return repository.Coverage{Configured: 1}, nil
 }
 
+func (t *memoryTargets) Delete(context.Context, shared.ID) (bool, error) { return false, nil }
+
 var _ repository.Targets = (*memoryTargets)(nil)
 
 // tableExport is a tenant's rows, written by hand, with a blob or two.

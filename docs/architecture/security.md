@@ -295,7 +295,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | SG-1 | `govulncheck` with no known exploitable vulnerability |
 | SG-2 | `gosec`/`golangci-lint` with no new findings (the baseline is frozen) |
 | SG-3 | The cross-tenant negative test suite green and **complete** (every repository method covered) |
-| SG-4 | The "database role without BYPASSRLS" test plus the "RLS active on all tenant tables" test (a catalogue query against the table list) |
+| SG-4 | The "database role without BYPASSRLS" test plus the "RLS active on all tenant tables" test (a catalogue query against the table list). Row level security is **active** on every tenant table without exception; `FORCE` — which binds the table's *owner* as well — carries one documented exception, `item_capability_profile`, whose system defaults the owner has to be able to seed ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). What makes that safe is the other half of the same gate: the application role holds no `BYPASSRLS` and owns no table, so it is bound by the policy either way. The exceptions live in one list per suite, each with its reason |
 | SG-5 | The authorisation architecture test: no call to a repository method without a prior policy check; no authorisation in adapters |
 | SG-6 | The SSRF test suite against `GuardedClient` (metadata IPs, rebinding, redirect chains) |
 | SG-7 | Secret scanning with no findings; the "log output contains no tokens or secrets" test |

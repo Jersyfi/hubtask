@@ -13,15 +13,16 @@
   // contract says two memberships add their rights up rather than the stronger one winning. A
   // single badge per person would be inventing an order the server does not have.
   //
-  // **`OWNER` is off, with the reason.** Granting or revoking it is a privileged action needing a
-  // fresh step-up (`security.md` §5), and this client cannot produce one until F4 brings sessions.
-  // Off rather than absent: a control that is missing tells a reader nothing, and this one is
-  // coming back.
+  // **`OWNER` is on, and the step-up it needs is asked for when the server asks for it.** Granting
+  // or revoking it is a privileged action needing a fresh re-authentication (`security.md` §5).
+  // F3-07 shipped the control switched off because this client could not produce one; F4-04 built
+  // the prompt, so the control is switched on here — one task earlier than F4-09 planned it,
+  // because a mechanism with no caller is a mechanism nobody has proved.
   //
-  // The reason is this client's own code and not the server's `auth.step_up_required`, which is
-  // the one place that rule bends and it bends for a reason: that sentence names an HTTP call and
-  // takes a `{methods}` parameter only a refusal carries. Rendering it here would put "call POST
-  // /auth/step-up" in front of somebody trying to add an owner.
+  // Nothing is predicted. The client does not decide which roles are privileged: it makes the
+  // request, and `stepUp.around` turns the server's `auth.step_up_required` into a prompt and the
+  // proof into a retry of the same intent. A client that carried its own list of privileged roles
+  // would be wrong on the installation whose policy differs, and silently.
   //
   // The roles offered come from `/meta/capabilities`. A list written here would be wrong on the
   // installation that has one more.
@@ -49,9 +50,6 @@
     title,
   }: { isOpen?: boolean; scope: Scope; path: Path; title: string } = $props();
 
-  /** The role whose grant and revocation both need a step-up this client cannot produce yet. */
-  const PRIVILEGED = 'OWNER';
-
   const holders = $derived(people.holders(path, scope));
 
   /** The installation's roles, in the order it reports them. */
@@ -75,11 +73,8 @@
     roles.map((role) => ({
       value: role,
       label: t(`app.people.role.${role.toLowerCase()}`),
-      disabledReason: role === PRIVILEGED ? t('app.people.owner_step_up') : undefined,
     })),
   );
-
-  const stepUpReason = $derived(chosenRole === PRIVILEGED ? t('app.people.owner_step_up') : undefined);
 
   $effect(() => {
     if (isOpen) people.openScope(scope);
@@ -97,7 +92,7 @@
   }
 
   function grant() {
-    if (!chosenAccount || !chosenRole || chosenRole === PRIVILEGED) return;
+    if (!chosenAccount || !chosenRole) return;
     void attempt(async () => {
       await people.grant({ accountId: chosenAccount }, chosenRole as MembershipRole, scope);
       chosenAccount = '';
@@ -132,11 +127,7 @@
             <Button
               size="sm"
               tone="secondary"
-              disabledReason={holder.role === PRIVILEGED
-                ? t('app.people.owner_step_up')
-                : holder.isHere
-                  ? undefined
-                  : t('app.people.granted_elsewhere')}
+              disabledReason={holder.isHere ? undefined : t('app.people.granted_elsewhere')}
               onclick={() => void attempt(() => people.revoke(holder.membershipId, scope))}
             >
               {t('app.people.revoke')}
@@ -164,7 +155,6 @@
         <Button
           isBusy={isWriting}
           busyLabel={t('app.workspace.saving')}
-          disabledReason={stepUpReason}
           onclick={grant}
         >
           {t('app.people.grant')}

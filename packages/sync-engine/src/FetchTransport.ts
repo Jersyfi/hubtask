@@ -274,6 +274,7 @@ export class FetchTransport implements Transport {
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
     if (options.ifMatch) headers.set('If-Match', options.ifMatch);
+    if (options.stepUpToken) headers.set('X-Hubtask-Step-Up', options.stepUpToken);
     // Derived from the method rather than passed in per call, because in this contract it *is* a
     // property of the method: every PATCH declares `application/merge-patch+json`, which is what
     // RFC 7396 calls a document whose fields are merged and whose nulls delete

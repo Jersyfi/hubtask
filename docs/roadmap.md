@@ -278,7 +278,7 @@ cut into issues when it opens, from the then-current state of this file and the 
 | **F1 — Foundations** | `0.4.0` | up to `0.3.0` | The component workbench decision and design-system wave 1; the three §9 gaps that block it (iconography, contrast verification in CI, voice and tone) and the wordmark the website needs; the application frame — layout, navigation, `data-theme`, the message-code renderer, problem-details rendering, `HealthBanner` from `/meta/health`, the capability manifest, the maturity banner; sign-in and session; and the data seam: `packages/sync-engine` with its three ports, an online-only pass-through and the Svelte binding, so that no component ever talks to `@hubtask/api-client` directly. And the pre-release website, whose own requirement follows this table |
 | **F2 — The working surface** | `0.4.5` | `0.2.0` | Wave 2; hubs, collections and the five levels, buckets, labels, ordering and drag and drop, trash and archive, the activity history; the query language made visible — `SearchField`, `QueryBuilder`, `ViewSwitcher` for list and kanban, `TaskRow`, `WorkItemCard`, `BucketColumn`, `LabelChip` and `LabelPicker`, `CapabilityGate`. This is where the tool becomes usable for its own development: daily work moves out of `hubctl` and into the app, which is what risk R-08 was waiting for |
 | **F3 — Collaboration, content, time** | `0.5.0` | `0.3.0` and `0.4.0` | Comments, members and assignment, covers, attachments with presigned upload, custom fields, notifications, the SSE stream, bulk and duplicate — `CommentThread`, `AssigneeControl`, `CustomFieldRenderer`, `ActivityFeed`; and the time surfaces `DueDateControl`, `ReminderEditor`, `RecurrenceEditor`, templates, saved views with their `layout` hint, the timeline, and calendar feed management |
-| **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5` and `0.5.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
+| **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5`, `0.5.0` and `0.6.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
 | **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, and the AI paths of the jumble and of decomposition; language switching, CLDR formats and the RTL audit against design-system rule 3; and accessibility: WCAG 2.2 AA, keyboard operability, `focus-visible`, a screen-reader pass, and the accessibility statement the European Accessibility Act expects |
 | **F6 — Offline, the shells, the moments** | `0.8.5` | `0.8.5` | The sync engine becomes what its name says: local store, mutation queue, HLC, cursor and tombstone handling, `ACCESS_REVOKED` and `sync.cursor_too_old` behaviour, `SyncStatus` and `ConflictResolver`, the `offline-sync.md` §9 harness against fakes, and `hubctl sync-conformance` passed against a first-party client. Then the Tauri desktop shell — SQLite and keystore behind the `Storage` port, updater, signed distribution, the webview smoke matrix — and after it the mobile shell with signing, the store pipeline, platform adaptation (§9's last gap) and the capability matrix made real — the admin routes F4 tagged are excluded from this build, and each appears as the affordance ADR-0032 asks for: named, and linked to the web app of the server the client is signed into. The celebration kit and the onboarding tour close the milestone: the tour's last step is the first celebration, so they arrive together |
 
@@ -309,8 +309,8 @@ lists was the last cheap moment for both. Whether F2 moved the client's maturity
 ([`R-08-2026-09-04.md`](./evidence/R-08-2026-09-04.md)), the owner decided, and the client has
 been `preview` since the four creation surfaces that pass found missing were built.
 
-**F3 is open**, and its backlog is [`backlog/milestone-F3.md`](./backlog/milestone-F3.md) —
-twenty tasks, F3-01…F3-20, the longest of the track because it builds the surface for two core
+**F3 is done**, and its backlog is [`backlog/milestone-F3.md`](./backlog/milestone-F3.md) —
+twenty tasks, F3-01…F3-20, the longest of the track so far because it builds the surface for two core
 milestones. Cutting it found **three** gaps of the kind F1 and F2 each found one of, and F3
 therefore carries three core tasks, each additive and specification first: no read lists who
 holds a role at a scope or what a group contains, so an assignee picker has no candidates
@@ -324,6 +324,24 @@ And one product question it records without answering: the roadmap's "notificati
 the preferences, because the notification record has one channel, `EMAIL`, and an inbox in the
 client would be a new channel rather than a screen. The maturity stage is not a question this
 time — `stable` belongs to convergence.
+
+**F4 is open**, and its backlog is [`backlog/milestone-F4.md`](./backlog/milestone-F4.md) —
+twenty-one tasks, F4-01…F4-21, and now the longest of the track, because it builds the surface for
+**three** core milestones rather than two. That is the first thing cutting it settled: the table
+above said `0.4.5` and `0.5.0` while its own contents column named MFA, sessions and step-up, the
+OIDC connection and quotas — all of them `0.6.0`'s. The contents column governs and the cell is
+corrected, because the window rule exists so that the client works against a contract that has
+stopped moving, and `0.6.0`'s has: fifteen of its sixteen tasks are closed and the one that is not
+(#267) has no client surface. Cutting it found **two** gaps of the kind every client milestone has
+found: the workspace cannot read or change its own settings, so the TOTP enforcement switch H-02
+put in `tenant.settings` is readable by the sign-in path and writable only in psql; and three
+pieces of operational configuration — a backup target, a backup schedule, a retention policy — can
+be created and never revised, one of them not even listed. It also found one thing a client task
+cannot settle alone, in the same shape F3-09 found its: the TOTP provisioning URI needs a QR code, a
+QR code needs an encoder, and an encoder is either a new dependency or two hundred lines in the
+design system — F4-04 opens with a draft ADR and ships manual entry meanwhile. And one product
+question it records without answering: nothing in this contract disables or removes an account, so
+a workspace has no offboarding beyond revoking every membership.
 
 ### The website: a pre-release site from the `0.4.0` window
 

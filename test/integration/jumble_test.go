@@ -86,6 +86,18 @@ func TestAJumbleEntrySurvivesTheRowWhole(t *testing.T) {
 	if stored.SettledAt != nil {
 		t.Error("a fresh entry claims a settlement")
 	}
+	// The tenant, which the projection did not carry until J-16 (found by the end-to-end session).
+	//
+	// Row level security bounds the read, so nothing about the *query* needed it and nothing
+	// noticed - but the events a settlement announces are built from this projection, and an entry
+	// with no tenant cannot be the subject of one. Every conversion refused
+	// `events.envelope_incomplete`: through a rule, through the API, and through an accepted
+	// suggestion. The service tests could not see it, because their fixtures set the field the
+	// adapter was leaving empty.
+	if stored.TenantID != tenantA {
+		t.Errorf("the entry came back belonging to %q, want its own workspace - an entry with no "+
+			"tenant cannot be the subject of the event its settlement announces", stored.TenantID)
+	}
 }
 
 // The settlement is one statement with the state guard in the WHERE: two conversions racing

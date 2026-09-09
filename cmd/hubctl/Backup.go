@@ -25,9 +25,15 @@ func backupGroup() group {
 		commands: []command{
 			{
 				name:    "target",
-				usage:   "add|ls|test …",
+				usage:   "add|ls|test|rm …",
 				summary: "the places an archive can be written to",
 				run:     backupTarget,
+			},
+			{
+				name:    "schedule",
+				usage:   "ls|set|rm …",
+				summary: "what runs on its own, and when it next will",
+				run:     backupSchedule,
 			},
 			{
 				name:    "run",
@@ -64,7 +70,7 @@ func backupGroup() group {
 // would give the CLI a second spelling of the same word.
 func backupTarget(ctx context.Context, cli *CLI, args []string) error {
 	if len(args) == 0 {
-		return usagef("backup target needs a command: add, ls, test")
+		return usagef("backup target needs a command: add, ls, test, rm")
 	}
 	switch args[0] {
 	case "add":
@@ -73,8 +79,10 @@ func backupTarget(ctx context.Context, cli *CLI, args []string) error {
 		return backupTargetList(ctx, cli, args[1:])
 	case "test":
 		return backupTargetTest(ctx, cli, args[1:])
+	case "rm":
+		return backupTargetRemove(ctx, cli, args[1:])
 	default:
-		return usagef("backup target has no command %q: add, ls, test", args[0])
+		return usagef("backup target has no command %q: add, ls, test, rm", args[0])
 	}
 }
 

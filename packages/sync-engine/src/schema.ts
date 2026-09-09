@@ -152,6 +152,17 @@ export type PurgeSummary = components['schemas']['PurgeSummary'];
 export type RetentionPolicy = components['schemas']['RetentionPolicy'];
 
 /**
+ * How a workspace signs its people in through its own provider, and how that is set.
+ *
+ * The two are not one type, and the difference is the client secret: it is a member of the
+ * configuration and never of the answer, because it is sealed on the way in and read only by the
+ * token exchange. A screen that reached for it on the read would find nothing, by design.
+ */
+export type IdentityProvider = components['schemas']['IdentityProvider'];
+export type IdentityProviderConfiguration =
+  components['schemas']['IdentityProviderConfiguration'];
+
+/**
  * One step of an entry's history. `code` is a message the client renders, never a sentence — which
  * is what lets one history read in whichever language each client is set to (ADR-0011, §3.5).
  */

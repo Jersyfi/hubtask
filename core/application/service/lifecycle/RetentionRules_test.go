@@ -25,6 +25,8 @@ type ruleStore struct {
 	stored     []domain.Rule
 	carried    []domain.DataKind
 	insertFail error
+	removed    []shared.ID
+	cleared    []shared.ID
 }
 
 func (s *ruleStore) Insert(_ context.Context, rule domain.Rule) error {
@@ -49,6 +51,40 @@ func (s *ruleStore) Find(_ context.Context, id shared.ID) (domain.Rule, error) {
 		}
 	}
 	return domain.Rule{}, shared.ErrNotFound.WithDetail(domain.CodeRuleNotFound)
+}
+
+func (s *ruleStore) Update(
+	_ context.Context, rule domain.Rule, expectedVersion int, _ time.Time,
+) (bool, error) {
+	for index, stored := range s.stored {
+		if stored.ID != rule.ID {
+			continue
+		}
+		if stored.Version != expectedVersion {
+			return false, nil
+		}
+		written := rule
+		written.Version = expectedVersion + 1
+		s.stored[index] = written
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *ruleStore) Delete(_ context.Context, id shared.ID) (bool, error) {
+	for index, stored := range s.stored {
+		if stored.ID == id {
+			s.stored = append(s.stored[:index], s.stored[index+1:]...)
+			s.removed = append(s.removed, id)
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *ruleStore) ClearMarks(_ context.Context, ruleID shared.ID, _ time.Time) (int, error) {
+	s.cleared = append(s.cleared, ruleID)
+	return 0, nil
 }
 
 func (s *ruleStore) CarryOver(_ context.Context, _ shared.ID, kind domain.DataKind, _ time.Time) error {
