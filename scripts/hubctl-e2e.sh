@@ -966,6 +966,84 @@ expect_contains "the refusal" "$refusal" 'does not exist'
 # the thing being reached is inside the test's own network. Nothing else in this session depends on
 # it being off.
 
+# QS-09's half of this section (J-17). With HUBTASK_E2E_WITHOUT_AI set, no provider is configured
+# and no stub is started: what runs instead is the refusal every asking route owes an installation
+# that has none. Everything *else* in this session is unchanged and is the rest of the claim - the
+# verbs of every earlier milestone, against a stack with `NoopAi` and nothing else.
+if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
+	echo "--- the product without AI: what the asking routes answer ---"
+
+	# The entry exists; it is the asking that is refused. A workspace with no provider is not a
+	# workspace with no jumble.
+	NOAI_ENTRY_ID="$(hubctl jumble submit --subject 'Order 42' --body 'please send the invoice' | first_id)"
+	[ -n "$NOAI_ENTRY_ID" ] || fail "the jumble entry was not created on an installation without AI"
+
+	# Every route that asks a provider something, by hand rather than through the client: what is
+	# under test is the *status and the code*, and the client renders both as one sentence.
+	refuse() {
+		local what="$1" path="$2"
+		local answer status
+		answer="$(curl -s -o "$WORK_DIR/refusal.json" -w '%{http_code}' -X POST \
+			-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+			--data-binary '{}' "$INSTALLATION/api/v1$path")"
+		status="$answer"
+		if [ "$status" = "500" ]; then
+			# The distinction QS-09 exists for: an installation that was never configured is not
+			# an installation that is broken.
+			fail "$what answered 500 on an installation with no AI: $(cat "$WORK_DIR/refusal.json")"
+			return
+		fi
+		if [ "$status" != "503" ]; then
+			fail "$what answered $status, want 503: $(cat "$WORK_DIR/refusal.json")"
+			return
+		fi
+		expect_contains "$what" "$(cat "$WORK_DIR/refusal.json")" '"detail_code":"ai.unavailable"'
+	}
+
+	refuse "asking about a jumble entry" "/jumble/entries/$NOAI_ENTRY_ID:suggest"
+	refuse "asking for an entry's fields" "/items/$TASK_ID:suggest-fields"
+	refuse "asking for a summary"         "/items/$TASK_ID:summarize"
+	refuse "asking for a classification"  "/items/$TASK_ID:classify"
+	refuse "asking for a decomposition"   "/items/$TASK_ID:decompose"
+
+	# What the installation says about itself before anybody asks for anything. This is the half
+	# QS-09 exists for: a client renders no control for a feature that is not there, and it learns
+	# that from the manifest rather than from a refusal.
+	manifest="$(curl -s -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1/meta/capabilities")"
+	expect_contains "the manifest's suggestions" "$manifest" '"ai_suggestions":false'
+	# Both halves, and the second is the one a store-only answer gets wrong: this stack runs
+	# pgvector/pgvector:pg16, so the store is here and nothing will ever fill it.
+	expect_contains "the manifest's semantic search" "$manifest" '"semantic_search":false'
+
+	# And the distinction the whole task turns on: never configured is not broken. An installation
+	# that never wanted AI must not report itself degraded forever
+	# (observability-reliability.md 7).
+	# On the internal port rather than under /api/v1: the contract puts the deep report behind an
+	# admin scope, and until the generated router carries it the ops listener serves it
+	# (presentation/rest/OpsController.go). It is the same report either way.
+	report="$(curl -s "http://127.0.0.1:$OPS_PORT/meta/health")"
+	expect_contains "the installation's own state" "$report" '"status":"ok"'
+	# The provider is named and switched off rather than absent, so an operator asking why there
+	# are no suggestions gets an answer - and `disabled` is not `down`.
+	expect_contains "the provider's row" "$report" '"ai_provider"'
+	expect_contains "a dependency nobody configured" "$report" '"status":"disabled"'
+	# `ai_suggestions` is the name the report degrades under and the name an impact carries. On an
+	# installation that never wanted AI it appears nowhere at all: nothing is lost, so nothing is
+	# named as lost.
+	expect_missing "the degradation report" "$report" 'ai_suggestions'
+
+	# And the reads, which are not refusals: a workspace with no provider still has an inbox of
+	# proposals, and it is empty rather than broken.
+	standing="$(run_hubctl suggestion ls --target "$NOAI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
+	expect_contains "the suggestions of a workspace with no provider" "$standing" "ID"
+
+	# The search still answers, both ways round: no provider means a lexical search rather than an
+	# error, which is the same degradation an outage produces (J-10).
+	run_hubctl search "Order 42" --mode AUTO
+	run_hubctl search "Order 42" --mode LEXICAL
+
+else
+
 echo "--- a provider that answers, and the suggestion it produces ---"
 
 # The canned answer, in the shape core/port/ai's adapters read: a completion whose content is the
@@ -1133,6 +1211,7 @@ expect_contains "the prompt" "$rendered" "resource_link"
 # The stub has done its work; the multi-mode stack below brings up its own everything.
 $RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true
 trap - EXIT
+fi
 
 # ============ The milestone's proof (H-16) ============
 # What the whole of 0.6.0 amounts to, in one sequence and against a real stack: a workspace
