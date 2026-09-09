@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 )
 
 // Catalogue is the slice of the use case registry this server needs.
@@ -29,14 +31,25 @@ type Catalogue interface {
 // REST, which is what makes an agent's action as safe, and as auditable, as anybody else's
 // (ADR-0005, ADR-0012).
 //
-// Deliberately not implemented yet: the SSE half of the streamable transport (J-13) and prompts
-// (J-12). Both are separate promises, and answering "method not found" is honest where an empty
-// list would claim this installation has none.
+// Deliberately not implemented yet: the SSE half of the streamable transport (J-13). It is a
+// separate promise, and answering "method not found" is honest where an empty list would claim this
+// installation has none.
 type Server struct {
 	Catalogue Catalogue
+	// Prompts is the store the outbound adapters read, published here (J-12). Nil is an
+	// installation running without it, and then the prompts capability is not declared and the two
+	// methods answer "method not found" - the rule this file has always stated about itself.
+	Prompts Prompts
 	// Name and Version identify the server on initialize.
 	Name    string
 	Version string
+}
+
+// Prompts is the slice of the prompt store this server needs (core/port/ai.Prompts, filtered).
+type Prompts interface {
+	// Published is the prompts written for an agent rather than for this product's own provider.
+	Published() []aiprovider.Prompt
+	Get(id string) (aiprovider.Prompt, error)
 }
 
 // JSON-RPC 2.0 error codes (§5.1), and the one MCP adds. Only the ones this server can produce.
@@ -120,13 +133,8 @@ func (s Server) answer(ctx context.Context, call request) response {
 			// until the streaming half of the transport arrives (J-13), so it cannot tell a client
 			// that a list changed or that a resource it subscribed to has moved - and a client
 			// that believed otherwise would wait for a message that never comes.
-			"capabilities": map[string]any{
-				"tools": map[string]any{"listChanged": false},
-				"resources": map[string]any{
-					"subscribe": false, "listChanged": false,
-				},
-			},
-			"serverInfo": map[string]any{"name": s.Name, "version": s.Version},
+			"capabilities": s.capabilities(),
+			"serverInfo":   map[string]any{"name": s.Name, "version": s.Version},
 		}
 	case "ping":
 		answer.Result = map[string]any{}
@@ -150,6 +158,23 @@ func (s Server) answer(ctx context.Context, call request) response {
 		answer.Result = result
 	case "resources/read":
 		result, err := s.read(ctx, call.Params)
+		if err != nil {
+			answer.Error = err
+			return answer
+		}
+		answer.Result = result
+	case "prompts/list":
+		if s.Prompts == nil {
+			answer.Error = &rpcError{Code: codeMethodNotFound, Message: "method not found"}
+			return answer
+		}
+		answer.Result = map[string]any{"prompts": PromptsOf(s.Prompts.Published())}
+	case "prompts/get":
+		if s.Prompts == nil {
+			answer.Error = &rpcError{Code: codeMethodNotFound, Message: "method not found"}
+			return answer
+		}
+		result, err := s.prompt(call.Params)
 		if err != nil {
 			answer.Error = err
 			return answer
@@ -195,6 +220,62 @@ func (s Server) call(ctx context.Context, params json.RawMessage) (map[string]an
 		return failure(err), nil
 	}
 	return success(out), nil
+}
+
+// capabilities is what this server tells a client it can do.
+//
+// Nothing is claimed that is not served: a client that believes in a capability and finds nothing
+// behind it has no way to recover, which is why prompts appear only where a store was wired.
+//
+// Every flag is false, and each one is honest. This server initiates nothing until the streaming
+// half of the transport arrives (J-13), so it cannot tell a client that a list has changed or that
+// a resource it subscribed to has moved.
+func (s Server) capabilities() map[string]any {
+	capabilities := map[string]any{
+		"tools":     map[string]any{"listChanged": false},
+		"resources": map[string]any{"subscribe": false, "listChanged": false},
+	}
+	if s.Prompts != nil {
+		capabilities["prompts"] = map[string]any{"listChanged": false}
+	}
+	return capabilities
+}
+
+type promptGet struct {
+	Name      string            `json:"name"`
+	Arguments map[string]string `json:"arguments"`
+}
+
+// prompt renders one prompt into the message sequence a client sends to a model.
+//
+// No actor is asked for, and that is deliberate rather than an omission: a prompt is a text this
+// build carries, the same for every caller, and it reads nothing. What a *resource* argument
+// produces is a link, and the permission behind it is asked when the client resolves it through
+// `resources/read` - which is the one place it can be asked correctly, because that is where the
+// read happens (ADR-0051).
+func (s Server) prompt(params json.RawMessage) (map[string]any, *rpcError) {
+	var call promptGet
+	if err := json.Unmarshal(params, &call); err != nil {
+		return nil, &rpcError{Code: codeInvalidParams, Message: "invalid params"}
+	}
+
+	id, version, pinned := strings.Cut(call.Name, "@")
+	prompt, err := s.Prompts.Get(id)
+	if err != nil || !prompt.Published() {
+		return nil, &rpcError{Code: codeInvalidParams, Message: "unknown prompt"}
+	}
+	// A pinned version that this build no longer carries is refused rather than answered with a
+	// different text. A client pins a version precisely so that the words do not move underneath
+	// it, and handing it the newest instead would be the one failure pinning exists to prevent.
+	if pinned && version != prompt.Version {
+		return nil, &rpcError{Code: codeInvalidParams, Message: "unknown prompt version"}
+	}
+
+	messages, err := PromptMessages(prompt, call.Arguments)
+	if err != nil {
+		return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
+	}
+	return map[string]any{"description": prompt.Description, "messages": messages}, nil
 }
 
 type resourceList struct {

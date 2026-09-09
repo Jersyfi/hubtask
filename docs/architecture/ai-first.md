@@ -26,7 +26,7 @@ automatically available as a tool.
 | Auth | Service account or PAT with scopes; every tool call is audited as `actor.type = AI_AGENT` |
 | Read/write marking | Tools carry `annotations.readOnlyHint` / `destructiveHint`, so that clients can ask for confirmation |
 | Resources | Containers, items and views are additionally readable as MCP resources (`hubtask://items/{id}`). **Shipped in J-11**: a resource is a read that is already in the catalogue, addressed by URI instead of by argument, so `resources/read` carries no authorisation of its own — exactly as `tools/call` carries none ([ADR-0051](../adr/ADR-0051-mcp-resources-are-catalogue-reads.md)). `resources/list` enumerates the hubs and the caller's saved views, paged; entries are reached by URI or found with `search_items`, because no unanchored item list exists and one built for this would be a tenant asking for everything |
-| Prompts | Prepared MCP prompts, e.g. "weekly review from collection X" |
+| Prompts | Prepared MCP prompts, e.g. "weekly review from collection X". **Shipped in J-12**: the same versioned files under `infrastructure/ai/prompts/` the outbound adapters read — one store, because two is how one prompt comes to exist in two versions. A prompt is published by describing itself; the four this product asks its own provider carry no title and stay unpublished. Arguments are declared and refused by name when unknown, and a resource argument becomes a link into the URI space above, so the permission is asked where the read happens |
 
 ### 1.2 Why the REST API is already agent-friendly
 
@@ -107,7 +107,12 @@ nothing" and "there is no model" must not be the same value.
   embedding is maintained by a job seeded by the write, and an entry the job has not reached yet is
   found by its words in the meantime.
 * Reproducibility: prompts are versioned resources (`infrastructure/ai/prompts/`), not inline in
-  the code.
+  the code. **A prompt is never localised through the message catalogue**, and that is not an
+  oversight of rule 8 but a consequence of versioning: a suggestion records the prompt version that
+  produced it, so a text that depended on who was reading it would make that record unresolvable.
+  Rule 8 forbids the backend producing what a person reads *in the product's interface*; a prompt is
+  addressed to a model and to the client that operates one, exactly as a tool description is
+  (J-12, `presentation/mcp/Prompts.go` states it where the code is).
 
 ---
 

@@ -1616,8 +1616,12 @@ func run() error {
 			Path:   mcp.Path,
 			Mount: mcp.Server{
 				Catalogue: useCases,
-				Name:      "hubtask",
-				Version:   version,
+				// The same store the outbound adapters read (J-12). One store, because two is how
+				// one prompt comes to exist in two versions - and a suggestion's recorded prompt
+				// version would then name a text that depends on who is reading it.
+				Prompts: aiPrompts,
+				Name:    "hubtask",
+				Version: version,
 			},
 		}
 
