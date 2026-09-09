@@ -29,6 +29,7 @@
       label: 'app.admin.service_accounts',
       hint: 'app.admin.service_accounts_hint',
     },
+    { path: '/administration/apps', label: 'app.admin.apps', hint: 'app.admin.apps_hint' },
     { path: '/administration/quotas', label: 'app.admin.quotas', hint: 'app.admin.quotas_hint' },
     {
       path: '/administration/identity-provider',

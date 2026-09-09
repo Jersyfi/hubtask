@@ -25,6 +25,7 @@
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
+  import AppsView from './views/AppsView.svelte';
   import ConsentView from './views/ConsentView.svelte';
   import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
@@ -114,6 +115,8 @@
     <PermissionsView />
   {:else if route.name === 'service-accounts'}
     <ServiceAccountsView />
+  {:else if route.name === 'apps'}
+    <AppsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}

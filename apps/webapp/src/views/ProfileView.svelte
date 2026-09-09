@@ -47,6 +47,7 @@
     preferenceFor,
   } from '../lib/data/preferences.ts';
   import { mfa } from '../lib/data/mfa.svelte.ts';
+  import { consent } from '../lib/data/consent.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
@@ -67,6 +68,20 @@
   // The sessions are the account's own and take no parameter, so the read starts with the screen
   // rather than with an identifier arriving.
   $effect(() => untrack(() => sessions.open()));
+  // The grants sit beside the sessions because they are the same question asked about apps:
+  // what is currently able to act as me, and how do I stop it.
+  $effect(() => untrack(() => consent.openGrants()));
+
+  let grantFailure = $state<string | undefined>(undefined);
+
+  async function withdraw(grantId: string): Promise<void> {
+    grantFailure = undefined;
+    try {
+      await consent.withdraw(grantId);
+    } catch (error) {
+      grantFailure = renderProblem(error as never, messages).message;
+    }
+  }
 
   const locales = $derived(localesOf(manifest.value));
   const zones = $derived(knownZones());
@@ -412,6 +427,30 @@
           {/each}
         </ul>
       {/if}
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.grants.title')}</h2>
+      <p class="quiet">{t('app.grants.intro')}</p>
+      {#if grantFailure}<p class="failure">{grantFailure}</p>{/if}
+      <ul class="rows">
+        {#each consent.grants as grant (grant.id)}
+          <li class="row">
+            <span>
+              <span class="category">{grant.client_name}</span>
+              <!-- The scopes as the app holds them. Sentences where this build knows them, and the
+                   identifier where it does not — the same rule as the consent screen. -->
+              <span class="quiet small">{grant.scopes.join(', ')}</span>
+            </span>
+            <Button size="sm" tone="subtle" onclick={() => void withdraw(grant.id)}>
+              {t('app.grants.withdraw')}
+            </Button>
+          </li>
+        {:else}
+          <li class="quiet">{t('app.grants.none')}</li>
+        {/each}
+      </ul>
+      <p class="quiet small">{t('app.grants.next_request')}</p>
     </Stack>
 
     <Stack gap="050">
