@@ -150,9 +150,16 @@ component that writes `style="gap: …"` writes a rule the browser refuses — s
 only. Every component from wave 1 on inherits that constraint, and these four are where it is
 worked out.
 
-### Wave 1 — nothing works without these (≈ 19) · **built**
+### Wave 1 — nothing works without these (≈ 20) · **built**
 Icon · Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
-Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner
+Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner · ProgressBar
+
+`ProgressBar` arrives last and for the plainest of reasons: `UploadField` hand-rolled a
+`<progress>` and a job that answers `progress: null` needs the indeterminate case beside it, and
+two hand-rolled bars is where a component belongs. It is the platform's own element rather than a
+filled div, because a proportion drawn by hand is arithmetic in an attribute and
+[ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` refuses one — in production
+only, which is the kind of failure this wave exists to make impossible.
 
 `Icon` arrives ahead of the rest, with the icon set itself
 ([ADR-0041](../adr/ADR-0041-icon-set.md)): `IconButton` cannot be built before there is something
@@ -227,7 +234,9 @@ structural, not reviewed.
 | `QueryBuilder` | The query DSL made visible. Built: it knows **no grammar** — the fields, the comparisons each permits and whether a comparison takes a value are all handed to it, because `query_fields` grows with the installation and a component that spelled the operators out would be the hard-coded list the manifest exists to replace. Changing the field resets the comparison: the operators belong to the field |
 | `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion |
 | `AutomationRuleCard` + `RunStatusBadge` | Running / succeeded / failed / dry run |
-| `RoleBadge` + `PermissionMatrix` | Six roles, inherited across four scopes |
+| `RoleBadge` | Six roles, inherited across four scopes — and the scope a role was granted at is half of what it means. A badge that said `ADMIN` without saying *where* would be the misreading the matrix exists to prevent |
+| `PermissionMatrix` | The role matrix as **this installation** enforces it, read from `/meta/capabilities`'s `roles` and never compiled in. A **table of what the server says**, not a control: changing what a role carries is not an operation this product has — a role is granted, and the matrix says what the grant means. Two cells are qualifiers no permission name carries, so `item_access` is rendered beside the permission columns rather than flattened into a tick |
+| `OneTimeSecret` | The five values in this product that are shown for the only time — a minted token, a webhook signing secret, a TOTP secret with its recovery codes, an inbound trigger address, a jumble intake address. Reveal, copy, and an acknowledgement the caller may require before the value can be dismissed. It renders no value it was not handed, writes to no storage, and holds nothing once it is gone |
 | `SyncStatus` + `ConflictResolver` | Offline operation, "concurrent changes are never lost" |
 | `HealthBanner` | Controlled degradation instead of a crash, fed from `/meta/health` |
 | `AISuggestion` | Must be visually separable — AI is switchable off, and then this component disappears without residue |

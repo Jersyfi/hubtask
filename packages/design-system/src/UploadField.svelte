@@ -19,6 +19,7 @@
   // than swallowed — the reader learns before the upload rather than after it.
 
   import Button from './Button.svelte';
+  import ProgressBar from './ProgressBar.svelte';
   import type { Disableable } from './control.ts';
 
   interface Props extends Disableable {
@@ -146,12 +147,10 @@
   {/if}
 
   {#if isUploading}
-    <p class="progress">
-      <progress max="100" value={progress}></progress>
-      <!-- Polite: the reader started this and is not waiting on it the way they wait on a
-           failure, and an assertive region would interrupt them at every percent. -->
-      <span aria-live="polite">{progressLabel}</span>
-    </p>
+    <!-- The bar is `ProgressBar` rather than a `<progress>` written here: a second hand-rolled
+         one is where a component belongs, and the indeterminate case a job with no percentage
+         needs comes with it. Politeness, the accessible name and the sentence are all its. -->
+    <ProgressBar label={label} value={progress} valueLabel={progressLabel} />
     <Button tone="subtle" onclick={() => onCancel?.()}>{cancelLabel}</Button>
   {/if}
 
@@ -215,8 +214,6 @@
   .reason { margin: 0; }
 
   .over { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-
-  .progress { display: flex; align-items: center; gap: var(--sp-100); margin: 0; }
 
   @media (prefers-reduced-motion: reduce) {
     .target { transition-duration: var(--dur-instant); }
