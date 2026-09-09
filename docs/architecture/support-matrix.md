@@ -47,6 +47,7 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 | PostgreSQL | 17 | `supported` | `nightly.yml:matrix-postgres` |
 | PostgreSQL **with pgvector** (semantic search) | 16, 17 | `supported` | `ci.yml:integration`, which runs `pgvector/pgvector:pg16` since [ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md). The extension is **detected, not demanded**: an installation without it migrates, runs, and searches lexically, and `/meta/capabilities` answers `semantic_search: false`. That path has its own test — `TestTheMigrationsApplyWithoutPgvector` starts a plain `postgres:16-alpine` and migrates it — because every other gate runs a database that has the extension |
 | PostgreSQL | ≤ 15 | `unsupported` | — the schema uses what 16 offers; nothing checks 15, so nothing may claim it. The hard floor is 15, which added `ON DELETE SET NULL (column)`; the tenant-scoped foreign keys need it ([ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md)) |
+| PostgreSQL without a superuser (a managed service) | 16, 17 | `supported` | `ci.yml:integration` — the migrations applied by an owner with `CREATEROLE` and no superuser, and the tenant boundary asserted afterwards ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). The operator creates the two roles and owns the database with `hubtask_migrator`; [multi-tenancy.md §2.1](./multi-tenancy.md) says how |
 | Go (building from source) | 1.26 | `supported` | `ci.yml:quick` and every other job |
 
 ## 4. `hubctl` (the CLI)
