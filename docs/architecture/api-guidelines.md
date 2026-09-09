@@ -174,10 +174,20 @@ is what separates it from `429`),
 | OAuth2 authorization code + PKCE | Third-party apps (from milestone 0.6) | Required for the Zapier marketplace |
 | Signed feed token | ICS calendar | Read-only on one view, revocable |
 
-Scopes: `items:read`, `items:write`, `containers:read`, `containers:write`, `comments:write`,
-`jobs:read`, `jobs:cancel`, `backup:read`, `backup:manage`, `automation:read`, `automation:manage`, `webhooks:manage`,
-`views:manage`, `media:write`, `admin:tenants`, `oauth:manage`, `ai:use`, `retention:read`, `retention:manage`,
-`audit:read`, `audit:export`, `privacy:read`, `privacy:manage`. The two audit scopes are two for the reason the job scopes are:
+Scopes, as of `0.7.5`: `accounts:read`, `accounts:write`, `admin:tenants`, `agent:destructive`,
+`ai:manage`, `audit:export`, `audit:read`, `automation:manage`, `backup:manage`, `backup:read`,
+`comments:write`, `containers:read`, `containers:write`, `identity_provider:manage`, `items:read`,
+`items:write`, `jobs:cancel`, `jobs:read`, `media:read`, `media:write`, `members:read`,
+`members:write`, `oauth:manage`, `ops:read`, `privacy:manage`, `privacy:read`, `quotas:read`,
+`recurrence:write`, `reminders:write`, `retention:manage`, `retention:read`, `templates:read`,
+`templates:write`, `trash:read`, `workspace:manage`, `workspace:read`. **The list here is a
+reader's copy and `catalogue.Scopes()` is the source**: it is derived from the descriptors, so a
+scope no operation checks cannot exist and a scope this paragraph forgets is still mintable. It was
+copied out of step once - three scopes were missing and `ai:use` was named and had never
+existed - which is why the sentence above now says where to look. `admin:*` is the one class a
+*session* never carries (`catalogue.SessionScopes`, `0.6.0` decision 6): the admin surface is
+entered by a deliberately minted credential, and a scope a signed-in person needs must therefore be
+named something else - `ops:read` is. The two audit scopes are two for the reason the job scopes are:
 reading the trail and carrying a copy of it out of the installation are different acts, and a
 token minted for a dashboard that watches has no business writing an archive to a bucket. The two job scopes are two deliberately:
 polling a long-running operation and stopping it are different questions, and a token minted for a

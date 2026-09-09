@@ -1577,11 +1577,23 @@ paths:
         The state of every dependency, the active feature restrictions, the backlogs, and the
         configuration warnings. Deliberately answers `200` even when `status` is `degraded` -
         the HTTP status describes whether the endpoint is reachable, the `status` field
-        describes the system. Requires `admin:read`; the unauthenticated probes `/healthz`,
-        `/startupz` and `/readyz` live outside `/api/v1` and return only status codes.
+        describes the system. The internal `/meta/health` on the operations listener serves the
+        same report and answers `503` when the status is `down`, because a status page reads a
+        status code and holds no token; this route does not, for the reason above.
+
+        **One route, two answers.** A credential holding `admin:tenants` is the installation's
+        operator and receives the whole report. Any other reader receives `status`, `version` and
+        `degraded_features` and nothing else: which features are degraded is a statement about
+        what the reader is about to try, while the dependency names, the backlogs, the migration
+        state and the configuration warnings are the installation's internals and do not cross a
+        tenant boundary. That reader needs the `ops:read` scope and the permission a workspace
+        administrator holds (`STRUCTURE`, or `READ_CONFIGURATION` for an auditor).
+
+        The unauthenticated probes `/healthz`, `/startupz` and `/readyz` live outside `/api/v1`
+        and return only status codes.
       responses:
         "200":
-          description: The diagnostic report
+          description: The diagnostic report, whole or reduced
           content:
             application/json:
               schema:
@@ -11293,11 +11305,18 @@ components:
 
     HealthReport:
       type: object
-      required: [status, version, dependencies]
+      required: [status, version]
       description: |
         Machine-readable self-diagnosis. `warnings` names what the installation is missing,
         without an error having occurred (a missing backup, missing SMTP with reminders
         enabled, expiring keys).
+
+        Only `status`, `version` and `degraded_features` are answered to every reader.
+        `dependencies`, `migration`, `backlogs` and `warnings` are the installation's internals
+        and are present only in the operator's answer - absent rather than empty, because an
+        empty `dependencies` would read as "nothing is monitored" and that is a different
+        statement. `version` is required because the public capability manifest already carries
+        it.
       properties:
         status: { $ref: "#/components/schemas/HealthStatus" }
         version: { type: string }

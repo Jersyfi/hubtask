@@ -1533,6 +1533,11 @@ func run() error {
 			Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
+		// The deep self-diagnosis (K-06, #507). The same registry `/readyz` and the operations
+		// listener read, asked through a use case so that who may see how much of it is decided
+		// in the application layer and once - an operator's credential reads the whole report, a
+		// workspace administrator reads its status and what is degraded.
+		meta.GetHealthReport{Health: registry, Authorizer: authorizer}.Descriptor(),
 		// The keyring's census and the re-seal (ADR-0045): the control plane's act, so the
 		// control plane's credential, and each workspace counted or queued in a bounded
 		// transaction of its own.
@@ -1645,6 +1650,7 @@ func run() error {
 			Wakeups:  changeListener,
 			Signals:  metrics,
 		}
+		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:  profiles,
 			Languages: postgres.NewTextLanguageRepository(),

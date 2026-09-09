@@ -66,9 +66,16 @@ func (c OpsController) Routes() http.Handler {
 		mux.Handle("GET /metrics", c.Metrics)
 	}
 
-	// The deep self-diagnosis. The document puts it at /api/v1/meta/health behind an admin
-	// scope; authentication and the generated router arrive with A-06, so until then it is
-	// served here - on the internal port, which is not public either way.
+	// The deep self-diagnosis, unauthenticated, on the internal port.
+	//
+	// The authenticated door the document puts at /api/v1/meta/health exists since K-06 and is
+	// the one a client uses; this copy stays because a status page and a support session read the
+	// report from inside the cluster holding no token, and the port is not public either way.
+	//
+	// The two answer differently on purpose. This one answers 503 when the status is down, so a
+	// status page needs to read no JSON to know; the API route answers 200 for the reason its own
+	// description gives - the HTTP status describes whether the endpoint is reachable, the status
+	// field describes the system.
 	mux.HandleFunc("GET /meta/health", func(w http.ResponseWriter, r *http.Request) {
 		defer concurrency.Recover(r.Context(), "ops.meta_health")
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)

@@ -4,11 +4,17 @@
 /**
  * The installation's deep self-diagnosis, read only by somebody who may read it.
  *
- * `/meta/health` needs `admin:read` (`observability-reliability.md` §5), and that constraint
- * shapes this module more than anything else does. An ordinary member is not shown a report they
- * are not entitled to, is not shown an error about being refused one, and does not send a request
- * that will be refused: the read is not attempted at all without a bearer, and a `401` or `403`
- * ends it quietly rather than becoming a message on the screen.
+ * `/meta/health` is one route with two answers (K-06). An operator's credential reads the whole
+ * report; a signed-in workspace administrator reads `status`, `version` and `degraded_features`,
+ * which is exactly what the banner renders - the dependency names, the backlogs and the
+ * configuration warnings stay the installation's. A session can carry the scope that asks for it
+ * (`ops:read`), which no `admin:` scope can: that is why the reduced answer exists at all, and why
+ * this module has something to read where it used to receive a `404`.
+ *
+ * The constraint still shapes the module more than anything else does. An ordinary member is not
+ * shown a report they are not entitled to, is not shown an error about being refused one, and does
+ * not send a request that will be refused: the read is not attempted at all without a bearer, and a
+ * `401` or `403` ends it quietly rather than becoming a message on the screen.
  *
  * F1's header decision is the other half of that: **no second, unauthenticated health surface**.
  * A member learns of a degradation when an operation degrades, which is where the message belongs

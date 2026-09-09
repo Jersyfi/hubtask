@@ -32,6 +32,7 @@ import (
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
+	metaservice "github.com/Jersyfi/hubtask/core/application/service/meta"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
@@ -260,6 +261,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ExportTenant{}.Descriptor(),
 		adminservice.UpdateTenantQuotas{}.Descriptor(),
 		quotaservice.ReadQuotas{}.Descriptor(),
+		metaservice.GetHealthReport{}.Descriptor(),
 		sealingservice.ReadEncryptionStatus{}.Descriptor(),
 		sealingservice.ResealSecrets{}.Descriptor(),
 	}
