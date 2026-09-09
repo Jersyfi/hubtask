@@ -194,6 +194,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.StepUp{}.Descriptor(),
 		identity.RegisterOauthClient{}.Descriptor(),
 		identity.ListOauthClients{}.Descriptor(),
+		identity.ReadOauthClient{}.Descriptor(),
 		identity.DeleteOauthClient{}.Descriptor(),
 		identity.AuthorizeOauthClient{}.Descriptor(),
 		identity.ExchangeOauthCode{}.Descriptor(),

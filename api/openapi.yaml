@@ -623,9 +623,10 @@ paths:
         would write a rule that runs as a generously-scoped service account and does what they may
         not (automation.md §2).
 
-        What this build refuses, and says so by code rather than by silence: a non-empty condition,
-        until the expression language arrives with it; an action naming a kind automation.md §1.3
-        documents and no release serves yet; a parameter the action's use case does not declare.
+        What this build refuses, and says so by code rather than by silence: a condition that does
+        not compile, or that names something this build does not publish; an action naming a kind
+        automation.md §1.3 documents and no release serves yet; a parameter the action's use case
+        does not declare.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -3809,6 +3810,31 @@ paths:
   /oauth/clients/{clientId}:
     parameters:
       - $ref: "#/components/parameters/OauthClientId"
+    get:
+      tags: [oauth]
+      operationId: readOauthClient
+      summary: What an app is called, for the person being asked to allow it
+      description: >
+        The half of a registered client a consent screen needs: its name. Any signed-in member of
+        the workspace may read it, and that is the point - the person deciding whether to allow an
+        app is usually not an administrator, and a consent screen that cannot name the app is a
+        screen that asks somebody to approve an identifier. That is the shape a phishing attempt
+        wants.
+
+        Deliberately narrower than the listing. The registered redirect URIs and whether the client
+        is confidential are the administrator's business and are answered by `GET /oauth/clients`
+        behind the permission that manages members; nothing here helps somebody enumerate the
+        workspace's apps, because reading one requires already knowing its identifier - which the
+        authorization request the reader arrived with already carries.
+      responses:
+        "200":
+          description: The app, as the person allowing it sees it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OauthClientSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     delete:
       tags: [oauth]
       operationId: deleteOauthClient
@@ -7684,6 +7710,17 @@ components:
         confidential: { type: boolean }
         created_at: { type: string, format: date-time }
 
+    OauthClientSummary:
+      type: object
+      description: >
+        An app as the person being asked to allow it sees it: what it is called, and nothing else.
+        `OauthClient` is the same row as its administrator sees it and carries the registered
+        redirect URIs beside it.
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
     OauthClientSecret:
       allOf:
         - $ref: "#/components/schemas/OauthClient"
@@ -8538,9 +8575,9 @@ components:
         dedupe_key_expr:
           type: string
           description: >
-            An expression whose value collapses runs that mean the same thing. Refused while it is
-            non-empty, with the conditions and for their reason: the language arrives with the
-            engine that evaluates it.
+            An expression whose value collapses runs that mean the same thing - two events about
+            one entry within the window are one run rather than two. Compiled with the conditions
+            and by the same compiler; an empty one means no collapsing.
 
     AutomationRule:
       type: object
@@ -8566,8 +8603,9 @@ components:
         conditions:
           type: array
           description: >
-            Empty in this release. A non-empty condition is refused until the expression language
-            that evaluates it arrives - stored and ignored is the one thing it must not be.
+            Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An
+            empty list is a rule with no conditions, which runs on every match; an empty
+            *expression* is not a condition at all and is refused as the empty field it is (G-06).
           items: { $ref: "#/components/schemas/RuleCondition" }
         actions:
           type: array
@@ -8606,7 +8644,11 @@ components:
       properties:
         expr:
           type: string
-          description: A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+          description: >
+            A CEL expression (ADR-0009), compiled when the rule is written rather than when it
+            runs: an expression that does not compile, or that names something this build does not
+            publish, is a field error under its own index rather than a rule that fails silently
+            at three in the morning.
 
     AutomationRuleCreate:
       type: object
@@ -11396,6 +11438,19 @@ components:
             The channels this installation delivers on. `EMAIL` today; a client tolerates a value
             it does not know.
           items: { type: string }
+        token_scopes:
+          type: array
+          items: { type: string }
+          description: >
+            Every scope a personal access token or an authorized app may be granted here, sorted.
+            It is the union of what this build's use cases declare plus the one capability scope no
+            operation owns, and it is answered for the same reason the role matrix is: a client that
+            offers a scope list of its own is a client that is wrong on somebody's installation, and
+            asking for a scope this installation does not declare is refused as a field error
+            naming it (`access.token_scope_unknown`).
+
+            Anonymous callers read it too. What a token may be asked for is not a secret, and the
+            screen that mints one is behind a session anyway.
         roles:
           type: array
           description: >

@@ -19,15 +19,22 @@
   import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
   import ItemView from './views/ItemView.svelte';
+  import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
+  import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
+  import AppsView from './views/AppsView.svelte';
+  import ConsentView from './views/ConsentView.svelte';
   import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
   import PermissionsView from './views/PermissionsView.svelte';
+  import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
+  import RulesView from './views/RulesView.svelte';
+  import RunsView from './views/RunsView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -81,6 +88,10 @@
          provider's redirect into a fresh document, and the screen's own business is finishing that
          exchange. It sends the reader on once there is a session. -->
     <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+  {:else if session.isSignedIn && route.name === 'consent'}
+    <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
+         arrives here signed out meets the sign-in screen first and lands back on this address. -->
+    <ConsentView />
   {:else if !session.isSignedIn && route.name === 'redeem'}
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
@@ -93,6 +104,8 @@
     <InstallationView />
   {:else if route.name === 'profile'}
     <ProfileView />
+  {:else if route.name === 'tokens'}
+    <MyTokensView />
   {:else if route.name === 'administration'}
     <AdministrationView />
   {:else if route.name === 'workspace-settings'}
@@ -103,12 +116,22 @@
     <GroupsView />
   {:else if route.name === 'permissions'}
     <PermissionsView />
+  {:else if route.name === 'service-accounts'}
+    <ServiceAccountsView />
+  {:else if route.name === 'apps'}
+    <AppsView />
+  {:else if route.name === 'rules'}
+    <RulesView />
+  {:else if route.name === 'runs'}
+    <RunsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}
     <SearchView />
+  {:else if route.name === 'jumble'}
+    <JumbleView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'trash'}
     <TrashView />
   {:else if route.name === 'item'}

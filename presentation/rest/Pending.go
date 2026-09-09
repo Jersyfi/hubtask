@@ -200,6 +200,10 @@ func (pending) UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, _ open
 // The OAuth2 provider of H-05, pending until each use case lands.
 func (pending) ListOauthClients(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) ReadOauthClient(w http.ResponseWriter, r *http.Request, _ openapi.OauthClientId) {
+	notAvailable(w, r)
+}
+
 func (pending) RegisterOauthClient(w http.ResponseWriter, r *http.Request, _ openapi.RegisterOauthClientParams) {
 	notAvailable(w, r)
 }

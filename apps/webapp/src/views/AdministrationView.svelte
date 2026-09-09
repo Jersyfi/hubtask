@@ -24,6 +24,14 @@
     { path: '/administration/people', label: 'app.admin.people', hint: 'app.admin.people_hint' },
     { path: '/administration/groups', label: 'app.admin.groups', hint: 'app.admin.groups_hint' },
     { path: '/administration/permissions', label: 'app.admin.permissions', hint: 'app.admin.permissions_hint' },
+    {
+      path: '/administration/service-accounts',
+      label: 'app.admin.service_accounts',
+      hint: 'app.admin.service_accounts_hint',
+    },
+    { path: '/administration/apps', label: 'app.admin.apps', hint: 'app.admin.apps_hint' },
+    { path: '/administration/rules', label: 'app.admin.rules', hint: 'app.admin.rules_hint' },
+    { path: '/administration/runs', label: 'app.admin.runs', hint: 'app.admin.runs_hint' },
     { path: '/administration/quotas', label: 'app.admin.quotas', hint: 'app.admin.quotas_hint' },
     {
       path: '/administration/identity-provider',

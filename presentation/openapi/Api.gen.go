@@ -3581,7 +3581,7 @@ type AutoAssignStrategy string
 type AutomationRule struct {
 	Actions []RuleAction `json:"actions"`
 
-	// Conditions Empty in this release. A non-empty condition is refused until the expression language that evaluates it arrives - stored and ignored is the one thing it must not be.
+	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is (G-06).
 	Conditions []RuleCondition    `json:"conditions"`
 	CreatedAt  time.Time          `json:"created_at"`
 	CreatedBy  openapi_types.UUID `json:"created_by"`
@@ -4046,7 +4046,11 @@ type Capabilities struct {
 
 	// TextLanguages The languages this installation can index the text of, as BCP-47 tags, and what a client's language picker for `content_language` is built from. It is the installation's answer rather than the product's: the mapping from a tag to a text search configuration is in the database, and which of those configurations exist is what its PostgreSQL was built with (ADR-0034). A language that is not in this list is not refused - an entry declaring one is stored and matched word by word, which is the same treatment a script without word boundaries gets.
 	TextLanguages *[]string `json:"text_languages,omitempty"`
-	ViewLayouts   *[]string `json:"view_layouts,omitempty"`
+
+	// TokenScopes Every scope a personal access token or an authorized app may be granted here, sorted. It is the union of what this build's use cases declare plus the one capability scope no operation owns, and it is answered for the same reason the role matrix is: a client that offers a scope list of its own is a client that is wrong on somebody's installation, and asking for a scope this installation does not declare is refused as a field error naming it (`access.token_scope_unknown`).
+	// Anonymous callers read it too. What a token may be asked for is not a secret, and the screen that mints one is behind a session anyway.
+	TokenScopes *[]string `json:"token_scopes,omitempty"`
+	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 }
 
 // CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.
@@ -5183,6 +5187,12 @@ type OauthClientSecret struct {
 	RedirectUris []string           `json:"redirect_uris"`
 }
 
+// OauthClientSummary An app as the person being asked to allow it sees it: what it is called, and nothing else. `OauthClient` is the same row as its administrator sees it and carries the registered redirect URIs beside it.
+type OauthClientSummary struct {
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
+}
+
 // OauthCode defines model for OauthCode.
 type OauthCode struct {
 	// Code Single use, minutes of life, exchanged at /oauth/token.
@@ -5739,7 +5749,7 @@ type RuleActionResultStatus string
 
 // RuleCondition defines model for RuleCondition.
 type RuleCondition struct {
-	// Expr A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+	// Expr A CEL expression (ADR-0009), compiled when the rule is written rather than when it runs: an expression that does not compile, or that names something this build does not publish, is a field error under its own index rather than a rule that fails silently at three in the morning.
 	Expr string `json:"expr"`
 }
 
@@ -5858,7 +5868,7 @@ type RuleTestResult struct {
 
 // RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
 type RuleThrottle struct {
-	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing. Refused while it is non-empty, with the conditions and for their reason: the language arrives with the engine that evaluates it.
+	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing - two events about one entry within the window are one run rather than two. Compiled with the conditions and by the same compiler; an empty one means no collapsing.
 	DedupeKeyExpr  *string `json:"dedupe_key_expr,omitempty"`
 	MaxRunsPerHour *int    `json:"max_runs_per_hour,omitempty"`
 }
@@ -8642,6 +8652,9 @@ type ServerInterface interface {
 	// DeleteOauthClient Remove a third-party app
 	// (DELETE /oauth/clients/{clientId})
 	DeleteOauthClient(w http.ResponseWriter, r *http.Request, clientId OauthClientId)
+	// ReadOauthClient What an app is called, for the person being asked to allow it
+	// (GET /oauth/clients/{clientId})
+	ReadOauthClient(w http.ResponseWriter, r *http.Request, clientId OauthClientId)
 	// ListOauthGrants The apps the caller has allowed, and what
 	// (GET /oauth/grants)
 	ListOauthGrants(w http.ResponseWriter, r *http.Request)
@@ -15915,6 +15928,32 @@ func (siw *ServerInterfaceWrapper) DeleteOauthClient(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ReadOauthClient operation middleware
+func (siw *ServerInterfaceWrapper) ReadOauthClient(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "clientId" -------------
+	var clientId OauthClientId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "clientId", r.PathValue("clientId"), &clientId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "clientId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadOauthClient(w, r, clientId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListOauthGrants operation middleware
 func (siw *ServerInterfaceWrapper) ListOauthGrants(w http.ResponseWriter, r *http.Request) {
 
@@ -17592,6 +17631,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.ReadOauthClient)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/authorize", wrapper.AuthorizeOauthClient)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/token", wrapper.ExchangeOauthCode)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/grants", wrapper.ListOauthGrants)

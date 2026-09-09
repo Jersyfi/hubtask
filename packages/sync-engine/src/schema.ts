@@ -159,6 +159,12 @@ export type RetentionPolicy = components['schemas']['RetentionPolicy'];
  * token exchange. A screen that reached for it on the read would find nothing, by design.
  */
 export type IdentityProvider = components['schemas']['IdentityProvider'];
+
+/**
+ * A minted credential as it is listed afterwards. The token itself is not a member of it: it
+ * exists in the answer to the call that minted it and nowhere else.
+ */
+export type AccessToken = components['schemas']['AccessToken'];
 export type IdentityProviderConfiguration =
   components['schemas']['IdentityProviderConfiguration'];
 
