@@ -1,15 +1,136 @@
 /* SPDX-License-Identifier: BUSL-1.1
    Copyright (c) 2026 Jérôme Bastian Winkel
 
-   Same rule as everywhere else: every value is a token (ADR-0029). Border widths use the CSS
-   keyword `thin` for exactly that reason - there is no border-width token yet, and a keyword is
-   not a literal. Depth follows design-system.md §6 rule 1: cards are raised (standalone), the
-   shell block is sunken (a child inside its section), and nothing here is glass - only overlays
-   blur, and a brochure has none. */
+   The website's whole stylesheet. Same rule as everywhere else: every value is a token
+   (ADR-0029), and the only literals here are ratios, counts and `ch` measures - a column width in
+   characters is a typographic decision about this page, not a design-system value.
+
+   The visual system is `docs/design/design-system.md` applied to a brochure. Four mechanisms
+   carry the recognition, and they repeat on every page:
+
+     1. The mark      three nested planes, the innermost in the signature bordeaux (§9).
+     2. The ember     the signature colour appears in exactly three ways - an ambient wash behind
+                      a hero, the mono kicker above a section, and a short rule under a title. It
+                      is never a surface, because `ambient.*` are washes and `accent.signature`
+                      is one accent, not a palette.
+     3. The levels    the five levels always in the same five label tokens, in the same order.
+     4. The proof     an ember-rimmed mono chip beside a claim, linking to the document or the CI
+                      gate that proves it (docs/marketing/market-analysis.md §4.1).
+
+   Depth follows §6 rule 1 exactly: raised = a standalone card, sunken = a block inside a section,
+   and nothing here is glass, because only overlays blur and a brochure has none. */
 
 * {
   box-sizing: border-box;
 }
+
+/* ── The two colour modes ─────────────────────────────────────────────────────
+
+   The document is dark (`data-theme="dark"` on <html>) and the body carries the light set
+   (`data-theme="light"`). The two rules below hand the light set back to the document's dark one
+   by setting every semantic property this site reads to `inherit` - which is what makes dark the
+   default while the reader keeps a real choice, with no JavaScript anywhere.
+
+   Light therefore wins in exactly two situations: the reader chose it, or nobody chose anything
+   and the operating system asks for it. Everything else is dark.
+
+   The two blocks are identical on purpose and build/check-theme.test.js keeps them that way: it
+   fails when this file reads a semantic token that either block forgets, which is the only way
+   this construction can rot. */
+
+/* The reader chose dark. The second case - nobody chose and the system does not ask for light -
+   is the identical block below, because a media query cannot qualify one selector of a list. */
+html:has(#mode-dark:checked) body[data-theme] {
+  --bg-canvas: inherit;
+  --bg-surface: inherit;
+  --bg-surface-sunken: inherit;
+  --bg-surface-hover: inherit;
+  --text-primary: inherit;
+  --text-secondary: inherit;
+  --text-subtle: inherit;
+  --text-inverse: inherit;
+  --text-success: inherit;
+  --text-warning: inherit;
+  --border-subtle: inherit;
+  --border-default: inherit;
+  --accent-primary: inherit;
+  --accent-primary-hover: inherit;
+  --accent-primary-subtle: inherit;
+  --accent-signature: inherit;
+  --accent-signature-subtle: inherit;
+  --focus-ring: inherit;
+  --shadow-raised: inherit;
+  --shadow-overlay: inherit;
+  --shadow-nested: inherit;
+  --rim-ember: inherit;
+  --rim-blue: inherit;
+  --ambient-primary: inherit;
+  --ambient-signature: inherit;
+  --label-slate-bg: inherit;
+  --label-slate-fg: inherit;
+  --label-blue-bg: inherit;
+  --label-blue-fg: inherit;
+  --label-teal-bg: inherit;
+  --label-teal-fg: inherit;
+  --label-green-bg: inherit;
+  --label-green-fg: inherit;
+  --label-amber-bg: inherit;
+  --label-amber-fg: inherit;
+  --label-orange-bg: inherit;
+  --label-orange-fg: inherit;
+  --label-red-bg: inherit;
+  --label-red-fg: inherit;
+  --label-violet-bg: inherit;
+  --label-violet-fg: inherit;
+}
+
+@media not all and (prefers-color-scheme: light) {
+  html:has(#mode-auto:checked) body[data-theme] {
+    --bg-canvas: inherit;
+    --bg-surface: inherit;
+    --bg-surface-sunken: inherit;
+    --bg-surface-hover: inherit;
+    --text-primary: inherit;
+    --text-secondary: inherit;
+    --text-subtle: inherit;
+    --text-inverse: inherit;
+    --text-success: inherit;
+    --text-warning: inherit;
+    --border-subtle: inherit;
+    --border-default: inherit;
+    --accent-primary: inherit;
+    --accent-primary-hover: inherit;
+    --accent-primary-subtle: inherit;
+    --accent-signature: inherit;
+    --accent-signature-subtle: inherit;
+    --focus-ring: inherit;
+    --shadow-raised: inherit;
+    --shadow-overlay: inherit;
+    --shadow-nested: inherit;
+    --rim-ember: inherit;
+    --rim-blue: inherit;
+    --ambient-primary: inherit;
+    --ambient-signature: inherit;
+    --label-slate-bg: inherit;
+    --label-slate-fg: inherit;
+    --label-blue-bg: inherit;
+    --label-blue-fg: inherit;
+    --label-teal-bg: inherit;
+    --label-teal-fg: inherit;
+    --label-green-bg: inherit;
+    --label-green-fg: inherit;
+    --label-amber-bg: inherit;
+    --label-amber-fg: inherit;
+    --label-orange-bg: inherit;
+    --label-orange-fg: inherit;
+    --label-red-bg: inherit;
+    --label-red-fg: inherit;
+    --label-violet-bg: inherit;
+    --label-violet-fg: inherit;
+  }
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 
 body {
   margin: 0;
@@ -19,62 +140,500 @@ body {
   font-size: var(--fs-100);
   font-weight: var(--fw-text);
   line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
 }
 
-main {
-  padding: var(--sp-1000) var(--sp-600) var(--sp-800);
-  max-width: 96ch;
+/* Rule 6: motion lives in opacity and transform, and a reader who asks for less gets none. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.wrap {
+  max-width: var(--bp-large);
   margin: 0 auto;
+  /* A media query cannot read a custom property, so the page is fluid instead of stepped: every
+     bound is a token and the middle term is the viewport. That is also why this stylesheet has no
+     width breakpoint at all. */
+  padding-inline: clamp(var(--sp-300), 4vw, var(--sp-500));
 }
 
-/* ── The hero ─────────────────────────────────────────────────────────────── */
+.narrow {
+  max-width: 74ch;
+}
 
-/* The signature wash: an ambient ember glow behind the title, the quietest way the brand colour
-   is allowed to appear (ambient tokens are washes, never surfaces). */
-.hero {
+/* Skip link: the first thing a keyboard reader meets, and invisible until it is theirs. */
+.site-skip {
+  position: absolute;
+  inset-inline-start: var(--sp-400);
+  inset-block-start: var(--sp-025);
+  z-index: var(--z-toast);
+  padding: var(--sp-150) var(--sp-300);
+  border-radius: var(--r-md);
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  font-size: var(--fs-100);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.site-skip:focus {
+  transform: translateY(0);
+}
+
+/* ── The header ───────────────────────────────────────────────────────────── */
+
+.masthead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky);
+  background: var(--bg-surface);
+  border-block-end: var(--bw-hairline) solid var(--border-subtle);
+}
+
+.masthead > .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-200) var(--sp-400);
+  padding-block: var(--sp-200);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-150);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--fs-300);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01ch;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.brand:hover {
+  color: var(--text-primary);
+}
+
+.site-mark {
+  display: block;
+  flex: none;
+  inline-size: var(--sp-400);
+  block-size: var(--sp-400);
+}
+
+.site-mark[data-size='lg'] {
+  inline-size: var(--sp-600);
+  block-size: var(--sp-600);
+}
+
+.topnav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-050) var(--sp-300);
+  margin-inline-end: auto;
+}
+
+.topnav a {
+  color: var(--text-secondary);
+  font-size: var(--fs-100);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  padding-block: var(--sp-050);
+  border-block-end: var(--bw-thick) solid transparent;
+}
+
+.topnav a:hover {
+  color: var(--text-primary);
+}
+
+.topnav a[aria-current='page'] {
+  color: var(--text-primary);
+  border-block-end-color: var(--accent-signature);
+}
+
+/* The colour-mode control: one glyph, three faces, and no script.
+
+   The faces are stacked in a single grid cell. The one whose state is current is opaque and takes
+   the pointer; the other two are transparent, unclickable, and parked at a turn away from centre,
+   so a change of mode is one glyph leaving and the next arriving rather than a swap.
+
+   Everything below moves in `opacity` and `transform` only - rule 6 - and every one of them is a
+   transition rather than a keyframe animation. That is deliberate: a transition has nothing to run
+   from on first paint, so the control is still on load and moves only when somebody presses it.
+
+   The parts inside each glyph are addressable because the icons were chosen for it: `sun` is a
+   disc plus eight separate ray paths, `moon-star` is a crescent plus two star strokes, and
+   `sun-moon` is a crescent inside a sun's rays. build/check-theme.test.js asserts those shapes, so
+   an upstream reordering of the icon set fails a test rather than quietly animating the wrong
+   stroke. */
+.theme {
   position: relative;
-  padding-bottom: var(--sp-800);
+  display: grid;
+  place-items: center;
+  inline-size: var(--sp-500);
+  block-size: var(--sp-500);
+  border-radius: var(--r-full);
 }
 
-.hero::before {
-  content: "";
+/* On top and transparent, never `display: none`: the inputs are what the keyboard and the
+   accessibility tree see, and hiding them would remove both. The same construction as Checkbox. */
+.theme input {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 70% 90% at 20% 0%, var(--ambient-signature), transparent);
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
   pointer-events: none;
 }
 
-.hero > * {
+.theme-face {
+  grid-area: 1 / 1;
   position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: var(--sp-500);
+  block-size: var(--sp-500);
+  border-radius: var(--r-full);
+  color: var(--text-subtle);
+  cursor: pointer;
+  /* Parked: turned away and small, waiting its turn. */
+  opacity: 0;
+  transform: rotate(70deg) scale(0.4);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-exit-duration) var(--motion-exit-easing),
+    transform var(--motion-exit-duration) var(--motion-exit-easing);
 }
+
+/* The face whose state is current: upright, opaque, and the only one that can be pressed. It
+   arrives on the spring easing, which is what gives the swap its small overshoot. */
+.theme:has(#mode-auto:checked) [data-face='auto'],
+.theme:has(#mode-light:checked) [data-face='light'],
+.theme:has(#mode-dark:checked) [data-face='dark'] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-emphasis-duration) var(--motion-emphasis-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme-face:hover {
+  color: var(--text-primary);
+}
+
+/* The glow. A halo behind the glyph rather than a filter on it, because a filter is neither
+   opacity nor transform - and because a real halo in the mode's own colour says which mode it is
+   about: ember for the sun, blue for the moon. */
+.theme-halo {
+  position: absolute;
+  inset: calc(-1 * var(--sp-100));
+  border-radius: var(--r-full);
+  opacity: 0;
+  transition: opacity var(--motion-state-duration) var(--motion-state-easing);
+}
+
+[data-face='light'] .theme-halo,
+[data-face='auto'] .theme-halo {
+  background: radial-gradient(circle at 50% 50%, var(--ambient-signature), transparent 70%);
+}
+
+[data-face='dark'] .theme-halo {
+  background: radial-gradient(circle at 50% 50%, var(--ambient-primary), transparent 70%);
+}
+
+.theme-face:hover .theme-halo,
+.theme:has(input:focus-visible) .theme-face .theme-halo {
+  opacity: 1;
+}
+
+.theme-glyph {
+  display: inline-flex;
+  transition: transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+/* Rule 5. The ring goes on the painted face, because the input it belongs to is invisible. */
+.theme:has(input:focus-visible) .theme-face {
+  outline: var(--bw-ring) solid var(--focus-ring);
+  outline-offset: var(--bw-ring);
+}
+
+/* ── The parts, moving one at a time ──────────────────────────────────────────
+
+   Each glyph's own pieces are parked with the face and settle when it becomes current. The
+   staggered delays are what turn "the icon appears" into "the rays come out" and "the star
+   twinkles after the moon has arrived". `transform-box: view-box` puts every origin at the centre
+   of the 24-unit grid, so a ray scales out of the sun rather than out of itself. */
+.theme-face svg * {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transition:
+    opacity var(--motion-exit-duration) var(--motion-exit-easing),
+    transform var(--motion-exit-duration) var(--motion-exit-easing);
+}
+
+/* The sun: the disc is there first, the eight rays come out of it in turn. */
+[data-face='light'] svg path {
+  opacity: 0;
+  transform: scale(0.15);
+}
+
+[data-face='light'] svg circle {
+  transform: scale(0.55);
+}
+
+.theme:has(#mode-light:checked) [data-face='light'] svg path,
+.theme:has(#mode-light:checked) [data-face='light'] svg circle {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-entrance-duration) var(--motion-entrance-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(2) { transition-delay: var(--dur-fast); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(3) { transition-delay: calc(var(--dur-fast) * 1.2); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(4) { transition-delay: calc(var(--dur-fast) * 1.4); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(5) { transition-delay: calc(var(--dur-fast) * 1.6); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(6) { transition-delay: calc(var(--dur-fast) * 1.8); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(7) { transition-delay: calc(var(--dur-fast) * 2); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(8) { transition-delay: calc(var(--dur-fast) * 2.2); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(9) { transition-delay: calc(var(--dur-fast) * 2.4); }
+
+/* Hover: the rays turn a little, the way a light source does when you look at it directly. */
+[data-face='light']:hover .theme-glyph {
+  transform: rotate(25deg);
+}
+
+/* The moon: the crescent (the long third path) arrives, and the two star strokes twinkle in
+   after it. */
+[data-face='dark'] svg path:nth-child(1),
+[data-face='dark'] svg path:nth-child(2) {
+  opacity: 0;
+  transform: scale(0.2) rotate(-45deg);
+}
+
+[data-face='dark'] svg path:nth-child(3) {
+  transform: rotate(-25deg);
+}
+
+.theme:has(#mode-dark:checked) [data-face='dark'] svg path {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-entrance-duration) var(--motion-entrance-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme:has(#mode-dark:checked) [data-face='dark'] svg path:nth-child(1) { transition-delay: calc(var(--dur-fast) * 1.6); }
+.theme:has(#mode-dark:checked) [data-face='dark'] svg path:nth-child(2) { transition-delay: calc(var(--dur-fast) * 2); }
+
+/* Hover: the star grows, which is the only thing on a crescent that can twinkle. */
+[data-face='dark']:hover svg path:nth-child(1),
+[data-face='dark']:hover svg path:nth-child(2) {
+  transform: scale(1.25);
+}
+
+/* Auto: the hybrid turns in as one piece, and its three ray strokes follow. Its meaning is "one
+   of the other two", so it moves like both and commits to neither. */
+[data-face='auto'] svg path:nth-child(1),
+[data-face='auto'] svg path:nth-child(4),
+[data-face='auto'] svg path:nth-child(5) {
+  opacity: 0;
+  transform: scale(0.2);
+}
+
+.theme:has(#mode-auto:checked) [data-face='auto'] svg path {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-entrance-duration) var(--motion-entrance-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme:has(#mode-auto:checked) [data-face='auto'] svg path:nth-child(4) { transition-delay: var(--dur-fast); }
+.theme:has(#mode-auto:checked) [data-face='auto'] svg path:nth-child(5) { transition-delay: calc(var(--dur-fast) * 1.4); }
+
+/* Hover: it rocks between its two halves rather than turning, because it is the state that has
+   not chosen. */
+[data-face='auto']:hover .theme-glyph {
+  transform: rotate(-15deg);
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────────── */
 
 h1 {
-  margin: 0 0 var(--sp-200);
+  margin: 0 0 var(--sp-300);
   font-family: var(--font-display);
-  font-size: var(--fs-800);
+  font-size: clamp(var(--fs-500), 6vw, var(--fs-700));
   font-weight: var(--fw-bold);
   line-height: var(--lh-tight);
+  letter-spacing: -0.02ch;
 }
 
-/* The one solid appearance of the signature colour above the fold: a short rule under the name. */
+.hero h1 {
+  font-size: clamp(var(--fs-600), 8vw, var(--fs-800));
+}
+
+/* The one solid appearance of the signature colour above the fold. */
 h1::after {
-  content: "";
+  content: '';
   display: block;
-  width: var(--sp-800);
-  height: var(--sp-050);
-  margin-top: var(--sp-300);
+  inline-size: var(--sp-800);
+  block-size: var(--sp-050);
+  margin-block-start: var(--sp-300);
   border-radius: var(--r-full);
   background: var(--accent-signature);
 }
 
-.lede {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--fs-300);
-  max-width: 64ch;
+h2 {
+  margin: 0 0 var(--sp-300);
+  font-family: var(--font-display);
+  font-size: clamp(var(--fs-500), 4vw, var(--fs-600));
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01ch;
 }
 
-/* The five levels as label chips - the product's own colour vocabulary doing the explaining. */
+h3 {
+  margin: 0 0 var(--sp-150);
+  font-size: var(--fs-200);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--text-primary);
+}
+
+h4 {
+  margin: 0 0 var(--sp-100);
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08ch;
+  color: var(--text-subtle);
+}
+
+p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+}
+
+p + p,
+p + ul,
+p + ol,
+ul + p,
+.site-stack > * + * {
+  margin-block-start: var(--sp-300);
+}
+
+.lede {
+  color: var(--text-secondary);
+  font-size: clamp(var(--fs-300), 2.4vw, var(--fs-400));
+  line-height: var(--lh-snug);
+  max-width: 52ch;
+}
+
+strong {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+small {
+  font-size: var(--fs-075);
+  color: var(--text-subtle);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-100);
+  color: var(--text-primary);
+  background: var(--bg-surface-sunken);
+  padding: var(--sp-025) var(--sp-100);
+  border-radius: var(--r-xs);
+}
+
+/* The kicker: mono, uppercase, and the quietest of the three places the signature appears. */
+.kicker {
+  margin: 0 0 var(--sp-150);
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1ch;
+  color: var(--accent-signature);
+}
+
+/* ── Sections ─────────────────────────────────────────────────────────────── */
+
+main {
+  display: block;
+}
+
+.section {
+  padding-block: var(--sp-1000);
+  border-block-start: var(--bw-hairline) solid var(--border-subtle);
+}
+
+.section:first-of-type {
+  border-block-start: none;
+}
+
+.section > .wrap > p,
+.section > .wrap > .lede {
+  max-width: 72ch;
+}
+
+.section-head {
+  margin-block-end: var(--sp-600);
+}
+
+/* A measure, not a container width. Body copy that runs the width of a 1440-pixel layout is
+   unreadable however good the type is. */
+.section-head > p:not(.lede) {
+  max-width: 72ch;
+}
+
+/* ── The hero ─────────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  padding-block: var(--sp-1000) var(--sp-800);
+  overflow: hidden;
+}
+
+/* The signature wash: an ambient ember glow, the quietest way the brand colour may appear. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 15% 0%, var(--ambient-signature), transparent),
+    radial-gradient(ellipse 70% 90% at 90% 20%, var(--ambient-primary), transparent);
+  pointer-events: none;
+}
+
+.hero > .wrap {
+  position: relative;
+}
+
+.hero-sub {
+  padding-block: var(--sp-800) var(--sp-600);
+}
+
+.hero-sub h1 {
+  font-size: clamp(var(--fs-500), 6vw, var(--fs-700));
+}
+
+/* ── The five levels ──────────────────────────────────────────────────────── */
+
 .levels {
   margin: var(--sp-500) 0 0;
   display: flex;
@@ -83,37 +642,22 @@ h1::after {
   gap: var(--sp-100);
 }
 
-.chip {
+.site-chip {
   font-family: var(--font-mono);
   font-size: var(--fs-075);
   padding: var(--sp-050) var(--sp-200);
   border-radius: var(--r-full);
+  white-space: nowrap;
 }
 
-.chip-slate {
-  background: var(--label-slate-bg);
-  color: var(--label-slate-fg);
-}
-
-.chip-blue {
-  background: var(--label-blue-bg);
-  color: var(--label-blue-fg);
-}
-
-.chip-teal {
-  background: var(--label-teal-bg);
-  color: var(--label-teal-fg);
-}
-
-.chip-violet {
-  background: var(--label-violet-bg);
-  color: var(--label-violet-fg);
-}
-
-.chip-amber {
-  background: var(--label-amber-bg);
-  color: var(--label-amber-fg);
-}
+.site-chip-slate { background: var(--label-slate-bg); color: var(--label-slate-fg); }
+.site-chip-blue { background: var(--label-blue-bg); color: var(--label-blue-fg); }
+.site-chip-teal { background: var(--label-teal-bg); color: var(--label-teal-fg); }
+.site-chip-green { background: var(--label-green-bg); color: var(--label-green-fg); }
+.site-chip-amber { background: var(--label-amber-bg); color: var(--label-amber-fg); }
+.site-chip-orange { background: var(--label-orange-bg); color: var(--label-orange-fg); }
+.site-chip-red { background: var(--label-red-bg); color: var(--label-red-fg); }
+.site-chip-violet { background: var(--label-violet-bg); color: var(--label-violet-fg); }
 
 .sep {
   color: var(--text-subtle);
@@ -121,12 +665,48 @@ h1::after {
   font-size: var(--fs-075);
 }
 
+/* ── The proof chip ───────────────────────────────────────────────────────── */
+
+.proof {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-050);
+  margin-block-start: var(--sp-200);
+  padding: var(--sp-025) var(--sp-150);
+  border: var(--bw-hairline) solid var(--rim-ember);
+  border-radius: var(--r-full);
+  background: var(--accent-signature-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-050);
+  text-decoration: none;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.proof:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-signature);
+}
+
+.proof-glyph {
+  color: var(--accent-signature);
+}
+
+.proof-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Calls to action ──────────────────────────────────────────────────────── */
+
 .cta-row {
-  margin: var(--sp-600) 0 0;
+  margin-block-start: var(--sp-600);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-400);
+  gap: var(--sp-300);
 }
 
 .cta {
@@ -134,7 +714,7 @@ h1::after {
   background: var(--accent-primary);
   color: var(--text-inverse);
   font-weight: var(--fw-semibold);
-  font-size: var(--fs-100);
+  font-size: var(--fs-200);
   padding: var(--sp-150) var(--sp-500);
   border-radius: var(--r-full);
   text-decoration: none;
@@ -145,100 +725,140 @@ h1::after {
   color: var(--text-inverse);
 }
 
-.quiet {
-  color: var(--text-secondary);
-  font-size: var(--fs-100);
-}
-
-/* ── Sections ─────────────────────────────────────────────────────────────── */
-
-.block {
-  margin-top: var(--sp-1000);
-}
-
-.kicker {
-  margin: 0 0 var(--sp-100);
-  font-family: var(--font-mono);
-  font-size: var(--fs-075);
-  text-transform: uppercase;
-  color: var(--accent-signature);
-}
-
-h2 {
-  margin: 0 0 var(--sp-300);
-  font-family: var(--font-display);
-  font-size: var(--fs-500);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
-}
-
-h3 {
-  margin: 0 0 var(--sp-150);
-  font-size: var(--fs-200);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-snug);
-}
-
-p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--fs-200);
-}
-
-.block > p {
-  max-width: 72ch;
-}
-
-.block p + p,
-section p + p {
-  margin-top: var(--sp-200);
-}
-
-strong {
+.cta-quiet {
+  display: inline-block;
+  border: var(--bw-hairline) solid var(--border-default);
+  background: transparent;
   color: var(--text-primary);
   font-weight: var(--fw-semibold);
+  font-size: var(--fs-200);
+  padding: var(--sp-150) var(--sp-500);
+  border-radius: var(--r-full);
+  text-decoration: none;
 }
 
-code {
-  font-family: var(--font-mono);
-  font-size: var(--fs-075);
+.cta-quiet:hover {
+  background: var(--bg-surface-hover);
   color: var(--text-primary);
-  background: var(--bg-surface-sunken);
-  padding: var(--sp-025) var(--sp-100);
-  border-radius: var(--r-xs);
 }
 
 /* ── Cards ────────────────────────────────────────────────────────────────── */
 
-.cards {
+.site-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(30ch, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(28ch, 100%), 1fr));
   gap: var(--sp-300);
-  margin-top: var(--sp-400);
+  margin-block-start: var(--sp-500);
 }
 
-.card {
+.site-cards-2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(38ch, 100%), 1fr));
+}
+
+.site-card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
   background: var(--bg-surface);
-  border: thin solid var(--border-subtle);
+  border: var(--bw-hairline) solid var(--border-subtle);
   border-radius: var(--r-lg);
   padding: var(--sp-500);
   box-shadow: var(--shadow-raised);
 }
 
-.card p {
+.site-card p {
   font-size: var(--fs-100);
 }
 
-/* The trust section carries the signature: an ember rim on its cards, the colour of the thing
-   the product cares most about. */
-.trust .card {
+.site-card > * + * {
+  margin-block-start: var(--sp-150);
+}
+
+.site-card .proof {
+  margin-block-start: auto;
+  padding-block-start: var(--sp-025);
+}
+
+/* The signature rim: the cards of the section the product cares most about. */
+.site-cards-signature .site-card {
   border-color: var(--rim-ember);
 }
 
-/* ── The feature and roadmap lists ────────────────────────────────────────── */
+.site-card-index {
+  font-family: var(--font-mono);
+  font-size: var(--fs-050);
+  color: var(--accent-signature);
+}
 
-.features,
-.roadmap {
+/* ── Numbers ──────────────────────────────────────────────────────────────── */
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16ch, 100%), 1fr));
+  gap: var(--sp-500) var(--sp-300);
+  margin-block-start: var(--sp-600);
+  padding-block: var(--sp-500);
+  border-block: var(--bw-hairline) solid var(--border-subtle);
+}
+
+.figure dt {
+  font-family: var(--font-display);
+  font-size: var(--fs-600);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure dd {
+  margin: var(--sp-050) 0 0;
+  color: var(--text-subtle);
+  font-size: var(--fs-100);
+  max-width: 24ch;
+}
+
+/* ── Definition lists as feature rows ─────────────────────────────────────── */
+
+.site-rows {
+  margin-block-start: var(--sp-500);
+  border-block-start: var(--bw-hairline) solid var(--border-subtle);
+}
+
+.site-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-150) var(--sp-500);
+  padding-block: var(--sp-400);
+  border-block-end: var(--bw-hairline) solid var(--border-subtle);
+}
+
+.site-row > h3 {
+  flex: 0 1 20ch;
+  min-width: 0;
+}
+
+.site-row > div {
+  flex: 1 1 46ch;
+  min-width: 0;
+  max-width: 78ch;
+}
+
+.site-row > h3 {
+  margin: 0;
+}
+
+.site-row > div > * + * {
+  margin-block-start: var(--sp-150);
+}
+
+.site-row p {
+  font-size: var(--fs-100);
+}
+
+/* ── Lists ────────────────────────────────────────────────────────────────── */
+
+.ticks,
+.site-plain {
   list-style: none;
   margin: var(--sp-400) 0 0;
   padding: 0;
@@ -246,64 +866,216 @@ code {
   gap: var(--sp-200);
 }
 
-.features {
-  grid-template-columns: repeat(auto-fit, minmax(38ch, 1fr));
+.ticks-2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(34ch, 100%), 1fr));
+  gap: var(--sp-200) var(--sp-500);
 }
 
-.features li,
-.roadmap li {
+.ticks li {
+  position: relative;
+  padding-inline-start: var(--sp-400);
   color: var(--text-secondary);
   font-size: var(--fs-100);
 }
 
-.features li code,
-.roadmap li code {
-  margin-inline-end: var(--sp-100);
+.ticks li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: var(--sp-100);
+  inline-size: var(--sp-150);
+  block-size: var(--sp-050);
+  border-radius: var(--r-full);
+  background: var(--accent-signature);
 }
 
-/* ── The shell block ──────────────────────────────────────────────────────── */
+.ticks li strong {
+  display: block;
+}
 
-.shell {
-  margin: var(--sp-400) 0 0;
+ul.site-prose,
+ol.site-prose {
+  margin: var(--sp-300) 0 0;
+  padding-inline-start: var(--sp-400);
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+}
+
+ul.site-prose li + li,
+ol.site-prose li + li {
+  margin-block-start: var(--sp-150);
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────────── */
+
+.table-scroll {
+  margin-block-start: var(--sp-500);
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  font-size: var(--fs-100);
+}
+
+th,
+td {
+  text-align: start;
+  padding: var(--sp-200) var(--sp-300);
+  border-block-end: var(--bw-hairline) solid var(--border-subtle);
+  vertical-align: top;
+}
+
+thead th {
+  font-family: var(--font-mono);
+  font-size: var(--fs-050);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08ch;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+tbody th {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+td {
+  color: var(--text-secondary);
+}
+
+td .yes {
+  color: var(--text-success);
+}
+
+td .no {
+  color: var(--text-subtle);
+}
+
+td .part {
+  color: var(--text-warning);
+}
+
+/* ── Code ─────────────────────────────────────────────────────────────────── */
+
+.site-shell {
+  margin-block-start: var(--sp-400);
   background: var(--bg-surface-sunken);
-  border: thin solid var(--border-subtle);
+  border: var(--bw-hairline) solid var(--border-subtle);
   border-radius: var(--r-md);
+  box-shadow: var(--shadow-nested);
   padding: var(--sp-300) var(--sp-400);
   overflow-x: auto;
 }
 
-.shell code {
+.site-shell code {
+  display: block;
   background: transparent;
   padding: 0;
   font-size: var(--fs-100);
+  line-height: var(--lh-loose);
+  color: var(--text-primary);
+  white-space: pre;
+}
+
+.site-shell .c {
+  color: var(--text-subtle);
+}
+
+/* ── Callouts ─────────────────────────────────────────────────────────────── */
+
+.callout {
+  margin-block-start: var(--sp-500);
+  border-inline-start: var(--sp-050) solid var(--accent-signature);
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-400) var(--sp-500);
+}
+
+.callout p {
+  font-size: var(--fs-100);
+  max-width: 84ch;
+}
+
+.callout-quiet {
+  border-inline-start-color: var(--border-default);
+}
+
+/* ── The roadmap rail ─────────────────────────────────────────────────────── */
+
+.rail {
+  list-style: none;
+  margin: var(--sp-500) 0 0;
+  padding: 0 0 0 var(--sp-400);
+  border-inline-start: var(--bw-hairline) solid var(--border-subtle);
+  display: grid;
+  gap: var(--sp-500);
+}
+
+.rail li {
+  position: relative;
+}
+
+.rail li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--sp-400) - var(--sp-050));
+  inset-block-start: var(--sp-100);
+  inline-size: var(--sp-100);
+  block-size: var(--sp-100);
+  border-radius: var(--r-full);
+  background: var(--border-default);
+}
+
+.rail li[data-state='done']::before {
+  background: var(--accent-signature);
+}
+
+.rail li[data-state='now']::before {
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 var(--sp-050) var(--accent-primary-subtle);
+}
+
+.rail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-200);
+}
+
+.rail-version {
+  font-family: var(--font-mono);
+  font-size: var(--fs-200);
+  font-weight: var(--fw-semibold);
   color: var(--text-primary);
 }
 
-/* ── The legal pages ──────────────────────────────────────────────────────── */
-
-.crumb {
-  margin-bottom: var(--sp-600);
-  font-size: var(--fs-075);
+.rail-state {
+  font-family: var(--font-mono);
+  font-size: var(--fs-050);
+  text-transform: uppercase;
+  letter-spacing: 0.08ch;
+  color: var(--text-subtle);
 }
 
-section {
-  margin-top: var(--sp-600);
+.rail li[data-state='done'] .rail-state {
+  color: var(--accent-signature);
 }
 
-/* The separately highlighted objection right (Art. 21 Abs. 4 DSGVO): set apart, not shouted. */
-.emphasis {
-  border-inline-start: var(--sp-050) solid var(--accent-signature);
-  padding-inline-start: var(--sp-400);
+.rail li[data-state='now'] .rail-state {
+  color: var(--accent-primary);
 }
 
-address {
-  font-style: normal;
-  color: var(--text-secondary);
-  font-size: var(--fs-200);
-  line-height: var(--lh-loose);
+.rail p {
+  margin-block-start: var(--sp-100);
+  font-size: var(--fs-100);
+  max-width: 84ch;
 }
 
-/* ── Links and the footer ─────────────────────────────────────────────────── */
+/* ── Links and focus ──────────────────────────────────────────────────────── */
 
 a {
   color: var(--accent-primary);
@@ -314,39 +1086,167 @@ a:hover {
   color: var(--accent-primary-hover);
 }
 
-a:focus-visible {
-  outline: var(--sp-025) solid var(--focus-ring);
-  outline-offset: var(--sp-050);
+a:focus-visible,
+.site-skip:focus-visible {
+  outline: var(--bw-ring) solid var(--focus-ring);
+  outline-offset: var(--bw-ring);
   border-radius: var(--r-xs);
 }
 
-footer {
-  max-width: 96ch;
-  margin: 0 auto;
-  padding: var(--sp-500) var(--sp-600) var(--sp-800);
-  border-top: thin solid var(--border-subtle);
+/* ── The footer ───────────────────────────────────────────────────────────── */
+
+.colophon {
+  border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  background: var(--bg-surface);
+  padding-block: var(--sp-800) var(--sp-600);
+}
+
+.colophon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18ch, 100%), 1fr));
+  gap: var(--sp-600) var(--sp-400);
+}
+
+.colophon-grid nav {
+  display: grid;
+  gap: var(--sp-150);
+  align-content: start;
+}
+
+.colophon-grid a {
+  color: var(--text-secondary);
+  font-size: var(--fs-100);
+  text-decoration: none;
+}
+
+.colophon-grid a:hover {
+  color: var(--text-primary);
+}
+
+.colophon-note {
+  margin-block-start: var(--sp-600);
+  padding-block-start: var(--sp-400);
+  border-block-start: var(--bw-hairline) solid var(--border-subtle);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-100) var(--sp-400);
+  gap: var(--sp-150) var(--sp-400);
   justify-content: space-between;
   align-items: baseline;
 }
 
-footer nav {
-  display: flex;
-  gap: var(--sp-200);
+.colophon-note p {
   font-size: var(--fs-075);
+  color: var(--text-subtle);
+  max-width: 68ch;
 }
 
-footer nav a {
+.colophon-note nav {
+  display: flex;
+  gap: var(--sp-300);
+}
+
+/* ── The legal pages ──────────────────────────────────────────────────────── */
+
+.legal section {
+  margin-block-start: var(--sp-600);
+  max-width: 78ch;
+}
+
+.legal h2 {
+  font-size: var(--fs-400);
+  margin-block-end: var(--sp-200);
+}
+
+.legal p {
+  font-size: var(--fs-100);
+  line-height: var(--lh-loose);
+}
+
+address {
+  font-style: normal;
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+  line-height: var(--lh-loose);
+}
+
+/* The separately highlighted objection right (Art. 21 Abs. 4 DSGVO): set apart, not shouted. */
+.emphasis {
+  border-inline-start: var(--sp-050) solid var(--accent-signature);
+  padding-inline-start: var(--sp-400);
+}
+
+
+/* ── Small additions the layout needs ─────────────────────────────────────── */
+
+.colophon-brand p {
+  margin-block-start: var(--sp-300);
+  font-size: var(--fs-100);
+  color: var(--text-subtle);
+  max-width: 34ch;
+}
+
+.colophon-grid h4 {
+  margin-block-end: var(--sp-100);
+}
+
+/* ── Start page ───────────────────────────────────────────────────────────── */
+
+.hero-fineprint {
+  margin-block-start: var(--sp-400);
+  font-size: var(--fs-100);
+  color: var(--text-subtle);
+  max-width: 64ch;
+}
+
+.two-up {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(38ch, 100%), 1fr));
+  gap: var(--sp-600);
+  align-items: start;
+}
+
+.two-up > div > * + * {
+  margin-block-start: var(--sp-300);
+}
+
+.two-up > div > p {
+  max-width: 72ch;
+}
+
+.closing {
+  background: var(--bg-surface);
+}
+
+/* ── Page-level helpers ───────────────────────────────────────────────────── */
+
+.section-gap {
+  margin-block-start: var(--sp-800);
+}
+
+.visually-quiet {
+  text-align: start;
+  margin-block-end: var(--sp-200);
+  font-size: var(--fs-075);
   color: var(--text-subtle);
 }
 
-footer nav a:hover {
+em {
+  font-style: italic;
   color: var(--text-primary);
 }
 
-footer p {
-  font-size: var(--fs-075);
-  color: var(--text-subtle);
+/* ── Where the project stands ─────────────────────────────────────────────── */
+
+/* The maturity stage (ADR-0035) said in public, once per page that needs it. Set apart from the
+   copy around it without being a warning: this audience reads a project that states its own stage
+   as a serious one, and the alternative - saying nothing - is what would need defending. */
+.site-standing {
+  margin-block-start: var(--sp-600);
+  padding: var(--sp-300) var(--sp-400);
+  border-inline-start: var(--sp-050) solid var(--border-default);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-100);
+  max-width: 84ch;
 }
