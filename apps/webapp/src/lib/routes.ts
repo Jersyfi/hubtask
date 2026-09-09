@@ -53,6 +53,10 @@ export const ROUTES: readonly Route[] = [
   // and a query string travels through access logs, proxies and browser history. A route that
   // carried the term would undo that in the address bar (security.md §9, ADR-0018).
   { name: 'search', pattern: '/search' },
+  // Where things arrive before they are work. End-user, because deciding what an arrival becomes
+  // is the work rather than the administration of it — only rotating the intake address needs
+  // `AUTOMATION`, and the server refuses that on the screen.
+  { name: 'jumble', pattern: '/jumble' },
   { name: 'trash', pattern: '/trash' },
   // The address the board's cards and the search results have linked to since F2-11. An entry is
   // a thing with its own history (F2-15), so it is a screen rather than a row somewhere.
