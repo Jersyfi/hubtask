@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-package rest
+// Package stream is the machinery a long-lived connection needs, shared by every adapter that
+// holds one.
+//
+// It exists because there is now more than one. `GET /stream` has served changes to a browser
+// since C-10; `GET /mcp` serves notifications to an agent since J-13. **An agent's stream is not a
+// different kind of connection from a browser's and must not have a different kind of limit** - so
+// the caps, the draining and the refusal reasons live here rather than in either adapter, and a
+// pod's capacity is one number whoever is holding it.
+package stream
 
 import (
 	"sync"
 )
 
-// StreamLimits is how many streams may be open at once, at each of the three levels a long-lived
+// Limits is how many streams may be open at once, at each of the three levels a long-lived
 // connection has to be bounded at.
 //
 // Three rather than one, because they answer three different failures. Per credential stops one
@@ -17,20 +25,20 @@ import (
 // above the threshold, new connections are refused with `503` and a `Retry-After` before latency
 // tips over for everyone - the connections already open are never dropped to make room, because
 // shedding is about not accepting more work, not about abandoning work in hand.
-type StreamLimits struct {
+type Limits struct {
 	PerCredential int
 	PerTenant     int
 	PerProcess    int
 }
 
-// StreamRegistry counts what is open and hands out the right to open one more.
+// Registry counts what is open and hands out the right to open one more.
 //
 // Process-local, and deliberately so. The `api` role is stateless and horizontally scaled, so
 // there is no shared count to keep - a limit per process is a limit per pod, which is exactly the
 // resource being protected. A cluster-wide cap would need coordination on the request path for a
 // number nobody can act on anyway.
-type StreamRegistry struct {
-	limits StreamLimits
+type Registry struct {
+	limits Limits
 
 	// mu guards everything below. Admit and the release run on request goroutines, CloseAll on
 	// the shutdown path.
@@ -45,8 +53,8 @@ type StreamRegistry struct {
 	draining bool
 }
 
-func NewStreamRegistry(limits StreamLimits) *StreamRegistry {
-	return &StreamRegistry{
+func NewRegistry(limits Limits) *Registry {
+	return &Registry{
 		limits:        limits,
 		perCredential: map[string]int{},
 		perTenant:     map[string]int{},
@@ -64,8 +72,8 @@ type openStream struct {
 
 func (s *openStream) close() { s.once.Do(func() { close(s.closing) }) }
 
-// StreamSlot is the right to hold one stream open.
-type StreamSlot struct {
+// Slot is the right to hold one stream open.
+type Slot struct {
 	// Closing is closed when the process wants the stream to end. The handler selects on it beside
 	// the client's own context, so a shutdown ends the connection the same way a client leaving
 	// does - by returning from the handler, which is what lets the server drain (§9).
@@ -75,50 +83,50 @@ type StreamSlot struct {
 
 // Release gives the slot back. Idempotent, and it must be called: a slot that outlives its
 // connection is a stream this process will refuse to open for the rest of its life.
-func (s StreamSlot) Release() {
+func (s Slot) Release() {
 	if s.release != nil {
 		s.release()
 	}
 }
 
-// StreamRefusal says which limit was reached, for the problem document and the metric. A closed
+// Refusal says which limit was reached, for the problem document and the metric. A closed
 // set, because it is a label (observability-reliability.md §3.2).
-type StreamRefusal string
+type Refusal string
 
 const (
 	// RefusedNone means the slot was granted.
-	RefusedNone StreamRefusal = ""
+	RefusedNone Refusal = ""
 	// RefusedCredential is one client holding too many.
-	RefusedCredential StreamRefusal = "credential"
+	RefusedCredential Refusal = "credential"
 	// RefusedTenant is one workspace holding too many.
-	RefusedTenant StreamRefusal = "tenant"
+	RefusedTenant Refusal = "tenant"
 	// RefusedProcess is this pod holding too many, whoever they belong to.
-	RefusedProcess StreamRefusal = "process"
+	RefusedProcess Refusal = "process"
 	// RefusedDraining is the process shutting down.
-	RefusedDraining StreamRefusal = "draining"
+	RefusedDraining Refusal = "draining"
 )
 
-func (r StreamRefusal) String() string { return string(r) }
+func (r Refusal) String() string { return string(r) }
 
 // Admit grants the right to open one stream, or says which limit refused it.
 //
 // The keys are opaque to this type: whoever calls it decides what "one credential" means, and it
 // is a fingerprint rather than the credential itself - the same reasoning that keeps the rate
 // limiter's bucket key a hash (security.md §9, rule 10).
-func (r *StreamRegistry) Admit(credential, tenant string) (StreamSlot, StreamRefusal) {
+func (r *Registry) Admit(credential, tenant string) (Slot, Refusal) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	switch {
 	case r.draining:
-		return StreamSlot{}, RefusedDraining
+		return Slot{}, RefusedDraining
 	case r.limits.PerProcess > 0 && len(r.open) >= r.limits.PerProcess:
-		return StreamSlot{}, RefusedProcess
+		return Slot{}, RefusedProcess
 	case r.limits.PerTenant > 0 && tenant != "" && r.perTenant[tenant] >= r.limits.PerTenant:
-		return StreamSlot{}, RefusedTenant
+		return Slot{}, RefusedTenant
 	case r.limits.PerCredential > 0 && credential != "" &&
 		r.perCredential[credential] >= r.limits.PerCredential:
-		return StreamSlot{}, RefusedCredential
+		return Slot{}, RefusedCredential
 	}
 
 	r.nextID++
@@ -133,7 +141,7 @@ func (r *StreamRegistry) Admit(credential, tenant string) (StreamSlot, StreamRef
 	}
 
 	var once sync.Once
-	return StreamSlot{
+	return Slot{
 		Closing: held.closing,
 		release: func() {
 			once.Do(func() {
@@ -152,7 +160,7 @@ func (r *StreamRegistry) Admit(credential, tenant string) (StreamSlot, StreamRef
 
 // Open is how many streams this process is holding. The gauge (§3.2), and what the health report
 // reads.
-func (r *StreamRegistry) Open() int {
+func (r *Registry) Open() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.open)
@@ -166,7 +174,7 @@ func (r *StreamRegistry) Open() int {
 //
 // It does not wait. The handlers return on their own and the server's own drain is what waits for
 // them, which is the one place that already knows how long it may.
-func (r *StreamRegistry) CloseAll() {
+func (r *Registry) CloseAll() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -181,7 +189,7 @@ func (r *StreamRegistry) CloseAll() {
 }
 
 // Draining reports whether the process has begun shutting down.
-func (r *StreamRegistry) Draining() bool {
+func (r *Registry) Draining() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.draining

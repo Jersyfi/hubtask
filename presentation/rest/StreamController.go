@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 // The stream's own timings. Constants rather than configuration, because none of them is a
@@ -77,7 +78,7 @@ type Changes interface {
 // writer to be told about every way a connection can end, and net/http already owns three of them.
 type StreamController struct {
 	Stream   Changes
-	Registry *StreamRegistry
+	Registry *stream.Registry
 	Wakeups  Wakeups
 	Signals  StreamSignals
 	// Clock is injectable so the tests do not have to wait. Nil means the system clock.
@@ -97,7 +98,7 @@ func (c StreamController) StreamChanges(
 	}
 
 	slot, refusal := c.admit(r, actor)
-	if refusal != RefusedNone {
+	if refusal != stream.RefusedNone {
 		c.report(r.Context(), func(ctx context.Context, s StreamSignals) {
 			s.StreamRefused(ctx, refusal.String())
 		})
@@ -129,15 +130,12 @@ func (c StreamController) StreamChanges(
 // admit asks the registry for the right to hold a connection.
 func (c StreamController) admit(
 	r *http.Request, actor appshared.ActorContext,
-) (StreamSlot, StreamRefusal) {
-	// The credential is fingerprinted rather than used as the key, for the reason the rate
-	// limiter's is: the map ends up in a heap dump, and a heap dump with live tokens in it is a
-	// second incident on top of the first (rule 10).
-	credential := ""
-	if presented, err := bearerCredential(r); err == nil && presented != "" {
-		credential = fingerprint(presented)
-	}
-	return c.Registry.Admit(credential, actor.TenantID.String())
+) (stream.Slot, stream.Refusal) {
+	// The key is `presentation/stream`'s rather than this package's, and that is not tidiness: the
+	// per-credential cap only means anything if this stream and the agent's key a credential the
+	// same way, or a client could double its allowance by opening half its connections at the
+	// other endpoint (J-13).
+	return c.Registry.Admit(stream.Credential(r), actor.TenantID.String())
 }
 
 func (c StreamController) subscribe(tenantID shared.ID) (<-chan struct{}, func()) {
@@ -152,23 +150,14 @@ func (c StreamController) subscribe(tenantID shared.ID) (<-chan struct{}, func()
 // serve writes the stream until the client leaves, the process drains, or writing fails.
 func (c StreamController) serve(
 	w http.ResponseWriter, r *http.Request, actor appshared.ActorContext,
-	from syncservice.Position, slot StreamSlot, woken <-chan struct{},
+	from syncservice.Position, slot stream.Slot, woken <-chan struct{},
 ) {
 	started := c.now()
-	header := w.Header()
-	header.Set("Content-Type", "text/event-stream")
-	// No store and no transform: an intermediary that cached this would serve one client's
-	// records to another, and one that buffered it would hold every event until the connection
-	// ended - which is the whole point of the connection.
-	header.Set("Cache-Control", "no-store")
-	header.Set("Connection", "keep-alive")
-	// nginx buffers proxied responses by default and this is the header that turns it off. Sent
-	// unconditionally: it means nothing to anything else.
-	header.Set("X-Accel-Buffering", "no")
+	stream.Headers(w.Header())
 	w.WriteHeader(http.StatusOK)
 
-	stream := &sseWriter{w: w, controller: http.NewResponseController(w)}
-	if err := stream.retry(streamRetry); err != nil {
+	events := stream.NewWriter(w)
+	if err := events.Retry(streamRetry); err != nil {
 		return
 	}
 	c.report(r.Context(), func(ctx context.Context, s StreamSignals) { s.StreamOpened(ctx) })
@@ -193,7 +182,7 @@ func (c StreamController) serve(
 		cursor = batch.Cursor
 
 		for _, record := range batch.Records {
-			if err := stream.event(c.Stream.Encode(record.Cursor), record); err != nil {
+			if err := changeEvent(events, c.Stream.Encode(record.Cursor), record); err != nil {
 				return
 			}
 		}
@@ -208,7 +197,7 @@ func (c StreamController) serve(
 			continue
 		}
 
-		if !c.wait(r.Context(), slot, woken, heartbeat, idle, stream) {
+		if !c.wait(r.Context(), slot, woken, heartbeat, idle, events) {
 			return
 		}
 	}
@@ -221,8 +210,8 @@ func (c StreamController) serve(
 // went, the process is draining, or a heartbeat could not be written - and that last one is how a
 // connection that died without telling anybody is noticed at all.
 func (c StreamController) wait(
-	ctx context.Context, slot StreamSlot, woken <-chan struct{},
-	heartbeat *time.Ticker, idle *time.Timer, stream *sseWriter,
+	ctx context.Context, slot stream.Slot, woken <-chan struct{},
+	heartbeat *time.Ticker, idle *time.Timer, events *stream.Writer,
 ) bool {
 	if !idle.Stop() {
 		select {
@@ -240,7 +229,7 @@ func (c StreamController) wait(
 			// The process is going away. The client is told so rather than having the socket cut:
 			// it reconnects to another pod and resumes from its cursor, and the difference between
 			// the two is a visible error in somebody's console.
-			_ = stream.comment("closing")
+			_ = events.Comment("closing")
 			return false
 		case <-woken:
 			return true
@@ -250,7 +239,7 @@ func (c StreamController) wait(
 			// The one thing that notices a connection nobody has told us about. A client that
 			// vanished without a FIN leaves a socket that reads as open until something is written
 			// to it.
-			if err := stream.comment("heartbeat"); err != nil {
+			if err := events.Comment("heartbeat"); err != nil {
 				return false
 			}
 		}

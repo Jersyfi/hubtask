@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-package rest
+package stream
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
 
-func registry(limits StreamLimits) *StreamRegistry { return NewStreamRegistry(limits) }
+func registry(limits Limits) *Registry { return NewRegistry(limits) }
 
-func admit(t *testing.T, r *StreamRegistry, credential, tenant string) StreamSlot {
+func admit(t *testing.T, r *Registry, credential, tenant string) Slot {
 	t.Helper()
 	slot, refusal := r.Admit(credential, tenant)
 	if refusal != RefusedNone {
@@ -24,7 +24,7 @@ func admit(t *testing.T, r *StreamRegistry, credential, tenant string) StreamSlo
 
 // One client reconnecting in a loop must not hold a hundred sockets it never reads.
 func TestOneCredentialIsCappedOnItsOwn(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 2, PerTenant: 10, PerProcess: 10})
+	r := registry(Limits{PerCredential: 2, PerTenant: 10, PerProcess: 10})
 
 	first := admit(t, r, "anna", "workspace")
 	second := admit(t, r, "anna", "workspace")
@@ -47,7 +47,7 @@ func TestOneCredentialIsCappedOnItsOwn(t *testing.T) {
 
 // One busy workspace must not take a whole pod's capacity from everybody else on it.
 func TestOneWorkspaceIsCappedAcrossItsClients(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 10, PerTenant: 2, PerProcess: 10})
+	r := registry(Limits{PerCredential: 10, PerTenant: 2, PerProcess: 10})
 
 	admit(t, r, "anna", "workspace")
 	admit(t, r, "bert", "workspace")
@@ -64,7 +64,7 @@ func TestOneWorkspaceIsCappedAcrossItsClients(t *testing.T) {
 // above the threshold new connections are refused, and the ones already open are never dropped to
 // make room - shedding is about not accepting more work, not about abandoning work in hand.
 func TestTheProcessCapRefusesRatherThanDropping(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 10, PerTenant: 10, PerProcess: 2})
+	r := registry(Limits{PerCredential: 10, PerTenant: 10, PerProcess: 2})
 
 	held := admit(t, r, "anna", "workspace")
 	admit(t, r, "bert", "another")
@@ -84,7 +84,7 @@ func TestTheProcessCapRefusesRatherThanDropping(t *testing.T) {
 
 // A limit of zero is no limit: an installation that does not want one says so by not setting it.
 func TestALimitOfZeroIsNoLimit(t *testing.T) {
-	r := registry(StreamLimits{})
+	r := registry(Limits{})
 
 	for range 50 {
 		if _, refusal := r.Admit("anna", "workspace"); refusal != RefusedNone {
@@ -97,14 +97,14 @@ func TestALimitOfZeroIsNoLimit(t *testing.T) {
 // signal and closed a moment later would look to a client like a flapping server rather than one
 // going away.
 func TestClosingAllEndsEveryStreamAndRefusesNewOnes(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 10, PerTenant: 10, PerProcess: 10})
+	r := registry(Limits{PerCredential: 10, PerTenant: 10, PerProcess: 10})
 
 	first := admit(t, r, "anna", "workspace")
 	second := admit(t, r, "bert", "another")
 
 	r.CloseAll()
 
-	for name, slot := range map[string]StreamSlot{"first": first, "second": second} {
+	for name, slot := range map[string]Slot{"first": first, "second": second} {
 		select {
 		case <-slot.Closing:
 		default:
@@ -133,7 +133,7 @@ func TestClosingAllEndsEveryStreamAndRefusesNewOnes(t *testing.T) {
 
 // A shutdown path can run on two signals, and closing a closed channel panics.
 func TestClosingAllTwiceIsHarmless(t *testing.T) {
-	r := registry(StreamLimits{PerProcess: 4})
+	r := registry(Limits{PerProcess: 4})
 	admit(t, r, "anna", "workspace")
 
 	r.CloseAll()
@@ -143,7 +143,7 @@ func TestClosingAllTwiceIsHarmless(t *testing.T) {
 // A slot that outlives its connection is a stream this process refuses to open for the rest of its
 // life, so releasing twice must not free two.
 func TestReleasingTwiceFreesOneSlot(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 1, PerTenant: 4, PerProcess: 4})
+	r := registry(Limits{PerCredential: 1, PerTenant: 4, PerProcess: 4})
 
 	slot := admit(t, r, "anna", "workspace")
 	slot.Release()
@@ -158,7 +158,7 @@ func TestReleasingTwiceFreesOneSlot(t *testing.T) {
 // The counters go back to absent rather than to zero: a pod that served one stream for every
 // tenant it has ever seen would otherwise keep a map entry per tenant for its whole life.
 func TestTheCountersDoNotGrowForever(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 4, PerTenant: 4, PerProcess: 8})
+	r := registry(Limits{PerCredential: 4, PerTenant: 4, PerProcess: 8})
 
 	for i := range 100 {
 		tenant := string(rune('a' + i%26))
@@ -177,7 +177,7 @@ func TestTheCountersDoNotGrowForever(t *testing.T) {
 // Admit and Release run on request goroutines and CloseAll on the shutdown path. The race detector
 // is the assertion here.
 func TestTheRegistryIsSafeUnderConcurrentUse(t *testing.T) {
-	r := registry(StreamLimits{PerCredential: 100, PerTenant: 100, PerProcess: 100})
+	r := registry(Limits{PerCredential: 100, PerTenant: 100, PerProcess: 100})
 
 	// Through the guard like every other goroutine in this codebase (ADR-0016, rule 5).
 	ctx := t.Context()

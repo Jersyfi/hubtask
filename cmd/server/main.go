@@ -95,6 +95,8 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	"github.com/Jersyfi/hubtask/presentation/webui"
 	"github.com/Jersyfi/hubtask/presentation/worker"
+
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 // defaultOpsPort mirrors the default of HUBTASK_OPS_ADDR in infrastructure/environment.
@@ -255,7 +257,7 @@ func run() error {
 	// The change stream's process-local bookkeeping (C-10). Built before the chain, because the
 	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
 	// but CloseAll tells it there is one.
-	streams := rest.NewStreamRegistry(rest.StreamLimits{
+	streams := stream.NewRegistry(stream.Limits{
 		// Four per client, so an ordinary application with a couple of tabs open is never refused
 		// and a client reconnecting in a loop is. Sixty-four per workspace and two hundred and
 		// fifty-six per pod: a bound on the resource rather than a tuning knob, sized so that the
@@ -1620,8 +1622,16 @@ func run() error {
 				// one prompt comes to exist in two versions - and a suggestion's recorded prompt
 				// version would then name a text that depends on who is reading it.
 				Prompts: aiPrompts,
-				Name:    "hubtask",
-				Version: version,
+				// The streaming half (J-13). `Streams` is the *same* registry the change stream
+				// uses, deliberately: an agent's stream is not a different kind of connection from
+				// a browser's, so a pod's capacity is one number whoever is holding it and a
+				// refusal shows up in the same metric.
+				Sessions: security.NewMcpSessionIssuer(cfg.SecretKey),
+				Streams:  streams,
+				Wakeups:  changeListener,
+				Signals:  metrics,
+				Name:     "hubtask",
+				Version:  version,
 			},
 		}
 
