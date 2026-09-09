@@ -17,6 +17,8 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
+
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 // The two acceptance criteria of C-10 that are measurements rather than assertions.
@@ -64,9 +66,9 @@ func TestSeveralHundredIdleStreamsDoNotPoll(t *testing.T) {
 	const connections = 300
 	const idle = 300 * time.Millisecond
 
-	stream := &countingStream{}
-	controller, registry, _ := streamController(t, nil, StreamLimits{PerProcess: connections + 10})
-	controller.Stream = stream
+	changes := &countingStream{}
+	controller, registry, _ := streamController(t, nil, stream.Limits{PerProcess: connections + 10})
+	controller.Stream = changes
 	// No wake-ups at all: this measures what a stream costs when nothing is happening.
 	controller.Wakeups = nil
 
@@ -92,10 +94,10 @@ func TestSeveralHundredIdleStreamsDoNotPoll(t *testing.T) {
 	if open := registry.Open(); open != connections {
 		t.Fatalf("%d of %d streams opened", open, connections)
 	}
-	settled := stream.reads()
+	settled := changes.reads()
 
 	time.Sleep(idle)
-	after := stream.reads()
+	after := changes.reads()
 
 	cancel()
 	wg.Wait()
@@ -123,11 +125,11 @@ func TestAShutdownLosesNoRecordAClientHadNotReceived(t *testing.T) {
 	second := streamRecord(2, "work_item")
 
 	// The first connection is given only the first record, then the process drains.
-	stream := &fakeStream{batches: []syncservice.Batch{{
+	changes := &fakeStream{batches: []syncservice.Batch{{
 		Records: []syncservice.Record{first},
 		Cursor:  syncservice.Position{Seq: 1, IssuedAt: streamNow},
 	}}}
-	controller, registry, _ := streamController(t, stream, StreamLimits{PerProcess: 4})
+	controller, registry, _ := streamController(t, changes, stream.Limits{PerProcess: 4})
 
 	request := authenticated(
 		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil))
@@ -169,7 +171,7 @@ func TestAShutdownLosesNoRecordAClientHadNotReceived(t *testing.T) {
 			Cursor:  syncservice.Position{Seq: 2, IssuedAt: streamNow},
 		}},
 	}
-	next, nextRegistry, _ := streamController(t, resumed, StreamLimits{PerProcess: 4})
+	next, nextRegistry, _ := streamController(t, resumed, stream.Limits{PerProcess: 4})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

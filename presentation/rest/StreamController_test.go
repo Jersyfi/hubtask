@@ -21,6 +21,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
+
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 var (
@@ -126,14 +128,14 @@ func authenticated(r *http.Request) *http.Request {
 	}))
 }
 
-func streamController(t *testing.T, stream *fakeStream, limits StreamLimits) (
-	StreamController, *StreamRegistry, *streamSignals,
+func streamController(t *testing.T, changes *fakeStream, limits stream.Limits) (
+	StreamController, *stream.Registry, *streamSignals,
 ) {
 	t.Helper()
-	registry := NewStreamRegistry(limits)
+	registry := stream.NewRegistry(limits)
 	signals := &streamSignals{}
 	return StreamController{
-		Stream: stream, Registry: registry, Signals: signals,
+		Stream: changes, Registry: registry, Signals: signals,
 		Clock: func() time.Time { return streamNow },
 	}, registry, signals
 }
@@ -160,11 +162,11 @@ func serveStream(
 }
 
 func TestTheStreamFramesEachRecordAsAnEvent(t *testing.T) {
-	stream := &fakeStream{batches: []syncservice.Batch{{
+	changes := &fakeStream{batches: []syncservice.Batch{{
 		Records: []syncservice.Record{streamRecord(1, "work_item"), streamRecord(2, "comment")},
 		Cursor:  syncservice.Position{Seq: 2, IssuedAt: streamNow},
 	}}}
-	controller, registry, signals := streamController(t, stream, StreamLimits{PerProcess: 4})
+	controller, registry, signals := streamController(t, changes, stream.Limits{PerProcess: 4})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	request := authenticated(httptest.NewRequestWithContext(ctx, http.MethodGet, "/stream", nil))
@@ -230,11 +232,11 @@ func TestADeletionCarriesNoPayloadField(t *testing.T) {
 	record.Op = repository.Delete
 	record.Payload = nil
 
-	stream := &fakeStream{batches: []syncservice.Batch{{
+	changes := &fakeStream{batches: []syncservice.Batch{{
 		Records: []syncservice.Record{record},
 		Cursor:  syncservice.Position{Seq: 1, IssuedAt: streamNow},
 	}}}
-	controller, _, _ := streamController(t, stream, StreamLimits{PerProcess: 4})
+	controller, _, _ := streamController(t, changes, stream.Limits{PerProcess: 4})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	request := authenticated(httptest.NewRequestWithContext(ctx, http.MethodGet, "/stream", nil))
@@ -259,11 +261,11 @@ func TestADeletionCarriesNoPayloadField(t *testing.T) {
 // The refusal is a problem document with a Retry-After, before a byte of stream is written: a
 // `200` already sent cannot become a `503`.
 func TestAStreamOverTheCapIsRefusedWithRetryAfter(t *testing.T) {
-	stream := &fakeStream{}
-	controller, registry, signals := streamController(t, stream, StreamLimits{PerProcess: 1})
+	changes := &fakeStream{}
+	controller, registry, signals := streamController(t, changes, stream.Limits{PerProcess: 1})
 
 	// Fill the one slot.
-	if _, refusal := registry.Admit("somebody", streamTenant.String()); refusal != RefusedNone {
+	if _, refusal := registry.Admit("somebody", streamTenant.String()); refusal != stream.RefusedNone {
 		t.Fatalf("the first slot was refused: %q", refusal)
 	}
 
@@ -288,8 +290,8 @@ func TestAStreamOverTheCapIsRefusedWithRetryAfter(t *testing.T) {
 // A cursor the client cannot use is an ordinary problem document, because it is decided before the
 // stream starts.
 func TestAnUnusableCursorIsAProblemDocument(t *testing.T) {
-	stream := &fakeStream{resumeAs: shared.ErrGone.WithDetail("sync.cursor_too_old")}
-	controller, _, _ := streamController(t, stream, StreamLimits{PerProcess: 4})
+	changes := &fakeStream{resumeAs: shared.ErrGone.WithDetail("sync.cursor_too_old")}
+	controller, _, _ := streamController(t, changes, stream.Limits{PerProcess: 4})
 
 	recorder := httptest.NewRecorder()
 	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil))
@@ -304,7 +306,7 @@ func TestAnUnusableCursorIsAProblemDocument(t *testing.T) {
 }
 
 func TestAnUnauthenticatedRequestGetsNoStream(t *testing.T) {
-	controller, _, _ := streamController(t, &fakeStream{}, StreamLimits{PerProcess: 4})
+	controller, _, _ := streamController(t, &fakeStream{}, stream.Limits{PerProcess: 4})
 
 	recorder := httptest.NewRecorder()
 	controller.StreamChanges(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil),
@@ -318,7 +320,7 @@ func TestAnUnauthenticatedRequestGetsNoStream(t *testing.T) {
 // SIGTERM: the client is told the stream is closing rather than having its socket cut, and the
 // handler returns so the server's own drain can finish.
 func TestTheProcessDrainingEndsTheStream(t *testing.T) {
-	controller, registry, _ := streamController(t, &fakeStream{}, StreamLimits{PerProcess: 4})
+	controller, registry, _ := streamController(t, &fakeStream{}, stream.Limits{PerProcess: 4})
 
 	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil))
 	recorder, wait := serveStream(t, controller, request)
