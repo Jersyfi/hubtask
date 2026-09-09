@@ -116,6 +116,41 @@ func TestAnUnknownErrorLeaksNothingIntoTheResponse(t *testing.T) {
 
 // An internal error may have been raised deep inside an adapter. Whatever it attached as
 // parameters was written for a log, so it does not go out.
+// A 503 keeps both, and that is the difference between an unavailable dependency and an internal
+// error (#500).
+//
+// A refusal a client cannot act on is a refusal that reads as a fault. "AI is switched off in this
+// workspace" and "this server cannot take another live connection" are two different things to do
+// something about, and `locales/en.json` has a sentence for each - which the client can only render
+// if it is told which one. `sync-engine`'s own transport test asserts exactly this payload; until
+// this was narrowed, the server could not send it.
+func TestAnUnavailableDependencyKeepsItsDetailCodeAndParameters(t *testing.T) {
+	err := shared.ErrUnavailable.
+		WithDetail("sync.stream_unavailable").
+		WithParams(map[string]string{"reason": "tenant_cap"})
+
+	got := ProblemFrom(err, "01J9")
+
+	if got.Status != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", got.Status)
+	}
+	if got.DetailCode != "sync.stream_unavailable" {
+		t.Errorf("detail_code = %q, want the one the caller can act on", got.DetailCode)
+	}
+	if got.Params["reason"] != "tenant_cap" {
+		t.Errorf("params = %v, want the reason the refusal named", got.Params)
+	}
+}
+
+// And the AI refusal QS-09 names by hand, because it is the one arc42 promises in writing.
+func TestTheAiRefusalCarriesItsCode(t *testing.T) {
+	got := ProblemFrom(shared.ErrUnavailable.WithDetail("ai.unavailable"), "01J9")
+
+	if got.Status != http.StatusServiceUnavailable || got.DetailCode != "ai.unavailable" {
+		t.Errorf("an AI refusal reached the wire as %d %q", got.Status, got.DetailCode)
+	}
+}
+
 func TestAnInternalErrorDropsParametersAndDetailCode(t *testing.T) {
 	err := shared.ErrInternal.
 		WithDetail("postgres.query_failed").
