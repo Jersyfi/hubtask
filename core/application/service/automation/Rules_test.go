@@ -225,6 +225,12 @@ func defaultCatalogue() catalogue {
 			Name: "CreateBucket", TokenScope: "containers:write",
 			Input: []usecase.Field{{Name: "collection_id"}, {Name: "name"}},
 		},
+		// A destructive one, for the agent guardrail (J-14): a rule is the obvious way to launder
+		// a right an agent was refused directly.
+		"TRASH_ITEM": {
+			Name: "TrashWorkItem", TokenScope: "items:write", Destructive: true,
+			Input: []usecase.Field{{Name: "item_id"}},
+		},
 		"HTTP_REQUEST": {
 			Name: "HttpRequest", TokenScope: "automation:manage",
 			Input: []usecase.Field{
@@ -385,6 +391,62 @@ func TestAWriterCannotLaunderARightThroughAServiceAccount(t *testing.T) {
 	}
 	if len(h.store.rows) != 0 {
 		t.Error("the rule was stored despite the refusal")
+	}
+}
+
+// The agent's version of the same leak (J-14). A rule runs as an *automation*, not as an agent, so
+// the guardrail that closes a destructive use case to an agent would not fire when the rule fires -
+// and an agent that may not trash an entry could write a rule that trashes entries and have it
+// happen a second later. Asked of the writer at the moment of writing, like everything else here.
+func TestAnAgentCannotLaunderADestructiveRightThroughARule(t *testing.T) {
+	h := newHarness()
+	h.roleOf(writerID, identity.RoleAdmin)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	cmd := validCommand()
+	cmd.Actions = []domain.Action{{Kind: "TRASH_ITEM", Params: map[string]any{"item_id": itemID.String()}}}
+
+	agent := writerActor(automationScope, "items:write")
+	agent.Kind = shared.ActorAIAgent
+
+	_, err := CreateRule{Writer: h.writer}.Execute(context.Background(), agent, cmd)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want ErrForbidden", err)
+	}
+	if code := detailOf(t, err); code != "agent.destructive_not_permitted" {
+		t.Errorf("code %q, want agent.destructive_not_permitted", code)
+	}
+	if len(h.store.rows) != 0 {
+		t.Error("the rule was stored despite the refusal")
+	}
+}
+
+// With the capability the agent may write it, which is what makes the guardrail a switch rather
+// than a wall - and a person writing the same rule was never affected.
+func TestTheRuleGuardrailIsTheAgentsAlone(t *testing.T) {
+	for name, actor := range map[string]appshared.ActorContext{
+		"an agent that holds the capability": func() appshared.ActorContext {
+			permitted := writerActor(automationScope, "items:write", usecase.AgentDestructiveScope)
+			permitted.Kind = shared.ActorAIAgent
+			return permitted
+		}(),
+		"a person": writerActor(automationScope, "items:write"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness()
+			h.roleOf(writerID, identity.RoleAdmin)
+			h.roleOf(serviceID, identity.RoleMember)
+
+			cmd := validCommand()
+			cmd.Actions = []domain.Action{
+				{Kind: "TRASH_ITEM", Params: map[string]any{"item_id": itemID.String()}},
+			}
+
+			if _, err := (CreateRule{Writer: h.writer}).Execute(
+				context.Background(), actor, cmd); err != nil {
+				t.Fatalf("writing the rule: %v", err)
+			}
+		})
 	}
 }
 
