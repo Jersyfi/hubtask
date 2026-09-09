@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -34,6 +35,12 @@ func suggestionGroup() group {
 				usage:   "--target <id> [--target-type ITEM|JUMBLE_ENTRY] [--status <s>] [--cursor <c>] [--size <n>]",
 				summary: "the suggestions standing against one entry, newest first",
 				run:     suggestionList,
+			},
+			{
+				name:    "ask",
+				usage:   "--target <id> [--target-type ITEM|JUMBLE_ENTRY]",
+				summary: "ask the workspace's provider to propose something about an entry",
+				run:     suggestionAsk,
 			},
 			{
 				name:    "accept",
@@ -95,6 +102,54 @@ func suggestionList(ctx context.Context, cli *CLI, args []string) error {
 	// This page is flat rather than nested, unlike most - so the continuation is assembled here
 	// rather than passed through.
 	cli.reportMore(openapi.PageInfo{HasMore: page.HasMore, NextCursor: page.NextCursor})
+	return nil
+}
+
+// suggestionAsk asks, and says so: the answer is `202` and a suggestion appears under
+// `suggestion ls` when the provider has answered.
+//
+// The route differs by target because the two asks are different use cases - a jumble entry is
+// asked what it should *become*, an entry what its fields should be - and this dispatches rather
+// than making the caller know which path is which. What it does not do is wait: an AI call reaches
+// somebody else's machine, so it never sits in a request, and a client that blocked here would be
+// inventing a synchronous shape the API deliberately does not have.
+func suggestionAsk(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "suggestion", "ask", "--target <id> [--target-type <t>]")
+	target := flags.String("target", "", "the entry to ask about")
+	targetType := flags.String("target-type", "ITEM", "ITEM or JUMBLE_ENTRY")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *target == "" {
+		return usagef("hubctl suggestion ask needs --target")
+	}
+	targetID, err := cli.parseID("--target", *target)
+	if err != nil {
+		return err
+	}
+
+	var path string
+	switch strings.ToUpper(*targetType) {
+	case "JUMBLE_ENTRY":
+		path = jumblePath + "/" + targetID.String() + ":suggest"
+	case "ITEM":
+		path = "/items/" + targetID.String() + ":suggest-fields"
+	default:
+		return usagef("--target-type takes ITEM or JUMBLE_ENTRY, not %q", *targetType)
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	if err := client.Post(ctx, path, nil, nil); err != nil {
+		return err
+	}
+	if !cli.JSON {
+		printf(cli.Err,
+			"asked; the suggestion appears under `hubctl suggestion ls --target %s` when the provider answers\n",
+			targetID)
+	}
 	return nil
 }
 

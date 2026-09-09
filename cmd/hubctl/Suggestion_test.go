@@ -97,3 +97,48 @@ func TestListingSuggestionsNeedsATarget(t *testing.T) {
 		t.Errorf("the message %q does not name what is missing", errOut)
 	}
 }
+
+// Asking is asking: the API answers 202 and the suggestion appears later, so the client says so
+// rather than blocking. A client that waited would be inventing a synchronous shape the API
+// deliberately does not have.
+func TestAskingDispatchesOnTheTargetAndDoesNotWait(t *testing.T) {
+	for targetType, want := range map[string]string{
+		"JUMBLE_ENTRY": ":suggest",
+		"ITEM":         ":suggest-fields",
+	} {
+		t.Run(targetType, func(t *testing.T) {
+			stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusAccepted)
+			})
+
+			code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+				"suggestion", "ask", "--target", itemID, "--target-type", targetType)
+			if code != exitOK {
+				t.Fatalf("exit %d: %s", code, errOut)
+			}
+			if !strings.HasSuffix(stub.request.URL.Path, itemID+want) {
+				t.Errorf("the call went to %q, want one ending %q", stub.request.URL.Path, want)
+			}
+			// And it says where the answer will turn up, because nothing came back with it.
+			if !strings.Contains(errOut, "suggestion ls") {
+				t.Errorf("the client does not say where to look: %q", errOut)
+			}
+		})
+	}
+}
+
+// A target type nobody serves is a usage error rather than a call to a path that does not exist.
+func TestAnUnknownTargetTypeIsAUsageError(t *testing.T) {
+	stub := serve(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("a call was made for a target type nobody serves")
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"suggestion", "ask", "--target", itemID, "--target-type", "COLLECTION")
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(errOut, "JUMBLE_ENTRY") {
+		t.Errorf("the message %q does not say what is allowed", errOut)
+	}
+}
