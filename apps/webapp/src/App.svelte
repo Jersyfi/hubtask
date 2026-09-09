@@ -22,6 +22,7 @@
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
+  import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
   import GroupsView from './views/GroupsView.svelte';
@@ -93,6 +94,8 @@
     <InstallationView />
   {:else if route.name === 'profile'}
     <ProfileView />
+  {:else if route.name === 'tokens'}
+    <MyTokensView />
   {:else if route.name === 'administration'}
     <AdministrationView />
   {:else if route.name === 'workspace-settings'}

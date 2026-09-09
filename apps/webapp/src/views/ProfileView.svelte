@@ -413,6 +413,14 @@
         </ul>
       {/if}
     </Stack>
+
+    <Stack gap="050">
+      <h2 class="section">{t('app.tokens.title')}</h2>
+      <p class="quiet">{t('app.tokens.from_profile')}</p>
+      <!-- A link rather than a panel: minting a credential is its own screen, and burying it under
+           a language chooser would put a one-time secret in the middle of a settings page. -->
+      <p><a href="/profile/tokens">{t('app.tokens.open')}</a></p>
+    </Stack>
   </Stack>
 {/if}
 

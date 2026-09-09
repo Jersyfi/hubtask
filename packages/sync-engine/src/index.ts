@@ -45,6 +45,7 @@ export type {
 } from './ports.ts';
 
 export type {
+  AccessToken,
   Account,
   AccountPreferences,
   AccountSummary,

@@ -29,6 +29,10 @@ export const ROUTES: readonly Route[] = [
   // this area in full and excludes administration, and a route that carried no area would be one
   // somebody has to classify by reading it.
   { name: 'profile', pattern: '/profile', area: 'profile' },
+  // A person's own credentials are profile configuration, not administration: nobody else can
+  // list them, and an administrator who could would learn which of somebody's automations to
+  // attack (F4-10, `security.md` §5).
+  { name: 'tokens', pattern: '/profile/tokens', area: 'profile' },
   // ADR-0032's administration area. Every route this milestone adds under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,
