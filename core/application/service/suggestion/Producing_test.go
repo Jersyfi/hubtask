@@ -184,9 +184,78 @@ func TestAKindWithNoPromptIsADefectRatherThanAnEmptySuggestion(t *testing.T) {
 	produce, _ := producer(`{"title":"A"}`)
 
 	err := produce.Execute(context.Background(), person(),
-		domain.TargetJumbleEntry, targetID, domain.KindDecomposition)
+		domain.TargetJumbleEntry, targetID, domain.Kind("SUMMARY"))
 	if !errors.Is(err, shared.ErrInternal) {
 		t.Fatalf("the answer was %v, want an internal error", err)
+	}
+}
+
+// A decomposition is read as a tree, node by node, and a node keeps only what a node may carry.
+func TestADecompositionIsReadAsATree(t *testing.T) {
+	produce, world := producer(`{"children":[
+		{"type":"WORK_PACKAGE","title":"Draft","notes":"the first half",
+		 "children":[{"type":"ACTIVITY","title":"Outline","collection_id":"x"}]},
+		{"type":"ACTIVITY","title":"Send"}
+	]}`)
+
+	if err := produce.Execute(context.Background(), person(),
+		domain.TargetWorkItem, targetID, domain.KindDecomposition); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+	if len(world.store.proposals) != 1 {
+		t.Fatalf("%d suggestions recorded", len(world.store.proposals))
+	}
+	for _, recorded := range world.store.proposals {
+		children, held := recorded.Payload["children"].([]any)
+		if !held || len(children) != 2 {
+			t.Fatalf("the payload is %v", recorded.Payload)
+		}
+		first := children[0].(map[string]any)
+		if first["type"] != "WORK_PACKAGE" || first["notes"] != "the first half" {
+			t.Errorf("the first node is %v", first)
+		}
+		under := first["children"].([]any)[0].(map[string]any)
+		if _, kept := under["collection_id"]; kept {
+			t.Error("a node kept a field nobody asked a model to propose")
+		}
+	}
+}
+
+// A tree this build would refuse to create is refused before it is recorded, because a proposal
+// nobody can accept is an inbox of noise.
+func TestATreeThatCouldNotBeCreatedIsNotRecorded(t *testing.T) {
+	for _, testCase := range []struct{ name, answer string }{
+		{"a task under a task", `{"children":[{"type":"TASK","title":"A"}]}`},
+		{"a node with no title", `{"children":[{"type":"ACTIVITY","title":"  "}]}`},
+		{"a node that is not an object", `{"children":["Draft"]}`},
+		{"three levels", `{"children":[{"type":"WORK_PACKAGE","title":"A","children":[` +
+			`{"type":"ACTIVITY","title":"B","children":[{"type":"ACTIVITY","title":"C"}]}]}]}`},
+		{"children that are not a list", `{"children":{"type":"ACTIVITY"}}`},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			produce, world := producer(testCase.answer)
+
+			if err := produce.Execute(context.Background(), person(),
+				domain.TargetWorkItem, targetID, domain.KindDecomposition); err != nil {
+				t.Fatalf("producing: %v", err)
+			}
+			if len(world.store.proposals) != 0 {
+				t.Error("a tree that could not be created was recorded anyway")
+			}
+		})
+	}
+}
+
+// A model that found nothing to break down has answered correctly, and there is nothing to record.
+func TestAnEmptyDecompositionRecordsNothingAndIsNotAnError(t *testing.T) {
+	produce, world := producer(`{"children":[]}`)
+
+	if err := produce.Execute(context.Background(), person(),
+		domain.TargetWorkItem, targetID, domain.KindDecomposition); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+	if len(world.store.proposals) != 0 {
+		t.Error("an empty breakdown was recorded")
 	}
 }
 
@@ -217,12 +286,16 @@ func (w *producerWorld) Invoke(
 	_ context.Context, name string, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	w.performed = append(w.performed, performed{name: name, actor: actor, in: in})
-	if name != "ListJumbleEntries" {
+	switch name {
+	case "ListJumbleEntries":
+		return usecase.Output{"items": []usecase.Output{{
+			"id": targetID.String(), "raw_subject": w.subject, "raw_body": w.body,
+		}}}, nil
+	case "GetWorkItem":
+		return usecase.Output{"title": w.subject, "notes": w.body}, nil
+	default:
 		return usecase.Output{}, nil
 	}
-	return usecase.Output{"items": []usecase.Output{{
-		"id": targetID.String(), "raw_subject": w.subject, "raw_body": w.body,
-	}}}, nil
 }
 
 func (w *producerWorld) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {

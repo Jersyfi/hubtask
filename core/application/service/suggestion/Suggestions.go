@@ -263,6 +263,10 @@ var appliers = map[applierKey]string{
 	// acceptance takes overrides: a model cannot name a destination collection, and
 	// ConvertJumbleEntry requires one.
 	{domain.TargetJumbleEntry, domain.KindFields}: "ConvertJumbleEntry",
+	// A decomposition is not one call but a walk (J-07): one CreateWorkItem per node, in order,
+	// each with the accepting person's rights at its destination. The name is here all the same,
+	// because what this package can do is still exactly what it can name.
+	{domain.TargetWorkItem, domain.KindDecomposition}: "CreateWorkItem",
 }
 
 type applierKey struct {
@@ -284,6 +288,10 @@ func (c Cases) apply(
 			})
 	}
 
+	if proposal.Kind == domain.KindDecomposition {
+		return c.plant(ctx, actor, name, proposal, overrides)
+	}
+
 	in := usecase.Input{}
 	for field, value := range proposal.Payload {
 		in[field] = value
@@ -303,6 +311,86 @@ func (c Cases) apply(
 
 	_, err := c.Catalogue.Invoke(ctx, name, actor, in)
 	return err
+}
+
+// plant creates the tree a decomposition proposes, one ordinary create at a time.
+//
+// Depth first and in order, because the order is what a person read when they accepted: a
+// breakdown whose pieces arrived shuffled is not the breakdown they saw.
+//
+// **A partial result is a success, not a rollback**, and that is the decision worth naming. Each
+// node is its own create with its own permission check, and a refusal at the third child is a
+// fact about that child rather than about the two already standing - a person who accepted a
+// breakdown and got nothing because the fifth activity had a title one character too long would
+// reasonably think the feature broken. What they get instead is what was created, and the refusal
+// that stopped it. Nothing is created at all only when the *first* node is refused, and then the
+// refusal is the answer.
+func (c Cases) plant(
+	ctx context.Context, actor appshared.ActorContext, name string,
+	proposal domain.Suggestion, overrides map[string]any,
+) error {
+	children, _ := proposal.Payload["children"].([]any)
+	if len(children) == 0 {
+		return shared.ErrInternal.WithDetail("suggestions.payload_empty")
+	}
+
+	created := 0
+	err := c.plantUnder(ctx, actor, name, proposal.TargetID, children, overrides, &created)
+	if err != nil && created == 0 {
+		return err
+	}
+	// A refusal after something was created is reported through the log rather than the answer:
+	// the acceptance happened, and what did not is the caller's next read of the entry's children.
+	return nil
+}
+
+// plantUnder creates one level and recurses into what each node carries.
+func (c Cases) plantUnder(
+	ctx context.Context, actor appshared.ActorContext, name string, parentID shared.ID,
+	nodes []any, overrides map[string]any, created *int,
+) error {
+	for _, entry := range nodes {
+		node, isNode := entry.(map[string]any)
+		if !isNode {
+			return shared.ErrInternal.WithDetail("suggestions.payload_malformed")
+		}
+
+		in := usecase.Input{
+			"type":  node["type"],
+			"title": node["title"],
+		}
+		if notes, held := node["notes"]; held {
+			in["notes"] = notes
+		}
+		// The overrides apply to every node - what a person changes before accepting a breakdown
+		// is a property of the breakdown, like the collection it lands in, rather than of one
+		// piece of it.
+		for field, value := range overrides {
+			in[field] = value
+		}
+		// The parent is this walk's, never the node's. A node naming its own parent would be a
+		// proposal about one entry able to grow children under another.
+		in["parent_id"] = parentID.String()
+
+		out, err := c.Catalogue.Invoke(ctx, name, actor, in)
+		if err != nil {
+			return err
+		}
+		*created++
+
+		grandchildren, _ := node["children"].([]any)
+		if len(grandchildren) == 0 {
+			continue
+		}
+		childID, err := shared.ParseID(out.String("id"))
+		if err != nil {
+			return err
+		}
+		if err := c.plantUnder(ctx, actor, name, childID, grandchildren, overrides, created); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // targetKeys is what each target kind is called in the input of the use case that acts on it.

@@ -731,6 +731,7 @@
   "suggestions.target_type_unknown": "{value} is not something a suggestion can be about.",
   "suggestions.kind_unknown": "{value} is not a kind of suggestion Hubtask records.",
   "suggestions.status_unknown": "{value} is not a state a suggestion can be in.",
+  "suggestions.payload_malformed": "That suggestion is not in the shape its kind fixes, so nothing could be made from it.",
   "suggestions.payload_empty": "That suggestion proposes nothing.",
   "suggestions.input_digest_required": "That suggestion does not say what it was made from, so nothing could tell whether it is still current.",
   "suggestions.provenance_incomplete": "That suggestion does not say which model produced it, so it could not be told apart from somebody\u2019s own draft.",

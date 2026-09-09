@@ -14,10 +14,34 @@ import (
 
 // What AI proposed (J-05).
 const (
-	listSuggestionsUseCase   = "ListSuggestions"
-	acceptSuggestionUseCase  = "AcceptSuggestion"
-	dismissSuggestionUseCase = "DismissSuggestion"
+	listSuggestionsUseCase      = "ListSuggestions"
+	acceptSuggestionUseCase     = "AcceptSuggestion"
+	dismissSuggestionUseCase    = "DismissSuggestion"
+	suggestDecompositionUseCase = "SuggestDecomposition"
 )
+
+// SuggestDecomposition answers POST /items/{itemId}:decompose.
+//
+// 202 and no body: the provider has not been asked yet, so there is nothing to answer with.
+func (c *RestController) SuggestDecomposition(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+	_ openapi.SuggestDecompositionParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	if _, err := c.UseCases.Invoke(
+		r.Context(), suggestDecompositionUseCase, actorOf(r),
+		usecase.Input{"item_id": itemID.String()},
+	); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
 
 // ListSuggestions answers GET /suggestions.
 func (c *RestController) ListSuggestions(

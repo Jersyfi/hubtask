@@ -7128,6 +7128,12 @@ type CompleteWorkItemParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// SuggestDecompositionParams defines parameters for SuggestDecomposition.
+type SuggestDecompositionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // DuplicateWorkItemJSONBody defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemJSONBody struct {
 	// IncludeSubtree Whether everything below the entry is copied with it. Omitted copies the entry alone, and its children stay where they are.
@@ -8179,6 +8185,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
+	// SuggestDecomposition Ask AI what work sits under this entry
+	// (POST /items/{itemId}:decompose)
+	SuggestDecomposition(w http.ResponseWriter, r *http.Request, itemId ItemId, params SuggestDecompositionParams)
 
 	// (POST /items/{itemId}:duplicate)
 	DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params DuplicateWorkItemParams)
@@ -13776,6 +13785,56 @@ func (siw *ServerInterfaceWrapper) CompleteWorkItem(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// SuggestDecomposition operation middleware
+func (siw *ServerInterfaceWrapper) SuggestDecomposition(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SuggestDecompositionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuggestDecomposition(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DuplicateWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) DuplicateWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -16838,6 +16897,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:decompose", wrapper.SuggestDecomposition)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:accept", wrapper.AcceptSuggestion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:dismiss", wrapper.DismissSuggestion)

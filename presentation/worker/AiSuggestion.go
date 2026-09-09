@@ -56,6 +56,19 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 			WithParams(map[string]string{"value": string(targetType)})
 	}
 
+	// Absent means FIELDS, which is what the jumble's asking queued before decompositions existed
+	// (J-06). A default rather than a refusal, so a job written by the previous release still runs
+	// after an upgrade - the payload outlives the process that wrote it (core/port/queue).
+	kind := domain.Kind(payloadString(job, "kind"))
+	if kind == "" {
+		kind = domain.KindFields
+	}
+	if !kind.Valid() {
+		return queue.Result{}, shared.ErrInternal.
+			WithDetail("suggestions.kind_unknown").
+			WithParams(map[string]string{"value": string(kind)})
+	}
+
 	// The job acts for the person who asked, not for the system. That is what makes the read it
 	// performs and the consent it is subject to *theirs*: a job with a system actor would read
 	// past the permission the asking checked, and would keep sending a workspace's content after
@@ -64,7 +77,7 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		Kind: appshared.ActorUser, TenantID: job.TenantID, AccountID: askedBy,
 	}
 
-	err = h.Produce.Execute(ctx, actor, targetType, targetID, domain.KindFields)
+	err = h.Produce.Execute(ctx, actor, targetType, targetID, kind)
 	if suggestion.IsUnavailable(err) {
 		// The workspace switched AI off, withdrew consent, or its provider is out of reach
 		// between the asking and the running. Finished rather than retried: a retry ladder
