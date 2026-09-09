@@ -22,11 +22,13 @@
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
+  import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
   import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
   import PermissionsView from './views/PermissionsView.svelte';
+  import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
@@ -93,6 +95,8 @@
     <InstallationView />
   {:else if route.name === 'profile'}
     <ProfileView />
+  {:else if route.name === 'tokens'}
+    <MyTokensView />
   {:else if route.name === 'administration'}
     <AdministrationView />
   {:else if route.name === 'workspace-settings'}
@@ -103,6 +107,8 @@
     <GroupsView />
   {:else if route.name === 'permissions'}
     <PermissionsView />
+  {:else if route.name === 'service-accounts'}
+    <ServiceAccountsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}

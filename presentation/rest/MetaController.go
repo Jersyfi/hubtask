@@ -150,6 +150,12 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	if notificationChannels == nil {
 		notificationChannels = []string{}
 	}
+	// Same reasoning one more time: an absent list would read as "this build declares no scopes",
+	// and a client would offer none rather than every one it may ask for.
+	tokenScopes := source.TokenScopes
+	if tokenScopes == nil {
+		tokenScopes = []string{}
+	}
 
 	productVersion := source.ProductVersion
 	apiVersion := source.APIVersion
@@ -166,6 +172,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		TextLanguages:          &textLanguages,
 		NotificationCategories: &notificationCategories,
 		NotificationChannels:   &notificationChannels,
+		TokenScopes:            &tokenScopes,
 		Roles:                  &roles,
 		Limits:                 &limits,
 		Features:               &features,
