@@ -3809,6 +3809,31 @@ paths:
   /oauth/clients/{clientId}:
     parameters:
       - $ref: "#/components/parameters/OauthClientId"
+    get:
+      tags: [oauth]
+      operationId: readOauthClient
+      summary: What an app is called, for the person being asked to allow it
+      description: >
+        The half of a registered client a consent screen needs: its name. Any signed-in member of
+        the workspace may read it, and that is the point - the person deciding whether to allow an
+        app is usually not an administrator, and a consent screen that cannot name the app is a
+        screen that asks somebody to approve an identifier. That is the shape a phishing attempt
+        wants.
+
+        Deliberately narrower than the listing. The registered redirect URIs and whether the client
+        is confidential are the administrator's business and are answered by `GET /oauth/clients`
+        behind the permission that manages members; nothing here helps somebody enumerate the
+        workspace's apps, because reading one requires already knowing its identifier - which the
+        authorization request the reader arrived with already carries.
+      responses:
+        "200":
+          description: The app, as the person allowing it sees it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OauthClientSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     delete:
       tags: [oauth]
       operationId: deleteOauthClient
@@ -7683,6 +7708,17 @@ components:
           items: { type: string }
         confidential: { type: boolean }
         created_at: { type: string, format: date-time }
+
+    OauthClientSummary:
+      type: object
+      description: >
+        An app as the person being asked to allow it sees it: what it is called, and nothing else.
+        `OauthClient` is the same row as its administrator sees it and carries the registered
+        redirect URIs beside it.
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
 
     OauthClientSecret:
       allOf:

@@ -415,6 +415,25 @@ func TestAFreshConsentReplacesTheScopes(t *testing.T) {
 	}
 }
 
+// The narrow read's two refusals, which are the ones that matter for a screen anybody can reach.
+func TestReadingAnAppThatIsNotThere(t *testing.T) {
+	fixture := newOauthFixture(now)
+	read := ReadOauthClient{Writer: fixture.writer}
+
+	// An identifier that is not one: refused before any lookup, because a zero id would otherwise
+	// reach the repository as a wildcard-shaped question.
+	if _, err := read.Execute(t.Context(), adminActor(), shared.ID("")); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("a zero identifier answered %v, want not found", err)
+	}
+
+	// One that could be but is not. The same refusal, in the same words: whether an app exists is
+	// not something a consent screen gets to distinguish for a caller who cannot see the listing.
+	absent := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000ff")
+	if _, err := read.Execute(t.Context(), adminActor(), absent); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("an unknown app answered %v, want not found", err)
+	}
+}
+
 // The channel round trip: the whole dance through the registry, the way REST, MCP and
 // automation all reach it - which also proves every projection each channel reads.
 func TestTheOauthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
@@ -423,6 +442,7 @@ func TestTheOauthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	registry, err := usecase.NewRegistry(nil,
 		RegisterOauthClient{Writer: fixture.writer}.Descriptor(),
 		ListOauthClients{Writer: fixture.writer}.Descriptor(),
+		ReadOauthClient{Writer: fixture.writer}.Descriptor(),
 		DeleteOauthClient{Writer: fixture.writer}.Descriptor(),
 		AuthorizeOauthClient{Writer: fixture.writer}.Descriptor(),
 		ExchangeOauthCode{Writer: fixture.writer}.Descriptor(),
@@ -456,6 +476,24 @@ func TestTheOauthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	}
 	if rows, _ := listed["data"].([]usecase.Output); len(rows) != 1 || rows[0]["client_secret"] != nil {
 		t.Fatalf("the listing leaks or lies: %v", listed)
+	}
+
+	// The narrow read the consent screen makes. Two things about it are the point: it answers the
+	// name, and it answers *only* that - the redirect URIs and the kind are the administrator's,
+	// and this projection goes to anybody who may read the workspace.
+	named, err := registry.Invoke(t.Context(), ReadOauthClientName, adminActor(), usecase.Input{
+		"client_id": clientID,
+	})
+	if err != nil {
+		t.Fatalf("reading the client through the registry: %v", err)
+	}
+	if named.String("name") != "Zapier" || named.String("id") != clientID {
+		t.Errorf("the narrow read answered %v, want the name and the identifier", named)
+	}
+	for _, withheld := range []string{"redirect_uris", "confidential", "created_at", "client_secret"} {
+		if _, present := named[withheld]; present {
+			t.Errorf("the consent screen's read carries %q, which is the administrator's", withheld)
+		}
 	}
 
 	verifier, challenge := pkcePair()

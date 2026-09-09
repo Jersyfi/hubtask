@@ -1040,6 +1040,7 @@ func run() error {
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
 		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthClients{Writer: oauthWriter}.Descriptor(),
+		identity.ReadOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.DeleteOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.AuthorizeOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.ExchangeOauthCode{Writer: oauthWriter}.Descriptor(),
