@@ -134,25 +134,28 @@ their own ADR rather than in passing — a third, an IMAP client, was declined b
 
 | Version | Contents |
 |---|---|
-| `0.7.0` | The MCP server complete (tools, resources, prompts), the AI port with Ollama and OpenAI-compatible adapters, AI suggestions for the jumble and for decomposition, semantic search (pgvector), provenance and audit |
+| `0.7.0` | **Built.** The AI port and the provider that calls nothing; consent, per-workspace configuration and PG-8's refusal; the OpenAI-compatible and Ollama adapters, one breaker per endpoint; a suggestion as a record with provenance, retention and audit; the jumble's suggestions and a task proposing the work under it; semantic search on detected pgvector and the hybrid ranking that outranks a word match over a meaning match; MCP completed with resources, prompts, streaming and a signed session; the agent's guardrails, destructive off by default; the AI budget as an ordinary quota row; `hubctl ai`, `suggestion` and `mcp`. **Two of `ai-first.md` §2's seven use cases moved**: translation to `0.8.0`, because the surface that would show it is the i18n one, and template generation to `0.9.0` with the ecosystem work that gives it somewhere to come from. The milestone's own acceptance is QS-09, walked rather than assumed ([evidence](./evidence/QS-09-2026-09-09.md)) |
 | `0.8.0` | i18n complete: catalogue maintenance, the Weblate connection, CLDR formats, RTL metadata, language-dependent search, localised emails; accessibility and localisation requirements for the frontend documented |
 | `0.8.5` | Offline synchronisation complete: `:pull`/`:push`, per-field merging, OR-sets, fractional indices, HLC bounding, device management, conflict preservation, the SSE stream, `hubctl sync-conformance` as the reference client check |
 | `0.9.0` | Ecosystem: an official n8n node and Zapier app (generated), client SDKs (TypeScript, Go, Python), CalDAV, import from Trello/Microsoft To Do/Google Tasks, public API documentation |
 
-The backlog (`docs/backlog/milestone-0.7.0.md`) scopes `0.7.0` in seventeen tasks, `J-01`…`J-17`
+The backlog (`docs/backlog/milestone-0.7.0.md`) scoped `0.7.0` in seventeen tasks, `J-01`…`J-17`
 (the letter after H; I is skipped because it is unreadable beside `1` and `l` in an issue title).
-Four things it settles that this table could not. **Neither adapter brings a dependency** — an
-OpenAI-compatible provider and Ollama are both JSON over HTTP through the guarded client rule 6
-already mandates, so the milestone's only supply chain decision is the one it does *not* take.
-**pgvector is a detected capability rather than a requirement**: the reference images do not carry
-the extension, and an installation cannot be asked to rebuild its database image in order to keep
-searching, so the migration asks the catalogue the way migration 0019 asks for a text search
-configuration, and a search without the extension is lexical, complete, and honest about itself in
-`/meta/capabilities`. **Two of `ai-first.md` §2's seven use cases move**: translation to `0.8.0`
-with the i18n surface that would show it, template generation to `0.9.0` with the ecosystem work.
-And **the milestone's own acceptance is QS-09** — the product with none of it switched on is the
-product `0.6.0` shipped, proved by a full suite, a scripted session and an evidence file rather than
-by an assertion in an ADR.
+Three things it settled that the table above could not, and all three held. **Neither adapter
+brought a dependency** — an OpenAI-compatible provider and Ollama are both JSON over HTTP through
+the guarded client rule 6 already mandates, so the milestone's only supply chain decision is the
+one it did *not* take. **pgvector is a detected capability rather than a requirement**
+([ADR-0050](./adr/ADR-0050-pgvector-as-a-capability.md)): an installation cannot be asked to
+rebuild its database image in order to keep searching, so the migration asks the catalogue the way
+migration 0019 asks for a text search configuration. The reference Compose images do carry the
+extension and the chart's default does not, which is why the capability is answered from the
+database rather than from the build — and why `/meta/capabilities` reports the store *and* a
+provider that can embed, since a database full of pgvector with nobody to produce vectors searches
+lexically. And **the milestone's own acceptance was QS-09** — the product with none of it switched
+on is the product `0.6.0` shipped, proved by a full suite, a scripted session and an
+[evidence file](./evidence/QS-09-2026-09-09.md) rather than by an assertion in an ADR. The walk
+found two defects, neither of them in the claim: the product worked without AI throughout and could
+not say so, which is the part only a run like this one tests.
 
 ---
 
