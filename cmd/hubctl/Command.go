@@ -127,6 +127,7 @@ func groups() []group {
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
 		trashGroup(), searchGroup(), watchGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
 		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(), oauthGroup(), quotaGroup(), adminGroup(),
+		aiGroup(), suggestionGroup(), mcpGroup(),
 	}
 }
 

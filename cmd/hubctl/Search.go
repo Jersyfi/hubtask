@@ -16,7 +16,7 @@ func searchGroup() group {
 	return group{
 		name:    "search",
 		summary: "find entries by the words in their titles and notes, best match first",
-		usage: "<words> [--container <id>] [--language <bcp47>]" +
+		usage: "<words> [--container <id>] [--language <bcp47>] [--mode AUTO|LEXICAL]" +
 			" [--include-archived] [--include-trashed] [--size <n>] [--cursor <c>]",
 		run: searchRun,
 	}
@@ -33,9 +33,13 @@ func searchRun(ctx context.Context, cli *CLI, args []string) error {
 	query := strings.Join(args[:words], " ")
 
 	flags := commandFlags(cli, "search", "",
-		"<words> [--container <id>] [--language <bcp47>] [--include-archived] [--include-trashed] [--size <n>] [--cursor <c>]")
+		"<words> [--container <id>] [--language <bcp47>] [--mode <m>] [--include-archived] [--include-trashed] [--size <n>] [--cursor <c>]")
 	container := flags.String("container", "", "the hub or collection to search in; unset searches everything visible")
 	language := flags.String("language", "", "the language the words are in, as BCP-47; unset takes the account's locale")
+	// AUTO and LEXICAL, and deliberately no SEMANTIC (J-10): an installation may have no pgvector,
+	// no provider or no consent, so a mode asking for the meaning alone is one the server would
+	// have to refuse. LEXICAL is what a script wants - it asks no provider and waits on nothing.
+	mode := flags.String("mode", "", "AUTO to search by words and meaning, LEXICAL for words alone")
 	includeArchived := flags.Bool("include-archived", false, "find archived entries too")
 	includeTrashed := flags.Bool("include-trashed", false, "find trashed entries too")
 	size := flags.Int("size", 0, "how many hits per page (the server decides when unset)")
@@ -60,6 +64,10 @@ func searchRun(ctx context.Context, cli *CLI, args []string) error {
 		body.ContainerId = &parsed
 	}
 	body.Language = optional(*language)
+	if *mode != "" {
+		searchMode := openapi.SearchMode(strings.ToUpper(*mode))
+		body.Mode = &searchMode
+	}
 	if *includeArchived {
 		body.IncludeArchived = includeArchived
 	}
