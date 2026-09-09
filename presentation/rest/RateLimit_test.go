@@ -331,3 +331,72 @@ func TestTheOverrideBucketEngagesOnlyWhereConfigured(t *testing.T) {
 		t.Error("the configured rate did not refill the budget")
 	}
 }
+
+// An agent token spends the same budget as any other, and spends it at the same endpoint (J-14,
+// ai-first.md §1.3: "rate limits and quotas apply to agents just like to any other token").
+//
+// Proved rather than assumed, and proved as *sharing a bucket* rather than as "both are limited":
+// two budgets would let one credential do twice as much by putting half its traffic through /mcp,
+// which is the failure a per-endpoint limit invites and a per-credential one does not have.
+func TestAnAgentSpendsTheSameBudgetAtTheAgentEndpoint(t *testing.T) {
+	limiter := NewRateLimiter()
+	limited := Limited{
+		Limiter: limiter, Level: "credential",
+		Bucket: CredentialBucket(60, 2, 2),
+		Clock:  func() time.Time { return start },
+	}
+
+	// One request through the ordinary API...
+	rest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/containers", nil)
+	rest.Header.Set("Authorization", "Bearer "+credential)
+	serveLimited(t, limited, rest)
+
+	// ...and one through the agent's door, with the same credential.
+	agent := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", nil)
+	agent.Header.Set("Authorization", "Bearer "+credential)
+	serveLimited(t, limited, agent)
+
+	// The budget of two is now spent, whichever door spent it.
+	third := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", nil)
+	third.Header.Set("Authorization", "Bearer "+credential)
+	response, reached := serveLimited(t, limited, third)
+
+	if reached {
+		t.Fatal("the agent endpoint has a budget of its own")
+	}
+	if response.Code != http.StatusTooManyRequests {
+		t.Errorf("status %d, want 429", response.Code)
+	}
+}
+
+// And the tenant budget, which is the one that stops a busy workspace taking the installation's
+// capacity: an agent counts against its workspace like everything else the workspace does.
+func TestAnAgentCountsAgainstItsWorkspacesBudget(t *testing.T) {
+	limiter := NewRateLimiter()
+	limited := Limited{
+		Limiter: limiter, Level: "tenant",
+		Bucket: TenantBucket(60, 1),
+		Clock:  func() time.Time { return start },
+	}
+	tenant := shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
+
+	requestAs := func(kind shared.ActorKind, path string) *http.Request {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		return r.WithContext(appshared.ContextWithActor(r.Context(), appshared.ActorContext{
+			Kind: kind, TenantID: tenant,
+			AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		}))
+	}
+
+	// A person spends the workspace's one request...
+	serveLimited(t, limited, requestAs(shared.ActorUser, APIBasePath+"/containers"))
+	// ...and the agent finds it spent.
+	response, reached := serveLimited(t, limited, requestAs(shared.ActorAIAgent, "/mcp"))
+
+	if reached {
+		t.Fatal("an agent has a workspace budget of its own")
+	}
+	if response.Code != http.StatusTooManyRequests {
+		t.Errorf("status %d, want 429", response.Code)
+	}
+}

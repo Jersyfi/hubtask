@@ -6,6 +6,7 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -138,5 +139,28 @@ func TestThePublishedPromptIsTheStoredPrompt(t *testing.T) {
 
 	if content["text"] != stored.Instruction {
 		t.Error("the text a client receives is not the text the adapters read")
+	}
+}
+
+// A prompt writes no audit entry, and that is the correct answer rather than a gap (J-14).
+//
+// The parity test asserts `AI_AGENT` for what an agent *does*; a prompt is a text this build
+// carries, rendered without reading anything and without acting on anything, so there is no act to
+// record. What would be wrong is an entry claiming something happened - or a prompt that reached a
+// use case and was therefore not audited as an agent's.
+func TestAskingForAPromptRecordsNothing(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+
+	before := countIn(ctx, t, `SELECT count(*) FROM audit_log WHERE tenant_id = $1`, tenantA.String())
+
+	askPrompt(t, promptServer(t),
+		`{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"weekly-review",`+
+			`"arguments":{"collection":"0192f000-0000-7000-8000-00000000000c"}}}`)
+	askPrompt(t, promptServer(t), `{"jsonrpc":"2.0","id":2,"method":"prompts/list"}`)
+
+	after := countIn(ctx, t, `SELECT count(*) FROM audit_log WHERE tenant_id = $1`, tenantA.String())
+	if after != before {
+		t.Errorf("asking for a prompt wrote %d audit entries", after-before)
 	}
 }
