@@ -11,6 +11,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
@@ -54,14 +55,33 @@ type Produce struct {
 	Prompts     aiprovider.Prompts
 	Sources     Sources
 	Suggestions repository.Suggestions
-	UnitOfWork  persistence.UnitOfWork
-	Clock       clock.Clock
-	IDs         clock.IDGenerator
+	// Catalogue is how an applied answer is accepted: through the use case, never around it.
+	Catalogue  Catalogue
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
 }
 
-// The prompt each kind is asked with, named once. A map for the reason `appliers` is one: what
-// this package can ask is exactly what it can name.
-var prompts = map[domain.Kind]string{
+// The prompts this build can ask with, and what a node of each answer may carry.
+//
+// Keyed by prompt rather than by kind, because three of `automation.md` §1.3's actions produce a
+// FIELDS suggestion and each asks a different question: suggesting fields, summarising and
+// classifying differ in the prompt and in which fields the answer may set, and in nothing else.
+// The allow list is per prompt for that reason - a summariser that came back with labels has
+// answered a question nobody asked.
+var promptFields = map[string]map[string]bool{
+	"suggest-fields": {"title": true, "notes": true, "due_date": true, "labels": true},
+	"summarize":      {"notes": true},
+	"classify":       {"labels": true},
+	// A decomposition's shape is a tree rather than a field set, and `keptTree` is its allow list.
+	"decompose": nil,
+}
+
+// defaultPrompts is what a kind is asked with when a job does not say.
+//
+// It exists for one reason: a job written by the release before this one carries no prompt, and it
+// still runs after an upgrade (core/port/queue - the payload outlives the process that wrote it).
+var defaultPrompts = map[domain.Kind]string{
 	domain.KindFields:        "suggest-fields",
 	domain.KindDecomposition: "decompose",
 }
@@ -73,18 +93,21 @@ var prompts = map[domain.Kind]string{
 // is an inbox of noise. The job then finishes rather than retrying - a model that answered badly
 // will answer badly again, and the person asks again if they want to.
 func (h Produce) Execute(
-	ctx context.Context, actor appshared.ActorContext,
-	targetType domain.TargetType, targetID shared.ID, kind domain.Kind,
+	ctx context.Context, actor appshared.ActorContext, request Request,
 ) error {
-	promptID, named := prompts[kind]
-	if !named {
-		return shared.ErrInternal.WithDetail("suggestions.kind_unknown").
-			WithParams(map[string]string{"value": string(kind)})
+	promptID := request.PromptID
+	if promptID == "" {
+		promptID = defaultPrompts[request.Kind]
+	}
+	if _, known := promptFields[promptID]; !known {
+		return shared.ErrInternal.WithDetail("ai.prompt_unknown").
+			WithParams(map[string]string{"prompt": promptID})
 	}
 	prompt, err := h.Prompts.Get(promptID)
 	if err != nil {
 		return err
 	}
+	targetType, targetID, kind := request.TargetType, request.TargetID, request.Kind
 
 	provider, err := h.Providers.For(ctx, actor)
 	if err != nil {
@@ -122,7 +145,7 @@ func (h Produce) Execute(
 		return err
 	}
 
-	payload, ok := payloadFrom(kind, answer.Text)
+	payload, ok := payloadFrom(kind, promptID, answer.Text)
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
@@ -144,32 +167,61 @@ func (h Produce) Execute(
 		return err
 	}
 
-	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	if err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return h.Suggestions.Record(ctx, proposal)
+	}); err != nil {
+		return err
+	}
+	if !request.Apply {
+		return nil
+	}
+
+	// Accepted through the use case, not around it. A rule that applies an answer directly is a
+	// rule whose `run_as` account makes the change, with that account's rights checked where they
+	// always are - so an action cannot reach further than the person the rule runs as
+	// (automation.md §2).
+	_, err = h.Catalogue.Invoke(ctx, "AcceptSuggestion", actor, usecase.Input{
+		"suggestion_id": proposal.ID.String(),
 	})
+	return err
 }
 
-// suggestedFields are the keys a FIELDS proposal may carry, and the only ones.
+// The allow list is the security half of parsing an answer, and `promptFields` is where it lives.
 //
-// An allow list rather than "whatever the model said", and it is the security half of parsing an
-// answer: the payload is later merged into a use case's input, so a key nobody expected would be a
-// field a model chose to set. The registry would refuse an undeclared one (C-07) - but it would
-// *accept* a declared one nobody meant to offer, and `collection_id` is exactly such a field.
-// Filtering here is what keeps "a model proposes text" from becoming "a model proposes a
-// destination".
-var suggestedFields = map[string]bool{
-	"title": true, "notes": true, "due_date": true, "labels": true,
+// The payload is later merged into a use case's input, so a key nobody expected would be a field a
+// model chose to set. The registry would refuse an *undeclared* one (C-07) - but it would accept a
+// *declared* one nobody meant to offer, and `collection_id` is exactly such a field. Filtering is
+// what keeps "a model proposes text" from becoming "a model proposes a destination".
+
+// Request is one question to a provider.
+type Request struct {
+	TargetType domain.TargetType
+	TargetID   shared.ID
+	Kind       domain.Kind
+	// PromptID names the question. Empty takes the kind's default, which is what a job written by
+	// the previous release carries.
+	PromptID string
+	// Apply is `automation.md` §1.3's "or applied directly, configured explicitly": the answer is
+	// accepted the moment it arrives, as the person the rule runs as, rather than waiting for
+	// somebody to read it.
+	//
+	// It goes through AcceptSuggestion like every other acceptance, which is what keeps the record
+	// honest: the suggestion exists first with its provenance, the acceptance is audited as its
+	// own act, and the change is the ordinary use case with the ordinary permission check. An
+	// applied answer is therefore not a shortcut past any of it - it is the same path with nobody
+	// pausing in the middle.
+	Apply bool
 }
 
-// payloadFrom reads a model's answer in the shape its kind fixes.
-func payloadFrom(kind domain.Kind, text string) (map[string]any, bool) {
+// payloadFrom reads a model's answer in the shape its kind fixes and its prompt narrows.
+func payloadFrom(kind domain.Kind, promptID, text string) (map[string]any, bool) {
 	answered, ok := objectFrom(text)
 	if !ok {
 		return nil, false
 	}
 	switch kind {
 	case domain.KindFields:
-		return keptFields(answered), true
+		return keptFields(answered, promptFields[promptID]), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
@@ -253,10 +305,10 @@ func keptChildren(value any, depth int) ([]any, int, bool) {
 // Tolerant of the two things every model does - a fenced code block around the JSON, and prose
 // before it - and intolerant of everything else. What it will not do is repair: a half-formed
 // answer produces no suggestion rather than a suggestion with a guess in it.
-func keptFields(answered map[string]any) map[string]any {
+func keptFields(answered map[string]any, allowed map[string]bool) map[string]any {
 	kept := make(map[string]any, len(answered))
 	for key, value := range answered {
-		if !suggestedFields[key] {
+		if !allowed[key] {
 			continue
 		}
 		// An empty value proposes nothing and would only clutter the shape a person reads.

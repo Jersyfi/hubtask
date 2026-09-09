@@ -238,7 +238,7 @@ catalogue, not a second register of it:
 | Notification | `NOTIFY_ACCOUNT`, `NOTIFY_GROUP`, `SEND_EMAIL` |
 | Outbound | `SEND_WEBHOOK`, `HTTP_REQUEST` (method, headers, body template, optional signature) |
 | Flow | `WAIT` (a delay as a job), `BRANCH` (a nested condition), `STOP` |
-| AI (optional) | `AI_SUGGEST_FIELDS`, `AI_SUMMARIZE`, `AI_CLASSIFY` — the result as a suggestion or applied directly, configured explicitly |
+| AI (optional) | `AI_SUGGEST_FIELDS`, `AI_SUMMARIZE`, `AI_CLASSIFY` — the result as a suggestion or applied directly, configured explicitly. Served since J-08. Each queues one question and answers: an AI call is somebody else's machine and never sits in a run. `apply` is **false unless it is said**, and an applied answer is not a shortcut past anything — the suggestion is recorded with its provenance first, the acceptance is audited as its own act, and the change goes through the use case that owns it as the rule's `run_as`, so an action still cannot reach further than that account. A workspace with no provider, or one that has not consented, is refused before anything is queued |
 
 **The flow kinds are the engine's own** (G-09). `WAIT` suspends the run rather than sleeping on a
 worker: the results so far are written under the run's own `WAITING` status, a job carries the

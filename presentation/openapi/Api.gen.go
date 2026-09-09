@@ -3203,6 +3203,13 @@ type AdminTenant struct {
 // AdminTenantStatus defines model for AdminTenant.Status.
 type AdminTenantStatus string
 
+// AiAsk How to ask, which is one question — propose, or apply.
+type AiAsk struct {
+	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it (`automation.md` §1.3, ADR-0012).
+	// An applied answer is not a shortcut past anything. The suggestion is recorded with its provenance first, the acceptance is audited as its own act, and the change goes through the use case that owns it with the caller's own rights — it is the same path with nobody pausing in the middle.
+	Apply *bool `json:"apply,omitempty"`
+}
+
 // AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
 // `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
 type AiJurisdiction string
@@ -7658,6 +7665,9 @@ type UpdateReminderApplicationMergePatchPlusJSONRequestBody = ReminderUpdate
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
+// AiClassifyJSONRequestBody defines body for AiClassify for application/json ContentType.
+type AiClassifyJSONRequestBody = AiAsk
+
 // CompleteWorkItemJSONRequestBody defines body for CompleteWorkItem for application/json ContentType.
 type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 
@@ -7669,6 +7679,12 @@ type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
+
+// AiSuggestFieldsJSONRequestBody defines body for AiSuggestFields for application/json ContentType.
+type AiSuggestFieldsJSONRequestBody = AiAsk
+
+// AiSummarizeJSONRequestBody defines body for AiSummarize for application/json ContentType.
+type AiSummarizeJSONRequestBody = AiAsk
 
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
@@ -8182,6 +8198,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:auto-assign)
 	AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params AutoAssignWorkItemParams)
+	// AiClassify Ask AI to propose labels for this entry
+	// (POST /items/{itemId}:classify)
+	AiClassify(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
@@ -8209,6 +8228,12 @@ type ServerInterface interface {
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
+	// AiSuggestFields Ask AI to propose this entry's fields
+	// (POST /items/{itemId}:suggest-fields)
+	AiSuggestFields(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// AiSummarize Ask AI to summarise this entry
+	// (POST /items/{itemId}:summarize)
+	AiSummarize(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:unarchive)
 	UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnarchiveWorkItemParams)
@@ -13735,6 +13760,32 @@ func (siw *ServerInterfaceWrapper) AutoAssignWorkItem(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// AiClassify operation middleware
+func (siw *ServerInterfaceWrapper) AiClassify(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiClassify(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CompleteWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) CompleteWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -14152,6 +14203,58 @@ func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetainItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AiSuggestFields operation middleware
+func (siw *ServerInterfaceWrapper) AiSuggestFields(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiSuggestFields(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AiSummarize operation middleware
+func (siw *ServerInterfaceWrapper) AiSummarize(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiSummarize(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16898,6 +17001,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:decompose", wrapper.SuggestDecomposition)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize", wrapper.AiSummarize)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:classify", wrapper.AiClassify)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:accept", wrapper.AcceptSuggestion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:dismiss", wrapper.DismissSuggestion)

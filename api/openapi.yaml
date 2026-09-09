@@ -3299,6 +3299,81 @@ paths:
         "503":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:suggest-fields:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: aiSuggestFields
+      summary: Ask AI to propose this entry's fields
+      description: >
+        Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
+        entry (J-08, `automation.md` §1.3's `AI_SUGGEST_FIELDS`). Asynchronous and answered `202`;
+        a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAsk"
+      responses:
+        "202":
+          description: The provider will be asked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:summarize:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: aiSummarize
+      summary: Ask AI to summarise this entry
+      description: >
+        Asks the workspace's AI provider to summarise one entry into its notes (J-08,
+        `automation.md` §1.3's `AI_SUMMARIZE`). Asynchronous, and a proposal unless the caller asks
+        for it to be applied.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAsk"
+      responses:
+        "202":
+          description: The provider will be asked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:classify:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: aiClassify
+      summary: Ask AI to propose labels for this entry
+      description: >
+        Asks the workspace's AI provider to propose labels for one entry (J-08, `automation.md`
+        §1.3's `AI_CLASSIFY`). Asynchronous, and a proposal unless the caller asks for it to be
+        applied.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAsk"
+      responses:
+        "202":
+          description: The provider will be asked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /suggestions:
     get:
       tags: [suggestions]
@@ -6789,6 +6864,24 @@ components:
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    AiAsk:
+      type: object
+      description: How to ask, which is one question — propose, or apply.
+      properties:
+        apply:
+          type: boolean
+          default: false
+          description: >
+            Apply the answer as soon as it arrives instead of proposing it. **False unless it is
+            said**, and deliberately: a result is a suggestion, and applying one without a person
+            reading it is a decision somebody configures rather than one that happens by not
+            thinking about it (`automation.md` §1.3, ADR-0012).
+
+            An applied answer is not a shortcut past anything. The suggestion is recorded with its
+            provenance first, the acceptance is audited as its own act, and the change goes through
+            the use case that owns it with the caller's own rights — it is the same path with
+            nobody pausing in the middle.
 
     SuggestionAcceptance:
       type: object

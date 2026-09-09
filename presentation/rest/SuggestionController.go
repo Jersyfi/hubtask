@@ -18,7 +18,62 @@ const (
 	acceptSuggestionUseCase     = "AcceptSuggestion"
 	dismissSuggestionUseCase    = "DismissSuggestion"
 	suggestDecompositionUseCase = "SuggestDecomposition"
+	aiSuggestFieldsUseCase      = "AiSuggestFields"
+	aiSummarizeUseCase          = "AiSummarize"
+	aiClassifyUseCase           = "AiClassify"
 )
+
+// The three actions automation.md §1.3 documents, served over REST as well because an automation
+// action is a use case and a use case is reachable through all three channels (J-08).
+func (c *RestController) AiSuggestFields(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+) {
+	c.askAi(w, r, aiSuggestFieldsUseCase, itemID)
+}
+
+func (c *RestController) AiSummarize(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+) {
+	c.askAi(w, r, aiSummarizeUseCase, itemID)
+}
+
+func (c *RestController) AiClassify(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+) {
+	c.askAi(w, r, aiClassifyUseCase, itemID)
+}
+
+// askAi is the three of them, which differ in the use case they name and in nothing else.
+func (c *RestController) askAi(
+	w http.ResponseWriter, r *http.Request, name string, itemID openapi.ItemId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{"item_id": itemID.String()}
+	// The body is optional: a caller who wants a proposal sends none, which is the default, and
+	// an empty one is not an error. Anything that is there is read, and a malformed document still
+	// is (StartOidcSignIn's reasoning).
+	if r.ContentLength > 0 {
+		var body openapi.AiAsk
+		if err := decodeJSON(r, &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		if body.Apply != nil {
+			in["apply"] = *body.Apply
+		}
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
 
 // SuggestDecomposition answers POST /items/{itemId}:decompose.
 //

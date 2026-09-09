@@ -40,6 +40,104 @@ type Jobs interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
+// Ask is what every "ask the provider about this entry" use case is made of.
+//
+// One shape rather than four near-copies, because they differ in three values - the name, the
+// prompt and what the answer may set - and in nothing else. What they share is the part worth
+// having once: the permission, the availability question in the right order, the read that proves
+// the entry exists, the job, and the audit entry.
+type Ask struct {
+	Cases Cases
+	AI    AiAvailability
+	Queue Jobs
+}
+
+// queue checks and queues one question.
+func (a Ask) queue(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
+	action audit.Action, kind domain.Kind, promptID string, apply bool,
+) error {
+	c := a.Cases
+	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
+		// Asking spends the workspace's budget and sends its content somewhere, so it asks for
+		// what writing asks for rather than for what reading does.
+		Permission: service.PermissionWriteItems,
+		Path:       []identity.Scope{identity.TenantScope()},
+		Action:     action,
+		TokenScope: suggestionsWrite,
+		TargetType: suggestionTarget,
+		TargetID:   itemID,
+	}); err != nil {
+		return err
+	}
+
+	// After the permission check, so that it cannot become a way to learn what an installation has
+	// configured; before the read, so that a workspace with AI switched off is told so whatever
+	// the entry is.
+	if a.AI == nil {
+		return aiUnavailable
+	}
+	available, err := a.AI.CanSuggest(ctx, actor)
+	if err != nil {
+		return err
+	}
+	if !available {
+		return aiUnavailable
+	}
+
+	return c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The entry is read through its own use case, which is the permission check and the
+		// existence check at once - and it is read *before* the job, so that asking about
+		// something that is not there fails now rather than in a worker.
+		if _, err := c.Targets.Digest(ctx, actor, domain.TargetWorkItem, itemID); err != nil {
+			return err
+		}
+		payload := map[string]any{
+			"target_type": string(domain.TargetWorkItem),
+			"target_id":   itemID.String(),
+			"kind":        string(kind),
+			"prompt":      promptID,
+			"asked_by":    actor.AccountID.String(),
+		}
+		if apply {
+			// `automation.md` §1.3's "or applied directly, configured explicitly". The flag is on
+			// the job rather than a second job kind, because what differs is one step at the end;
+			// and it is written only when it is true, so a job without it is a proposal, which is
+			// the default this whole milestone is built around.
+			payload["apply"] = true
+		}
+		if _, err := a.Queue.Enqueue(ctx, queue.Request{
+			Kind: queue.KindAiSuggest, TenantID: actor.TenantID, Payload: payload,
+		}); err != nil {
+			return err
+		}
+		return c.Audit.Append(ctx, audit.Entry{
+			TenantID:   actor.TenantID,
+			OccurredAt: c.Clock.Now(),
+			Action:     action,
+			Outcome:    audit.OutcomeSuccess,
+			Severity:   audit.SeverityNotice,
+			ActorKind:  actor.Kind,
+			ActorID:    actor.AccountID,
+			ActorLabel: actor.AccountName,
+			TargetType: suggestionTarget,
+			TargetID:   itemID,
+			Changes: audit.Changes(
+				audit.Change{Field: "prompt", Classification: audit.Open, To: promptID},
+				audit.Change{Field: "applied_directly", Classification: audit.Open,
+					To: boolText(apply)},
+			),
+		})
+	})
+}
+
+func boolText(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
+}
+
 // SuggestDecomposition asks the workspace's provider what work sits under one entry (J-07).
 //
 // The second of the two suggestions the roadmap names, and the one that uses the level model for
@@ -59,68 +157,8 @@ type SuggestDecomposition struct {
 func (h SuggestDecomposition) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) error {
-	c := h.Cases
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
-		// Asking spends the workspace's budget and sends its content somewhere, so it asks for
-		// what writing asks for rather than for what reading does - the jumble's reasoning.
-		Permission: service.PermissionWriteItems,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     DecompositionAskedAction,
-		TokenScope: suggestionsWrite,
-		TargetType: suggestionTarget,
-		TargetID:   itemID,
-	}); err != nil {
-		return err
-	}
-
-	// After the permission check, so that it cannot become a way to learn what an installation has
-	// configured; before the read, so that a workspace with AI switched off is told so whatever
-	// the entry is.
-	if h.AI == nil {
-		return aiUnavailable
-	}
-	available, err := h.AI.CanSuggest(ctx, actor)
-	if err != nil {
-		return err
-	}
-	if !available {
-		return aiUnavailable
-	}
-
-	return c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The entry is read through its own use case, which is the permission check and the
-		// existence check at once - and it is read *before* the job, so that asking about
-		// something that is not there fails now rather than in a worker.
-		if _, err := c.Targets.Digest(ctx, actor, domain.TargetWorkItem, itemID); err != nil {
-			return err
-		}
-		if _, err := h.Queue.Enqueue(ctx, queue.Request{
-			Kind:     queue.KindAiSuggest,
-			TenantID: actor.TenantID,
-			Payload: map[string]any{
-				"target_type": string(domain.TargetWorkItem),
-				"target_id":   itemID.String(),
-				"kind":        string(domain.KindDecomposition),
-				"asked_by":    actor.AccountID.String(),
-			},
-		}); err != nil {
-			return err
-		}
-		return c.Audit.Append(ctx, audit.Entry{
-			TenantID:   actor.TenantID,
-			OccurredAt: c.Clock.Now(),
-			Action:     DecompositionAskedAction,
-			Outcome:    audit.OutcomeSuccess,
-			Severity:   audit.SeverityNotice,
-			ActorKind:  actor.Kind,
-			ActorID:    actor.AccountID,
-			ActorLabel: actor.AccountName,
-			TargetType: suggestionTarget,
-			TargetID:   itemID,
-			// No changes: nothing changed. And no content - the title and the notes are the
-			// entry's own and an audit entry is not where they go (rule 10).
-		})
-	})
+	return Ask(h).queue(ctx, actor, itemID,
+		DecompositionAskedAction, domain.KindDecomposition, "decompose", false)
 }
 
 // aiUnavailable is the port's one refusal, spelled here so that this package does not import the
