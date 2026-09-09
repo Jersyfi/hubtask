@@ -22,6 +22,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Resource | Path | Core operations |
 |---|---|---|
 | Capabilities/meta | `/meta/capabilities`, `/meta/health` | `GET` |
+| The workspace itself | `/tenant` | `GET`, `PATCH` — one workspace as the people inside it see it: the display name, the two defaults every member falls back to, and the switch that demands a second factor of its administrators (F4-01). Not `/admin/tenants`, which crosses workspaces and is the installation operator's |
 | Tenants (admin) | `/admin/tenants` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :export` |
 | Encryption (admin) | `/admin/encryption` | `GET`, `POST :reseal` — the keyring's census and the re-seal that lets a key retire (ADR-0045) |
 | Accounts | `/accounts`, `/accounts/me`, `/accounts/{id}/notification-preferences` | `GET`, `POST`, `PATCH`, `PUT` |

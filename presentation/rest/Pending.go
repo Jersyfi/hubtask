@@ -157,6 +157,14 @@ func (pending) ExportTenant(w http.ResponseWriter, r *http.Request, _ openapi.Ad
 	notAvailable(w, r)
 }
 
+// The workspace's own view of itself (F4-01). Overridden by RestController, for the reason
+// given at CreateContainer.
+func (pending) ReadWorkspace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) UpdateWorkspace(w http.ResponseWriter, r *http.Request, _ openapi.UpdateWorkspaceParams) {
+	notAvailable(w, r)
+}
+
 // The quota surface of H-08, pending until each use case lands.
 func (pending) ReadQuotas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

@@ -193,6 +193,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.ExchangeOauthCode{}.Descriptor(),
 		identity.ListOauthGrants{}.Descriptor(),
 		identity.RevokeOauthGrant{}.Descriptor(),
+		identity.ReadWorkspace{}.Descriptor(),
+		identity.UpdateWorkspace{}.Descriptor(),
 		identity.ConfigureIdentityProvider{}.Descriptor(),
 		identity.ReadIdentityProvider{}.Descriptor(),
 		identity.RemoveIdentityProvider{}.Descriptor(),

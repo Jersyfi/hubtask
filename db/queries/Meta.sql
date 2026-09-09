@@ -43,3 +43,26 @@ SELECT l.tag::text FROM hubtask_text_languages() AS l(tag, configuration);
 -- where somebody installed pgvector after the migrations ran has the extension and no store, which
 -- is not a working semantic search. One question, asked of the object the search actually reads.
 SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available;
+
+-- name: FindWorkspace :one
+-- The tenant's own row, read from inside the tenant (F4-01). No tenant parameter: row level
+-- security has already bound the transaction to exactly one, which is what makes another
+-- workspace invisible rather than forbidden (ADR-0010).
+SELECT id, slug, display_name, status, default_locale, default_time_zone,
+       settings, created_at, updated_at, version
+FROM tenant
+WHERE id = current_tenant_id() AND deleted_at IS NULL;
+
+-- name: UpdateWorkspace :execrows
+-- The three columns and the settings keys this build models, guarded on the row version so that
+-- two administrators changing one workspace see each other. The settings document is merged
+-- rather than replaced: `||` keeps every key this version does not know, which is what stops an
+-- older binary from discarding what a newer one wrote.
+UPDATE tenant
+SET display_name = sqlc.arg('display_name'),
+    default_locale = sqlc.arg('default_locale'),
+    default_time_zone = sqlc.arg('default_time_zone'),
+    settings = settings || sqlc.arg('settings')::jsonb,
+    updated_at = sqlc.arg('now'), version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND version = sqlc.arg('expected_version');

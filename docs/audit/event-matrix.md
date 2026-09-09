@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**210 use cases, 186 distinct action codes, 151 of them recorded on every call.** A use case that
+**212 use cases, 188 distinct action codes, 152 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -375,3 +375,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `webhooks.subscription_read` | ListWebhookDeliveries | `webhook_subscription` | INFO | When refused |
 | `webhooks.subscription_read` | ListWebhookSubscriptions | `webhook_subscription` | INFO | When refused |
 | `webhooks.subscription_updated` | UpdateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
+
+## Workspace
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
+| `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |

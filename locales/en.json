@@ -146,6 +146,7 @@
   "oauth.authorization_failed": "That authorization cannot be made. Check the app and the redirect URI.",
   "admin.tenant_not_found": "There is no such workspace.",
   "admin.slug_taken": "That subdomain is already a workspace's. Choose another.",
+  "workspace.version_conflict": "Somebody else changed the workspace. Read it again and retry.",
   "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
   "admin.deletion_confirmation_required": "Deleting a workspace needs its display name, typed exactly. Expected {name}.",
   "admin.multi_mode_required": "This installation runs in single mode. The control plane provisions workspaces only in multi mode.",

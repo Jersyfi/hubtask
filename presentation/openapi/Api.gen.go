@@ -2898,6 +2898,27 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceStatus.
+const (
+	WorkspaceStatusACTIVE          WorkspaceStatus = "ACTIVE"
+	WorkspaceStatusPENDINGDELETION WorkspaceStatus = "PENDING_DELETION"
+	WorkspaceStatusSUSPENDED       WorkspaceStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStatus enum.
+func (e WorkspaceStatus) Valid() bool {
+	switch e {
+	case WorkspaceStatusACTIVE:
+		return true
+	case WorkspaceStatusPENDINGDELETION:
+		return true
+	case WorkspaceStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -6530,6 +6551,46 @@ type WorkItemUpdate struct {
 	Title       *string    `json:"title,omitempty"`
 }
 
+// Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
+type Workspace struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation (i18n-l10n.md §2).
+	DefaultLocale string `json:"default_locale"`
+
+	// DefaultTimeZone An IANA zone, for the same position in the same chain.
+	DefaultTimeZone string             `json:"default_time_zone"`
+	DisplayName     string             `json:"display_name"`
+	Id              openapi_types.UUID `json:"id"`
+
+	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
+	RequireAdminTotp bool `json:"require_admin_totp"`
+
+	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
+	Slug string `json:"slug"`
+
+	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
+	Status    WorkspaceStatus `json:"status"`
+	UpdatedAt *time.Time      `json:"updated_at,omitempty"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
+type WorkspaceStatus string
+
+// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
+type WorkspaceUpdate struct {
+	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
+	DefaultLocale *string `json:"default_locale,omitempty"`
+
+	// DefaultTimeZone An IANA zone. One that does not load is a field error.
+	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
+	DisplayName      *string `json:"display_name,omitempty"`
+	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+}
+
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
@@ -7461,6 +7522,12 @@ type InstantiateTemplateParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// UpdateWorkspaceParams defines parameters for UpdateWorkspace.
+type UpdateWorkspaceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7790,6 +7857,9 @@ type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation
+
+// UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
+type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -8444,6 +8514,12 @@ type ServerInterface interface {
 
 	// (POST /templates/{templateId}:instantiate)
 	InstantiateTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params InstantiateTemplateParams)
+	// ReadWorkspace The workspace the caller is in, and how it is set up
+	// (GET /tenant)
+	ReadWorkspace(w http.ResponseWriter, r *http.Request)
+	// UpdateWorkspace Change how the workspace is set up
+	// (PATCH /tenant)
+	UpdateWorkspace(w http.ResponseWriter, r *http.Request, params UpdateWorkspaceParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -16391,6 +16467,61 @@ func (siw *ServerInterfaceWrapper) InstantiateTemplate(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ReadWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWorkspace(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateWorkspaceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWorkspace(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -17030,6 +17161,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
