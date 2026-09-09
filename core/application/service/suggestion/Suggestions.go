@@ -157,9 +157,9 @@ type AcceptSuggestion struct{ Cases Cases }
 
 // Execute accepts one.
 func (h AcceptSuggestion) Execute(
-	ctx context.Context, actor appshared.ActorContext, id shared.ID,
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
 ) (domain.Suggestion, error) {
-	return h.Cases.decide(ctx, actor, id, domain.StatusAccepted)
+	return h.Cases.decide(ctx, actor, id, domain.StatusAccepted, overrides)
 }
 
 // DismissSuggestion turns one down.
@@ -169,13 +169,14 @@ type DismissSuggestion struct{ Cases Cases }
 func (h DismissSuggestion) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID,
 ) (domain.Suggestion, error) {
-	return h.Cases.decide(ctx, actor, id, domain.StatusDismissed)
+	return h.Cases.decide(ctx, actor, id, domain.StatusDismissed, nil)
 }
 
 // decide is both answers, because everything except the one line that applies is shared: the
 // permission, the freshness, the once-only rule, the audit entry.
 func (c Cases) decide(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, status domain.Status,
+	overrides map[string]any,
 ) (domain.Suggestion, error) {
 	action := SuggestionAcceptedAction
 	if status == domain.StatusDismissed {
@@ -222,7 +223,7 @@ func (c Cases) decide(
 			// The whole design, in one call. The ordinary use case, the accepting person as the
 			// actor, and therefore the ordinary permission check - somebody who could not make
 			// this change by hand cannot make it by accepting.
-			if err := c.apply(ctx, actor, proposal); err != nil {
+			if err := c.apply(ctx, actor, proposal, overrides); err != nil {
 				return err
 			}
 		}
@@ -258,6 +259,10 @@ func (c Cases) decide(
 // that the suggestion is invalid - the distinction `deferredActions` draws for automation kinds.
 var appliers = map[applierKey]string{
 	{domain.TargetWorkItem, domain.KindFields}: "UpdateWorkItem",
+	// Accepting a proposal about a jumble entry is converting it (J-06), which is why the
+	// acceptance takes overrides: a model cannot name a destination collection, and
+	// ConvertJumbleEntry requires one.
+	{domain.TargetJumbleEntry, domain.KindFields}: "ConvertJumbleEntry",
 }
 
 type applierKey struct {
@@ -268,6 +273,7 @@ type applierKey struct {
 // apply performs the acceptance, and does nothing else.
 func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+	overrides map[string]any,
 ) error {
 	name, served := appliers[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
@@ -282,13 +288,27 @@ func (c Cases) apply(
 	for field, value := range proposal.Payload {
 		in[field] = value
 	}
-	// The target is the suggestion's, never the payload's. A payload that named its own target
-	// would be a proposal about one entry able to change another, and the registry would refuse
-	// nothing about it: `item_id` is a field UpdateWorkItem declares.
-	in["item_id"] = proposal.TargetID.String()
+	// What the person changed or added before accepting, laid over the proposal. It is their own
+	// input, checked by the use case with their own rights - exactly as if they had made the call
+	// themselves - and it is what lets a jumble proposal be accepted at all, since a model cannot
+	// name a destination collection.
+	for field, value := range overrides {
+		in[field] = value
+	}
+	// The target is the suggestion's, and it is written *after* both, so neither the payload nor
+	// the overrides can move it. A proposal about one entry able to change another would be a
+	// stored capability, and the registry would refuse nothing about it: `item_id` is a field
+	// UpdateWorkItem declares, and `entry_id` one ConvertJumbleEntry does.
+	in[targetKeys[proposal.TargetType]] = proposal.TargetID.String()
 
 	_, err := c.Catalogue.Invoke(ctx, name, actor, in)
 	return err
+}
+
+// targetKeys is what each target kind is called in the input of the use case that acts on it.
+var targetKeys = map[domain.TargetType]string{
+	domain.TargetWorkItem:    "item_id",
+	domain.TargetJumbleEntry: "entry_id",
 }
 
 // record writes the trail entry for a decision.
@@ -417,6 +437,10 @@ func (h AcceptSuggestion) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "suggestion_id", Kind: usecase.KindID, Required: true,
 				Description: "The proposal to accept."},
+			{Name: "overrides", Kind: usecase.KindObject,
+				Description: "What the person changed or added before accepting, laid over the " +
+					"proposal. A jumble proposal needs the destination collection here, because " +
+					"a model cannot know which collections a workspace has."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SuggestionAcceptedAction, TargetType: suggestionTarget,
@@ -437,7 +461,11 @@ func (h AcceptSuggestion) invoke(
 	if err != nil {
 		return nil, err
 	}
-	accepted, err := h.Execute(ctx, actor, id)
+	// The registry has already checked that an object arrived, so what is left is reading it -
+	// what is *in* it is the target use case's judgement, exactly as a query's filter tree is the
+	// grammar's (usecase.KindObject).
+	overrides, _ := in["overrides"].(map[string]any)
+	accepted, err := h.Execute(ctx, actor, id, overrides)
 	if err != nil {
 		return nil, err
 	}

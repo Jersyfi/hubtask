@@ -14,7 +14,7 @@ INSERT INTO jumble_entry (
 );
 
 -- name: FindJumbleEntry :one
-SELECT id, channel, sender, raw_subject, raw_body, attachments, suggestion, status,
+SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE id = sqlc.arg('id');
@@ -23,7 +23,7 @@ WHERE id = sqlc.arg('id');
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the arrival order.
 -- The two filters are nullable arguments rather than four statements, for the run log's reason: a
 -- second statement differing in one predicate is a second place for a predicate to be forgotten.
-SELECT id, channel, sender, raw_subject, raw_body, attachments, suggestion, status,
+SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)

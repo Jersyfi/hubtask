@@ -23,10 +23,11 @@ import (
 // may read the inbox and what a conversion produces are all decided inwards of here (ADR-0005).
 
 const (
-	submitJumbleEntryUseCase  = "SubmitJumbleEntry"
-	listJumbleEntriesUseCase  = "ListJumbleEntries"
-	convertJumbleEntryUseCase = "ConvertJumbleEntry"
-	dismissJumbleEntryUseCase = "DismissJumbleEntry"
+	submitJumbleEntryUseCase      = "SubmitJumbleEntry"
+	listJumbleEntriesUseCase      = "ListJumbleEntries"
+	convertJumbleEntryUseCase     = "ConvertJumbleEntry"
+	suggestFromJumbleEntryUseCase = "SuggestFromJumbleEntry"
+	dismissJumbleEntryUseCase     = "DismissJumbleEntry"
 )
 
 // ConvertJumbleEntry answers POST /jumble/entries/{entryId}:convert.
@@ -56,6 +57,23 @@ func (c *RestController) ConvertJumbleEntry(
 		return c.UseCases.Invoke(r.Context(), convertJumbleEntryUseCase, actor, input)
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
+	})
+}
+
+// SuggestFromJumbleEntry answers POST /jumble/entries/{entryId}:suggest.
+//
+// 202 and no body: the provider has not been asked yet, so there is nothing to answer with. The
+// proposal appears under /suggestions when it has.
+func (c *RestController) SuggestFromJumbleEntry(
+	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
+	_ openapi.SuggestFromJumbleEntryParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), suggestFromJumbleEntryUseCase, actor, usecase.Input{
+			"entry_id": entryID.String(),
+		})
+	}, func(usecase.Output) {
+		w.WriteHeader(http.StatusAccepted)
 	})
 }
 

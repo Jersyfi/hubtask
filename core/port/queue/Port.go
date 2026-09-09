@@ -75,6 +75,19 @@ const (
 	// its pass finishes and the completion seeds the next one.
 	KindRecurrenceMaterialize Kind = "recurrence.materialize"
 
+	// KindAiSuggest asks the workspace's AI provider what one thing should become (J-06).
+	//
+	// A job rather than a call inside the request, because ai-first.md §2 forbids an AI call in
+	// the critical path and because a provider's latency is somebody else's machine. One job per
+	// *thing asked about* rather than per tenant, unlike the reminder's wake-up: what it does is
+	// bounded and finite, and a failure belongs to that one question rather than holding up
+	// everybody else's.
+	//
+	// Deliberately not deduplicated. Asking twice produces two proposals, and a duplicate
+	// suggestion is something somebody dismisses - which is the whole safety of a suggestion
+	// being a record rather than a change.
+	KindAiSuggest Kind = "ai.suggest"
+
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than

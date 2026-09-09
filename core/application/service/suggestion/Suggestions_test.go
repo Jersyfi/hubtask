@@ -27,7 +27,7 @@ func TestAcceptingPerformsTheOrdinaryUseCaseAsTheAcceptingPerson(t *testing.T) {
 	world.store.proposals[proposalID] = proposal()
 
 	accepted, err := AcceptSuggestion{Cases: cases}.
-		Execute(context.Background(), person(), proposalID)
+		Execute(context.Background(), person(), proposalID, nil)
 	if err != nil {
 		t.Fatalf("accepting: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestThePayloadCannotRedirectTheChangeToAnotherEntry(t *testing.T) {
 	world.store.proposals[proposalID] = stored
 
 	if _, err := (AcceptSuggestion{Cases: cases}).
-		Execute(context.Background(), person(), proposalID); err != nil {
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
 		t.Fatalf("accepting: %v", err)
 	}
 
@@ -84,7 +84,8 @@ func TestAStaleSuggestionIsRefusedForBothAnswers(t *testing.T) {
 		answer func(Cases) error
 	}{
 		{"accepting", func(c Cases) error {
-			_, err := AcceptSuggestion{Cases: c}.Execute(context.Background(), person(), proposalID)
+			_, err := AcceptSuggestion{Cases: c}.
+				Execute(context.Background(), person(), proposalID, nil)
 			return err
 		}},
 		{"dismissing", func(c Cases) error {
@@ -122,7 +123,7 @@ func TestARefusedChangeLeavesTheSuggestionStanding(t *testing.T) {
 	world.performFails = shared.ErrForbidden
 
 	if _, err := (AcceptSuggestion{Cases: cases}).
-		Execute(context.Background(), person(), proposalID); !errors.Is(err, shared.ErrForbidden) {
+		Execute(context.Background(), person(), proposalID, nil); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("the acceptance answered %v, want the use case's own refusal", err)
 	}
 	if world.store.proposals[proposalID].Status != domain.StatusProposed {
@@ -139,7 +140,8 @@ func TestTheSecondAnswerToOneProposalIsRefused(t *testing.T) {
 	world.store.proposals[proposalID] = proposal()
 	world.store.versionMoved = true
 
-	_, err := AcceptSuggestion{Cases: cases}.Execute(context.Background(), person(), proposalID)
+	_, err := AcceptSuggestion{Cases: cases}.
+		Execute(context.Background(), person(), proposalID, nil)
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("the answer was %v, want a conflict", err)
 	}
@@ -177,7 +179,8 @@ func TestAnAcceptanceThisBuildDoesNotServeSaysSo(t *testing.T) {
 	stored.Kind = domain.KindDecomposition
 	world.store.proposals[proposalID] = stored
 
-	_, err := AcceptSuggestion{Cases: cases}.Execute(context.Background(), person(), proposalID)
+	_, err := AcceptSuggestion{Cases: cases}.
+		Execute(context.Background(), person(), proposalID, nil)
 	if !errors.Is(err, shared.ErrUnavailable) {
 		t.Fatalf("the answer was %v", err)
 	}
@@ -193,7 +196,7 @@ func TestTheDecisionIsAuditedWithProvenanceAndWithoutContent(t *testing.T) {
 	world.store.proposals[proposalID] = proposal()
 
 	if _, err := (AcceptSuggestion{Cases: cases}).
-		Execute(context.Background(), person(), proposalID); err != nil {
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
 		t.Fatalf("accepting: %v", err)
 	}
 	if len(world.entries) != 1 {
@@ -277,7 +280,7 @@ func TestAnUnauthorisedActorReachesNothing(t *testing.T) {
 	world.store.proposals[proposalID] = proposal()
 
 	if _, err := (AcceptSuggestion{Cases: cases}).
-		Execute(context.Background(), person(), proposalID); err == nil {
+		Execute(context.Background(), person(), proposalID, nil); err == nil {
 		t.Fatal("an unauthorised actor accepted a suggestion")
 	}
 	if len(world.performed) != 0 || len(world.entries) != 0 {
@@ -557,13 +560,25 @@ func TestAMalformedIdentifierIsRefusedBeforeAnythingIsRead(t *testing.T) {
 	}
 }
 
-// A target kind this build produces no suggestions for answers not-found rather than an internal
-// error: from a caller's side there is no such suggestion, which is exactly true.
-func TestATargetKindWithNoReaderIsNotFound(t *testing.T) {
+// An entry the inbox does not list - settled, gone, or in a workspace the actor cannot see - is one
+// answer and not three, which is what the inbox itself would say.
+func TestAnEntryTheInboxDoesNotListIsNotFound(t *testing.T) {
 	cases, _ := newWorld()
 
 	_, err := EntryTargets{Catalogue: cases.Catalogue}.
 		Digest(context.Background(), person(), domain.TargetJumbleEntry, targetID)
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("the answer was %v, want a not-found", err)
+	}
+}
+
+// A target kind this build has no reader for answers not-found for the same reason: from a
+// caller's side there is no such suggestion, which is exactly true.
+func TestATargetKindWithNoReaderIsNotFound(t *testing.T) {
+	cases, _ := newWorld()
+
+	_, err := EntryTargets{Catalogue: cases.Catalogue}.
+		Digest(context.Background(), person(), domain.TargetType("COMMENT"), targetID)
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("the answer was %v, want a not-found", err)
 	}

@@ -101,10 +101,7 @@ type Entry struct {
 	// Attachments are media object identifiers, already stored through C-05's pipeline with its
 	// size and type discipline - never a second storage path.
 	Attachments []shared.ID
-	// Suggestion is the AI's proposal for what this entry should become (0.7.0). Stored as an
-	// opaque document until the port that writes it exists.
-	Suggestion map[string]any
-	Status     Status
+	Status      Status
 	// TargetItemID is the item a conversion produced, and zero before one did. The other half of
 	// the provenance: the item carries origin_jumble_id, and the two point at each other.
 	TargetItemID shared.ID

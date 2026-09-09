@@ -926,6 +926,10 @@ CREATE TABLE jumble_entry (
   raw_subject  text,
   raw_body     text,
   attachments  uuid[] NOT NULL DEFAULT '{}',
+  -- Superseded by `ai_suggestion` (J-05). A proposal is a record with provenance, a decision
+  -- and a period, and none of that fits a column; nothing has ever written this one. Kept for
+  -- one release because a rolling update's old pods still select it, and dropped by the
+  -- contract half of expand/contract once they are gone (CLAUDE.md rule 12).
   suggestion   jsonb,
   status       text NOT NULL DEFAULT 'NEW' CHECK (status IN ('NEW','PROCESSED','DISMISSED')),
   target_item_id uuid,

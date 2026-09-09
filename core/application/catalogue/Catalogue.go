@@ -237,6 +237,7 @@ func Descriptors() []usecase.Descriptor {
 		jumbleservice.ListJumbleEntries{}.Descriptor(),
 		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
+		jumbleservice.SuggestFromJumbleEntry{}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{}.Descriptor(),
 		adminservice.ProvisionTenant{}.Descriptor(),
 		adminservice.ListTenants{}.Descriptor(),

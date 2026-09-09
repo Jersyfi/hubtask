@@ -390,7 +390,7 @@ the get joined with D-07, the way `ListCustomFields` joined with C-07: `/views` 
 view nobody can read back is not a view.
 
 **Jumble** `SubmitJumbleEntry`, `ListJumbleEntries`, `ConvertJumbleEntry`, `DismissJumbleEntry`,
-`RotateJumbleIntake`, `SuggestFromJumbleEntry` (AI, optional). The list joined with G-10 for the reason
+`RotateJumbleIntake`, `SuggestFromJumbleEntry` (AI, optional — built in J-06: it asks the workspace's provider what an entry should become, queues the question rather than waiting on somebody else's machine, and changes nothing. What comes back is a suggestion, and the entry becomes work only when somebody converts it. It asks for `WRITE_ITEMS` at the tenant rather than `READ`, because asking spends the workspace's budget and sends its content somewhere; a workspace with no provider or no consent is refused before anything is queued). The list joined with G-10 for the reason
 `ListTemplates` and `ListSavedViews` joined theirs: an inbox nobody can read is an inbox nobody can
 empty. Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant and reading asks for
 `READ` there - an entry sits in no collection yet, which is what makes it jumble - and the item a
