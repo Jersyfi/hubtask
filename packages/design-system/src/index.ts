@@ -34,6 +34,7 @@ export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as RoleBadge } from './RoleBadge.svelte';
 export { default as PermissionMatrix, type MatrixRole } from './PermissionMatrix.svelte';
 export { default as OneTimeSecret } from './OneTimeSecret.svelte';
+export { default as RunStatusBadge, type RunStatus } from './RunStatusBadge.svelte';
 export { canCopy, mask, mayDismiss } from './secret.ts';
 export { default as Switch } from './Switch.svelte';
 export { default as Textarea } from './Textarea.svelte';
