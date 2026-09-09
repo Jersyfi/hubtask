@@ -3,8 +3,7 @@
 <script lang="ts">
   import Levels from '$lib/Levels.svelte';
   import Proof from '$lib/Proof.svelte';
-  import SpecimenBoard from '$lib/SpecimenBoard.svelte';
-  import SpecimenList from '$lib/SpecimenList.svelte';
+  import Specimen from '$lib/Specimen.svelte';
 
   const docs = 'https://github.com/Jersyfi/hubtask/blob/main/docs';
 </script>
@@ -72,7 +71,7 @@
     </div>
     <Proof href="{docs}/architecture/domain-model.md" label="domain-model.md §2" />
 
-    <SpecimenList />
+    
 
     <div class="callout">
       <p>
@@ -122,7 +121,7 @@
       </div>
     </div>
 
-    <SpecimenBoard />
+    <Specimen name="product" />
 
     <div class="two-up section-gap">
       <div>

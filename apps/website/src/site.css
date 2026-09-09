@@ -1235,25 +1235,32 @@ em {
   color: var(--text-primary);
 }
 
-/* ── Specimens: the product's own interface, on the page ──────────────────── */
+/* ── The specimen: the product's own interface, and it works ──────────────────
 
-/* A picture of the application, built from the application's components. It is framed like a
-   window rather than dropped on the page, so a reader can tell at a glance that they are looking
-   at the product and not at the website's own furniture.
+   A picture of the application built from the application's components - and, as far as native
+   HTML reaches without a script, a working one. Ticking an entry is a real checkbox, the layout
+   choice is a radio group, and collapsing the work package is a checkbox a sibling selector reads.
 
-   The frame inside is `inert` and `aria-hidden`; the caption carries the meaning. A brochure that
-   handed somebody a checkbox which does nothing would be teaching them that the product's
-   controls do nothing. */
+   It is framed like a window rather than dropped on the page, so a reader can tell they are
+   looking at the product and not at the website's own furniture. */
 .specimen {
   margin: var(--sp-600) 0 0;
 }
 
 .specimen-frame {
+  /* A task list is a column of short lines. Left at the full width of the page it strands every
+     label a screen away from the entry it belongs to. */
+  max-width: var(--bp-expanded);
   border: var(--bw-hairline) solid var(--border-subtle);
   border-radius: var(--r-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-overlay);
   overflow: hidden;
+}
+
+/* The board needs the room the list does not. */
+.specimen-frame:has([data-view='board']:checked) {
+  max-width: none;
 }
 
 .specimen-bar {
@@ -1267,8 +1274,7 @@ em {
   background: var(--bg-surface-sunken);
 }
 
-.specimen-where,
-.specimen-tools {
+.specimen-where {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-100);
@@ -1276,16 +1282,79 @@ em {
   font-size: var(--fs-075);
 }
 
-.specimen-tools {
-  color: var(--text-subtle);
-}
-
 .specimen-sep {
   color: var(--border-default);
 }
 
-.specimen-body {
+/* The layout switcher. Not `ViewSwitcher` - that component chooses through an `onclick`, and this
+   page runs no script - so it is built here from the same tokens and the same shape: recessed
+   group, and the chosen view carries a surface *and* a border, because §6 rule 3 says a choice may
+   not be told apart by a tint alone. */
+.specimen-views {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-050);
+  padding: var(--sp-050);
+  border: var(--bw-hairline) solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface-sunken);
+}
+
+.specimen-views input {
+  position: absolute;
+  inline-size: var(--sp-025);
+  block-size: var(--sp-025);
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.specimen-views label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--density-row-gap);
+  padding: var(--density-row-block) var(--sp-150);
+  border: var(--bw-hairline) solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-100);
+  cursor: pointer;
+}
+
+.specimen-views label:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.specimen-views input:checked + label {
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+.specimen-views input:focus-visible + label {
+  outline: var(--bw-ring) solid var(--focus-ring);
+  outline-offset: var(--sp-025);
+}
+
+/* One subject, two renderings, and the radio group says which. */
+.specimen-list,
+.specimen-board {
+  display: none;
+}
+
+.specimen-frame:has([data-view='list']:checked) .specimen-list {
+  display: block;
   padding: var(--sp-200) var(--sp-150);
+}
+
+.specimen-frame:has([data-view='board']:checked) .specimen-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22ch, 100%), 1fr));
+  gap: var(--sp-300);
+  padding: var(--sp-300);
+  align-items: start;
 }
 
 /* The indent travels as an attribute and the stylesheet turns it into space - the wave 0
@@ -1305,23 +1374,63 @@ em {
   color: var(--text-subtle);
 }
 
+/* The twist keeps its width whether or not a row has one, so the titles of a level line up. */
+.specimen-twist {
+  display: inline-flex;
+  flex: none;
+  inline-size: var(--sp-400);
+  justify-content: center;
+  color: var(--text-subtle);
+}
+
+.specimen-twist input {
+  position: absolute;
+  inline-size: var(--sp-025);
+  block-size: var(--sp-025);
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.specimen-twist label {
+  display: inline-flex;
+  padding: var(--sp-025);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: transform var(--motion-state-duration) var(--motion-state-easing);
+}
+
+.specimen-twist label:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.specimen-twist input:focus-visible + label {
+  outline: var(--bw-ring) solid var(--focus-ring);
+  outline-offset: var(--bw-ring);
+}
+
+/* Collapsed: the chevron points at what it would open, and the steps below are gone. The sibling
+   combinator is why the fixture gives children to exactly one work package - a second one would
+   have its activities hidden by the first one's twist. */
+.specimen-twist:has(input:checked) label {
+  transform: rotate(-90deg);
+}
+
+.specimen-row[data-depth='1']:has([data-twist]:checked) ~ .specimen-row[data-depth='2'] {
+  display: none;
+}
+
 .specimen-title {
   font-size: var(--fs-100);
   overflow-wrap: anywhere;
 }
 
-/* Rule 3: a completed entry is not told apart by colour alone. */
-.specimen-title[data-done] {
+/* Rule 3: a completed entry is not told apart by colour alone. Read live off the checkbox, so
+   ticking one strikes it through at once - the state is the control's, not a prop's. */
+.specimen-row:has([type='checkbox']:not([data-twist]):checked) .specimen-title {
   color: var(--text-subtle);
   text-decoration: line-through;
-}
-
-.specimen-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(22ch, 100%), 1fr));
-  gap: var(--sp-300);
-  padding: var(--sp-300);
-  align-items: start;
 }
 
 .specimen figcaption {

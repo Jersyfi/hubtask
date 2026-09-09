@@ -84,9 +84,16 @@ marks in the icon set. Not a screenshot: a screenshot goes stale the day a token
 cannot. It is the same argument the proof chip makes, made visually — the marketing page is
 literally built out of the thing it is selling.
 
-They are pictures, and are marked as such: each frame is `inert` and out of the accessibility tree,
-with a `<figcaption>` carrying the meaning in words. A brochure that handed somebody a checkbox
-which does nothing would be teaching them that the product's controls do nothing.
+They are not pictures any more, and that is the point: the controls are real. An entry ticks off
+and strikes through, the work package collapses, and the layout switch moves the same collection
+between its list and its board — native HTML plus `:has()`, still no script. The earlier version was
+`inert` on the argument that a brochure must not hand somebody a checkbox which does nothing; making
+the checkbox actually work answers that objection better than hiding it did.
+
+Two consequences worth knowing. The specimen can only use components that render their whole selves
+from markup — `ViewSwitcher`, `Menu`, `Tabs` and `Dialog` choose through a handler, so the layout
+switcher is the site's own, from the same tokens and the same shape. And dragging a card between
+buckets is not possible at all: see § 6.8.
 
 One component is missing from that list and the reason is worth recording: **`TaskRow` cannot be
 used here.** It writes `style:--depth`, which server rendering emits as a `style` attribute, and
@@ -211,7 +218,27 @@ permanent without the condition `licensing-editions.md` §5 attaches to it.
 
    *If it should be reverted*, the segmented control is in the branch's history at commit
    `2eec183`.
-8. **How much roadmap to show.** The `/roadmap/` page currently shows every milestone including the
+8. **Dragging a card needs a decision before it can need code.** The product specimen is
+   interactive as far as native HTML reaches: an entry ticks off, a work package collapses, and the
+   collection switches between its list and its board — all of it real controls plus `:has()`, with
+   no script. Reordering by pointer is where that ends. Drag-and-drop is JavaScript, and no
+   selector substitutes for it.
+
+   That is not a gap to fill in passing. `csr = false` in `src/routes/+layout.ts`, the promise F1-12
+   made, and `build/check-static.js` — which fails the build on a single `<script>` — are one
+   decision expressed three times, and the site's own argument leans on it: the page that says your
+   data stays yours loads nothing and calls nobody. Two ways forward, and they are the owner's:
+
+   * **Leave it.** The specimen demonstrates the model, the layouts and the completion behaviour,
+     and says so. Dragging is shown where dragging belongs — in the product.
+   * **Allow the site a script**, scoped to this one component, with an ADR amending F1-12 and a
+     narrower `check-static.js` that permits exactly what the ADR allows. That also unlocks the
+     design-system components whose interaction runs through a handler — `ViewSwitcher`, `Menu`,
+     `Tabs`, `Dialog` — which the specimen currently cannot use. `ViewSwitcher` is the one it most
+     wants: the switcher in the specimen is the site's own, built from the same tokens and shape,
+     and it is the only place on this site where a component's appearance is written twice.
+
+9. **How much roadmap to show.** The `/roadmap/` page currently shows every milestone including the
    1.0 prerequisites. That is unusually candid for a product site and is, in this positioning, an
    asset — but it is a decision, and it is the page most likely to need trimming.
 
