@@ -20,7 +20,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, RoleBadge, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, RoleBadge, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -37,6 +37,10 @@
   let isWriting = $state(false);
   let chosenRole = $state('');
   let chosenSubject = $state('');
+  let inviteEmail = $state('');
+  let inviteName = $state('');
+  let inviteRole = $state('');
+  let invited = $state<string | undefined>(undefined);
 
   $effect(() =>
     untrack(() => {
@@ -94,6 +98,29 @@
     } finally {
       isWriting = false;
     }
+  }
+
+  /**
+   * Invites somebody and gives them the role at once.
+   *
+   * The role is not optional here, and that is the contract's doing rather than a preference: an
+   * invitation carries no role, and there is no accounts listing — so an invitation on its own
+   * produces somebody this screen could never show again.
+   */
+  async function invite(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const address = inviteEmail.trim();
+    if (!address || !inviteRole) return;
+    invited = undefined;
+    await attempt(async () => {
+      await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
+      invited = address;
+    });
+    // Out of the form whatever happened. A second press with the same address in it would be a
+    // second invitation the reader did not mean to send.
+    inviteEmail = '';
+    inviteName = '';
+    inviteRole = '';
   }
 
   async function grant(): Promise<void> {
@@ -162,6 +189,49 @@
         {/each}
       </Table>
     {/if}
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.people.invite_title')}</h2>
+      <p class="quiet small">{t('app.people.invite_hint')}</p>
+      {#if invited}
+        <Banner tone="success">{t('app.people.invited_sent', { email: invited })}</Banner>
+      {/if}
+      <form onsubmit={invite}>
+        <Stack gap="150">
+          <Input
+            label={t('app.people.invite_email')}
+            bind:value={inviteEmail}
+            type="email"
+            autocomplete="off"
+            spellcheck={false}
+            isRequired
+          />
+          <Input
+            label={t('app.people.invite_name')}
+            hint={t('app.people.invite_name_hint')}
+            bind:value={inviteName}
+            autocomplete="off"
+          />
+          <Select
+            label={t('app.people.role_column')}
+            hint={t('app.people.invite_role_hint')}
+            bind:value={inviteRole}
+            placeholder={t('app.people.choose_role')}
+            options={roleOptions}
+          />
+          <div>
+            <Button
+              type="submit"
+              tone="primary"
+              isBusy={isWriting}
+              busyLabel={t('app.people.working')}
+            >
+              {t('app.people.invite')}
+            </Button>
+          </div>
+        </Stack>
+      </form>
+    </Stack>
 
     <Stack gap="150">
       <h2 class="section">{t('app.people.grant_title')}</h2>
