@@ -3,6 +3,7 @@
 <script lang="ts">
   import Levels from '$lib/Levels.svelte';
   import Proof from '$lib/Proof.svelte';
+  import SpecimenList from '$lib/SpecimenList.svelte';
 
   const docs = 'https://github.com/Jersyfi/hubtask/blob/main/docs';
 </script>
@@ -118,6 +119,8 @@
         </div>
       </div>
     </div>
+
+    <SpecimenList />
 
     <div class="callout">
       <p>

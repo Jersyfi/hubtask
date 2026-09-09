@@ -5,6 +5,7 @@
   import '@hubtask/design-system/fonts.css';
   import '@hubtask/design-system/tokens.css';
   import '../site.css';
+  import { Icon, VisuallyHidden } from '@hubtask/design-system/components';
   import Mark from '$lib/Mark.svelte';
 
   let { children } = $props();
@@ -41,16 +42,34 @@
     <!-- Three radios and no script. `Auto` is checked, so the control always states what the page
          is doing; src/site.css turns the choice into a theme. The state is per document, because
          remembering it across a navigation would need storage, and storage would need a script
-         this site does not load. -->
-    <fieldset class="modes">
-      <legend class="skip-legend">Colour mode</legend>
+         this site does not load.
+
+         Icons rather than words, and all three visible rather than one that cycles. A cycling
+         button has a dead click here: from `Auto` on a light system the next state is `Light`,
+         which changes nothing on screen, and the reader has to press again to reach the state
+         they wanted. Reordering the cycle only moves the dead click to the dark system. Three
+         targets have none, cost one press from any state to any other, and keep a real radio
+         group for the keyboard and the accessibility tree. The movement the cycle would have
+         carried is in the thumb that slides between them and in the glyph that turns into
+         place. -->
+    <div class="modes" role="radiogroup" aria-label="Colour mode">
+      <span class="modes-thumb" aria-hidden="true"></span>
       <input type="radio" name="mode" id="mode-auto" checked />
-      <label for="mode-auto">Auto</label>
+      <label for="mode-auto">
+        <span class="mode-glyph" data-glyph="auto"><Icon name="monitor" size="sm" /></span>
+        <VisuallyHidden>Follow the system</VisuallyHidden>
+      </label>
       <input type="radio" name="mode" id="mode-light" />
-      <label for="mode-light">Light</label>
+      <label for="mode-light">
+        <span class="mode-glyph" data-glyph="light"><Icon name="sun" size="sm" /></span>
+        <VisuallyHidden>Light</VisuallyHidden>
+      </label>
       <input type="radio" name="mode" id="mode-dark" />
-      <label for="mode-dark">Dark</label>
-    </fieldset>
+      <label for="mode-dark">
+        <span class="mode-glyph" data-glyph="dark"><Icon name="moon" size="sm" /></span>
+        <VisuallyHidden>Dark</VisuallyHidden>
+      </label>
+    </div>
   </div>
 </header>
 

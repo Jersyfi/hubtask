@@ -5,6 +5,11 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // The site renders design-system components, and that package's own source imports with an
+    // explicit `.ts` extension. apps/webapp sets this for the same reason and no other: the check
+    // now reads through `packages/design-system/src`, so it has to read it on that package's
+    // terms.
+    "allowImportingTsExtensions": true
   }
 }

@@ -3,6 +3,8 @@
 <script lang="ts">
   import Levels from '$lib/Levels.svelte';
   import Proof from '$lib/Proof.svelte';
+  import SpecimenBoard from '$lib/SpecimenBoard.svelte';
+  import SpecimenList from '$lib/SpecimenList.svelte';
 
   const docs = 'https://github.com/Jersyfi/hubtask/blob/main/docs';
 </script>
@@ -70,6 +72,8 @@
     </div>
     <Proof href="{docs}/architecture/domain-model.md" label="domain-model.md §2" />
 
+    <SpecimenList />
+
     <div class="callout">
       <p>
         <strong>A workspace may narrow a profile, never widen it past the system boundary.</strong>
@@ -117,6 +121,8 @@
         </p>
       </div>
     </div>
+
+    <SpecimenBoard />
 
     <div class="two-up section-gap">
       <div>

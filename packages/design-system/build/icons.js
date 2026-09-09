@@ -65,6 +65,10 @@ export const DECLARED = {
     'eye-off',
     'sun',
     'moon',
+    // The third state of the website's colour-mode control: follow the device. `sun` and `moon`
+    // are the two choices, and "whatever the system says" is neither of them - a control that
+    // reused one of the two would be a control whose icon lies in half its states (ADR-0043).
+    'monitor',
   ],
   'Domain nouns Lucide already says well': [
     'calendar', // a due date

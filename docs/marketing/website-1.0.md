@@ -69,6 +69,24 @@ decision record or the CI gate behind it. Forty-seven of them across the site. T
 argument made structural — see [`market-analysis.md`](./market-analysis.md) § 4.1 — and it is the
 thing no competitor's homepage carries.
 
+**5 · The product, drawn with the product.** Two specimens — a collection in the list layout on `/`
+and on `/product/`, and the same collection as a board on `/product/` — are built from the real
+`ListRow`, `Checkbox`, `Icon`, `LabelChip`, `BucketColumn` and `WorkItemCard`, and from the domain
+marks in the icon set. Not a screenshot: a screenshot goes stale the day a token moves, and this
+cannot. It is the same argument the proof chip makes, made visually — the marketing page is
+literally built out of the thing it is selling.
+
+They are pictures, and are marked as such: each frame is `inert` and out of the accessibility tree,
+with a `<figcaption>` carrying the meaning in words. A brochure that handed somebody a checkbox
+which does nothing would be teaching them that the product's controls do nothing.
+
+One component is missing from that list and the reason is worth recording: **`TaskRow` cannot be
+used here.** It writes `style:--depth`, which server rendering emits as a `style` attribute, and
+`check-static.js` fails the build on one. In `apps/webapp` the same directive is a CSSOM write that
+no policy objects to, so this is a portability limit rather than a defect in the application — but
+it does mean the list specimen composes its own row and carries the indent as `data-depth`, the way
+wave 0 settled on.
+
 Underneath those: IBM Plex Sans Condensed for display and Plex Mono for kickers, data and code, which
 is what gives the pages their engineered voice; and `design-system.md` §6 rule 1 applied literally —
 **raised** cards stand alone, **sunken** blocks sit inside a section, and nothing is glass, because
@@ -83,6 +101,7 @@ only overlays blur and a brochure has none.
 | **No JavaScript at all** | `csr = false`, everything prerendered; `build/check-static.js` fails the build on a `<script>`, a `<style>` element, a `style` attribute or an inline handler | The product's pitch is that your data stays yours. A site with a tracker on it would lose the argument in the first second |
 | **No value outside `tokens.json`** | The design system's own lint runs over this app | One origin, and the site cannot drift from the product |
 | **Light and dark, and a manual switch** | The document is `data-theme="dark"`, the body carries `data-theme="light"`, and `src/site.css` neutralises the light set unless the reader or their system asks for it. Three radio buttons, no script | Verified in all six combinations of system preference and reader choice |
+| **The switch is icons, and all three are visible** | `monitor`, `sun`, `moon` from the icon set; a thumb slides between them and each glyph turns upright when its state is chosen | A cycling button has a dead click here — see § 6.8. Three targets have none, and cost one press from any state to any other |
 | **A guard for that construction** | `build/check-theme.test.js` fails when the stylesheet reads a semantic token either colour-mode block forgets | The one way the construction could rot, closed. It has been seen to fail |
 | **Fluid, with no width breakpoint** | Every measure is a token or a `ch`; the type scales with `clamp()` | A media query cannot read a custom property, so the alternative would have been literals |
 | **Verified** | No horizontal overflow and no over-long measure at 320, 375, 768, 1024 and 1440; one `h1` per page; every page has a title and a description | Measured, not eyeballed |
@@ -166,7 +185,17 @@ permanent without the condition `licensing-editions.md` §5 attaches to it.
 6. **`200+` or the exact number.** The registry holds 211 registered descriptors today. The site
    rounds down, so the claim stays true as the number moves. Publishing the exact figure would be
    more impressive once and wrong later.
-7. **How much roadmap to show.** The `/roadmap/` page currently shows every milestone including the
+7. **Why the colour-mode control is not a cycling button.** It was considered, and it loses on one
+   concrete failure rather than on a guideline. With three states the cycle has a press that changes
+   nothing: from `Auto` on a light system the next state is `Light`, the page does not move, and the
+   reader has to press again to reach what they wanted. Reordering the cycle moves that dead press
+   to the dark system rather than removing it. Three visible targets have none, cost one press
+   between any two states, show the options instead of hiding them, and keep a real radio group for
+   the keyboard. The movement a cycle would have carried is still there — in the thumb that slides
+   and the glyph that turns into place. If the compact single-glyph look is wanted anyway, it is a
+   contained change to `+layout.svelte` and the `.modes` rules, and this paragraph is the trade
+   being accepted.
+8. **How much roadmap to show.** The `/roadmap/` page currently shows every milestone including the
    1.0 prerequisites. That is unusually candid for a product site and is, in this positioning, an
    asset — but it is a decision, and it is the page most likely to need trimming.
 

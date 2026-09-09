@@ -60,6 +60,7 @@ html:has(#mode-dark:checked) body[data-theme] {
   --accent-signature-subtle: inherit;
   --focus-ring: inherit;
   --shadow-raised: inherit;
+  --shadow-overlay: inherit;
   --shadow-nested: inherit;
   --rim-ember: inherit;
   --rim-blue: inherit;
@@ -104,6 +105,7 @@ html:has(#mode-dark:checked) body[data-theme] {
     --accent-signature-subtle: inherit;
     --focus-ring: inherit;
     --shadow-raised: inherit;
+    --shadow-overlay: inherit;
     --shadow-nested: inherit;
     --rim-ember: inherit;
     --rim-blue: inherit;
@@ -255,37 +257,70 @@ body {
   border-block-end-color: var(--accent-signature);
 }
 
-/* The colour-mode control. Three radios, styled through their labels: the inputs stay in the
-   accessibility tree and keep their own focus ring, which is why they are clipped rather than
-   hidden (design-system.md §6 rule 5, and the wave 1 rule about native inputs). */
+/* The colour-mode control: three radios, no script, and the only movement on the site.
+
+   Icons rather than words, and three targets rather than one that cycles - the reasoning is in
+   +layout.svelte, and it comes down to a cycle having a click that changes nothing. The inputs are
+   clipped rather than hidden, so they keep their place in the accessibility tree and their own
+   keyboard behaviour; the labels are what is painted.
+
+   Rule 6 holds: the thumb moves in `transform` and the glyphs turn in `transform`, nothing
+   animates a length, and the reduced-motion rule at the top of this file switches both off. */
 .modes {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-025);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   padding: var(--sp-025);
   border: var(--bw-hairline) solid var(--border-subtle);
   border-radius: var(--r-full);
   background: var(--bg-surface-sunken);
 }
 
+/* The thumb is one third of the inner width, so `translateX(100%)` lands it exactly on the next
+   cell - no second place where the number three is written down. */
+.modes-thumb {
+  position: absolute;
+  inset-block: var(--sp-025);
+  inset-inline-start: var(--sp-025);
+  inline-size: calc((100% - 2 * var(--sp-025)) / 3);
+  border-radius: var(--r-full);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-raised);
+  transition: transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.modes:has(#mode-light:checked) .modes-thumb {
+  transform: translateX(100%);
+}
+
+.modes:has(#mode-dark:checked) .modes-thumb {
+  transform: translateX(200%);
+}
+
+/* On top and transparent, never `display: none`: the input is what the keyboard and the
+   accessibility tree see. The same construction Checkbox.svelte uses, for the same reason. */
 .modes input {
   position: absolute;
-  inline-size: var(--sp-025);
-  block-size: var(--sp-025);
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
   margin: 0;
   opacity: 0;
   pointer-events: none;
 }
 
 .modes label {
-  display: inline-block;
-  padding: var(--sp-050) var(--sp-200);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Clears the target-size floor WCAG 2.2 SC 2.5.8 sets, in both densities. */
+  min-block-size: var(--sp-400);
+  padding-inline: var(--sp-250);
   border-radius: var(--r-full);
   color: var(--text-subtle);
-  font-family: var(--font-mono);
-  font-size: var(--fs-050);
   cursor: pointer;
-  white-space: nowrap;
+  transition: color var(--motion-state-duration) var(--motion-state-easing);
 }
 
 .modes label:hover {
@@ -293,14 +328,38 @@ body {
 }
 
 .modes input:checked + label {
-  background: var(--bg-surface);
   color: var(--text-primary);
-  box-shadow: var(--shadow-raised);
+}
+
+/* The one place the signature colour marks a state rather than a section. */
+.modes input#mode-light:checked + label,
+.modes input#mode-dark:checked + label {
+  color: var(--accent-signature);
 }
 
 .modes input:focus-visible + label {
   outline: var(--bw-ring) solid var(--focus-ring);
   outline-offset: var(--bw-ring);
+}
+
+/* The micro-animation. Each glyph rests turned away and comes upright when its state is chosen,
+   so the change of mode is something the eye follows rather than something it finds. Nothing
+   moves on load: the chosen glyph is already upright, and a transition has nothing to run from. */
+.mode-glyph {
+  display: inline-flex;
+  transition: transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.modes input:not(:checked) + label .mode-glyph {
+  transform: scale(0.86);
+}
+
+.modes input:not(:checked) + label .mode-glyph[data-glyph='light'] {
+  transform: rotate(-75deg) scale(0.86);
+}
+
+.modes input:not(:checked) + label .mode-glyph[data-glyph='dark'] {
+  transform: rotate(40deg) scale(0.86);
 }
 
 /* ── Type ─────────────────────────────────────────────────────────────────── */
@@ -1014,25 +1073,6 @@ address {
 
 /* ── Small additions the layout needs ─────────────────────────────────────── */
 
-/* A fieldset needs a legend for the group to be announced, and this one has no business being
-   seen: the three labels say what the control is. Clipped rather than `display: none`, which
-   would take it out of the accessibility tree along with the pixels. */
-.skip-legend {
-  position: absolute;
-  inline-size: var(--sp-025);
-  block-size: var(--sp-025);
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.modes {
-  border: var(--bw-hairline) solid var(--border-subtle);
-  margin: 0;
-  min-inline-size: 0;
-}
-
 .colophon-brand p {
   margin-block-start: var(--sp-300);
   font-size: var(--fs-100);
@@ -1088,4 +1128,101 @@ address {
 em {
   font-style: italic;
   color: var(--text-primary);
+}
+
+/* ── Specimens: the product's own interface, on the page ──────────────────── */
+
+/* A picture of the application, built from the application's components. It is framed like a
+   window rather than dropped on the page, so a reader can tell at a glance that they are looking
+   at the product and not at the website's own furniture.
+
+   The frame inside is `inert` and `aria-hidden`; the caption carries the meaning. A brochure that
+   handed somebody a checkbox which does nothing would be teaching them that the product's
+   controls do nothing. */
+.specimen {
+  margin: var(--sp-600) 0 0;
+}
+
+.specimen-frame {
+  border: var(--bw-hairline) solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-overlay);
+  overflow: hidden;
+}
+
+.specimen-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-200);
+  padding: var(--sp-150) var(--sp-300);
+  border-block-end: var(--bw-hairline) solid var(--border-subtle);
+  background: var(--bg-surface-sunken);
+}
+
+.specimen-where,
+.specimen-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-100);
+  color: var(--text-subtle);
+  font-size: var(--fs-075);
+}
+
+.specimen-tools {
+  color: var(--text-subtle);
+}
+
+.specimen-sep {
+  color: var(--border-default);
+}
+
+.specimen-body {
+  padding: var(--sp-200) var(--sp-150);
+}
+
+/* The indent travels as an attribute and the stylesheet turns it into space - the wave 0
+   technique, because ADR-0028's policy refuses an inline style and this site's build check
+   refuses one too. `padding-inline-start`, so a deep entry indents from the right in Arabic. */
+.specimen-row[data-depth='1'] {
+  padding-inline-start: var(--sp-500);
+}
+
+.specimen-row[data-depth='2'] {
+  padding-inline-start: var(--sp-1000);
+}
+
+.specimen-mark {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-subtle);
+}
+
+.specimen-title {
+  font-size: var(--fs-100);
+  overflow-wrap: anywhere;
+}
+
+/* Rule 3: a completed entry is not told apart by colour alone. */
+.specimen-title[data-done] {
+  color: var(--text-subtle);
+  text-decoration: line-through;
+}
+
+.specimen-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22ch, 100%), 1fr));
+  gap: var(--sp-300);
+  padding: var(--sp-300);
+  align-items: start;
+}
+
+.specimen figcaption {
+  margin-block-start: var(--sp-300);
+  max-width: 72ch;
+  color: var(--text-subtle);
+  font-size: var(--fs-075);
+  line-height: var(--lh-normal);
 }
