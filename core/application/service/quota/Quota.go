@@ -28,12 +28,19 @@ const (
 	AutomationRunsPerHour = "automation_runs_per_hour"
 	WebhookTargets        = "webhook_targets"
 	ExportJobs            = "export_jobs"
+	// AiTokensPerDay is what a workspace may spend on AI in a day (J-15), counted in the tokens
+	// every provider reports - the one unit that means the same thing across OpenAI-compatible
+	// endpoints and a local Ollama, which is why `ai.Usage` carries it.
+	//
+	//nolint:gosec // G101: a quota's name, not a credential - "token" here is a model's unit of text
+	AiTokensPerDay = "ai_tokens_per_day"
 )
 
 // Names is the vocabulary in the contract's order.
 func Names() []string {
 	return []string{
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
+		AiTokensPerDay,
 	}
 }
 
@@ -49,6 +56,7 @@ type Limits struct {
 	AutomationRunsPerHour int64
 	WebhookTargets        int64
 	ExportJobs            int64
+	AiTokensPerDay        int64
 }
 
 // Defaults answers §4's two columns. Single mode's defaults stay effectively unlimited - the
@@ -64,6 +72,12 @@ func Defaults(mode env.TenancyMode) Limits {
 			AutomationRunsPerHour: 1_000,
 			WebhookTargets:        50,
 			ExportJobs:            2,
+			// A real number in multi mode, because AI is the one feature whose marginal cost
+			// leaves the installation: every token is somebody's invoice. Two hundred thousand is
+			// a working day of suggestions for a busy workspace and a wall a runaway loop reaches
+			// in minutes - which is the shape a budget wants, since what it protects against is a
+			// mistake rather than use.
+			AiTokensPerDay: 200_000,
 		}
 	}
 	return Limits{
@@ -73,6 +87,10 @@ func Defaults(mode env.TenancyMode) Limits {
 		AutomationRunsPerHour: 100_000,
 		WebhookTargets:        Unlimited,
 		ExportJobs:            5,
+		// Unlimited for a self-hoster, who is either running a local model - where a token costs
+		// electricity - or paying their own provider directly. A default ceiling there would be
+		// this project deciding how much of somebody's own machine they may use.
+		AiTokensPerDay: Unlimited,
 	}
 }
 
@@ -90,6 +108,7 @@ func Resolve(overrides repository.Overrides, mode env.TenancyMode) Limits {
 	apply(&limits.AutomationRunsPerHour, overrides.AutomationRunsPerHour)
 	apply(&limits.WebhookTargets, overrides.WebhookTargets)
 	apply(&limits.ExportJobs, overrides.ExportJobs)
+	apply(&limits.AiTokensPerDay, overrides.AiTokensPerDay)
 	return limits
 }
 
@@ -108,6 +127,8 @@ func (l Limits) Of(quota string) int64 {
 		return l.WebhookTargets
 	case ExportJobs:
 		return l.ExportJobs
+	case AiTokensPerDay:
+		return l.AiTokensPerDay
 	default:
 		return Unlimited
 	}

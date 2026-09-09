@@ -148,6 +148,17 @@ capacity.<quota>`, the rate as `429`, and the approach is `hubtask_tenant_quota_
 | Bulk operations per request | 500 | 500 |
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
+| AI tokens per day | 200,000 | Unlimited |
+
+The AI budget (J-15) is the row whose asymmetry is deliberate. It is counted in the tokens every
+provider reports, over a UTC calendar day, from the billing ledger — which is the only record
+there is, because a token has no row of its own. A workspace over it **stops making suggestions
+and keeps working**: the refusal is `ai.unavailable`, the same one an absent provider and an open
+circuit answer, so nothing that calls AI has a second way to degrade. Unlimited in single mode
+because a self-hoster is either running a local model or paying their own provider directly, and
+a default ceiling there would be this project deciding how much of somebody's own machine they
+may use; a real number in multi because AI is the one feature whose marginal cost leaves the
+installation.
 
 Further fairness mechanisms: a weighted job queue (one tenant cannot monopolise the workers), query
 timeouts (`statement_timeout` per role), and cost estimation for query DSL requests with rejection

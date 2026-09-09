@@ -926,11 +926,23 @@ func run() error {
 		Meter: metrics, Breakers: aiBreakers,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers))
+	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside it
+	// (J-15). It is a quota like every other row of multi-tenancy.md §4 - resolved from the
+	// workspace's settings, reported on the same ratio metric, watched by the same alert - and a
+	// workspace that has spent its day's budget gets a provider that refuses exactly as an absent
+	// one does, which is why nothing downstream needed changing.
+	//
+	// Everything below takes the wrapped resolver, so there is no path to a provider that skips
+	// the counter.
+	budgetedAi := integrationservice.Budgeted{
+		Providers: aiResolver, Budget: quotaGuard,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	// What asking a provider does when the job runs (J-06). It acts for the person who asked, so
 	// the reads it performs go through the catalogue with their rights - which is the same
 	// arrangement the acceptance has, and for the same reason.
 	produceSuggestion := suggestionservice.Produce{
-		Providers: aiResolver, Prompts: aiPrompts,
+		Providers: budgetedAi, Prompts: aiPrompts,
 		Sources:     suggestionservice.CatalogueSources{Catalogue: suggestionCatalogue},
 		Suggestions: postgres.NewSuggestionRepository(cursors),
 		// An applied answer is accepted through the use case, never around it.
@@ -1022,7 +1034,7 @@ func run() error {
 		suggestionservice.DismissSuggestion{Cases: suggestionCases}.Descriptor(),
 		suggestionservice.SuggestDecomposition{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		// automation.md §1.3's three AI actions, which have been refused by name since G-05 with a
@@ -1030,17 +1042,17 @@ func run() error {
 		// a rule cannot name them (J-08).
 		suggestionservice.AiSuggestFields{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiSummarize{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiClassify{
 			Cases: suggestionCases,
-			AI:    suggestionservice.Availability{Providers: aiResolver},
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
@@ -1105,7 +1117,7 @@ func run() error {
 		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.SuggestFromJumbleEntry{
 			Writer: jumbleWriter,
-			AI:     suggestionservice.Availability{Providers: aiResolver},
+			AI:     suggestionservice.Availability{Providers: budgetedAi},
 			Queue:  jobs,
 		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
@@ -1254,7 +1266,7 @@ func run() error {
 			// the consent, and whether it answers in time - and every one of those is a lexical
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
-				Providers: aiResolver, Semantic: postgres.NewSemanticSearchRepository(),
+				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
 				UnitOfWork: unitOfWork,
 			},
 		}.Descriptor(),
@@ -2210,7 +2222,7 @@ func run() error {
 		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
-				Embeddings: postgres.NewEmbeddingRepository(), Providers: aiResolver,
+				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
 				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{},
 			},

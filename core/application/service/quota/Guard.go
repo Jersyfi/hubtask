@@ -102,6 +102,58 @@ func (g Guard) ExportJobs(ctx context.Context, tenant string) error {
 	return g.check(ctx, tenant, ExportJobs, limits.ExportJobs, g.Usage.LiveExports, 1)
 }
 
+// AiTokens reports whether the workspace's daily AI budget still has room, and meters what a call
+// cost (J-15).
+//
+// Two calls rather than one, and in that order: `AiTokens` before the provider is asked, `MeterAi`
+// after it answers. A budget cannot be reserved up front because nobody knows what a call will
+// cost until the provider says - so the ceiling is checked against what has been spent, and a call
+// that goes over it is the last one rather than one that never happened. That is the right way
+// round for a bound whose purpose is to stop a runaway loop rather than to bill exactly.
+//
+// Not a refusal error, for `AutomationRuns`' reason: the caller's vocabulary for "out of budget" is
+// already `ai.unavailable` - the one refusal J-01's port answers for every reason a provider is out
+// of reach - and a second shape would be a second thing for every caller to handle.
+func (g Guard) AiTokens(ctx context.Context, tenant string, now time.Time) (bool, error) {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return false, err
+	}
+	if limits.AiTokensPerDay == Unlimited {
+		return true, nil
+	}
+
+	spent, err := g.Usage.MeteredSince(ctx, AiTokensPerDay, startOfDay(now))
+	if err != nil {
+		return false, err
+	}
+	if g.Signals != nil {
+		g.Signals.QuotaUsage(ctx, AiTokensPerDay, tenant, Ratio(limits.AiTokensPerDay, spent))
+	}
+	return spent < limits.AiTokensPerDay, nil
+}
+
+// MeterAi records what one call cost. Called after the provider answered, with what it reported.
+//
+// Nothing is metered for a call that failed, and that is deliberate: a provider that refused
+// charged nothing, and a budget that counted refusals would tighten on itself the way the
+// automation bound would if it counted its own throttles.
+func (g Guard) MeterAi(ctx context.Context, at time.Time, tokens int64) error {
+	if g.Meter == nil || tokens <= 0 {
+		return nil
+	}
+	return g.Meter.Add(ctx, AiTokensPerDay, at, tokens)
+}
+
+// startOfDay is the period the ledger tallies by: a UTC calendar day, which is what
+// `usage_record.period` is keyed on. The budget therefore resets at midnight UTC for everybody
+// rather than per workspace - one boundary an operator can reason about, and the same one the
+// ledger already uses for capacity planning.
+func startOfDay(now time.Time) time.Time {
+	utc := now.UTC()
+	return time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC)
+}
+
 // AutomationRuns reports whether the workspace's hourly budget still has room, and meters the
 // run either way. Not a refusal error: the caller is the rule engine, and its vocabulary for
 // "over budget" is a THROTTLED run row - visible, counted, never executed - rather than a

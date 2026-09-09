@@ -111,6 +111,7 @@ func Standings(
 		AutomationRunsPerHour: overrides.AutomationRunsPerHour != nil,
 		WebhookTargets:        overrides.WebhookTargets != nil,
 		ExportJobs:            overrides.ExportJobs != nil,
+		AiTokensPerDay:        overrides.AiTokensPerDay != nil,
 	}
 	counters := map[string]func(context.Context) (int64, error){
 		Items:          usage.Items,
@@ -119,6 +120,12 @@ func Standings(
 		ExportJobs:     usage.LiveExports,
 		AutomationRunsPerHour: func(ctx context.Context) (int64, error) {
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
+		},
+		// The day's spend so far, from the ledger - which is the only record of it, because a
+		// token has no row (J-15). The same instant the guard measures against, so what an
+		// operator reads here is what the wall is comparing.
+		AiTokensPerDay: func(ctx context.Context) (int64, error) {
+			return usage.MeteredSince(ctx, AiTokensPerDay, startOfDay(now))
 		},
 	}
 

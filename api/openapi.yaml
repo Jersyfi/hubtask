@@ -7317,7 +7317,7 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day]
         limit:
           type: integer
           format: int64
@@ -7346,6 +7346,17 @@ components:
         automation_runs_per_hour: { type: [integer, "null"], format: int64, minimum: 0 }
         webhook_targets: { type: [integer, "null"], format: int64, minimum: 0 }
         export_jobs: { type: [integer, "null"], format: int64, minimum: 0 }
+        ai_tokens_per_day:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            What the workspace may spend on AI in a day, counted in the tokens every provider
+            reports (J-15). Unlimited in single mode by default and a real number in multi, like
+            every other row of multi-tenancy.md §4. A workspace over its budget stops making
+            suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent
+            provider and an open circuit answer, so nothing that calls AI needs a second way to
+            degrade.
 
     TenantDeletionScheduled:
       type: object

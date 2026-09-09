@@ -36,6 +36,17 @@ SELECT count(*) FROM webhook_subscription;
 SELECT count(*) FROM rule_run
 WHERE started_at >= sqlc.arg('since') AND status <> 'THROTTLED';
 
+-- name: SumTenantUsageSince :one
+-- What the workspace has spent on one metered thing since a day (J-15).
+--
+-- The ledger as an enforcement source, which the statement below is at pains to say it is not -
+-- and the exception is the point rather than an oversight. `usage_record` is barred elsewhere
+-- because it is a lagging copy of something countable: items are in `work_item`, media in
+-- `media_object`. A token has no row. It was spent on somebody else's machine and this tally *is*
+-- the record, so there is nothing more authoritative to count.
+SELECT coalesce(sum(value), 0)::bigint FROM usage_record
+WHERE metric = sqlc.arg('metric') AND period >= sqlc.arg('since');
+
 -- name: AddUsage :exec
 -- The billing ledger's first writer (usage_record has been dormant since phase 0): daily
 -- tallies for capacity planning and the dashboards, never the enforcement's source - a ledger

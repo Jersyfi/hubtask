@@ -52,6 +52,10 @@ func (quotaUsageFake) AutomationRunsSince(context.Context, time.Time) (int64, er
 	return 0, nil
 }
 
+func (quotaUsageFake) MeteredSince(context.Context, string, time.Time) (int64, error) {
+	return 0, nil
+}
+
 func hold(v int64) *int64 { return &v }
 
 type quotasFixture struct {
@@ -187,7 +191,7 @@ func TestTheQuotaWriteRoundTripsThroughTheRegistry(t *testing.T) {
 		t.Error("the explicit null did not clear")
 	}
 	rows, _ := out["data"].([]usecase.Output)
-	if len(rows) != 6 {
-		t.Errorf("output %v", out)
+	if len(rows) != len(quotaservice.Names()) {
+		t.Errorf("%d rows for %d quotas: %v", len(rows), len(quotaservice.Names()), out)
 	}
 }

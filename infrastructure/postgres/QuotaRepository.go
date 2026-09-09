@@ -38,6 +38,7 @@ type quotasDocument struct {
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
+	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 }
 
 // Overrides answers what the transaction's tenant configured.
@@ -64,6 +65,15 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 		// outcome. The write path below can only produce a valid document.
 		return repository.Overrides{}, nil
 	}
+	return fromDocument(document), nil
+}
+
+// fromDocument and toDocument are the two mappings, named so that a test can walk them.
+//
+// They are a field list, which is the shape that goes wrong quietly: J-15 added a row to the
+// document's struct and to neither of these, so an override an operator wrote came back unset with
+// nothing failing. `TestEveryQuotaOverrideSurvivesTheDocument` walks every field through both.
+func fromDocument(document quotasDocument) repository.Overrides {
 	return repository.Overrides{
 		APIRequestsPerMinute:  document.APIRequestsPerMinute,
 		Items:                 document.Items,
@@ -71,7 +81,20 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 		AutomationRunsPerHour: document.AutomationRunsPerHour,
 		WebhookTargets:        document.WebhookTargets,
 		ExportJobs:            document.ExportJobs,
-	}, nil
+		AiTokensPerDay:        document.AiTokensPerDay,
+	}
+}
+
+func toDocument(overrides repository.Overrides) quotasDocument {
+	return quotasDocument{
+		APIRequestsPerMinute:  overrides.APIRequestsPerMinute,
+		Items:                 overrides.Items,
+		MediaBytes:            overrides.MediaBytes,
+		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
+		WebhookTargets:        overrides.WebhookTargets,
+		ExportJobs:            overrides.ExportJobs,
+		AiTokensPerDay:        overrides.AiTokensPerDay,
+	}
 }
 
 // SetOverrides replaces the quotas key, guarded on the row version.
@@ -83,14 +106,7 @@ func (QuotaRepository) SetOverrides(
 		return false, err
 	}
 
-	payload, err := json.Marshal(quotasDocument{
-		APIRequestsPerMinute:  overrides.APIRequestsPerMinute,
-		Items:                 overrides.Items,
-		MediaBytes:            overrides.MediaBytes,
-		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
-		WebhookTargets:        overrides.WebhookTargets,
-		ExportJobs:            overrides.ExportJobs,
-	})
+	payload, err := json.Marshal(toDocument(overrides))
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the quota overrides: %w", err)
 	}
@@ -141,6 +157,22 @@ func (QuotaRepository) AutomationRunsSince(ctx context.Context, since time.Time)
 func (QuotaRepository) LiveExports(ctx context.Context) (int64, error) {
 	return count(ctx, "counting the live exports", func(q *sqlc.Queries) (int64, error) {
 		return q.CountLiveTenantExports(ctx)
+	})
+}
+
+// MeteredSince sums one metered thing since the instant.
+//
+// From the billing ledger, which every other count here refuses to read - the port says why: what
+// it sums has no row of its own, so the tally is not a lagging copy of something countable but the
+// only record there is. Generic in the metric, so the vocabulary stays the application layer's.
+func (QuotaRepository) MeteredSince(
+	ctx context.Context, metric string, since time.Time,
+) (int64, error) {
+	return count(ctx, "summing the metered usage", func(q *sqlc.Queries) (int64, error) {
+		return q.SumTenantUsageSince(ctx, sqlc.SumTenantUsageSinceParams{
+			Metric: metric,
+			Since:  pgtype.Date{Time: since.UTC(), Valid: true},
+		})
 	})
 }
 
