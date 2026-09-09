@@ -11,7 +11,9 @@ import (
 	"time"
 
 	quotarepo "github.com/Jersyfi/hubtask/core/application/repository/quota"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -152,4 +154,81 @@ func TestTheWallsAndTheTalliesAreBoundedByTheirTenant(t *testing.T) {
 	if settings == "" || settings == "null" {
 		t.Errorf("the settings document is %q", settings)
 	}
+}
+
+// The AI budget's own boundary (J-15). It is the one quota measured from `usage_record`, so it is
+// the one whose count could cross a workspace if row level security were not carrying the sum -
+// and a budget that counted the installation's spending would refuse the wrong workspace.
+func TestOneWorkspacesAiSpendingIsNotAnothers(t *testing.T) {
+	ctx := context.Background()
+	seedQuotaTenants(ctx, t)
+	store := postgres.NewQuotaRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+	since := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+	// A spends.
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		if err := store.Add(ctx, quotaservice.AiTokensPerDay, now, 5_000); err != nil {
+			t.Fatalf("metering A's spend: %v", err)
+		}
+		return nil
+	})
+
+	var spentByA, spentByB int64
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		var err error
+		spentByA, err = store.MeteredSince(ctx, quotaservice.AiTokensPerDay, since)
+		return err
+	})
+	inTenant(t, uow, quotaTenantB, func(ctx context.Context) error {
+		var err error
+		spentByB, err = store.MeteredSince(ctx, quotaservice.AiTokensPerDay, since)
+		return err
+	})
+
+	if spentByA < 5_000 {
+		t.Errorf("A spent 5000 tokens and its own ledger says %d", spentByA)
+	}
+	if spentByB != 0 {
+		t.Errorf("B's budget counts %d tokens it never spent", spentByB)
+	}
+
+	// And the guard reads the same boundary: B has room at a ceiling A has already passed.
+	guard := quotaservice.Guard{
+		Store: store, Usage: store, Meter: store, Tenancy: env.TenancySingle,
+	}
+	ceiling := int64(1_000)
+	for _, tenant := range []shared.ID{quotaTenantA, quotaTenantB} {
+		inTenant(t, uow, tenant, func(ctx context.Context) error {
+			record, err := postgres.NewAdminTenantRepository().Find(ctx)
+			if err != nil {
+				return err
+			}
+			_, err = store.SetOverrides(ctx,
+				quotarepo.Overrides{AiTokensPerDay: &ceiling}, record.Version, now)
+			return err
+		})
+	}
+
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		room, err := guard.AiTokens(ctx, quotaTenantA.String(), now)
+		if err != nil {
+			return err
+		}
+		if room {
+			t.Error("A is over its ceiling and the guard says it has room")
+		}
+		return nil
+	})
+	inTenant(t, uow, quotaTenantB, func(ctx context.Context) error {
+		room, err := guard.AiTokens(ctx, quotaTenantB.String(), now)
+		if err != nil {
+			return err
+		}
+		if !room {
+			t.Error("B was refused for what A spent")
+		}
+		return nil
+	})
 }

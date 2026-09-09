@@ -65,6 +65,15 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 		// outcome. The write path below can only produce a valid document.
 		return repository.Overrides{}, nil
 	}
+	return fromDocument(document), nil
+}
+
+// fromDocument and toDocument are the two mappings, named so that a test can walk them.
+//
+// They are a field list, which is the shape that goes wrong quietly: J-15 added a row to the
+// document's struct and to neither of these, so an override an operator wrote came back unset with
+// nothing failing. `TestEveryQuotaOverrideSurvivesTheDocument` walks every field through both.
+func fromDocument(document quotasDocument) repository.Overrides {
 	return repository.Overrides{
 		APIRequestsPerMinute:  document.APIRequestsPerMinute,
 		Items:                 document.Items,
@@ -72,7 +81,20 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 		AutomationRunsPerHour: document.AutomationRunsPerHour,
 		WebhookTargets:        document.WebhookTargets,
 		ExportJobs:            document.ExportJobs,
-	}, nil
+		AiTokensPerDay:        document.AiTokensPerDay,
+	}
+}
+
+func toDocument(overrides repository.Overrides) quotasDocument {
+	return quotasDocument{
+		APIRequestsPerMinute:  overrides.APIRequestsPerMinute,
+		Items:                 overrides.Items,
+		MediaBytes:            overrides.MediaBytes,
+		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
+		WebhookTargets:        overrides.WebhookTargets,
+		ExportJobs:            overrides.ExportJobs,
+		AiTokensPerDay:        overrides.AiTokensPerDay,
+	}
 }
 
 // SetOverrides replaces the quotas key, guarded on the row version.
@@ -84,14 +106,7 @@ func (QuotaRepository) SetOverrides(
 		return false, err
 	}
 
-	payload, err := json.Marshal(quotasDocument{
-		APIRequestsPerMinute:  overrides.APIRequestsPerMinute,
-		Items:                 overrides.Items,
-		MediaBytes:            overrides.MediaBytes,
-		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
-		WebhookTargets:        overrides.WebhookTargets,
-		ExportJobs:            overrides.ExportJobs,
-	})
+	payload, err := json.Marshal(toDocument(overrides))
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the quota overrides: %w", err)
 	}
