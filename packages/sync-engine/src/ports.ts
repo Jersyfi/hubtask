@@ -32,6 +32,15 @@ export interface RequestOptions {
    */
   readonly timeoutMs: number;
   /**
+   * The proof of a fresh re-authentication, where a privileged operation demanded one (H-03).
+   *
+   * It travels as `X-Hubtask-Step-Up` and is consumed by the one action it is presented to, which
+   * is why it is per call rather than held: a second privileged action needs a second proof. The
+   * one exception the contract carves is the restore, which takes it in the request body instead —
+   * an ordinary field, and nothing this option has to know about.
+   */
+  readonly stepUpToken?: string;
+  /**
    * The `If-Match` for a write against a version the caller has read.
    *
    * Absent where the operation does not declare one, for the reason `idempotencyKey` is: a header

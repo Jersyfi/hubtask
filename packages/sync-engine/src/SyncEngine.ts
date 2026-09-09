@@ -123,6 +123,13 @@ export interface MutateOptions {
   /** The version the caller read. A stale one is refused rather than silently overwriting. */
   readonly ifMatch?: string;
   /**
+   * The proof a privileged action demanded (H-03), consumed by the one action it is presented to.
+   *
+   * Per call and never held: a second privileged action needs a second proof, and an engine that
+   * kept one would be an engine quietly answering the second demand with the first answer.
+   */
+  readonly stepUpToken?: string;
+  /**
    * Which held reads this write makes stale, as path prefixes.
    *
    * Omitted means all of them, and that is the safe default rather than the lazy one: a write
@@ -606,11 +613,17 @@ export class SyncEngine {
     for (const listener of entry.listeners) listener(state);
   }
 
-  #options(given: { idempotencyKey?: string; timeoutMs?: number; ifMatch?: string }): RequestOptions {
+  #options(given: {
+    idempotencyKey?: string;
+    timeoutMs?: number;
+    ifMatch?: string;
+    stepUpToken?: string;
+  }): RequestOptions {
     return {
       token: this.#token(),
       idempotencyKey: given.idempotencyKey,
       ifMatch: given.ifMatch,
+      stepUpToken: given.stepUpToken,
       timeoutMs: given.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     };
   }
