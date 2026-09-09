@@ -941,12 +941,25 @@ func run() error {
 	// What asking a provider does when the job runs (J-06). It acts for the person who asked, so
 	// the reads it performs go through the catalogue with their rights - which is the same
 	// arrangement the acceptance has, and for the same reason.
+	//
+	// Through the scoped catalogue, because a job presents no credential (J-16): the token that
+	// asked was checked when it asked, and by the time the job runs there is nothing left for the
+	// scope bound to narrow - so each call is granted the scope its own use case declares, exactly
+	// as a rule's run is. Without it every read the job makes is refused, which is the state this
+	// was in until an end-to-end session waited a minute for a suggestion that was never coming.
+	scopedSuggestions := suggestionservice.ScopedCatalogue{
+		Catalogue: suggestionCatalogue, Scopes: useCaseScopes{catalogue: suggestionCatalogue},
+	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: suggestionCatalogue},
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions},
 		Suggestions: postgres.NewSuggestionRepository(cursors),
 		// An applied answer is accepted through the use case, never around it.
-		Catalogue:  suggestionCatalogue,
+		Catalogue: scopedSuggestions,
+		// And a proposal is narrowed to what that use case can take: `suggest-fields` proposes
+		// four fields and `ConvertJumbleEntry` declares one of them, so without this a jumble
+		// suggestion was produced, stored, listed - and refused by every acceptance (J-16).
+		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
@@ -2674,6 +2687,34 @@ func (d dispatchActions) Dispatch(
 		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params}, supplied)
 }
 
+// useCaseScopes answers which token scope a use case declares, by name. `actionScopes` beside it
+// answers the same question for an automation action; both exist because the two callers name a use
+// case differently - one by its action kind, one by its own name.
+type useCaseScopes struct{ catalogue *deferredCatalogue }
+
+func (s useCaseScopes) ForUseCase(name string) (string, bool) {
+	descriptor, found := s.catalogue.Lookup(name)
+	if !found {
+		return "", false
+	}
+	return descriptor.TokenScope, true
+}
+
+// useCaseFields answers the input names a use case declares, for the narrowing above.
+type useCaseFields struct{ catalogue *deferredCatalogue }
+
+func (f useCaseFields) InputsOf(name string) ([]string, bool) {
+	descriptor, found := f.catalogue.Lookup(name)
+	if !found {
+		return nil, false
+	}
+	names := make([]string, 0, len(descriptor.Input))
+	for _, field := range descriptor.Input {
+		names = append(names, field.Name)
+	}
+	return names, true
+}
+
 // actionScopes answers which token scope an action's use case declares, which is the one the engine
 // grants a run. See automationservice.Scopes for why a rule is granted a scope rather than narrowed
 // by one.
@@ -2770,6 +2811,13 @@ func (d *deferredCatalogue) ByAutomationAction(kind string) (usecase.Descriptor,
 		return usecase.Descriptor{}, false
 	}
 	return d.catalogue.ByAutomationAction(kind)
+}
+
+func (d *deferredCatalogue) Lookup(name string) (usecase.Descriptor, bool) {
+	if d.catalogue == nil {
+		return usecase.Descriptor{}, false
+	}
+	return d.catalogue.Lookup(name)
 }
 
 // masterKeys is the configured keyring as the envelope adapter takes it. A translation of two

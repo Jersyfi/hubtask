@@ -56,7 +56,11 @@ type Produce struct {
 	Sources     Sources
 	Suggestions repository.Suggestions
 	// Catalogue is how an applied answer is accepted: through the use case, never around it.
-	Catalogue  Catalogue
+	Catalogue Catalogue
+	// Fields narrows a proposal to what the use case that would apply it declares. Nil narrows
+	// nothing, which is what a build wired before J-16 did - and what it produced was a suggestion
+	// nobody could accept.
+	Fields     Fields
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -145,7 +149,7 @@ func (h Produce) Execute(
 		return err
 	}
 
-	payload, ok := payloadFrom(kind, promptID, answer.Text)
+	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request))
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
@@ -213,15 +217,48 @@ type Request struct {
 	Apply bool
 }
 
-// payloadFrom reads a model's answer in the shape its kind fixes and its prompt narrows.
-func payloadFrom(kind domain.Kind, promptID, text string) (map[string]any, bool) {
+// applicable is the set of fields the use case that would apply this suggestion declares, or
+// nothing where this build cannot say - which narrows nothing rather than everything.
+//
+// It reads the descriptor rather than a second list beside `appliers`, so the day somebody adds a
+// field to `ConvertJumbleEntry` the suggestions may propose it, with nothing to remember.
+func (h Produce) applicable(request Request) map[string]bool {
+	if h.Fields == nil {
+		return nil
+	}
+	name, served := appliers[applierKey{request.TargetType, request.Kind}]
+	if !served {
+		return nil
+	}
+	declared, known := h.Fields.InputsOf(name)
+	if !known {
+		return nil
+	}
+	fields := make(map[string]bool, len(declared))
+	for _, field := range declared {
+		fields[field] = true
+	}
+	return fields
+}
+
+// payloadFrom reads a model's answer in the shape its kind fixes, its prompt narrows, and - for a
+// field set - the use case that would apply it can actually take.
+//
+// That last narrowing was missing until J-16, and what it produced was a suggestion nobody could
+// ever accept. `suggest-fields` proposes a title, notes, a due date and labels; a proposal about a
+// jumble entry is applied by `ConvertJumbleEntry`, which declares `title` and not the other three -
+// and the registry refuses an input a descriptor does not declare. So the record was produced,
+// stored and listed, and every acceptance of it answered `validation_failed`. Narrowing here rather
+// than dropping fields at acceptance is the honest half of the choice: a person reading a proposal
+// should be reading what they could actually accept.
+func payloadFrom(kind domain.Kind, promptID, text string, applicable map[string]bool) (map[string]any, bool) {
 	answered, ok := objectFrom(text)
 	if !ok {
 		return nil, false
 	}
 	switch kind {
 	case domain.KindFields:
-		return keptFields(answered, promptFields[promptID]), true
+		return keptFields(answered, Narrowed(promptFields[promptID], applicable)), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
@@ -305,6 +342,24 @@ func keptChildren(value any, depth int) ([]any, int, bool) {
 // Tolerant of the two things every model does - a fenced code block around the JSON, and prose
 // before it - and intolerant of everything else. What it will not do is repair: a half-formed
 // answer produces no suggestion rather than a suggestion with a guess in it.
+// Narrowed intersects the prompt's allow list with what the applier declares.
+//
+// An applier this build does not serve, or one whose declared inputs cannot be read, narrows
+// nothing rather than everything: a suggestion with no fields at all is not stored, and answering
+// "the model proposed nothing" for a lookup that failed would be a lie about the model.
+func Narrowed(allowed, applicable map[string]bool) map[string]bool {
+	if len(applicable) == 0 {
+		return allowed
+	}
+	both := make(map[string]bool, len(allowed))
+	for field := range allowed {
+		if applicable[field] {
+			both[field] = true
+		}
+	}
+	return both
+}
+
 func keptFields(answered map[string]any, allowed map[string]bool) map[string]any {
 	kept := make(map[string]any, len(answered))
 	for key, value := range answered {
