@@ -1006,6 +1006,29 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 	refuse "asking for a classification"  "/items/$TASK_ID:classify"
 	refuse "asking for a decomposition"   "/items/$TASK_ID:decompose"
 
+	# What the installation says about itself before anybody asks for anything. This is the half
+	# QS-09 exists for: a client renders no control for a feature that is not there, and it learns
+	# that from the manifest rather than from a refusal.
+	manifest="$(curl -s -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1/meta/capabilities")"
+	expect_contains "the manifest's suggestions" "$manifest" '"ai_suggestions":false'
+	# Both halves, and the second is the one a store-only answer gets wrong: this stack runs
+	# pgvector/pgvector:pg16, so the store is here and nothing will ever fill it.
+	expect_contains "the manifest's semantic search" "$manifest" '"semantic_search":false'
+
+	# And the distinction the whole task turns on: never configured is not broken. An installation
+	# that never wanted AI must not report itself degraded forever
+	# (observability-reliability.md 7).
+	report="$(curl -s -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1/meta/health")"
+	expect_contains "the installation's own state" "$report" '"status":"ok"'
+	# The provider is named and switched off rather than absent, so an operator asking why there
+	# are no suggestions gets an answer - and `disabled` is not `down`.
+	expect_contains "the provider's row" "$report" '"ai_provider"'
+	expect_contains "a dependency nobody configured" "$report" '"status":"disabled"'
+	# `ai_suggestions` is the name the report degrades under and the name an impact carries. On an
+	# installation that never wanted AI it appears nowhere at all: nothing is lost, so nothing is
+	# named as lost.
+	expect_missing "the degradation report" "$report" 'ai_suggestions'
+
 	# And the reads, which are not refusals: a workspace with no provider still has an inbox of
 	# proposals, and it is empty rather than broken.
 	standing="$(run_hubctl suggestion ls --target "$NOAI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
