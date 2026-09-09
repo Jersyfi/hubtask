@@ -31,6 +31,7 @@
     },
     { path: '/administration/apps', label: 'app.admin.apps', hint: 'app.admin.apps_hint' },
     { path: '/administration/rules', label: 'app.admin.rules', hint: 'app.admin.rules_hint' },
+    { path: '/administration/runs', label: 'app.admin.runs', hint: 'app.admin.runs_hint' },
     { path: '/administration/quotas', label: 'app.admin.quotas', hint: 'app.admin.quotas_hint' },
     {
       path: '/administration/identity-provider',

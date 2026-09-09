@@ -48,6 +48,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
+  { name: 'runs', pattern: '/administration/runs', area: 'administration' },
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content

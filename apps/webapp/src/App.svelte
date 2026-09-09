@@ -34,6 +34,7 @@
   import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import RulesView from './views/RulesView.svelte';
+  import RunsView from './views/RunsView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -121,6 +122,8 @@
     <AppsView />
   {:else if route.name === 'rules'}
     <RulesView />
+  {:else if route.name === 'runs'}
+    <RunsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}
