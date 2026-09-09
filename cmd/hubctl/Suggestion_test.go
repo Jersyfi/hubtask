@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -140,5 +141,59 @@ func TestAnUnknownTargetTypeIsAUsageError(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "JUMBLE_ENTRY") {
 		t.Errorf("the message %q does not say what is allowed", errOut)
+	}
+}
+
+// Accepting carries what the person changed or added. It is not a convenience: a proposal about a
+// jumble entry is accepted by converting it, and a model cannot name a destination collection - so
+// this is how the one thing only a person knows reaches the use case that performs the change.
+func TestAcceptingCarriesTheOverrides(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, oneSuggestion)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"suggestion", "accept", suggestionID, "--override", "collection_id="+collectionID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+
+	var sent struct {
+		Overrides map[string]any `json:"overrides"`
+	}
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the request is not JSON: %v", err)
+	}
+	if sent.Overrides["collection_id"] != collectionID {
+		t.Errorf("the override did not travel: %v", sent.Overrides)
+	}
+}
+
+// An acceptance with nothing to add sends no overrides rather than an empty object, because the two
+// are different requests to a use case that merges what it is given.
+func TestAcceptingWithoutOverridesSendsNone(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, oneSuggestion)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "suggestion", "accept", suggestionID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if strings.Contains(stub.body, "overrides") {
+		t.Errorf("an empty acceptance sent %q", stub.body)
+	}
+}
+
+// An override that is not name=value is a usage error rather than a request the server has to
+// refuse.
+func TestAnOverrideIsNameEqualsValue(t *testing.T) {
+	stub := serve(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("a malformed override reached the installation")
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"suggestion", "accept", suggestionID, "--override", "collection_id")
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(errOut, "name=value") {
+		t.Errorf("the message %q does not say the shape", errOut)
 	}
 }

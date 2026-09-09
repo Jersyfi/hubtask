@@ -44,7 +44,7 @@ func suggestionGroup() group {
 			},
 			{
 				name:    "accept",
-				usage:   "<id>",
+				usage:   "<id> [--override name=value]…",
 				summary: "apply it as your own write, with your own rights",
 				run:     suggestionAccept,
 			},
@@ -153,8 +153,54 @@ func suggestionAsk(ctx context.Context, cli *CLI, args []string) error {
 	return nil
 }
 
+// suggestionAccept applies a proposal, with whatever the person changed or added before accepting.
+//
+// The overrides are not a convenience. A proposal about a jumble entry is accepted by *converting*
+// it, and a model cannot name a destination collection - so `--override collection_id=…` is how the
+// one thing only a person knows reaches the use case that performs the change. Everything in there
+// is checked by that use case with the accepting person's rights, exactly as if they had typed it.
 func suggestionAccept(ctx context.Context, cli *CLI, args []string) error {
-	return decideSuggestion(ctx, cli, args, "accept")
+	flags := commandFlags(cli, "suggestion", "accept", "<id> [--override name=value]…")
+	var overrides stringList
+	flags.Var(&overrides, "override", "a field to replace or add before accepting, as name=value")
+
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return usagef("hubctl suggestion accept <id> [--override name=value]…")
+	}
+	id, err := cli.parseID("id", args[0])
+	if err != nil {
+		return err
+	}
+	if err := parseCommand(flags, args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() > 0 {
+		return usagef("the identifier comes before the flags: hubctl suggestion accept %s", args[0])
+	}
+
+	body := map[string]any{}
+	if len(overrides) > 0 {
+		given := make(map[string]any, len(overrides))
+		for _, override := range overrides {
+			name, value, found := strings.Cut(override, "=")
+			if !found || name == "" {
+				return usagef("--override takes name=value, not %q", override)
+			}
+			given[name] = value
+		}
+		body["overrides"] = given
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var decided openapi.Suggestion
+	if err := client.Post(ctx,
+		suggestionPath+"/"+id.String()+":accept", body, &decided); err != nil {
+		return err
+	}
+	return cli.Emit(decided, suggestionTable([]openapi.Suggestion{decided}))
 }
 
 func suggestionDismiss(ctx context.Context, cli *CLI, args []string) error {

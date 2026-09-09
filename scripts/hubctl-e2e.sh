@@ -138,6 +138,11 @@ HUBTASK_IMAGE=$IMAGE
 HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
 HUBTASK_OPS_PORT=$OPS_PORT
+# The AI stub this session configures as a provider sits on the compose network, which is a private
+# address (J-16). This is an operator switch the project documents and warns about at start-up, and
+# it is on here for the reason the load-test stack sets it: what is being reached is inside the
+# test's own network.
+HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true
 ENV
 # The address clients reach the installation under, not the container's own. The media upload
 # target is minted from this (infrastructure/storage/LocalTransfers.go), and the compose default
@@ -228,6 +233,10 @@ SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,t
 # One scope rather than a pair: automation has no read of its own, because reading a rule is
 # reading what it may do (core/domain/event/ReadScope.go).
 SESSION_SCOPES="$SESSION_SCOPES,automation:manage"
+# The AI surface (J-16). Configuring a provider is its own scope because it is its own power -
+# where a workspace's content may be sent - while asking for a suggestion and deciding one are
+# reads and writes of the entry they are about, and need nothing beyond items:read/write.
+SESSION_SCOPES="$SESSION_SCOPES,ai:manage"
 minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
 TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
 [ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
@@ -939,6 +948,191 @@ expect_missing "the refusal" "$refusal" 'detail_code'
 expect_contains "the refusal" "$refusal" 'hubctl: '
 # The sentence itself, straight out of locales/en.json.
 expect_contains "the refusal" "$refusal" 'does not exist'
+
+# ============ 0.7.0's verbs, against a provider that answers (J-16) ============
+# The milestone's own sequence: a provider configured, an entry submitted, a suggestion received
+# and accepted, a search that runs the semantic half, and the agent interface listed from outside
+# the process.
+#
+# The provider is a stub in a container rather than a real endpoint, and the reason is not thrift:
+# a session that called somebody's model would be a session whose result depended on what that
+# model said today, and what is under test here is the *plumbing* - the consent, the job, the
+# record, the acceptance - not whether a model is any good. The stub answers the OpenAI-compatible
+# wire format with a fixed document, which is exactly as much as the adapter reads.
+#
+# It sits on the compose network, which is a private address - so the app is started with
+# HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS. That is an operator switch this project already documents
+# and warns about at start-up, and it is on here for the same reason the load-test stack sets it:
+# the thing being reached is inside the test's own network. Nothing else in this session depends on
+# it being off.
+
+echo "--- a provider that answers, and the suggestion it produces ---"
+
+# The canned answer, in the shape core/port/ai's adapters read: a completion whose content is the
+# JSON the suggest-fields prompt asks for, and a usage the budget can count (J-15).
+cat > "$WORK_DIR/ai-stub.conf" <<'NGINX'
+server {
+  listen 80;
+  default_type application/json;
+
+  location /v1/chat/completions {
+    # The backslashes are doubled because nginx unescapes a quoted string before it writes it: a
+    # single \" here would reach the wire as a bare quote and break the JSON the adapter parses -
+    # which fails as "the provider is unavailable", which the job treats as "AI was switched off"
+    # and swallows without a word. That is a quiet failure worth one comment.
+    return 200 '{"model":"stub-1","usage":{"prompt_tokens":120,"completion_tokens":30},"choices":[{"message":{"role":"assistant","content":"{\\"title\\":\\"Order 42, from the stub\\",\\"notes\\":\\"what the stub proposed\\"}"}}]}';
+  }
+
+}
+NGINX
+
+AI_STUB="$PROJECT-ai-stub"
+# The runtime is whatever $COMPOSE's first word is, so a runner using podman is not told it must
+# have docker as well.
+RUNTIME="${COMPOSE%% *}"
+$RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true
+$RUNTIME run -d --name "$AI_STUB" --network "${PROJECT}_default" \
+	-v "$WORK_DIR/ai-stub.conf:/etc/nginx/conf.d/default.conf:ro" \
+	nginx:alpine > /dev/null
+trap '$RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true' EXIT
+
+# The provider, set through the client. `--allow-processing` is its own flag because consent is its
+# own decision (J-02): configuring a provider and agreeing to send this workspace's content to it
+# are two acts.
+# No embedding model, deliberately. A stub that answers one fixed document cannot serve a batch of
+# fifty texts with fifty vectors, and the adapter refuses an unalignable batch rather than guessing
+# which vector belongs to which entry - so an embedding model here would leave a job failing for the
+# rest of the session over a limitation of the stub. The semantic half is proved where it can be, in
+# test/integration against a real pgvector database (J-10); what this section is about is the
+# suggestion and the agent interface.
+run_hubctl ai config-set --kind OPENAI_COMPATIBLE --jurisdiction SELF_HOSTED \
+	--base-url "http://$AI_STUB/v1" \
+	--completion-model stub-1 --allow-processing
+
+configured="$(run_hubctl ai config show)"
+expect_contains "the provider" "$configured" "OPENAI_COMPATIBLE"
+expect_contains "the provider" "$configured" "SELF_HOSTED"
+expect_contains "the provider" "$configured" "stub-1"
+# The stub needs no key, so the KEY column reads `no` - which is the whole of what this surface
+# says about one either way, because the API answers no key and the client has none to print. That
+# the client never echoes a key it *was* given is asserted where a key exists to echo, in
+# cmd/hubctl/Ai_test.go; a needle here would only ever match the project's own name.
+expect_contains "the provider" "$configured" "KEY"
+
+# The rule from the mail demo turns every arrival in the jumble into a task, and a converted entry
+# is settled - so accepting a proposal about one is refused, correctly, as "decided about exactly
+# once". It is switched off for this section rather than worked around, because what is under test
+# here is the suggestion and not the rule, and a session that raced its own fixture would fail for
+# a reason nobody could act on.
+hubctl rule disable "$RULE_ID" > /dev/null
+expect_contains "rule ls --disabled" "$(hubctl rule ls --disabled)" "$RULE_ID"
+
+# An entry, and the ask. The ask is answered 202: an AI call reaches somebody else's machine, so
+# the suggestion appears when the provider has answered rather than in the response.
+AI_ENTRY_ID="$(hubctl jumble submit --subject 'Order 42' --body 'please send the invoice' | first_id)"
+[ -n "$AI_ENTRY_ID" ] || fail "the jumble entry the suggestion is about was not created"
+run_hubctl suggestion ask --target "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY
+
+# Polled rather than slept on, for the reason every wait in this script is: a fixed sleep is a
+# guess that is either too short on a loaded runner or wasted on a fast one.
+SUGGESTION_ID=""
+waited=0
+while [ "$waited" -lt 90 ]; do
+	# stderr kept rather than dropped: a listing that is *refused* looks exactly like one that is
+	# empty once its error is thrown away, and ninety seconds of that is a wait with no answer at
+	# the end of it.
+	standing="$(hubctl --json suggestion ls --target "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY 2>&1 || true)"
+	SUGGESTION_ID="$(json_field id "$standing")"
+	[ -n "$SUGGESTION_ID" ] && break
+	sleep 2
+	waited=$((waited + 2))
+done
+
+if [ -z "$SUGGESTION_ID" ]; then
+	fail "no suggestion arrived within 90s of asking"
+	# The job row and the record it should have produced, because "nothing appeared" has three quite
+	# different causes - the job was never queued, it ran and failed, or it succeeded and wrote
+	# nothing - and the log alone does not tell them apart. One line each: a continuation inside a
+	# failure branch is a second thing that can go wrong while something already has.
+	job_state="$(compose_in_place exec -T db psql -U hubtask -d hubtask -tAq -c "SELECT kind || ' ' || state || ' attempts=' || attempts || ' ' || coalesce(last_error, '-') FROM job WHERE kind = 'ai.suggest' ORDER BY created_at DESC LIMIT 3" 2>&1 || true)"
+	echo "the ai.suggest jobs: $job_state"
+	stored="$(compose_in_place exec -T db psql -U hubtask -d hubtask -tAq -c "SELECT id || ' ' || status || ' ' || model FROM ai_suggestion ORDER BY created_at DESC LIMIT 3" 2>&1 || true)"
+	echo "the suggestions stored: $stored"
+	echo "what the listing answered: $standing"
+else
+	listed="$(run_hubctl suggestion ls --target "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
+	# The provenance is what makes a suggestion traceable a year later, and it is what the table
+	# is for. The payload is model output about somebody's content and stays in --json.
+	expect_contains "the suggestion" "$listed" "stub-1"
+	expect_contains "the suggestion" "$listed" "suggest-fields"
+	expect_contains "the suggestion" "$listed" "PROPOSED"
+	expect_missing "the suggestion" "$listed" "what the stub proposed"
+
+	# Accepting a proposal about a jumble entry is *converting* it, and a model cannot name a
+	# destination collection - so the one thing only a person knows is passed as an override, and
+	# checked by the conversion with the accepting person's own rights.
+	set +e
+	accepted="$(hubctl suggestion accept "$SUGGESTION_ID" --override "collection_id=$COLLECTION_ID" 2>&1)"
+	accept_code=$?
+	set -e
+	if [ "$accept_code" -ne 0 ]; then
+		fail "accepting the suggestion failed: $accepted"
+		# The problem document itself, which the client renders as a sentence: a detail code is
+		# what says whether the payload, the override or the conversion refused.
+		echo "the API's own answer: $(curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+			-H 'Content-Type: application/json' \
+			--data-binary "{\"overrides\":{\"collection_id\":\"$COLLECTION_ID\"}}" \
+			"$INSTALLATION/api/v1/suggestions/$SUGGESTION_ID:accept" || true)"
+		echo "what was proposed: $(compose_in_place exec -T db psql -U hubtask -d hubtask -tAq -c "SELECT payload::text FROM ai_suggestion WHERE id = '$SUGGESTION_ID'" 2>&1 || true)"
+	else
+		echo "$accepted"
+		expect_contains "the acceptance" "$accepted" "ACCEPTED"
+	fi
+fi
+
+echo "--- the search runs its semantic half, and its lexical one ---"
+# The words the model proposed, searched for in the entry the acceptance created - which closes the
+# loop: the suggestion was accepted, the conversion wrote an item with that title, and the search
+# index has it.
+#
+# Both modes are asked and both must find it. What is *not* asserted is that the semantic half
+# contributed: an installation may have no pgvector, no provider or no consent, and every one of
+# those is a lexical search rather than an error (J-10), so demanding a semantic hit would be
+# asserting the opposite of the design.
+for mode in AUTO LEXICAL; do
+	found="$(run_hubctl search "Order 42" --mode "$mode")"
+	expect_contains "search --mode $mode" "$found" "Order 42, from the stub"
+done
+
+echo "--- the agent interface, from outside the process ---"
+# The smallest honest proof that the inbound half works: the handshake, the three lists, and a read
+# of one resource and one prompt (J-11, J-12, J-13).
+tools="$(run_hubctl mcp tools)"
+expect_contains "the tool list" "$tools" "create_container"
+# The hints agree with the enforcement (J-14). Asserted on a row rather than on the column header,
+# because a header proves the table has a column and this has to prove a tool carries the hint -
+# an agent token without the capability is refused by the server whatever the hint said.
+if ! grep -qE '^(purge_work_item|trash_work_item|delete_container|empty_trash)[[:space:]]+no[[:space:]]+yes' <<< "$tools"; then
+	fail "no destructive tool carries the destructive hint"
+	grep -E '^(purge|trash|delete|empty)' <<< "$tools" || true
+fi
+
+resources="$(run_hubctl mcp resources)"
+expect_contains "the resource list" "$resources" "hubtask://containers/"
+templates="$(run_hubctl mcp resources --templates)"
+expect_contains "the resource templates" "$templates" "hubtask://items/{id}"
+
+read_back="$(run_hubctl mcp read "hubtask://containers/$COLLECTION_ID")"
+expect_contains "the resource" "$read_back" "Errands"
+
+prompts="$(run_hubctl mcp prompts)"
+expect_contains "the prompt list" "$prompts" "weekly-review@"
+rendered="$(run_hubctl mcp prompt weekly-review --argument "collection=$COLLECTION_ID")"
+expect_contains "the prompt" "$rendered" "resource_link"
+
+# The stub has done its work; the multi-mode stack below brings up its own everything.
+$RUNTIME rm -f "$AI_STUB" > /dev/null 2>&1 || true
+trap - EXIT
 
 # ============ The milestone's proof (H-16) ============
 # What the whole of 0.6.0 amounts to, in one sequence and against a real stack: a workspace

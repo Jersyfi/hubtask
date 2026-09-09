@@ -68,7 +68,10 @@ that the binary a platform produces *starts* on it.
 
 The Linux amd64 row points at `ci.yml:e2e` rather than at a nightly job on purpose: that job runs
 the whole end-to-end session through the binary against the reference stack, which is a stronger
-claim than a smoke test and it runs on every pull request.
+claim than a smoke test and it runs on every pull request. The rows are unchanged by J-16 and the
+claim behind them grew: the session now also configures an AI provider, receives and accepts a
+suggestion, searches both ways, and speaks MCP to `/mcp` from outside the process — the same job,
+proving more.
 
 ---
 
