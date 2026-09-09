@@ -1018,7 +1018,10 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 	# And the distinction the whole task turns on: never configured is not broken. An installation
 	# that never wanted AI must not report itself degraded forever
 	# (observability-reliability.md 7).
-	report="$(curl -s -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1/meta/health")"
+	# On the internal port rather than under /api/v1: the contract puts the deep report behind an
+	# admin scope, and until the generated router carries it the ops listener serves it
+	# (presentation/rest/OpsController.go). It is the same report either way.
+	report="$(curl -s "http://127.0.0.1:$OPS_PORT/meta/health")"
 	expect_contains "the installation's own state" "$report" '"status":"ok"'
 	# The provider is named and switched off rather than absent, so an operator asking why there
 	# are no suggestions gets an answer - and `disabled` is not `down`.
