@@ -165,6 +165,31 @@ func (pending) UpdateWorkspace(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
+// The configuration lifecycle of F4-02: the reads and the writes that let a schedule, a target
+// and a retention rule be revised rather than only created. Overridden by RestController, for the
+// reason given at CreateContainer.
+func (pending) ListBackupSchedules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) UpdateBackupSchedule(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateBackupScheduleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteBackupSchedule(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateRetentionPolicy(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateRetentionPolicyParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteRetentionPolicy(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 // The quota surface of H-08, pending until each use case lands.
 func (pending) ReadQuotas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

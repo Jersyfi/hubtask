@@ -46,6 +46,8 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Views | `/views` | CRUD, `:share`, `:export` |
 | Jumble | `/jumble/entries` | `GET`, `POST`, `:convert`, `:dismiss` |
 | Jumble intake | `/jumble/intake:rotate-token`, `/jumble/inbound/{token}`, `/jumble/mail/{token}` | `POST` (the address, shown once), `POST` (public, token-protected, capped), `POST` (the same, with `message/rfc822` as the body and a bound of its own — G-11). The intake authenticates the tenant rather than a person (G-10), on the discipline `/automation/inbound/{token}` set: every reason not to serve answers the same 404 |
+| Backup targets and schedules | `/backup-targets`, `/backup-schedules` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :test` — the lifecycle F4-02 completed: a target and a schedule could be created and never revised, and a schedule could not be listed at all. Deleting a target a schedule still names is a `409`, and nothing at the target is ever touched |
+| Retention rules | `/retention-policies` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :preview` — a rule that deletes data has to be correctable (F4-02) |
 | Trash/archive | `/trash`, `/archive` | `GET`, `:restore`, `:purge` |
 | Automation | `/automation/rules`, `/automation/runs` | CRUD, `:test`, `:trigger`, `:replay` |
 | Webhooks | `/integrations/webhooks`, `/integrations/webhooks/{id}/deliveries` | CRUD, `:replay`, `:rotate-secret` |

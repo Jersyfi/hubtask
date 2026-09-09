@@ -696,6 +696,45 @@ func (e BackupScheduleScopeKind) Valid() bool {
 	}
 }
 
+// Defines values for BackupScheduleUpdateMode.
+const (
+	BackupScheduleUpdateModeFULL        BackupScheduleUpdateMode = "FULL"
+	BackupScheduleUpdateModeINCREMENTAL BackupScheduleUpdateMode = "INCREMENTAL"
+)
+
+// Valid indicates whether the value is a known member of the BackupScheduleUpdateMode enum.
+func (e BackupScheduleUpdateMode) Valid() bool {
+	switch e {
+	case BackupScheduleUpdateModeFULL:
+		return true
+	case BackupScheduleUpdateModeINCREMENTAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupScheduleUpdateNotifyOn.
+const (
+	BackupScheduleUpdateNotifyOnFAILURE                  BackupScheduleUpdateNotifyOn = "FAILURE"
+	BackupScheduleUpdateNotifyOnFIRSTSUCCESSAFTERFAILURE BackupScheduleUpdateNotifyOn = "FIRST_SUCCESS_AFTER_FAILURE"
+	BackupScheduleUpdateNotifyOnSUCCESS                  BackupScheduleUpdateNotifyOn = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the BackupScheduleUpdateNotifyOn enum.
+func (e BackupScheduleUpdateNotifyOn) Valid() bool {
+	switch e {
+	case BackupScheduleUpdateNotifyOnFAILURE:
+		return true
+	case BackupScheduleUpdateNotifyOnFIRSTSUCCESSAFTERFAILURE:
+		return true
+	case BackupScheduleUpdateNotifyOnSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupStartMode.
 const (
 	BackupStartModeFULL        BackupStartMode = "FULL"
@@ -2114,19 +2153,19 @@ func (e RetentionPolicyAction) Valid() bool {
 
 // Defines values for RetentionPolicyNotifyRecipients.
 const (
-	COLLECTIONADMINS RetentionPolicyNotifyRecipients = "COLLECTION_ADMINS"
-	ITEMMEMBERS      RetentionPolicyNotifyRecipients = "ITEM_MEMBERS"
-	TENANTADMINS     RetentionPolicyNotifyRecipients = "TENANT_ADMINS"
+	RetentionPolicyNotifyRecipientsCOLLECTIONADMINS RetentionPolicyNotifyRecipients = "COLLECTION_ADMINS"
+	RetentionPolicyNotifyRecipientsITEMMEMBERS      RetentionPolicyNotifyRecipients = "ITEM_MEMBERS"
+	RetentionPolicyNotifyRecipientsTENANTADMINS     RetentionPolicyNotifyRecipients = "TENANT_ADMINS"
 )
 
 // Valid indicates whether the value is a known member of the RetentionPolicyNotifyRecipients enum.
 func (e RetentionPolicyNotifyRecipients) Valid() bool {
 	switch e {
-	case COLLECTIONADMINS:
+	case RetentionPolicyNotifyRecipientsCOLLECTIONADMINS:
 		return true
-	case ITEMMEMBERS:
+	case RetentionPolicyNotifyRecipientsITEMMEMBERS:
 		return true
-	case TENANTADMINS:
+	case RetentionPolicyNotifyRecipientsTENANTADMINS:
 		return true
 	default:
 		return false
@@ -2178,6 +2217,87 @@ func (e RetentionPolicyThenAction) Valid() bool {
 	case RetentionPolicyThenActionLessThannil:
 		return true
 	case RetentionPolicyThenActionTRASH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionPolicyUpdateAction.
+const (
+	RetentionPolicyUpdateActionANONYMIZE        RetentionPolicyUpdateAction = "ANONYMIZE"
+	RetentionPolicyUpdateActionARCHIVE          RetentionPolicyUpdateAction = "ARCHIVE"
+	RetentionPolicyUpdateActionEXPORTTHENDELETE RetentionPolicyUpdateAction = "EXPORT_THEN_DELETE"
+	RetentionPolicyUpdateActionHARDDELETE       RetentionPolicyUpdateAction = "HARD_DELETE"
+	RetentionPolicyUpdateActionNOTIFYONLY       RetentionPolicyUpdateAction = "NOTIFY_ONLY"
+	RetentionPolicyUpdateActionTRASH            RetentionPolicyUpdateAction = "TRASH"
+)
+
+// Valid indicates whether the value is a known member of the RetentionPolicyUpdateAction enum.
+func (e RetentionPolicyUpdateAction) Valid() bool {
+	switch e {
+	case RetentionPolicyUpdateActionANONYMIZE:
+		return true
+	case RetentionPolicyUpdateActionARCHIVE:
+		return true
+	case RetentionPolicyUpdateActionEXPORTTHENDELETE:
+		return true
+	case RetentionPolicyUpdateActionHARDDELETE:
+		return true
+	case RetentionPolicyUpdateActionNOTIFYONLY:
+		return true
+	case RetentionPolicyUpdateActionTRASH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionPolicyUpdateNotifyRecipients.
+const (
+	RetentionPolicyUpdateNotifyRecipientsCOLLECTIONADMINS RetentionPolicyUpdateNotifyRecipients = "COLLECTION_ADMINS"
+	RetentionPolicyUpdateNotifyRecipientsITEMMEMBERS      RetentionPolicyUpdateNotifyRecipients = "ITEM_MEMBERS"
+	RetentionPolicyUpdateNotifyRecipientsTENANTADMINS     RetentionPolicyUpdateNotifyRecipients = "TENANT_ADMINS"
+)
+
+// Valid indicates whether the value is a known member of the RetentionPolicyUpdateNotifyRecipients enum.
+func (e RetentionPolicyUpdateNotifyRecipients) Valid() bool {
+	switch e {
+	case RetentionPolicyUpdateNotifyRecipientsCOLLECTIONADMINS:
+		return true
+	case RetentionPolicyUpdateNotifyRecipientsITEMMEMBERS:
+		return true
+	case RetentionPolicyUpdateNotifyRecipientsTENANTADMINS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionPolicyUpdateThenAction.
+const (
+	RetentionPolicyUpdateThenActionANONYMIZE        RetentionPolicyUpdateThenAction = "ANONYMIZE"
+	RetentionPolicyUpdateThenActionARCHIVE          RetentionPolicyUpdateThenAction = "ARCHIVE"
+	RetentionPolicyUpdateThenActionEXPORTTHENDELETE RetentionPolicyUpdateThenAction = "EXPORT_THEN_DELETE"
+	RetentionPolicyUpdateThenActionHARDDELETE       RetentionPolicyUpdateThenAction = "HARD_DELETE"
+	RetentionPolicyUpdateThenActionLessThannil      RetentionPolicyUpdateThenAction = "<nil>"
+	RetentionPolicyUpdateThenActionTRASH            RetentionPolicyUpdateThenAction = "TRASH"
+)
+
+// Valid indicates whether the value is a known member of the RetentionPolicyUpdateThenAction enum.
+func (e RetentionPolicyUpdateThenAction) Valid() bool {
+	switch e {
+	case RetentionPolicyUpdateThenActionANONYMIZE:
+		return true
+	case RetentionPolicyUpdateThenActionARCHIVE:
+		return true
+	case RetentionPolicyUpdateThenActionEXPORTTHENDELETE:
+		return true
+	case RetentionPolicyUpdateThenActionHARDDELETE:
+		return true
+	case RetentionPolicyUpdateThenActionLessThannil:
+		return true
+	case RetentionPolicyUpdateThenActionTRASH:
 		return true
 	default:
 		return false
@@ -3662,6 +3782,28 @@ type BackupScheduleNotifyOn string
 
 // BackupScheduleScopeKind defines model for BackupSchedule.Scope.Kind.
 type BackupScheduleScopeKind string
+
+// BackupScheduleUpdate Every field optional; an omitted one is left alone. The target and the scope are not among them: a schedule that moved either would be a different schedule under an old identifier, and the archives already at the target would disagree with it.
+type BackupScheduleUpdate struct {
+	// Enabled Off keeps the rule and owes nothing: `next_run_at` is cleared, and switching it back on computes the next moment afresh rather than resuming a missed one.
+	Enabled      *bool                           `json:"enabled,omitempty"`
+	FullRrule    *string                         `json:"full_rrule,omitempty"`
+	IncludeAudit *bool                           `json:"include_audit,omitempty"`
+	IncludeMedia *bool                           `json:"include_media,omitempty"`
+	Mode         *BackupScheduleUpdateMode       `json:"mode,omitempty"`
+	NotifyOn     *[]BackupScheduleUpdateNotifyOn `json:"notify_on,omitempty"`
+
+	// Retention The generation principle. `min_keep` prevents no backup being left at all.
+	Retention *BackupRetention `json:"retention,omitempty"`
+	Rrule     *string          `json:"rrule,omitempty"`
+	Timezone  *string          `json:"timezone,omitempty"`
+}
+
+// BackupScheduleUpdateMode defines model for BackupScheduleUpdate.Mode.
+type BackupScheduleUpdateMode string
+
+// BackupScheduleUpdateNotifyOn defines model for BackupScheduleUpdate.NotifyOn.
+type BackupScheduleUpdateNotifyOn string
 
 // BackupStart A backup asked for by hand rather than by a schedule.
 type BackupStart struct {
@@ -5471,6 +5613,36 @@ type RetentionPolicyScopeKind string
 // RetentionPolicyThenAction defines model for RetentionPolicy.ThenAction.
 type RetentionPolicyThenAction string
 
+// RetentionPolicyUpdate Every field optional; an omitted one is left alone. The kind and the scope are not among them: a rule that changed either would be a different rule under an old identifier.
+type RetentionPolicyUpdate struct {
+	Action *RetentionPolicyUpdateAction `json:"action,omitempty"`
+
+	// Condition An optional CEL expression. Null clears it.
+	Condition      *string             `json:"condition,omitempty"`
+	Enabled        *bool               `json:"enabled,omitempty"`
+	ExportTargetId *openapi_types.UUID `json:"export_target_id,omitempty"`
+	GraceDays      *int                `json:"grace_days,omitempty"`
+
+	// Justification Why the period exceeds the kind's upper bound. Required whenever the period after the change does, and replaced rather than kept: a justification belongs to the period it justifies.
+	Justification *string `json:"justification,omitempty"`
+	Notify        *struct {
+		BeforeDays *int                                     `json:"before_days,omitempty"`
+		Recipients *[]RetentionPolicyUpdateNotifyRecipients `json:"recipients,omitempty"`
+	} `json:"notify,omitempty"`
+	RetainDays    *int                             `json:"retain_days,omitempty"`
+	ThenAction    *RetentionPolicyUpdateThenAction `json:"then_action,omitempty"`
+	ThenAfterDays *int                             `json:"then_after_days,omitempty"`
+}
+
+// RetentionPolicyUpdateAction defines model for RetentionPolicyUpdate.Action.
+type RetentionPolicyUpdateAction string
+
+// RetentionPolicyUpdateNotifyRecipients defines model for RetentionPolicyUpdate.Notify.Recipients.
+type RetentionPolicyUpdateNotifyRecipients string
+
+// RetentionPolicyUpdateThenAction defines model for RetentionPolicyUpdate.ThenAction.
+type RetentionPolicyUpdateThenAction string
+
 // RetentionState Visible on the object for as long as a retention rule applies.
 type RetentionState struct {
 	Action      *string                  `json:"action,omitempty"`
@@ -6835,6 +7007,12 @@ type ReplayRuleRunParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// UpdateBackupScheduleParams defines parameters for UpdateBackupSchedule.
+type UpdateBackupScheduleParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
 type ListBackupsAtTargetParams struct {
 	TenantId *openapi_types.UUID `form:"tenant_id,omitempty" json:"tenant_id,omitempty"`
@@ -7473,6 +7651,12 @@ type ListRetentionPoliciesParams struct {
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
 
+// UpdateRetentionPolicyParams defines parameters for UpdateRetentionPolicy.
+type UpdateRetentionPolicyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -7663,6 +7847,9 @@ type TestRuleJSONRequestBody = RuleTest
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
 
+// UpdateBackupScheduleApplicationMergePatchPlusJSONRequestBody defines body for UpdateBackupSchedule for application/merge-patch+json ContentType.
+type UpdateBackupScheduleApplicationMergePatchPlusJSONRequestBody = BackupScheduleUpdate
+
 // CreateBackupTargetJSONRequestBody defines body for CreateBackupTarget for application/json ContentType.
 type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 
@@ -7836,6 +8023,9 @@ type StartRestoreJSONRequestBody = RestoreRequest
 
 // CreateRetentionPolicyJSONRequestBody defines body for CreateRetentionPolicy for application/json ContentType.
 type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
+
+// UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody defines body for UpdateRetentionPolicy for application/merge-patch+json ContentType.
+type UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody = RetentionPolicyUpdate
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
@@ -8037,15 +8227,27 @@ type ServerInterface interface {
 	// ReplayRuleRun Complete a failed run
 	// (POST /automation/runs/{runId}:replay)
 	ReplayRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID, params ReplayRuleRunParams)
+	// ListBackupSchedules The schedules the workspace has
+	// (GET /backup-schedules)
+	ListBackupSchedules(w http.ResponseWriter, r *http.Request)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
+	// DeleteBackupSchedule Remove a schedule
+	// (DELETE /backup-schedules/{scheduleId})
+	DeleteBackupSchedule(w http.ResponseWriter, r *http.Request, scheduleId openapi_types.UUID)
+	// UpdateBackupSchedule Change a schedule, or switch it off
+	// (PATCH /backup-schedules/{scheduleId})
+	UpdateBackupSchedule(w http.ResponseWriter, r *http.Request, scheduleId openapi_types.UUID, params UpdateBackupScheduleParams)
 	// ListBackupTargets List the backup targets
 	// (GET /backup-targets)
 	ListBackupTargets(w http.ResponseWriter, r *http.Request)
 	// CreateBackupTarget Create a backup target
 	// (POST /backup-targets)
 	CreateBackupTarget(w http.ResponseWriter, r *http.Request)
+	// DeleteBackupTarget Remove a backup target from the workspace's configuration
+	// (DELETE /backup-targets/{targetId})
+	DeleteBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID)
 	// ListBackupsAtTarget List the backups present at the target
 	// (GET /backup-targets/{targetId}/backups)
 	ListBackupsAtTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID, params ListBackupsAtTargetParams)
@@ -8469,6 +8671,12 @@ type ServerInterface interface {
 	// CreateRetentionPolicy Create a retention rule
 	// (POST /retention-policies)
 	CreateRetentionPolicy(w http.ResponseWriter, r *http.Request)
+	// DeleteRetentionPolicy Withdraw a retention rule
+	// (DELETE /retention-policies/{policyId})
+	DeleteRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
+	// UpdateRetentionPolicy Correct a retention rule, or take it out of enforcement
+	// (PATCH /retention-policies/{policyId})
+	UpdateRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID, params UpdateRetentionPolicyParams)
 	// PreviewRetentionPolicy Determine the effect of a rule without executing it
 	// (POST /retention-policies/{policyId}:preview)
 	PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
@@ -10152,11 +10360,101 @@ func (siw *ServerInterfaceWrapper) ReplayRuleRun(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListBackupSchedules operation middleware
+func (siw *ServerInterfaceWrapper) ListBackupSchedules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBackupSchedules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateBackupSchedule operation middleware
 func (siw *ServerInterfaceWrapper) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateBackupSchedule(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBackupSchedule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBackupSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scheduleId" -------------
+	var scheduleId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scheduleId", r.PathValue("scheduleId"), &scheduleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scheduleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBackupSchedule(w, r, scheduleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateBackupSchedule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateBackupSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scheduleId" -------------
+	var scheduleId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scheduleId", r.PathValue("scheduleId"), &scheduleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scheduleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateBackupScheduleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateBackupSchedule(w, r, scheduleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10185,6 +10483,32 @@ func (siw *ServerInterfaceWrapper) CreateBackupTarget(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateBackupTarget(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBackupTarget(w, r, targetId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15931,6 +16255,82 @@ func (siw *ServerInterfaceWrapper) CreateRetentionPolicy(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteRetentionPolicy operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRetentionPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyId" -------------
+	var policyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyId", r.PathValue("policyId"), &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRetentionPolicy(w, r, policyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRetentionPolicy operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRetentionPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyId" -------------
+	var policyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyId", r.PathValue("policyId"), &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateRetentionPolicyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRetentionPolicy(w, r, policyId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PreviewRetentionPolicy operation middleware
 func (siw *ServerInterfaceWrapper) PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request) {
 
@@ -17105,9 +17505,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:export", wrapper.ExportAuditTrail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets", wrapper.ListBackupTargets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets", wrapper.CreateBackupTarget)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/backup-targets/{targetId}", wrapper.DeleteBackupTarget)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets/{targetId}:test", wrapper.TestBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets/{targetId}/backups", wrapper.ListBackupsAtTarget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-schedules", wrapper.ListBackupSchedules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-schedules", wrapper.CreateBackupSchedule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/backup-schedules/{scheduleId}", wrapper.DeleteBackupSchedule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/backup-schedules/{scheduleId}", wrapper.UpdateBackupSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backups/{backupId}", wrapper.GetBackupRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
@@ -17122,6 +17526,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/legal-holds/{holdId}:release", wrapper.ReleaseLegalHold)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies", wrapper.CreateRetentionPolicy)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/retention-policies/{policyId}", wrapper.DeleteRetentionPolicy)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/retention-policies/{policyId}", wrapper.UpdateRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:retain", wrapper.RetainItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:pull", wrapper.SyncPull)
