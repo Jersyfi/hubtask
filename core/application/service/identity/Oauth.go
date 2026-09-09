@@ -27,6 +27,7 @@ import (
 const (
 	RegisterOauthClientName  = "RegisterOauthClient"
 	ListOauthClientsName     = "ListOauthClients"
+	ReadOauthClientName      = "ReadOauthClient"
 	DeleteOauthClientName    = "DeleteOauthClient"
 	AuthorizeOauthClientName = "AuthorizeOauthClient"
 	ExchangeOauthCodeName    = "ExchangeOauthCode"
@@ -168,6 +169,50 @@ func (h ListOauthClients) Execute(
 }
 
 // DeleteOauthClient removes an app: the grants go with it, and the sessions those grants leashed.
+// ReadOauthClient answers what an app is called, for the person being asked to allow it.
+//
+// **Deliberately not behind the permission that manages members.** The person deciding whether to
+// allow an app is usually an ordinary member, and a consent screen that cannot name the app is a
+// screen asking somebody to approve an identifier - which is the shape a phishing attempt wants.
+// So this needs `READ` at the workspace and answers one field: the name.
+//
+// It enumerates nothing. Reading a client requires already holding its identifier, which the
+// authorization request the reader arrived with carries anyway; the listing that would let
+// somebody walk the workspace's apps stays where it was.
+type ReadOauthClient struct{ Writer OauthWriter }
+
+// Execute answers the client's public half.
+func (h ReadOauthClient) Execute(
+	ctx context.Context, actor appshared.ActorContext, clientID shared.ID,
+) (domain.OauthClient, error) {
+	w := h.Writer
+	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Path:       []domain.Scope{domain.TenantScope()},
+		Action:     OauthClientReadAction,
+		TokenScope: oauthManage,
+		TargetType: oauthClientTarget,
+		TargetID:   clientID,
+	}); err != nil {
+		return domain.OauthClient{}, err
+	}
+	if clientID.IsZero() {
+		return domain.OauthClient{}, shared.ErrNotFound.WithDetail("oauth.client_not_found")
+	}
+
+	var found domain.OauthClient
+	err := w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
+		func(ctx context.Context) error {
+			client, err := w.Clients.Find(ctx, clientID)
+			found = client
+			return err
+		})
+	if err != nil {
+		return domain.OauthClient{}, err
+	}
+	return found, nil
+}
+
 type DeleteOauthClient struct{ Writer OauthWriter }
 
 func (h DeleteOauthClient) Execute(
@@ -729,6 +774,45 @@ func (h ListOauthClients) invoke(
 		rows = append(rows, clientOutput(client))
 	}
 	return usecase.Output{"data": rows}, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h ReadOauthClient) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ReadOauthClientName,
+		Summary: "What one registered app is called, for the person being asked to allow it. " +
+			"The name and nothing else: the redirect URIs and the kind are the administrator's, " +
+			"and the listing that would let somebody walk the workspace's apps is theirs too.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  oauthManage,
+		ReadOnly:    true,
+		Input: []usecase.Field{
+			{Name: "client_id", Kind: usecase.KindID, Required: true,
+				Description: "The app the authorization request names."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: OauthClientReadAction, TargetType: oauthClientTarget,
+			Severity: audit.SeverityInfo, Required: false,
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h ReadOauthClient) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	clientID, err := in.ID("client_id")
+	if err != nil {
+		return nil, err
+	}
+	client, err := h.Execute(ctx, actor, clientID)
+	if err != nil {
+		return nil, err
+	}
+	// The name and the identifier, and deliberately not the rest of `clientOutput`: this answer
+	// goes to anybody who may read the workspace, and the registered redirect URIs are the
+	// administrator's business.
+	return usecase.Output{"id": client.ID.String(), "name": client.Name}, nil
 }
 
 // Descriptor is the catalogue entry.

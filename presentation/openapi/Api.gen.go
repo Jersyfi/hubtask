@@ -5187,6 +5187,12 @@ type OauthClientSecret struct {
 	RedirectUris []string           `json:"redirect_uris"`
 }
 
+// OauthClientSummary An app as the person being asked to allow it sees it: what it is called, and nothing else. `OauthClient` is the same row as its administrator sees it and carries the registered redirect URIs beside it.
+type OauthClientSummary struct {
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
+}
+
 // OauthCode defines model for OauthCode.
 type OauthCode struct {
 	// Code Single use, minutes of life, exchanged at /oauth/token.
@@ -8646,6 +8652,9 @@ type ServerInterface interface {
 	// DeleteOauthClient Remove a third-party app
 	// (DELETE /oauth/clients/{clientId})
 	DeleteOauthClient(w http.ResponseWriter, r *http.Request, clientId OauthClientId)
+	// ReadOauthClient What an app is called, for the person being asked to allow it
+	// (GET /oauth/clients/{clientId})
+	ReadOauthClient(w http.ResponseWriter, r *http.Request, clientId OauthClientId)
 	// ListOauthGrants The apps the caller has allowed, and what
 	// (GET /oauth/grants)
 	ListOauthGrants(w http.ResponseWriter, r *http.Request)
@@ -15919,6 +15928,32 @@ func (siw *ServerInterfaceWrapper) DeleteOauthClient(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ReadOauthClient operation middleware
+func (siw *ServerInterfaceWrapper) ReadOauthClient(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "clientId" -------------
+	var clientId OauthClientId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "clientId", r.PathValue("clientId"), &clientId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "clientId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadOauthClient(w, r, clientId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListOauthGrants operation middleware
 func (siw *ServerInterfaceWrapper) ListOauthGrants(w http.ResponseWriter, r *http.Request) {
 
@@ -17596,6 +17631,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.ReadOauthClient)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/authorize", wrapper.AuthorizeOauthClient)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/token", wrapper.ExchangeOauthCode)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/grants", wrapper.ListOauthGrants)
