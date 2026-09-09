@@ -931,7 +931,9 @@ func run() error {
 		Providers: aiResolver, Prompts: aiPrompts,
 		Sources:     suggestionservice.CatalogueSources{Catalogue: suggestionCatalogue},
 		Suggestions: postgres.NewSuggestionRepository(cursors),
-		UnitOfWork:  unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		// An applied answer is accepted through the use case, never around it.
+		Catalogue:  suggestionCatalogue,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
@@ -1017,6 +1019,24 @@ func run() error {
 		suggestionservice.AcceptSuggestion{Cases: suggestionCases}.Descriptor(),
 		suggestionservice.DismissSuggestion{Cases: suggestionCases}.Descriptor(),
 		suggestionservice.SuggestDecomposition{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: aiResolver},
+			Queue: jobs,
+		}.Descriptor(),
+		// automation.md §1.3's three AI actions, which have been refused by name since G-05 with a
+		// code saying "not built yet". An automation action is a use case, so these exist here or
+		// a rule cannot name them (J-08).
+		suggestionservice.AiSuggestFields{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: aiResolver},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AiSummarize{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: aiResolver},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AiClassify{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: aiResolver},
 			Queue: jobs,

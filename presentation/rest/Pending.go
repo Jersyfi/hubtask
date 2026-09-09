@@ -963,6 +963,18 @@ func (pending) DismissSuggestion(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
+func (pending) AiSuggestFields(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) AiSummarize(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) AiClassify(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 func (pending) SuggestDecomposition(
 	w http.ResponseWriter, r *http.Request, _ openapi.ItemId,
 	_ openapi.SuggestDecompositionParams,

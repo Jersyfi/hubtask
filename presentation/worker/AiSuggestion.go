@@ -77,7 +77,13 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		Kind: appshared.ActorUser, TenantID: job.TenantID, AccountID: askedBy,
 	}
 
-	err = h.Produce.Execute(ctx, actor, targetType, targetID, kind)
+	err = h.Produce.Execute(ctx, actor, suggestion.Request{
+		TargetType: targetType, TargetID: targetID, Kind: kind,
+		// Empty takes the kind's default, which is what a job written by the release before this
+		// one carries (core/port/queue: the payload outlives the process that wrote it).
+		PromptID: payloadString(job, "prompt"),
+		Apply:    payloadBool(job, "apply"),
+	})
 	if suggestion.IsUnavailable(err) {
 		// The workspace switched AI off, withdrew consent, or its provider is out of reach
 		// between the asking and the running. Finished rather than retried: a retry ladder
@@ -89,6 +95,13 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		return queue.Result{}, err
 	}
 	return queue.Result{}, nil
+}
+
+// payloadBool reads one flag. Absent is false, which is what a proposal is: applying an answer
+// without a person reading it is the exception `automation.md` §1.3 asks to be configured.
+func payloadBool(job queue.Job, key string) bool {
+	value, _ := job.Payload[key].(bool)
+	return value
 }
 
 // payloadString reads one string out of a job's payload. Absent is empty, and the caller decides

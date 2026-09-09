@@ -40,13 +40,15 @@ type Catalogue interface {
 // with the steps that build them, the AI kinds with their own milestone - and
 // TestNoDeferredActionIsAlreadyServed fails the build if a kind is left here after the catalogue
 // grew one, so removing the entry is not something anybody has to remember.
-var deferredActions = []string{
-	// AI, optional and configured explicitly. The AI port arrives at 0.7.0, and a rule naming one
-	// of these is refused the way a retention rule naming a missing notification category was.
-	// The outbound pair left the list with the G-09 steps that built them: SEND_WEBHOOK through
-	// G-03's delivery pipeline, HTTP_REQUEST through the guarded client.
-	"AI_SUGGEST_FIELDS", "AI_SUMMARIZE", "AI_CLASSIFY",
-}
+// The list is empty, and that is the point of it: every kind automation.md §1.3 documents is now
+// served. The AI three left with J-08, the outbound pair with the G-09 steps that built them -
+// SEND_WEBHOOK through G-03's delivery pipeline, HTTP_REQUEST through the guarded client - and the
+// flow kinds with G-09's first step.
+//
+// It stays rather than being deleted. The next kind the documentation names before a release
+// serves it belongs here, and TestNoDeferredActionIsAlreadyServed is what stops an entry outliving
+// the task that removes its reason.
+var deferredActions = []string{}
 
 // DeferredActions is the list, for the test that keeps it honest and for the manifest that will
 // want it.
