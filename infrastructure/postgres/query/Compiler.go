@@ -182,17 +182,21 @@ func Count(search repository.ItemSearch) (Statement, error) {
 // And the keyset over that rank. Both keys descend, which is what lets the boundary be one row
 // comparison rather than the three-clause form a mixed ordering needs; the identifier is a UUIDv7,
 // so descending on it means equally-ranked entries come newest first.
-func Search(search repository.TextSearch, boundary SearchBoundary, probe int) (Statement, error) {
+func Search(
+	search repository.TextSearch, meaning string, boundary SearchBoundary, probe int,
+) (Statement, error) {
 	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
 
 	b.write(`SELECT `, itemColumns, `, c.parent_id, `)
-	b.rank(search.Request)
-	b.write(` AS rank FROM work_item wi JOIN container c ON c.id = wi.collection_id WHERE `)
+	b.rank(search, meaning)
+	b.write(` AS rank FROM work_item wi JOIN container c ON c.id = wi.collection_id`)
+	b.meaningJoin(meaning)
+	b.write(` WHERE `)
 	b.searchPredicates(search)
 
 	if !boundary.IsZero() {
 		b.write(` AND (`)
-		b.rank(search.Request)
+		b.rank(search, meaning)
 		b.write(`, wi.id) < (`)
 		b.param(boundary.Rank)
 		b.write(`::real, `)
@@ -215,13 +219,56 @@ type SearchBoundary struct {
 // IsZero reports the first page.
 func (b SearchBoundary) IsZero() bool { return b.ID.IsZero() }
 
-// rank writes the relevance expression: the better of the two configurations' answers.
-func (b *builder) rank(request view.Search) {
+// rank writes the relevance expression.
+//
+// Lexically: the better of the two configurations' answers. With a query vector as well: that,
+// plus the cosine similarity of the entry's own vector, weighted.
+//
+// **One number and not two orderings**, which is what keeps the keyset cursor working. A fusion of
+// two ranked lists - reciprocal rank fusion and its relatives - needs both lists materialised, and
+// a page boundary over a materialised list is an offset by another name; over one expression it
+// stays the single row comparison every other list in this schema uses. The cost is that the
+// weight is a constant rather than something the data tunes, which is the honest trade for a
+// search that pages correctly.
+//
+// The weight is deliberately below 1: a lexical hit is evidence somebody's words are in the entry,
+// and a semantic hit is evidence something is about the same subject. When they disagree the words
+// win, which is what somebody typing an identifier expects.
+func (b *builder) rank(search repository.TextSearch, meaning string) {
 	b.write(`greatest(ts_rank_cd(wi.search_document, `)
-	b.languageQuery(request.Words)
+	b.languageQuery(search.Request.Words)
 	b.write(`), ts_rank_cd(wi.search_document, `)
-	b.simpleQuery(request.Words)
+	b.simpleQuery(search.Request.Words)
 	b.write(`))`)
+
+	if meaning == "" {
+		return
+	}
+	// `<=>` is cosine distance in [0, 2]; 1 - distance is the similarity. `coalesce` covers the
+	// entry that has no vector yet, which is an ordinary state rather than an absence: the pass
+	// has not reached it, and it is found lexically in the meantime.
+	b.write(` + `, semanticWeight, ` * coalesce(1 - (e.embedding <=> `)
+	b.param(meaning)
+	b.write(`::vector), 0)`)
+}
+
+// semanticWeight is how much a perfect semantic match is worth beside a lexical rank.
+//
+// `ts_rank_cd` answers small numbers - a good hit in a title is around 0.1 - so a similarity worth
+// up to 0.05 puts a strong semantic match ahead of a weak lexical one and behind a strong one.
+// That is the ordering the acceptance asks for in one sentence: an exact identifier is still found
+// first, and an entry that shares no word with the query is found at all.
+const semanticWeight = `0.05`
+
+// meaningJoin brings the entry's own vector into reach, and only when there is a query vector to
+// compare it with. The literal itself is rendered by the adapter and bound here, so this package
+// keeps writing constants and binding values and nothing else (ADR-0026). A LEFT JOIN, because an entry the embedding pass has not reached yet is found
+// lexically rather than not at all.
+func (b *builder) meaningJoin(meaning string) {
+	if meaning == "" {
+		return
+	}
+	b.write(` LEFT JOIN item_embedding e ON e.tenant_id = wi.tenant_id AND e.item_id = wi.id`)
 }
 
 // searchPredicates writes what the search matches: the scope, the lifecycle, the narrowing, and the

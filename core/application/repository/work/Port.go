@@ -304,6 +304,13 @@ type TextSearch struct {
 	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
 	// empty - the read half of C-04, exactly as ItemSearch carries it for the query language.
 	RestrictTo []shared.ID
+	// Meaning is the query embedded, and empty whenever the search is lexical (J-10, ADR-0050).
+	//
+	// It arrives already computed rather than being fetched here, and that is the seam: the
+	// application layer decides whether a provider could be asked and what to do when it could
+	// not, and the repository is handed either a vector or nothing. A repository that called a
+	// provider would be one that could fail a search because somebody else's machine was slow.
+	Meaning []float32
 }
 
 // ItemHit is one entry a search found: the entry, where it sits, and how well it matched.

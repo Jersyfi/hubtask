@@ -49,6 +49,23 @@ type SearchItems struct {
 	Anchored   Anchored
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
+	// Meaning is the semantic half (J-10, ADR-0050). Optional at every level - no store, no
+	// provider, no consent, or a provider that does not answer - and every one of those is a
+	// lexical search rather than a failure.
+	Meaning QueryMeaning
+}
+
+// QueryMeaning turns what somebody typed into a vector, or says it cannot.
+//
+// A seam of its own rather than the provider, because the interesting part is not the call but the
+// *policy around it*: whether this installation has a store at all, whether the workspace has
+// consented, and what to do when the provider is slow. All of that is decided in one place, and
+// what this use case receives is a vector or nothing.
+type QueryMeaning interface {
+	// Of embeds the query. An empty vector and a nil error is "search lexically", which is the
+	// answer for every reason a provider might not be reachable - a search must not fail because
+	// somebody else's machine is slow.
+	Of(ctx context.Context, actor appshared.ActorContext, words string) ([]float32, error)
 }
 
 // SearchItemsQuery is the input, typed.
@@ -72,7 +89,6 @@ func (h SearchItems) Execute(
 	if err != nil {
 		return repository.ItemHitPage{}, err
 	}
-
 	request := view.Search{
 		Words:           words,
 		ContainerID:     query.ContainerID,
@@ -91,11 +107,24 @@ func (h SearchItems) Execute(
 		return repository.ItemHitPage{}, err
 	}
 
+	// The query is embedded before the transaction opens, for the reason every provider call in
+	// this product happens outside one: it reaches somebody else's machine (§8). An empty vector
+	// is not a failure - it is the answer for a workspace with no provider, no consent, or a
+	// provider that did not answer in time - and the search then runs exactly the statement it ran
+	// before semantic search existed.
+	var meaning []float32
+	if h.Meaning != nil {
+		if meaning, err = h.Meaning.Of(ctx, actor, request.Words); err != nil {
+			return repository.ItemHitPage{}, err
+		}
+	}
+
 	var page repository.ItemHitPage
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		page, err = h.Items.Search(ctx, repository.TextSearch{
 			Anchor: reach.anchor, Request: request, RestrictTo: reach.restrictTo,
+			Meaning: meaning,
 		})
 		return err
 	})

@@ -300,7 +300,11 @@ func (r ItemRepository) Search(
 	}
 
 	size := search.Request.Size
-	statement, err := query.Search(search, boundary, int(pageProbe(size)))
+	// The vector is rendered here rather than in the compiler, so that package keeps writing only
+	// constants and binding values (ADR-0026). Empty whenever the search is lexical - no provider,
+	// no consent, no store, or a provider that did not answer in time - and the compiler then
+	// writes the statement it wrote before semantic search existed.
+	statement, err := query.Search(search, vectorLiteralOrEmpty(search.Meaning), boundary, int(pageProbe(size)))
 	if err != nil {
 		return repository.ItemHitPage{}, err
 	}
