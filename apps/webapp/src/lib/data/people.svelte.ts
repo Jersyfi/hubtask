@@ -84,9 +84,9 @@ class People {
   /**
    * Grants a role at a scope, to an account or to a group.
    *
-   * `OWNER` is a privileged action and needs a step-up this client cannot produce until F4 brings
-   * sessions (`security.md` §5). The control that offers it is switched off with that reason
-   * rather than hidden, so nothing here has to refuse it a second time.
+   * `OWNER` is a privileged action and needs a step-up (`security.md` §5). F4-04 made one
+   * possible, so the control is switched on and the proof is asked for by the wrapper below —
+   * which is the whole of what a caller has to know about it.
    */
   async grant(subject: { accountId?: string; groupId?: string }, role: MembershipRole, scope: Scope): Promise<void> {
     // The idempotency key is minted once, outside the step-up wrapper, so that the retry carrying
@@ -107,6 +107,38 @@ class People {
       }),
     );
     await this.#reread(scope);
+  }
+
+  /**
+   * Invites somebody, and gives them the role in the same breath.
+   *
+   * **Two calls, deliberately.** `POST /accounts:invite` creates an `INVITED` account and takes no
+   * role, and there is no `GET /accounts` — so an invitation on its own produces a person who
+   * holds nothing and appears in no listing this client can make. Granting at the same moment is
+   * what makes them visible and useful; the task's issue puts the alternative to the owner.
+   *
+   * **The idempotency key belongs to the invitation, not to this function.** A retry of the same
+   * intent is the same key, which is what stops a second account being created for somebody who
+   * pressed twice - and it is minted here because here is where the intent begins.
+   *
+   * A grant that fails after a successful invitation leaves an invited account with no role. That
+   * is recoverable by granting from the same screen once the person appears, and it is better than
+   * the alternative: an account created twice because the client retried the pair.
+   */
+  async invite(
+    email: string,
+    displayName: string | undefined,
+    role: MembershipRole,
+    scope: Scope,
+  ): Promise<void> {
+    const intent = crypto.randomUUID();
+    const account = await engine.mutate<{ id: string }>(
+      'POST',
+      '/accounts:invite',
+      { email, ...(displayName ? { display_name: displayName } : {}) },
+      { idempotencyKey: intent, invalidates: TOUCHES },
+    );
+    await this.grant({ accountId: account.id }, role, scope);
   }
 
   /** Revokes one grant. Only a grant made *here* can be revoked here; the row says which. */

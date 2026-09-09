@@ -511,14 +511,22 @@ account yet, granting a role at the workspace itself, the groups a membership ca
 the matrix that says what any of it means.
 
 * **The invitation.** `POST /accounts:invite` creates an `INVITED` account, and the mail carries the
-  redemption link F4-03's `/redeem` screen answers. The screen lists the workspace's accounts with
-  their status, shows an invitation that has not been redeemed as exactly that, and offers the
-  invite. Re-inviting is the idempotency key's job, not a second account.
+  redemption link F4-03's `/redeem` screen answers. Re-inviting is the idempotency key's job, not a
+  second account.
+
+  **There is no `GET /accounts`.** The contract lists no accounts — only `/accounts/me`,
+  `/accounts/{id}` and the invitation — and `AccountInvite` carries no role, so an invited account
+  holds no membership and is invisible to the one listing that exists,
+  `GET /memberships?scope_type=TENANT`. So the screen shows *who holds a role at the workspace*,
+  and the invitation makes two calls: invite, then grant the chosen role at tenant scope. An
+  invitation with no role would create a person nobody can see. Whether `GET /accounts` should
+  exist is the question the issue puts to the owner.
 * **Roles at tenant scope.** `GET /memberships?scope_type=TENANT` (F3-01's read), `POST
   /memberships` and `DELETE /memberships/{id}`, with `RoleBadge` saying which role at which scope.
-  Granting or revoking `OWNER` demands a step-up, and F4-04 has made one possible — the control that
-  F3-07 shipped switched off with `auth.step_up_required` as its reason is switched on here, and
-  that is the sentence the pull request should carry.
+  Granting or revoking `OWNER` demands a step-up. **F4-04 switched that control on**, one task
+  earlier than this paragraph expected: its own acceptance asked for a step-up that demonstrably
+  works end to end, and a mechanism with no caller proves nothing. What is left here is `RoleBadge`
+  saying which role at which scope, everywhere a role appears.
 * **Groups.** `GET /groups`, `POST`, `PATCH`, `DELETE` and `GET /groups/{id}` with its members: a
   membership granted to a group is shown as the people it reaches, which is what F3-01 built the
   read for.

@@ -24,6 +24,9 @@
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
+  import GroupsView from './views/GroupsView.svelte';
+  import PeopleView from './views/PeopleView.svelte';
+  import PermissionsView from './views/PermissionsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
@@ -94,6 +97,12 @@
     <AdministrationView />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
+  {:else if route.name === 'people'}
+    <PeopleView />
+  {:else if route.name === 'groups'}
+    <GroupsView />
+  {:else if route.name === 'permissions'}
+    <PermissionsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}
