@@ -4009,9 +4009,13 @@ type Capabilities struct {
 		Actions  *[]string `json:"actions,omitempty"`
 		Triggers *[]string `json:"triggers,omitempty"`
 	} `json:"automation,omitempty"`
-	EventTypes *[]string        `json:"event_types,omitempty"`
-	Features   *map[string]bool `json:"features,omitempty"`
-	ItemTypes  *[]struct {
+	EventTypes *[]string `json:"event_types,omitempty"`
+
+	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions` and `semantic_search`.
+	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health` (observability-reliability.md §7), so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace (`ai-first.md` §2); an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
+	Features  *map[string]bool `json:"features,omitempty"`
+	ItemTypes *[]struct {
 		AllowedChildTypes *[]ItemType `json:"allowed_child_types,omitempty"`
 		Capabilities      *[]string   `json:"capabilities,omitempty"`
 		MaxDepth          *int        `json:"max_depth,omitempty"`

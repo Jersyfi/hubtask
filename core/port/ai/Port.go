@@ -46,8 +46,9 @@ const Feature = "ai_suggestions"
 // Named unconditionally, even in an installation whose database has no pgvector and therefore never
 // had semantic search to lose. The alternative is a health probe that reads the database to decide
 // what to call itself, which is a probe that fails during exactly the outage it exists to report -
-// and an installation without the store already answers `semantic_search: false` from
-// /meta/capabilities, which is where a client looks before it offers the feature at all.
+// and an installation that cannot search by meaning already answers `semantic_search: false` from
+// /meta/capabilities, which is where a client looks before it offers the feature at all. That
+// manifest entry needs the store *and* a provider that embeds (issue 502); this one is a name.
 const FeatureSemanticSearch = "semantic_search"
 
 // ErrUnavailable is every refusal this port can produce, and there is deliberately only one.

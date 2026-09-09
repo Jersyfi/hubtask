@@ -1645,9 +1645,14 @@ func run() error {
 			Signals:  metrics,
 		}
 		controller.Capabilities = meta.GetCapabilities{
-			Profiles:   profiles,
-			Languages:  postgres.NewTextLanguageRepository(),
-			Semantic:   postgres.NewSemanticSearchRepository(),
+			Profiles:  profiles,
+			Languages: postgres.NewTextLanguageRepository(),
+			Semantic:  postgres.NewSemanticSearchRepository(),
+			// The same resolver every asking route reaches through, so the manifest cannot say
+			// the workspace has AI while the route refuses (issue 502). Budgeted, which is the
+			// honest one: a workspace that has spent the day's tokens is a workspace whose next
+			// suggestion will be refused.
+			Providers:  budgetedAi,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 		}
