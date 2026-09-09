@@ -6420,9 +6420,22 @@ components:
       type: object
       required: [q]
       description: >
-        One full-text search. Everything but `q` narrows or pages it; there is no filter grammar
-        here, because a search that also filtered would be `POST /items:query` with a `MATCHES`
-        condition - which is the same index and is what that endpoint is for.
+        One search. Everything but `q` narrows or pages it; there is no filter grammar here, because
+        a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which
+        is the same index and is what that endpoint is for.
+
+        **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The
+        two are one ranked page with one cursor: a hit on the words somebody typed outranks one that
+        is merely about the same subject, so an exact identifier is still found first, and an entry
+        that shares no word with the query is found at all.
+
+        `mode` says how much of that to use, and defaults to `AUTO` - the two halves where the
+        installation has both. Semantic search is optional four times over: the database may not
+        carry pgvector, the workspace may have configured no AI provider or not consented to it, and
+        the provider may not answer in the second somebody is waiting. Every one of those is a
+        **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask
+        for - it would be a mode the server could not promise. `/meta/capabilities` answers
+        `semantic_search` for a client that wants to say in its interface which it has.
       properties:
         q:
           type: string
@@ -6441,6 +6454,8 @@ components:
           description: >
             BCP-47. The language the *words* are in, not the entries: it decides how the query is
             read. Omitted takes the caller's locale.
+        mode:
+          $ref: "#/components/schemas/SearchMode"
         include_archived: { type: boolean, default: false }
         include_trashed: { type: boolean, default: false }
         page:
@@ -6448,6 +6463,19 @@ components:
           properties:
             cursor: { type: [string, "null"] }
             size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+
+    SearchMode:
+      type: string
+      enum: [AUTO, LEXICAL]
+      default: AUTO
+      description: >
+        How much of the search to use (J-10).
+
+        `AUTO` is the default and searches by words and, where the installation has it, by meaning.
+        `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing,
+        which is what a caller in a loop - an automation, an import, a client's own type-ahead -
+        wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the
+        server cannot promise is a mode that would have to fail.
 
     WorkItemPage:
       type: object

@@ -80,3 +80,48 @@ func TestTheScriptsWithoutWordBoundariesAreRecognised(t *testing.T) {
 		})
 	}
 }
+
+// The mode: two values, an empty one that means the default, and everything else refused. The
+// refusal is the point - a client asking for a mode this server does not offer is a client that
+// believes it will get something.
+func TestParseSearchModeOffersTwoAndRefusesTheRest(t *testing.T) {
+	for _, c := range []struct {
+		raw     string
+		want    SearchMode
+		refused bool
+	}{
+		{raw: "", want: SearchAuto},
+		{raw: "AUTO", want: SearchAuto},
+		{raw: "LEXICAL", want: SearchLexical},
+		{raw: "SEMANTIC", refused: true},
+		{raw: "auto", refused: true},
+		{raw: "hybrid", refused: true},
+	} {
+		mode, err := ParseSearchMode(c.raw, "/mode")
+		if c.refused {
+			if err == nil {
+				t.Errorf("%q was accepted as %q", c.raw, mode)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%q was refused: %v", c.raw, err)
+		}
+		if mode != c.want {
+			t.Errorf("%q read as %q, want %q", c.raw, mode, c.want)
+		}
+	}
+}
+
+// What the mode decides, in one line: whether the words may also be asked about by meaning. The
+// zero value has to answer yes, or a caller that never set the field would silently lose half the
+// search.
+func TestOnlyTheLexicalModeRefusesMeaning(t *testing.T) {
+	for mode, want := range map[SearchMode]bool{
+		"": true, SearchAuto: true, SearchLexical: false,
+	} {
+		if got := mode.Semantic(); got != want {
+			t.Errorf("%q.Semantic() = %v, want %v", mode, got, want)
+		}
+	}
+}

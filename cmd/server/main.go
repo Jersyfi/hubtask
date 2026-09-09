@@ -1248,6 +1248,13 @@ func run() error {
 			Items: items, Containers: containers,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork,
+			// The semantic half (J-10). Optional four times over - the extension, the provider,
+			// the consent, and whether it answers in time - and every one of those is a lexical
+			// search rather than a failure.
+			Meaning: work.SearchMeaning{
+				Providers: aiResolver, Semantic: postgres.NewSemanticSearchRepository(),
+				UnitOfWork: unitOfWork,
+			},
 		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
@@ -1867,7 +1874,15 @@ func run() error {
 		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
 		// The bus joins them only when one is configured (H-14): appending an empty slice is how
 		// an installation without a bus ends up with exactly the subscriber list it had before.
-		Subscribers: append([]eventbusport.Subscriber{notify, webhookFanOut, matchRules, relativeDates},
+		Subscribers: append([]eventbusport.Subscriber{
+			notify, webhookFanOut, matchRules, relativeDates,
+			// What asks for a workspace's vectors to be brought up to date (J-10). A seed rather
+			// than the work: one deduplicated job per workspace, and the pass behind it decides
+			// which entries actually owe an embedding.
+			work.SeedEmbedding{
+				Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
+			},
+		},
 			busFanOut...),
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
@@ -2179,12 +2194,23 @@ func run() error {
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
 		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
-		queueport.KindNotificationDeliver:   notificationDelivery,
-		queueport.KindWebhookDeliver:        webhookDelivery,
-		queueport.KindAutomationRun:         automationRun,
-		queueport.KindAutomationHTTP:        outboundCall,
-		queueport.KindBackupRun:             backupRun,
-		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
+		queueport.KindAiEmbed: worker.AiEmbedding{
+			Embed: work.EmbedItems{
+				Embeddings: postgres.NewEmbeddingRepository(), Providers: aiResolver,
+				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			// A quiet workspace pays one pass an hour for having the machinery; a busy one comes
+			// straight back while there is known work left. The retention sweep's two numbers, for
+			// the same reason it has two.
+			Interval: time.Hour, Continuation: 5 * time.Second,
+		},
+		queueport.KindNotificationDeliver: notificationDelivery,
+		queueport.KindWebhookDeliver:      webhookDelivery,
+		queueport.KindAutomationRun:       automationRun,
+		queueport.KindAutomationHTTP:      outboundCall,
+		queueport.KindBackupRun:           backupRun,
+		queueport.KindBackupVerify:        worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

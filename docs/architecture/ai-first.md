@@ -86,7 +86,7 @@ nothing" and "there is no model" must not be the same value.
 | Decomposition | Task → suggested work packages/activities | Suggestion |
 | Classification | Suggested label/bucket, priority, duplicate detection | Suggestion |
 | Summarisation | Comment thread, collection status, weekly review | Text (not persisted unless explicitly requested) |
-| Semantic search | Embeddings of titles/notes in `pgvector`, hybrid search with `tsvector` | Search result |
+| Semantic search | Embeddings of titles/notes in `pgvector`, hybrid search with `tsvector`. **Shipped in J-10**: one ranked page with one cursor, the words winning over the meaning, and pgvector detected rather than demanded ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)) | Search result |
 | Template generation | A natural language description → `Template` | Draft |
 | Translation | Item content on request | Display only, not persisted |
 
@@ -99,6 +99,13 @@ nothing" and "there is no model" must not be the same value.
   checked before every call.
 * Cost and latency: AI calls run asynchronously as jobs, never in the critical write path;
   timeouts, a per-tenant budget counter, and a circuit breaker for provider outages.
+* **The one call somebody waits for is the search's**, and it is bounded rather than excepted
+  (J-10). Embedding what somebody typed cannot be a job — the answer is wanted now — so it gets the
+  shortest timeout in the product, 800 ms, and every way of not getting an answer is a **lexical
+  search rather than an error**: no pgvector, no provider, no consent, an open circuit, a spent
+  budget, or a provider that is merely slow. Nothing about it is on the write path: an entry's own
+  embedding is maintained by a job seeded by the write, and an entry the job has not reached yet is
+  found by its words in the meantime.
 * Reproducibility: prompts are versioned resources (`infrastructure/ai/prompts/`), not inline in
   the code.
 

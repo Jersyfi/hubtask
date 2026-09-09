@@ -39,6 +39,17 @@ const Dependency = "ai_provider"
 // (observability-reliability.md §7). The bare feature name the degradation report carries.
 const Feature = "ai_suggestions"
 
+// FeatureSemanticSearch is the second thing a provider outage costs: search stops finding entries
+// by what they mean and finds them only by the words in them (J-10, ADR-0050). The same name
+// /meta/capabilities answers under, so a client reading either learns about one feature.
+//
+// Named unconditionally, even in an installation whose database has no pgvector and therefore never
+// had semantic search to lose. The alternative is a health probe that reads the database to decide
+// what to call itself, which is a probe that fails during exactly the outage it exists to report -
+// and an installation without the store already answers `semantic_search: false` from
+// /meta/capabilities, which is where a client looks before it offers the feature at all.
+const FeatureSemanticSearch = "semantic_search"
+
 // ErrUnavailable is every refusal this port can produce, and there is deliberately only one.
 //
 // It is what NoopAi answers, what a tenant without ai_processing_allowed answers (J-02), what an

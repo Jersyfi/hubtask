@@ -1897,6 +1897,27 @@ CREATE TABLE item_embedding (
 );
 CREATE INDEX item_embedding_vector_idx ON item_embedding USING hnsw (embedding vector_cosine_ops);
 
+-- The fingerprint of an entry's text, computed where the entries are (J-10, migration 0076).
+--
+-- The same function as `core/domain/model/suggestion.Digest` - the parts joined by a byte no UTF-8
+-- text contains, then SHA-256 - because "the same text" has to mean the same thing to whatever
+-- computes a digest and whatever compares one. Two implementations of one rule is how a staleness
+-- check comes to pass for a suggestion made from something else, and an integration test asserts
+-- the two agree rather than trusting this comment.
+--
+-- It exists at all because the embedding pass has to ask "whose text has moved" over a whole
+-- workspace: in Go that is every entry's title and notes crossing the wire to be thrown away.
+CREATE OR REPLACE FUNCTION digest_of(VARIADIC parts text[])
+  RETURNS bytea LANGUAGE sql IMMUTABLE PARALLEL SAFE AS
+$$
+  SELECT sha256(
+    coalesce(
+      (SELECT string_agg(convert_to(coalesce(part, ''), 'UTF8') || '\xff'::bytea, ''::bytea
+               ORDER BY ordinality)
+         FROM unnest(parts) WITH ORDINALITY AS t(part, ordinality)),
+      ''::bytea))
+$$;
+
 -- ============================ Row Level Security ===========================
 -- For every tenant-scoped table: a policy on current_tenant_id().
 DO $$

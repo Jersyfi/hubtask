@@ -49,6 +49,23 @@ type SearchItems struct {
 	Anchored   Anchored
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
+	// Meaning is the semantic half (J-10, ADR-0050). Optional at every level - no store, no
+	// provider, no consent, or a provider that does not answer - and every one of those is a
+	// lexical search rather than a failure.
+	Meaning QueryMeaning
+}
+
+// QueryMeaning turns what somebody typed into a vector, or says it cannot.
+//
+// A seam of its own rather than the provider, because the interesting part is not the call but the
+// *policy around it*: whether this installation has a store at all, whether the workspace has
+// consented, and what to do when the provider is slow. All of that is decided in one place, and
+// what this use case receives is a vector or nothing.
+type QueryMeaning interface {
+	// Of embeds the query. An empty vector and a nil error is "search lexically", which is the
+	// answer for every reason a provider might not be reachable - a search must not fail because
+	// somebody else's machine is slow.
+	Of(ctx context.Context, actor appshared.ActorContext, words string) ([]float32, error)
 }
 
 // SearchItemsQuery is the input, typed.
@@ -62,6 +79,8 @@ type SearchItemsQuery struct {
 	IncludeTrashed  bool
 	Cursor          string
 	Size            int
+	// Mode is AUTO or LEXICAL, and empty is AUTO (J-10).
+	Mode string
 }
 
 // Execute answers one page of hits, in the order the database ranked them.
@@ -72,9 +91,14 @@ func (h SearchItems) Execute(
 	if err != nil {
 		return repository.ItemHitPage{}, err
 	}
+	mode, err := view.ParseSearchMode(query.Mode, "/mode")
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
 
 	request := view.Search{
 		Words:           words,
+		Mode:            mode,
 		ContainerID:     query.ContainerID,
 		Language:        languageOr(query.Language, actor.Locale),
 		IncludeArchived: query.IncludeArchived,
@@ -91,11 +115,24 @@ func (h SearchItems) Execute(
 		return repository.ItemHitPage{}, err
 	}
 
+	// The query is embedded before the transaction opens, for the reason every provider call in
+	// this product happens outside one: it reaches somebody else's machine (§8). An empty vector
+	// is not a failure - it is the answer for a workspace with no provider, no consent, or a
+	// provider that did not answer in time - and the search then runs exactly the statement it ran
+	// before semantic search existed.
+	var meaning []float32
+	if h.Meaning != nil && request.Mode.Semantic() {
+		if meaning, err = h.Meaning.Of(ctx, actor, request.Words); err != nil {
+			return repository.ItemHitPage{}, err
+		}
+	}
+
 	var page repository.ItemHitPage
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		page, err = h.Items.Search(ctx, repository.TextSearch{
 			Anchor: reach.anchor, Request: request, RestrictTo: reach.restrictTo,
+			Meaning: meaning,
 		})
 		return err
 	})
@@ -278,6 +315,16 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 					"written in.",
 			},
 			{
+				Name: "mode", Kind: usecase.KindString,
+				Enum: []string{string(view.SearchAuto), string(view.SearchLexical)},
+				Description: "How much of the search to use. AUTO, the default, searches by words " +
+					"and - where this installation has semantic search, which /meta/capabilities " +
+					"reports - also by meaning, in one ranked page. LEXICAL searches by words " +
+					"only: it asks no AI provider, spends no budget and waits on nothing. There " +
+					"is deliberately no SEMANTIC: an installation may not have it, so it is not " +
+					"something a caller can be promised.",
+			},
+			{
 				Name: "include_archived", Kind: usecase.KindBool,
 				Description: "Keeps archived entries in the result.",
 			},
@@ -318,6 +365,7 @@ func (h SearchItems) invoke(
 		Words:           in.String("q"),
 		ContainerID:     containerID,
 		Language:        in.String("language"),
+		Mode:            in.String("mode"),
 		IncludeArchived: in.Bool("include_archived"),
 		IncludeTrashed:  in.Bool("include_trashed"),
 		Cursor:          in.String("cursor"),

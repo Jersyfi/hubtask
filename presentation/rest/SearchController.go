@@ -58,6 +58,7 @@ func searchInput(body openapi.ItemSearchQuery) usecase.Input {
 		"q":                body.Q,
 		"container_id":     optionalUUIDField(body.ContainerId),
 		"language":         optionalStringField(body.Language),
+		"mode":             searchModeField(body.Mode),
 		"include_archived": optionalBoolField(body.IncludeArchived),
 		"include_trashed":  optionalBoolField(body.IncludeTrashed),
 	}
@@ -66,4 +67,16 @@ func searchInput(body openapi.ItemSearchQuery) usecase.Input {
 		in["size"] = optionalIntField(body.Page.Size)
 	}
 	return in
+}
+
+// searchModeField passes the mode through as text, unvalidated.
+//
+// The enum is checked in the use case rather than here, for the reason nothing else is defaulted
+// here: a value this layer refused would be a value MCP and automation still accepted, and the
+// three channels have to answer the same question the same way (ADR-0005).
+func searchModeField(mode *openapi.SearchMode) any {
+	if mode == nil {
+		return nil
+	}
+	return string(*mode)
 }

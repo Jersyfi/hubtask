@@ -2502,6 +2502,24 @@ func (e SavedViewShareSharing) Valid() bool {
 	}
 }
 
+// Defines values for SearchMode.
+const (
+	AUTO    SearchMode = "AUTO"
+	LEXICAL SearchMode = "LEXICAL"
+)
+
+// Valid indicates whether the value is a known member of the SearchMode enum.
+func (e SearchMode) Valid() bool {
+	switch e {
+	case AUTO:
+		return true
+	case LEXICAL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionTokensTokenType.
 const (
 	Bearer SessionTokensTokenType = "Bearer"
@@ -4552,7 +4570,9 @@ type ItemQueryResult struct {
 	Total *int `json:"total"`
 }
 
-// ItemSearchQuery One full-text search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.
+// ItemSearchQuery One search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.
+// **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.
+// `mode` says how much of that to use, and defaults to `AUTO` - the two halves where the installation has both. Semantic search is optional four times over: the database may not carry pgvector, the workspace may have configured no AI provider or not consented to it, and the provider may not answer in the second somebody is waiting. Every one of those is a **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask for - it would be a mode the server could not promise. `/meta/capabilities` answers `semantic_search` for a client that wants to say in its interface which it has.
 type ItemSearchQuery struct {
 	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
 	ContainerId     *openapi_types.UUID `json:"container_id,omitempty"`
@@ -4561,7 +4581,11 @@ type ItemSearchQuery struct {
 
 	// Language BCP-47. The language the *words* are in, not the entries: it decides how the query is read. Omitted takes the caller's locale.
 	Language *string `json:"language,omitempty"`
-	Page     *struct {
+
+	// Mode How much of the search to use (J-10).
+	// `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
+	Mode *SearchMode `json:"mode,omitempty"`
+	Page *struct {
 		Cursor *string `json:"cursor,omitempty"`
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
@@ -5738,6 +5762,10 @@ type SavedViewUpdate struct {
 	Query         *map[string]interface{} `json:"query,omitempty"`
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
+
+// SearchMode How much of the search to use (J-10).
+// `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
+type SearchMode string
 
 // ServiceAccountCreate defines model for ServiceAccountCreate.
 type ServiceAccountCreate struct {

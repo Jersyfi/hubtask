@@ -567,3 +567,89 @@ func contains(args []any, want string) bool {
 	}
 	return false
 }
+
+// The semantic half of the search, as a statement (J-10). Whether the ordering it produces is the
+// right one is a question for a real database, and test/integration asks it; what is decided here
+// is that nothing a caller sent becomes SQL text and that the lexical statement is unchanged when
+// there is no vector.
+func TestASearchWithoutAVectorIsTheStatementItAlwaysWas(t *testing.T) {
+	statement, err := Search(textSearchOf("quarterly report"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	for _, unwanted := range []string{"item_embedding", "<=>", "vector"} {
+		if strings.Contains(statement.SQL, unwanted) {
+			t.Errorf("a lexical search mentions %q:\n  %s", unwanted, statement.SQL)
+		}
+	}
+}
+
+// With a vector the statement gains three things and no fourth: the join that brings an entry's own
+// vector into reach, the weighted similarity in the rank, and the bounded neighbourhood that lets
+// an entry sharing no word with the query be a hit at all.
+func TestASearchWithAVectorJoinsRanksAndWidens(t *testing.T) {
+	statement, err := Search(textSearchOf("quarterly report"), "[0.1,0.2,0.3]", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	for _, want := range []string{
+		"LEFT JOIN item_embedding e ON e.tenant_id = wi.tenant_id AND e.item_id = wi.id",
+		"0.05 * coalesce(1 - (e.embedding <=>",
+		"ORDER BY distance LIMIT 200",
+		"WHERE n.distance < 0.35",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the statement is missing %q:\n  %s", want, statement.SQL)
+		}
+	}
+}
+
+// Rule 9, on the one string this package's caller builds at run time: the vector is bound, never
+// written. It is assembled from float32s the process produced rather than from anything that
+// arrived in a request, and it still goes through a parameter - which is what keeps the rule intact
+// the day somebody makes it a value with a different provenance.
+func TestTheQueryVectorIsBoundRatherThanWritten(t *testing.T) {
+	statement, err := Search(textSearchOf("quarterly"), "[0.125,0.25]", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	if strings.Contains(statement.SQL, "0.125") {
+		t.Fatalf("the vector reached the statement's text:\n  %s", statement.SQL)
+	}
+	if !contains(statement.Args, "[0.125,0.25]") {
+		t.Errorf("the vector is not among the arguments: %v", statement.Args)
+	}
+	// Once for the rank and once for the neighbourhood, and neither of them written.
+	if got := strings.Count(statement.SQL, "::vector"); got != 2 {
+		t.Errorf("the vector is cast %d times, want twice", got)
+	}
+}
+
+// The words are the caller's, and a search for a semicolon and a keyword is a search for those
+// characters. It holds with a vector present too, which is the case that added a subquery.
+func TestTheSearchedWordsNeverBecomeStatementText(t *testing.T) {
+	words := "quarterly'; DROP TABLE work_item; --"
+
+	statement, err := Search(textSearchOf(words), "[0.1,0.2]", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if strings.Contains(statement.SQL, "DROP") || strings.Contains(statement.SQL, "quarterly") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
+	}
+	if !contains(statement.Args, words) {
+		t.Errorf("the words are not among the arguments: %v", statement.Args)
+	}
+}
+
+// textSearchOf is one unanchored search over the whole tenant, which is the shape the use case
+// produces when nobody named a scope.
+func textSearchOf(words string) repository.TextSearch {
+	return repository.TextSearch{
+		Anchor:  repository.Anchor{Kind: repository.AnchorTenant},
+		Request: view.Search{Words: words, Language: "en", Size: 50},
+	}
+}

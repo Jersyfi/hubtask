@@ -88,6 +88,19 @@ const (
 	// being a record rather than a change.
 	KindAiSuggest Kind = "ai.suggest"
 
+	// KindAiEmbed brings one workspace's embeddings up to date with its entries (J-10).
+	//
+	// One job per tenant that reschedules itself, the retention sweep's shape rather than the
+	// suggestion's - because what it does is a backlog rather than a question. An entry whose
+	// title or notes changed owes a new vector, and a pass takes a batch of what is owed and comes
+	// back for the rest.
+	//
+	// Seeded by the write that made something owed, like every per-tenant duty in this system:
+	// nothing may enumerate tenants (multi-tenancy.md §2.1), so a scheduler cannot create one job
+	// per workspace even if it wanted to. Deduplicated per tenant, because "this workspace owes
+	// embeddings" is one fact however many entries changed.
+	KindAiEmbed Kind = "ai.embed"
+
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than

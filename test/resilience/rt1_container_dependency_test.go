@@ -523,7 +523,7 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 	if report.Status != healthport.StatusDegraded {
 		t.Errorf("status = %s during the AI outage, want degraded", report.Status)
 	}
-	assertDegradedExactly(t, report, aiprovider.Feature)
+	assertDegradedExactly(t, report, aiprovider.Feature, aiprovider.FeatureSemanticSearch)
 	if ready, reason := registry.Ready(ctx); !ready {
 		t.Errorf("the process reported itself unready over an optional dependency: %s", reason)
 	}
@@ -535,6 +535,10 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		`hubtask_dependency_up{dependency="object_storage"} 1`,
 		`hubtask_dependency_up{dependency="smtp"} 1`,
 		`hubtask_degraded_mode{feature="ai_suggestions"} 1`,
+		// The second thing the outage costs: search finds entries by their words and no longer by
+		// what they mean (J-10). Two features from one dependency, which is why the report carries
+		// a list rather than a name.
+		`hubtask_degraded_mode{feature="semantic_search"} 1`,
 		`hubtask_degraded_mode{feature="media"} 0`,
 		`hubtask_degraded_mode{feature="notifications"} 0`,
 	} {
@@ -570,6 +574,7 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		`hubtask_degraded_mode{feature="media"} 0`,
 		`hubtask_degraded_mode{feature="notifications"} 0`,
 		`hubtask_degraded_mode{feature="ai_suggestions"} 0`,
+		`hubtask_degraded_mode{feature="semantic_search"} 0`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the recovery is missing from the metrics: %s", want)
@@ -607,21 +612,23 @@ func outboundClient() *httpclient.GuardedClient {
 
 // assertDegradedExactly holds the report against one row of the degradation table: the one
 // feature, its reason code, and a timestamp an operator can subtract from now.
-func assertDegradedExactly(t *testing.T, report healthport.Report, feature string) {
+func assertDegradedExactly(t *testing.T, report healthport.Report, features ...string) {
 	t.Helper()
-	if len(report.DegradedFeatures) != 1 {
-		t.Errorf("degraded features = %v, want exactly %q", report.DegradedFeatures, feature)
+	if len(report.DegradedFeatures) != len(features) {
+		t.Errorf("degraded features = %v, want exactly %q", report.DegradedFeatures, features)
 		return
 	}
-	degraded := report.DegradedFeatures[0]
-	if degraded.Feature != feature {
-		t.Errorf("degraded feature = %q, want %q", degraded.Feature, feature)
-	}
-	if degraded.ReasonCode != "dependency.unavailable" {
-		t.Errorf("reason = %q, want dependency.unavailable", degraded.ReasonCode)
-	}
-	if degraded.Since.IsZero() {
-		t.Error("the degradation carries no timestamp")
+	for i, feature := range features {
+		degraded := report.DegradedFeatures[i]
+		if degraded.Feature != feature {
+			t.Errorf("degraded feature %d = %q, want %q", i, degraded.Feature, feature)
+		}
+		if degraded.ReasonCode != "dependency.unavailable" {
+			t.Errorf("reason for %q = %q, want dependency.unavailable", feature, degraded.ReasonCode)
+		}
+		if degraded.Since.IsZero() {
+			t.Errorf("the degradation of %q carries no timestamp", feature)
+		}
 	}
 }
 
