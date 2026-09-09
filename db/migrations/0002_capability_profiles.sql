@@ -14,6 +14,20 @@
 
 -- +goose Up
 
+-- The owner has to be able to seed these rows, and `FORCE` binds the owner too.
+--
+-- 0001 puts FORCE ROW LEVEL SECURITY on every tenant table, and this table's policy deliberately
+-- lets everyone read the system defaults while letting nobody write them. The seed below writes
+-- exactly those rows, so on this one table FORCE locks out its only legitimate writer. It worked
+-- until now only because Compose, CI and the integration environment all migrate as the PostgreSQL
+-- superuser, which ignores FORCE - and a database an operator brings does not (ADR-0052).
+--
+-- Removing FORCE frees the *owner* and nobody else. `hubtask_app` is not the owner, so the policy
+-- still applies to it in full: it reads the three defaults, it cannot write them, and it still sees
+-- nothing without a tenant context. Migration 0077 says the same thing for databases that applied
+-- this file before the line existed, so both paths end in the same state.
+ALTER TABLE item_capability_profile NO FORCE ROW LEVEL SECURITY;
+
 INSERT INTO item_capability_profile (tenant_id, type, capabilities, allowed_child_types, max_depth)
 VALUES
   (NULL, 'TASK', ARRAY[

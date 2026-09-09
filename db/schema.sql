@@ -1994,8 +1994,10 @@ CREATE POLICY tenant_isolation ON backup_target
 
 -- item_capability_profile: the system defaults (tenant_id IS NULL) are readable by everyone,
 -- overrides only for the tenant concerned. Never write to the system defaults.
+-- Deliberately ENABLE without FORCE, unlike every other tenant table (ADR-0052): FORCE binds the
+-- owner too, and here the owner is the only actor that may write the system defaults. The
+-- application role is not the owner, so the policy below applies to it in full.
 ALTER TABLE item_capability_profile ENABLE ROW LEVEL SECURITY;
-ALTER TABLE item_capability_profile FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON item_capability_profile
   USING (tenant_id IS NULL OR tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());

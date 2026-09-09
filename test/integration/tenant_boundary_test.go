@@ -76,6 +76,9 @@ var rlsExceptions = map[string]string{
 	"instance_event": "the installation's own evidence journal (H-06, audit.md §6): its rows " +
 		"outlive the tenants they name, and a policy comparing current_tenant_id() would make " +
 		"them unreachable under every honest scope; bounded instead by append-only grants",
+	"item_capability_profile": "the system defaults (tenant_id IS NULL) are the owner's to seed and " +
+		"nobody else's to write, and FORCE would bind the owner too (ADR-0052). The policy still " +
+		"applies in full to every role that is not the owner, hubtask_app among them",
 	"restore_drill_marker": "the restore drill's two marker rows per run (H-10, migration 0071): " +
 		"installation-scoped, no tenant column, and the application role has no access at all",
 }
