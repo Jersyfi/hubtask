@@ -168,6 +168,15 @@ export interface ListenOptions {
   readonly wait?: (ms: number) => Promise<void>;
 }
 
+/**
+ * A refused credential, as this package recognises one: `401`, and nothing else. A `403` is a
+ * permission and not a session - refreshing on one would be a client asking for a better answer
+ * to a question it already got right.
+ */
+function isRefusal(cause: unknown): boolean {
+  return cause instanceof TransportError && cause.status === 401;
+}
+
 export interface SyncEngineOptions {
   readonly transport: Transport;
   /** Injected, so a test can fix the time a `ready` state is stamped with (rule 4). */
@@ -190,6 +199,18 @@ export interface SyncEngineOptions {
    * the application's, and this package holds no opinion about screens.
    */
   readonly onUnauthorized?: () => void;
+  /**
+   * Called when a request meets a `401`, to exchange the refresh token for the next pair (F4-03).
+   *
+   * `true` means a new credential is held and the request is retried **once**; `false` means the
+   * session is over and `onUnauthorized` follows. The exchange itself is the application's - this
+   * package knows there is one and never what it presents - and it happens here rather than in
+   * every store for a reason that is not tidiness: presenting a retired refresh token is theft as
+   * far as the server is concerned and costs the whole family (`security.md` §5, T-01), so ten
+   * concurrent requests meeting one expired access token have to share **one** exchange. That is
+   * what the single-flight below is for.
+   */
+  readonly onRefresh?: () => Promise<boolean>;
 }
 
 /**
@@ -207,12 +228,58 @@ export class SyncEngine {
   /** One entry per path, so two components asking for the same thing share one state. */
   readonly #resources = new Map<string, ResourceEntry<unknown>>();
   readonly #onUnauthorized: () => void;
+  readonly #onRefresh: () => Promise<boolean>;
+  /** The exchange in flight, so that concurrent refusals share one rather than racing. */
+  #renewal: Promise<boolean> | undefined;
 
   constructor(options: SyncEngineOptions) {
     this.#transport = options.transport;
     this.#clock = options.clock ?? systemClock;
     this.#token = options.token ?? (() => undefined);
     this.#onUnauthorized = options.onUnauthorized ?? (() => {});
+    // No refresher is the shape F1 shipped: a `401` ends the session at once, which is what a
+    // client holding a credential somebody typed can honestly do.
+    this.#onRefresh = options.onRefresh ?? (async () => false);
+  }
+
+  /**
+   * Runs a call, and on a refused credential exchanges the pair once and runs it again.
+   *
+   * Once, and only once. A second `401` after a fresh access token is not an expiry - it is the
+   * account, the scope or the session itself - and retrying past it would be a client arguing with
+   * a server that has already answered twice.
+   */
+  async #attempt<T>(call: () => Promise<T>): Promise<T> {
+    try {
+      return await call();
+    } catch (cause) {
+      if (!isRefusal(cause)) throw cause;
+      if (!(await this.#renew())) {
+        this.#onUnauthorized();
+        throw cause;
+      }
+      try {
+        return await call();
+      } catch (again) {
+        this.#noticeRefusal(again);
+        throw again;
+      }
+    }
+  }
+
+  /**
+   * The exchange, at most one at a time.
+   *
+   * The promise is published before it is awaited and cleared when it settles, so every caller
+   * that arrives while one is running joins it. Without this, a screen making six reads on a
+   * stale access token would present the same refresh token six times - and the server would read
+   * the second presentation as a stolen one and end every session the account has.
+   */
+  #renew(): Promise<boolean> {
+    this.#renewal ??= this.#onRefresh().finally(() => {
+      this.#renewal = undefined;
+    });
+    return this.#renewal;
   }
 
   /**
@@ -274,13 +341,9 @@ export class SyncEngine {
     body: unknown,
     options: MutateOptions = {},
   ): Promise<T> {
-    let answer;
-    try {
-      answer = await this.#transport.send<T>(method, path, body, this.#options(options));
-    } catch (cause) {
-      this.#noticeRefusal(cause);
-      throw cause;
-    }
+    const answer = await this.#attempt(
+      () => this.#transport.send<T>(method, path, body, this.#options(options)),
+    );
     this.#invalidate(options.invalidates);
     return answer.body;
   }
@@ -314,12 +377,7 @@ export class SyncEngine {
    * that a `POST` can be a read.
    */
   async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string } = {}) {
-    try {
-      return await this.#transport.document(path, body, this.#options(options));
-    } catch (cause) {
-      this.#noticeRefusal(cause);
-      throw cause;
-    }
+    return this.#attempt(() => this.#transport.document(path, body, this.#options(options)));
   }
 
   /**
@@ -454,6 +512,10 @@ export class SyncEngine {
       } catch (cause) {
         const error = cause instanceof TransportError ? cause : new TransportError('offline', { cause });
         if (error.status === 401) {
+          // A stream outlives an access token by design - it is open for as long as the tab is.
+          // So a refused connection is an expiry until the exchange says otherwise, and only then
+          // is it the end of the session.
+          if (await this.#renew()) continue;
           this.#onUnauthorized();
           return;
         }
@@ -512,9 +574,9 @@ export class SyncEngine {
       const options = this.#options(request);
       // A document makes it a `POST`, and nothing else about it changes. It still reads: no cache
       // is dropped here, because a read that invalidated would make a board reload itself.
-      const answer = request.body === undefined
-        ? await this.#transport.get<T>(request.path, options)
-        : await this.#transport.send<T>('POST', request.path, request.body, options);
+      const answer = await this.#attempt(() => (request.body === undefined
+        ? this.#transport.get<T>(request.path, options)
+        : this.#transport.send<T>('POST', request.path, request.body, options)));
       entry.etag = answer.etag;
       this.#publish(entry, {
         status: 'ready',
@@ -528,14 +590,15 @@ export class SyncEngine {
       const error = cause instanceof TransportError
         ? cause
         : new TransportError('malformed', { cause });
+      // The refusal itself was already reported by `#attempt`, which is the one place that sees
+      // a 401 - here it only becomes a state a screen can render.
       this.#publish(entry, { status: 'failed', error });
-      this.#noticeRefusal(error);
     }
   }
 
   /** A refused credential, told once to whoever asked to be told. */
   #noticeRefusal(cause: unknown): void {
-    if (cause instanceof TransportError && cause.status === 401) this.#onUnauthorized();
+    if (isRefusal(cause)) this.#onUnauthorized();
   }
 
   #publish<T>(entry: ResourceEntry<T>, state: ResourceState<T>): void {
