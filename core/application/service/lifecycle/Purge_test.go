@@ -6,6 +6,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -127,7 +128,9 @@ type idSource struct{ issued int }
 
 func (i *idSource) NewID() shared.ID {
 	i.issued++
-	return shared.MustParseID("0192f000-0000-7000-8000-00000000010" + string(rune('0'+i.issued)))
+	// Hexadecimal rather than a digit added to '0': the tenth identifier of a pass used to become
+	// "…10:" and panic, which is a fixture running out of room rather than anything under test.
+	return shared.MustParseID(fmt.Sprintf("0192f000-0000-7000-8000-0000000001%02x", i.issued))
 }
 
 type harness struct {

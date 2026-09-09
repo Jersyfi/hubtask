@@ -46,6 +46,11 @@ type RunRetention struct {
 	// being swept is personal data kept past its period (risk R-09) in the one place nobody
 	// looks at afterwards.
 	Inbox JumbleInbox
+	// Proposals is the suggestion store's remover (J-05). Optional for the outbox's reason: an
+	// installation wired without it sweeps exactly what it did before, and what it would have
+	// removed is a working note rather than personal content nobody looks at - a suggestion's
+	// payload is a *copy* of fields the entry itself holds, and the entry has its own period.
+	Proposals ExpiringSuggestions
 	// Sessions is the sign-in rows' remover (H-01). Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and the rows it would
 	// have removed are already unusable - the sweep forgets, revocation ends.
@@ -109,6 +114,15 @@ type DispatchedEvents interface {
 // ever removed, whatever the period says, because ending sign-ins is revocation's job and the
 // engine's job is forgetting.
 type ExpiredSessions interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// ExpiringSuggestions is the slice of the suggestion store this run removes through (J-05).
+//
+// The same two methods as the jumble, the notification history and the outbox, and deliberately
+// the same shape: the engine treats a fifth kind exactly as it treats the second.
+type ExpiringSuggestions interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
@@ -214,6 +228,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	proposals, err := h.sweepProposals(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
@@ -233,6 +252,88 @@ func (h RunRetention) Execute(
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed
+	// add rather than the two additions, the jumble's reasoning: a suggestion is somebody's work
+	// before anybody has filed it, so a tenant-wide hold reaches it and the blocked count has to
+	// reach the pass.
+	outcome.add(proposals)
+	return outcome, nil
+}
+
+// sweepProposals removes one batch of suggestions that are over (J-05, data-retention.md §3).
+//
+// Thirty days, the shortest default in the catalogue, and both decided states go with the
+// proposals: an accepted suggestion has already become the entry's own history, which is where
+// "why does this task say that" is answered for good. The row is the working note, not the record.
+//
+// A tenant-wide legal hold does stop it, the jumble's reasoning: a proposal is somebody's work
+// before anybody has filed it, and "freeze this tenant" reaches it. Nothing narrower can - a
+// suggestion sits in no container.
+//
+// A missing wiring is skipped rather than refused, which is where this parts company with the
+// jumble. The difference is what each holds: an unswept inbox keeps raw subject, raw body and a
+// sender's address for ever, while a suggestion's payload is a *copy* of fields the entry itself
+// holds under the entry's own period - so an installation wired without this keeps a table that
+// grows rather than personal data nobody notices.
+func (h RunRetention) sweepProposals(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Proposals == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindAiSuggestion)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindAiSuggestion, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.Proposals.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if _, held := holds.Blocking(domain.Target{}); held {
+		blocked := map[string]int{domain.BlockedByLegalHold: matched}
+		if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+			Matched: matched, Blocked: blocked,
+			Status: repository.RunSucceeded, FinishedAt: h.Clock.Now(),
+		}); err != nil {
+			return Outcome{Blocked: blocked}, err
+		}
+		// The log row carries what was due and the outcome carries none of it, the jumble's
+		// reasoning: under a tenant-wide hold there is nothing to come back for, and a pass
+		// reporting a full batch would spin for as long as the hold stands.
+		outcome := Outcome{Blocked: blocked}
+		h.report(ctx, domain.KindAiSuggestion, outcome, h.Clock.Now().Sub(started))
+		return outcome, nil
+	}
+
+	removed, sweepErr := h.Proposals.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindAiSuggestion, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

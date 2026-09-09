@@ -66,6 +66,10 @@ func DefaultPolicies() []Policy {
 		// the notification history's reason: no document sets one, and a tenant asking for a
 		// shorter inbox is asking for less of the least trusted text in the system to be kept.
 		{DataKind: KindJumbleEntry, RetainDays: 90},
+		// What AI proposed (J-05). Thirty days, and no lower bound for the jumble's reason: no
+		// document sets one, and a tenant asking to keep proposals for less time is asking for
+		// less of a working note about their own entries to be kept.
+		{DataKind: KindAiSuggestion, RetainDays: 30},
 		// Sessions (H-01). Thirty days from the last use, the period the schema comment promised
 		// in 0001_init and security.md §5's refresh lifetime made natural: a session idle that
 		// long has run out with the token that could have renewed it. No lower bound, for the
