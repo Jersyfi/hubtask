@@ -108,3 +108,64 @@ func TestEveryShippedPromptFencesTheContentItIsGiven(t *testing.T) {
 		}
 	}
 }
+
+// The two kinds of prompt in one store (J-12). What the product asks its own provider carries no
+// title; what an agent may ask for describes itself, because that description is what a client
+// lists. One store, because two is how one prompt comes to exist in two versions.
+func TestOnlyThePromptsWrittenForAnAgentArePublished(t *testing.T) {
+	store, err := ai.NewStore()
+	if err != nil {
+		t.Fatalf("building the store: %v", err)
+	}
+
+	published := make(map[string]bool)
+	for _, prompt := range store.Published() {
+		published[prompt.ID] = true
+		if prompt.Description == "" {
+			t.Errorf("%s is published with no description for a client to show", prompt.ID)
+		}
+	}
+
+	if !published[ai.PromptWeeklyReview] {
+		t.Error("the weekly review is not published, and it is the one prompt written for an agent")
+	}
+	// The four the product asks its provider stay unpublished: each is written for one call site
+	// with one expected answer shape, and offering one to an agent would be offering it a tool
+	// that answers JSON nobody asked for.
+	for _, internal := range []string{"suggest-fields", "decompose", "summarize", "classify"} {
+		if published[internal] {
+			t.Errorf("%s is published, and it is this product's own instruction to its provider", internal)
+		}
+	}
+}
+
+// A published prompt declares what to send it, so that a client can ask before it calls - the same
+// discipline a use case input has.
+func TestThePublishedPromptDeclaresItsArguments(t *testing.T) {
+	store, err := ai.NewStore()
+	if err != nil {
+		t.Fatalf("building the store: %v", err)
+	}
+
+	prompt, err := store.Get(ai.PromptWeeklyReview)
+	if err != nil {
+		t.Fatalf("the weekly review is missing: %v", err)
+	}
+	if len(prompt.Arguments) != 2 {
+		t.Fatalf("the weekly review declares %d arguments", len(prompt.Arguments))
+	}
+
+	collection := prompt.Arguments[0]
+	if collection.Name != "collection" || !collection.Required {
+		t.Errorf("the first argument is %+v, want a required collection", collection)
+	}
+	// A resource argument, so the identifier becomes a link the client resolves through
+	// resources/read - which is where the permission is asked. A prompt that embedded the
+	// collection would be a prompt that read it without anybody checking.
+	if collection.Resource != "containers" {
+		t.Errorf("the collection argument addresses %q, want the container resource", collection.Resource)
+	}
+	if prompt.Arguments[1].Required {
+		t.Errorf("the focus is required, and a review without one is a general review")
+	}
+}
