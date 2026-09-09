@@ -46,7 +46,16 @@ CREATE POLICY tenant_isolation ON work_item
 ```
 
 * The application connects with the role `hubtask_app` — **without** `BYPASSRLS`, and **not** as the table owner.
-* Migrations run with the separate role `hubtask_migrator`.
+* Migrations run with the separate role `hubtask_migrator`, and that role **owns** the objects.
+  Ownership is not decoration: migration `0001` sets `ALTER DEFAULT PRIVILEGES FOR ROLE
+  hubtask_migrator`, so an installation whose migrations run under a different owner grants the
+  application nothing on the tables a later migration adds.
+* **`FORCE` binds the owner too, and exactly one table deliberately does without it.**
+  `item_capability_profile` holds the system defaults described below: readable by every tenant,
+  writable by none. `FORCE` there would bind the only role that legitimately writes them — the
+  migrator seeding them — so that table is `ENABLE` without `FORCE`
+  ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). Nothing else changes: `hubtask_app`
+  is not the owner, so the policy applies to it in full.
 * Exactly one place in the code sets the context: the transaction middleware in
   `infrastructure/postgres/Tenant.go` runs `SET LOCAL app.tenant_id = $1` and
   `SET LOCAL app.actor_id = $2` before every transaction.
@@ -68,6 +77,35 @@ CREATE POLICY tenant_isolation ON work_item
   `infrastructure/eventbus/OutboxBus.go`). The queue itself is the one table without a policy — a
   worker has to be able to claim a job before it can know whose it is — and the job names its
   tenant, so the transaction that runs it is as bounded as a request.
+
+### 2.1.1 A database the operator brings
+
+An installation may hand the application a connection string to a PostgreSQL it did not create — a
+managed service, or a cluster somebody else runs. The chart has always allowed it (`database.enabled`
+is off by default and every deployment reads its DSN from a Secret), and since
+[ADR-0052](../adr/ADR-0052-managed-postgresql-support.md) the migrations run there too, proven by a
+job rather than assumed ([support-matrix.md](./support-matrix.md) §3).
+
+What such a service does **not** give you is a superuser. Two consequences, and both are the
+operator's to arrange before the first migration:
+
+1. **Create the two roles.** `CREATE ROLE` is often refused, which `0001` catches and reports rather
+   than failing on. Create `hubtask_migrator` and `hubtask_app` with the service's own admin
+   account, and give `hubtask_app` a password the application's DSN carries.
+2. **Let `hubtask_migrator` own the database.** Not the service's admin account: the grants in
+   `0001` name that role, and defaults set for a role nobody owns objects as apply to nothing.
+
+```sql
+-- With the provider's admin account, once, before the first deploy.
+CREATE ROLE hubtask_migrator LOGIN PASSWORD '…';
+CREATE ROLE hubtask_app      LOGIN PASSWORD '…';
+CREATE DATABASE hubtask OWNER hubtask_migrator;
+```
+
+Then `HUBTASK_DB_DSN` connects as `hubtask_app`, and the migration's DSN connects as
+`hubtask_migrator`. Nothing needs `SUPERUSER` and nothing needs `BYPASSRLS`, which is the property
+the integration suite asserts on every run: it migrates a database of its own under exactly this
+arrangement and then checks that the boundary still holds.
 
 ### 2.2 Defence in depth
 
