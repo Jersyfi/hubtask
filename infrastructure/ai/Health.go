@@ -78,6 +78,6 @@ func (p Probe) Check(context.Context) health.Result {
 		Since:        since,
 		CircuitState: "open",
 		ErrorCode:    "dependency.unavailable",
-		Impact:       []string{port.Feature},
+		Impact:       []string{port.Feature, port.FeatureSemanticSearch},
 	}
 }

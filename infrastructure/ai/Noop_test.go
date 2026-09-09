@@ -126,8 +126,17 @@ func TestAnOpenBreakerDegradesSuggestionsAndNothingElse(t *testing.T) {
 	if result.Status != health.StatusDown {
 		t.Fatalf("status %q, want %q", result.Status, health.StatusDown)
 	}
-	if len(result.Impact) != 1 || result.Impact[0] != port.Feature {
-		t.Errorf("degraded features %v, want exactly [%s]", result.Impact, port.Feature)
+	// Two features from one dependency: a provider outage costs suggestions and costs search its
+	// semantic half (J-10). Naming only the first would leave a client showing a search control
+	// that quietly finds less.
+	want := []string{port.Feature, port.FeatureSemanticSearch}
+	if len(result.Impact) != len(want) {
+		t.Fatalf("degraded features %v, want exactly %v", result.Impact, want)
+	}
+	for i, feature := range want {
+		if result.Impact[i] != feature {
+			t.Errorf("degraded feature %d is %q, want %q", i, result.Impact[i], feature)
+		}
 	}
 	if result.ErrorCode != "dependency.unavailable" {
 		t.Errorf("error code %q, want dependency.unavailable", result.ErrorCode)
