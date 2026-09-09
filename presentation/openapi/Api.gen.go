@@ -1862,6 +1862,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
 	ExportJobs            QuotaStandingQuota = "export_jobs"
@@ -1873,6 +1874,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiTokensPerDay:
+		return true
 	case ApiRequestsPerMinute:
 		return true
 	case AutomationRunsPerHour:
@@ -6166,6 +6169,8 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each §4 limit, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
+	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports (J-15). Unlimited in single mode by default and a real number in multi, like every other row of multi-tenancy.md §4. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`

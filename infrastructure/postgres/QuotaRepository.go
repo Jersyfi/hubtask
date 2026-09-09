@@ -38,6 +38,7 @@ type quotasDocument struct {
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
+	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 }
 
 // Overrides answers what the transaction's tenant configured.
@@ -141,6 +142,22 @@ func (QuotaRepository) AutomationRunsSince(ctx context.Context, since time.Time)
 func (QuotaRepository) LiveExports(ctx context.Context) (int64, error) {
 	return count(ctx, "counting the live exports", func(q *sqlc.Queries) (int64, error) {
 		return q.CountLiveTenantExports(ctx)
+	})
+}
+
+// MeteredSince sums one metered thing since the instant.
+//
+// From the billing ledger, which every other count here refuses to read - the port says why: what
+// it sums has no row of its own, so the tally is not a lagging copy of something countable but the
+// only record there is. Generic in the metric, so the vocabulary stays the application layer's.
+func (QuotaRepository) MeteredSince(
+	ctx context.Context, metric string, since time.Time,
+) (int64, error) {
+	return count(ctx, "summing the metered usage", func(q *sqlc.Queries) (int64, error) {
+		return q.SumTenantUsageSince(ctx, sqlc.SumTenantUsageSinceParams{
+			Metric: metric,
+			Since:  pgtype.Date{Time: since.UTC(), Valid: true},
+		})
 	})
 }
 
