@@ -346,6 +346,12 @@ func (b *builder) neighbourhood(meaning string) {
 // against the lexical hits afterwards and narrowed by the scope and by what the actor may see, so a
 // pool the size of one page would leave the last of those three with nothing to work with. Small
 // enough that the pool is a bounded read whatever the workspace holds.
+//
+// It is a ceiling rather than a promise. An HNSW scan is bounded by `hnsw.ef_search` as well - 40 by
+// default - so a large workspace hands back the nearest few dozen rather than two hundred. That is
+// the ordinary character of an approximate index and not something to tune blind: raising it costs
+// every search time in exchange for candidates the floor below would discard anyway, and what an
+// installation with that problem actually has is a corpus to measure against.
 const semanticCandidates = `200`
 
 // semanticFloor is how far apart two texts may be and still be about the same thing.
