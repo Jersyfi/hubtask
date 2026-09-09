@@ -938,6 +938,14 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	workspaceWriter := identity.WorkspaceWriter{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Authorizer: authorizer,
+		Audit:      auditSink,
+		UnitOfWork: unitOfWork,
+		Clock:      clockadapter.System{},
+	}
+
 	identityProviderWriter := identity.IdentityProviderWriter{
 		Session:    sessionWriter,
 		Providers:  postgres.NewIdentityProviderRepository(),
@@ -1011,6 +1019,8 @@ func run() error {
 		identity.ExchangeOauthCode{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthGrants{Writer: oauthWriter}.Descriptor(),
 		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
+		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
+		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),

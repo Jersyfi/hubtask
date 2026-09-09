@@ -6575,7 +6575,7 @@ type Workspace struct {
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
 
-// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is refused rather than read as "clear it": none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
+// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
 type WorkspaceUpdate struct {
 	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
 	DefaultLocale *string `json:"default_locale,omitempty"`
@@ -7515,6 +7515,12 @@ type UpdateTemplateParams struct {
 type InstantiateTemplateParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateWorkspaceParams defines parameters for UpdateWorkspace.
+type UpdateWorkspaceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -8508,7 +8514,7 @@ type ServerInterface interface {
 	ReadWorkspace(w http.ResponseWriter, r *http.Request)
 	// UpdateWorkspace Change how the workspace is set up
 	// (PATCH /tenant)
-	UpdateWorkspace(w http.ResponseWriter, r *http.Request)
+	UpdateWorkspace(w http.ResponseWriter, r *http.Request, params UpdateWorkspaceParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -16473,8 +16479,35 @@ func (siw *ServerInterfaceWrapper) ReadWorkspace(w http.ResponseWriter, r *http.
 // UpdateWorkspace operation middleware
 func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateWorkspaceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateWorkspace(w, r)
+		siw.Handler.UpdateWorkspace(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

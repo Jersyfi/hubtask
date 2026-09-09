@@ -3245,12 +3245,14 @@ paths:
 
         The slug does not move here. It is the hostname in multi mode and the base of the OIDC
         redirect this installation registered, so renaming it is the operator's operation at
-        `/admin/tenants` rather than the workspace's; naming it is a field error rather than a
-        silent omission.
+        `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown
+        field rather than accepted and quietly ignored.
 
         Settings this version does not model are left where they are. A workspace's settings
         document outlives any one release of this client, and a partial write that rewrote it
         whole would discard what a later one put there.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
       requestBody:
         required: true
         content:
@@ -7156,9 +7158,10 @@ components:
       type: object
       description: >
         Every field optional; an omitted one is left alone, which is what merge-patch means. An
-        explicit `null` is refused rather than read as "clear it": none of these four has an
-        absent state - a workspace always has a name, a locale, a zone and an answer to the
-        enforcement question.
+        explicit `null` is read as an absent key rather than as "clear it", and nothing is lost
+        by that: none of these four has an absent state - a workspace always has a name, a
+        locale, a zone and an answer to the enforcement question - so there is nothing for a null
+        to mean here.
       properties:
         display_name:
           type: string

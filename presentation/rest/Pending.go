@@ -161,7 +161,9 @@ func (pending) ExportTenant(w http.ResponseWriter, r *http.Request, _ openapi.Ad
 // given at CreateContainer.
 func (pending) ReadWorkspace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) UpdateWorkspace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) UpdateWorkspace(w http.ResponseWriter, r *http.Request, _ openapi.UpdateWorkspaceParams) {
+	notAvailable(w, r)
+}
 
 // The quota surface of H-08, pending until each use case lands.
 func (pending) ReadQuotas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
