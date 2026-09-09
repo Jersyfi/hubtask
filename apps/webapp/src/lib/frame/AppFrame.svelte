@@ -10,6 +10,7 @@
   // `lib/data/capabilities.svelte.ts`, and a view reads what it needs through the engine.
 
   import type { Snippet } from 'svelte';
+  import { untrack } from 'svelte';
 
   import { Badge, Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
 
@@ -23,6 +24,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
   import type { Resolution } from '../router.ts';
@@ -75,15 +77,36 @@
     );
   });
 
-  const links = [
+  /**
+   * The administration area, offered only where the server says this reader reaches it.
+   *
+   * **The one place in this client where hiding beats a `CapabilityGate`.** The gate exists so
+   * that a control somebody might want carries its reason (`domain-model.md` §2); a whole area
+   * they will never hold is not a control they want, it is navigation noise on every screen.
+   *
+   * The condition is the server's own: `GET /quotas` is refused unless the caller holds
+   * `STRUCTURE` or the auditor's `READ_CONFIGURATION`, which is the area's condition exactly. A
+   * frame that worked it out from the actor's role and the role matrix would be a second
+   * implementation of an authorisation decision — and would be wrong for an auditor, who holds no
+   * `READ` and therefore cannot list the memberships that would say what role they have.
+   */
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => quotas.open());
+  });
+
+  const links = $derived([
     { path: '/', name: 'home', label: 'app.nav.home' },
     { path: '/search', name: 'search', label: 'app.nav.search' },
     { path: '/trash', name: 'trash', label: 'app.nav.trash' },
     { path: '/installation', name: 'installation', label: 'app.nav.installation' },
+    ...(quotas.isReachable === true
+      ? [{ path: '/administration', name: 'administration', label: 'app.nav.administration' }]
+      : []),
     // Reachable from every screen, because it is where somebody goes when the product is speaking
     // to them in the wrong language — which is exactly the moment a buried link is no use.
     { path: '/profile', name: 'profile', label: 'app.nav.profile' },
-  ];
+  ]);
   /**
    * The two transitions worth hearing, announced through the region that already exists.
    *
