@@ -1016,6 +1016,11 @@ func run() error {
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
 		suggestionservice.AcceptSuggestion{Cases: suggestionCases}.Descriptor(),
 		suggestionservice.DismissSuggestion{Cases: suggestionCases}.Descriptor(),
+		suggestionservice.SuggestDecomposition{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: aiResolver},
+			Queue: jobs,
+		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),

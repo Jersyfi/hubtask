@@ -3267,6 +3267,38 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:decompose:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: suggestDecomposition
+      summary: Ask AI what work sits under this entry
+      description: >
+        Asks the workspace's AI provider to propose the work packages and activities that would
+        carry one entry (J-07, `ai-first.md` §2). It **proposes** and changes nothing: the
+        breakdown is read through `GET /suggestions` and is created only when somebody accepts it,
+        one ordinary create at a time with their own rights at each destination.
+
+        Asynchronous and answered `202`, for the reason every AI call in this product is: the
+        provider is somebody else's machine. A workspace with no provider, or one that has not
+        consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and
+        nothing is queued and nothing is sent.
+
+        **Accepting a breakdown can be partial.** Each piece is its own create with its own
+        permission check, and a refusal at the third leaves the two before it standing — which is
+        the honest outcome for a person who accepted a breakdown and got most of it, rather than
+        losing all of it to one title that was too long.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: The provider will be asked; the breakdown appears under /suggestions
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /suggestions:
     get:
       tags: [suggestions]

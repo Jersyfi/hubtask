@@ -962,3 +962,10 @@ func (pending) AcceptSuggestion(w http.ResponseWriter, r *http.Request, _ openap
 func (pending) DismissSuggestion(w http.ResponseWriter, r *http.Request, _ openapi.SuggestionId) {
 	notAvailable(w, r)
 }
+
+func (pending) SuggestDecomposition(
+	w http.ResponseWriter, r *http.Request, _ openapi.ItemId,
+	_ openapi.SuggestDecompositionParams,
+) {
+	notAvailable(w, r)
+}

@@ -62,7 +62,8 @@ type Produce struct {
 // The prompt each kind is asked with, named once. A map for the reason `appliers` is one: what
 // this package can ask is exactly what it can name.
 var prompts = map[domain.Kind]string{
-	domain.KindFields: "suggest-fields",
+	domain.KindFields:        "suggest-fields",
+	domain.KindDecomposition: "decompose",
 }
 
 // Execute asks, and records what came back.
@@ -121,7 +122,7 @@ func (h Produce) Execute(
 		return err
 	}
 
-	payload, ok := fieldsFrom(answer.Text)
+	payload, ok := payloadFrom(kind, answer.Text)
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
@@ -160,12 +161,119 @@ var suggestedFields = map[string]bool{
 	"title": true, "notes": true, "due_date": true, "labels": true,
 }
 
-// fieldsFrom reads a model's answer as the fields it was asked for.
+// payloadFrom reads a model's answer in the shape its kind fixes.
+func payloadFrom(kind domain.Kind, text string) (map[string]any, bool) {
+	answered, ok := objectFrom(text)
+	if !ok {
+		return nil, false
+	}
+	switch kind {
+	case domain.KindFields:
+		return keptFields(answered), true
+	case domain.KindDecomposition:
+		return keptTree(answered)
+	default:
+		return nil, false
+	}
+}
+
+// maxProposedNodes bounds a tree. The prompt asks for eight; this is what happens when a model
+// ignores it, and it is a bound rather than a truncation - a tree cut in half is a breakdown
+// nobody proposed, where a refusal is a proposal somebody asks for again.
+const maxProposedNodes = 32
+
+// keptTree reads the tree of a DECOMPOSITION answer, node by node, keeping only what a node may
+// carry.
+//
+// Two levels and no more, which is what the item model allows underneath a task and what the
+// prompt asks for. A deeper answer is refused rather than flattened: flattening would put
+// activities where a person did not propose them.
+func keptTree(answered map[string]any) (map[string]any, bool) {
+	children, count, ok := keptChildren(answered["children"], 0)
+	if !ok || count > maxProposedNodes {
+		return nil, false
+	}
+	if len(children) == 0 {
+		// A model that found nothing to break down has answered correctly, and there is nothing
+		// to record: an empty proposal is one somebody would accept to no effect.
+		return nil, true
+	}
+	return map[string]any{"children": children}, true
+}
+
+// nodeTypes are the two an item under a task may be. `TASK` is deliberately absent: a task under a
+// task is a shape the domain refuses, and proposing one would be proposing a refusal.
+var nodeTypes = map[string]bool{"WORK_PACKAGE": true, "ACTIVITY": true}
+
+func keptChildren(value any, depth int) ([]any, int, bool) {
+	if value == nil {
+		return nil, 0, true
+	}
+	list, isList := value.([]any)
+	if !isList {
+		return nil, 0, false
+	}
+	if depth > 1 {
+		// Nothing sits under an activity.
+		return nil, 0, false
+	}
+
+	kept := make([]any, 0, len(list))
+	total := 0
+	for _, entry := range list {
+		node, isNode := entry.(map[string]any)
+		if !isNode {
+			return nil, 0, false
+		}
+		kind, _ := node["type"].(string)
+		title, _ := node["title"].(string)
+		if !nodeTypes[kind] || strings.TrimSpace(title) == "" {
+			return nil, 0, false
+		}
+
+		clean := map[string]any{"type": kind, "title": title}
+		if notes, held := node["notes"].(string); held && strings.TrimSpace(notes) != "" {
+			clean["notes"] = notes
+		}
+		grandchildren, under, ok := keptChildren(node["children"], depth+1)
+		if !ok {
+			return nil, 0, false
+		}
+		if len(grandchildren) > 0 {
+			clean["children"] = grandchildren
+		}
+		kept = append(kept, clean)
+		total += 1 + under
+	}
+	return kept, total, true
+}
+
+// keptFields reads a model's answer as the fields it was asked for.
 //
 // Tolerant of the two things every model does - a fenced code block around the JSON, and prose
 // before it - and intolerant of everything else. What it will not do is repair: a half-formed
 // answer produces no suggestion rather than a suggestion with a guess in it.
-func fieldsFrom(text string) (map[string]any, bool) {
+func keptFields(answered map[string]any) map[string]any {
+	kept := make(map[string]any, len(answered))
+	for key, value := range answered {
+		if !suggestedFields[key] {
+			continue
+		}
+		// An empty value proposes nothing and would only clutter the shape a person reads.
+		if text, isText := value.(string); isText && strings.TrimSpace(text) == "" {
+			continue
+		}
+		kept[key] = value
+	}
+	return kept
+}
+
+// objectFrom finds the JSON object in a model's answer.
+//
+// Tolerant of the two things every model does - a fenced code block around the JSON, and prose
+// before it - and intolerant of everything else. What it will not do is repair: a half-formed
+// answer produces no suggestion rather than a suggestion with a guess in it.
+func objectFrom(text string) (map[string]any, bool) {
 	trimmed := strings.TrimSpace(text)
 	if fenced := strings.Index(trimmed, "```"); fenced >= 0 {
 		rest := trimmed[fenced+3:]
@@ -186,19 +294,7 @@ func fieldsFrom(text string) (map[string]any, bool) {
 	if err := json.Unmarshal([]byte(trimmed[start:end+1]), &answered); err != nil {
 		return nil, false
 	}
-
-	kept := make(map[string]any, len(answered))
-	for key, value := range answered {
-		if !suggestedFields[key] {
-			continue
-		}
-		// An empty value proposes nothing and would only clutter the shape a person reads.
-		if text, isText := value.(string); isText && strings.TrimSpace(text) == "" {
-			continue
-		}
-		kept[key] = value
-	}
-	return kept, true
+	return answered, true
 }
 
 // IsUnavailable reports whether an error is the AI port's one refusal, so a caller can tell "the

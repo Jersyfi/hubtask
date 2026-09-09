@@ -202,6 +202,7 @@ func Descriptors() []usecase.Descriptor {
 		suggestionservice.ListSuggestions{}.Descriptor(),
 		suggestionservice.AcceptSuggestion{}.Descriptor(),
 		suggestionservice.DismissSuggestion{}.Descriptor(),
+		suggestionservice.SuggestDecomposition{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),

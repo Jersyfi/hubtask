@@ -6,6 +6,7 @@ package suggestion
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -176,7 +177,9 @@ func TestDismissingPerformsNoChange(t *testing.T) {
 func TestAnAcceptanceThisBuildDoesNotServeSaysSo(t *testing.T) {
 	cases, world := newWorld()
 	stored := proposal()
-	stored.Kind = domain.KindDecomposition
+	// Breaking a jumble entry down is a combination nothing produces and nothing applies: an entry
+	// becomes one item, and what sits under it is proposed afterwards.
+	stored.TargetType, stored.Kind = domain.TargetJumbleEntry, domain.KindDecomposition
 	world.store.proposals[proposalID] = stored
 
 	_, err := AcceptSuggestion{Cases: cases}.
@@ -332,6 +335,10 @@ type world struct {
 	title        string
 	performFails error
 	readFails    error
+	// creates counts CreateWorkItem calls; failCreateAfter refuses from the nth onwards, and -1
+	// never refuses.
+	creates         int
+	failCreateAfter int
 }
 
 type performed struct {
@@ -341,7 +348,10 @@ type performed struct {
 }
 
 func newWorld() (Cases, *world) {
-	w := &world{store: &suggestionStore{proposals: map[shared.ID]domain.Suggestion{}}, title: "Buy milk"}
+	w := &world{
+		store: &suggestionStore{proposals: map[shared.ID]domain.Suggestion{}},
+		title: "Buy milk", failCreateAfter: -1,
+	}
 	return Cases{
 		Suggestions: w.store,
 		Targets:     EntryTargets{Catalogue: w},
@@ -354,11 +364,31 @@ func (w *world) Invoke(
 	_ context.Context, name string, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	w.performed = append(w.performed, performed{name: name, actor: actor, in: in})
-	if name == "GetWorkItem" {
+	switch name {
+	case "GetWorkItem":
 		if w.readFails != nil {
 			return nil, w.readFails
 		}
 		return usecase.Output{"title": w.title, "notes": ""}, nil
+	case "ListJumbleEntries":
+		if w.readFails != nil {
+			return nil, w.readFails
+		}
+		// The same two words the work item answers, so a proposal about an entry is fresh against
+		// it and a test about the *applier* is not stopped by the fingerprint.
+		return usecase.Output{"items": []usecase.Output{{
+			"id": targetID.String(), "raw_subject": w.title, "raw_body": "",
+		}}}, nil
+	}
+	if name == "CreateWorkItem" {
+		w.creates++
+		// failCreateAfter refuses from the nth create onwards. Zero refuses the first, which is
+		// the "nothing was created at all" case; a test that wants none to fail leaves it at -1.
+		if w.failCreateAfter >= 0 && w.creates > w.failCreateAfter {
+			return nil, shared.ErrForbidden
+		}
+		return usecase.Output{"id": fmt.Sprintf(
+			"0192f000-0000-7000-8000-0000000001%02x", w.creates)}, nil
 	}
 	if w.performFails != nil {
 		return nil, w.performFails
@@ -565,8 +595,9 @@ func TestAMalformedIdentifierIsRefusedBeforeAnythingIsRead(t *testing.T) {
 func TestAnEntryTheInboxDoesNotListIsNotFound(t *testing.T) {
 	cases, _ := newWorld()
 
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
 	_, err := EntryTargets{Catalogue: cases.Catalogue}.
-		Digest(context.Background(), person(), domain.TargetJumbleEntry, targetID)
+		Digest(context.Background(), person(), domain.TargetJumbleEntry, elsewhere)
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("the answer was %v, want a not-found", err)
 	}
@@ -582,4 +613,122 @@ func TestATargetKindWithNoReaderIsNotFound(t *testing.T) {
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("the answer was %v, want a not-found", err)
 	}
+}
+
+// Accepting a breakdown is a walk: one ordinary create per node, depth first, in the order a
+// person read them - a breakdown whose pieces arrived shuffled is not the one they saw.
+func TestAcceptingABreakdownCreatesEachPieceInOrder(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = breakdown()
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var created []string
+	for _, call := range world.performed {
+		if call.name != "CreateWorkItem" {
+			continue
+		}
+		created = append(created, call.in["title"].(string))
+	}
+	want := []string{"Draft", "Outline", "Send"}
+	if len(created) != len(want) {
+		t.Fatalf("created %v, want %v", created, want)
+	}
+	for i := range want {
+		if created[i] != want[i] {
+			t.Errorf("piece %d is %q, want %q", i, created[i], want[i])
+		}
+	}
+}
+
+// The parent is the walk's, never the node's. A node naming its own parent would be a proposal
+// about one entry able to grow children under another.
+func TestABreakdownCannotChooseItsOwnParent(t *testing.T) {
+	cases, world := newWorld()
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fd")
+	stored := breakdown()
+	children := stored.Payload["children"].([]any)
+	children[0].(map[string]any)["parent_id"] = elsewhere.String()
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+	for _, call := range world.performed {
+		if call.name == "CreateWorkItem" && call.in["parent_id"] == elsewhere.String() {
+			t.Error("a node grew a child under an entry the suggestion is not about")
+		}
+	}
+}
+
+// A refusal partway through leaves what was created standing. Each piece is its own create with
+// its own permission check, and losing a whole breakdown to one title that was too long is not
+// what somebody who accepted it meant.
+func TestARefusalPartwayThroughLeavesWhatWasCreated(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = breakdown()
+	world.failCreateAfter = 2
+
+	accepted, err := AcceptSuggestion{Cases: cases}.
+		Execute(context.Background(), person(), proposalID, nil)
+	if err != nil {
+		t.Fatalf("a partial acceptance answered %v, want the two pieces that stood", err)
+	}
+	if accepted.Status != domain.StatusAccepted {
+		t.Errorf("status %q", accepted.Status)
+	}
+	if world.creates != 3 {
+		t.Errorf("%d creates attempted, want the two that worked and the one that did not",
+			world.creates)
+	}
+}
+
+// Nothing created at all is a different answer: the acceptance did nothing, so the refusal is what
+// the caller gets and the proposal is still standing.
+func TestABreakdownRefusedAtItsFirstPieceIsRefusedWhole(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = breakdown()
+	world.failCreateAfter = 0
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the answer was %v, want the create's own refusal", err)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Error("a breakdown that created nothing was marked accepted")
+	}
+}
+
+// What a person changes before accepting a breakdown applies to every piece: the collection it
+// lands in is a property of the breakdown, not of one node of it.
+func TestOverridesApplyToEveryPieceOfABreakdown(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = breakdown()
+	collection := shared.MustParseID("0192f000-0000-7000-8000-0000000000fc").String()
+
+	if _, err := (AcceptSuggestion{Cases: cases}).Execute(context.Background(), person(),
+		proposalID, map[string]any{"collection_id": collection}); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+	for _, call := range world.performed {
+		if call.name == "CreateWorkItem" && call.in["collection_id"] != collection {
+			t.Errorf("a piece landed in %v", call.in["collection_id"])
+		}
+	}
+}
+
+func breakdown() domain.Suggestion {
+	stored := proposal()
+	stored.Kind = domain.KindDecomposition
+	stored.Payload = map[string]any{"children": []any{
+		map[string]any{"type": "WORK_PACKAGE", "title": "Draft", "children": []any{
+			map[string]any{"type": "ACTIVITY", "title": "Outline"},
+		}},
+		map[string]any{"type": "ACTIVITY", "title": "Send"},
+	}}
+	return stored
 }
