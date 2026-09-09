@@ -65,10 +65,18 @@ export const DECLARED = {
     'eye-off',
     'sun',
     'moon',
-    // The third state of the website's colour-mode control: follow the device. `sun` and `moon`
-    // are the two choices, and "whatever the system says" is neither of them - a control that
-    // reused one of the two would be a control whose icon lies in half its states (ADR-0043).
-    'monitor',
+    // The three faces of the website's colour-mode control, which is one glyph showing the mode it
+    // is in. `sun-moon` is the third state rather than a screen: "follow the device" is neither
+    // light nor dark, and a control that reused one of the other two would lie in half its states
+    // (ADR-0043). It is also the only one of the three that says *why* - a crescent inside a
+    // sun's rays is "whichever of these the system asks for".
+    //
+    // `moon-star` rather than `moon` for the dark face, and `sun` keeps its eight separate rays:
+    // both are chosen for their parts. The website animates the rays and the star individually on
+    // a change of mode, which a single-path glyph cannot do. `moon` stays declared because
+    // `moon-star` is not its replacement anywhere else.
+    'sun-moon',
+    'moon-star',
   ],
   'Domain nouns Lucide already says well': [
     'calendar', // a due date

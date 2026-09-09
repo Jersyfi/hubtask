@@ -81,3 +81,53 @@ test('no semantic token is neutralised that the design system does not declare',
     assert.ok(SEMANTIC.has(name), `${name} is neutralised in src/site.css but is not a semantic token`);
   }
 });
+
+// ── The shapes the colour-mode animation is written against ──────────────────
+//
+// The three faces animate their own parts: the sun's eight rays come out of its disc in turn, the
+// moon's two star strokes twinkle in after the crescent, and the hybrid's rays follow its body.
+// Those rules select by element type and by `nth-child`, which means they are written against the
+// *shape* of three icons in a generated file.
+//
+// Lucide could reorder or reshape any of them in an upgrade. Nothing would break - the glyph would
+// still draw - but a ray would animate as though it were a star, and nobody would notice for
+// months. So the shapes are asserted here: an upgrade that changes one fails this test, and the
+// stylesheet is corrected in the same change rather than found later.
+
+import { BASE_ICONS } from '../../../packages/design-system/src/icons/base.ts';
+
+/** The tag sequence of an icon, which is what an `nth-child` rule actually depends on. */
+const shapeOf = (name) => (BASE_ICONS[name] ?? []).map(([tag]) => tag);
+
+test('the sun is a disc and eight separate rays, in that order', () => {
+  const shape = shapeOf('sun');
+  assert.equal(shape[0], 'circle', 'site.css styles the sun disc as `svg circle`');
+  assert.deepEqual(
+    shape.slice(1),
+    Array(8).fill('path'),
+    'site.css staggers the sun rays as `path:nth-child(2)` through `(9)` - the count or the tags have changed',
+  );
+});
+
+test('the moon carries its two star strokes before the crescent', () => {
+  const shape = shapeOf('moon-star');
+  assert.deepEqual(shape, ['path', 'path', 'path'], 'moon-star is expected to be three paths');
+  const [first, second, crescent] = BASE_ICONS['moon-star'].map(([, a]) => a.d ?? '');
+  assert.ok(
+    first.length < crescent.length && second.length < crescent.length,
+    'site.css twinkles `path:nth-child(1)` and `(2)` as the star and leaves the crescent alone; '
+      + 'the crescent is no longer the third and longest path',
+  );
+});
+
+test('the hybrid keeps a ray in the first, fourth and fifth position', () => {
+  const shape = shapeOf('sun-moon');
+  assert.equal(shape.length, 5, 'site.css delays `path:nth-child(4)` and `(5)` of sun-moon');
+  assert.deepEqual(shape, Array(5).fill('path'), 'sun-moon is expected to be five paths');
+});
+
+test('every glyph the control paints is in the icon set', () => {
+  for (const name of ['sun', 'moon-star', 'sun-moon']) {
+    assert.ok(BASE_ICONS[name], `+layout.svelte paints <Icon name="${name}"> and the set has no such mark`);
+  }
+});

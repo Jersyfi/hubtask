@@ -257,49 +257,33 @@ body {
   border-block-end-color: var(--accent-signature);
 }
 
-/* The colour-mode control: three radios, no script, and the only movement on the site.
+/* The colour-mode control: one glyph, three faces, and no script.
 
-   Icons rather than words, and three targets rather than one that cycles - the reasoning is in
-   +layout.svelte, and it comes down to a cycle having a click that changes nothing. The inputs are
-   clipped rather than hidden, so they keep their place in the accessibility tree and their own
-   keyboard behaviour; the labels are what is painted.
+   The faces are stacked in a single grid cell. The one whose state is current is opaque and takes
+   the pointer; the other two are transparent, unclickable, and parked at a turn away from centre,
+   so a change of mode is one glyph leaving and the next arriving rather than a swap.
 
-   Rule 6 holds: the thumb moves in `transform` and the glyphs turn in `transform`, nothing
-   animates a length, and the reduced-motion rule at the top of this file switches both off. */
-.modes {
+   Everything below moves in `opacity` and `transform` only - rule 6 - and every one of them is a
+   transition rather than a keyframe animation. That is deliberate: a transition has nothing to run
+   from on first paint, so the control is still on load and moves only when somebody presses it.
+
+   The parts inside each glyph are addressable because the icons were chosen for it: `sun` is a
+   disc plus eight separate ray paths, `moon-star` is a crescent plus two star strokes, and
+   `sun-moon` is a crescent inside a sun's rays. build/check-theme.test.js asserts those shapes, so
+   an upstream reordering of the icon set fails a test rather than quietly animating the wrong
+   stroke. */
+.theme {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: var(--sp-025);
-  border: var(--bw-hairline) solid var(--border-subtle);
+  place-items: center;
+  inline-size: var(--sp-500);
+  block-size: var(--sp-500);
   border-radius: var(--r-full);
-  background: var(--bg-surface-sunken);
 }
 
-/* The thumb is one third of the inner width, so `translateX(100%)` lands it exactly on the next
-   cell - no second place where the number three is written down. */
-.modes-thumb {
-  position: absolute;
-  inset-block: var(--sp-025);
-  inset-inline-start: var(--sp-025);
-  inline-size: calc((100% - 2 * var(--sp-025)) / 3);
-  border-radius: var(--r-full);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-raised);
-  transition: transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
-}
-
-.modes:has(#mode-light:checked) .modes-thumb {
-  transform: translateX(100%);
-}
-
-.modes:has(#mode-dark:checked) .modes-thumb {
-  transform: translateX(200%);
-}
-
-/* On top and transparent, never `display: none`: the input is what the keyboard and the
-   accessibility tree see. The same construction Checkbox.svelte uses, for the same reason. */
-.modes input {
+/* On top and transparent, never `display: none`: the inputs are what the keyboard and the
+   accessibility tree see, and hiding them would remove both. The same construction as Checkbox. */
+.theme input {
   position: absolute;
   inset: 0;
   inline-size: 100%;
@@ -309,57 +293,178 @@ body {
   pointer-events: none;
 }
 
-.modes label {
+.theme-face {
+  grid-area: 1 / 1;
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  /* Clears the target-size floor WCAG 2.2 SC 2.5.8 sets, in both densities. */
-  min-block-size: var(--sp-400);
-  padding-inline: var(--sp-250);
+  display: grid;
+  place-items: center;
+  inline-size: var(--sp-500);
+  block-size: var(--sp-500);
   border-radius: var(--r-full);
   color: var(--text-subtle);
   cursor: pointer;
-  transition: color var(--motion-state-duration) var(--motion-state-easing);
+  /* Parked: turned away and small, waiting its turn. */
+  opacity: 0;
+  transform: rotate(70deg) scale(0.4);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-exit-duration) var(--motion-exit-easing),
+    transform var(--motion-exit-duration) var(--motion-exit-easing);
 }
 
-.modes label:hover {
+/* The face whose state is current: upright, opaque, and the only one that can be pressed. It
+   arrives on the spring easing, which is what gives the swap its small overshoot. */
+.theme:has(#mode-auto:checked) [data-face='auto'],
+.theme:has(#mode-light:checked) [data-face='light'],
+.theme:has(#mode-dark:checked) [data-face='dark'] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-emphasis-duration) var(--motion-emphasis-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme-face:hover {
   color: var(--text-primary);
 }
 
-.modes input:checked + label {
-  color: var(--text-primary);
+/* The glow. A halo behind the glyph rather than a filter on it, because a filter is neither
+   opacity nor transform - and because a real halo in the mode's own colour says which mode it is
+   about: ember for the sun, blue for the moon. */
+.theme-halo {
+  position: absolute;
+  inset: calc(-1 * var(--sp-100));
+  border-radius: var(--r-full);
+  opacity: 0;
+  transition: opacity var(--motion-state-duration) var(--motion-state-easing);
 }
 
-/* The one place the signature colour marks a state rather than a section. */
-.modes input#mode-light:checked + label,
-.modes input#mode-dark:checked + label {
-  color: var(--accent-signature);
+[data-face='light'] .theme-halo,
+[data-face='auto'] .theme-halo {
+  background: radial-gradient(circle at 50% 50%, var(--ambient-signature), transparent 70%);
 }
 
-.modes input:focus-visible + label {
-  outline: var(--bw-ring) solid var(--focus-ring);
-  outline-offset: var(--bw-ring);
+[data-face='dark'] .theme-halo {
+  background: radial-gradient(circle at 50% 50%, var(--ambient-primary), transparent 70%);
 }
 
-/* The micro-animation. Each glyph rests turned away and comes upright when its state is chosen,
-   so the change of mode is something the eye follows rather than something it finds. Nothing
-   moves on load: the chosen glyph is already upright, and a transition has nothing to run from. */
-.mode-glyph {
+.theme-face:hover .theme-halo,
+.theme:has(input:focus-visible) .theme-face .theme-halo {
+  opacity: 1;
+}
+
+.theme-glyph {
   display: inline-flex;
   transition: transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
 }
 
-.modes input:not(:checked) + label .mode-glyph {
-  transform: scale(0.86);
+/* Rule 5. The ring goes on the painted face, because the input it belongs to is invisible. */
+.theme:has(input:focus-visible) .theme-face {
+  outline: var(--bw-ring) solid var(--focus-ring);
+  outline-offset: var(--bw-ring);
 }
 
-.modes input:not(:checked) + label .mode-glyph[data-glyph='light'] {
-  transform: rotate(-75deg) scale(0.86);
+/* ── The parts, moving one at a time ──────────────────────────────────────────
+
+   Each glyph's own pieces are parked with the face and settle when it becomes current. The
+   staggered delays are what turn "the icon appears" into "the rays come out" and "the star
+   twinkles after the moon has arrived". `transform-box: view-box` puts every origin at the centre
+   of the 24-unit grid, so a ray scales out of the sun rather than out of itself. */
+.theme-face svg * {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transition:
+    opacity var(--motion-exit-duration) var(--motion-exit-easing),
+    transform var(--motion-exit-duration) var(--motion-exit-easing);
 }
 
-.modes input:not(:checked) + label .mode-glyph[data-glyph='dark'] {
-  transform: rotate(40deg) scale(0.86);
+/* The sun: the disc is there first, the eight rays come out of it in turn. */
+[data-face='light'] svg path {
+  opacity: 0;
+  transform: scale(0.15);
+}
+
+[data-face='light'] svg circle {
+  transform: scale(0.55);
+}
+
+.theme:has(#mode-light:checked) [data-face='light'] svg path,
+.theme:has(#mode-light:checked) [data-face='light'] svg circle {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-entrance-duration) var(--motion-entrance-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(2) { transition-delay: var(--dur-fast); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(3) { transition-delay: calc(var(--dur-fast) * 1.2); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(4) { transition-delay: calc(var(--dur-fast) * 1.4); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(5) { transition-delay: calc(var(--dur-fast) * 1.6); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(6) { transition-delay: calc(var(--dur-fast) * 1.8); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(7) { transition-delay: calc(var(--dur-fast) * 2); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(8) { transition-delay: calc(var(--dur-fast) * 2.2); }
+.theme:has(#mode-light:checked) [data-face='light'] svg path:nth-child(9) { transition-delay: calc(var(--dur-fast) * 2.4); }
+
+/* Hover: the rays turn a little, the way a light source does when you look at it directly. */
+[data-face='light']:hover .theme-glyph {
+  transform: rotate(25deg);
+}
+
+/* The moon: the crescent (the long third path) arrives, and the two star strokes twinkle in
+   after it. */
+[data-face='dark'] svg path:nth-child(1),
+[data-face='dark'] svg path:nth-child(2) {
+  opacity: 0;
+  transform: scale(0.2) rotate(-45deg);
+}
+
+[data-face='dark'] svg path:nth-child(3) {
+  transform: rotate(-25deg);
+}
+
+.theme:has(#mode-dark:checked) [data-face='dark'] svg path {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-entrance-duration) var(--motion-entrance-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme:has(#mode-dark:checked) [data-face='dark'] svg path:nth-child(1) { transition-delay: calc(var(--dur-fast) * 1.6); }
+.theme:has(#mode-dark:checked) [data-face='dark'] svg path:nth-child(2) { transition-delay: calc(var(--dur-fast) * 2); }
+
+/* Hover: the star grows, which is the only thing on a crescent that can twinkle. */
+[data-face='dark']:hover svg path:nth-child(1),
+[data-face='dark']:hover svg path:nth-child(2) {
+  transform: scale(1.25);
+}
+
+/* Auto: the hybrid turns in as one piece, and its three ray strokes follow. Its meaning is "one
+   of the other two", so it moves like both and commits to neither. */
+[data-face='auto'] svg path:nth-child(1),
+[data-face='auto'] svg path:nth-child(4),
+[data-face='auto'] svg path:nth-child(5) {
+  opacity: 0;
+  transform: scale(0.2);
+}
+
+.theme:has(#mode-auto:checked) [data-face='auto'] svg path {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-entrance-duration) var(--motion-entrance-easing),
+    transform var(--motion-emphasis-duration) var(--motion-emphasis-easing);
+}
+
+.theme:has(#mode-auto:checked) [data-face='auto'] svg path:nth-child(4) { transition-delay: var(--dur-fast); }
+.theme:has(#mode-auto:checked) [data-face='auto'] svg path:nth-child(5) { transition-delay: calc(var(--dur-fast) * 1.4); }
+
+/* Hover: it rocks between its two halves rather than turning, because it is the state that has
+   not chosen. */
+[data-face='auto']:hover .theme-glyph {
+  transform: rotate(-15deg);
 }
 
 /* ── Type ─────────────────────────────────────────────────────────────────── */

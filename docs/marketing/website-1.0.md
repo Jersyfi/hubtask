@@ -45,6 +45,14 @@ The brief asked for recognition value from the design system. `tokens.json` give
 spacing; it does not by itself give a *look*. Four mechanisms do, and they repeat on every page so
 that a screenshot of any one of them is identifiably Hubtask.
 
+**0 · The colour-mode glyph.** Not a brand mechanism as such, but the one piece of the site that
+moves, and the first thing a returning visitor touches. One glyph shows the mode; pressing it
+advances to the next. Its three faces were picked for their parts — `sun` is a disc plus eight
+separate rays, `moon-star` a crescent plus two star strokes, `sun-moon` a crescent inside a sun —
+so a change of mode is rays coming out or a star twinkling in after the moon, rather than one
+picture swapping for another. Hovering lights a halo in that mode's own colour: ember behind the
+sun, blue behind the moon.
+
 **1 · The mark.** Three nested planes, the innermost in the signature bordeaux — the sketch that
 lives in the workbench's `Foundations/Tokens` story. It is in the masthead, in the footer, and it is
 the favicon. See § 6: it is still the placeholder, not a finished wordmark.
@@ -101,7 +109,7 @@ only overlays blur and a brochure has none.
 | **No JavaScript at all** | `csr = false`, everything prerendered; `build/check-static.js` fails the build on a `<script>`, a `<style>` element, a `style` attribute or an inline handler | The product's pitch is that your data stays yours. A site with a tracker on it would lose the argument in the first second |
 | **No value outside `tokens.json`** | The design system's own lint runs over this app | One origin, and the site cannot drift from the product |
 | **Light and dark, and a manual switch** | The document is `data-theme="dark"`, the body carries `data-theme="light"`, and `src/site.css` neutralises the light set unless the reader or their system asks for it. Three radio buttons, no script | Verified in all six combinations of system preference and reader choice |
-| **The switch is icons, and all three are visible** | `monitor`, `sun`, `moon` from the icon set; a thumb slides between them and each glyph turns upright when its state is chosen | A cycling button has a dead click here — see § 6.8. Three targets have none, and cost one press from any state to any other |
+| **The colour mode is one glyph that cycles** | `sun-moon`, `sun` and `moon-star`; the three faces are stacked and only the current one is opaque and clickable, and its `for` names the *next* radio | Chosen by the owner over a three-target control. § 6.7 records what that costs and what pays for it |
 | **A guard for that construction** | `build/check-theme.test.js` fails when the stylesheet reads a semantic token either colour-mode block forgets | The one way the construction could rot, closed. It has been seen to fail |
 | **Fluid, with no width breakpoint** | Every measure is a token or a `ch`; the type scales with `clamp()` | A media query cannot read a custom property, so the alternative would have been literals |
 | **Verified** | No horizontal overflow and no over-long measure at 320, 375, 768, 1024 and 1440; one `h1` per page; every page has a title and a description | Measured, not eyeballed |
@@ -185,16 +193,24 @@ permanent without the condition `licensing-editions.md` §5 attaches to it.
 6. **`200+` or the exact number.** The registry holds 211 registered descriptors today. The site
    rounds down, so the claim stays true as the number moves. Publishing the exact figure would be
    more impressive once and wrong later.
-7. **Why the colour-mode control is not a cycling button.** It was considered, and it loses on one
-   concrete failure rather than on a guideline. With three states the cycle has a press that changes
-   nothing: from `Auto` on a light system the next state is `Light`, the page does not move, and the
-   reader has to press again to reach what they wanted. Reordering the cycle moves that dead press
-   to the dark system rather than removing it. Three visible targets have none, cost one press
-   between any two states, show the options instead of hiding them, and keep a real radio group for
-   the keyboard. The movement a cycle would have carried is still there — in the thumb that slides
-   and the glyph that turns into place. If the compact single-glyph look is wanted anyway, it is a
-   contained change to `+layout.svelte` and the `.modes` rules, and this paragraph is the trade
-   being accepted.
+7. **The colour-mode control cycles, and here is what that costs.** A three-target segmented
+   control was built first and the owner chose the single cycling glyph instead. The trade is worth
+   having written down rather than rediscovered.
+
+   *What it costs.* Three states render as two appearances — on a dark system `Auto` and `Dark` look
+   identical — so exactly one press in three does not change the page, and no ordering of the cycle
+   avoids that. Reaching a named mode takes up to two presses, and the two modes you are not in are
+   not visible.
+
+   *What pays for it.* The glyph itself is the feedback: it changes, and it changes with enough
+   movement that the press is legible even when the canvas is not. That is why the animation is
+   load-bearing here rather than decorative, and why it was worth the three icons chosen for their
+   parts. The keyboard path is unaffected — `aria-label` on each input keeps a plain three-option
+   radio group, so assistive technology and the arrow keys still reach any mode directly, and never
+   see the cycle at all.
+
+   *If it should be reverted*, the segmented control is in the branch's history at commit
+   `2eec183`.
 8. **How much roadmap to show.** The `/roadmap/` page currently shows every milestone including the
    1.0 prerequisites. That is unusually candid for a product site and is, in this positioning, an
    asset — but it is a decision, and it is the page most likely to need trimming.
