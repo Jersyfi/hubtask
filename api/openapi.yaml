@@ -3204,6 +3204,69 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /tenant:
+    get:
+      tags: [meta]
+      operationId: readWorkspace
+      summary: The workspace the caller is in, and how it is set up
+      description: >
+        The workspace's own view of itself: the slug it is reached by, its display name, its
+        standing, the locale and time zone every member without a preference of their own falls
+        back to (i18n-l10n.md §2), and the settings it configures - today the one switch that
+        demands a second factor of its administrators.
+
+        Needs `READ`, or the auditor's read-only configuration permission: how a workspace is set
+        up is configuration, and an auditor reads configuration without holding `READ`.
+
+        This is not `/admin/tenants`. That listing is the installation operator's and crosses
+        workspaces; this answers one workspace to the people inside it, and answers no other.
+      responses:
+        "200":
+          description: The workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [meta]
+      operationId: updateWorkspace
+      summary: Change how the workspace is set up
+      description: >
+        Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs
+        the permission that manages structure. Auditable, with the before and the after of every
+        field that moved.
+
+        `require_admin_totp` is the field with a consequence beyond its own row: switching it on
+        makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not
+        enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is
+        recorded like the security decision it is.
+
+        The slug does not move here. It is the hostname in multi mode and the base of the OIDC
+        redirect this installation registered, so renaming it is the operator's operation at
+        `/admin/tenants` rather than the workspace's; naming it is a field error rather than a
+        silent omission.
+
+        Settings this version does not model are left where they are. A workspace's settings
+        document outlives any one release of this client, and a partial write that rewrote it
+        whole would discard what a later one put there.
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceUpdate"
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /identity-provider:
     get:
       tags: [auth]
@@ -7044,6 +7107,71 @@ components:
         needs the operator's confirmation in the installation's configuration; the adequacy
         decision or the standard contractual clauses, and the transfer impact assessment, remain
         the operator's obligation (data-protection.md §6).
+
+    Workspace:
+      type: object
+      description: >
+        A workspace as the people inside it see it. `AdminTenant` is the same row as the
+        installation operator sees it, across workspaces; this one is answered to a member and
+        carries what a member may act on.
+      required:
+        [id, slug, display_name, status, default_locale, default_time_zone,
+         require_admin_totp, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        slug:
+          type: string
+          description: >
+            The subdomain label the workspace is reached by in multi mode. Read-only here - see
+            the note on the `PATCH`.
+        display_name: { type: string }
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, PENDING_DELETION]
+          description: >
+            The workspace's standing. A suspended one refuses every request before a use case is
+            reached, so a member reading this field is reading it from an installation that let
+            them in.
+        default_locale:
+          type: string
+          description: >
+            The locale a member without one of their own falls back to - the third link of the
+            chain request, account, tenant, installation (i18n-l10n.md §2).
+        default_time_zone:
+          type: string
+          description: An IANA zone, for the same position in the same chain.
+        require_admin_totp:
+          type: boolean
+          description: >
+            Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role
+            holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0`
+            and, until this operation, was writable by nothing.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version:
+          type: integer
+          description: The optimistic lock, as everywhere else.
+
+    WorkspaceUpdate:
+      type: object
+      description: >
+        Every field optional; an omitted one is left alone, which is what merge-patch means. An
+        explicit `null` is refused rather than read as "clear it": none of these four has an
+        absent state - a workspace always has a name, a locale, a zone and an answer to the
+        enforcement question.
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        default_locale:
+          type: string
+          description: A BCP-47 tag. One this installation cannot resolve is a field error.
+        default_time_zone:
+          type: string
+          description: An IANA zone. One that does not load is a field error.
+        require_admin_totp:
+          type: boolean
 
     IdentityProvider:
       type: object
