@@ -9,10 +9,10 @@ import { browserStorage, tokenStore } from './tokenStore.ts';
  * here is a best-effort cache, never the offline guarantee, which belongs to the shells
  * (ADR-0031).
  *
- * The token lives in `sessionStorage`, and `tokenStore.ts` carries the reasoning: it survives a
- * reload, which F1-11 requires, and dies with the tab, which is all this target promises. A shell
- * holds its token in the platform keystore instead, and this is the only file that has to change
- * for that (ADR-0031).
+ * The session pair lives in `sessionStorage`, and `tokenStore.ts` carries the reasoning: it
+ * survives a reload, which F1-11 requires, and dies with the tab, which is all this target
+ * promises. A shell holds its pair in the platform keystore instead, and this is the only file
+ * that has to change for that (ADR-0031).
  */
 const store = tokenStore(browserStorage());
 
@@ -23,7 +23,9 @@ export const platform: Platform = {
   // and "a credential that is empty", and only one of those is ever true.
   bearer: () => store.read(),
 
-  holdBearer: (token) => store.write(token),
+  refreshToken: () => store.readRefresh(),
+
+  holdSession: (pair) => store.write(pair),
 
   releaseBearer: () => store.clear(),
 

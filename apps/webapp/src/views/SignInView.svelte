@@ -1,38 +1,45 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The screen that says what it is rather than pretending.
+  // The sign-in H-01 made possible: an email and a password.
   //
-  // There is no login route in `api/openapi.yaml` and no session endpoint: one security scheme, a
-  // bearer. So this asks for the token `hubctl` already uses, says where to get one, and says in
-  // one sentence that signing in with an account arrives with the OIDC connection in `0.6.0` -
-  // which is the milestone that replaces this file.
+  // **One refusal, and this screen adds nothing to it.** A wrong password and an address nobody
+  // holds produce the same answer, byte for byte, because whether an account exists is exactly
+  // what a guessing client is trying to learn (`security.md` T-02). So there is no "unknown
+  // address" state here, no per-field error from the server, and no hint about which half was
+  // wrong. The only field errors are this screen's own: a box left empty.
   //
-  // The token is treated as a secret: a password field with autocomplete off, never in a URL
-  // (`preventDefault` before anything else, so no native GET can carry it), never in a log, and
-  // never written into a message. The only thing that reads it back is the engine, per request,
-  // through the platform seam.
+  // **A `202` is not a failure.** It means the password was right and a second factor is owed.
+  // F4-04 builds the code screen; until then the message says what is owed rather than pretending
+  // the sign-in failed.
+  //
+  // The password is treated as a secret: a password field, `preventDefault` before anything else
+  // so no native GET can carry it in a URL, never logged, never written into a message.
 
   import { Banner, Button, Input, Stack } from '@hubtask/design-system/components';
 
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
 
-  let token = $state('');
-  let missing = $state(false);
+  let email = $state('');
+  let password = $state('');
+  let missingEmail = $state(false);
+  let missingPassword = $state(false);
 
   const isBusy = $derived(session.status === 'verifying');
+  const owed = $derived(session.secondFactorOwed);
 
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const value = token.trim();
-    missing = value === '';
-    if (missing) return;
+    const address = email.trim();
+    missingEmail = address === '';
+    missingPassword = password === '';
+    if (missingEmail || missingPassword) return;
 
-    if (await session.signIn(value)) {
-      // Out of the field and out of the component's state the moment it is no longer needed.
-      token = '';
-    }
+    await session.signIn(address, password);
+    // Out of the component's state whatever happened. A password kept for a retry is a password
+    // sitting in memory for as long as the tab is open.
+    password = '';
   }
 </script>
 
@@ -40,11 +47,14 @@
   <Stack gap="300">
     <h1>{t('app.sign_in.title')}</h1>
 
-    <Banner tone="info">{t('app.sign_in.temporary')}</Banner>
-
-    {#if session.problem}
-      <!-- The server's sentence for it - `errors.unauthenticated` for a token it refused - rather
-           than a status code shown raw. -->
+    {#if owed}
+      <!-- The password was right. What is missing is the second step, and the enrolment and code
+           screens arrive with F4-04. -->
+      <Banner tone="info" title={t('app.sign_in.second_factor')}>
+        {t('app.sign_in.second_factor_pending')}
+      </Banner>
+    {:else if session.problem}
+      <!-- The server's one sentence for a refused sign-in, rather than a status code shown raw. -->
       <Banner tone="danger" title={session.problem.message}>
         {#if session.problem.reference}{session.problem.reference}{/if}
       </Banner>
@@ -53,12 +63,20 @@
     <form onsubmit={submit}>
       <Stack gap="200">
         <Input
-          label={t('app.sign_in.token_label')}
-          hint={t('app.sign_in.token_hint')}
-          error={missing ? t('app.sign_in.token_required') : undefined}
-          bind:value={token}
+          label={t('app.sign_in.email_label')}
+          error={missingEmail ? t('app.sign_in.email_required') : undefined}
+          bind:value={email}
+          type="email"
+          autocomplete="username"
+          spellcheck={false}
+          isRequired
+        />
+        <Input
+          label={t('app.sign_in.password_label')}
+          error={missingPassword ? t('app.sign_in.password_required') : undefined}
+          bind:value={password}
           type="password"
-          autocomplete="off"
+          autocomplete="current-password"
           spellcheck={false}
           isRequired
         />

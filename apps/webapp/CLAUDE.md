@@ -74,17 +74,25 @@ from the same commit and cannot be a version apart.
   [ADR-0035](../../docs/adr/ADR-0035-one-product-version.md) §2, which is what the banner reads and
   what convergence changes by changing one line. The language is applied in exactly one place, the
   frame, for the reason the theme is: an attribute two modules set is an attribute nobody owns.
-* **The session is a token, it is temporary, and `0.6.0` is what replaces it.**
-  `api/openapi.yaml` declares one security scheme — a bearer that may be an OIDC access token, an
-  `hbt_pat_…` or a service account token — and no login route, no session endpoint, no redirect
-  flow. So `lib/session.svelte.ts` asks for a token, verifies it by reading `GET /accounts/me` with
-  it, and hands it to `platform.holdBearer`; `lib/platform/tokenStore.ts` keeps it in
-  `sessionStorage`, which survives a reload and dies with the tab. **Do not check the token's
-  shape**: `security.md`'s pattern describes one of the three credentials that scheme accepts, and
-  a client enforcing it would refuse the other two. **The token is a secret**: never in a URL,
-  never in a log, never written into a message, never in the DOM beyond the password field that
-  accepts it. Sign-out calls `engine.reset()` as well as `releaseBearer()` — `offline-sync.md` §9.6
-  applies from the first day there is anything to discard. A `401` from any request ends the
+* **The session is a bearer pair, and the browser holds it for as long as the tab.**
+  `POST /auth/sessions` answers an access token of fifteen minutes beside a refresh token of thirty
+  days (H-01), and every route in the contract takes the first as its bearer — including the one
+  the OIDC callback answers. There is **no cookie session** in this contract, so the pair goes
+  where F1's token went: `lib/platform/tokenStore.ts` keeps both in `sessionStorage`, which
+  survives a reload and dies with the tab. The refresh token's thirty days are deliberately not
+  used; what it buys this client is rotation, not longevity.
+  **The exchange lives in one place.** `lib/data/engine.ts` holds the transport and performs
+  `POST /auth/sessions:refresh` when the seam reports a refused request; the seam retries that
+  request once and gives up on a second refusal. Never write a refresh into a store: presenting a
+  retired refresh token is theft as far as the server is concerned and costs the whole family
+  (`security.md` §5), so two exchanges at once would sign somebody out for being fast.
+  **Do not check a credential's shape**: `security.md`'s pattern describes one of the three the
+  security scheme accepts, and a client enforcing it would refuse the other two. **A credential is
+  a secret**: never in a URL, never in a log, never written into a message, never in the DOM beyond
+  the field that accepts it — and the invitation token, which arrives in a fragment, is replaced in
+  the history entry before the first request leaves. Sign-out ends the session at the server and
+  then calls `engine.reset()` as well as `releaseBearer()` — `offline-sync.md` §9.6 applies from
+  the first day there is anything to discard. A `401` the exchange could not answer ends the
   session through the engine's one hook, remembering the path first.
 * **A failure becomes a sentence in `lib/problem.ts`, never in a component.** A `TransportError`
   carries the whole problem document (ADR-0025); that module chooses between `code` and the more

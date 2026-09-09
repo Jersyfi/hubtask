@@ -22,6 +22,7 @@
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
+  import RedeemView from './views/RedeemView.svelte';
   import SignInView from './views/SignInView.svelte';
 
   // A hub and a collection each have their own path, so a deep link to either survives a reload —
@@ -30,6 +31,10 @@
   // which they are looking at.
   const router = new Router([
     { name: 'home', pattern: '/' },
+    // The address the invitation mail links to (`DeliverNotification.go`). It has fallen through
+    // `presentation/webui` to `index.html` and resolved to nothing since H-01 shipped the mail;
+    // this is the screen it was always pointing at.
+    { name: 'redeem', pattern: '/redeem' },
     { name: 'installation', pattern: '/installation' },
     // ADR-0032's profile area, declared now rather than reclassified later: the mobile shell ships
     // this area in full and excludes administration, and a route that carried no area would be one
@@ -84,7 +89,11 @@
   <!-- Nothing here is usable without a credential, and the token screen is what asks for one. The
        route is left alone while it is shown, so that the address the reader arrived at is still
        the address they land on afterwards. -->
-  {#if !session.isSignedIn}
+  {#if !session.isSignedIn && route.name === 'redeem'}
+    <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
+         asking them for one would be asking for the thing this screen exists to set. -->
+    <RedeemView />
+  {:else if !session.isSignedIn}
     <SignInView />
   {:else if route.name === 'home'}
     <HomeView />

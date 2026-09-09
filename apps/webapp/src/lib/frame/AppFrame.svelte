@@ -126,7 +126,7 @@
           {#if actor.account}
             <span class="who">{t('app.signed_in_as', { name: actor.account.display_name })}</span>
           {/if}
-          <Button size="sm" tone="subtle" icon="log-out" onclick={() => session.signOut()}>
+          <Button size="sm" tone="subtle" icon="log-out" onclick={() => void session.signOut()}>
             {t('app.sign_out')}
           </Button>
         </Inline>

@@ -46,9 +46,12 @@
     localesOf,
     preferenceFor,
   } from '../lib/data/preferences.ts';
+  import { sessions } from '../lib/data/sessions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { session } from '../lib/session.svelte.ts';
 
   const account = $derived(actor.account);
   const accountId = $derived(account?.id);
@@ -58,6 +61,10 @@
     if (!wanted) return;
     return untrack(() => preferences.open(wanted));
   });
+
+  // The sessions are the account's own and take no parameter, so the read starts with the screen
+  // rather than with an identifier arriving.
+  $effect(() => untrack(() => sessions.open()));
 
   const locales = $derived(localesOf(manifest.value));
   const zones = $derived(knownZones());
@@ -105,6 +112,43 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  const held = $derived(sessions.state);
+
+  /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
+  function when(at: string): string {
+    return formatDateTime(at, messages.locale);
+  }
+
+  /**
+   * Ends one session.
+   *
+   * Ending the current one is a sign-out and is treated as one: the list would otherwise be
+   * re-read with a credential that has just stopped working, and the reader would meet a refusal
+   * instead of the sign-in screen.
+   */
+  async function endOne(id: string, isCurrent: boolean): Promise<void> {
+    failure = undefined;
+    try {
+      await sessions.end(id);
+      if (isCurrent) await session.signOut();
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    }
+  }
+
+  /** Ends every session, this one last by consequence rather than by order. */
+  async function endEverywhere(): Promise<void> {
+    failure = undefined;
+    try {
+      await sessions.endAll();
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    }
+    // Whatever the server managed, this tab is holding a credential it has been told to stop
+    // trusting. Discarding it is not conditional on the call having succeeded.
+    await session.signOut();
   }
 
   async function setRow(category: string, channel: string, next: { enabled?: boolean; include_title?: boolean }) {
@@ -183,6 +227,65 @@
           {t('app.profile.save')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.sessions.title')}</h2>
+      <p class="quiet">{t('app.sessions.intro')}</p>
+
+      {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
+        <div aria-busy="true"><Skeleton lines={2} /></div>
+      {:else if held.status === 'failed'}
+        <ErrorState
+          title={renderProblem(held.error, messages).message}
+          retryLabel={t('app.retry')}
+          onRetry={() => sessions.open()}
+        />
+      {:else if sessions.all.length === 0}
+        <p class="quiet">{t('app.sessions.none')}</p>
+      {:else}
+        <ul class="rows">
+          {#each sessions.all as held (held.id)}
+            <li>
+              <div class="row">
+                <div>
+                  <span class="category">
+                    {held.user_agent || t('app.sessions.unknown_client')}
+                    {#if held.current} · {t('app.sessions.this_device')}{/if}
+                  </span>
+                  <span class="meta">
+                    {t('app.sessions.created')} {when(held.created_at)}
+                    {#if held.last_used_at}
+                      · {t('app.sessions.last_used')} {when(held.last_used_at)}
+                    {:else}
+                      · {t('app.sessions.never_used')}
+                    {/if}
+                    {#if held.ip_class} · {held.ip_class}{/if}
+                  </span>
+                </div>
+                <div class="switches">
+                  <Button
+                    tone="danger"
+                    size="sm"
+                    onclick={() => void endOne(held.id, held.current)}
+                  >
+                    {held.current ? t('app.sessions.end_this') : t('app.sessions.end')}
+                  </Button>
+                </div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+
+        <div>
+          <!-- Said before it is pressed, because it ends this session too: a control whose
+               consequence is "you are about to be signed out" has to say so where the finger is. -->
+          <p class="quiet">{t('app.sign_out.everywhere_warning')}</p>
+          <Button tone="danger" onclick={() => void endEverywhere()}>
+            {t('app.sign_out.everywhere')}
+          </Button>
+        </div>
+      {/if}
     </Stack>
 
     <Stack gap="150">
