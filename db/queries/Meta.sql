@@ -35,3 +35,11 @@ ORDER BY type;
 -- application would answer for an installation that has one configuration fewer, and a client's
 -- language picker would then offer a language that is silently indexed word by word.
 SELECT l.tag::text FROM hubtask_text_languages() AS l(tag, configuration);
+
+-- name: SemanticSearchAvailable :one
+-- Whether this installation can search by meaning (J-09, ADR-0050).
+--
+-- The *table's* existence rather than the extension's, and the difference matters: an installation
+-- where somebody installed pgvector after the migrations ran has the extension and no store, which
+-- is not a working semantic search. One question, asked of the object the search actually reads.
+SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available;

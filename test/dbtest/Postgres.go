@@ -72,7 +72,10 @@ func postgresImage() string {
 	if image := os.Getenv("HUBTASK_TEST_POSTGRES_IMAGE"); image != "" {
 		return image
 	}
-	return "postgres:16-alpine"
+	// pgvector rather than plain postgres: a gate that never runs the semantic half is a gate that
+	// cannot make support-matrix.md §1's claim (ADR-0050). The absence path has its own test, which
+	// overrides this.
+	return "pgvector/pgvector:pg16"
 }
 
 func startDatabase() (Database, error) {

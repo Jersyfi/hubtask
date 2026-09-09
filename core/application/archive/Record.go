@@ -534,8 +534,14 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// proposal about text that no longer says what it said - and it ages out in thirty days in the
 	// live system for that same reason.
 	"ai_suggestion": "a proposal about a state of an entry, which a restore has already replaced; the entry's own history carries what was accepted",
-	"sync_device":   "a device registration carries a push token, and §8.4's reasoning covers it",
-	"jumble_intake": "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
+	// Derived, and derived from something the archive does carry (J-09). An embedding is a
+	// function of an entry's title and notes under one model; restoring vectors would restore
+	// them under whatever model produced them, into an installation that may run another - and
+	// vectors from two models are not comparable, which is the one failure the store exists to
+	// avoid. The entries come back and the embedding job re-derives them.
+	"item_embedding": "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
+	"sync_device":    "a device registration carries a push token, and §8.4's reasoning covers it",
+	"jumble_intake":  "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
 	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",

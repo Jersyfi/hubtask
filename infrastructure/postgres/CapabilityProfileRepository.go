@@ -116,3 +116,28 @@ func (r TextLanguageRepository) List(ctx context.Context) ([]string, error) {
 	}
 	return tags, nil
 }
+
+// SemanticSearchRepository answers whether this installation can search by meaning (J-09).
+//
+// Beside the text languages and for the same reason: both are reads of what this installation *is*.
+type SemanticSearchRepository struct{}
+
+func NewSemanticSearchRepository() SemanticSearchRepository { return SemanticSearchRepository{} }
+
+var _ repository.SemanticSearch = SemanticSearchRepository{}
+
+// Available reports whether the embedding store exists.
+func (r SemanticSearchRepository) Available(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	available, err := queries.SemanticSearchAvailable(ctx)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether semantic search is available: %w", err))
+	}
+	return available, nil
+}

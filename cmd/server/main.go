@@ -1596,6 +1596,7 @@ func run() error {
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:   profiles,
 			Languages:  postgres.NewTextLanguageRepository(),
+			Semantic:   postgres.NewSemanticSearchRepository(),
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 		}

@@ -111,8 +111,13 @@ func roleMatrix() []RoleDescription {
 // The item types come from the database, never from a constant here: a tenant may narrow a
 // profile, and a copy in code would answer the default while the database answered the override.
 type GetCapabilities struct {
-	Profiles   repository.CapabilityProfiles
-	Languages  repository.TextLanguages
+	Profiles  repository.CapabilityProfiles
+	Languages repository.TextLanguages
+	// Semantic answers whether this installation can search by meaning (J-09, ADR-0050). Optional:
+	// a build wired without it answers `false`, which is the honest reading of "nothing here says
+	// otherwise" and the safe direction - a client offers one control fewer rather than one that
+	// will always refuse.
+	Semantic   repository.SemanticSearch
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 }
@@ -133,6 +138,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 	var (
 		profiles  []work.CapabilityProfile
 		languages []string
+		semantic  bool
 	)
 	err := g.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		var err error
@@ -142,7 +148,13 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		// In the same transaction as the profiles, because it is the same question asked of the
 		// same installation - and because a second one would be a second round trip for a manifest
 		// a client reads before it has signed in.
-		languages, err = g.Languages.List(ctx)
+		if languages, err = g.Languages.List(ctx); err != nil {
+			return err
+		}
+		if g.Semantic == nil {
+			return nil
+		}
+		semantic, err = g.Semantic.Available(ctx)
 		return err
 	})
 	if err != nil {
@@ -201,6 +213,12 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// this installation serves one tenant - there the owner is the operator - and the
 			// operator's switch otherwise (backup-restore.md §2).
 			"backup_targets": g.Config.Tenancy != env.TenancyMulti || g.Config.Backup.TenantTargets,
+			// Whether this installation can search by meaning (J-09, ADR-0050). Read from the
+			// database rather than from configuration, for the reason the text languages are: the
+			// answer is what this PostgreSQL carries, and pgvector is detected rather than
+			// demanded. An installation without it searches lexically, which is complete - so this
+			// is a manifest entry and not a warning.
+			"semantic_search": semantic,
 		},
 	}, nil
 }

@@ -133,3 +133,19 @@ func (q *Queries) ListTextLanguages(ctx context.Context) ([]string, error) {
 	}
 	return items, nil
 }
+
+const semanticSearchAvailable = `-- name: SemanticSearchAvailable :one
+SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available
+`
+
+// Whether this installation can search by meaning (J-09, ADR-0050).
+//
+// The *table's* existence rather than the extension's, and the difference matters: an installation
+// where somebody installed pgvector after the migrations ran has the extension and no store, which
+// is not a working semantic search. One question, asked of the object the search actually reads.
+func (q *Queries) SemanticSearchAvailable(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, semanticSearchAvailable)
+	var available bool
+	err := row.Scan(&available)
+	return available, err
+}
