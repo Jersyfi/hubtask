@@ -192,7 +192,7 @@ func Search(
 	b.write(` AS rank FROM work_item wi JOIN container c ON c.id = wi.collection_id`)
 	b.meaningJoin(meaning)
 	b.write(` WHERE `)
-	b.searchPredicates(search)
+	b.searchPredicates(search, meaning)
 
 	if !boundary.IsZero() {
 		b.write(` AND (`)
@@ -273,7 +273,7 @@ func (b *builder) meaningJoin(meaning string) {
 
 // searchPredicates writes what the search matches: the scope, the lifecycle, the narrowing, and the
 // match itself.
-func (b *builder) searchPredicates(search repository.TextSearch) {
+func (b *builder) searchPredicates(search repository.TextSearch, meaning string) {
 	b.scope(search.Anchor)
 	b.restriction(search.RestrictTo)
 	b.lifecycle(view.Spec{
@@ -298,8 +298,64 @@ func (b *builder) searchPredicates(search repository.TextSearch) {
 		b.write(` OR `, searchText, ` ILIKE `)
 		b.likePattern(search.Request.Words)
 	}
+	b.neighbourhood(meaning)
 	b.write(`)`)
 }
+
+// neighbourhood is the branch that makes the search find an entry sharing no word with the query.
+//
+// Without it the semantic half would only ever *reorder* what the words already found, which is not
+// what somebody describing a task they cannot name is asking for. With it, an entry is a hit when
+// it is among the nearest by meaning **and** near enough - and both halves of that are necessary:
+//
+//   - Nearest-k alone would return everything in a small workspace, because in a workspace of nine
+//     entries all nine are among the nearest. A search would then answer the whole collection for
+//     any query, which is worse than finding nothing.
+//   - A distance threshold alone cannot use the HNSW index: pgvector answers `ORDER BY … LIMIT`
+//     from the index and a comparison in a WHERE by scanning. So the threshold is applied *outside*
+//     a subquery that is ordered and limited, which is the shape pgvector's own documentation gives
+//     for a filtered nearest-neighbour search.
+//
+// The candidates are the nearest in the **workspace**, and the scope narrows them afterwards rather
+// than inside the subquery. That is a real limitation and worth naming: an anchored search into one
+// collection can miss an entry in it, if the workspace holds a whole page of entries nearer to the
+// query elsewhere. The alternative is to join `work_item` inside the subquery, which makes the
+// scope exact and takes the HNSW index away - the planner then computes a distance for every entry
+// the scope allows. The default search is unanchored, so the case this gives up is the narrower
+// one; and it gives up finding *more*, never correctness, because everything it returns is still
+// narrowed by the scope and by row level security outside.
+//
+// The set is the same on every page of one walk, which is what keeps the keyset cursor stepping
+// through one stable ordering.
+//
+// The subquery names no tenant, like every other statement in this package: row level security
+// bounds it (ADR-0010).
+func (b *builder) neighbourhood(meaning string) {
+	if meaning == "" {
+		return
+	}
+	b.write(` OR wi.id IN (SELECT n.item_id FROM (SELECT item_id, embedding <=> `)
+	b.param(meaning)
+	b.write(`::vector AS distance FROM item_embedding ORDER BY distance LIMIT `, semanticCandidates)
+	b.write(`) n WHERE n.distance < `, semanticFloor, `)`)
+}
+
+// semanticCandidates bounds how many entries the semantic branch may propose.
+//
+// Larger than any page, because the branch proposes candidates rather than results: they are ranked
+// against the lexical hits afterwards and narrowed by the scope and by what the actor may see, so a
+// pool the size of one page would leave the last of those three with nothing to work with. Small
+// enough that the pool is a bounded read whatever the workspace holds.
+const semanticCandidates = `200`
+
+// semanticFloor is how far apart two texts may be and still be about the same thing.
+//
+// A cosine distance, so 0 is the same direction and 1 is unrelated; 0.35 is a similarity of 0.65.
+// Deliberately strict: the lexical half is complete on its own, so a query that finds nothing by
+// meaning has lost nothing, while an entry returned because it is vaguely adjacent is a wrong
+// answer somebody has to read. It is a constant rather than a setting for the reason the weight is:
+// a knob here is a knob whose effect nobody can describe without the corpus in front of them.
+const semanticFloor = `0.35`
 
 // languageQuery parses the words under the searcher's configuration, and simpleQuery under the one
 // an entry that stated no language was indexed with. Both bind their values; neither writes any
