@@ -22,6 +22,8 @@
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
+  import IdentityProviderView from './views/IdentityProviderView.svelte';
+  import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import SignInView from './views/SignInView.svelte';
 
@@ -35,11 +37,24 @@
     // `presentation/webui` to `index.html` and resolved to nothing since H-01 shipped the mail;
     // this is the screen it was always pointing at.
     { name: 'redeem', pattern: '/redeem' },
+    // The redirect URI `cmd/server/main.go` derives and registers with the provider. The address
+    // is the server's rather than this table's choice: nothing about where an authorization code
+    // comes back may be taken from a request (H-04), so the path is fixed and this is the entry
+    // that has been missing under it since the flow shipped.
+    { name: 'oidc-callback', pattern: '/auth/callback' },
     { name: 'installation', pattern: '/installation' },
     // ADR-0032's profile area, declared now rather than reclassified later: the mobile shell ships
     // this area in full and excludes administration, and a route that carried no area would be one
     // somebody has to classify by reading it.
     { name: 'profile', pattern: '/profile', area: 'profile' },
+    // ADR-0032's administration area. The navigation that reaches it, and the gating of the area
+    // as a whole, arrive with F4-08; the tag is here from the day the route is, so that the area's
+    // own test finds it already classified rather than having to classify it.
+    {
+      name: 'identity-provider',
+      pattern: '/administration/identity-provider',
+      area: 'administration',
+    },
     // No parameter, and that is the point: `/search` is a `POST` because a search term is content
     // and a query string travels through access logs, proxies and browser history. A route that
     // carried the term would undo that in the address bar (security.md §9, ADR-0018).
@@ -89,7 +104,12 @@
   <!-- Nothing here is usable without a credential, and the token screen is what asks for one. The
        route is left alone while it is shown, so that the address the reader arrived at is still
        the address they land on afterwards. -->
-  {#if !session.isSignedIn && route.name === 'redeem'}
+  {#if route.name === 'oidc-callback'}
+    <!-- Before both, and without asking whether there is a session: this address is reached by a
+         provider's redirect into a fresh document, and the screen's own business is finishing that
+         exchange. It sends the reader on once there is a session. -->
+    <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+  {:else if !session.isSignedIn && route.name === 'redeem'}
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
     <RedeemView />
@@ -101,6 +121,8 @@
     <InstallationView />
   {:else if route.name === 'profile'}
     <ProfileView />
+  {:else if route.name === 'identity-provider'}
+    <IdentityProviderView />
   {:else if route.name === 'search'}
     <SearchView />
   {:else if route.name === 'trash'}

@@ -22,6 +22,7 @@
   import { Banner, Button, Input, Stack } from '@hubtask/design-system/components';
 
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
+  import { oidc } from '../lib/data/oidc.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
 
@@ -50,6 +51,25 @@
     recoveryCode = '';
   }
 
+  /**
+   * Hands the browser to the workspace's provider (H-04).
+   *
+   * **The button is always here, and the server decides whether it works.** Whether a provider is
+   * configured sits behind a permission a signed-out visitor does not hold, so this screen cannot
+   * ask — and a second unauthenticated endpoint that existed only to hide a button would be a new
+   * thing to attack for the sake of a nicer screen. The refusal is a clear code and it is rendered.
+   *
+   * The address goes with it as a `login_hint` where one has been typed, so somebody does not type
+   * it twice. It decides nothing: which account signs in is the ID token's `sub` and only that.
+   */
+  async function useProvider(): Promise<void> {
+    const url = await oidc.begin(email);
+    // Leaving this origin entirely, so nothing after this line runs. `assign` rather than
+    // `replace`: Back should return to the sign-in screen, which is where somebody who changed
+    // their mind at the provider wants to be.
+    if (url) location.assign(url);
+  }
+
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const address = email.trim();
@@ -74,6 +94,11 @@
       <Banner tone="info" title={t('app.sign_in.second_factor')}>
         {mustEnroll ? t('app.sign_in.must_enrol') : t('app.sign_in.second_factor_hint')}
       </Banner>
+    {:else if oidc.failure}
+      <!-- No provider configured, one switched off, or discovery unreachable: the server's own
+           code, and the password form below is untouched — which is exactly the degradation
+           `observability-reliability.md` §7 promises. -->
+      <Banner tone="danger">{t(oidc.failure)}</Banner>
     {:else if session.problem}
       <!-- The server's one sentence for a refused sign-in, rather than a status code shown raw. -->
       <Banner tone="danger" title={session.problem.message}>
@@ -145,9 +170,19 @@
           spellcheck={false}
           isRequired
         />
-        <div>
+        <div class="row">
           <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
             {t('app.sign_in.submit')}
+          </Button>
+          <!-- Beside the password rather than instead of it. Local accounts keep signing in when
+               a provider cannot be reached, and they only do that if this form is still here. -->
+          <Button
+            tone="subtle"
+            isBusy={oidc.isWorking}
+            busyLabel={t('app.sign_in.provider_working')}
+            onclick={() => void useProvider()}
+          >
+            {t('app.sign_in.provider')}
           </Button>
         </div>
       </Stack>
