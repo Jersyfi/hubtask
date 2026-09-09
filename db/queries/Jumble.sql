@@ -14,7 +14,9 @@ INSERT INTO jumble_entry (
 );
 
 -- name: FindJumbleEntry :one
-SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
+-- tenant_id for ListJumbleEntries' reason, said in full there: the projection carries it because
+-- the events a settlement announces are built from the projection.
+SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE id = sqlc.arg('id');
@@ -23,7 +25,12 @@ WHERE id = sqlc.arg('id');
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the arrival order.
 -- The two filters are nullable arguments rather than four statements, for the run log's reason: a
 -- second statement differing in one predicate is a second place for a predicate to be forgotten.
-SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
+-- tenant_id is selected although row level security has already bounded the statement to one, and
+-- that is not redundancy: the projection carries it, and the *events* a settlement announces are
+-- built from the projection. Without it every conversion refused as `events.envelope_incomplete` -
+-- an entry with no tenant cannot be the subject of an event - which meant converting a jumble entry
+-- never worked at all, through a rule or through the API (found by J-16's end-to-end session).
+SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)

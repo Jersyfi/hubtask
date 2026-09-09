@@ -68,7 +68,7 @@ func (q *Queries) DeleteExpiredJumbleEntries(ctx context.Context, arg DeleteExpi
 }
 
 const findJumbleEntry = `-- name: FindJumbleEntry :one
-SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
+SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE id = $1
@@ -76,6 +76,7 @@ WHERE id = $1
 
 type FindJumbleEntryRow struct {
 	ID           pgtype.UUID
+	TenantID     pgtype.UUID
 	Channel      string
 	Sender       *string
 	RawSubject   *string
@@ -87,11 +88,14 @@ type FindJumbleEntryRow struct {
 	ProcessedAt  pgtype.Timestamptz
 }
 
+// tenant_id for ListJumbleEntries' reason, said in full there: the projection carries it because
+// the events a settlement announces are built from the projection.
 func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumbleEntryRow, error) {
 	row := q.db.QueryRow(ctx, findJumbleEntry, id)
 	var i FindJumbleEntryRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Channel,
 		&i.Sender,
 		&i.RawSubject,
@@ -182,7 +186,7 @@ func (q *Queries) InsertJumbleEntry(ctx context.Context, arg InsertJumbleEntryPa
 }
 
 const listJumbleEntries = `-- name: ListJumbleEntries :many
-SELECT id, channel, sender, raw_subject, raw_body, attachments, status,
+SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
        target_item_id, received_at, processed_at
 FROM jumble_entry
 WHERE ($1::text IS NULL OR status = $1::text)
@@ -201,6 +205,7 @@ type ListJumbleEntriesParams struct {
 
 type ListJumbleEntriesRow struct {
 	ID           pgtype.UUID
+	TenantID     pgtype.UUID
 	Channel      string
 	Sender       *string
 	RawSubject   *string
@@ -215,6 +220,11 @@ type ListJumbleEntriesRow struct {
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the arrival order.
 // The two filters are nullable arguments rather than four statements, for the run log's reason: a
 // second statement differing in one predicate is a second place for a predicate to be forgotten.
+// tenant_id is selected although row level security has already bounded the statement to one, and
+// that is not redundancy: the projection carries it, and the *events* a settlement announces are
+// built from the projection. Without it every conversion refused as `events.envelope_incomplete` -
+// an entry with no tenant cannot be the subject of an event - which meant converting a jumble entry
+// never worked at all, through a rule or through the API (found by J-16's end-to-end session).
 func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesParams) ([]ListJumbleEntriesRow, error) {
 	rows, err := q.db.Query(ctx, listJumbleEntries,
 		arg.Status,
@@ -231,6 +241,7 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 		var i ListJumbleEntriesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.Channel,
 			&i.Sender,
 			&i.RawSubject,
