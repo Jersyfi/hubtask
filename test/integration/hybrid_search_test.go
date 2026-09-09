@@ -287,6 +287,68 @@ func TestTheSemanticHalfNeverCrossesTheTenantBoundary(t *testing.T) {
 	}
 }
 
+// Two collections and one reader. The semantic branch is an `OR` inside the match, so the scope and
+// the narrowing stay `AND`s outside it - but that is exactly the kind of thing a parenthesis in the
+// wrong place undoes silently, and what it would undo is an entry from a collection the reader
+// cannot open appearing in their search because a vector said it was relevant.
+func TestTheSemanticBranchIsStillBoundedByWhatTheReaderMaySee(t *testing.T) {
+	ctx := context.Background()
+	f := newHybridFixture(ctx, t)
+
+	// Anchored at the collection but restricted to the one entry that carries the word, which is
+	// what the use case passes when somebody holds no role on the collection and one entry inside
+	// it is shared with them individually.
+	restricted := hybridSearch(f, meaningOf(f.subject))
+	restricted.RestrictTo = []shared.ID{f.named}
+
+	titles := found(ctx, t, tenantA, restricted)
+	if len(titles) != 1 || !strings.Contains(titles[0], f.word) {
+		t.Errorf("the restricted search found %v, want only the entry it was restricted to", titles)
+	}
+
+	// And the collection next door: an entry that is the query's meaning exactly, in a collection
+	// the search is not anchored to.
+	beside := collectionBeside(ctx, t, tenantA, authorA, hubOf(ctx, t, f.collection))
+	hidden := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		task := taskIn(tenantA, authorA, beside, hidden, "Zwiebelkuchen anderswo", "a0")
+		task.ContentLanguage = "de"
+		if err := itemRepo().Insert(ctx, task); err != nil {
+			return err
+		}
+		return postgres.NewEmbeddingRepository().Store(ctx, repository.StoredEmbedding{
+			ItemID: hidden, Model: "test-embed-1", Vector: meaningOf(f.subject),
+			SourceDigest: suggestion.Digest(task.Title, ""), UpdatedAt: time.Now().UTC(),
+		})
+	}); err != nil {
+		t.Fatalf("seeding the collection next door: %v", err)
+	}
+
+	page := searched(ctx, t, tenantA, hybridSearch(f, meaningOf(f.subject)))
+	for _, hit := range page.Hits {
+		if hit.Item.ID == hidden {
+			t.Error("an entry outside the searched collection came back because a vector matched")
+		}
+	}
+}
+
+// hubOf answers the hub a collection sits under, so that a second collection can be made beside it.
+func hubOf(ctx context.Context, t *testing.T, collection shared.ID) shared.ID {
+	t.Helper()
+	var hub shared.ID
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, err := containerRepo().Find(ctx, collection)
+		if err != nil {
+			return err
+		}
+		hub = found.ParentID
+		return nil
+	}); err != nil {
+		t.Fatalf("reading the collection's hub: %v", err)
+	}
+	return hub
+}
+
 // What the pass reads: the entries whose vector is missing or made from text that has since moved.
 // An entry that was embedded and has not changed is not owed one - which is what makes the job
 // converge rather than embed the same batch for ever - and an entry whose title moves is owed one
