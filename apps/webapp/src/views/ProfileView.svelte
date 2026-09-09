@@ -46,8 +46,10 @@
     localesOf,
     preferenceFor,
   } from '../lib/data/preferences.ts';
+  import { mfa } from '../lib/data/mfa.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -115,6 +117,22 @@
   }
 
   const held = $derived(sessions.state);
+
+  let disablePassword = $state('');
+  let mfaNotice = $state<string | undefined>(undefined);
+
+  /**
+   * Takes the second factor off, with the password afresh.
+   *
+   * The one case where being signed in is not enough: a stolen session removing the factor is
+   * exactly the attack the factor exists against (`security.md` §5).
+   */
+  async function disableFactor(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const password = disablePassword;
+    disablePassword = '';
+    if (await mfa.disable(password)) mfaNotice = t('app.mfa.disabled');
+  }
 
   /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
   function when(at: string): string {
@@ -227,6 +245,46 @@
           {t('app.profile.save')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.mfa.title')}</h2>
+      <!-- Whether one is armed is not something this client is told: no read answers it, and
+           inferring it from a sign-in that did not ask for a code would be inferring from an
+           absence. So the panel offers enrolment, and the server refuses one that is already
+           armed — in its own words, which is the honest answer rather than a guess. -->
+      <TotpEnrollment onarmed={() => (mfaNotice = t('app.mfa.armed'))} />
+
+      {#if mfaNotice}<p class="quiet">{mfaNotice}</p>{/if}
+
+      <details>
+        <summary>{t('app.mfa.disable')}</summary>
+        <Stack gap="150">
+          <p class="quiet">{t('app.mfa.disable_hint')}</p>
+          <form onsubmit={disableFactor}>
+            <Stack gap="150">
+              <Input
+                label={t('app.step_up.password_label')}
+                bind:value={disablePassword}
+                type="password"
+                autocomplete="current-password"
+                spellcheck={false}
+                isRequired
+              />
+              <div>
+                <Button
+                  type="submit"
+                  tone="danger"
+                  isBusy={mfa.isWorking}
+                  busyLabel={t('app.mfa.disabling')}
+                >
+                  {t('app.mfa.disable')}
+                </Button>
+              </div>
+            </Stack>
+          </form>
+        </Stack>
+      </details>
     </Stack>
 
     <Stack gap="150">

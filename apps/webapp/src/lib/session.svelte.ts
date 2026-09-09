@@ -31,6 +31,7 @@ import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
 
 const SESSIONS = '/auth/sessions';
+const VERIFY = '/auth/sessions:verify';
 const REDEEM = '/auth/invitations:redeem';
 
 export type SessionStatus = 'signed-out' | 'verifying' | 'signed-in';
@@ -44,9 +45,12 @@ interface SessionTokens {
 /**
  * The second step a two-step sign-in owes (H-02), as the `202` carries it.
  *
- * F4-03 does not complete one — the enrolment and the code screens are F4-04's — so what this
- * module does with it is hold it and say so. The alternative would be rendering the `202` as a
- * failure, which is the one thing it is not: the password was right.
+ * The pending credential is deliberately **not** a member of this: it can do nothing but complete
+ * this sign-in, and it is held privately by the module that presents it rather than handed to a
+ * screen. What a screen needs is which methods to offer.
+ *
+ * `ENROLL` is the third method and it is not a code to type: it is an administrator a tenant
+ * switch routed into enrolment instead of into a session, and the screen sends them there.
  */
 export interface SecondFactorOwed {
   readonly methods: readonly string[];
@@ -62,6 +66,13 @@ class Session {
   #problem = $state<RenderedProblem | undefined>(undefined);
   #intended = $state<string | undefined>(undefined);
   #owed = $state<SecondFactorOwed | undefined>(undefined);
+  /**
+   * The pending credential, held here and nowhere a screen can reach it.
+   *
+   * Not `$state`: nothing renders it, and a credential in reactive state is a credential a
+   * component can bind to by accident.
+   */
+  #pending: string | undefined;
   /** A refusal *during* a sign-in is the answer to the credential, not the loss of a session. */
   #signingIn = false;
 
@@ -102,6 +113,44 @@ class Session {
   }
 
   /**
+   * Presents the second factor: a code from the authenticator, or one of the ten recovery codes.
+   *
+   * The pending credential is this module's, so a screen sends the answer and nothing else. A
+   * refusal leaves the credential in place, because a wrong code is a retry and not the end of
+   * the sign-in — until the credential's own few minutes run out, which the server enforces.
+   */
+  async completeSecondFactor(answer: { code?: string; recoveryCode?: string }): Promise<boolean> {
+    const pending = this.#pending;
+    if (pending === undefined) return false;
+    return this.#open(() =>
+      engine.mutate<SessionTokens>('POST', VERIFY, {
+        pending_token: pending,
+        ...(answer.code ? { code: answer.code } : {}),
+        ...(answer.recoveryCode ? { recovery_code: answer.recoveryCode } : {}),
+      }),
+      { keepPending: true },
+    );
+  }
+
+  /**
+   * The pending credential, for the one caller entitled to it: the enrolment an enforcement
+   * sign-in routes into. It is presented to `:enroll` and `:confirm` and travels nowhere else.
+   */
+  get pendingCredential(): string | undefined {
+    return this.#pending;
+  }
+
+  /** What a completed enforcement enrolment hands back: the pair, and a session with it. */
+  hold(pair: { access: string; refresh: string }): void {
+    engine.reset();
+    platform.holdSession(pair);
+    this.#pending = undefined;
+    this.#owed = undefined;
+    this.#problem = undefined;
+    this.#status = 'signed-in';
+  }
+
+  /**
    * Redeems an invitation: the token from the mail, and the first password.
    *
    * It answers the same pair a sign-in answers, because the person has just proved control of the
@@ -117,9 +166,15 @@ class Session {
    * `engine.reset()` before the pair is held, not after: whatever the last session read is not
    * this session's to show, and a cache that survived a sign-in would show it to the wrong person.
    */
-  async #open(attempt: () => Promise<SessionTokens | SecondFactorAnswer>): Promise<boolean> {
+  async #open(
+    attempt: () => Promise<SessionTokens | SecondFactorAnswer>,
+    options: { keepPending?: boolean } = {},
+  ): Promise<boolean> {
     this.#problem = undefined;
-    this.#owed = undefined;
+    if (!options.keepPending) {
+      this.#owed = undefined;
+      this.#pending = undefined;
+    }
     this.#status = 'verifying';
     this.#signingIn = true;
 
@@ -127,12 +182,15 @@ class Session {
       const answer = await attempt();
       if (isSecondFactorOwed(answer)) {
         this.#owed = { methods: answer.methods };
+        this.#pending = answer.pending_token;
         this.#status = 'signed-out';
         return false;
       }
 
       engine.reset();
       platform.holdSession({ access: answer.access_token, refresh: answer.refresh_token });
+      this.#pending = undefined;
+      this.#owed = undefined;
       this.#status = 'signed-in';
       return true;
     } catch (error) {
@@ -163,6 +221,7 @@ class Session {
     this.#problem = undefined;
     this.#intended = undefined;
     this.#owed = undefined;
+    this.#pending = undefined;
     try {
       // Which session is this one is the server's answer rather than something the client keeps:
       // the pair survives a reload and a `session_id` beside it would be a third thing to store

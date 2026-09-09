@@ -14,6 +14,7 @@
   import { Badge, Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
+  import StepUpPrompt from './StepUpPrompt.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
 
   import { announcer } from '../announce.svelte.ts';
@@ -180,6 +181,10 @@
       {@render children()}
     </main>
   </div>
+
+  <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
+       the prompt belongs to the frame rather than to whichever screen made the request (H-03). -->
+  <StepUpPrompt />
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a
        screen reader watches both and reads whichever changed, in an order nobody chose. It is here
