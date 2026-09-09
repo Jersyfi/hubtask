@@ -8,11 +8,13 @@
 // global `.row` in this file still matches the element underneath. So a generic name here silently
 // restyles a component's internals.
 //
-// It is not a hypothetical. The site styled a feature row with block padding and a bottom border,
-// and `Checkbox`, `ListRow`, `Radio`, `SideNav`, `DueDateControl` and `ReminderEditor` each have an
-// internal `.row` - so every checkbox in the two product specimens was inflated to three times its
-// height and given a rule under it. The illustration of the product stopped looking like the
-// product, and nothing failed.
+// It is not a hypothetical. When the site last rendered product components, it styled a feature row
+// with block padding and a bottom border - and `Checkbox`, `ListRow`, `Radio`, `SideNav`,
+// `DueDateControl` and `ReminderEditor` each have an internal `.row`, so every checkbox in that
+// surface was inflated to three times its height and given a rule under it. It stopped looking like
+// the product, and nothing failed. The check stays while the site renders any component at all -
+// the masthead's colour-mode control renders `Icon` - and it is what makes the surface safe to
+// rebuild later.
 //
 // The check runs from both directions, because either side can cause it: a generic name added
 // here, or a new component that happens to use one of ours.

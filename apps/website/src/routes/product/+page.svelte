@@ -3,7 +3,6 @@
 <script lang="ts">
   import Levels from '$lib/Levels.svelte';
   import Proof from '$lib/Proof.svelte';
-  import Specimen from '$lib/Specimen.svelte';
 
   const docs = 'https://github.com/Jersyfi/hubtask/blob/main/docs';
 </script>
@@ -120,8 +119,6 @@
         </p>
       </div>
     </div>
-
-    <Specimen name="product" />
 
     <div class="two-up section-gap">
       <div>

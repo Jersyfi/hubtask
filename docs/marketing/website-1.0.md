@@ -77,30 +77,14 @@ decision record or the CI gate behind it. Forty-seven of them across the site. T
 argument made structural — see [`market-analysis.md`](./market-analysis.md) § 4.1 — and it is the
 thing no competitor's homepage carries.
 
-**5 · The product, drawn with the product.** Two specimens — a collection in the list layout on `/`
-and on `/product/`, and the same collection as a board on `/product/` — are built from the real
-`ListRow`, `Checkbox`, `Icon`, `LabelChip`, `BucketColumn` and `WorkItemCard`, and from the domain
-marks in the icon set. Not a screenshot: a screenshot goes stale the day a token moves, and this
-cannot. It is the same argument the proof chip makes, made visually — the marketing page is
-literally built out of the thing it is selling.
-
-They are not pictures any more, and that is the point: the controls are real. An entry ticks off
-and strikes through, the work package collapses, and the layout switch moves the same collection
-between its list and its board — native HTML plus `:has()`, still no script. The earlier version was
-`inert` on the argument that a brochure must not hand somebody a checkbox which does nothing; making
-the checkbox actually work answers that objection better than hiding it did.
-
-Two consequences worth knowing. The specimen can only use components that render their whole selves
-from markup — `ViewSwitcher`, `Menu`, `Tabs` and `Dialog` choose through a handler, so the layout
-switcher is the site's own, from the same tokens and the same shape. And dragging a card between
-buckets is not possible at all: see § 6.8.
-
-One component is missing from that list and the reason is worth recording: **`TaskRow` cannot be
-used here.** It writes `style:--depth`, which server rendering emits as a `style` attribute, and
-`check-static.js` fails the build on one. In `apps/webapp` the same directive is a CSSOM write that
-no policy objects to, so this is a portability limit rather than a defect in the application — but
-it does mean the list specimen composes its own row and carries the indent as `data-depth`, the way
-wave 0 settled on.
+**5 · The product, drawn with the product — deferred.** The site currently shows no product
+interface at all, and that is a known gap rather than an oversight: a specimen of a collection in
+its list and board layouts was built from the real `ListRow`, `Checkbox`, `LabelChip`,
+`BucketColumn` and `WorkItemCard`, and was taken out again to be added deliberately later. What it
+proved is worth keeping for whoever rebuilds it: the components render and behave from markup and
+`:has()` alone, so ticking an entry off, collapsing a work package and switching layout all work
+with no script — and a screenshot would have gone stale the day a token moved, where this could
+not. What it cannot do is drag, and § 6.8 is the decision that blocks it.
 
 Underneath those: IBM Plex Sans Condensed for display and Plex Mono for kickers, data and code, which
 is what gives the pages their engineered voice; and `design-system.md` §6 rule 1 applied literally —
@@ -218,25 +202,22 @@ permanent without the condition `licensing-editions.md` §5 attaches to it.
 
    *If it should be reverted*, the segmented control is in the branch's history at commit
    `2eec183`.
-8. **Dragging a card needs a decision before it can need code.** The product specimen is
-   interactive as far as native HTML reaches: an entry ticks off, a work package collapses, and the
-   collection switches between its list and its board — all of it real controls plus `:has()`, with
-   no script. Reordering by pointer is where that ends. Drag-and-drop is JavaScript, and no
-   selector substitutes for it.
+8. **The product surface, and what dragging would cost.** Showing the interface is deferred by
+   decision, and two findings should travel with it rather than be rediscovered.
 
-   That is not a gap to fill in passing. `csr = false` in `src/routes/+layout.ts`, the promise F1-12
-   made, and `build/check-static.js` — which fails the build on a single `<script>` — are one
-   decision expressed three times, and the site's own argument leans on it: the page that says your
-   data stays yours loads nothing and calls nobody. Two ways forward, and they are the owner's:
+   *Only some components can appear.* `ListRow`, `Checkbox`, `LabelChip`, `BucketColumn`,
+   `WorkItemCard` and `Icon` render their whole selves from markup and CSS. `ViewSwitcher`, `Menu`,
+   `Tabs` and `Dialog` choose through an `onclick`, so on a page that loads no script their controls
+   are furniture — a layout switcher has to be rebuilt from the same tokens, which is the one place
+   a component's appearance would be written twice.
 
-   * **Leave it.** The specimen demonstrates the model, the layouts and the completion behaviour,
-     and says so. Dragging is shown where dragging belongs — in the product.
-   * **Allow the site a script**, scoped to this one component, with an ADR amending F1-12 and a
-     narrower `check-static.js` that permits exactly what the ADR allows. That also unlocks the
-     design-system components whose interaction runs through a handler — `ViewSwitcher`, `Menu`,
-     `Tabs`, `Dialog` — which the specimen currently cannot use. `ViewSwitcher` is the one it most
-     wants: the switcher in the specimen is the site's own, built from the same tokens and shape,
-     and it is the only place on this site where a component's appearance is written twice.
+   *Dragging is a decision, not a task.* Reordering by pointer is JavaScript, and `csr = false` in
+   `src/routes/+layout.ts`, F1-12's promise, and `build/check-static.js` are one decision expressed
+   three times. The site's own argument leans on it: the page that says your data stays yours loads
+   nothing and calls nobody. Allowing a script — scoped to that one component, with an ADR amending
+   F1-12 and a narrower static check — is what would unlock both dragging and the four components
+   above. Leaving it means the surface demonstrates the model, the layouts and completion, and
+   dragging is shown in the product where it belongs.
 
 9. **How much roadmap to show.** The `/roadmap/` page currently shows every milestone including the
    1.0 prerequisites. That is unusually candid for a product site and is, in this positioning, an
