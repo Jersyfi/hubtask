@@ -19,6 +19,7 @@
   import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
   import ItemView from './views/ItemView.svelte';
+  import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
@@ -123,6 +124,8 @@
     <IdentityProviderView />
   {:else if route.name === 'search'}
     <SearchView />
+  {:else if route.name === 'jumble'}
+    <JumbleView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'trash'}
     <TrashView />
   {:else if route.name === 'item'}
