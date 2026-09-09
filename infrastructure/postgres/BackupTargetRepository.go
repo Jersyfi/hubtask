@@ -216,6 +216,29 @@ func (r BackupTargetRepository) Coverage(ctx context.Context) (repository.Covera
 	}, nil
 }
 
+// Delete removes the target and its sealed credential from the workspace's configuration.
+//
+// **Nothing at the target is touched.** `backup-restore.md`'s rule that Hubtask never deletes a
+// file it did not write applies at least as strongly to the files it did write: an archive is
+// what somebody restores from after the row that described where it lies is gone.
+func (r BackupTargetRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	targetID, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.DeleteBackupTarget(ctx, targetID)
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing backup target %s: %w", id, err))
+	}
+	return rows > 0, nil
+}
+
 // targetOf maps a row. It takes the row type of the single read, and the listing's identical row
 // is converted at the call site - sqlc generates one type per statement, and a mapper per type
 // would be two places for a column to be forgotten.

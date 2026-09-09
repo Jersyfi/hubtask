@@ -91,6 +91,97 @@ func (r RetentionRuleRepository) Insert(ctx context.Context, rule domain.Rule) e
 	return nil
 }
 
+// Update writes a corrected rule, guarded on the version the caller read (F4-02).
+//
+// The kind and the scope are not among the columns the statement writes: the unique index over
+// the pair is what makes "the rule for this kind at this level" a thing one can name at all.
+func (r RetentionRuleRepository) Update(
+	ctx context.Context, rule domain.Rule, expectedVersion int, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(rule.ID)
+	if err != nil {
+		return false, err
+	}
+	exportTarget, err := optionalUUID(rule.ExportTargetID)
+	if err != nil {
+		return false, err
+	}
+
+	notify := notifyRow{BeforeDays: rule.Notify.BeforeDays}
+	for _, recipient := range rule.Notify.Recipients {
+		notify.Recipients = append(notify.Recipients, string(recipient))
+	}
+	encoded, err := json.Marshal(notify)
+	if err != nil {
+		return false, shared.Internalf("postgres: a retention rule's warning could not be encoded: %w", err)
+	}
+
+	rows, err := queries.UpdateRetentionRule(ctx, sqlc.UpdateRetentionRuleParams{
+		ID: id, Condition: optionalText(rule.Condition),
+		//nolint:gosec // G115: bounded by the domain, which refuses a negative period
+		RetainDays: int32(rule.RetainDays), Action: string(rule.Action),
+		ThenAfterDays: optionalStage(rule.ThenAfterDays),
+		ThenAction:    optionalText(string(rule.ThenAction)),
+		//nolint:gosec // G115: bounded by the domain, which refuses a negative grace period
+		GraceDays: int32(rule.GraceDays), Notify: encoded,
+		Justification: optionalText(rule.Justification), Enabled: rule.Enabled,
+		ExportTargetID: exportTarget, Now: timestampOf(now),
+		//nolint:gosec // G115: a row version, bounded far below either type's range
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("changing the retention rule: %w", err))
+	}
+	return rows > 0, nil
+}
+
+// Delete withdraws a rule.
+func (r RetentionRuleRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	ruleID, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.DeleteRetentionRule(ctx, ruleID)
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("withdrawing the retention rule: %w", err))
+	}
+	return rows > 0, nil
+}
+
+// ClearMarks takes every entry counting down under a rule out of its period.
+func (r RetentionRuleRepository) ClearMarks(
+	ctx context.Context, ruleID shared.ID, now time.Time,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	id, err := uuidOf(ruleID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := queries.ClearRetentionMarksOfRule(ctx, sqlc.ClearRetentionMarksOfRuleParams{
+		RuleID: id, Now: timestampOf(now),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("clearing the markings of a withdrawn rule: %w", err))
+	}
+	return int(rows), nil
+}
+
 // List answers every rule the tenant has, narrowest scope first.
 func (r RetentionRuleRepository) List(ctx context.Context) ([]domain.Rule, error) {
 	queries, err := queriesFrom(ctx)

@@ -154,6 +154,19 @@ type Rules interface {
 	// for a tenant that already has one. Called by the sweep rather than by a migration, for the
 	// reason Ensure is: a migration covers the tenants that existed when it ran.
 	CarryOver(ctx context.Context, id shared.ID, kind domain.DataKind, now time.Time) error
+
+	// Update writes a corrected rule, guarded on the version the caller read. False means the
+	// guard did not hold. The kind and the scope are not written: a rule that moved either would
+	// be a different rule under an old identifier (F4-02).
+	Update(ctx context.Context, rule domain.Rule, expectedVersion int, now time.Time) (bool, error)
+
+	// Delete withdraws a rule. False is "there was none", which is not an error.
+	Delete(ctx context.Context, id shared.ID) (bool, error)
+
+	// ClearMarks takes every entry counting down under a rule out of its period, and answers how
+	// many. Called when the rule is withdrawn: an entry counting down towards a rule nobody holds
+	// any more would be deleted by a rule that does not exist. What the rule already did stands.
+	ClearMarks(ctx context.Context, ruleID shared.ID, now time.Time) (int, error)
 }
 
 // Candidate is one entry a retention pass is judging.

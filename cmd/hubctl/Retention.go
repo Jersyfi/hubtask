@@ -33,6 +33,18 @@ func retentionGroup() group {
 				run:     retentionAdd,
 			},
 			{
+				name:    "set",
+				usage:   "<policy id> [--days <n>] [--action <action>] [--on|--off]",
+				summary: "correct a rule, or take it out of enforcement",
+				run:     retentionSet,
+			},
+			{
+				name:    "rm",
+				usage:   "<policy id>",
+				summary: "withdraw a rule; what it already did stands",
+				run:     retentionRemove,
+			},
+			{
 				name:    "preview",
 				usage:   "<policy id>",
 				summary: "what the rule would do, without doing it",
@@ -132,6 +144,82 @@ func retentionAdd(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(created, policyTable([]openapi.RetentionPolicy{created}))
+}
+
+// retentionSet corrects a rule. Only what is named moves, so `--off` leaves the period alone -
+// and `--action NOTIFY_ONLY` is the other way out of enforcement: the rule keeps reporting what it
+// would remove and removes nothing.
+func retentionSet(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "retention set <policy id> [--days <n>] [--action <action>] [--on|--off]"
+	policyID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "retention", "set", "<policy id> [--days …] [--on|--off]")
+	days := flags.Int("days", -1, "how long it is kept before the action")
+	action := flags.String("action",
+		"", "ARCHIVE, TRASH, ANONYMIZE, HARD_DELETE, EXPORT_THEN_DELETE or NOTIFY_ONLY")
+	grace := flags.Int("grace", -1, "how long the warning stands before the act")
+	condition := flags.String("condition", "", "a CEL expression narrowing what the rule applies to")
+	justification := flags.String("justification", "",
+		"why a period past the data kind's upper bound is right; the server requires it there")
+	on := flags.Bool("on", false, "switch the rule on")
+	off := flags.Bool("off", false, "switch it off, keeping what it says")
+	if err := parseCommand(flags, rest); err != nil {
+		return err
+	}
+	if *on && *off {
+		return usagef("retention set takes --on or --off, not both")
+	}
+
+	change := openapi.RetentionPolicyUpdate{}
+	change.Condition = optional(*condition)
+	change.Justification = optional(*justification)
+	if *days >= 0 {
+		change.RetainDays = days
+	}
+	if *grace >= 0 {
+		change.GraceDays = grace
+	}
+	if *action != "" {
+		wanted := openapi.RetentionPolicyUpdateAction(*action)
+		change.Action = &wanted
+	}
+	if *on || *off {
+		enabled := *on
+		change.Enabled = &enabled
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var changed openapi.RetentionPolicy
+	if err := client.Patch(ctx, retentionPath+"/"+policyID.String(), change, &changed); err != nil {
+		return err
+	}
+	return cli.Emit(changed, policyTable([]openapi.RetentionPolicy{changed}))
+}
+
+// retentionRemove withdraws a rule. What it already did stands - retention deletes, and a deletion
+// is not undone by withdrawing the instruction that caused it - and what it had marked stops
+// counting down.
+func retentionRemove(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "retention rm <policy id>"
+	policyID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "retention", "rm", "<policy id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	return client.Delete(ctx, retentionPath+"/"+policyID.String(), "")
 }
 
 // preview is the answer to `:preview`. Written out here for the same reason the REST layer writes

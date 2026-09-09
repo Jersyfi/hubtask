@@ -321,6 +321,13 @@ const (
 	// CodeRestoreAbandoned is the same closing for a restore run, whose open row holds the
 	// one-restore-per-tenant lock.
 	CodeRestoreAbandoned = "backup.restore_abandoned"
+	// CodeScheduleVersionConflict is a change written against a version that no longer stands
+	// (F4-02): either the caller's form was stale, or somebody committed in between.
+	CodeScheduleVersionConflict = "backup.schedule_version_conflict"
+	// CodeTargetInUse refuses the removal of a target a schedule still names (F4-02). Refused
+	// rather than cascaded: deleting one silently disarms a backup that runs every night, and
+	// the disarming would be discovered by whoever needed the archive.
+	CodeTargetInUse = "backup.target_in_use"
 )
 
 // Trigger is why a run happened.

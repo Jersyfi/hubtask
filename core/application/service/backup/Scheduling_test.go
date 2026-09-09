@@ -23,6 +23,7 @@ type scheduleStore struct {
 	stored  map[shared.ID]domain.Schedule
 	written []domain.Schedule
 	nextRun map[shared.ID]time.Time
+	removed []shared.ID
 }
 
 func newSchedules() *scheduleStore {
@@ -40,6 +41,40 @@ func (s *scheduleStore) List(context.Context) ([]domain.Schedule, error) {
 	out := make([]domain.Schedule, 0, len(s.stored))
 	for _, schedule := range s.stored {
 		out = append(out, schedule)
+	}
+	return out, nil
+}
+
+func (s *scheduleStore) Update(
+	_ context.Context, schedule domain.Schedule, nextRunAt time.Time, expectedVersion int,
+) (bool, error) {
+	stored, found := s.stored[schedule.ID]
+	if !found || stored.Version != expectedVersion {
+		return false, nil
+	}
+	written := schedule
+	written.Version = expectedVersion + 1
+	s.stored[schedule.ID] = written
+	s.written = append(s.written, written)
+	s.nextRun[schedule.ID] = nextRunAt
+	return true, nil
+}
+
+func (s *scheduleStore) Delete(_ context.Context, id shared.ID) (bool, error) {
+	if _, found := s.stored[id]; !found {
+		return false, nil
+	}
+	delete(s.stored, id)
+	s.removed = append(s.removed, id)
+	return true, nil
+}
+
+func (s *scheduleStore) ForTarget(_ context.Context, targetID shared.ID) ([]domain.Schedule, error) {
+	out := []domain.Schedule{}
+	for _, schedule := range s.stored {
+		if schedule.TargetID == targetID {
+			out = append(out, schedule)
+		}
 	}
 	return out, nil
 }

@@ -129,6 +129,34 @@ func (q *Queries) ClearItemRetention(ctx context.Context, arg ClearItemRetention
 	return result.RowsAffected(), nil
 }
 
+const clearRetentionMarksOfRule = `-- name: ClearRetentionMarksOfRule :execrows
+UPDATE work_item SET
+  retention_pending_until = NULL,
+  retention_action        = NULL,
+  retention_blocked_by    = NULL,
+  retention_rule_id       = NULL,
+  updated_at              = $1::timestamptz,
+  version                 = version + 1
+WHERE retention_rule_id = $2
+`
+
+type ClearRetentionMarksOfRuleParams struct {
+	Now    pgtype.Timestamptz
+	RuleID pgtype.UUID
+}
+
+// What a withdrawn rule leaves behind. An entry counting down towards a rule nobody holds any more
+// would be deleted by a rule that does not exist, so the marking goes with the rule - and only the
+// marking: what the rule already did stands, because retention deletes and a deletion is not undone
+// by withdrawing the instruction that caused it.
+func (q *Queries) ClearRetentionMarksOfRule(ctx context.Context, arg ClearRetentionMarksOfRuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRetentionMarksOfRule, arg.Now, arg.RuleID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countRetainedDescendants = `-- name: CountRetainedDescendants :many
 SELECT parent.id, count(child.id)::bigint AS retained
 FROM work_item parent
@@ -284,6 +312,18 @@ func (q *Queries) CountRetentionScope(ctx context.Context, arg CountRetentionSco
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const deleteRetentionRule = `-- name: DeleteRetentionRule :execrows
+DELETE FROM retention_rule WHERE id = $1
+`
+
+func (q *Queries) DeleteRetentionRule(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRetentionRule, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const findItemRetention = `-- name: FindItemRetention :one
@@ -812,6 +852,67 @@ type TrashItemsForRetentionParams struct {
 // The act of a TRASH stage. The batch identifier is what makes one act one restore (F-09).
 func (q *Queries) TrashItemsForRetention(ctx context.Context, arg TrashItemsForRetentionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, trashItemsForRetention, arg.At, arg.BatchID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateRetentionRule = `-- name: UpdateRetentionRule :execrows
+
+UPDATE retention_rule
+SET condition        = $1,
+    retain_days      = $2,
+    action           = $3,
+    then_after_days  = $4,
+    then_action      = $5,
+    grace_days       = $6,
+    notify           = $7,
+    justification    = $8,
+    enabled          = $9,
+    export_target_id = $10,
+    updated_at       = $11,
+    version          = version + 1
+WHERE id = $12 AND version = $13
+`
+
+type UpdateRetentionRuleParams struct {
+	Condition       *string
+	RetainDays      int32
+	Action          string
+	ThenAfterDays   *int32
+	ThenAction      *string
+	GraceDays       int32
+	Notify          []byte
+	Justification   *string
+	Enabled         bool
+	ExportTargetID  pgtype.UUID
+	Now             pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The lifecycle F4-02 added: a rule that deletes data has to be correctable and withdrawable.
+// Everything a rule may change, guarded on the row version. The kind and the scope are not among
+// the columns: the unique index over the pair is what makes "the rule for this kind at this level"
+// a thing one can name, and a rule that moved either would be a different rule under an old
+// identifier.
+func (q *Queries) UpdateRetentionRule(ctx context.Context, arg UpdateRetentionRuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateRetentionRule,
+		arg.Condition,
+		arg.RetainDays,
+		arg.Action,
+		arg.ThenAfterDays,
+		arg.ThenAction,
+		arg.GraceDays,
+		arg.Notify,
+		arg.Justification,
+		arg.Enabled,
+		arg.ExportTargetID,
+		arg.Now,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
 	if err != nil {
 		return 0, err
 	}
