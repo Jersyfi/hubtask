@@ -1,11 +1,18 @@
 <!doctype html>
+<!-- The theme lives on two elements on purpose. `data-theme="dark"` on the document is the
+     project's default and the value everything inherits; `data-theme="light"` on the body is the
+     light set, which src/site.css neutralises again unless the reader or their system asks for
+     it. Two attributes rather than a script, because this site loads no JavaScript at all
+     (src/routes/+layout.ts) and build/check-static.js fails the build if one ever appears. -->
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/favicon.svg" />
     %sveltekit.head%
   </head>
-  <body>
+  <body data-theme="light">
     <div id="site">%sveltekit.body%</div>
   </body>
 </html>

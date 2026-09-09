@@ -1,0 +1,7 @@
+# hubtask.eu - a brochure. Everything here is meant to be read.
+User-agent: *
+Allow: /
+Disallow: /impressum/
+Disallow: /datenschutz/
+
+Sitemap: https://hubtask.eu/sitemap.xml

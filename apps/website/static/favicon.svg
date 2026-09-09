@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Hubtask mark: three nested planes, the innermost in the signature bordeaux.
+
+     A favicon is fetched as a standalone document with no access to the site's stylesheet, so it
+     cannot read a custom property. This is exactly the case the design system's README names for
+     `values.*`: the three literals below are the resolved blue.700, blue.500 and ember.400 of
+     tokens.json. They are copied from there and never edited here. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- design-system-lint-ignore - primitive.color.blue.700, resolved -->
+  <rect x="1" y="1" width="22" height="22" rx="6" fill="#173663" />
+  <!-- design-system-lint-ignore - primitive.color.blue.500, resolved -->
+  <rect x="5" y="5" width="14" height="14" rx="4" fill="#2C5CA3" opacity=".8" />
+  <!-- design-system-lint-ignore - primitive.color.ember.400, resolved -->
+  <rect x="8.5" y="8.5" width="7" height="7" rx="2.2" fill="#C85668" />
+</svg>
