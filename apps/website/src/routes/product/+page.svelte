@@ -11,7 +11,7 @@
   <title>What Hubtask does — the product</title>
   <meta
     name="description"
-    content="Five levels with capability profiles, four layouts, a composable query language, recurrence across time zones, templates, calendar feeds, automation rules, an inbox for anything unsorted, and offline work that does not lose concurrent edits."
+    content="Five levels with capability profiles, four layouts, a composable query language, recurrence across time zones, templates, calendar feeds, automation rules, an inbox for anything unsorted, and a synchronisation design that does not lose concurrent edits."
   />
 </svelte:head>
 
@@ -278,7 +278,8 @@
         <h3>Webhooks out</h3>
         <p>
           Signed subscriptions with retries and a dead-letter path, carrying published CloudEvents
-          schemas — and n8n and Zapier connectors generated from the same contract.
+          schemas. Connectors for n8n and Zapier are generated from the same contract, and ship
+          with the ecosystem milestone.
         </p>
       </div>
       <div class="site-card">
@@ -304,14 +305,17 @@
     <div class="two-up">
       <div>
         <p>
-          The installed clients keep working with no network: you read, you write, and the queue
-          drains when you are back. The browser app keeps a best-effort cache, and says which it is.
+          The synchronisation contract is written and fixed, and the data model has carried what it
+          needs since the first migration — a change log, tombstones, a clock per field change and
+          fractional indices, none of which can be added later without a break. The installed
+          clients that will use it are being built.
         </p>
         <p>
           <strong>No client merges.</strong> Merging happens on the server, per field, with
           conflict-preserving rules — last write wins where that is right, an order-preserving set
           where it is not, a fractional index for position. Two people editing the same task at the
-          same time do not produce a lost edit and a shrug.
+          same time must not produce a lost edit and a shrug, and that is a property of the merge
+          rather than of any one client.
         </p>
         <Proof href="{docs}/architecture/offline-sync.md" label="offline-sync.md §4" />
       </div>

@@ -56,6 +56,17 @@
         <dd>bytes sent anywhere you did not choose</dd>
       </div>
     </dl>
+
+    <!-- The maturity stage ADR-0035 puts in place of a second version number, said in public. It
+         is the honest frame for everything below, and for this audience it reads as seriousness
+         rather than as a warning. -->
+    <p class="site-standing">
+      <strong>Where this stands.</strong> The server is in active development and complete through
+      milestone <code>0.7</code> — the model, the API, automation, multi-workspace operation,
+      backup, audit and the agent surface are built and tested. The browser interface is at preview
+      stage, and the installed applications for desktop and mobile are being built.
+      <a href="/roadmap/">The plan, milestone by milestone</a>
+    </p>
   </div>
 </section>
 

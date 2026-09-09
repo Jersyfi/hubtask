@@ -6,10 +6,10 @@
 </script>
 
 <svelte:head>
-  <title>Accessibility statement — Hubtask</title>
+  <title>Accessibility — how it is built, and what is measured</title>
   <meta
     name="description"
-    content="Hubtask's clients are built to WCAG 2.2 level AA. What that means concretely, how it is verified, what is known to fall short, and how to report a barrier."
+    content="Hubtask is built to WCAG 2.2 level AA: contrast measured on every test run, a visible focus ring, no control disabled without a reason, and every component checked against forty per cent longer text."
   />
 </svelte:head>
 
@@ -18,9 +18,10 @@
     <p class="kicker">Accessibility</p>
     <h1>Operable by keyboard, or it is a defect</h1>
     <p class="lede">
-      Hubtask’s clients are built to WCAG 2.2 level AA — the standard the European Accessibility Act
-      expects. This page says what that means in practice, how it is checked, and where to report a
-      barrier.
+      Hubtask is built to WCAG 2.2 level AA — the standard the European Accessibility Act expects.
+      This page says what that means in practice and what is actually measured rather than intended.
+      The formal accessibility statement is published with the first stable release, once conformance
+      has been demonstrated for a release rather than asserted for a plan.
     </p>
   </div>
 </section>
@@ -88,11 +89,11 @@
     </div>
     <div class="two-up">
       <div>
-        <h3>Covered</h3>
+        <h3>What this covers</h3>
         <p>
-          The web interface served by an installation, and the desktop and mobile shells that render
-          it. Conformance is demonstrated for a release rather than asserted: a screen reader pass
-          and a keyboard pass are part of the release, not a follow-up.
+          The web interface an installation serves, and this website. The installed desktop and
+          mobile applications are being built and will be held to the same standard, with a screen
+          reader pass and a keyboard pass part of the release rather than a follow-up.
         </p>
         <h3>This website</h3>
         <p>
@@ -112,7 +113,8 @@
         <h3>Reporting a barrier</h3>
         <p>
           If something here or in the application cannot be reached, please say so. A barrier is a
-          defect and is handled as one.
+          defect and is handled as one — and a report now, while the interface is being built, is
+          worth more than one after it has shipped.
           <a href="mailto:info@hubtask.eu">info@hubtask.eu</a>
         </p>
       </div>

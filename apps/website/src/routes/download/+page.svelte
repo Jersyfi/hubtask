@@ -9,7 +9,7 @@
   <title>Get Hubtask — server, clients and the CLI</title>
   <meta
     name="description"
-    content="The container image for the server, signed installers for Windows, macOS and Linux, the mobile apps, and hubctl for every platform. Nothing to sign up for."
+    content="The container image for the server, and hubctl for Linux, macOS and Windows. One image for Compose and for Kubernetes, multi-architecture, signed. Nothing to sign up for."
   />
 </svelte:head>
 
@@ -20,6 +20,12 @@
     <p class="lede">
       No account, no trial, no sales call. Pull the image, run it next to a PostgreSQL, and read the
       architecture while it starts. Everything on this page is free to run for private use.
+    </p>
+    <p class="site-standing">
+      <strong>Where this stands.</strong> The server is complete through milestone <code>0.7</code>
+      and in active development; the browser interface is at preview stage. What is on this page is
+      what is released — nothing is listed here that you cannot download today.
+      <a href="/roadmap/">The plan</a>
     </p>
   </div>
 </section>
@@ -46,7 +52,7 @@ helm upgrade --install hubtask ./k8s \
         <h4>What comes with it</h4>
         <ul class="ticks">
           <li><strong>Multi-architecture</strong> amd64 and arm64 from the same tag, so a small ARM box is not a second-class citizen.</li>
-          <li><strong>Signed, with an SBOM</strong> Every release publishes a signature and a software bill of materials.</li>
+          <li><strong>Signed, with an SBOM</strong> The release pipeline publishes a signature and a software bill of materials with the image.</li>
           <li><strong>The web interface included</strong> It ships inside the binary; there is no second thing to deploy.</li>
           <li><strong>The migrator included</strong> Schema changes are applied by a job in the same image, forward only.</li>
         </ul>
@@ -62,9 +68,8 @@ helm upgrade --install hubtask ./k8s \
       <p class="kicker">The clients</p>
       <h2>Where each one runs</h2>
       <p class="lede">
-        The web interface is part of the server. The desktop and mobile applications are shells
-        around the same interface, adding local storage, the system keychain and an updater — which
-        is what makes offline work real rather than a cache.
+        The web interface is part of the server, and the command line client is a release of its
+        own. Both are here today; the installed applications for desktop and mobile are being built.
       </p>
     </div>
     <div class="table-scroll">
@@ -80,17 +85,7 @@ helm upgrade --install hubtask ./k8s \
           <tr>
             <th scope="row">Web</th>
             <td>Any current browser</td>
-            <td>Served by the instance itself. Chromium, Firefox and Safari, current and previous major. A best-effort cache offline, and it says so rather than pretending.</td>
-          </tr>
-          <tr>
-            <th scope="row">Desktop</th>
-            <td>Windows, macOS, Linux</td>
-            <td>Signed installers with an updater. Encrypted local storage, full offline operation, and administration available like on the web.</td>
-          </tr>
-          <tr>
-            <th scope="row">Mobile</th>
-            <td>iOS, Android</td>
-            <td>The same shell. Workspace administration is deliberately not here — where a screen is missing, the app names the capability and links to the web interface of the server you are signed into.</td>
+            <td>Served by the instance itself, and included in the binary. Chromium, Firefox and Safari, current and previous major. It needs the network today; the browser client is designed for a best-effort cache rather than for full offline work.</td>
           </tr>
           <tr>
             <th scope="row"><code>hubctl</code></th>
@@ -101,6 +96,16 @@ helm upgrade --install hubtask ./k8s \
       </table>
     </div>
     <Proof href="{repo}/blob/main/docs/architecture/support-matrix.md" label="support-matrix.md · what is proven by a job" />
+
+    <div class="callout callout-quiet">
+      <p>
+        <strong>Not here yet: the installed applications.</strong> Desktop and mobile clients are
+        planned as shells around the same interface, adding encrypted local storage, the system
+        keychain, an updater and full offline operation. They are not released, so there is nothing
+        to download and nothing claimed about them.
+        <a href="/roadmap/">Where they sit in the plan</a>
+      </p>
+    </div>
   </div>
 </section>
 

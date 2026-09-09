@@ -1234,3 +1234,19 @@ em {
   font-style: italic;
   color: var(--text-primary);
 }
+
+/* ── Where the project stands ─────────────────────────────────────────────── */
+
+/* The maturity stage (ADR-0035) said in public, once per page that needs it. Set apart from the
+   copy around it without being a warning: this audience reads a project that states its own stage
+   as a serious one, and the alternative - saying nothing - is what would need defending. */
+.site-standing {
+  margin-block-start: var(--sp-600);
+  padding: var(--sp-300) var(--sp-400);
+  border-inline-start: var(--sp-050) solid var(--border-default);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-100);
+  max-width: 84ch;
+}

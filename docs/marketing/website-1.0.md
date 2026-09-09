@@ -3,14 +3,13 @@
 Status: **draft on the branch, not deployed** · Written 2026-09-09 · Companion to
 [`market-analysis.md`](./market-analysis.md)
 
-> [`roadmap.md`](../roadmap.md) puts the 1.0 website in the convergence milestone `0.9.5`, and the
-> repository stands at `0.7.0`. This site is therefore written **as the 1.0 launch fassung, in the
-> present tense, and is not published yet.** § 5 below is what makes that safe: every sentence on
-> the site that is not true today is listed there with the milestone that makes it true. Nothing
-> goes live until its row can be ticked.
+> **This site is live.** It was written as the 1.0 launch fassung and then brought back to what is
+> true at `0.7.0` before it was published, which is what § 5 is for: every claim that outran the
+> product was cut or moved into the future tense, and § 5.2 is the list to switch back on at the
+> convergence milestone `0.9.5`.
 >
-> Until then, `main` keeps the pre-release page. The rule that page was built under — F1-12's "only
-> what is already true" — is not being relaxed; it is being scheduled.
+> F1-12's rule — "only what is already true" — was not relaxed. The pages keep the 1.0 structure,
+> the 1.0 design and the 1.0 argument; what changed is the tense of about a dozen sentences.
 
 ---
 
@@ -122,27 +121,46 @@ It also names **no price** and **no date**. See § 5 and the licence page.
 
 ## 5. The claim ledger
 
-**The rule: a row that is not ticked is a sentence that must be cut or rewritten before the page it
-sits on goes live.** Everything not listed here is true as of 2026-09-09 — milestones `0.1.0`
-through `0.6.0` complete, `0.7.0` at fourteen of seventeen tasks, client milestones F1 to F3
-complete.
+The rule this enforced: **a sentence that is not true today is cut or moved into the future tense
+before the page it sits on goes live.** That pass has been done, and § 5.1 is its record. Everything
+on the site is true as of 2026-09-09 — milestones `0.1.0` through `0.6.0` complete, `0.7.0` at
+sixteen of seventeen tasks, client milestones F1 to F3 complete.
 
-### 5.1 Not true yet — the site is written as though they are
+### 5.1 Corrected before publication
 
-| Page | The claim | True from | Note |
-|---|---|---|---|
-| `/download/` | Signed installers for Windows, macOS and Linux, with an updater | **F6** | The desktop shell is not built. The whole “Desktop” row of the client table |
-| `/download/` | iOS and Android applications, and the admin-capability affordance | **F6** | Same. Store listings are submitted at `0.9.5` |
-| `/download/` | “Every release publishes a signature and a software bill of materials” | **1.0** | The pipeline does it; the only published release today is `v0.2.0-rc.1`. The mechanism is real, the plural is not |
-| `/product/`, `/use-cases/` | Installed clients work fully offline; the browser app keeps a best-effort cache | **0.8.5 / F6** | Per-field merging is specified and unbuilt |
-| `/developers/` | `hubctl sync-conformance` checks an implementation | **0.8.5** | The contract it checks is written; the command is not |
-| `/developers/`, `/product/` | Client SDKs in TypeScript, Go and Python; official n8n and Zapier nodes | **0.9.0** | `packages/api-client` exists; the published SDKs do not |
-| `/product/` | “any language” — catalogue maintenance, CLDR formats, localised e-mail | **0.8.0** | Message codes end to end are true today; the full localisation surface is not |
-| `/accessibility/` | The entire statement, and WCAG 2.2 AA demonstrated | **F5 / 1.0** | Contrast measured in CI and the focus rules are true today. The *statement* is a 1.0 deliverable (prerequisite 16) |
-| `/developers/` | “API v1 is stable from the first stable release” | **1.0** | Correctly written as a promise about 1.0. Verify the deprecation process has actually been exercised before publishing |
-| `/product/` | AI summaries (comment thread, collection status, weekly review) | **verify** | `ai-first.md` §2 lists it; unlike the jumble suggestion and hybrid search it carries no “shipped in J-xx” note. Confirm against J-08 before publishing, or cut the word “summaries” |
+Each of these outran the product and was cut or moved into the future tense. The wording is
+recoverable from the branch history if it is wanted back verbatim.
 
-### 5.2 Checked, and true today
+| Page | What it had claimed | Now reads |
+|---|---|---|
+| `/download/` | Signed installers for Windows, macOS and Linux; iOS and Android apps, as two rows of the client table | Both rows removed. A note names them as planned, unreleased, and links to the roadmap |
+| `/download/` | “Every release publishes a signature and a software bill of materials” | The **pipeline** publishes them with the image — true of the mechanism, and it no longer implies a release history that does not exist |
+| `/download/` | The web client keeps “a best-effort cache offline” | It needs the network today; the cache is what the browser client is *designed* for. `SyncEngine` is online-only by construction in F1 and says so in its own first comment |
+| `/product/` | “The installed clients keep working with no network” | The synchronisation contract is written and the data model has carried what it needs since the first migration; the clients that will use it are being built |
+| `/product/`, `/developers/` | n8n and Zapier connectors, as though they ship today | They are generated from the same contract and come with the ecosystem milestone |
+| `/developers/` | Published SDKs for TypeScript, Go and Python | The generated TypeScript client the first-party apps use is real and named as such; published SDKs are an ecosystem milestone and said to be out later |
+| `/developers/` | `hubctl sync-conformance` checks an implementation | It arrives with the synchronisation milestone |
+| `/accessibility/`, `/use-cases/` | A published accessibility **statement** | The page is now “how it is built, and what is measured” — which is the true and stronger half — and says the formal statement comes with the first stable release |
+
+Two things were checked and **kept**, because they turned out to be true: AI summarisation (`J-08`
+is closed, so `AI_SUMMARIZE` is served), and the multilingual paragraph, which describes the
+message-code mechanism rather than the localisation surface `0.8.0` will add.
+
+Added at the same time: a **“Where this stands”** note on `/` and `/download/`, giving the maturity
+stage [ADR-0035](../adr/ADR-0035-one-product-version.md) puts in place of a second version number —
+the server complete through `0.7`, the browser interface at preview, the installed applications
+being built.
+
+### 5.2 To switch back on at `0.9.5`
+
+The convergence milestone is where these become true and the sentences above are rewritten forward
+again: the desktop and mobile clients with their signed installers and store listings, full offline
+operation and `hubctl sync-conformance`, the published SDKs and the n8n and Zapier nodes, the
+localisation surface, and the formal accessibility statement. That is also the milestone
+[`roadmap.md`](../roadmap.md) already assigns the website's 1.0 content to, so this list is a
+checklist for a task that exists rather than a new one.
+
+### 5.3 Checked, and true today
 
 Worth recording, because several read as though they could not be: the capability matrix and the
 refusal behaviour; three-door parity with the CI check; the MCP server including resources, prompts
@@ -153,7 +171,7 @@ hold; data subject requests with deadline tracking; row level security with a cr
 repository method; the twelve security gates and the self-test that proves they bite; the eight
 service level objectives; the support matrix rows; and every statement on `/licence/`.
 
-### 5.3 Deliberately absent
+### 5.4 Deliberately absent
 
 No price, no date for a price, no load-test figures (they stay internal by decision), no claim of
 “open source”, no comparison table naming a competitor, and no promise that free private use is

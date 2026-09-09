@@ -9,7 +9,7 @@
   <title>API, MCP and CLI — building on Hubtask</title>
   <meta
     name="description"
-    content="A specification-first REST API with a composable query language, idempotency and optimistic concurrency; an MCP server inside your own installation; hubctl; signed webhooks with CloudEvents; and generated SDKs."
+    content="A specification-first REST API with a composable query language, idempotency and optimistic concurrency; an MCP server inside your own installation; hubctl; signed webhooks with CloudEvents; and a client generated from the contract."
   />
 </svelte:head>
 
@@ -170,16 +170,18 @@ POST /api/v1/items:query
         <h3>Events out</h3>
         <p>
           Webhook subscriptions with an HMAC signature, retries and a dead-letter path, carrying
-          published CloudEvents schemas. Plus trigger polling endpoints, and generated nodes for n8n
-          and Zapier.
+          published CloudEvents schemas, plus trigger polling endpoints. Generated nodes for n8n and
+          Zapier come with the ecosystem milestone.
         </p>
       </div>
       <div class="site-card">
-        <h3>SDKs</h3>
+        <h3>SDKs, and the one that exists</h3>
         <p>
-          TypeScript, Go and Python clients generated from the contract — so a rename in the
-          specification shows up as a type error in the same change that made it, rather than in
-          somebody’s production two months later.
+          The TypeScript client the first-party applications use is generated from the contract, so
+          a rename in the specification becomes a type error in the change that made it rather than
+          in somebody’s production two months later. Published SDKs for TypeScript, Go and Python
+          are an ecosystem milestone and are not out yet — until then the contract generates one for
+          whichever language you need.
         </p>
       </div>
       <div class="site-card">
@@ -187,8 +189,9 @@ POST /api/v1/items:query
         <p>
           Building your own client? The synchronisation contract is specified — client-assigned
           identifiers, an operation id per mutation, a hybrid logical clock per field change,
-          defined behaviour when access is revoked or a cursor is too old — and
-          <code>hubctl sync-conformance</code> checks an implementation against a real instance.
+          defined behaviour when access is revoked or a cursor is too old. The conformance runner
+          that will check an implementation against a real instance,
+          <code>hubctl sync-conformance</code>, arrives with the synchronisation milestone.
         </p>
         <Proof href="{docs}/architecture/offline-sync.md" label="offline-sync.md §9" />
       </div>

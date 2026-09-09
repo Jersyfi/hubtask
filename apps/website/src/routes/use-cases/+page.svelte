@@ -146,10 +146,11 @@
       <div class="site-card">
         <h3>Accessibility</h3>
         <p>
-          The clients are built to WCAG 2.2 AA with a published statement — the standard the
-          European Accessibility Act expects, demonstrated rather than asserted.
+          Built to WCAG 2.2 AA — the standard the European Accessibility Act expects — with contrast
+          measured on every test run rather than reviewed. The formal statement is published with
+          the first stable release.
         </p>
-        <a href="/accessibility/">The statement</a>
+        <a href="/accessibility/">How it is built</a>
       </div>
     </div>
   </div>
