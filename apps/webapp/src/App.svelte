@@ -22,6 +22,7 @@
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
+  import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import SignInView from './views/SignInView.svelte';
@@ -46,6 +47,14 @@
     // this area in full and excludes administration, and a route that carried no area would be one
     // somebody has to classify by reading it.
     { name: 'profile', pattern: '/profile', area: 'profile' },
+    // ADR-0032's administration area. The navigation that reaches it, and the gating of the area
+    // as a whole, arrive with F4-08; the tag is here from the day the route is, so that the area's
+    // own test finds it already classified rather than having to classify it.
+    {
+      name: 'identity-provider',
+      pattern: '/administration/identity-provider',
+      area: 'administration',
+    },
     // No parameter, and that is the point: `/search` is a `POST` because a search term is content
     // and a query string travels through access logs, proxies and browser history. A route that
     // carried the term would undo that in the address bar (security.md §9, ADR-0018).
@@ -112,6 +121,8 @@
     <InstallationView />
   {:else if route.name === 'profile'}
     <ProfileView />
+  {:else if route.name === 'identity-provider'}
+    <IdentityProviderView />
   {:else if route.name === 'search'}
     <SearchView />
   {:else if route.name === 'trash'}

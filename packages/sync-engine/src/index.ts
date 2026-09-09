@@ -80,6 +80,8 @@ export type {
   GroupDetail,
   GroupPage,
   HealthReport,
+  IdentityProvider,
+  IdentityProviderConfiguration,
   ItemQueryResult,
   ItemSearchQuery,
   ItemAttachments,
