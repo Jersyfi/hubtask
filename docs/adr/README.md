@@ -57,3 +57,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0048](./ADR-0048-browser-job-driver.md) | The browser job's driver: Playwright, pinned, in one workflow job | proposed | Clients, tooling, supply chain |
 | [0049](./ADR-0049-ai-provider-surface.md) | The AI provider surface: two adapters, no dependency, prompts as files | proposed | AI, supply chain, ports |
 | [0050](./ADR-0050-pgvector-as-a-capability.md) | pgvector is a capability, not a requirement | proposed | Search, persistence, deployment |
+| [0051](./ADR-0051-mcp-resources-are-catalogue-reads.md) | An MCP resource is a catalogue read with a URI for an argument | proposed | Agent interface, MCP |

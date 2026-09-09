@@ -24,6 +24,19 @@ type catalogue struct {
 	invokedIn   usecase.Input
 	out         usecase.Output
 	err         error
+	// outs answers a different result per use case, which the resource methods need: one call
+	// enumerates containers and another views, and a fake that could not tell them apart could not
+	// say which of the two a cursor continued.
+	outs map[string]usecase.Output
+	// calls records every invocation in order, name and input.
+	calls []invocation
+	// errs refuses one named use case and lets the rest through.
+	errs map[string]error
+}
+
+type invocation struct {
+	name string
+	in   usecase.Input
 }
 
 func (c *catalogue) All() []usecase.Descriptor { return c.descriptors }
@@ -39,6 +52,13 @@ func (c *catalogue) ByMCPTool(tool string) (usecase.Descriptor, bool) {
 
 func (c *catalogue) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	c.invokedName, c.invokedIn = name, in
+	c.calls = append(c.calls, invocation{name: name, in: in})
+	if err, refused := c.errs[name]; refused {
+		return nil, err
+	}
+	if out, answered := c.outs[name]; answered {
+		return out, c.err
+	}
 	return c.out, c.err
 }
 
@@ -101,10 +121,19 @@ func TestInitializeAnnouncesWhatThisServerCanDo(t *testing.T) {
 	if _, tools := capabilities["tools"]; !tools {
 		t.Errorf("the server does not announce tools: %v", capabilities)
 	}
-	// Nothing else is claimed: a client that believes in a capability and finds nothing behind it
-	// has no way to recover.
-	if _, resources := capabilities["resources"]; resources {
-		t.Error("the server announces resources it does not serve")
+	// Resources arrived with J-11, so they are claimed now - and with both flags false, because
+	// this server initiates nothing until the streaming half of the transport exists.
+	resources, declared := capabilities["resources"].(map[string]any)
+	if !declared {
+		t.Fatalf("the server does not announce the resources it serves: %v", capabilities)
+	}
+	if resources["subscribe"] != false || resources["listChanged"] != false {
+		t.Errorf("the server promises notifications it cannot send: %v", resources)
+	}
+	// Prompts are still not claimed: a client that believes in a capability and finds nothing
+	// behind it has no way to recover (J-12).
+	if _, prompts := capabilities["prompts"]; prompts {
+		t.Error("the server announces prompts it does not serve")
 	}
 }
 
@@ -254,7 +283,7 @@ func TestProtocolFailuresAreJSONRPCErrors(t *testing.T) {
 	}{
 		"a body that is not JSON":     {`{"jsonrpc":`, -32700},
 		"a request without a version": {`{"id":1,"method":"tools/list"}`, -32600},
-		"a method nobody serves":      {`{"jsonrpc":"2.0","id":1,"method":"resources/list"}`, -32601},
+		"a method nobody serves":      {`{"jsonrpc":"2.0","id":1,"method":"prompts/list"}`, -32601},
 		"a tool nobody registered":    {`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"delete_everything"}}`, -32602},
 	}
 

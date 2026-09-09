@@ -25,7 +25,7 @@ automatically available as a tool.
 | Input schema | JSON Schema, identical to the REST request body |
 | Auth | Service account or PAT with scopes; every tool call is audited as `actor.type = AI_AGENT` |
 | Read/write marking | Tools carry `annotations.readOnlyHint` / `destructiveHint`, so that clients can ask for confirmation |
-| Resources | Containers, items, and views are additionally readable as MCP resources (`hubtask://items/{id}`) |
+| Resources | Containers, items and views are additionally readable as MCP resources (`hubtask://items/{id}`). **Shipped in J-11**: a resource is a read that is already in the catalogue, addressed by URI instead of by argument, so `resources/read` carries no authorisation of its own — exactly as `tools/call` carries none ([ADR-0051](../adr/ADR-0051-mcp-resources-are-catalogue-reads.md)). `resources/list` enumerates the hubs and the caller's saved views, paged; entries are reached by URI or found with `search_items`, because no unanchored item list exists and one built for this would be a tenant asking for everything |
 | Prompts | Prepared MCP prompts, e.g. "weekly review from collection X" |
 
 ### 1.2 Why the REST API is already agent-friendly
