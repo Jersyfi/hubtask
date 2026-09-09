@@ -32,6 +32,7 @@ export { default as Select } from './Select.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as RoleBadge } from './RoleBadge.svelte';
+export { default as PermissionMatrix, type MatrixRole } from './PermissionMatrix.svelte';
 export { default as Switch } from './Switch.svelte';
 export { default as Textarea } from './Textarea.svelte';
 export { default as Toast } from './Toast.svelte';
