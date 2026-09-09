@@ -24,6 +24,7 @@
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
   import AdministrationView from './views/AdministrationView.svelte';
+  import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
@@ -90,6 +91,8 @@
     <ProfileView />
   {:else if route.name === 'administration'}
     <AdministrationView />
+  {:else if route.name === 'workspace-settings'}
+    <WorkspaceSettingsView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}
