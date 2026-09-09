@@ -1,0 +1,134 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+)
+
+// What AI proposed (J-05).
+const (
+	listSuggestionsUseCase   = "ListSuggestions"
+	acceptSuggestionUseCase  = "AcceptSuggestion"
+	dismissSuggestionUseCase = "DismissSuggestion"
+)
+
+// ListSuggestions answers GET /suggestions.
+func (c *RestController) ListSuggestions(
+	w http.ResponseWriter, r *http.Request, params openapi.ListSuggestionsParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{
+		"target_type": string(params.TargetType),
+		"target_id":   params.TargetId.String(),
+	}
+	if params.Status != nil {
+		in["status"] = string(*params.Status)
+	}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["page_size"] = *params.Size
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), listSuggestionsUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	page := openapi.SuggestionPage{Items: []openapi.Suggestion{}}
+	if items, held := out["items"].([]usecase.Output); held {
+		for _, item := range items {
+			page.Items = append(page.Items, suggestionResponse(item))
+		}
+	}
+	if cursor := out.String("next_cursor"); cursor != "" {
+		page.NextCursor = &cursor
+	}
+	if more, held := out["has_more"].(bool); held {
+		page.HasMore = more
+	}
+	writeJSON(w, r, http.StatusOK, page)
+}
+
+// AcceptSuggestion answers POST /suggestions/{id}:accept.
+func (c *RestController) AcceptSuggestion(
+	w http.ResponseWriter, r *http.Request, suggestionID openapi.SuggestionId,
+) {
+	c.decideSuggestion(w, r, acceptSuggestionUseCase, suggestionID)
+}
+
+// DismissSuggestion answers POST /suggestions/{id}:dismiss.
+func (c *RestController) DismissSuggestion(
+	w http.ResponseWriter, r *http.Request, suggestionID openapi.SuggestionId,
+) {
+	c.decideSuggestion(w, r, dismissSuggestionUseCase, suggestionID)
+}
+
+// decideSuggestion is both answers: they differ in the use case they name and in nothing else,
+// which is the same shape the application layer has for the same reason.
+func (c *RestController) decideSuggestion(
+	w http.ResponseWriter, r *http.Request, name string, suggestionID openapi.SuggestionId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), usecase.Input{
+		"suggestion_id": suggestionID.String(),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, suggestionResponse(out))
+}
+
+// suggestionResponse maps the use case's answer.
+func suggestionResponse(out usecase.Output) openapi.Suggestion {
+	answer := openapi.Suggestion{
+		TargetType:    openapi.SuggestionTargetType(out.String("target_type")),
+		Kind:          openapi.SuggestionKind(out.String("kind")),
+		Status:        openapi.SuggestionStatus(out.String("status")),
+		Source:        openapi.SuggestionSource(out.String("source")),
+		Model:         out.String("model"),
+		PromptId:      out.String("prompt_id"),
+		PromptVersion: out.String("prompt_version"),
+		Payload:       map[string]any{},
+	}
+	answer.Id = uuidValue(out.String("id"))
+	answer.TargetId = uuidValue(out.String("target_id"))
+	if payload, held := out["payload"].(map[string]any); held {
+		answer.Payload = payload
+	}
+	if produced, held := out["produced_at"].(time.Time); held {
+		answer.ProducedAt = produced
+	}
+	if created, held := out["created_at"].(time.Time); held {
+		answer.CreatedAt = created
+	}
+	if decided, held := out["decided_at"].(time.Time); held && !decided.IsZero() {
+		answer.DecidedAt = &decided
+		by := uuidValue(out.String("decided_by"))
+		answer.DecidedBy = &by
+	}
+	if version, held := out["version"].(int); held {
+		answer.Version = version
+	}
+	return answer
+}

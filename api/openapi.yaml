@@ -53,6 +53,7 @@ tags:
   - name: jumble
   - name: jobs
   - name: ai
+  - name: suggestions
 
 paths:
   /templates:
@@ -3233,6 +3234,96 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /suggestions:
+    get:
+      tags: [suggestions]
+      operationId: listSuggestions
+      summary: What AI has proposed, and not done
+      description: >
+        The suggestions standing against one entry, newest first (J-05). Nothing here has changed
+        anything: a suggestion is a record with a name on it — the model, the prompt version and
+        the moment — and it becomes a change only when somebody accepts it, as their own write with
+        their own rights.
+
+        Needs whatever reading the target itself needs. A suggestion about an entry says something
+        about that entry, so it is exactly as readable as the entry is.
+      parameters:
+        - name: target_type
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/SuggestionTargetType"
+        - name: target_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          description: Narrows to one state. Absent answers what is still standing, `PROPOSED`.
+          schema:
+            $ref: "#/components/schemas/SuggestionStatus"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestionPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /suggestions/{suggestionId}:accept:
+    parameters:
+      - $ref: "#/components/parameters/SuggestionId"
+    post:
+      tags: [suggestions]
+      operationId: acceptSuggestion
+      summary: Accept a suggestion
+      description: >
+        Applies what was proposed, as the accepting person's own write: the ordinary use case, with
+        the ordinary permission check, the ordinary validation and the ordinary history entry. A
+        suggestion cannot grant anybody anything — somebody who could not make the change by hand
+        cannot make it by accepting.
+
+        Two audit entries follow, deliberately: the acceptance and the write. "Who decided this" and
+        "what changed" are two questions, and a year later only the first explains the second.
+
+        A suggestion made against an entry that has since been rewritten is **stale** and is refused
+        (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one
+        state of the entry to a different one. Ask for a new suggestion instead.
+      responses:
+        "200":
+          description: Accepted; the suggestion as it now stands
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Suggestion"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /suggestions/{suggestionId}:dismiss:
+    parameters:
+      - $ref: "#/components/parameters/SuggestionId"
+    post:
+      tags: [suggestions]
+      operationId: dismissSuggestion
+      summary: Dismiss a suggestion
+      description: >
+        A state, not a deletion: the record stays readable, so "what was proposed and turned down"
+        has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing
+        an already decided suggestion is refused rather than silently repeated.
+      responses:
+        "200":
+          description: Dismissed; the suggestion as it now stands
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Suggestion"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /ai-provider:
     get:
       tags: [ai]
@@ -5935,6 +6026,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    SuggestionId:
+      name: suggestionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     AdminTenantId:
       name: tenantId
       in: path
@@ -6559,6 +6656,93 @@ components:
         state:
           type: string
           description: The handle `/auth/oidc:start` answered.
+
+    Suggestion:
+      type: object
+      description: >
+        One thing AI proposed about one entry, with its provenance. It has changed nothing: what a
+        suggestion is, is a record.
+      required: [id, target_type, target_id, kind, status, payload, source, model, prompt_id, prompt_version, produced_at, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        target_type:
+          $ref: "#/components/schemas/SuggestionTargetType"
+        target_id: { type: string, format: uuid }
+        kind:
+          $ref: "#/components/schemas/SuggestionKind"
+        status:
+          $ref: "#/components/schemas/SuggestionStatus"
+        payload:
+          type: object
+          additionalProperties: true
+          description: >
+            What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the
+            target entry; for `DECOMPOSITION` it is a tree of entries proposed under it. It is
+            data, never an instruction, and nothing acts on it until somebody accepts.
+        source:
+          type: string
+          enum: [AI]
+          description: >
+            Where the proposal came from (`ai-first.md` §2). One value today, and a field rather
+            than an assumption: a suggestion whose origin is not recorded is one nobody can tell
+            from a person's own draft.
+        model:
+          type: string
+          description: The model that answered, as the provider named it — not as it was configured.
+        prompt_id: { type: string }
+        prompt_version:
+          type: string
+          description: >
+            Which version of the prompt produced this. Prompt files are versioned in their names
+            and the old ones stay, so this resolves to the actual words a year later.
+        produced_at:
+          type: string
+          format: date-time
+          description: When the provider answered, which is not when the record was written.
+        created_at: { type: string, format: date-time }
+        decided_at:
+          type: [string, "null"]
+          format: date-time
+          description: When it was accepted or dismissed.
+        decided_by:
+          type: [string, "null"]
+          format: uuid
+          description: Who accepted or dismissed it. A suggestion is decided by a person.
+        version:
+          type: integer
+          description: The optimistic lock, as everywhere else.
+
+    SuggestionPage:
+      type: object
+      required: [items, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Suggestion"
+        next_cursor: { type: [string, "null"] }
+        has_more: { type: boolean }
+
+    SuggestionTargetType:
+      type: string
+      enum: [WORK_ITEM, JUMBLE_ENTRY]
+      description: What the suggestion is about.
+
+    SuggestionKind:
+      type: string
+      enum: [FIELDS, DECOMPOSITION]
+      description: >
+        What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values
+        for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a
+        classification are `FIELDS` suggestions whose payload happens to be notes or labels — they
+        are not kinds of their own, because accepting them is the same act.
+
+    SuggestionStatus:
+      type: string
+      enum: [PROPOSED, ACCEPTED, DISMISSED]
+      description: >
+        `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an
+        answer; the retention engine ages both decided states out by rule.
 
     AiProvider:
       type: object

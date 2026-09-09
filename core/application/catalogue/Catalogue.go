@@ -35,6 +35,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 )
@@ -198,6 +199,9 @@ func Descriptors() []usecase.Descriptor {
 		integration.ConfigureAiProvider{}.Descriptor(),
 		integration.ReadAiProvider{}.Descriptor(),
 		integration.RemoveAiProvider{}.Descriptor(),
+		suggestionservice.ListSuggestions{}.Descriptor(),
+		suggestionservice.AcceptSuggestion{}.Descriptor(),
+		suggestionservice.DismissSuggestion{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),

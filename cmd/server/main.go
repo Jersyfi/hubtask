@@ -49,6 +49,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -833,6 +834,19 @@ func run() error {
 	// catalogue the moment there is one, a few lines below.
 	bulkCatalogue := &deferredCatalogue{}
 
+	// What AI proposed (J-05). The catalogue is deferred for the bulk's reason and it is the same
+	// circle: accepting a suggestion performs an ordinary use case, and these three are entries of
+	// the catalogue that performs them. What that buys is the whole design - the permission check,
+	// the validation, the event and the entry's own history are the ones a person's own write
+	// would have produced, because it *is* a person's own write.
+	suggestionCatalogue := &deferredCatalogue{}
+	suggestionCases := suggestionservice.Cases{
+		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Targets:     suggestionservice.EntryTargets{Catalogue: suggestionCatalogue},
+		Authorizer:  authorizer, Catalogue: suggestionCatalogue, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+
 	// The cases the privacy use cases share.
 	privacyCases := privacyservice.Cases{
 		Requests: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
@@ -993,6 +1007,9 @@ func run() error {
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
+		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
+		suggestionservice.AcceptSuggestion{Cases: suggestionCases}.Descriptor(),
+		suggestionservice.DismissSuggestion{Cases: suggestionCases}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -1450,6 +1467,7 @@ func run() error {
 	// input check, the same permission check and the same metric (C-11).
 	bulkCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
+	suggestionCatalogue.catalogue = useCases
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
@@ -1987,7 +2005,10 @@ func run() error {
 			// The SESSION kind (H-01): expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
-			Clock:    clockadapter.System{}, IDs: ids, Signals: metrics,
+			// What AI proposed (J-05). Thirty days, the shortest default in the catalogue: a
+			// suggestion is about a state of an entry, and an entry's state does not stay still.
+			Proposals: postgres.NewSuggestionRepository(cursors),
+			Clock:     clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.

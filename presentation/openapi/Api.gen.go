@@ -2535,6 +2535,78 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for SuggestionSource.
+const (
+	AI SuggestionSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the SuggestionSource enum.
+func (e SuggestionSource) Valid() bool {
+	switch e {
+	case AI:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SuggestionKind.
+const (
+	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
+	FIELDS        SuggestionKind = "FIELDS"
+)
+
+// Valid indicates whether the value is a known member of the SuggestionKind enum.
+func (e SuggestionKind) Valid() bool {
+	switch e {
+	case DECOMPOSITION:
+		return true
+	case FIELDS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SuggestionStatus.
+const (
+	SuggestionStatusACCEPTED  SuggestionStatus = "ACCEPTED"
+	SuggestionStatusDISMISSED SuggestionStatus = "DISMISSED"
+	SuggestionStatusPROPOSED  SuggestionStatus = "PROPOSED"
+)
+
+// Valid indicates whether the value is a known member of the SuggestionStatus enum.
+func (e SuggestionStatus) Valid() bool {
+	switch e {
+	case SuggestionStatusACCEPTED:
+		return true
+	case SuggestionStatusDISMISSED:
+		return true
+	case SuggestionStatusPROPOSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SuggestionTargetType.
+const (
+	SuggestionTargetTypeJUMBLEENTRY SuggestionTargetType = "JUMBLE_ENTRY"
+	SuggestionTargetTypeWORKITEM    SuggestionTargetType = "WORK_ITEM"
+)
+
+// Valid indicates whether the value is a known member of the SuggestionTargetType enum.
+func (e SuggestionTargetType) Valid() bool {
+	switch e {
+	case SuggestionTargetTypeJUMBLEENTRY:
+		return true
+	case SuggestionTargetTypeWORKITEM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SyncChangeOp.
 const (
 	SyncChangeOpACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
@@ -5749,6 +5821,66 @@ type StepUpRequest struct {
 	Password *string `json:"password,omitempty"`
 }
 
+// Suggestion One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record.
+type Suggestion struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DecidedAt When it was accepted or dismissed.
+	DecidedAt *time.Time `json:"decided_at,omitempty"`
+
+	// DecidedBy Who accepted or dismissed it. A suggestion is decided by a person.
+	DecidedBy *openapi_types.UUID `json:"decided_by,omitempty"`
+	Id        openapi_types.UUID  `json:"id"`
+
+	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	Kind SuggestionKind `json:"kind"`
+
+	// Model The model that answered, as the provider named it — not as it was configured.
+	Model string `json:"model"`
+
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry; for `DECOMPOSITION` it is a tree of entries proposed under it. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	Payload map[string]interface{} `json:"payload"`
+
+	// ProducedAt When the provider answered, which is not when the record was written.
+	ProducedAt time.Time `json:"produced_at"`
+	PromptId   string    `json:"prompt_id"`
+
+	// PromptVersion Which version of the prompt produced this. Prompt files are versioned in their names and the old ones stay, so this resolves to the actual words a year later.
+	PromptVersion string `json:"prompt_version"`
+
+	// Source Where the proposal came from (`ai-first.md` §2). One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+	Source SuggestionSource `json:"source"`
+
+	// Status `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
+	Status   SuggestionStatus   `json:"status"`
+	TargetId openapi_types.UUID `json:"target_id"`
+
+	// TargetType What the suggestion is about.
+	TargetType SuggestionTargetType `json:"target_type"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// SuggestionSource Where the proposal came from (`ai-first.md` §2). One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+type SuggestionSource string
+
+// SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+type SuggestionKind string
+
+// SuggestionPage defines model for SuggestionPage.
+type SuggestionPage struct {
+	HasMore    bool         `json:"has_more"`
+	Items      []Suggestion `json:"items"`
+	NextCursor *string      `json:"next_cursor,omitempty"`
+}
+
+// SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
+type SuggestionStatus string
+
+// SuggestionTargetType What the suggestion is about.
+type SuggestionTargetType string
+
 // SyncChange defines model for SyncChange.
 type SyncChange struct {
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
@@ -6444,6 +6576,9 @@ type SessionId = openapi_types.UUID
 
 // StepUpToken defines model for StepUpToken.
 type StepUpToken = string
+
+// SuggestionId defines model for SuggestionId.
+type SuggestionId = openapi_types.UUID
 
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
@@ -7223,6 +7358,17 @@ type ListRetentionPoliciesParams struct {
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
 	LastEventID *string `json:"Last-Event-ID,omitempty"`
+}
+
+// ListSuggestionsParams defines parameters for ListSuggestions.
+type ListSuggestionsParams struct {
+	TargetType SuggestionTargetType `form:"target_type" json:"target_type"`
+	TargetId   openapi_types.UUID   `form:"target_id" json:"target_id"`
+
+	// Status Narrows to one state. Absent answers what is still standing, `PROPOSED`.
+	Status *SuggestionStatus `form:"status,omitempty" json:"status,omitempty"`
+	Cursor *Cursor           `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize         `form:"size,omitempty" json:"size,omitempty"`
 }
 
 // ListTemplatesParams defines parameters for ListTemplates.
@@ -8177,6 +8323,15 @@ type ServerInterface interface {
 	// StreamChanges The change stream, as server-sent events
 	// (GET /stream)
 	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
+	// ListSuggestions What AI has proposed, and not done
+	// (GET /suggestions)
+	ListSuggestions(w http.ResponseWriter, r *http.Request, params ListSuggestionsParams)
+	// AcceptSuggestion Accept a suggestion
+	// (POST /suggestions/{suggestionId}:accept)
+	AcceptSuggestion(w http.ResponseWriter, r *http.Request, suggestionId SuggestionId)
+	// DismissSuggestion Dismiss a suggestion
+	// (POST /suggestions/{suggestionId}:dismiss)
+	DismissSuggestion(w http.ResponseWriter, r *http.Request, suggestionId SuggestionId)
 	// ListSyncDevices List your own devices
 	// (GET /sync/devices)
 	ListSyncDevices(w http.ResponseWriter, r *http.Request)
@@ -15518,6 +15673,143 @@ func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListSuggestions operation middleware
+func (siw *ServerInterfaceWrapper) ListSuggestions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSuggestionsParams
+
+	// ------------- Required query parameter "target_type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "target_type", r.URL.Query(), &params.TargetType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_type"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_type", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "target_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "target_id", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSuggestions(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcceptSuggestion operation middleware
+func (siw *ServerInterfaceWrapper) AcceptSuggestion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "suggestionId" -------------
+	var suggestionId SuggestionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "suggestionId", r.PathValue("suggestionId"), &suggestionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "suggestionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcceptSuggestion(w, r, suggestionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissSuggestion operation middleware
+func (siw *ServerInterfaceWrapper) DismissSuggestion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "suggestionId" -------------
+	var suggestionId SuggestionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "suggestionId", r.PathValue("suggestionId"), &suggestionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "suggestionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissSuggestion(w, r, suggestionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSyncDevices operation middleware
 func (siw *ServerInterfaceWrapper) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
 
@@ -16477,6 +16769,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/suggestions", wrapper.ListSuggestions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:accept", wrapper.AcceptSuggestion)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:dismiss", wrapper.DismissSuggestion)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ai-provider", wrapper.RemoveAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-provider", wrapper.ReadAiProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)

@@ -542,6 +542,8 @@ own with the token scope alone, anybody else's with `MANAGE_MEMBERS` at the work
 categories are published as `notification_categories` in `/meta/capabilities`, so that a client
 renders the form from data rather than from a constant.
 
+**Suggestions** `ListSuggestions`, `AcceptSuggestion`, `DismissSuggestion` (AI, optional). What a provider proposed about an entry, and the two answers a person can give. Reading asks for `READ` and answering for `WRITE_ITEMS` at the target's own scope, because a suggestion about an entry is exactly as readable as the entry and answering one is deciding about somebody's inbox of proposals. Accepting performs the ordinary use case as the accepting person — a suggestion grants nothing, and somebody who could not make the change by hand cannot make it by accepting. Producing one is a job's, not a use case's: nobody asks for a suggestion to be *recorded*, they ask for one to be *made* (`SuggestFromJumbleEntry`).
+
 **Search** `SearchItems` (full text, optionally semantic).
 
 **Backup** `CreateBackupTarget`, `ListBackupTargets`, `TestBackupTarget` (E-03),

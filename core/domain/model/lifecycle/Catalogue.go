@@ -190,6 +190,25 @@ var catalogue = []Kind{
 		Name: KindNotification, Anchor: AnchorCreatedAt, DefaultDays: 90,
 		Actions: []Action{ActionHardDelete},
 	},
+	{
+		// What AI proposed (J-05). Thirty days from the moment it was recorded, and the shortest
+		// default in this catalogue on purpose: a suggestion is about a state of an entry, and an
+		// entry's state does not stay still. One nobody answered in a month is one about a task
+		// that has moved on, and keeping it would be keeping an inbox of proposals nobody can act
+		// on any more.
+		//
+		// Both decided states age out with the proposals. An accepted suggestion has already
+		// become the entry's own history, which is where "why does this task say that" is answered
+		// for good; the row is the working note, not the record.
+		//
+		// No marking phase, the jumble's reasoning: nobody can take a suggestion out of a period,
+		// and what governs it is the period alone.
+		Name: KindAiSuggestion, Anchor: AnchorCreatedAt, DefaultDays: 30,
+		Actions: []Action{ActionHardDelete},
+		// A tenant-wide hold and nothing narrower - a suggestion sits in no container, the
+		// jumble's reasoning again.
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{Name: KindActivityEntry, Anchor: AnchorOccurredAt},
 	{Name: KindRuleRun, Anchor: AnchorStartedAt, DefaultDays: 30},
 	{Name: KindWebhookDelivery, Anchor: AnchorCreatedAt, DefaultDays: 30},
@@ -234,6 +253,7 @@ const (
 	KindComment         DataKind = "COMMENT"
 	KindAttachment      DataKind = "ATTACHMENT"
 	KindJumbleEntry     DataKind = "JUMBLE_ENTRY"
+	KindAiSuggestion    DataKind = "AI_SUGGESTION"
 	KindActivityEntry   DataKind = "ACTIVITY_ENTRY"
 	KindRuleRun         DataKind = "RULE_RUN"
 	KindWebhookDelivery DataKind = "WEBHOOK_DELIVERY"

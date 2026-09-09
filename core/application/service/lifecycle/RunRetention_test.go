@@ -237,29 +237,31 @@ func (s *signalSink) RetentionRun(context.Context, string, float64) { s.runs++ }
 
 type runHarness struct {
 	*harness
-	run      RunRetention
-	policies *policyStore
-	runs     *runStore
-	signals  *signalSink
-	history  *historyStore
-	events   *eventStore
-	inbox    *inboxStore
+	run       RunRetention
+	policies  *policyStore
+	runs      *runStore
+	signals   *signalSink
+	history   *historyStore
+	events    *eventStore
+	inbox     *inboxStore
+	proposals *inboxStore
 }
 
 func newRunHarness() *runHarness {
 	base := newHarness()
 	h := &runHarness{
-		harness:  base,
-		policies: &policyStore{},
-		runs:     &runStore{},
-		signals:  &signalSink{},
-		history:  &historyStore{},
-		events:   &eventStore{},
-		inbox:    &inboxStore{},
+		harness:   base,
+		policies:  &policyStore{},
+		runs:      &runStore{},
+		signals:   &signalSink{},
+		history:   &historyStore{},
+		events:    &eventStore{},
+		inbox:     &inboxStore{},
+		proposals: &inboxStore{},
 	}
 	h.run = RunRetention{
 		Policies: h.policies, Runs: h.runs, Purger: base.purger, History: h.history,
-		Events: h.events, Inbox: h.inbox,
+		Events: h.events, Inbox: h.inbox, Proposals: h.proposals,
 		Clock: clock.Fixed(now), IDs: &idSource{}, Signals: h.signals,
 	}
 	return h
@@ -390,9 +392,9 @@ func TestAPassOpensAndClosesItsLog(t *testing.T) {
 		t.Fatalf("the run failed: %v", err)
 	}
 
-	// One log entry per kind: the trash, the notification history, the outbox and the jumble
-	// are four runs of one pass.
-	if len(h.runs.started) != 4 || len(h.runs.finished) != 4 {
+	// One log entry per kind: the trash, the notification history, the outbox, the jumble and
+	// the suggestions are five runs of one pass.
+	if len(h.runs.started) != 5 || len(h.runs.finished) != 5 {
 		t.Fatalf("%d runs started and %d finished, want one per data kind",
 			len(h.runs.started), len(h.runs.finished))
 	}
@@ -436,7 +438,7 @@ func TestAPassPublishesItsNumbersEvenWhenTheyAreZero(t *testing.T) {
 		t.Fatalf("the run failed: %v", err)
 	}
 
-	if h.signals.runs != 4 {
+	if h.signals.runs != 5 {
 		t.Errorf("%d durations recorded, want one per data kind", h.signals.runs)
 	}
 	if _, published := h.signals.deleted[string(domain.KindTrash)]; !published {
@@ -543,7 +545,7 @@ func TestAPassSweepsTheNotificationHistoryAtNinetyDays(t *testing.T) {
 	}
 
 	// One log entry per kind, and the second names the notification history.
-	if len(h.runs.started) != 4 {
+	if len(h.runs.started) != 5 {
 		t.Fatalf("%d runs started, want one per data kind", len(h.runs.started))
 	}
 	if _, published := h.signals.deleted[string(domain.KindNotification)]; !published {
@@ -623,7 +625,7 @@ func TestTheHistorySweepPublishesNoBlockReasons(t *testing.T) {
 			t.Errorf("%s was counted %d times", reason, h.signals.blocked[reason])
 		}
 	}
-	if h.signals.runs != 4 {
+	if h.signals.runs != 5 {
 		t.Errorf("%d durations recorded, want one per data kind", h.signals.runs)
 	}
 }
@@ -739,6 +741,54 @@ func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
 	}
 	if _, published := h.signals.deleted[string(domain.KindJumbleEntry)]; !published {
 		t.Error("the sweep published no deletion count for the jumble")
+	}
+}
+
+// The AI_SUGGESTION class (J-05): thirty days from when the proposal was recorded, swept by the
+// same job that empties the trash, and both decided states go with the proposals - an accepted
+// suggestion has already become the entry's own history.
+func TestAPassSweepsSuggestionsAtThirtyDays(t *testing.T) {
+	h := newRunHarness()
+	h.proposals.rows = []inboxRow{
+		{receivedAt: now.Add(-200 * 24 * time.Hour)}, // long expired
+		{receivedAt: now.Add(-31 * 24 * time.Hour)},  // just expired
+		{receivedAt: now.Add(-29 * 24 * time.Hour)},  // not yet
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if want := now.AddDate(0, 0, -30); !h.proposals.askedAt.Equal(want) {
+		t.Errorf("the cutoff was %v, want %v", h.proposals.askedAt, want)
+	}
+	if len(h.proposals.rows) != 1 {
+		t.Errorf("%d suggestions left, want the one inside the period", len(h.proposals.rows))
+	}
+	if outcome.Removed < 2 {
+		t.Errorf("removed %d, want at least the two expired suggestions", outcome.Removed)
+	}
+	if _, published := h.signals.deleted[string(domain.KindAiSuggestion)]; !published {
+		t.Error("the sweep published no deletion count for the suggestions")
+	}
+}
+
+// An installation wired without the store sweeps exactly what it did before, which is what lets
+// the two land in separate releases. It is where this kind parts company with the jumble: an
+// unswept inbox keeps raw inbound text for ever, while a suggestion's payload is a copy of fields
+// the entry itself holds under the entry's own period.
+func TestAPassWithoutTheSuggestionStoreStillRuns(t *testing.T) {
+	h := newRunHarness()
+	h.run.Proposals = nil
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("a run without the suggestion store failed: %v", err)
+	}
+	for _, kind := range h.runs.kinds {
+		if kind == domain.KindAiSuggestion {
+			t.Error("a run without the store opened a suggestion pass anyway")
+		}
 	}
 }
 
