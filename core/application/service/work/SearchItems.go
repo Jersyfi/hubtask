@@ -79,6 +79,8 @@ type SearchItemsQuery struct {
 	IncludeTrashed  bool
 	Cursor          string
 	Size            int
+	// Mode is AUTO or LEXICAL, and empty is AUTO (J-10).
+	Mode string
 }
 
 // Execute answers one page of hits, in the order the database ranked them.
@@ -89,8 +91,14 @@ func (h SearchItems) Execute(
 	if err != nil {
 		return repository.ItemHitPage{}, err
 	}
+	mode, err := view.ParseSearchMode(query.Mode, "/mode")
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
 	request := view.Search{
 		Words:           words,
+		Mode:            mode,
 		ContainerID:     query.ContainerID,
 		Language:        languageOr(query.Language, actor.Locale),
 		IncludeArchived: query.IncludeArchived,
@@ -113,7 +121,7 @@ func (h SearchItems) Execute(
 	// provider that did not answer in time - and the search then runs exactly the statement it ran
 	// before semantic search existed.
 	var meaning []float32
-	if h.Meaning != nil {
+	if h.Meaning != nil && request.Mode.Semantic() {
 		if meaning, err = h.Meaning.Of(ctx, actor, request.Words); err != nil {
 			return repository.ItemHitPage{}, err
 		}
@@ -307,6 +315,16 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 					"written in.",
 			},
 			{
+				Name: "mode", Kind: usecase.KindString,
+				Enum: []string{string(view.SearchAuto), string(view.SearchLexical)},
+				Description: "How much of the search to use. AUTO, the default, searches by words " +
+					"and - where this installation has semantic search, which /meta/capabilities " +
+					"reports - also by meaning, in one ranked page. LEXICAL searches by words " +
+					"only: it asks no AI provider, spends no budget and waits on nothing. There " +
+					"is deliberately no SEMANTIC: an installation may not have it, so it is not " +
+					"something a caller can be promised.",
+			},
+			{
 				Name: "include_archived", Kind: usecase.KindBool,
 				Description: "Keeps archived entries in the result.",
 			},
@@ -347,6 +365,7 @@ func (h SearchItems) invoke(
 		Words:           in.String("q"),
 		ContainerID:     containerID,
 		Language:        in.String("language"),
+		Mode:            in.String("mode"),
 		IncludeArchived: in.Bool("include_archived"),
 		IncludeTrashed:  in.Bool("include_trashed"),
 		Cursor:          in.String("cursor"),

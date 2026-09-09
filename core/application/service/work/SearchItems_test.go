@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 )
 
 // The search, at the level this layer owns: what it asks the repository for, and what it does with
@@ -248,5 +249,93 @@ func TestASearchOpensNoWriteTransaction(t *testing.T) {
 	}
 	if uow := handler.UnitOfWork.(*unitOfWork); uow.writes != 0 {
 		t.Errorf("%d write transactions were opened", uow.writes)
+	}
+}
+
+// The mode is the caller's one control over the second half (J-10). LEXICAL asks no provider at
+// all, which is what a caller in a loop - an automation, an import, a type-ahead - wants, and AUTO
+// is what everybody else gets without saying anything.
+func TestTheSearchModeDecidesWhetherAProviderIsAsked(t *testing.T) {
+	for _, c := range []struct {
+		mode  string
+		asked bool
+	}{
+		{"", true}, {"AUTO", true}, {"LEXICAL", false},
+	} {
+		handler, store, _, _ := searchHarness()
+		world := &embeddingWorld{
+			available: true, embedding: true, model: "embed-3",
+			vectors: [][]float32{{0.1, 0.2, 0.3}},
+		}
+		handler.Meaning = meaningHarness(world)
+
+		if _, err := handler.Execute(t.Context(), itemActor(), SearchItemsQuery{
+			Words: "quarterly", Mode: c.mode,
+		}); err != nil {
+			t.Fatalf("a %q search was refused: %v", c.mode, err)
+		}
+
+		if asked := len(world.embedded) > 0; asked != c.asked {
+			t.Errorf("a %q search asked a provider = %v, want %v", c.mode, asked, c.asked)
+		}
+		if carried := len(store.searchedText[0].Meaning) > 0; carried != c.asked {
+			t.Errorf("a %q search carried a vector = %v, want %v", c.mode, carried, c.asked)
+		}
+	}
+}
+
+// A mode nobody offers is refused by name rather than quietly read as the default: a client asking
+// for SEMANTIC is a client that believes it will get something, and answering it with AUTO would
+// be agreeing to a promise this server cannot make.
+func TestASearchModeThatIsNotOfferedIsRefused(t *testing.T) {
+	handler, _, _, _ := searchHarness()
+
+	_, err := handler.Execute(t.Context(), itemActor(), SearchItemsQuery{
+		Words: "quarterly", Mode: "SEMANTIC",
+	})
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "search.mode_unknown" {
+		t.Fatalf("an unknown mode answered %v", err)
+	}
+}
+
+// A lexical search still answers a full page. The point of the mode is that the second half is
+// optional, not that the search is.
+func TestALexicalSearchStillAnswers(t *testing.T) {
+	handler, _, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9))
+	handler.Meaning = meaningHarness(&embeddingWorld{available: true, embedding: true, model: "embed-3"})
+	permitted.permit = map[shared.ID]bool{taskID: true}
+
+	page, err := handler.Execute(t.Context(), itemActor(), SearchItemsQuery{
+		Words: "quarterly", Mode: "LEXICAL",
+	})
+	if err != nil {
+		t.Fatalf("a lexical search was refused: %v", err)
+	}
+	if len(page.Hits) != 1 {
+		t.Errorf("a lexical search answered %d hits, want the one it found", len(page.Hits))
+	}
+}
+
+// The third degradation: a provider that will not answer leaves the search entirely intact. It is
+// the same page the search would have answered before J-10 existed, which is what makes the
+// semantic half safe to switch on.
+func TestASearchSurvivesAProviderThatWillNotAnswer(t *testing.T) {
+	handler, store, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9))
+	handler.Meaning = meaningHarness(&embeddingWorld{
+		available: true, embedding: true, model: "embed-3", embedErr: aiprovider.ErrUnavailable,
+	})
+	permitted.permit = map[shared.ID]bool{taskID: true}
+
+	page, err := handler.Execute(t.Context(), itemActor(), SearchItemsQuery{Words: "quarterly"})
+	if err != nil {
+		t.Fatalf("a cut-off provider failed the search: %v", err)
+	}
+	if len(page.Hits) != 1 {
+		t.Errorf("%d hits survived a cut-off provider, want the one that was found", len(page.Hits))
+	}
+	if len(store.searchedText[0].Meaning) != 0 {
+		t.Error("a vector reached the statement from a provider that refused")
 	}
 }

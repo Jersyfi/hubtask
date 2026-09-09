@@ -43,6 +43,42 @@ type Search struct {
 	IncludeTrashed  bool
 	Cursor          string
 	Size            int
+	// Mode is how much of the search to use (J-10, ADR-0050). Empty means SearchAuto, so a caller
+	// that predates the field - and a client that never sends it - keeps getting the whole search.
+	Mode SearchMode
+}
+
+// SearchMode says whether a search may also ask what the words mean.
+//
+// Two values and not three. There is no SEMANTIC, because semantic search is optional four times
+// over - the database may not carry pgvector, the workspace may have configured no provider or not
+// consented to one, and the provider may not answer while somebody waits - and a mode the server
+// cannot promise is a mode that would have to fail. AUTO uses what is there; LEXICAL is the caller
+// saying it would rather not wait on anybody else's machine.
+type SearchMode string
+
+const (
+	// SearchAuto searches by words and, where the installation has it, by meaning. The default.
+	SearchAuto SearchMode = "AUTO"
+	// SearchLexical searches by words only: no provider is asked, no budget is spent, nothing is
+	// waited on. What an automation, an import or a type-ahead wants.
+	SearchLexical SearchMode = "LEXICAL"
+)
+
+// Semantic reports whether this mode may ask what the words mean.
+func (m SearchMode) Semantic() bool { return m != SearchLexical }
+
+// ParseSearchMode reads the mode a caller sent, defaulting an empty one to AUTO.
+func ParseSearchMode(raw string, path string) (SearchMode, error) {
+	switch SearchMode(raw) {
+	case "":
+		return SearchAuto, nil
+	case SearchAuto:
+		return SearchAuto, nil
+	case SearchLexical:
+		return SearchLexical, nil
+	}
+	return "", fieldError(path, "search.mode_unknown", map[string]string{"value": raw})
 }
 
 // MaxSearchWordsLength bounds the query text.
