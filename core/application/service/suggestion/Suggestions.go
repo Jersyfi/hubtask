@@ -271,9 +271,16 @@ var appliers = map[applierKey]string{
 	{domain.TargetWorkItem, domain.KindDecomposition}: createWorkItemName,
 }
 
-// createWorkItemName is the one use case this package calls for something other than the applier
-// of a payload: J-07's walk, and K-01's, which are the same walk over two shapes.
-const createWorkItemName = "CreateWorkItem"
+// The use cases this package calls for something other than applying a payload: J-07's walk and
+// K-01's, which are the same walk over two shapes, and K-02's move.
+//
+// Named here rather than written at the call site for `appliers`' reason: what this package can do
+// to a workspace is exactly what it can name, and a short list is what makes that reviewable.
+const (
+	createWorkItemName = "CreateWorkItem"
+	moveWorkItemName   = "MoveWorkItem"
+	addLabelName       = "AddLabel"
+)
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
 // (domain-model.md §2), read downwards.
@@ -340,10 +347,80 @@ func (c Cases) apply(
 	if err != nil {
 		return err
 	}
-	if len(grows) == 0 {
+	// What the acceptance performs itself, once the applier has written the rest.
+	if grows["subtasks"] {
+		if err := c.grow(ctx, actor, proposal, in, out); err != nil {
+			return err
+		}
+	}
+	if grows[labelsKey] {
+		if err := c.tag(ctx, actor, proposal); err != nil {
+			return err
+		}
+	}
+	if grows[bucketKey] {
+		return c.place(ctx, actor, proposal)
+	}
+	return nil
+}
+
+// tag puts the labels a classification chose on the entry (K-02).
+//
+// One ordinary `AddLabel` each, as the accepting person, because a label is a set entry and not a
+// field: `UpdateWorkItem` - the use case that applies the rest of a FIELDS proposal - has no such
+// input, and never should. The identifiers are ones the material offered, so each is a label of the
+// entry's own collection, which is what `AddLabel` requires.
+//
+// A refusal is the answer, as it is for the column: the labels are part of what was accepted.
+func (c Cases) tag(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+) error {
+	chosen, held := proposal.Payload[labelsKey].([]any)
+	if !held {
 		return nil
 	}
-	return c.grow(ctx, actor, proposal, in, out)
+	for _, entry := range chosen {
+		labelID, isText := entry.(string)
+		if !isText || strings.TrimSpace(labelID) == "" {
+			continue
+		}
+		if _, err := c.Catalogue.Invoke(ctx, addLabelName, actor, usecase.Input{
+			// The entry is the suggestion's, for `place`'s reason.
+			"item_id":  proposal.TargetID.String(),
+			"label_id": labelID,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// place puts the entry in the column a classification chose (K-02).
+//
+// Through `MoveWorkItem`, which is the use case that owns putting an entry somewhere: a card going
+// into another column is a move, and the permission check, the history entry and the event a
+// person reads should be a move's. `UpdateWorkItem` declares `bucket_id` and would have written it
+// - that is why the key is in `grown` rather than left to the applier, and this is the whole of the
+// difference.
+//
+// **A refusal is the answer**, which is where this differs from the walk under a converted entry.
+// The column is part of what was accepted rather than something the acceptance grew afterwards, so
+// somebody who may not move the entry has not half-accepted a classification - they have been
+// refused one, and the labels go back with it.
+func (c Cases) place(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+) error {
+	bucketID, chosen := proposal.Payload[bucketKey].(string)
+	if !chosen || strings.TrimSpace(bucketID) == "" {
+		return nil
+	}
+	_, err := c.Catalogue.Invoke(ctx, moveWorkItemName, actor, usecase.Input{
+		// The entry is the suggestion's, never the payload's: a proposal able to name the entry it
+		// moves would be a proposal about one entry moving another.
+		"item_id":          proposal.TargetID.String(),
+		"target_bucket_id": bucketID,
+	})
+	return err
 }
 
 // grow creates the work a jumble entry implied, under the item the conversion just made (K-01).

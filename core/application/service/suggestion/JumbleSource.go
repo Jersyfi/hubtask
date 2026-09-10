@@ -5,6 +5,7 @@ package suggestion
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -24,16 +25,19 @@ type CatalogueSources struct {
 
 var _ Sources = CatalogueSources{}
 
-// Material answers the text to describe and the fingerprint of the state it came from.
+// Material answers the text to describe, the fingerprint of the state it came from, and the closed
+// sets the question about to be asked may choose from.
 func (s CatalogueSources) Material(
 	ctx context.Context, actor appshared.ActorContext,
-	targetType domain.TargetType, targetID shared.ID,
+	targetType domain.TargetType, targetID shared.ID, promptID string,
 ) (Material, error) {
 	switch targetType {
 	case domain.TargetJumbleEntry:
+		// An entry in the inbox is in no collection yet, so there is no board to choose from: the
+		// person converting names the destination, and its columns are theirs to pick.
 		return s.entry(ctx, actor, targetID)
 	case domain.TargetWorkItem:
-		return s.item(ctx, actor, targetID)
+		return s.item(ctx, actor, targetID, promptID)
 	default:
 		return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
 	}
@@ -84,9 +88,10 @@ func (s CatalogueSources) entry(
 	return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
 }
 
-// item is an entry's title and notes, the same two fields the fingerprint is taken over.
+// item is an entry's title and notes, the same two fields the fingerprint is taken over - and, for
+// a question that chooses from one, the board it sits on.
 func (s CatalogueSources) item(
-	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, promptID string,
 ) (Material, error) {
 	out, err := s.Catalogue.Invoke(ctx, "GetWorkItem", actor, usecase.Input{
 		"item_id": itemID.String(),
@@ -98,8 +103,126 @@ func (s CatalogueSources) item(
 	if strings.TrimSpace(title) == "" && strings.TrimSpace(notes) == "" {
 		return Material{Digest: domain.Digest(title, notes)}, nil
 	}
-	return Material{
+
+	material := Material{
 		Content: "Title: " + title + "\n\n" + notes,
 		Digest:  domain.Digest(title, notes),
-	}, nil
+	}
+	for _, key := range choiceSets[promptID] {
+		set, err := s.set(ctx, actor, key, out)
+		if err != nil {
+			return Material{}, err
+		}
+		if len(set.Options) > 0 {
+			material.Choices = append(material.Choices, set)
+		}
+	}
+	return material, nil
+}
+
+// set reads one closed set this entry could be classified into.
+func (s CatalogueSources) set(
+	ctx context.Context, actor appshared.ActorContext, key string, item usecase.Output,
+) (Choices, error) {
+	switch key {
+	case bucketKey:
+		return s.board(ctx, actor, item)
+	case labelsKey:
+		return s.vocabulary(ctx, actor, item)
+	default:
+		// A key named in `choiceSets` and read by nothing would be a set a model is asked to
+		// choose from and never shown - which is the leak the whole milestone is about.
+		return Choices{}, shared.ErrInternal.
+			WithDetail("suggestions.choices_unknown").
+			WithParams(map[string]string{"key": key})
+	}
+}
+
+// The answer keys a closed set is chosen under, and what applies them at acceptance:
+// `MoveWorkItem`'s `target_bucket_id`, and one `AddLabel` per chosen label.
+const (
+	bucketKey = "bucket_id"
+	labelsKey = "label_ids"
+)
+
+// vocabulary answers the labels this entry's collection has agreed on.
+//
+// A label is a set entry rather than a field, and it exists in a collection's vocabulary or it does
+// not - so this is the same closed set a board is, and for a stronger reason: words a model
+// invented could never be applied. `AddLabel` takes a label of the entry's own collection, and a
+// workspace that has not agreed on "urgent" does not acquire it because a model wrote it down.
+//
+// A collection with an empty vocabulary is offered nothing and is classified by its board alone,
+// which is the honest answer: there is nothing to choose.
+func (s CatalogueSources) vocabulary(
+	ctx context.Context, actor appshared.ActorContext, item usecase.Output,
+) (Choices, error) {
+	collectionID := item.String("collection_id")
+	if collectionID == "" {
+		return Choices{}, nil
+	}
+
+	out, err := s.Catalogue.Invoke(ctx, "ListLabels", actor, usecase.Input{
+		"collection_id": collectionID,
+	})
+	if err != nil {
+		if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
+			return Choices{}, nil
+		}
+		return Choices{}, err
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	options := make([]Option, 0, len(rows))
+	for _, row := range rows {
+		options = append(options, Option{ID: row.String("id"), Name: row.String("name")})
+	}
+	return Choices{Key: labelsKey, Label: "Labels this collection uses", Options: options}, nil
+}
+
+// board answers the columns this entry could be moved between, with the one it is in now marked.
+//
+// Read through the ordinary listing, as everything in this package is, so the columns offered are
+// the columns the person asking may see. Two entries produce no set at all rather than an empty
+// one:
+//
+//   - An entry that is not directly in a collection. A board belongs to a collection and only the
+//     entries directly in it have a place on one (domain-model.md §2), so offering its columns
+//     would be offering a choice the domain refuses at acceptance.
+//   - A collection with no board. Nothing to choose from is not an error - the classification is
+//     the labels, and it is produced exactly as it was before this existed.
+func (s CatalogueSources) board(
+	ctx context.Context, actor appshared.ActorContext, item usecase.Output,
+) (Choices, error) {
+	if parent, held := item["parent_id"].(string); held && parent != "" {
+		return Choices{}, nil
+	}
+	collectionID := item.String("collection_id")
+	if collectionID == "" {
+		return Choices{}, nil
+	}
+
+	out, err := s.Catalogue.Invoke(ctx, "ListBuckets", actor, usecase.Input{
+		"collection_id": collectionID,
+	})
+	if err != nil {
+		// A board the asker may not read is not a reason to refuse them a classification: they
+		// get the labels, which is what this question answered before it could offer a column at
+		// all. Anything else is a defect and travels.
+		if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
+			return Choices{}, nil
+		}
+		return Choices{}, err
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	current := item.String(bucketKey)
+	options := make([]Option, 0, len(rows))
+	for _, row := range rows {
+		id := row.String("id")
+		options = append(options, Option{
+			ID: id, Name: row.String("name"), Current: id != "" && id == current,
+		})
+	}
+	return Choices{Key: bucketKey, Label: "Board columns", Options: options}, nil
 }
