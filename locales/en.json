@@ -746,6 +746,7 @@
   "suggestions.choices_unknown": "That question asks a model to choose from a set this installation cannot read, so no suggestion was made.",
   "suggestions.nothing_to_apply": "This suggestion is something to read rather than something to apply. Dismiss it when you are done with it.",
   "suggestions.decided_by_hand": "Two entries being the same is something a person decides: archive one, put one in the trash, or move one under the other. Dismiss this suggestion once you have.",
+  "suggestions.due_date_unreadable": "The due date on that suggestion is not a date Hubtask can read, so it could not be applied.",
   "suggestions.acceptance_not_built": "Accepting a {kind} suggestion about a {target_type} is not something this version of Hubtask does yet.",
   "ai.unavailable": "AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.",
   "ai.not_configured": "This workspace has not chosen an AI provider.",

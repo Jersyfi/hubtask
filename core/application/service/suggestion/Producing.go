@@ -207,12 +207,19 @@ func AnswerKeys() map[string][]string {
 // the whole acceptance - J-16's defect from the other side. Breaking a work item down is what
 // KindDecomposition is for.
 var grown = map[applierKey]map[string]bool{
-	{domain.TargetJumbleEntry, domain.KindFields}: {"subtasks": true},
+	// `due_date` is here for both targets, and for one reason rather than two. `ConvertJumbleEntry`
+	// declares no due date at all, so a proposed one can only be written by a second call - and
+	// once the jumble's answer is applied by `SetDueDate`, a work item's arriving anywhere else
+	// would be the same proposal written two ways. What it costs on a work item is one extra
+	// version bump: `UpdateWorkItem` would have taken `due_at` and ends in the same
+	// `DueDateWriter.write` this call reaches, so the event, the audit entry and the history step
+	// are identical either way, and only the number of writes differs.
+	{domain.TargetJumbleEntry, domain.KindFields}: {"subtasks": true, dueKey: true},
 	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
 	// here rather than absent: putting a card in another column is a *move*, and the history entry
 	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.
 	{domain.TargetWorkItem, domain.KindFields}: {
-		"bucket_id": true, "label_ids": true, "custom_fields": true,
+		"bucket_id": true, "label_ids": true, "custom_fields": true, dueKey: true,
 	},
 }
 
@@ -467,7 +474,7 @@ func payloadFrom(
 	case domain.KindFields:
 		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
 		kept = keptChoices(kept, promptID, material.Choices)
-		return keptTitles(keptDeclared(kept, material.Declared)), true
+		return keptDate(keptTitles(keptDeclared(kept, material.Declared))), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
@@ -504,7 +511,7 @@ func (h Produce) today(actor appshared.ActorContext, promptID string) string {
 		}
 	}
 	return "\n\nToday's date, for anything the material says about time: " +
-		h.Clock.Now().In(zone).Format("2006-01-02") + " (" + zone.String() + ")."
+		h.Clock.Now().In(zone).Format(dateLayout) + " (" + zone.String() + ")."
 }
 
 // withOptions is the material as the provider sees it: what was written, and then the sets the
@@ -694,6 +701,37 @@ func chosenFrom(offered []Choices, key, id string) bool {
 	}
 	return false
 }
+
+// keptDate reads a proposed due date as what the prompt asks for - a calendar date, and nothing
+// else - and drops the key whole where it is anything else.
+//
+// Dropped alone rather than taking the suggestion with it, for `keptTitles`' reason: a field set is
+// several proposals at once, and losing a good title because a model wrote the date in its own
+// country's order would be the wrong trade. What is checked here is only the *shape*; whether the
+// date is one this workspace will accept is the acceptance's question, asked by the domain where
+// every other due date is asked.
+func keptDate(payload map[string]any) map[string]any {
+	proposed, held := payload[dueKey]
+	if !held {
+		return payload
+	}
+	written, isText := proposed.(string)
+	if !isText {
+		delete(payload, dueKey)
+		return payload
+	}
+	// Parsed in UTC and thrown away: this is a format check, and the instant the date becomes is
+	// the accepting person's zone's business rather than this one's.
+	if _, err := time.ParseInLocation(dateLayout, strings.TrimSpace(written), time.UTC); err != nil {
+		delete(payload, dueKey)
+		return payload
+	}
+	payload[dueKey] = strings.TrimSpace(written)
+	return payload
+}
+
+// dateLayout is the shape the prompt asks a date in, and the only shape read back.
+const dateLayout = "2006-01-02"
 
 // maxProposedSubtasks bounds the titles a field set may carry. The prompt asks for ten; this is
 // what happens when a model ignores it.

@@ -15,6 +15,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -282,6 +283,7 @@ const (
 	moveWorkItemName   = "MoveWorkItem"
 	addLabelName       = "AddLabel"
 	setCustomFieldName = "SetCustomField"
+	setDueDateName     = "SetDueDate"
 )
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
@@ -364,6 +366,14 @@ func (c Cases) apply(
 		return err
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
+	//
+	// The due date goes first, because a refusal here is the answer and there is no reason to
+	// create children under an entry whose acceptance is about to be turned down.
+	if grows[dueKey] {
+		if err := c.date(ctx, actor, proposal, out); err != nil {
+			return err
+		}
+	}
 	if grows["subtasks"] {
 		if err := c.grow(ctx, actor, proposal, in, out); err != nil {
 			return err
@@ -383,6 +393,64 @@ func (c Cases) apply(
 		return c.place(ctx, actor, proposal)
 	}
 	return nil
+}
+
+// date puts the due date a proposal named on the entry, through the use case that owns due dates.
+//
+// A calendar date and not an instant: the model was asked for a day and answered one, so what is
+// written is an all-day due date in a named zone, which is what the domain means by `DateOnly` -
+// "a date in that zone, never a midnight that shifts with the viewer".
+//
+// The zone is the **accepting** person's. An all-day date is a calendar day rather than a moment,
+// so the day it names does not move; what the zone decides is where that day begins for whoever
+// reads it, and that is the person reading it. Where nobody has a zone - a workspace that set no
+// default either - it is UTC, which is the same zone the material was dated in, so the date a model
+// was shown and the date that is written are read the same way round.
+//
+// **A refusal is the answer**, as it is for the column: the due date is part of what was accepted.
+// The whole acceptance is one transaction, so a refusal here leaves nothing half-applied.
+func (c Cases) date(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+	out usecase.Output,
+) error {
+	written, held := proposal.Payload[dueKey].(string)
+	if !held || strings.TrimSpace(written) == "" {
+		return nil
+	}
+
+	zone := time.UTC
+	if actor.TimeZone != "" {
+		if loaded, err := time.LoadLocation(actor.TimeZone); err == nil {
+			zone = loaded
+		}
+	}
+	// The shape was checked when the answer was read, so a date that does not parse here is a
+	// payload somebody edited in the database rather than a model's answer. Refused, not repaired.
+	day, err := time.ParseInLocation(dateLayout, strings.TrimSpace(written), zone)
+	if err != nil {
+		return shared.ErrValidation.WithDetail("suggestions.due_date_unreadable")
+	}
+
+	// The entry the date goes on: the suggestion's own, or - for a converted jumble entry - the
+	// item the conversion answered. Never the payload's and never the overrides', for `place`'s
+	// reason: a proposal able to name the entry it dates would be a proposal about one entry
+	// dating another.
+	itemID := proposal.TargetID.String()
+	if proposal.TargetType == domain.TargetJumbleEntry {
+		converted, err := shared.ParseID(out.String("target_item_id"))
+		if err != nil {
+			return nil
+		}
+		itemID = converted.String()
+	}
+
+	_, err = c.Catalogue.Invoke(ctx, setDueDateName, actor, usecase.Input{
+		"item_id":       itemID,
+		"due_at":        day.Format(time.RFC3339),
+		"due_date_only": true,
+		"due_time_zone": zone.String(),
+	})
+	return err
 }
 
 // fill writes the values a classification proposed for the fields a collection declared (K-03).
