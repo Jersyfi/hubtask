@@ -159,6 +159,9 @@ func (s CatalogueSources) set(
 const (
 	threadPrompt     = "summarize-thread"
 	collectionPrompt = "summarize-collection"
+	// The field question about an entry that already exists, which is a different question from
+	// the jumble's and therefore a different prompt (see `promptFields`).
+	itemFieldsPrompt = "suggest-item-fields"
 )
 
 // maxSummarisedComments and maxSummarisedEntries bound what a summary is made from.

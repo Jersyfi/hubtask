@@ -82,7 +82,7 @@ func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		FieldsAskedAction, domain.KindFields, "suggest-fields", apply)
+		FieldsAskedAction, domain.KindFields, itemFieldsPrompt, apply)
 }
 
 // Execute asks for a summary.

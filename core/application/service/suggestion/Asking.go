@@ -62,6 +62,16 @@ func (a Ask) queue(
 	targetType domain.TargetType, targetID shared.ID,
 	action audit.Action, kind domain.Kind, promptID string, apply bool,
 ) error {
+	if _, asked := AsksAbout(promptID, targetType); !asked {
+		// Before the permission, the consent and the audit entry, because those are what a
+		// refusal in the worker would already have spent. A pair nothing declares is a defect in
+		// this build rather than anything about the caller.
+		return shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
+			WithParams(map[string]string{
+				"prompt": promptID, "target_type": string(targetType),
+			})
+	}
+
 	c := a.Cases
 	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		// Asking spends the workspace's budget and sends its content somewhere, so it asks for

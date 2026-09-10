@@ -751,6 +751,7 @@
   "ai.unavailable": "AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.",
   "ai.not_configured": "This workspace has not chosen an AI provider.",
   "ai.prompt_unknown": "This installation does not carry the prompt {prompt}.",
+  "ai.prompt_target_unknown": "This version of Hubtask does not ask {prompt} about a {target_type}.",
   "ai.provider_incomplete": "That AI configuration is missing something Hubtask needs to store it.",
   "ai.kind_unknown": "{value} is not a kind of AI provider Hubtask can talk to.",
   "ai.jurisdiction_unknown": "{value} is not one of the jurisdictions a provider can be declared in.",

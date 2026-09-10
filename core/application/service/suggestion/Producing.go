@@ -154,7 +154,14 @@ var promptFields = map[string]map[string]bool{
 	"suggest-fields": {
 		"title": true, "notes": true, dueKey: true, "subtasks": true,
 	},
-	"summarize": {"notes": true},
+	// The same question about an entry that already exists, and its own prompt rather than a
+	// second target for the one above. `subtasks` is the difference: under a jumble entry the
+	// acceptance grows them, and under a work item nothing does - breaking a work item down is
+	// what KindDecomposition is for, with a tree and types rather than a flat list. One allow list
+	// per prompt is already the rule here, for the reason written above it, and the same sentence
+	// says a question about an existing entry has no business asking for titles nobody will read.
+	"suggest-item-fields": {"title": true, "notes": true, dueKey: true},
+	"summarize":           {"notes": true},
 	// The other two thirds of §2's Summarisation row (K-05). Same answer shape, different
 	// material: a discussion rather than an entry, and a collection rather than either.
 	"summarize-thread":     {"notes": true},
@@ -183,6 +190,51 @@ var promptFields = map[string]map[string]bool{
 // nothing under that key while the rest of its answer stands.
 var choiceSets = map[string][]string{
 	"classify": {"bucket_id", "label_ids"},
+}
+
+// promptTargets says what each prompt is asked *about*.
+//
+// The allow list is per prompt and the narrowing is per target, so until this map existed the two
+// could only be compared by knowing which pairs occur - which nothing wrote down, and which is
+// exactly the gap `promptFields` and the descriptors had between them. It is read by the runtime
+// rather than only by the gate: an undeclared pair is refused where the question is asked, so a
+// call site that queued one fails in its own test instead of in a worker at three in the morning.
+var promptTargets = map[string]map[domain.TargetType]bool{
+	"suggest-fields":       {domain.TargetJumbleEntry: true},
+	"suggest-item-fields":  {domain.TargetWorkItem: true},
+	"summarize":            {domain.TargetWorkItem: true},
+	"summarize-thread":     {domain.TargetWorkItem: true},
+	"summarize-collection": {domain.TargetContainer: true},
+	"classify":             {domain.TargetWorkItem: true},
+	"decompose":            {domain.TargetWorkItem: true},
+}
+
+// promptTarget is one pair, for the map below.
+type promptTarget struct {
+	prompt string
+	target domain.TargetType
+}
+
+// superseded maps a pair a previous release queued onto the prompt that asks that question now.
+//
+// `defaultPrompts` exists for the same problem and states the reasoning: the payload outlives the
+// process that wrote it. A refusal instead would not be a quiet one - it is `ErrInternal`, the
+// worker returns it, and the queue spends the whole retry ladder before the dead letter, for every
+// job in flight at the moment of an upgrade.
+var superseded = map[promptTarget]string{
+	{"suggest-fields", domain.TargetWorkItem}: "suggest-item-fields",
+}
+
+// AsksAbout reports whether this build asks that prompt about that target, and answers the prompt
+// that asks it - which is the prompt named, unless a previous release named its predecessor.
+//
+// Exported for the asking, which checks the pair before it spends a workspace's consent and writes
+// an audit entry, and for the gate.
+func AsksAbout(promptID string, target domain.TargetType) (string, bool) {
+	if renamed, old := superseded[promptTarget{promptID, target}]; old {
+		promptID = renamed
+	}
+	return promptID, promptTargets[promptID][target]
 }
 
 // AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
@@ -255,6 +307,16 @@ func (h Produce) Execute(
 	if _, known := promptFields[promptID]; !known {
 		return shared.ErrInternal.WithDetail("ai.prompt_unknown").
 			WithParams(map[string]string{"prompt": promptID})
+	}
+	promptID, asked := AsksAbout(promptID, request.TargetType)
+	if !asked {
+		// A pair nothing declares is a question this build does not ask. Refused rather than
+		// asked anyway: the allow list belongs to the prompt and the narrowing to the target, so
+		// an undeclared pair is a proposal narrowed by rules nobody compared.
+		return shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
+			WithParams(map[string]string{
+				"prompt": promptID, "target_type": string(request.TargetType),
+			})
 	}
 	prompt, err := h.Prompts.Get(promptID)
 	if err != nil {

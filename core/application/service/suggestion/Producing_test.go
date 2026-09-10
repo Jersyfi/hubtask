@@ -1250,3 +1250,64 @@ func TestAQuestionThatKeepsNoDueDateIsSentNoDate(t *testing.T) {
 		}
 	}
 }
+
+// The allow list belongs to the prompt and the narrowing to the target, so a pair nothing declares
+// is a proposal narrowed by two rules nobody compared. Refused where the question is asked.
+func TestAPairThisBuildDoesNotAskIsRefused(t *testing.T) {
+	produce, world := producer(`{"notes":"Short."}`)
+
+	err := produce.Execute(context.Background(), person(), Request{
+		// A collection summarised with the entry's own question: both halves exist, the pair does
+		// not.
+		TargetType: domain.TargetContainer, TargetID: containerTargetID,
+		Kind: domain.KindFields, PromptID: "suggest-fields",
+	})
+	if err == nil {
+		t.Fatal("a pair nothing declares was asked anyway")
+	}
+	if shared.AsError(err).DetailCode != "ai.prompt_target_unknown" {
+		t.Errorf("the refusal is %v", err)
+	}
+	if len(world.asked) != 0 {
+		t.Error("a provider was paid for a question this build does not ask")
+	}
+}
+
+// A job written by the release before this one names the prompt that asked the work item's field
+// question then. It is answered with the prompt that asks it now rather than refused: a refusal is
+// ErrInternal, the worker returns it, and the queue spends its whole retry ladder on every job in
+// flight at the moment of an upgrade.
+func TestAJobFromThePreviousReleaseAsksTheQuestionThatSupersededIt(t *testing.T) {
+	produce, world := producer(`{"title":"Renew the domain"}`)
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetWorkItem, TargetID: targetID,
+		Kind: domain.KindFields, PromptID: "suggest-fields",
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	if len(world.asked) != 1 {
+		t.Fatalf("%d completions asked", len(world.asked))
+	}
+	if world.asked[0].PromptID != itemFieldsPrompt {
+		t.Errorf("the question asked was %q", world.asked[0].PromptID)
+	}
+}
+
+// And what the pair map says is what the code does: every prompt this build carries is asked about
+// at least one target, and every target it is asked about narrows with an allow list that has
+// something left in it.
+func TestEveryPromptIsAskedAboutSomething(t *testing.T) {
+	for promptID := range promptFields {
+		targets, declared := promptTargets[promptID]
+		if !declared || len(targets) == 0 {
+			t.Errorf("%s is in the allow list and is asked about nothing", promptID)
+		}
+	}
+	for promptID := range promptTargets {
+		if _, allowed := promptFields[promptID]; !allowed {
+			t.Errorf("%s is asked about something and keeps nothing", promptID)
+		}
+	}
+}
