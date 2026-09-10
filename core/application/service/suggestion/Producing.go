@@ -122,8 +122,17 @@ var promptFields = map[string]map[string]bool{
 		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
 	},
 	"summarize": {"notes": true},
-	// The bucket is chosen from the columns the material carried, never named freely (K-02).
-	"classify": {"labels": true, "bucket_id": true},
+	// Both chosen from what the material carried, never named freely (K-02): the columns of the
+	// entry's board, and the vocabulary its collection agreed on.
+	//
+	// `labels` was here until K-02 and could not be applied by anything: a label is a set entry
+	// added by identifier through `AddLabel`, not a field of the item, so `UpdateWorkItem` - the
+	// use case that applies a FIELDS proposal about an entry - declares no such input. J-16's
+	// narrowing therefore dropped the key, and every classification since has recorded an empty
+	// payload, which is to say nothing at all. Words a model invented could not have been applied
+	// anyway: a label a workspace has not agreed on is vocabulary, and inventing vocabulary is the
+	// naming this milestone's second decision keeps a model out of.
+	"classify": {"label_ids": true, "bucket_id": true},
 	// A decomposition's answer is one key at its own level and a tree underneath it, and what a
 	// *node* may carry is `keptTree`'s business rather than this map's.
 	"decompose": {"children": true},
@@ -135,7 +144,7 @@ var promptFields = map[string]map[string]bool{
 // so a model that invents an identifier, or names a column from a board nobody showed it, proposes
 // nothing under that key while the rest of its answer stands.
 var choiceSets = map[string][]string{
-	"classify": {"bucket_id"},
+	"classify": {"bucket_id", "label_ids"},
 }
 
 // AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
@@ -171,7 +180,7 @@ var grown = map[applierKey]map[string]bool{
 	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
 	// here rather than absent: putting a card in another column is a *move*, and the history entry
 	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.
-	{domain.TargetWorkItem, domain.KindFields}: {"bucket_id": true},
+	{domain.TargetWorkItem, domain.KindFields}: {"bucket_id": true, "label_ids": true},
 }
 
 // defaultPrompts is what a kind is asked with when a job does not say.
@@ -409,8 +418,32 @@ func keptChoices(payload map[string]any, promptID string, offered []Choices) map
 		if !held {
 			continue
 		}
-		id, isText := chosen.(string)
-		if !isText || !chosenFrom(offered, key, id) {
+		switch answered := chosen.(type) {
+		case string:
+			if !chosenFrom(offered, key, answered) {
+				delete(payload, key)
+			}
+		case []any:
+			// Several choices from one set. Each is checked on its own and the ones that were
+			// offered stand, because this is the same filter a key gets rather than a repair of a
+			// malformed answer: what a model chose from the list it was shown is a choice,
+			// whatever it wrote beside it.
+			kept := make([]any, 0, len(answered))
+			seen := map[string]bool{}
+			for _, entry := range answered {
+				id, isText := entry.(string)
+				if !isText || seen[id] || !chosenFrom(offered, key, id) {
+					continue
+				}
+				seen[id] = true
+				kept = append(kept, id)
+			}
+			if len(kept) == 0 {
+				delete(payload, key)
+				continue
+			}
+			payload[key] = kept
+		default:
 			delete(payload, key)
 		}
 	}

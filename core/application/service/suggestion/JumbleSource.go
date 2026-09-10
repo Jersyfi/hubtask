@@ -6,7 +6,6 @@ package suggestion
 import (
 	"context"
 	"errors"
-	"slices"
 	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -109,22 +108,77 @@ func (s CatalogueSources) item(
 		Content: "Title: " + title + "\n\n" + notes,
 		Digest:  domain.Digest(title, notes),
 	}
-	if !slices.Contains(choiceSets[promptID], bucketKey) {
-		return material, nil
-	}
-	board, err := s.board(ctx, actor, out)
-	if err != nil {
-		return Material{}, err
-	}
-	if len(board.Options) > 0 {
-		material.Choices = append(material.Choices, board)
+	for _, key := range choiceSets[promptID] {
+		set, err := s.set(ctx, actor, key, out)
+		if err != nil {
+			return Material{}, err
+		}
+		if len(set.Options) > 0 {
+			material.Choices = append(material.Choices, set)
+		}
 	}
 	return material, nil
 }
 
-// bucketKey is the answer key a board column is chosen under, and the input key `MoveWorkItem`
-// would be given at acceptance.
-const bucketKey = "bucket_id"
+// set reads one closed set this entry could be classified into.
+func (s CatalogueSources) set(
+	ctx context.Context, actor appshared.ActorContext, key string, item usecase.Output,
+) (Choices, error) {
+	switch key {
+	case bucketKey:
+		return s.board(ctx, actor, item)
+	case labelsKey:
+		return s.vocabulary(ctx, actor, item)
+	default:
+		// A key named in `choiceSets` and read by nothing would be a set a model is asked to
+		// choose from and never shown - which is the leak the whole milestone is about.
+		return Choices{}, shared.ErrInternal.
+			WithDetail("suggestions.choices_unknown").
+			WithParams(map[string]string{"key": key})
+	}
+}
+
+// The answer keys a closed set is chosen under, and what applies them at acceptance:
+// `MoveWorkItem`'s `target_bucket_id`, and one `AddLabel` per chosen label.
+const (
+	bucketKey = "bucket_id"
+	labelsKey = "label_ids"
+)
+
+// vocabulary answers the labels this entry's collection has agreed on.
+//
+// A label is a set entry rather than a field, and it exists in a collection's vocabulary or it does
+// not - so this is the same closed set a board is, and for a stronger reason: words a model
+// invented could never be applied. `AddLabel` takes a label of the entry's own collection, and a
+// workspace that has not agreed on "urgent" does not acquire it because a model wrote it down.
+//
+// A collection with an empty vocabulary is offered nothing and is classified by its board alone,
+// which is the honest answer: there is nothing to choose.
+func (s CatalogueSources) vocabulary(
+	ctx context.Context, actor appshared.ActorContext, item usecase.Output,
+) (Choices, error) {
+	collectionID := item.String("collection_id")
+	if collectionID == "" {
+		return Choices{}, nil
+	}
+
+	out, err := s.Catalogue.Invoke(ctx, "ListLabels", actor, usecase.Input{
+		"collection_id": collectionID,
+	})
+	if err != nil {
+		if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
+			return Choices{}, nil
+		}
+		return Choices{}, err
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	options := make([]Option, 0, len(rows))
+	for _, row := range rows {
+		options = append(options, Option{ID: row.String("id"), Name: row.String("name")})
+	}
+	return Choices{Key: labelsKey, Label: "Labels this collection uses", Options: options}, nil
+}
 
 // board answers the columns this entry could be moved between, with the one it is in now marked.
 //

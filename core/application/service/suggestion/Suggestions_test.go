@@ -345,6 +345,8 @@ type world struct {
 	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
 	// a person without the right to move it meets.
 	moveFails error
+	// labelFails refuses AddLabel alone, for moveFails' reason.
+	labelFails error
 }
 
 type performed struct {
@@ -401,6 +403,9 @@ func (w *world) Invoke(
 	}
 	if name == "MoveWorkItem" && w.moveFails != nil {
 		return nil, w.moveFails
+	}
+	if name == "AddLabel" && w.labelFails != nil {
+		return nil, w.labelFails
 	}
 	if name == "CreateWorkItem" {
 		w.creates++
@@ -978,17 +983,71 @@ func TestAClassificationWithNoColumnMovesNothing(t *testing.T) {
 	}
 }
 
-// classified is a work item proposal carrying labels and the column the board offered.
+// classified is a work item proposal carrying the labels and the column the material offered.
 func classified() domain.Suggestion {
 	stored := proposal()
 	stored.Payload = map[string]any{
-		"labels":  []any{"move"},
+		labelsKey: []any{movingLabel, homeLabel},
 		bucketKey: doingColumn,
 	}
 	return stored
 }
 
+// doingColumn is the column the board offered; the labels are the vocabulary's, declared beside
+// the producer's fixtures.
 const doingColumn = "0192f000-0000-7000-8000-0000000000b2"
+
+// Each chosen label is put on the entry through the use case that owns a label: a label is a set
+// entry and not a field, which is why `UpdateWorkItem` has no such input and never should (K-02).
+func TestAcceptingAClassificationPutsTheChosenLabelsOnTheEntry(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = classified()
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var added []usecase.Input
+	for _, call := range world.performed {
+		if call.name == "AddLabel" {
+			added = append(added, call.in)
+		}
+	}
+	if len(added) != 2 {
+		t.Fatalf("%d labels added, want one call each", len(added))
+	}
+	for index, want := range []string{movingLabel, homeLabel} {
+		if added[index]["label_id"] != want {
+			t.Errorf("label %d is %v, want %q", index, added[index]["label_id"], want)
+		}
+		if added[index]["item_id"] != targetID.String() {
+			t.Errorf("label %d landed on %v", index, added[index]["item_id"])
+		}
+	}
+}
+
+// Somebody who may not label the entry has been refused a classification rather than given half of
+// one - the labels are part of what was accepted.
+func TestAClassificationIsRefusedWhenTheLabellingIs(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = classified()
+	world.labelFails = shared.ErrForbidden
+
+	_, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the answer was %v, want the labelling's own refusal", err)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Error("a classification whose labelling was refused was marked accepted")
+	}
+	for _, call := range world.performed {
+		if call.name == "MoveWorkItem" {
+			t.Error("the entry was moved by an acceptance that was refused")
+		}
+	}
+}
 
 // implied is a jumble proposal carrying the titles the material implied.
 func implied() domain.Suggestion {

@@ -279,6 +279,7 @@ var appliers = map[applierKey]string{
 const (
 	createWorkItemName = "CreateWorkItem"
 	moveWorkItemName   = "MoveWorkItem"
+	addLabelName       = "AddLabel"
 )
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
@@ -352,8 +353,44 @@ func (c Cases) apply(
 			return err
 		}
 	}
+	if grows[labelsKey] {
+		if err := c.tag(ctx, actor, proposal); err != nil {
+			return err
+		}
+	}
 	if grows[bucketKey] {
 		return c.place(ctx, actor, proposal)
+	}
+	return nil
+}
+
+// tag puts the labels a classification chose on the entry (K-02).
+//
+// One ordinary `AddLabel` each, as the accepting person, because a label is a set entry and not a
+// field: `UpdateWorkItem` - the use case that applies the rest of a FIELDS proposal - has no such
+// input, and never should. The identifiers are ones the material offered, so each is a label of the
+// entry's own collection, which is what `AddLabel` requires.
+//
+// A refusal is the answer, as it is for the column: the labels are part of what was accepted.
+func (c Cases) tag(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+) error {
+	chosen, held := proposal.Payload[labelsKey].([]any)
+	if !held {
+		return nil
+	}
+	for _, entry := range chosen {
+		labelID, isText := entry.(string)
+		if !isText || strings.TrimSpace(labelID) == "" {
+			continue
+		}
+		if _, err := c.Catalogue.Invoke(ctx, addLabelName, actor, usecase.Input{
+			// The entry is the suggestion's, for `place`'s reason.
+			"item_id":  proposal.TargetID.String(),
+			"label_id": labelID,
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
