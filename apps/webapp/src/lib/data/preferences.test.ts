@@ -13,6 +13,7 @@ import {
   clearedOr,
   isAlwaysOn,
   knownZones,
+  zoneOptions,
   localesOf,
   preferenceFor,
 } from './preferences.ts';
@@ -81,6 +82,29 @@ test('a row is found by its pair, and a missing one is missing rather than inven
 
   assert.equal(preferenceFor(rows, 'ITEM_ASSIGNED', 'EMAIL')?.is_default, true);
   assert.equal(preferenceFor(rows, 'INVITATION', 'EMAIL'), undefined);
+});
+
+test('a chooser can always show the value it was given', () => {
+  // The failure this exists for, found by looking at the screen rather than at the code: a fresh
+  // workspace holds `UTC`, the platform's canonical list does not contain it, and a select whose
+  // options lack its value shows nothing selected. The screen then says "no zone set" about a
+  // workspace that has one.
+  const offered = zoneOptions('UTC');
+  assert.ok(offered.includes('UTC'), 'the held value has to be selectable');
+  assert.equal(offered[0], 'UTC', 'and it goes in front, where somebody looking for it starts');
+
+  // A value the platform already offers is not added twice.
+  const berlin = zoneOptions('Europe/Berlin');
+  assert.equal(
+    berlin.filter((zone) => zone === 'Europe/Berlin').length,
+    1,
+    'a zone the platform knows appears once',
+  );
+
+  // Nothing held is the ordinary case: the list is the platform's, untouched.
+  assert.deepEqual(zoneOptions(undefined), knownZones());
+  assert.deepEqual(zoneOptions(null), knownZones());
+  assert.deepEqual(zoneOptions(''), knownZones());
 });
 
 test('the zones come from the platform, or not at all', () => {

@@ -42,7 +42,7 @@
     channelsOf,
     clearedOr,
     isAlwaysOn,
-    knownZones,
+    zoneOptions,
     localesOf,
     preferenceFor,
   } from '../lib/data/preferences.ts';
@@ -84,7 +84,9 @@
   }
 
   const locales = $derived(localesOf(manifest.value));
-  const zones = $derived(knownZones());
+  // Whatever the account holds has to be selectable, alias or not — otherwise a zone that is
+  // set reads as "use the workspace's".
+  const zones = $derived(zoneOptions(account?.time_zone));
   const categories = $derived(categoriesOf(manifest.value));
   const channels = $derived(channelsOf(manifest.value));
   const rows = $derived(accountId ? preferences.of(accountId) : []);
