@@ -62,7 +62,7 @@ func (a Ask) queue(
 	targetType domain.TargetType, targetID shared.ID,
 	action audit.Action, kind domain.Kind, promptID string, apply bool,
 ) error {
-	if _, asked := AsksAbout(promptID, targetType); !asked {
+	if _, asked := AsksAbout(promptID, targetType, kind); !asked {
 		// Before the permission, the consent and the audit entry, because those are what a
 		// refusal in the worker would already have spent. A pair nothing declares is a defect in
 		// this build rather than anything about the caller.

@@ -199,15 +199,21 @@ var choiceSets = map[string][]string{
 // exactly the gap `promptFields` and the descriptors had between them. It is read by the runtime
 // rather than only by the gate: an undeclared pair is refused where the question is asked, so a
 // call site that queued one fails in its own test instead of in a worker at three in the morning.
-var promptTargets = map[string]map[domain.TargetType]bool{
-	"suggest-fields":       {domain.TargetJumbleEntry: true},
-	"suggest-item-fields":  {domain.TargetWorkItem: true},
-	"summarize":            {domain.TargetWorkItem: true},
-	"summarize-thread":     {domain.TargetWorkItem: true},
-	"summarize-collection": {domain.TargetContainer: true},
-	"classify":             {domain.TargetWorkItem: true},
-	"decompose":            {domain.TargetWorkItem: true},
+// The kind travels with the target because the two together are what `acceptance` is keyed on, and
+// because a prompt's answer shape *is* its kind: `decompose` produces a tree and the other six a
+// field set, and a prompt that produced both would be a prompt read two ways.
+var promptTargets = map[string]map[domain.TargetType]domain.Kind{
+	"suggest-fields":       {domain.TargetJumbleEntry: domain.KindFields},
+	"suggest-item-fields":  {domain.TargetWorkItem: domain.KindFields},
+	"summarize":            {domain.TargetWorkItem: domain.KindFields},
+	"summarize-thread":     {domain.TargetWorkItem: domain.KindFields},
+	"summarize-collection": {domain.TargetContainer: domain.KindFields},
+	"classify":             {domain.TargetWorkItem: domain.KindFields},
+	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
 }
+
+// PromptTargets is the map above, for the gate that reads it beside the registry.
+func PromptTargets() map[string]map[domain.TargetType]domain.Kind { return promptTargets }
 
 // promptTarget is one pair, for the map below.
 type promptTarget struct {
@@ -230,11 +236,50 @@ var superseded = map[promptTarget]string{
 //
 // Exported for the asking, which checks the pair before it spends a workspace's consent and writes
 // an audit entry, and for the gate.
-func AsksAbout(promptID string, target domain.TargetType) (string, bool) {
+func AsksAbout(promptID string, target domain.TargetType, kind domain.Kind) (string, bool) {
 	if renamed, old := superseded[promptTarget{promptID, target}]; old {
 		promptID = renamed
 	}
-	return promptID, promptTargets[promptID][target]
+	asked, declared := promptTargets[promptID][target]
+	// The kind is checked rather than taken, so the value in the map is one the runtime obeys
+	// rather than one only the gate reads: a caller asking for a tree with a prompt that answers a
+	// field set would otherwise be narrowed by one shape and read as another.
+	return promptID, declared && asked == kind
+}
+
+// Applicable answers, for one shape of proposal, the keys its acceptance can apply - the inputs the
+// applier declares, plus what the acceptance grows itself - or nothing where this build accepts
+// that shape by walking it or by refusing it.
+//
+// Exported for the gate. It takes the declared inputs rather than a registry, because the
+// application layer may not import one, and because what the gate is comparing is exactly this
+// function's two halves against the allow list.
+func Applicable(
+	target domain.TargetType, kind domain.Kind, inputsOf func(string) ([]string, bool),
+) (map[string]bool, bool) {
+	how, served := acceptance[applierKey{target, kind}]
+	if !served || how.Walk || how.Refusal != "" {
+		return nil, false
+	}
+	declared, known := inputsOf(how.Applier)
+	if !known {
+		return nil, false
+	}
+	fields := make(map[string]bool, len(declared))
+	for _, field := range declared {
+		fields[field] = true
+	}
+	for field := range grown[applierKey{target, kind}] {
+		fields[field] = true
+	}
+	return fields, true
+}
+
+// AcceptedBy answers how a shape of proposal is accepted, for the gate: the applier's name, whether
+// it is walked, and the reason nothing accepts it.
+func AcceptedBy(target domain.TargetType, kind domain.Kind) (applier string, walk bool, refusal string, served bool) {
+	how, known := acceptance[applierKey{target, kind}]
+	return how.Applier, how.Walk, how.Refusal, known
 }
 
 // AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
@@ -315,7 +360,7 @@ func (h Produce) Execute(
 		return shared.ErrInternal.WithDetail("ai.prompt_unknown").
 			WithParams(map[string]string{"prompt": promptID})
 	}
-	promptID, asked := AsksAbout(promptID, request.TargetType)
+	promptID, asked := AsksAbout(promptID, request.TargetType, request.Kind)
 	if !asked {
 		// A pair nothing declares is a question this build does not ask. Refused rather than
 		// asked anyway: the allow list belongs to the prompt and the narrowing to the target, so
