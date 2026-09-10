@@ -1012,9 +1012,7 @@ func (pending) AiClassify(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
-// SuggestDuplicates is overridden by RestController once K-04's use case is registered; it is here
-// because the specification declares the route and the contract test compares the router against
-// the specification as a whole.
+// SuggestDuplicates is overridden by RestController, for the reason given at CreateContainer.
 func (pending) SuggestDuplicates(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }

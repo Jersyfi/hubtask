@@ -21,6 +21,7 @@ const (
 	aiSuggestFieldsUseCase      = "AiSuggestFields"
 	aiSummarizeUseCase          = "AiSummarize"
 	aiClassifyUseCase           = "AiClassify"
+	suggestDuplicatesUseCase    = "SuggestDuplicates"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -96,6 +97,36 @@ func (c *RestController) SuggestDecomposition(
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// SuggestDuplicates answers POST /items/{itemId}:duplicates.
+//
+// 200 with the suggestion, or 204 when there is nothing to propose - which is also the answer with
+// no pgvector, with no provider that can embed, and for an entry the embedding pass has not
+// reached. The adapter cannot tell those apart and does not try: they are one answer to the caller,
+// and which one it is is `/meta/capabilities`' business (K-04).
+func (c *RestController) SuggestDuplicates(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(
+		r.Context(), suggestDuplicatesUseCase, actorOf(r),
+		usecase.Input{"item_id": itemID.String()},
+	)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if len(out) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, suggestionResponse(out))
 }
 
 // ListSuggestions answers GET /suggestions.

@@ -84,6 +84,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// in a workspace's settings: the confirmation belongs to whoever signs for the
 			// transfer (ADR-0018 decision 7, data-protection.md §6).
 			AllowThirdCountryTransfer: getBool("HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER", false),
+			// Zero means "take the default", which is where the number itself is written down and
+			// argued for (suggestion.DefaultDuplicateFloor).
+			DuplicateThreshold: getFloat("HUBTASK_AI_DUPLICATE_THRESHOLD", 0),
 		},
 		RateLimit: env.RateLimitConfig{
 			AnonymousPerMinute: getInt("HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE", 60),
@@ -336,6 +339,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
 	errs = append(errs, validateQueue(cfg.Queue)...)
+	errs = append(errs, validateAI(cfg.AI)...)
 
 	return errors.Join(errs...)
 }
@@ -622,6 +626,16 @@ func validateTracing(t env.TracingConfig) []error {
 		errs = append(errs, configError("config.tracing_endpoint_missing", "HUBTASK_TRACING_ENDPOINT"))
 	}
 	return errs
+}
+
+func validateAI(a env.AIConfig) []error {
+	// Zero is "take the default"; anything else has to be a similarity. A threshold above one
+	// proposes nothing for ever and a negative one proposes everything, and both do it silently -
+	// which is the class of misconfiguration that looks like a feature nobody uses (K-04).
+	if a.DuplicateThreshold < 0 || a.DuplicateThreshold > 1 {
+		return []error{configError("config.duplicate_threshold_invalid", "HUBTASK_AI_DUPLICATE_THRESHOLD")}
+	}
+	return nil
 }
 
 func validateLocale(l env.LocaleConfig) []error {

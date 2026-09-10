@@ -366,6 +366,15 @@ type AIConfig struct {
 	// workspace administrator cannot take any of that on for them. False by default, which is
 	// what makes it the deliberate friction the ADR asks for rather than a formality.
 	AllowThirdCountryTransfer bool
+	// DuplicateThreshold is HUBTASK_AI_DUPLICATE_THRESHOLD: the cosine similarity two entries have
+	// to reach before either is proposed as the other's duplicate (K-04).
+	//
+	// Configuration rather than a constant because it is a number somebody has to choose, and a
+	// number chosen by whoever wrote the feature is one nobody can defend later: what counts as
+	// "the same piece of work, written twice" depends on the embedding model and on how a
+	// workspace writes. Zero takes the application layer's default, and a value outside (0, 1] is
+	// refused at startup - a threshold of 2 would propose nothing for ever, silently.
+	DuplicateThreshold float64
 }
 
 // RateLimitConfig holds the levels from security.md §9: per IP for anonymous traffic, per token,

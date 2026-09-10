@@ -308,6 +308,14 @@ func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
 	overrides map[string]any,
 ) error {
+	if proposal.Kind == domain.KindDuplicates {
+		// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build.
+		// A duplicate is two entries and a decision about them - archive one, trash one, move one
+		// under the other - and which of those somebody means is theirs to say, through the use
+		// case that owns it. Dismissing is what closes the proposal.
+		return shared.ErrValidation.WithDetail("suggestions.decided_by_hand")
+	}
+
 	name, served := appliers[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
 		return shared.ErrUnavailable.

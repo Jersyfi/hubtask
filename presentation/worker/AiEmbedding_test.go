@@ -40,6 +40,10 @@ func (s owedStore) Owed(_ context.Context, _ string, batch int) ([]repository.Ow
 }
 
 func (s owedStore) CountMissing(context.Context, int) (int, error) { return s.rows, nil }
+func (s owedStore) Near(context.Context, shared.ID, float64, int) (repository.Nearby, error) {
+	return repository.Nearby{}, nil
+}
+
 func (s owedStore) Store(context.Context, repository.StoredEmbedding) error {
 	return nil
 }
