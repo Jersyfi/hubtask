@@ -25,7 +25,7 @@
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { knownZones, localesOf } from '../lib/data/preferences.ts';
+  import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -44,7 +44,9 @@
   const reading = $derived(workspace.state);
   const current = $derived(workspace.workspace);
   const locales = $derived(localesOf(manifest.value));
-  const zones = $derived(knownZones());
+  // The workspace's own zone has to be among them, or the control shows nothing selected and
+  // the screen says "no zone set" about a workspace that has one.
+  const zones = $derived(zoneOptions(current?.default_time_zone));
 
   const refusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,

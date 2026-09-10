@@ -69,6 +69,25 @@ export function knownZones(): readonly string[] {
   }
 }
 
+/**
+ * The zones a chooser offers, with the value it has to be able to show.
+ *
+ * `Intl.supportedValuesOf('timeZone')` answers the canonical IANA list, and canonical excludes the
+ * aliases a server may perfectly well hold — `UTC` is the one that matters, because it is what a
+ * freshly provisioned workspace is given. A `<select>` whose options do not contain its value shows
+ * *nothing selected*: the screen then says "no zone set" about a workspace that has one, and a save
+ * afterwards sends an empty zone the server refuses for a reason nobody can see.
+ *
+ * So the held value goes in front where the platform does not offer it. Not as a correction — the
+ * platform's vocabulary is still the list — but because a control must be able to display what it
+ * was given.
+ */
+export function zoneOptions(current: string | null | undefined): readonly string[] {
+  const known = knownZones();
+  if (!current || known.includes(current)) return known;
+  return [current, ...known];
+}
+
 /** The locales this installation serves, in the order it reports them. */
 export function localesOf(manifest: Capabilities | undefined): readonly { locale: string; direction: string }[] {
   return (manifest?.supported_locales ?? []).flatMap((entry) =>
