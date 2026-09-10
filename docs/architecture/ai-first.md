@@ -100,15 +100,24 @@ and the SSRF refusal are the guarded client's (ADR-0049 decision 1). A refusal i
 `ErrUnavailable` with the detail code `ai.unavailable`, never an empty result: "the model said
 nothing" and "there is no model" must not be the same value.
 
+**Every row says where it is.** This table was the product's intention for long enough that
+`0.7.0` could report itself complete against it while three rows still described things nobody had
+built - a suggested collection the code deliberately refuses, a `priority` the item model has never
+had, and a summary of a comment thread nothing reads. J-17 walked QS-09 and brought `arc42.md`,
+`roadmap.md` and `observability-reliability.md` current; this file was not on its list, because it
+is the one a milestone reads rather than the one it reports into. So a row now names the task that
+shipped it, the task that owes it, or the milestone it moved to, and a row that names none of the
+three is a defect in this file rather than a plan.
+
 | Use case | Description | Result form |
 |---|---|---|
-| Jumble processing | Email/note → suggested title, due date, collection, labels, subtasks | Suggestion, confirmed by the user |
-| Decomposition | Task → suggested work packages/activities | Suggestion |
-| Classification | Suggested label/bucket, priority, duplicate detection | Suggestion |
-| Summarisation | Comment thread, collection status, weekly review | Text (not persisted unless explicitly requested) |
+| Jumble processing | Email/note → suggested title, due date, labels, and the subtasks the material implies. **Shipped in J-06**, and **not a collection**: `Producing.go` filters `collection_id` out of every answer, because a model cannot know which collections a workspace has and one that names one is choosing a destination. The person converting supplies it. **The subtasks are K-01's** — `suggest-fields.v1` asks for them and the allow list discarded them, which is why `0.7.5` exists | Suggestion, confirmed by the user |
+| Decomposition | Task → suggested work packages/activities. **Shipped in J-07**: the suggestion holds a tree rather than a field set, and accepting it is one ordinary `CreateWorkItem` per node in order, a refusal at the third leaving the two before it standing | Suggestion |
+| Classification | Suggested labels — **shipped in J-08**. The bucket is **K-02**'s and the values of the custom fields a workspace declared are **K-03**'s, both chosen from a set the provider was shown rather than named freely, which is what keeps the filter above intact. *"Priority"* is K-03: this product has no such field and will not grow one to serve a prompt — a workspace that works with priority declares it, and the classifier fills what was declared. Duplicate detection is **K-04**, and it is not a completion at all: the nearest neighbours of an entry's embedding, on the index J-10 maintains, at no token cost | Suggestion |
+| Summarisation | One entry's title and notes — **shipped in J-08**; the weekly review is an MCP prompt a client operates (J-12). The **comment thread and the collection's status are K-05**'s, the two this row named that `0.7.0` did not build | A stored suggestion with its provenance (J-05), accepted into the entry or dismissed. This cell used to read *"text, not persisted"*; it was written before a suggestion was a record, and the record is the newer decision |
 | Semantic search | Embeddings of titles/notes in `pgvector`, hybrid search with `tsvector`. **Shipped in J-10**: one ranked page with one cursor, the words winning over the meaning, and pgvector detected rather than demanded ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)) | Search result |
-| Template generation | A natural language description → `Template` | Draft |
-| Translation | Item content on request | Display only, not persisted |
+| Template generation | A natural language description → `Template`. **Moved to `0.9.0`** by `0.7.0` decision 10: the least bounded of these seven and the least asked for, it goes beside the ecosystem work that gives it somewhere to come from | Draft |
+| Translation | Item content on request. **Moved to `0.8.0`** by `0.7.0` decision 10: it is display-only and unpersisted, and the surface that would show two languages at once is the one that milestone builds | Display only, not persisted |
 
 **Guardrails:**
 * Results carry provenance (`source: AI`, model, timestamp, prompt version) and are marked as
