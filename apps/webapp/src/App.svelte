@@ -36,6 +36,7 @@
   import BackupView from './views/BackupView.svelte';
   import RulesView from './views/RulesView.svelte';
   import RunsView from './views/RunsView.svelte';
+  import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -125,6 +126,8 @@
     <RulesView />
   {:else if route.name === 'runs'}
     <RunsView />
+  {:else if route.name === 'webhooks'}
+    <WebhooksView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'backup'}

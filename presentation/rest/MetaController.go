@@ -140,6 +140,14 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		viewLayouts = append(viewLayouts, string(layout))
 	}
 
+	// Every type this build emits, and therefore every type a subscription may name (F4-15). An
+	// array rather than absent, for the same reason: a client that read nothing here would offer
+	// a picker of its own, and the server refuses a type it does not emit.
+	eventTypes := make([]string, 0, len(source.EventTypes))
+	for _, eventType := range source.EventTypes {
+		eventTypes = append(eventTypes, string(eventType))
+	}
+
 	// Always arrays, like the languages: absent would read as "this server does not know about
 	// notification preferences", and a client would hide the form.
 	notificationCategories := source.NotificationCategories
@@ -169,6 +177,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		ItemTypes:              &itemTypes,
 		QueryFields:            &queryFields,
 		ViewLayouts:            &viewLayouts,
+		EventTypes:             &eventTypes,
 		TextLanguages:          &textLanguages,
 		NotificationCategories: &notificationCategories,
 		NotificationChannels:   &notificationChannels,

@@ -20,7 +20,10 @@ VALUES (
 );
 
 -- name: FindWebhookSubscription :one
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+-- The tenant travels with the aggregate rather than being left to row level security to imply: an
+-- audit entry is written under the subscription's tenant, and a subscription read back without one
+-- is a subscription no auditable operation can be performed on (F4-15).
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -30,7 +33,7 @@ WHERE id = sqlc.arg('id');
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the creation order.
 -- Not paged - a workspace has a handful of integrations, and a cursor over a handful is machinery
 -- nobody reads.
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -42,7 +45,7 @@ ORDER BY id DESC;
 -- Filtered in the database rather than in the process, because the alternative is reading every
 -- subscription of the tenant on every event. The array containment is what the whole shape of
 -- `event_types` is for.
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -80,7 +83,7 @@ WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 -- The rows a re-seal visits (ADR-0045): a subscription whose current or previous secret names a
 -- key other than the current one. Both, because a grace that outlives a rotation is still a
 -- secret the verifier has to open.
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -116,7 +119,10 @@ VALUES (
 );
 
 -- name: FindWebhookDelivery :one
-SELECT id, subscription_id, event_id, attempt, status, response_status, error_code,
+-- The tenant is selected rather than left to row level security to imply, because the aggregate
+-- carries it: a retry and a replay both build the next attempt from the row that was read, and a
+-- delivery read back without its tenant is one neither of them can construct (F4-15).
+SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
        next_attempt_at, created_at
 FROM webhook_delivery
 WHERE id = sqlc.arg('id');
@@ -124,7 +130,7 @@ WHERE id = sqlc.arg('id');
 -- name: WebhookDeliveries :many
 -- One subscription's attempts, newest first, optionally narrowed to one outcome - DEAD_LETTER is
 -- the one an operator usually wants. The cursor is the identifier, which is time-ordered.
-SELECT id, subscription_id, event_id, attempt, status, response_status, error_code,
+SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
        next_attempt_at, created_at
 FROM webhook_delivery
 WHERE subscription_id = sqlc.arg('subscription_id')

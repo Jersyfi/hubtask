@@ -206,6 +206,97 @@ func TestADeliveryOfOneTenantIsInvisibleInAnother(t *testing.T) {
 	}
 }
 
+// A webhook aggregate read back has to be one the domain can act on, and the field that decides it
+// is one a query can leave out without anything looking wrong.
+//
+// `Retried` and `Replayed` both build the next attempt out of the row that was read, and both
+// refuse a delivery whose tenant is zero. The listing and the find left `tenant_id` unselected -
+// row level security already scopes the row, so nothing in a unit test or a service test missed
+// it - and the consequence was that **every** retry and **every** replay answered
+// `webhooks.delivery_incomplete`: the first failed attempt rolled its own outcome back with it, so
+// a delivery stayed `PENDING` for ever, no subscription ever reached its failure run, and nothing
+// could be dead-lettered for a replay to act on. Only a real read shows it.
+func TestADeliveryReadBackCanProduceItsOwnNextAttempt(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	subscription := seedSubscription(ctx, t, tenantA)
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	deliveries := postgres.NewWebhookDeliveryRepository()
+	subscriptions := postgres.NewWebhookSubscriptionRepository()
+
+	delivery, err := domain.NewWebhookDelivery(
+		freshID(t), tenantA, subscription.ID, freshID(t), 1, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("building the delivery: %v", err)
+	}
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		if err := deliveries.Insert(txCtx, delivery); err != nil {
+			return err
+		}
+		// Failed, because that is the state a retry follows from.
+		return deliveries.RecordOutcome(txCtx, repository.DeliveryOutcome{
+			ID: delivery.ID, Status: domain.DeliveryFailed, ErrorCode: "webhooks.target_unreachable",
+			NextAttemptAt: time.Now().UTC().Add(time.Minute),
+		})
+	}); err != nil {
+		t.Fatalf("seeding the failed delivery: %v", err)
+	}
+
+	if err := work.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		found, err := deliveries.Find(txCtx, delivery.ID)
+		if err != nil {
+			return err
+		}
+		if found.TenantID != tenantA {
+			t.Fatalf("the delivery came back with tenant %v, want %v", found.TenantID, tenantA)
+		}
+		// The two the whole ladder rests on. A failure here is what an operator sees as a
+		// subscription that never fails and a dead letter that never arrives.
+		next, err := found.Retried(freshID(t), time.Now().UTC())
+		if err != nil {
+			t.Fatalf("a delivery read back could not be retried: %v", err)
+		}
+		if next.Attempt != found.Attempt+1 {
+			t.Errorf("the retry is attempt %d, want %d", next.Attempt, found.Attempt+1)
+		}
+		if next.EventID != found.EventID {
+			t.Errorf("the retry carries event %v, want %v", next.EventID, found.EventID)
+		}
+
+		listed, err := deliveries.List(txCtx, repository.DeliveryQuery{
+			SubscriptionID: subscription.ID, PageSize: 50,
+		})
+		if err != nil {
+			return err
+		}
+		if len(listed) != 1 {
+			t.Fatalf("listed %d deliveries, want 1", len(listed))
+		}
+		if listed[0].TenantID != tenantA {
+			t.Errorf("the listed delivery carries tenant %v, want %v", listed[0].TenantID, tenantA)
+		}
+
+		// The subscription had the same hole, with the same cause and a different symptom: every
+		// auditable operation on one writes its entry under `subscription.TenantID`, and the audit
+		// port refuses an entry whose tenant is zero. That is what answered `audit.entry_incomplete`
+		// on every replay.
+		stored, err := subscriptions.Find(txCtx, subscription.ID)
+		if err != nil {
+			return err
+		}
+		if stored.Subscription.TenantID != tenantA {
+			t.Errorf(
+				"the subscription came back with tenant %v, want %v",
+				stored.Subscription.TenantID, tenantA,
+			)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("reading the delivery back: %v", err)
+	}
+}
+
 // The round trip the use cases depend on, and the one property only a database can show: what the
 // rotation writes is one statement, so a subscription never has a new secret and no grace.
 func TestARotationMovesTheSecretAndItsGraceTogether(t *testing.T) {
