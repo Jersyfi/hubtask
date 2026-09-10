@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -38,7 +39,14 @@ func (s CatalogueSources) Material(
 		// person converting names the destination, and its columns are theirs to pick.
 		return s.entry(ctx, actor, targetID)
 	case domain.TargetWorkItem:
+		if promptID == threadPrompt {
+			return s.thread(ctx, actor, targetID)
+		}
 		return s.item(ctx, actor, targetID, promptID)
+	case domain.TargetContainer:
+		// A collection is read for one question only, and the source that reads it is the one the
+		// prompt names (K-05).
+		return s.collection(ctx, actor, targetID)
 	default:
 		return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
 	}
@@ -143,6 +151,153 @@ func (s CatalogueSources) set(
 		return Choices{}, shared.ErrInternal.
 			WithDetail("suggestions.choices_unknown").
 			WithParams(map[string]string{"key": key})
+	}
+}
+
+// The two prompts whose material is not the target's own text (K-05), named here because the source
+// dispatches on them: a discussion is read from the comments, and a collection from its entries.
+const (
+	threadPrompt     = "summarize-thread"
+	collectionPrompt = "summarize-collection"
+)
+
+// maxSummarisedComments and maxSummarisedEntries bound what a summary is made from.
+//
+// The bound is part of the design rather than a surprise at the provider: a thread of four hundred
+// comments is not a summary problem, it is a token problem, and a collection of a thousand entries
+// is the same problem wearing a different hat. Both are read from the beginning of the ordinary
+// listing - oldest first for a discussion, because that is how a conversation reads, and the
+// collection's own order for a collection, because that is the order somebody arranged it in.
+const (
+	maxSummarisedComments = 100
+	maxSummarisedEntries  = 100
+)
+
+// thread is one entry's discussion, oldest first and bounded (K-05).
+//
+// The digest is the *entry's*, not the discussion's, and it has to be: the acceptance recomputes
+// the target's fingerprint and refuses a proposal made from a different state, so a digest over the
+// comments would make every thread summary stale the moment somebody replied - and a summary is
+// accepted into the entry's notes, which is what the entry's fingerprint protects.
+func (s CatalogueSources) thread(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
+) (Material, error) {
+	entry, err := s.Catalogue.Invoke(ctx, "GetWorkItem", actor, usecase.Input{
+		"item_id": itemID.String(),
+	})
+	if err != nil {
+		return Material{}, err
+	}
+	digest := domain.Digest(entry.String("title"), entry.String("notes"))
+
+	out, err := s.Catalogue.Invoke(ctx, "ListComments", actor, usecase.Input{
+		"item_id": itemID.String(), "size": maxSummarisedComments,
+	})
+	if err != nil {
+		return Material{}, err
+	}
+	comments, _ := out["data"].([]usecase.Output)
+
+	var written strings.Builder
+	written.WriteString("Entry: " + entry.String("title") + "\n\nComments, oldest first:\n")
+	said := 0
+	for _, comment := range comments {
+		// A deleted comment answers no body at all (`AddComment`), and what it said is not part of
+		// the discussion any more. Nothing is written in its place: a summary that mentioned
+		// removed comments would put them back.
+		body, held := comment["body"].(string)
+		if !held || strings.TrimSpace(body) == "" {
+			continue
+		}
+		written.WriteString("\n- " + writtenAt(comment) + ": " + body + "\n")
+		said++
+	}
+	if said == 0 {
+		// Nothing to summarise. Not an error and not a call: an entry nobody has commented on has
+		// no discussion, and asking a provider about one would spend a budget on it.
+		return Material{Digest: digest}, nil
+	}
+	return Material{Content: written.String(), Digest: digest}, nil
+}
+
+// writtenAt is when a comment was written, as far as a summary needs it: the date, so a model can
+// say what is recent, without a timestamp's precision that means nothing in prose.
+func writtenAt(comment usecase.Output) string {
+	if at := dateOf(comment["created_at"]); at != "" {
+		return at
+	}
+	return "unknown"
+}
+
+// collection is how a collection stands: its name, and the entries directly in it (K-05).
+//
+// One level and bounded, which the prompt says as well: what is under a task is that task's
+// business, and a summary that walked the tree would be reading a workspace to answer a question
+// about a collection.
+func (s CatalogueSources) collection(
+	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
+) (Material, error) {
+	container, err := s.Catalogue.Invoke(ctx, "GetContainer", actor, usecase.Input{
+		"container_id": containerID.String(),
+	})
+	if err != nil {
+		return Material{}, err
+	}
+	digest := domain.Digest(container.String("name"), "")
+
+	out, err := s.Catalogue.Invoke(ctx, "ListWorkItems", actor, usecase.Input{
+		"collection_id": containerID.String(), "size": maxSummarisedEntries,
+	})
+	if err != nil {
+		return Material{}, err
+	}
+	entries, _ := out["data"].([]usecase.Output)
+	if len(entries) == 0 {
+		// An empty collection stands one way and it needs no model to say so.
+		return Material{Digest: digest}, nil
+	}
+
+	var written strings.Builder
+	written.WriteString("Collection: " + container.String("name") + "\n\nEntries in it:\n")
+	for _, entry := range entries {
+		written.WriteString("\n- " + entry.String("title") + " [" + standing(entry) + "]\n")
+	}
+	return Material{Content: written.String(), Digest: digest}, nil
+}
+
+// standing is what a model needs about one entry beside its title: whether it is done, when it is
+// due, and when it last moved. Written as words rather than as a shape, because it travels in a
+// user message beside somebody's prose.
+func standing(entry usecase.Output) string {
+	state := "open"
+	if completion, held := entry["completion"].(map[string]any); held {
+		if done, _ := completion["is_completed"].(bool); done {
+			state = "done"
+		}
+	}
+	if due := dateOf(entry["due_at"]); due != "" {
+		state += ", due " + due
+	}
+	if moved := dateOf(entry["updated_at"]); moved != "" {
+		state += ", last moved " + moved
+	}
+	return state
+}
+
+func dateOf(value any) string {
+	switch at := value.(type) {
+	case time.Time:
+		if at.IsZero() {
+			return ""
+		}
+		return at.UTC().Format(time.DateOnly)
+	case string:
+		if len(at) >= len(time.DateOnly) {
+			return at[:len(time.DateOnly)]
+		}
+		return ""
+	default:
+		return ""
 	}
 }
 

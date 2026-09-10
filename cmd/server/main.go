@@ -1080,6 +1080,16 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
+		suggestionservice.AiSummarizeThread{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AiSummarizeContainer{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
 		// The one that asks nothing of a provider (K-04): no `AI`, no `Queue`, and no provider
 		// anywhere in its dependencies - which is what makes "no budget is spent" structural.
 		suggestionservice.SuggestDuplicates{

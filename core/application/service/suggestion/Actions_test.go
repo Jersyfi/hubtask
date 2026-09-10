@@ -6,6 +6,7 @@ package suggestion
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -151,6 +152,102 @@ func TestThroughTheRegistryApplyDefaultsToProposing(t *testing.T) {
 	}
 	if _, said := a.jobs.queued[0].Payload["apply"]; said {
 		t.Error("an action that said nothing about applying applies anyway")
+	}
+}
+
+// The other two thirds of §2's Summarisation row (K-05): the same audit action, their own prompts,
+// and one of them about a collection rather than an entry.
+func TestTheTwoSummariesAskTheirOwnQuestionsAboutTheirOwnTargets(t *testing.T) {
+	for _, testCase := range []struct {
+		name         string
+		run          func(asker) error
+		prompt       string
+		targetType   string
+		targetID     shared.ID
+		automation   string
+		declaredKeys []string
+	}{
+		{"AI_SUMMARIZE_THREAD", func(a asker) error {
+			return AiSummarizeThread(a.ask).Execute(context.Background(), person(), targetID, false)
+		}, "summarize-thread", "WORK_ITEM", targetID, "AI_SUMMARIZE_THREAD", []string{"item_id", "apply"}},
+		{"AI_SUMMARIZE_CONTAINER", func(a asker) error {
+			return AiSummarizeContainer(a.ask).Execute(context.Background(), person(), containerTargetID)
+		}, "summarize-collection", "CONTAINER", containerTargetID, "AI_SUMMARIZE_CONTAINER",
+			[]string{"container_id"}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			a := newAsker(true)
+
+			if err := testCase.run(a); err != nil {
+				t.Fatalf("asking: %v", err)
+			}
+			if len(a.jobs.queued) != 1 {
+				t.Fatalf("%d jobs queued", len(a.jobs.queued))
+			}
+			job := a.jobs.queued[0]
+			if job.Payload["prompt"] != testCase.prompt {
+				t.Errorf("prompt %v, want %q", job.Payload["prompt"], testCase.prompt)
+			}
+			if job.Payload["target_type"] != testCase.targetType {
+				t.Errorf("target type %v, want %q", job.Payload["target_type"], testCase.targetType)
+			}
+			if job.Payload["target_id"] != testCase.targetID.String() {
+				t.Errorf("target %v", job.Payload["target_id"])
+			}
+			// One audit action for all three summaries: "somebody asked, about what, with which
+			// prompt" is the shape ai.summary_asked already had.
+			if len(a.world.entries) != 1 || a.world.entries[0].Action != SummaryAskedAction {
+				t.Errorf("the trail is %+v", a.world.entries)
+			}
+
+			var descriptor usecase.Descriptor
+			switch testCase.targetType {
+			case "CONTAINER":
+				descriptor = AiSummarizeContainer(a.ask).Descriptor()
+			default:
+				descriptor = AiSummarizeThread(a.ask).Descriptor()
+			}
+			if got := descriptor.AutomationAction(); got != testCase.automation {
+				t.Errorf("the action is %q, want %q", got, testCase.automation)
+			}
+			var declared []string
+			for _, field := range descriptor.Input {
+				declared = append(declared, field.Name)
+			}
+			if strings.Join(declared, ",") != strings.Join(testCase.declaredKeys, ",") {
+				t.Errorf("the input is %v, want %v", declared, testCase.declaredKeys)
+			}
+		})
+	}
+}
+
+// A collection summary is asked for through the registry the way a rule would ask for it.
+func TestAContainerSummaryIsAskedForByContainer(t *testing.T) {
+	a := newAsker(true)
+
+	if _, err := (AiSummarizeContainer(a.ask)).invoke(context.Background(), person(),
+		usecase.Input{"container_id": containerTargetID.String()}); err != nil {
+		t.Fatalf("asking: %v", err)
+	}
+	if a.jobs.queued[0].Payload["target_type"] != "CONTAINER" {
+		t.Errorf("the job is about %v", a.jobs.queued[0].Payload["target_type"])
+	}
+}
+
+// A workspace with no provider is refused whichever summary asked, and nothing is queued.
+func TestTheSummariesAreRefusedWithoutAProvider(t *testing.T) {
+	a := newAsker(false)
+
+	if err := (AiSummarizeThread(a.ask)).
+		Execute(context.Background(), person(), targetID, false); !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("the answer was %v", err)
+	}
+	if err := (AiSummarizeContainer(a.ask)).
+		Execute(context.Background(), person(), containerTargetID); !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("the answer was %v", err)
+	}
+	if len(a.jobs.queued) != 0 {
+		t.Error("a refused workspace had questions queued for it")
 	}
 }
 

@@ -39,6 +39,8 @@ var readers = map[domain.TargetType]string{
 	// existing only so that another package can fingerprint something is a use case nobody asked
 	// for - and the list already carries the permission check this needs.
 	domain.TargetJumbleEntry: "ListJumbleEntries",
+	// A collection, for the summary of how it stands (K-05).
+	domain.TargetContainer: "GetContainer",
 }
 
 // Digest answers the fingerprint of the target's current state.
@@ -62,6 +64,9 @@ func (t EntryTargets) Digest(
 	if targetType == domain.TargetJumbleEntry {
 		return t.entryDigest(ctx, actor, name, targetID)
 	}
+	if targetType == domain.TargetContainer {
+		return t.containerDigest(ctx, actor, name, targetID)
+	}
 
 	out, err := t.Catalogue.Invoke(ctx, name, actor, usecase.Input{
 		"item_id": targetID.String(),
@@ -70,6 +75,26 @@ func (t EntryTargets) Digest(
 		return nil, err
 	}
 	return domain.Digest(out.String("title"), out.String("notes")), nil
+}
+
+// containerDigest fingerprints a collection: its name, and nothing else (K-05).
+//
+// Deliberately *not* the entries it holds, although a summary of how a collection stands is made
+// from them. A fingerprint over the contents would go stale the moment anybody ticked anything off
+// - which is a collection working normally - and a stale suggestion cannot even be dismissed, so a
+// summary would become unanswerable within minutes of being written. What staleness protects
+// against is a proposal applied to a target it was not made from, and the target here is the
+// collection.
+func (t EntryTargets) containerDigest(
+	ctx context.Context, actor appshared.ActorContext, name string, containerID shared.ID,
+) ([]byte, error) {
+	out, err := t.Catalogue.Invoke(ctx, name, actor, usecase.Input{
+		"container_id": containerID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return domain.Digest(out.String("name"), ""), nil
 }
 
 // entryDigest fingerprints one jumble entry, found in the inbox listing.

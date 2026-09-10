@@ -1012,9 +1012,8 @@ func (pending) AiClassify(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
-// AiSummarizeThread and AiSummarizeContainer are overridden by RestController once K-05's use
-// cases are registered; the routes exist here because the specification declares them and the
-// contract test compares the router against the specification as a whole.
+// AiSummarizeThread and AiSummarizeContainer are overridden by RestController, for the reason
+// given at CreateContainer.
 func (pending) AiSummarizeThread(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
