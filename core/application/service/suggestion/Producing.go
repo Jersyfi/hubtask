@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -38,6 +39,10 @@ type Material struct {
 	Content string
 	// Digest is the fingerprint of the state Content was read from.
 	Digest []byte
+	// Declared are the custom fields the entry's container asks for, as an answer may fill them
+	// (K-03). Empty for a workspace that declared none, which is every workspace until somebody
+	// declares one.
+	Declared []Declared
 	// Choices are the closed sets this answer may pick from, already narrowed to what the person
 	// asking may see (K-02).
 	//
@@ -48,6 +53,26 @@ type Material struct {
 	// options and validated on the way back an answer is a choice from what it was shown. They
 	// travel as content, never as instruction - a column's name is something somebody typed.
 	Choices []Choices
+}
+
+// Declared is one custom field definition, with the entry's own value beside it (K-03).
+//
+// §2's Classification row has said "priority" since before this repository had custom fields, and
+// the item model has never had such a column. What a workspace that works with priority does is
+// *declare* it - usually a SELECT with its own options, in its own words, in its own language - and
+// that declaration is exactly the closed set the decision above needs. So the classifier proposes
+// values for the fields the container declared, which serves the row for the workspaces that meant
+// it and adds nothing to the item model for the ones that did not.
+//
+// The definition is the domain's own type rather than a copy of its parts, because the validation
+// has to be the definition's own: a value `SetCustomField` would refuse is one this must refuse,
+// and the way to be sure of that is to ask the same code (`ValidateValue`).
+type Declared struct {
+	Definition work.CustomFieldDefinition
+	// Current is the entry's own value for the key, or nil. Nobody else's ever travels: what
+	// another entry holds under the same key is that entry's content, and a provider asked to
+	// classify this one has no business reading it.
+	Current any
 }
 
 // Choices is one closed set, with the option the target is on now marked.
@@ -122,8 +147,9 @@ var promptFields = map[string]map[string]bool{
 		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
 	},
 	"summarize": {"notes": true},
-	// Both chosen from what the material carried, never named freely (K-02): the columns of the
-	// entry's board, and the vocabulary its collection agreed on.
+	// All three chosen from what the material carried, never named freely (K-02, K-03): the
+	// columns of the entry's board, the vocabulary its collection agreed on, and the values of the
+	// fields that collection declared.
 	//
 	// `labels` was here until K-02 and could not be applied by anything: a label is a set entry
 	// added by identifier through `AddLabel`, not a field of the item, so `UpdateWorkItem` - the
@@ -132,7 +158,7 @@ var promptFields = map[string]map[string]bool{
 	// payload, which is to say nothing at all. Words a model invented could not have been applied
 	// anyway: a label a workspace has not agreed on is vocabulary, and inventing vocabulary is the
 	// naming this milestone's second decision keeps a model out of.
-	"classify": {"label_ids": true, "bucket_id": true},
+	"classify": {"label_ids": true, "bucket_id": true, "custom_fields": true},
 	// A decomposition's answer is one key at its own level and a tree underneath it, and what a
 	// *node* may carry is `keptTree`'s business rather than this map's.
 	"decompose": {"children": true},
@@ -180,7 +206,9 @@ var grown = map[applierKey]map[string]bool{
 	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
 	// here rather than absent: putting a card in another column is a *move*, and the history entry
 	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.
-	{domain.TargetWorkItem, domain.KindFields}: {"bucket_id": true, "label_ids": true},
+	{domain.TargetWorkItem, domain.KindFields}: {
+		"bucket_id": true, "label_ids": true, "custom_fields": true,
+	},
 }
 
 // defaultPrompts is what a kind is asked with when a job does not say.
@@ -251,7 +279,7 @@ func (h Produce) Execute(
 		return err
 	}
 
-	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request), material.Choices)
+	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request), material)
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
@@ -359,7 +387,7 @@ func (h Produce) applicable(request Request) map[string]bool {
 // than dropping fields at acceptance is the honest half of the choice: a person reading a proposal
 // should be reading what they could actually accept.
 func payloadFrom(
-	kind domain.Kind, promptID, text string, applicable map[string]bool, offered []Choices,
+	kind domain.Kind, promptID, text string, applicable map[string]bool, material Material,
 ) (map[string]any, bool) {
 	answered, ok := objectFrom(text)
 	if !ok {
@@ -368,7 +396,8 @@ func payloadFrom(
 	switch kind {
 	case domain.KindFields:
 		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
-		return keptTitles(keptChoices(kept, promptID, offered)), true
+		kept = keptChoices(kept, promptID, material.Choices)
+		return keptTitles(keptDeclared(kept, material.Declared)), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
@@ -388,6 +417,9 @@ func payloadFrom(
 // nothing into would spend a call on it.
 func withOptions(material Material) string {
 	content := material.Content
+	if declared := writtenFields(material.Declared); declared != "" {
+		content += declared
+	}
 	for _, set := range material.Choices {
 		if len(set.Options) == 0 {
 			continue
@@ -404,6 +436,105 @@ func withOptions(material Material) string {
 		content += written.String()
 	}
 	return content
+}
+
+// writtenFields is the declared fields as the provider sees them: the key, what it permits, and
+// what the entry holds today.
+func writtenFields(declared []Declared) string {
+	if len(declared) == 0 {
+		return ""
+	}
+	var written strings.Builder
+	written.WriteString("\n\nFields this collection asks for:\n")
+	for _, field := range declared {
+		written.WriteString("- " + field.Definition.Key + ": " + permitted(field.Definition))
+		if field.Current != nil {
+			written.WriteString(" (the entry holds: " + shown(field.Current) + ")")
+		}
+		written.WriteString("\n")
+	}
+	return written.String()
+}
+
+// permitted says what one field may hold, in the words the answer has to use.
+func permitted(definition work.CustomFieldDefinition) string {
+	switch definition.Kind {
+	case work.CustomFieldMultiSelect:
+		return "any of " + strings.Join(definition.Options, ", ")
+	case work.CustomFieldSelect:
+		return "one of " + strings.Join(definition.Options, ", ")
+	default:
+		// BOOL, and nothing else reaches here: `closedKinds` is what decides which definitions
+		// travel at all.
+		return "true or false"
+	}
+}
+
+// shown renders a stored value for the material. Values are the workspace's own words, so a list
+// is joined rather than described.
+func shown(value any) string {
+	switch held := value.(type) {
+	case string:
+		return held
+	case bool:
+		if held {
+			return "true"
+		}
+		return "false"
+	case []any:
+		written := make([]string, 0, len(held))
+		for _, entry := range held {
+			written = append(written, shown(entry))
+		}
+		return strings.Join(written, ", ")
+	default:
+		return ""
+	}
+}
+
+// keptDeclared refuses a field the container did not declare, and a value the declaration does not
+// allow (K-03).
+//
+// The refusal is the definition's own - `ValidateValue` is the code `SetCustomField` runs - so a
+// value this keeps is one the acceptance can write, and a value it drops is one that would have
+// been refused with the person's name on it. What comes back is the *normalised* value, for the
+// same reason: what is stored is what the definition says it is.
+//
+// A key at a time, and the rest of the answer stands. A model that filled three fields and invented
+// a fourth has classified the entry three times correctly.
+func keptDeclared(payload map[string]any, declared []Declared) map[string]any {
+	answered, held := payload[fieldsKey]
+	if !held {
+		return payload
+	}
+	delete(payload, fieldsKey)
+
+	values, isObject := answered.(map[string]any)
+	if !isObject || len(values) == 0 {
+		return payload
+	}
+	definitions := make(map[string]work.CustomFieldDefinition, len(declared))
+	for _, field := range declared {
+		definitions[field.Definition.Key] = field.Definition
+	}
+
+	kept := make(map[string]any, len(values))
+	for key, value := range values {
+		definition, declaredHere := definitions[key]
+		if !declaredHere || value == nil {
+			continue
+		}
+		checked, err := definition.ValidateValue(value)
+		if err != nil || checked == nil {
+			continue
+		}
+		kept[key] = checked
+	}
+	if len(kept) == 0 {
+		return payload
+	}
+	payload[fieldsKey] = kept
+	return payload
 }
 
 // keptChoices refuses a choice that was not offered (K-02).

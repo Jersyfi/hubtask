@@ -13,6 +13,7 @@ package suggestion
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
@@ -280,6 +281,7 @@ const (
 	createWorkItemName = "CreateWorkItem"
 	moveWorkItemName   = "MoveWorkItem"
 	addLabelName       = "AddLabel"
+	setCustomFieldName = "SetCustomField"
 )
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
@@ -358,8 +360,52 @@ func (c Cases) apply(
 			return err
 		}
 	}
+	if grows[fieldsKey] {
+		if err := c.fill(ctx, actor, proposal); err != nil {
+			return err
+		}
+	}
 	if grows[bucketKey] {
 		return c.place(ctx, actor, proposal)
+	}
+	return nil
+}
+
+// fill writes the values a classification proposed for the fields a collection declared (K-03).
+//
+// One ordinary `SetCustomField` per key, as the accepting person, because that is how a custom
+// field is written: one key per call, since the merge rule is per key. `UpdateWorkItem` has no such
+// input, and the value was already checked against the definition by the same code this call runs -
+// so what is written here is what a person filling the form by hand would have been allowed to
+// write.
+//
+// In key order, so that two acceptances of the same proposal do the same thing in the same
+// sequence: a map's own order is nobody's, and an audit trail that shuffles is one nobody can
+// compare.
+//
+// A refusal is the answer, as it is for the column and the labels.
+func (c Cases) fill(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+) error {
+	values, held := proposal.Payload[fieldsKey].(map[string]any)
+	if !held {
+		return nil
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		if _, err := c.Catalogue.Invoke(ctx, setCustomFieldName, actor, usecase.Input{
+			// The entry is the suggestion's, for `place`'s reason.
+			"item_id": proposal.TargetID.String(),
+			"key":     key,
+			"value":   values[key],
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }

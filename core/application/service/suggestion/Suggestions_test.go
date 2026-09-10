@@ -345,8 +345,10 @@ type world struct {
 	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
 	// a person without the right to move it meets.
 	moveFails error
-	// labelFails refuses AddLabel alone, for moveFails' reason.
+	// labelFails refuses AddLabel alone, for moveFails' reason; fieldFails does the same for
+	// SetCustomField.
 	labelFails error
+	fieldFails error
 }
 
 type performed struct {
@@ -406,6 +408,9 @@ func (w *world) Invoke(
 	}
 	if name == "AddLabel" && w.labelFails != nil {
 		return nil, w.labelFails
+	}
+	if name == "SetCustomField" && w.fieldFails != nil {
+		return nil, w.fieldFails
 	}
 	if name == "CreateWorkItem" {
 		w.creates++
@@ -983,14 +988,63 @@ func TestAClassificationWithNoColumnMovesNothing(t *testing.T) {
 	}
 }
 
-// classified is a work item proposal carrying the labels and the column the material offered.
+// classified is a work item proposal carrying the labels, the column and the values the material
+// offered.
 func classified() domain.Suggestion {
 	stored := proposal()
 	stored.Payload = map[string]any{
 		labelsKey: []any{movingLabel, homeLabel},
 		bucketKey: doingColumn,
+		fieldsKey: map[string]any{"priority": "high", "areas": []any{"kitchen"}},
 	}
 	return stored
+}
+
+// Each proposed value is written by the use case that owns a custom field: one key per call,
+// because the merge rule is per key, and in key order so that two acceptances of one proposal read
+// the same afterwards (K-03).
+func TestAcceptingAClassificationWritesTheValuesItProposed(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = classified()
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var written []usecase.Input
+	for _, call := range world.performed {
+		if call.name == "SetCustomField" {
+			written = append(written, call.in)
+		}
+	}
+	if len(written) != 2 {
+		t.Fatalf("%d fields written, want one call each", len(written))
+	}
+	if written[0]["key"] != "areas" || written[1]["key"] != "priority" {
+		t.Errorf("the keys were written as %v, %v - key order is what makes two acceptances alike",
+			written[0]["key"], written[1]["key"])
+	}
+	if written[1]["value"] != "high" || written[1]["item_id"] != targetID.String() {
+		t.Errorf("the value written is %v", written[1])
+	}
+}
+
+// A field the entry's collection stopped declaring between the proposal and the acceptance is the
+// definition's refusal, and it refuses the acceptance rather than being written past.
+func TestAClassificationIsRefusedWhenAValueIs(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = classified()
+	world.fieldFails = shared.ErrValidation.WithDetail("fields.value_not_an_option")
+
+	_, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil)
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("the answer was %v, want the definition's own refusal", err)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Error("a classification whose value was refused was marked accepted")
+	}
 }
 
 // doingColumn is the column the board offered; the labels are the vocabulary's, declared beside

@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // CatalogueSources reads what a suggestion is made from, through the ordinary reads.
@@ -108,6 +109,13 @@ func (s CatalogueSources) item(
 		Content: "Title: " + title + "\n\n" + notes,
 		Digest:  domain.Digest(title, notes),
 	}
+	if promptFields[promptID][fieldsKey] {
+		declared, err := s.declared(ctx, actor, out)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Declared = declared
+	}
 	for _, key := range choiceSets[promptID] {
 		set, err := s.set(ctx, actor, key, out)
 		if err != nil {
@@ -143,7 +151,102 @@ func (s CatalogueSources) set(
 const (
 	bucketKey = "bucket_id"
 	labelsKey = "label_ids"
+	fieldsKey = "custom_fields"
 )
+
+// closedKinds are the custom field kinds a value can be *chosen* for (K-03).
+//
+// The open ones - TEXT, NUMBER, DATE, URL - are deliberately absent, and so is USER. The row says
+// "classification", and classifying into an open set is not classification: a model writing a
+// number or a sentence into a workspace's field is not choosing from what was declared, it is
+// filling in a form nobody checked. USER is the same refusal wearing a closed set's clothes - the
+// members of a collection are people, and putting one of them on an entry is naming rather than
+// choosing.
+var closedKinds = map[work.CustomFieldKind]bool{
+	work.CustomFieldSelect:      true,
+	work.CustomFieldMultiSelect: true,
+	work.CustomFieldBool:        true,
+}
+
+// declared answers the custom fields in force for this entry, narrowed to the ones a value can be
+// chosen for and to the ones its own type carries.
+//
+// The entry's own value travels beside each, so that a model can leave a field that is already
+// right alone. No other entry's value ever does: what another entry holds under the same key is
+// that entry's content.
+func (s CatalogueSources) declared(
+	ctx context.Context, actor appshared.ActorContext, item usecase.Output,
+) ([]Declared, error) {
+	collectionID := item.String("collection_id")
+	if collectionID == "" {
+		return nil, nil
+	}
+
+	out, err := s.Catalogue.Invoke(ctx, "ListCustomFields", actor, usecase.Input{
+		"collection_id": collectionID,
+	})
+	if err != nil {
+		if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	itemType := work.ItemType(item.String("type"))
+	values, _ := item["custom_fields"].(map[string]any)
+	rows, _ := out["data"].([]usecase.Output)
+
+	declared := make([]Declared, 0, len(rows))
+	for _, row := range rows {
+		definition, ok := definitionFrom(row)
+		if !ok || !closedKinds[definition.Kind] || !definition.Carries(itemType) {
+			continue
+		}
+		declared = append(declared, Declared{
+			Definition: definition, Current: values[definition.Key],
+		})
+	}
+	return declared, nil
+}
+
+// definitionFrom reads a definition back out of the listing, as far as validating a value needs it:
+// the key, the kind, the options and whether it is required. Nothing else is read, because nothing
+// else decides what a value may be.
+func definitionFrom(row usecase.Output) (work.CustomFieldDefinition, bool) {
+	kind, err := work.ParseCustomFieldKind(row.String("kind"))
+	if err != nil || row.String("key") == "" {
+		return work.CustomFieldDefinition{}, false
+	}
+
+	required, _ := row["is_required"].(bool)
+	definition := work.CustomFieldDefinition{
+		Key: row.String("key"), Kind: kind, IsRequired: required,
+	}
+	definition.Options = texts(row["options"])
+	for _, carried := range texts(row["applies_to"]) {
+		definition.AppliesTo = append(definition.AppliesTo, work.ItemType(carried))
+	}
+	return definition, true
+}
+
+// texts reads a list of strings out of a use case's answer, which carries them as themselves
+// in-process and as `[]any` once anything has been through JSON.
+func texts(value any) []string {
+	switch held := value.(type) {
+	case []string:
+		return append([]string(nil), held...)
+	case []any:
+		read := make([]string, 0, len(held))
+		for _, entry := range held {
+			if text, isText := entry.(string); isText {
+				read = append(read, text)
+			}
+		}
+		return read
+	default:
+		return nil
+	}
+}
 
 // vocabulary answers the labels this entry's collection has agreed on.
 //
