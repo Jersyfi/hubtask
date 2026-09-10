@@ -237,6 +237,9 @@ SESSION_SCOPES="$SESSION_SCOPES,automation:manage"
 # where a workspace's content may be sent - while asking for a suggestion and deciding one are
 # reads and writes of the entry they are about, and need nothing beyond items:read/write.
 SESSION_SCOPES="$SESSION_SCOPES,ai:manage"
+# The health report's own scope (K-06). Not `admin:...` on purpose: every admin scope is withheld
+# from a session, and the reader this answer exists for is a signed-in workspace administrator.
+SESSION_SCOPES="$SESSION_SCOPES,ops:read"
 minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
 TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
 [ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
@@ -246,6 +249,21 @@ printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
 # checked at the end of the session rather than here. The rate limiter's burst is what a client
 # firing a whole first hour in two seconds runs into, and the calls that have to be *here* are
 # only the ones without which nothing else can run.
+
+echo "--- how the installation says it is, to somebody who is not the operator ---"
+# W-03's acceptance in milestone-0.3.5.md: `/api/v1/meta/health` answers in a running container.
+# It did not, for six milestones, and the QS-09 walk is what found it (#507, closed by K-06).
+#
+# This session's credential is a workspace administrator's, not the installation's, so what comes
+# back is the reduced answer: the status, the version and what is degraded. The dependency names,
+# the backlogs and the configuration warnings are the operator's and must not be here - the
+# assertion below is what keeps that from quietly changing.
+health="$(curl -s -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1/meta/health")"
+expect_contains "the report under /api/v1" "$health" '"status"'
+expect_contains "the report's version" "$health" '"version"'
+expect_missing "the installation's internals" "$health" '"dependencies"'
+expect_missing "the installation's backlogs" "$health" '"backlogs"'
+expect_missing "the installation's warnings" "$health" '"warnings"'
 
 echo "--- a hub, and a collection inside it ---"
 HUB_ID="$(hubctl container create --type HUB --name 'The end-to-end hub' | first_id)"
@@ -1018,9 +1036,10 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 	# And the distinction the whole task turns on: never configured is not broken. An installation
 	# that never wanted AI must not report itself degraded forever
 	# (observability-reliability.md 7).
-	# On the internal port rather than under /api/v1: the contract puts the deep report behind an
-	# admin scope, and until the generated router carries it the ops listener serves it
-	# (presentation/rest/OpsController.go). It is the same report either way.
+	# On the internal port: this asks for the whole report, and the reduced answer under /api/v1
+	# carries no dependency rows to read `ai_provider` out of (K-06). The internal listener needs
+	# no token, which is what makes it the right door for a question about the installation rather
+	# than about a workspace.
 	report="$(curl -s "http://127.0.0.1:$OPS_PORT/meta/health")"
 	expect_contains "the installation's own state" "$report" '"status":"ok"'
 	# The provider is named and switched off rather than absent, so an operator asking why there

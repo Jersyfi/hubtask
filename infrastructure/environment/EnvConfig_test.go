@@ -470,8 +470,9 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 	// config.backup_not_configured is deliberately not here any more (E-03). It used to be keyed
 	// on two environment variables, one of which nothing read and neither of which said whether a
 	// backup target exists - a target is a row in a tenant's database. The question is answered by
-	// the repository's coverage count instead, and the surface that asks it is the tenant-facing
-	// health report, which is still route.operation_not_available.
+	// the repository's coverage count instead, and the surface that asks it is the health report -
+	// which since K-06 is served at /api/v1/meta/health as well, to whoever may read that much of
+	// it.
 	if hasWarning(warnings, "config.backup_not_configured") {
 		t.Error("a warning about backup targets is being derived from the environment again")
 	}

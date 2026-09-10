@@ -1853,6 +1853,7 @@
   "app.consent.scope.members_read": "See who holds which role",
   "app.consent.scope.members_write": "Grant and withdraw roles",
   "app.consent.scope.oauth_manage": "Register and remove third-party apps",
+  "app.consent.scope.ops_read": "See whether this installation is working",
   "app.consent.scope.privacy_manage": "Act on data protection requests",
   "app.consent.scope.privacy_read": "Read data protection requests",
   "app.consent.scope.quotas_read": "See this workspace's limits",

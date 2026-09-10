@@ -4526,6 +4526,13 @@ type GroupUpdate struct {
 // HealthReport Machine-readable self-diagnosis. `warnings` names what the installation is missing,
 // without an error having occurred (a missing backup, missing SMTP with reminders
 // enabled, expiring keys).
+//
+// Only `status`, `version` and `degraded_features` are answered to every reader.
+// `dependencies`, `migration`, `backlogs` and `warnings` are the installation's internals
+// and are present only in the operator's answer - absent rather than empty, because an
+// empty `dependencies` would read as "nothing is monitored" and that is a different
+// statement. `version` is required because the public capability manifest already carries
+// it.
 type HealthReport struct {
 	Backlogs *struct {
 		DeadLetterTotal     *int     `json:"dead_letter_total,omitempty"`
@@ -4534,8 +4541,8 @@ type HealthReport struct {
 		OutboxPending       *int     `json:"outbox_pending,omitempty"`
 		WebhookRetryBacklog *int     `json:"webhook_retry_backlog,omitempty"`
 	} `json:"backlogs,omitempty"`
-	DegradedFeatures *[]DegradedFeature `json:"degraded_features,omitempty"`
-	Dependencies     []DependencyHealth `json:"dependencies"`
+	DegradedFeatures *[]DegradedFeature  `json:"degraded_features,omitempty"`
+	Dependencies     *[]DependencyHealth `json:"dependencies,omitempty"`
 	Migration        *struct {
 		Applied  *int                         `json:"applied,omitempty"`
 		Expected *int                         `json:"expected,omitempty"`

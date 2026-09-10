@@ -78,7 +78,15 @@ export type Account = components['schemas']['Account'];
 export type AccountSummary = components['schemas']['AccountSummary'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
-/** The deep report of `/meta/health`, which only an actor with `admin:read` may read. */
+/**
+ * The deep report of `/meta/health`, in one of its two shapes (K-06).
+ *
+ * A credential holding `admin:tenants` is the installation's operator and receives the whole
+ * report. Everybody else receives `status`, `version` and `degraded_features` - which is what the
+ * banner renders - and needs the `ops:read` scope plus the permission a workspace administrator
+ * holds. That is why `dependencies` is optional here: absent means "not yours to see", and it is
+ * absent rather than empty so that it cannot be read as "nothing is monitored".
+ */
 export type HealthReport = components['schemas']['HealthReport'];
 export type Container = components['schemas']['Container'];
 
