@@ -623,9 +623,10 @@ paths:
         would write a rule that runs as a generously-scoped service account and does what they may
         not (automation.md §2).
 
-        What this build refuses, and says so by code rather than by silence: a non-empty condition,
-        until the expression language arrives with it; an action naming a kind automation.md §1.3
-        documents and no release serves yet; a parameter the action's use case does not declare.
+        What this build refuses, and says so by code rather than by silence: a condition that does
+        not compile, or that names something this build does not publish; an action naming a kind
+        automation.md §1.3 documents and no release serves yet; a parameter the action's use case
+        does not declare.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -8586,9 +8587,9 @@ components:
         dedupe_key_expr:
           type: string
           description: >
-            An expression whose value collapses runs that mean the same thing. Refused while it is
-            non-empty, with the conditions and for their reason: the language arrives with the
-            engine that evaluates it.
+            An expression whose value collapses runs that mean the same thing - two events about
+            one entry within the window are one run rather than two. Compiled with the conditions
+            and by the same compiler; an empty one means no collapsing.
 
     AutomationRule:
       type: object
@@ -8614,8 +8615,9 @@ components:
         conditions:
           type: array
           description: >
-            Empty in this release. A non-empty condition is refused until the expression language
-            that evaluates it arrives - stored and ignored is the one thing it must not be.
+            Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An
+            empty list is a rule with no conditions, which runs on every match; an empty
+            *expression* is not a condition at all and is refused as the empty field it is (G-06).
           items: { $ref: "#/components/schemas/RuleCondition" }
         actions:
           type: array
@@ -8654,7 +8656,11 @@ components:
       properties:
         expr:
           type: string
-          description: A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+          description: >
+            A CEL expression (ADR-0009), compiled when the rule is written rather than when it
+            runs: an expression that does not compile, or that names something this build does not
+            publish, is a field error under its own index rather than a rule that fails silently
+            at three in the morning.
 
     AutomationRuleCreate:
       type: object

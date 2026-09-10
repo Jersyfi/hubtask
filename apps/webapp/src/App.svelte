@@ -19,6 +19,7 @@
   import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
   import ItemView from './views/ItemView.svelte';
+  import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import SearchView from './views/SearchView.svelte';
@@ -32,6 +33,8 @@
   import PermissionsView from './views/PermissionsView.svelte';
   import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
+  import RulesView from './views/RulesView.svelte';
+  import RunsView from './views/RunsView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -117,12 +120,18 @@
     <ServiceAccountsView />
   {:else if route.name === 'apps'}
     <AppsView />
+  {:else if route.name === 'rules'}
+    <RulesView />
+  {:else if route.name === 'runs'}
+    <RunsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}
     <SearchView />
+  {:else if route.name === 'jumble'}
+    <JumbleView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'trash'}
     <TrashView />
   {:else if route.name === 'item'}

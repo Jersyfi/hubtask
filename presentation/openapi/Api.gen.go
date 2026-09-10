@@ -3581,7 +3581,7 @@ type AutoAssignStrategy string
 type AutomationRule struct {
 	Actions []RuleAction `json:"actions"`
 
-	// Conditions Empty in this release. A non-empty condition is refused until the expression language that evaluates it arrives - stored and ignored is the one thing it must not be.
+	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is (G-06).
 	Conditions []RuleCondition    `json:"conditions"`
 	CreatedAt  time.Time          `json:"created_at"`
 	CreatedBy  openapi_types.UUID `json:"created_by"`
@@ -5756,7 +5756,7 @@ type RuleActionResultStatus string
 
 // RuleCondition defines model for RuleCondition.
 type RuleCondition struct {
-	// Expr A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+	// Expr A CEL expression (ADR-0009), compiled when the rule is written rather than when it runs: an expression that does not compile, or that names something this build does not publish, is a field error under its own index rather than a rule that fails silently at three in the morning.
 	Expr string `json:"expr"`
 }
 
@@ -5875,7 +5875,7 @@ type RuleTestResult struct {
 
 // RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
 type RuleThrottle struct {
-	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing. Refused while it is non-empty, with the conditions and for their reason: the language arrives with the engine that evaluates it.
+	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing - two events about one entry within the window are one run rather than two. Compiled with the conditions and by the same compiler; an empty one means no collapsing.
 	DedupeKeyExpr  *string `json:"dedupe_key_expr,omitempty"`
 	MaxRunsPerHour *int    `json:"max_runs_per_hour,omitempty"`
 }

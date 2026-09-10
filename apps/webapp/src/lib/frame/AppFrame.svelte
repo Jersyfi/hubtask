@@ -98,6 +98,7 @@
   const links = $derived([
     { path: '/', name: 'home', label: 'app.nav.home' },
     { path: '/search', name: 'search', label: 'app.nav.search' },
+    { path: '/jumble', name: 'jumble', label: 'app.nav.jumble' },
     { path: '/trash', name: 'trash', label: 'app.nav.trash' },
     { path: '/installation', name: 'installation', label: 'app.nav.installation' },
     ...(quotas.isReachable === true
