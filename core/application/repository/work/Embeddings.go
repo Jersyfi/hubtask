@@ -51,4 +51,44 @@ type Embeddings interface {
 
 	// Store writes one entry's vector, replacing whatever was there.
 	Store(ctx context.Context, embedding StoredEmbedding) error
+
+	// Near answers the entries closest to one entry in the embedding space, nearest first (K-04).
+	//
+	// `floor` is the similarity below which two entries are not near each other, and `limit`
+	// bounds the answer. What comes back is candidates rather than results: the rows come from
+	// everywhere in the workspace at once, so *which of them the caller may see* is a question the
+	// application layer asks afterwards, exactly as it does for a search (rule 2, SearchItems).
+	//
+	// An entry with no vector answers `Embedded: false` and no candidates, which is not an error:
+	// the pass has not reached it, it is found by nobody and finds nobody until it has, and that
+	// is J-10's degradation rather than a gap.
+	Near(ctx context.Context, itemID shared.ID, floor float64, limit int) (Nearby, error)
+}
+
+// Nearby is what one entry's neighbourhood looks like.
+type Nearby struct {
+	// Embedded says the entry itself has a vector. False means there is nothing to compare, and
+	// the answer is no suggestion rather than an empty one.
+	Embedded bool
+	// Model is the embedding model that produced the entry's own vector. It travels because it is
+	// the proposal's provenance: a similarity means nothing outside one model's space, and only
+	// rows produced by the same model are compared at all.
+	Model string
+	// Candidates are the neighbours above the floor, nearest first, before the caller narrows them
+	// to what the actor may read.
+	Candidates []Neighbour
+}
+
+// Neighbour is one entry near another, with the path the permission question is asked against.
+type Neighbour struct {
+	ItemID       shared.ID
+	CollectionID shared.ID
+	// HubID is the collection's parent, or zero for a collection that sits at the top level. It
+	// travels for the reason a search hit carries one: a membership held at a hub applies
+	// downwards, and a path that named only the collection could not show an entry to somebody
+	// whose right sits above it.
+	HubID shared.ID
+	// Similarity is 1 minus the cosine distance: 1 is the same direction, 0 is unrelated. It is
+	// the number the floor is compared against and the one a person reads as "how alike".
+	Similarity float64
 }
