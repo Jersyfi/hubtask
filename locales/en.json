@@ -742,6 +742,7 @@
   "suggestions.decider_required": "A suggestion is answered by a person, and this answer names none.",
   "suggestions.already_decided": "Somebody has already answered that suggestion.",
   "suggestions.stale": "That entry has changed since the suggestion was made, so it no longer fits. Ask for a new suggestion.",
+  "suggestions.choices_unknown": "That question asks a model to choose from a set this installation cannot read, so no suggestion was made.",
   "suggestions.acceptance_not_built": "Accepting a {kind} suggestion about a {target_type} is not something this version of Hubtask does yet.",
   "ai.unavailable": "AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.",
   "ai.not_configured": "This workspace has not chosen an AI provider.",

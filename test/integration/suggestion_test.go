@@ -27,6 +27,8 @@ var (
 	sugTenantB = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb02")
 	sugTargetA = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb11")
 	sugPersonA = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb21")
+	sugLabelA  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb41")
+	sugBucketA = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb42")
 )
 
 func seedSuggestionTenants(ctx context.Context, t *testing.T) {
@@ -61,6 +63,10 @@ func proposalFor(t *testing.T, id, tenantID shared.ID, at time.Time) domain.Sugg
 		Payload: map[string]any{
 			"title":    "Buy oat milk",
 			"subtasks": []any{"Check the fridge", "Walk to the shop"},
+			// And what a classification chose from the sets it was shown (K-02): identifiers
+			// rather than words, which is what makes them applicable at all.
+			"label_ids": []any{sugLabelA.String()},
+			"bucket_id": sugBucketA.String(),
 		},
 		Provenance: domain.Provenance{
 			Model: "a-model", PromptID: "suggest-fields", PromptVersion: "v1",
@@ -148,6 +154,13 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 		if !held || len(titles) != 2 || titles[0] != "Check the fridge" {
 			t.Errorf("the proposed titles came back as %v, and the order is what a person read",
 				found.Payload["subtasks"])
+		}
+		chosen, held := found.Payload["label_ids"].([]any)
+		if !held || len(chosen) != 1 || chosen[0] != sugLabelA.String() {
+			t.Errorf("the chosen labels came back as %v", found.Payload["label_ids"])
+		}
+		if found.Payload["bucket_id"] != sugBucketA.String() {
+			t.Errorf("the chosen column came back as %v", found.Payload["bucket_id"])
 		}
 		return nil
 	})
