@@ -111,7 +111,7 @@ three is a defect in this file rather than a plan.
 
 | Use case | Description | Result form |
 |---|---|---|
-| Jumble processing | Email/note → suggested title, due date, labels, and the subtasks the material implies. **Shipped in J-06**, and **not a collection**: `Producing.go` filters `collection_id` out of every answer, because a model cannot know which collections a workspace has and one that names one is choosing a destination. The person converting supplies it. **The subtasks are K-01's** — `suggest-fields.v1` asks for them and the allow list discarded them, which is why `0.7.5` exists | Suggestion, confirmed by the user |
+| Jumble processing | Email/note → suggested title, due date, labels, and the subtasks the material implies. **Shipped in J-06**, the subtasks in **K-01**: the payload carries the titles, and accepting converts the entry and then creates one child per title through the ordinary `CreateWorkItem` — J-07's walk over a flatter shape, a refusal partway leaving the entry and what stands under it. **Not a collection**: `Producing.go` filters `collection_id` out of every answer, because a model cannot know which collections a workspace has and one that names one is choosing a destination. The person converting supplies it | Suggestion, confirmed by the user |
 | Decomposition | Task → suggested work packages/activities. **Shipped in J-07**: the suggestion holds a tree rather than a field set, and accepting it is one ordinary `CreateWorkItem` per node in order, a refusal at the third leaving the two before it standing | Suggestion |
 | Classification | Suggested labels — **shipped in J-08**. The bucket is **K-02**'s and the values of the custom fields a workspace declared are **K-03**'s, both chosen from a set the provider was shown rather than named freely, which is what keeps the filter above intact. *"Priority"* is K-03: this product has no such field and will not grow one to serve a prompt — a workspace that works with priority declares it, and the classifier fills what was declared. Duplicate detection is **K-04**, and it is not a completion at all: the nearest neighbours of an entry's embedding, on the index J-10 maintains, at no token cost | Suggestion |
 | Summarisation | One entry's title and notes — **shipped in J-08**; the weekly review is an MCP prompt a client operates (J-12). The **comment thread and the collection's status are K-05**'s, the two this row named that `0.7.0` did not build | A stored suggestion with its provenance (J-05), accepted into the entry or dismissed. This cell used to read *"text, not persisted"*; it was written before a suggestion was a record, and the record is the newer decision |
@@ -135,6 +135,14 @@ three is a defect in this file rather than a plan.
   budget, or a provider that is merely slow. Nothing about it is on the write path: an entry's own
   embedding is maintained by a job seeded by the write, and an entry the job has not reached yet is
   found by its words in the meantime.
+* A prompt asks for exactly what the code keeps, and a **gate** says so
+  (`test/architecture/promptanswers_test.go`, K-01). A prompt's answer shape is the fenced block it
+  shows the model, the store reads the names out of it, and the allow list in `Producing.go` is
+  compared against them in both directions. It is a gate rather than a rule because the defect is
+  silent either way: `suggest-fields` asked for `subtasks` from J-06 to `0.7.5` and the allow list
+  dropped the key, so every jumble suggestion paid a provider for an answer no code read. The allow
+  list stays the authority — a declared key is one somebody decided the code may accept, and
+  deriving it from the prompt text would let a prompt edit widen the filter.
 * Reproducibility: prompts are versioned resources (`infrastructure/ai/prompts/`), not inline in
   the code. **A prompt is never localised through the message catalogue**, and that is not an
   oversight of rule 8 but a consequence of versioning: a suggestion records the prompt version that

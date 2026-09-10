@@ -54,8 +54,14 @@ func proposalFor(t *testing.T, id, tenantID shared.ID, at time.Time) domain.Sugg
 	recorded, err := domain.New(domain.NewInput{
 		ID: id, TenantID: tenantID,
 		TargetType: domain.TargetWorkItem, TargetID: sugTargetA,
-		Kind:    domain.KindFields,
-		Payload: map[string]any{"title": "Buy oat milk"},
+		Kind: domain.KindFields,
+		// The titles a note implied travel in the payload beside the fields (K-01), so the
+		// boundary is proved over the shape the product actually stores rather than over a
+		// simpler one.
+		Payload: map[string]any{
+			"title":    "Buy oat milk",
+			"subtasks": []any{"Check the fridge", "Walk to the shop"},
+		},
 		Provenance: domain.Provenance{
 			Model: "a-model", PromptID: "suggest-fields", PromptVersion: "v1",
 			ProducedAt: at.Add(-time.Minute),
@@ -137,6 +143,11 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 		}
 		if found.Payload["title"] != "Buy oat milk" {
 			t.Errorf("the payload came back as %v", found.Payload)
+		}
+		titles, held := found.Payload["subtasks"].([]any)
+		if !held || len(titles) != 2 || titles[0] != "Check the fridge" {
+			t.Errorf("the proposed titles came back as %v, and the order is what a person read",
+				found.Payload["subtasks"])
 		}
 		return nil
 	})
