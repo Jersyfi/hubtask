@@ -49,8 +49,9 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 
 	for id, want := range map[string][]string{
 		"suggest-fields": {"title", "notes", "due_date", "labels", "subtasks"},
-		"classify":       {"labels"},
-		"summarize":      {"notes"},
+		// The bucket is chosen from the columns the material carried (K-02).
+		"classify":  {"labels", "bucket_id"},
+		"summarize": {"notes"},
 		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
 		// answer's level, and what a node may carry is `keptTree`'s business.
 		"decompose": {"children"},

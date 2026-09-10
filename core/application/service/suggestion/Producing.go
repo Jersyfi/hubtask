@@ -38,11 +38,54 @@ type Material struct {
 	Content string
 	// Digest is the fingerprint of the state Content was read from.
 	Digest []byte
+	// Choices are the closed sets this answer may pick from, already narrowed to what the person
+	// asking may see (K-02).
+	//
+	// They are the whole difference between a model *choosing* and a model *naming*.
+	// `collection_id` stays filtered out of every answer because a model cannot know which
+	// collections a workspace has, and one that names one is choosing a destination; a board's
+	// columns are small, closed, and already in front of the person asking, so handed over as the
+	// options and validated on the way back an answer is a choice from what it was shown. They
+	// travel as content, never as instruction - a column's name is something somebody typed.
+	Choices []Choices
 }
 
-// Sources reads the material for one target kind.
+// Choices is one closed set, with the option the target is on now marked.
+type Choices struct {
+	// Key is the answer key this set belongs to - the same key the allow list names.
+	Key string
+	// Label is what the set is called in the material, e.g. "Board columns".
+	Label   string
+	Options []Option
+}
+
+// Option is one thing that may be chosen: an identifier a model copies, and a name it reads.
+//
+// The identifier travels because the answer has to be unambiguous - two columns may be called the
+// same thing - and because it costs nothing: whoever asked can already read every one of them.
+type Option struct {
+	ID      string
+	Name    string
+	Current bool
+}
+
+// offers reports whether this set contains the identifier answered.
+func (c Choices) offers(id string) bool {
+	for _, option := range c.Options {
+		if option.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// Sources reads the material for one target kind, for the question about to be asked.
+//
+// The prompt travels because what is worth reading depends on the question: a classification is
+// offered the board's columns, and a summary of the same entry is not - reading them anyway would
+// spend a query and put a workspace's board in front of a provider for no reason.
 type Sources interface {
-	Material(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID) (Material, error)
+	Material(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID, promptID string) (Material, error)
 }
 
 // Produce asks a provider and records what it answered (J-06).
@@ -79,10 +122,20 @@ var promptFields = map[string]map[string]bool{
 		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
 	},
 	"summarize": {"notes": true},
-	"classify":  {"labels": true},
+	// The bucket is chosen from the columns the material carried, never named freely (K-02).
+	"classify": {"labels": true, "bucket_id": true},
 	// A decomposition's answer is one key at its own level and a tree underneath it, and what a
 	// *node* may carry is `keptTree`'s business rather than this map's.
 	"decompose": {"children": true},
+}
+
+// choiceSets names, per prompt, which of its answer keys are chosen from a closed set (K-02).
+//
+// A key named here is refused unless the answer copies one of the options the material carried -
+// so a model that invents an identifier, or names a column from a board nobody showed it, proposes
+// nothing under that key while the rest of its answer stands.
+var choiceSets = map[string][]string{
+	"classify": {"bucket_id"},
 }
 
 // AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
@@ -115,6 +168,10 @@ func AnswerKeys() map[string][]string {
 // KindDecomposition is for.
 var grown = map[applierKey]map[string]bool{
 	{domain.TargetJumbleEntry, domain.KindFields}: {"subtasks": true},
+	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
+	// here rather than absent: putting a card in another column is a *move*, and the history entry
+	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.
+	{domain.TargetWorkItem, domain.KindFields}: {"bucket_id": true},
 }
 
 // defaultPrompts is what a kind is asked with when a job does not say.
@@ -165,7 +222,7 @@ func (h Produce) Execute(
 	var material Material
 	if err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
-			read, err := h.Sources.Material(ctx, actor, targetType, targetID)
+			read, err := h.Sources.Material(ctx, actor, targetType, targetID, promptID)
 			material = read
 			return err
 		}); err != nil {
@@ -180,12 +237,12 @@ func (h Produce) Execute(
 	// Prompt.Ask is the only place the instruction and the content are put together, and it puts
 	// them in two messages with two roles. That is ai-first.md §1.3 as a shape rather than as a
 	// rule somebody remembers: this code cannot merge them if it tries.
-	answer, err := provider.Complete(ctx, prompt.Ask(material.Content))
+	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material)))
 	if err != nil {
 		return err
 	}
 
-	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request))
+	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request), material.Choices)
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
@@ -292,19 +349,81 @@ func (h Produce) applicable(request Request) map[string]bool {
 // stored and listed, and every acceptance of it answered `validation_failed`. Narrowing here rather
 // than dropping fields at acceptance is the honest half of the choice: a person reading a proposal
 // should be reading what they could actually accept.
-func payloadFrom(kind domain.Kind, promptID, text string, applicable map[string]bool) (map[string]any, bool) {
+func payloadFrom(
+	kind domain.Kind, promptID, text string, applicable map[string]bool, offered []Choices,
+) (map[string]any, bool) {
 	answered, ok := objectFrom(text)
 	if !ok {
 		return nil, false
 	}
 	switch kind {
 	case domain.KindFields:
-		return keptTitles(keptFields(answered, Narrowed(promptFields[promptID], applicable))), true
+		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
+		return keptTitles(keptChoices(kept, promptID, offered)), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
 		return nil, false
 	}
+}
+
+// withOptions is the material as the provider sees it: what was written, and then the sets the
+// answer may choose from.
+//
+// Rendered here rather than by whoever read them, so that the text a model is shown and the set an
+// answer is checked against cannot disagree - the failure that would produce is a model choosing
+// correctly from what it was shown and being refused for it.
+//
+// After the emptiness check in Execute, deliberately: a board is not material. An entry with no
+// text of its own is nothing to describe, and offering a provider a list of columns to classify
+// nothing into would spend a call on it.
+func withOptions(material Material) string {
+	content := material.Content
+	for _, set := range material.Choices {
+		if len(set.Options) == 0 {
+			continue
+		}
+		var written strings.Builder
+		written.WriteString("\n\n" + set.Label + ":\n")
+		for _, option := range set.Options {
+			written.WriteString("- " + option.ID + " - " + option.Name)
+			if option.Current {
+				written.WriteString(" (where the entry is now)")
+			}
+			written.WriteString("\n")
+		}
+		content += written.String()
+	}
+	return content
+}
+
+// keptChoices refuses a choice that was not offered (K-02).
+//
+// Both halves of the same rule: an answer naming something outside the set is dropped, and so is
+// one answering a key whose set was never offered at all - an entry with no board is not an entry
+// whose board a model may invent. The rest of the answer stands, because a classification is
+// several proposals at once and labels are not made wrong by a bucket that was.
+func keptChoices(payload map[string]any, promptID string, offered []Choices) map[string]any {
+	for _, key := range choiceSets[promptID] {
+		chosen, held := payload[key]
+		if !held {
+			continue
+		}
+		id, isText := chosen.(string)
+		if !isText || !chosenFrom(offered, key, id) {
+			delete(payload, key)
+		}
+	}
+	return payload
+}
+
+func chosenFrom(offered []Choices, key, id string) bool {
+	for _, set := range offered {
+		if set.Key == key {
+			return set.offers(id)
+		}
+	}
+	return false
 }
 
 // maxProposedSubtasks bounds the titles a field set may carry. The prompt asks for ten; this is
