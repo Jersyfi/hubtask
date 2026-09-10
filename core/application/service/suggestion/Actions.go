@@ -27,6 +27,10 @@ const (
 	AiSuggestFieldsName = "AiSuggestFields"
 	AiSummarizeName     = "AiSummarize"
 	AiClassifyName      = "AiClassify"
+	// The other two thirds of §2's Summarisation row (K-05): the same target and different
+	// material, and a target of its own.
+	AiSummarizeThreadName    = "AiSummarizeThread"
+	AiSummarizeContainerName = "AiSummarizeContainer"
 )
 
 // The three actions' own audit codes. One each rather than one shared, because "what was sent to a
@@ -59,28 +63,61 @@ type AiClassify struct {
 	Queue Jobs
 }
 
+// AiSummarizeThread proposes notes that say what an entry's discussion came to (K-05).
+type AiSummarizeThread struct {
+	Cases Cases
+	AI    AiAvailability
+	Queue Jobs
+}
+
+// AiSummarizeContainer proposes how a collection stands (K-05).
+type AiSummarizeContainer struct {
+	Cases Cases
+	AI    AiAvailability
+	Queue Jobs
+}
+
 // Execute asks for fields.
 func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
-	return Ask(h).
-		queue(ctx, actor, itemID, FieldsAskedAction, domain.KindFields, "suggest-fields", apply)
+	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
+		FieldsAskedAction, domain.KindFields, "suggest-fields", apply)
 }
 
 // Execute asks for a summary.
 func (h AiSummarize) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
-	return Ask(h).
-		queue(ctx, actor, itemID, SummaryAskedAction, domain.KindFields, "summarize", apply)
+	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
+		SummaryAskedAction, domain.KindFields, "summarize", apply)
 }
 
 // Execute asks for labels.
 func (h AiClassify) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
-	return Ask(h).
-		queue(ctx, actor, itemID, ClassifyAskedAction, domain.KindFields, "classify", apply)
+	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
+		ClassifyAskedAction, domain.KindFields, "classify", apply)
+}
+
+// Execute asks for a summary of the discussion.
+func (h AiSummarizeThread) Execute(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
+) error {
+	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
+		SummaryAskedAction, domain.KindFields, threadPrompt, apply)
+}
+
+// Execute asks how the collection stands.
+//
+// `apply` is not offered and the descriptor says why: nothing accepts a collection summary, so a
+// flag that applied one would be a flag with nothing behind it.
+func (h AiSummarizeContainer) Execute(
+	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
+) error {
+	return Ask(h).queue(ctx, actor, domain.TargetContainer, containerID,
+		SummaryAskedAction, domain.KindFields, collectionPrompt, false)
 }
 
 // askInput is the input all three declare: which entry, and whether the answer is applied or
@@ -175,6 +212,74 @@ func (h AiClassify) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	return askInvoke(ctx, actor, in, h.Execute)
+}
+
+func (h AiSummarizeThread) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: AiSummarizeThreadName,
+		Summary: "Asks the workspace's AI provider what an entry's discussion came to: what was " +
+			"decided, what is still open, and what somebody is waiting for. The comments are read " +
+			"oldest first and bounded - a thread of four hundred comments is a token problem " +
+			"rather than a summary problem. The answer is a suggestion for the entry's notes, " +
+			"which somebody accepts or dismisses. An entry nobody has commented on is asked " +
+			"nothing at all.",
+		SideEffects: "Queues one question to the provider and writes an audit entry.",
+		TokenScope:  suggestionsWrite,
+		Input:       askInput("a summary of a discussion"),
+		Audit: usecase.AuditDeclaration{
+			Action: SummaryAskedAction, TargetType: suggestionTarget,
+			Severity: audit.SeverityNotice, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "Asking changes no entry; an applied answer writes the entry's history itself.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h AiSummarizeThread) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	return askInvoke(ctx, actor, in, h.Execute)
+}
+
+func (h AiSummarizeContainer) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: AiSummarizeContainerName,
+		Summary: "Asks the workspace's AI provider how one collection stands: what is open, what " +
+			"moved, and what is overdue, in the shape a person answers a colleague on a Monday. " +
+			"It reads the entries directly in the collection, bounded, and changes nothing. " +
+			"Nothing accepts the answer - a collection has nowhere to put a status summary - so " +
+			"it is read under the suggestions and dismissed.",
+		SideEffects: "Queues one question to the provider and writes an audit entry.",
+		TokenScope:  suggestionsWrite,
+		Input: []usecase.Field{
+			{Name: "container_id", Kind: usecase.KindID, Required: true,
+				Description: "The collection to describe. A rule leaves this out and the run " +
+					"supplies the container it is about."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: SummaryAskedAction, TargetType: suggestionTarget,
+			Severity: audit.SeverityNotice, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "Asking changes nothing, and nothing accepts the answer.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h AiSummarizeContainer) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	containerID, err := in.ID("container_id")
+	if err != nil {
+		return nil, err
+	}
+	if err := h.Execute(ctx, actor, containerID); err != nil {
+		return nil, err
+	}
+	return usecase.Output{}, nil
 }
 
 // askInvoke is the three invocations, which differ in nothing.

@@ -147,6 +147,10 @@ var promptFields = map[string]map[string]bool{
 		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
 	},
 	"summarize": {"notes": true},
+	// The other two thirds of §2's Summarisation row (K-05). Same answer shape, different
+	// material: a discussion rather than an entry, and a collection rather than either.
+	"summarize-thread":     {"notes": true},
+	"summarize-collection": {"notes": true},
 	// All three chosen from what the material carried, never named freely (K-02, K-03): the
 	// columns of the entry's board, the vocabulary its collection agreed on, and the values of the
 	// fields that collection declared.

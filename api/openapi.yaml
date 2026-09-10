@@ -3597,6 +3597,74 @@ paths:
         "503":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:summarize-thread:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: aiSummarizeThread
+      summary: Ask AI to summarise this entry's discussion
+      description: >
+        Asks the workspace's AI provider to summarise the comments on one entry — the discussion
+        rather than the entry (K-05, `ai-first.md` §2). Oldest first and **bounded**: a thread of
+        four hundred comments is a token problem rather than a summary problem, and the bound is
+        part of the design rather than a surprise at the provider.
+
+        Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no
+        consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent.
+        The answer appears under `GET /suggestions` as a proposal for the entry's notes, which
+        somebody accepts or dismisses.
+
+        A comment is somebody's writing and travels as content, never as instruction. Nothing about
+        it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry;
+        what the trail records is that somebody asked, about what, with which prompt.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAsk"
+      responses:
+        "202":
+          description: The provider will be asked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:summarize:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [suggestions]
+      operationId: aiSummarizeContainer
+      summary: Ask AI how a collection stands
+      description: >
+        Asks the workspace's AI provider how one collection stands — what is open, what moved, what
+        is overdue — in the shape a person asks a colleague on a Monday (K-05, `ai-first.md` §2).
+        The entries it reads are the ones directly in the collection, in the collection's own order
+        and bounded.
+
+        Asynchronous and answered `202`, with the same refusal for a workspace that has no provider
+        or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.
+
+        **Nothing accepts it.** A collection has nowhere to put a status summary — a description
+        says what a collection is *for*, not how its week went — so the suggestion is the answer:
+        read it, and `:dismiss` closes it.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAsk"
+      responses:
+        "202":
+          description: The provider will be asked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:duplicates:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -7227,8 +7295,11 @@ components:
 
     SuggestionTargetType:
       type: string
-      enum: [WORK_ITEM, JUMBLE_ENTRY]
-      description: What the suggestion is about.
+      enum: [WORK_ITEM, JUMBLE_ENTRY, CONTAINER]
+      description: >
+        What the suggestion is about. `CONTAINER` is a collection rather than an entry (K-05): a
+        summary of how it stands is about the collection, and nothing accepts one — a collection
+        has nowhere to put a status summary, so it is read and dismissed.
 
     SuggestionKind:
       type: string

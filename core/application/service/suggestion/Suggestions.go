@@ -308,6 +308,12 @@ func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
 	overrides map[string]any,
 ) error {
+	if proposal.TargetType == domain.TargetContainer {
+		// A summary of how a collection stands is something to read (K-05). There is nowhere to
+		// put it: a collection's description says what it is *for*, not how its week went, and
+		// writing a status into it would overwrite the one with the other. Dismissing closes it.
+		return shared.ErrValidation.WithDetail("suggestions.nothing_to_apply")
+	}
 	if proposal.Kind == domain.KindDuplicates {
 		// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build.
 		// A duplicate is two entries and a decision about them - archive one, trash one, move one

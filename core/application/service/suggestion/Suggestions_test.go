@@ -299,6 +299,8 @@ var (
 	tenantID   = shared.MustParseID("0192f000-0000-7000-8000-0000000000f3")
 	accountID  = shared.MustParseID("0192f000-0000-7000-8000-0000000000f4")
 	now        = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	// containerTargetID is the collection a summary of how it stands is about (K-05).
+	containerTargetID = shared.MustParseID("0192f000-0000-7000-8000-0000000000f5")
 )
 
 func person() appshared.ActorContext {
@@ -342,6 +344,11 @@ type world struct {
 	// convertedItemID is the item a conversion answers, which is the only place the walk under it
 	// may read its parent from.
 	convertedItemID shared.ID
+	// The material a summary is made from (K-05): a collection's name, the discussion on an entry,
+	// and the entries directly in a collection.
+	containerName string
+	comments      []usecase.Output
+	level         []usecase.Output
 	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
 	// a person without the right to move it meets.
 	moveFails error
@@ -360,7 +367,7 @@ type performed struct {
 func newWorld() (Cases, *world) {
 	w := &world{
 		store: &suggestionStore{proposals: map[shared.ID]domain.Suggestion{}},
-		title: "Buy milk", failCreateAfter: -1,
+		title: "Buy milk", failCreateAfter: -1, containerName: "This quarter",
 		convertedItemID: shared.MustParseID("0192f000-0000-7000-8000-0000000000fb"),
 	}
 	return Cases{
@@ -390,6 +397,15 @@ func (w *world) Invoke(
 			"id": targetID.String(), "status": "PROCESSED",
 			"target_item_id": w.convertedItemID.String(),
 		}, nil
+	case "GetContainer":
+		if w.readFails != nil {
+			return nil, w.readFails
+		}
+		return usecase.Output{"id": containerTargetID.String(), "name": w.containerName}, nil
+	case "ListComments":
+		return usecase.Output{"data": w.comments}, nil
+	case "ListWorkItems":
+		return usecase.Output{"data": w.level}, nil
 	case "ListJumbleEntries":
 		if w.readFails != nil {
 			return nil, w.readFails
@@ -985,6 +1001,40 @@ func TestAClassificationWithNoColumnMovesNothing(t *testing.T) {
 		if call.name == "MoveWorkItem" {
 			t.Error("an entry was moved by a classification that chose no column")
 		}
+	}
+}
+
+// A summary of how a collection stands is read and dismissed (K-05). There is nowhere to put it,
+// and the refusal says so rather than saying the feature is missing.
+func TestACollectionSummaryIsReadAndDismissedRatherThanApplied(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.TargetType, stored.TargetID = domain.TargetContainer, containerTargetID
+	stored.Payload = map[string]any{"notes": "Two open, one overdue."}
+	// Fingerprinted against the collection, which is what a summary of one is made from.
+	stored.InputDigest = domain.Digest(world.containerName, "")
+	world.store.proposals[proposalID] = stored
+
+	_, err := AcceptSuggestion{Cases: cases}.
+		Execute(context.Background(), person(), proposalID, nil)
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("the answer was %v", err)
+	}
+	if got := shared.AsError(err).DetailCode; got != "suggestions.nothing_to_apply" {
+		t.Errorf("detail code %q", got)
+	}
+	for _, call := range world.performed {
+		if call.name != "GetContainer" {
+			t.Errorf("a refused acceptance performed %q", call.name)
+		}
+	}
+
+	if _, err := (DismissSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID); err != nil {
+		t.Fatalf("dismissing: %v", err)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusDismissed {
+		t.Error("dismissing a collection summary did not close it")
 	}
 }
 

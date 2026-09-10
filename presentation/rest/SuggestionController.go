@@ -22,6 +22,8 @@ const (
 	aiSummarizeUseCase          = "AiSummarize"
 	aiClassifyUseCase           = "AiClassify"
 	suggestDuplicatesUseCase    = "SuggestDuplicates"
+	aiSummarizeThreadUseCase    = "AiSummarizeThread"
+	aiSummarizeContainerUseCase = "AiSummarizeContainer"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -44,7 +46,38 @@ func (c *RestController) AiClassify(
 	c.askAi(w, r, aiClassifyUseCase, itemID)
 }
 
-// askAi is the three of them, which differ in the use case they name and in nothing else.
+// AiSummarizeThread answers POST /items/{itemId}:summarize-thread (K-05).
+func (c *RestController) AiSummarizeThread(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+) {
+	c.askAi(w, r, aiSummarizeThreadUseCase, itemID)
+}
+
+// AiSummarizeContainer answers POST /containers/{containerId}:summarize (K-05).
+//
+// Its own handler rather than `askAi`'s, because what it names is a container: the input key
+// differs, and a body asking for the answer to be applied would be asking for something nothing
+// does.
+func (c *RestController) AiSummarizeContainer(
+	w http.ResponseWriter, r *http.Request, containerID openapi.ContainerId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	if _, err := c.UseCases.Invoke(
+		r.Context(), aiSummarizeContainerUseCase, actorOf(r),
+		usecase.Input{"container_id": containerID.String()},
+	); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// askAi is the four of them, which differ in the use case they name and in nothing else.
 func (c *RestController) askAi(
 	w http.ResponseWriter, r *http.Request, name string, itemID openapi.ItemId,
 ) {

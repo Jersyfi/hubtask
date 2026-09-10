@@ -52,8 +52,10 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// All three chosen from what the material carried (K-02, K-03): the collection's
 		// vocabulary, the columns of the entry's board, and the values of the fields it declared.
 		// The keys inside `custom_fields` are the workspace's own and belong to no shape.
-		"classify":  {"label_ids", "bucket_id", "custom_fields"},
-		"summarize": {"notes"},
+		"classify":             {"label_ids", "bucket_id", "custom_fields"},
+		"summarize":            {"notes"},
+		"summarize-thread":     {"notes"},
+		"summarize-collection": {"notes"},
 		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
 		// answer's level, and what a node may carry is `keptTree`'s business.
 		"decompose": {"children"},

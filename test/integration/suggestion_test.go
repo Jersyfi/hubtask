@@ -179,6 +179,66 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 	})
 }
 
+// A suggestion about a *collection* (K-05) is the third target type, and it is bounded by the same
+// policy as the other two: the row is invisible next door, and it round-trips with the target type
+// the aggregate now carries.
+func TestASuggestionAboutACollectionIsBoundedLikeEveryOther(t *testing.T) {
+	ctx := context.Background()
+	seedSuggestionTenants(ctx, t)
+
+	suggestions := postgres.NewSuggestionRepository(security.NewCursorCodec(secret.New(installationSecret)))
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+	id := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb51")
+	collection := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb52")
+
+	recorded, err := domain.New(domain.NewInput{
+		ID: id, TenantID: sugTenantA,
+		TargetType: domain.TargetContainer, TargetID: collection,
+		Kind:    domain.KindFields,
+		Payload: map[string]any{"notes": "Two open, one overdue."},
+		Provenance: domain.Provenance{
+			Model: "a-model", PromptID: "summarize-collection", PromptVersion: "v1",
+			ProducedAt: now.Add(-time.Minute),
+		},
+		InputDigest: domain.Digest("This quarter", ""),
+		Now:         now,
+	})
+	if err != nil {
+		t.Fatalf("building the summary: %v", err)
+	}
+
+	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
+		if err := suggestions.Record(ctx, recorded); err != nil {
+			t.Fatalf("recording A's collection summary: %v", err)
+		}
+		return nil
+	})
+
+	inTenant(t, uow, sugTenantB, func(ctx context.Context) error {
+		if _, err := suggestions.Find(ctx, id); err == nil {
+			t.Error("A's collection summary is readable next door")
+		} else if !isNotFound(err) {
+			t.Errorf("B's read answered %v, want not found", err)
+		}
+		return nil
+	})
+
+	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
+		found, err := suggestions.Find(ctx, id)
+		if err != nil {
+			t.Fatalf("reading it back: %v", err)
+		}
+		if found.TargetType != domain.TargetContainer || found.TargetID != collection {
+			t.Errorf("the target came back as %s / %s", found.TargetType, found.TargetID)
+		}
+		if found.Payload["notes"] != "Two open, one overdue." {
+			t.Errorf("the payload came back as %v", found.Payload)
+		}
+		return nil
+	})
+}
+
 // The retention sweep runs with no actor behind it, so the boundary is the only thing between one
 // workspace's sweep and another's rows.
 func TestTheSuggestionSweepStaysInsideTheTenant(t *testing.T) {

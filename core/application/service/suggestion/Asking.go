@@ -53,8 +53,13 @@ type Ask struct {
 }
 
 // queue checks and queues one question.
+//
+// The target type travels because K-05 gave the shape a second one: a collection's status is a
+// question about a container, and everything else about asking it - the permission, the
+// availability, the read that proves it exists, the job, the audit entry - is the same.
 func (a Ask) queue(
-	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
+	ctx context.Context, actor appshared.ActorContext,
+	targetType domain.TargetType, targetID shared.ID,
 	action audit.Action, kind domain.Kind, promptID string, apply bool,
 ) error {
 	c := a.Cases
@@ -66,7 +71,7 @@ func (a Ask) queue(
 		Action:     action,
 		TokenScope: suggestionsWrite,
 		TargetType: suggestionTarget,
-		TargetID:   itemID,
+		TargetID:   targetID,
 	}); err != nil {
 		return err
 	}
@@ -89,12 +94,12 @@ func (a Ask) queue(
 		// The entry is read through its own use case, which is the permission check and the
 		// existence check at once - and it is read *before* the job, so that asking about
 		// something that is not there fails now rather than in a worker.
-		if _, err := c.Targets.Digest(ctx, actor, domain.TargetWorkItem, itemID); err != nil {
+		if _, err := c.Targets.Digest(ctx, actor, targetType, targetID); err != nil {
 			return err
 		}
 		payload := map[string]any{
-			"target_type": string(domain.TargetWorkItem),
-			"target_id":   itemID.String(),
+			"target_type": string(targetType),
+			"target_id":   targetID.String(),
 			"kind":        string(kind),
 			"prompt":      promptID,
 			"asked_by":    actor.AccountID.String(),
@@ -121,7 +126,7 @@ func (a Ask) queue(
 			ActorID:    actor.AccountID,
 			ActorLabel: actor.AccountName,
 			TargetType: suggestionTarget,
-			TargetID:   itemID,
+			TargetID:   targetID,
 			Changes: audit.Changes(
 				audit.Change{Field: "prompt", Classification: audit.Open, To: promptID},
 				audit.Change{Field: "applied_directly", Classification: audit.Open,
@@ -157,7 +162,7 @@ type SuggestDecomposition struct {
 func (h SuggestDecomposition) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) error {
-	return Ask(h).queue(ctx, actor, itemID,
+	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
 		DecompositionAskedAction, domain.KindDecomposition, "decompose", false)
 }
 

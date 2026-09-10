@@ -260,7 +260,7 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 	if domain.TargetType("COMMENT").Valid() || domain.Status("PENDING").Valid() {
 		t.Error("an invented value reports itself valid")
 	}
-	if len(domain.Kinds()) != 3 || len(domain.TargetTypes()) != 2 || len(domain.Statuses()) != 3 {
+	if len(domain.Kinds()) != 3 || len(domain.TargetTypes()) != 3 || len(domain.Statuses()) != 3 {
 		t.Error("a value was added to a closed set without this test being told")
 	}
 	if domain.StatusProposed.Decided() {
