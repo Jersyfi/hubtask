@@ -26,29 +26,21 @@ func (q *Queries) DeleteWebhookSubscription(ctx context.Context, id pgtype.UUID)
 }
 
 const findWebhookDelivery = `-- name: FindWebhookDelivery :one
-SELECT id, subscription_id, event_id, attempt, status, response_status, error_code,
+SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
        next_attempt_at, created_at
 FROM webhook_delivery
 WHERE id = $1
 `
 
-type FindWebhookDeliveryRow struct {
-	ID             pgtype.UUID
-	SubscriptionID pgtype.UUID
-	EventID        pgtype.UUID
-	Attempt        int32
-	Status         string
-	ResponseStatus *int32
-	ErrorCode      *string
-	NextAttemptAt  pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
-}
-
-func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (FindWebhookDeliveryRow, error) {
+// The tenant is selected rather than left to row level security to imply, because the aggregate
+// carries it: a retry and a replay both build the next attempt from the row that was read, and a
+// delivery read back without its tenant is one neither of them can construct (F4-15).
+func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (WebhookDelivery, error) {
 	row := q.db.QueryRow(ctx, findWebhookDelivery, id)
-	var i FindWebhookDeliveryRow
+	var i WebhookDelivery
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.SubscriptionID,
 		&i.EventID,
 		&i.Attempt,
@@ -62,7 +54,7 @@ func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (Find
 }
 
 const findWebhookSubscription = `-- name: FindWebhookSubscription :one
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -71,6 +63,7 @@ WHERE id = $1
 
 type FindWebhookSubscriptionRow struct {
 	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
@@ -88,11 +81,15 @@ type FindWebhookSubscriptionRow struct {
 	Version             int32
 }
 
+// The tenant travels with the aggregate rather than being left to row level security to imply: an
+// audit entry is written under the subscription's tenant, and a subscription read back without one
+// is a subscription no auditable operation can be performed on (F4-15).
 func (q *Queries) FindWebhookSubscription(ctx context.Context, id pgtype.UUID) (FindWebhookSubscriptionRow, error) {
 	row := q.db.QueryRow(ctx, findWebhookSubscription, id)
 	var i FindWebhookSubscriptionRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.TargetUrl,
 		&i.EventTypes,
 		&i.FilterExpr,
@@ -197,7 +194,7 @@ func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebho
 }
 
 const listWebhookSubscriptions = `-- name: ListWebhookSubscriptions :many
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -206,6 +203,7 @@ ORDER BY id DESC
 
 type ListWebhookSubscriptionsRow struct {
 	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
@@ -237,6 +235,7 @@ func (q *Queries) ListWebhookSubscriptions(ctx context.Context) ([]ListWebhookSu
 		var i ListWebhookSubscriptionsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.TargetUrl,
 			&i.EventTypes,
 			&i.FilterExpr,
@@ -369,7 +368,7 @@ func (q *Queries) RotateWebhookSecret(ctx context.Context, arg RotateWebhookSecr
 }
 
 const subscriptionsForEventType = `-- name: SubscriptionsForEventType :many
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -379,6 +378,7 @@ ORDER BY id
 
 type SubscriptionsForEventTypeRow struct {
 	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
@@ -412,6 +412,7 @@ func (q *Queries) SubscriptionsForEventType(ctx context.Context, eventType strin
 		var i SubscriptionsForEventTypeRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.TargetUrl,
 			&i.EventTypes,
 			&i.FilterExpr,
@@ -484,7 +485,7 @@ func (q *Queries) UpdateWebhookSubscription(ctx context.Context, arg UpdateWebho
 }
 
 const webhookDeliveries = `-- name: WebhookDeliveries :many
-SELECT id, subscription_id, event_id, attempt, status, response_status, error_code,
+SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
        next_attempt_at, created_at
 FROM webhook_delivery
 WHERE subscription_id = $1
@@ -501,21 +502,9 @@ type WebhookDeliveriesParams struct {
 	PageSize       int32
 }
 
-type WebhookDeliveriesRow struct {
-	ID             pgtype.UUID
-	SubscriptionID pgtype.UUID
-	EventID        pgtype.UUID
-	Attempt        int32
-	Status         string
-	ResponseStatus *int32
-	ErrorCode      *string
-	NextAttemptAt  pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
-}
-
 // One subscription's attempts, newest first, optionally narrowed to one outcome - DEAD_LETTER is
 // the one an operator usually wants. The cursor is the identifier, which is time-ordered.
-func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesParams) ([]WebhookDeliveriesRow, error) {
+func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesParams) ([]WebhookDelivery, error) {
 	rows, err := q.db.Query(ctx, webhookDeliveries,
 		arg.SubscriptionID,
 		arg.Status,
@@ -526,11 +515,12 @@ func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesPa
 		return nil, err
 	}
 	defer rows.Close()
-	items := []WebhookDeliveriesRow{}
+	items := []WebhookDelivery{}
 	for rows.Next() {
-		var i WebhookDeliveriesRow
+		var i WebhookDelivery
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.SubscriptionID,
 			&i.EventID,
 			&i.Attempt,
@@ -551,7 +541,7 @@ func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesPa
 }
 
 const webhookSubscriptionsSealedNotUnder = `-- name: WebhookSubscriptionsSealedNotUnder :many
-SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -562,6 +552,7 @@ ORDER BY id
 
 type WebhookSubscriptionsSealedNotUnderRow struct {
 	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
@@ -593,6 +584,7 @@ func (q *Queries) WebhookSubscriptionsSealedNotUnder(ctx context.Context, keyID 
 		var i WebhookSubscriptionsSealedNotUnderRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.TargetUrl,
 			&i.EventTypes,
 			&i.FilterExpr,
