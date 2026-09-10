@@ -22,20 +22,33 @@ spec:
   {{- with .Values.ingress.className }}
   ingressClassName: {{ . }}
   {{- end }}
+  {{/*
+  One route per host, and every host on one certificate. An installation that serves several
+  workspaces is reached by their subdomains (multi-tenancy.md §3), so the name in the browser's
+  address bar is not always the installation's own - and a certificate that does not cover it is a
+  page a browser refuses before the application is asked anything.
+
+  In production the operator names one wildcard and the platform issues the matching certificate,
+  which is why one entry was enough until now. An operator issuing per host - cert-manager over
+  HTTP-01 cannot do wildcards - needs to name each one.
+  */}}
+  {{- $hosts := prepend (.Values.ingress.extraHosts | default list) .Values.ingress.host }}
   {{- if .Values.ingress.tls.enabled }}
   tls:
-    - hosts: [{{ .Values.ingress.host | quote }}]
+    - hosts: [{{ range $i, $h := $hosts }}{{ if $i }}, {{ end }}{{ $h | quote }}{{ end }}]
       secretName: {{ .Values.ingress.tls.secretName | default (printf "%s-tls" (include "hubtask.fullname" .)) }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.host | quote }}
+    {{- range $host := $hosts }}
+    - host: {{ $host | quote }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ include "hubtask.fullname" . }}-api
+                name: {{ include "hubtask.fullname" $ }}-api
                 port:
                   name: http
+    {{- end }}
 {{- end }}
