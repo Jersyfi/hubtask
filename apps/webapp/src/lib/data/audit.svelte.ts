@@ -25,8 +25,8 @@ import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import { AUDIT, auditPath, type Entry, type Query, type Verification } from './audit.ts';
 
-export { auditPath } from './audit.ts';
-export type { Actor, Change, Entry, Query, Verification } from './audit.ts';
+export { auditPath, readVerification } from './audit.ts';
+export type { Actor, Change, Entry, Finding, Query, Verification } from './audit.ts';
 
 /** One page of the trail, as the listing answers it. */
 interface Page {

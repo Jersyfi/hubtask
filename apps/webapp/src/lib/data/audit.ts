@@ -69,6 +69,54 @@ export interface Verification {
   readonly sealed_until?: string | null;
 }
 
+/**
+ * What a verification found, as the two different facts it is.
+ *
+ * A break is not an error and must not be rendered as one: `valid: false` with a sequence number
+ * is the thing an audit trail exists to produce, and a screen that showed it as a failed request
+ * would hide the finding. Reading it here rather than in the template is what lets both branches
+ * be asserted — a template's `{#if}` is not something `node --test` can reach.
+ */
+export type Finding =
+  | { readonly kind: 'holds'; readonly checked: number; readonly sealedUntil?: string }
+  | {
+      readonly kind: 'broken';
+      readonly checked: number;
+      /** Where the first entry that does not hold sits, when the server named one. */
+      readonly firstBrokenSeq?: number;
+      /** How many sequence numbers are missing in total. */
+      readonly gapCount: number;
+      /** The missing numbers the server listed, cut at a hundred by the contract. */
+      readonly gaps: readonly number[];
+    };
+
+/**
+ * Reads a verification into its finding.
+ *
+ * Anything but an explicit `valid: true` is a break. That is the fail-closed direction and the
+ * only safe one: a malformed answer read as "the chain holds" would be this client asserting
+ * something about evidence it did not understand.
+ */
+export function readVerification(answer: Verification): Finding {
+  const checked = answer.checked ?? 0;
+  if (answer.valid === true) {
+    return {
+      kind: 'holds',
+      checked,
+      ...(answer.sealed_until ? { sealedUntil: answer.sealed_until } : {}),
+    };
+  }
+  return {
+    kind: 'broken',
+    checked,
+    ...(typeof answer.first_broken_seq === 'number'
+      ? { firstBrokenSeq: answer.first_broken_seq }
+      : {}),
+    gapCount: answer.gap_count ?? (answer.gaps?.length ?? 0),
+    gaps: answer.gaps ?? [],
+  };
+}
+
 /** Every filter the contract declares. Absent means unfiltered. */
 export interface Query {
   readonly from?: string;
