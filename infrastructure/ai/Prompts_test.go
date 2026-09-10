@@ -36,6 +36,38 @@ func TestEveryShippedPromptParsesAndCarriesItsVersion(t *testing.T) {
 	}
 }
 
+// What a prompt asks a provider to answer with, read off the prompt itself (K-01).
+//
+// The comparison against what the code keeps is `test/architecture`'s, because that gate needs the
+// application layer's allow list beside this. Here it is the parsing: a shape a model would be
+// given, with ellipses where the values go, read for its names.
+func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
+	store, err := ai.NewStore()
+	if err != nil {
+		t.Fatalf("building the store: %v", err)
+	}
+
+	for id, want := range map[string][]string{
+		"suggest-fields": {"title", "notes", "due_date", "labels", "subtasks"},
+		"classify":       {"labels"},
+		"summarize":      {"notes"},
+		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
+		// answer's level, and what a node may carry is `keptTree`'s business.
+		"decompose": {"children"},
+		// The one prompt written for an agent rather than for this product's provider (J-12). It
+		// asks for prose, so there is no shape to read.
+		"weekly-review": nil,
+	} {
+		prompt, err := store.Get(id)
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		if strings.Join(prompt.Answers, ",") != strings.Join(want, ",") {
+			t.Errorf("%s asks for %v, want %v", id, prompt.Answers, want)
+		}
+	}
+}
+
 // A prompt id is written in the source beside the call that uses it, so an unknown one is a defect
 // and says so - and it does not answer an empty prompt, which would send an instruction-less
 // request to a model.

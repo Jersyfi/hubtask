@@ -13,6 +13,7 @@ package suggestion
 
 import (
 	"context"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -21,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -266,7 +268,25 @@ var appliers = map[applierKey]string{
 	// A decomposition is not one call but a walk (J-07): one CreateWorkItem per node, in order,
 	// each with the accepting person's rights at its destination. The name is here all the same,
 	// because what this package can do is still exactly what it can name.
-	{domain.TargetWorkItem, domain.KindDecomposition}: "CreateWorkItem",
+	{domain.TargetWorkItem, domain.KindDecomposition}: createWorkItemName,
+}
+
+// createWorkItemName is the one use case this package calls for something other than the applier
+// of a payload: J-07's walk, and K-01's, which are the same walk over two shapes.
+const createWorkItemName = "CreateWorkItem"
+
+// under is the level a proposed subtask lands at: the default profile's CHILDREN row
+// (domain-model.md §2), read downwards.
+//
+// A table rather than a read of the workspace's own profiles, because it is a *default* and not an
+// authority: a workspace that narrowed what may sit under a task gets its refusal from the domain
+// where every other create gets it, with the entry and whatever was created before it standing.
+// Asking the profiles here would be this package deciding what the domain decides.
+//
+// An activity takes no children at all, which is why it is absent rather than mapped to itself.
+var under = map[work.ItemType]work.ItemType{
+	work.ItemTask:        work.ItemWorkPackage,
+	work.ItemWorkPackage: work.ItemActivity,
 }
 
 type applierKey struct {
@@ -292,8 +312,15 @@ func (c Cases) apply(
 		return c.plant(ctx, actor, name, proposal, overrides)
 	}
 
+	// What the acceptance grows itself never reaches the applier's input: `subtasks` is a walk
+	// (K-01), and the registry would refuse a key `ConvertJumbleEntry` does not declare.
+	grows := grown[applierKey{proposal.TargetType, proposal.Kind}]
+
 	in := usecase.Input{}
 	for field, value := range proposal.Payload {
+		if grows[field] {
+			continue
+		}
 		in[field] = value
 	}
 	// What the person changed or added before accepting, laid over the proposal. It is their own
@@ -309,8 +336,70 @@ func (c Cases) apply(
 	// UpdateWorkItem declares, and `entry_id` one ConvertJumbleEntry does.
 	in[targetKeys[proposal.TargetType]] = proposal.TargetID.String()
 
-	_, err := c.Catalogue.Invoke(ctx, name, actor, in)
-	return err
+	out, err := c.Catalogue.Invoke(ctx, name, actor, in)
+	if err != nil {
+		return err
+	}
+	if len(grows) == 0 {
+		return nil
+	}
+	return c.grow(ctx, actor, proposal, in, out)
+}
+
+// grow creates the work a jumble entry implied, under the item the conversion just made (K-01).
+//
+// J-07's walk over a different shape: one ordinary `CreateWorkItem` per title, in order, with the
+// accepting person's rights and the ordering keys `Ordering.go` produces. What it is not is a
+// second write path - the entry was converted by the use case that owns that, and each child is
+// created by the use case that owns creating.
+//
+// **A refusal here leaves the conversion standing**, which is where this differs from `plant`. A
+// breakdown is the whole proposal, so a first node refused means nothing was accepted and the
+// refusal is the answer; a converted entry is the acceptance, and the titles under it are what the
+// material implied. Somebody who converted a note and got the conversion undone because the third
+// title was too long would reasonably think the feature broken. What they get instead is the entry,
+// the children that were created, and the rest on their next read.
+func (c Cases) grow(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+	in usecase.Input, out usecase.Output,
+) error {
+	titles, _ := proposal.Payload["subtasks"].([]any)
+	if len(titles) == 0 {
+		return nil
+	}
+
+	// The item the conversion made, read off its answer. Never the payload's and never the
+	// overrides': a proposal able to name the parent of what it grows would be a proposal about
+	// one entry growing children under another.
+	parentID, err := shared.ParseID(out.String("target_item_id"))
+	if err != nil {
+		return nil
+	}
+
+	// What the entry became decides what may sit under it. TASK unless the person accepting said
+	// otherwise, which is `ConvertJumbleEntry`'s own default.
+	became := work.ItemTask
+	if named, held := in["type"].(string); held && strings.TrimSpace(named) != "" {
+		became = work.ItemType(named)
+	}
+	childType, takesChildren := under[became]
+	if !takesChildren {
+		// An entry converted to an activity has nowhere to put them. Not an error: the conversion
+		// is what was accepted, and inventing a level for the titles would put work where nobody
+		// proposed it.
+		return nil
+	}
+
+	nodes := make([]any, 0, len(titles))
+	for _, title := range titles {
+		nodes = append(nodes, map[string]any{"type": string(childType), "title": title})
+	}
+	// No overrides. What a person changed before accepting - the destination collection, the
+	// title, the board column - is the *entry's*, and laying it over every child would give them
+	// all one title and put children on a board only the entry belongs to.
+	created := 0
+	_ = c.plantUnder(ctx, actor, createWorkItemName, parentID, nodes, nil, &created)
+	return nil
 }
 
 // plant creates the tree a decomposition proposes, one ordinary create at a time.

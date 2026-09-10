@@ -129,6 +129,7 @@ func parsePrompt(name, text string) (port.Prompt, error) {
 	if prompt.Instruction == "" {
 		return port.Prompt{}, fmt.Errorf("the prompt %s is empty", name)
 	}
+	prompt.Answers = answerKeys(prompt.Instruction)
 	// A published prompt has to say what it is and what to send it. A title without a description
 	// is a prompt an agent's client lists and nobody can tell what it does.
 	if prompt.Title != "" && prompt.Description == "" {
@@ -138,6 +139,109 @@ func parsePrompt(name, text string) (port.Prompt, error) {
 		return port.Prompt{}, fmt.Errorf("the prompt %s declares arguments and is not published", name)
 	}
 	return prompt, nil
+}
+
+// answerKeys reads the keys of the answer shape a prompt documents.
+//
+// The convention is one fenced block holding the object the model is to answer with, and it is a
+// convention with a gate behind it: `test/architecture` compares these keys against the allow list
+// that decides which of them the code keeps, and a prompt asking for a key nobody kept is what
+// made 0.7.5 necessary (K-01). Prose bullets are not read - a prompt that documents a field only
+// in a sentence documents it to a model and to nobody else.
+//
+// The block is not parsed as JSON, deliberately. An example written for a model has ellipses in it
+// where the values would be, which no JSON parser accepts and every model understands; what is
+// wanted here is the *shape*, and the shape is the quoted names at the object's own level.
+//
+// A prompt with no fenced object asks for prose, which is every published prompt (J-12) and no
+// completion prompt this product asks its own provider.
+func answerKeys(instruction string) []string {
+	block, found := fencedObject(instruction)
+	if !found {
+		return nil
+	}
+
+	var keys []string
+	depth := 0
+	for index := 0; index < len(block); index++ {
+		switch block[index] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+		case '"':
+			key, end, closed := quoted(block, index)
+			if !closed {
+				return keys
+			}
+			index = end
+			// Only the object's own level, and only a name a colon follows: the strings inside
+			// `{"labels": ["…"]}` are values, and the names inside a nested object belong to the
+			// node rather than to the answer.
+			if depth == 1 && labels(block, end+1) {
+				keys = append(keys, key)
+			}
+		}
+	}
+	return keys
+}
+
+// fencedObject answers the first fenced block containing an object.
+func fencedObject(instruction string) (string, bool) {
+	rest := instruction
+	for {
+		opened := strings.Index(rest, "```")
+		if opened < 0 {
+			return "", false
+		}
+		rest = rest[opened+3:]
+		if line := strings.IndexByte(rest, '\n'); line >= 0 {
+			rest = rest[line+1:]
+		}
+		closed := strings.Index(rest, "```")
+		if closed < 0 {
+			return "", false
+		}
+		block := rest[:closed]
+		rest = rest[closed+3:]
+		if strings.Contains(block, "{") {
+			return block, true
+		}
+	}
+}
+
+// quoted reads the JSON string beginning at `start`, answering it and the index of its closing
+// quote.
+func quoted(text string, start int) (value string, end int, closed bool) {
+	var read strings.Builder
+	for index := start + 1; index < len(text); index++ {
+		switch text[index] {
+		case '\\':
+			index++
+			if index < len(text) {
+				read.WriteByte(text[index])
+			}
+		case '"':
+			return read.String(), index, true
+		default:
+			read.WriteByte(text[index])
+		}
+	}
+	return "", len(text), false
+}
+
+// labels reports whether what follows is a colon, which is what makes a string a key.
+func labels(text string, from int) bool {
+	for index := from; index < len(text); index++ {
+		switch text[index] {
+		case ' ', '\t', '\r', '\n':
+		case ':':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // cutHeader takes the `---`-delimited block off the front of a file, where there is one.

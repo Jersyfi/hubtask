@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
@@ -74,11 +75,46 @@ type Produce struct {
 // The allow list is per prompt for that reason - a summariser that came back with labels has
 // answered a question nobody asked.
 var promptFields = map[string]map[string]bool{
-	"suggest-fields": {"title": true, "notes": true, "due_date": true, "labels": true},
-	"summarize":      {"notes": true},
-	"classify":       {"labels": true},
-	// A decomposition's shape is a tree rather than a field set, and `keptTree` is its allow list.
-	"decompose": nil,
+	"suggest-fields": {
+		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
+	},
+	"summarize": {"notes": true},
+	"classify":  {"labels": true},
+	// A decomposition's answer is one key at its own level and a tree underneath it, and what a
+	// *node* may carry is `keptTree`'s business rather than this map's.
+	"decompose": {"children": true},
+}
+
+// AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
+//
+// Exported for one caller and named for what it is: `test/architecture` compares what a prompt asks
+// a provider for against what the code keeps, because the two are a markdown file and a Go map and
+// nothing else reads both. That is how `subtasks` came to be asked for and discarded from J-06
+// until 0.7.5 - a defect no compiler can see and no review reliably catches.
+func AnswerKeys() map[string][]string {
+	keys := make(map[string][]string, len(promptFields))
+	for prompt, fields := range promptFields {
+		named := make([]string, 0, len(fields))
+		for field := range fields {
+			named = append(named, field)
+		}
+		sort.Strings(named)
+		keys[prompt] = named
+	}
+	return keys
+}
+
+// grown are the answer keys an acceptance performs itself rather than handing to the use case that
+// applies the rest of the payload.
+//
+// Keyed by applier, because a key that is structural for one acceptance is a field nobody declared
+// for another. `subtasks` under a jumble entry is the walk in `apply`: the entry is converted, and
+// each title becomes a child through `CreateWorkItem`. The same key proposed about a work item
+// would be handed to `UpdateWorkItem`, which declares no such input, and the registry would refuse
+// the whole acceptance - J-16's defect from the other side. Breaking a work item down is what
+// KindDecomposition is for.
+var grown = map[applierKey]map[string]bool{
+	{domain.TargetJumbleEntry, domain.KindFields}: {"subtasks": true},
 }
 
 // defaultPrompts is what a kind is asked with when a job does not say.
@@ -238,6 +274,11 @@ func (h Produce) applicable(request Request) map[string]bool {
 	for _, field := range declared {
 		fields[field] = true
 	}
+	// And what the acceptance grows itself, which the applier never sees as an input and therefore
+	// never declares.
+	for field := range grown[applierKey{request.TargetType, request.Kind}] {
+		fields[field] = true
+	}
 	return fields
 }
 
@@ -258,12 +299,50 @@ func payloadFrom(kind domain.Kind, promptID, text string, applicable map[string]
 	}
 	switch kind {
 	case domain.KindFields:
-		return keptFields(answered, Narrowed(promptFields[promptID], applicable)), true
+		return keptTitles(keptFields(answered, Narrowed(promptFields[promptID], applicable))), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
 		return nil, false
 	}
+}
+
+// maxProposedSubtasks bounds the titles a field set may carry. The prompt asks for ten; this is
+// what happens when a model ignores it.
+const maxProposedSubtasks = 10
+
+// keptTitles reads `subtasks` as what it is - a list of titles, in the order the work would be
+// done - and drops it whole where it is anything else.
+//
+// Dropped rather than repaired, and dropped *alone* rather than taking the suggestion with it,
+// which is where this differs from `keptTree`. A tree is the whole proposal, so a malformed one
+// leaves nothing to record; a field set is several proposals at once, and losing a good title
+// because a model answered the last field badly would be the wrong trade. What a person then reads
+// is a suggestion without subtasks, which is also what a note describing one indivisible thing
+// produces.
+func keptTitles(payload map[string]any) map[string]any {
+	proposed, held := payload["subtasks"]
+	if !held {
+		return payload
+	}
+	delete(payload, "subtasks")
+
+	list, isList := proposed.([]any)
+	if !isList || len(list) == 0 || len(list) > maxProposedSubtasks {
+		return payload
+	}
+	titles := make([]any, 0, len(list))
+	for _, entry := range list {
+		title, isText := entry.(string)
+		if !isText || strings.TrimSpace(title) == "" {
+			return payload
+		}
+		titles = append(titles, title)
+	}
+	// The length a title may be is the domain's, checked where every other title is: a title too
+	// long is refused by `CreateWorkItem` at acceptance, with everything before it standing.
+	payload["subtasks"] = titles
+	return payload
 }
 
 // maxProposedNodes bounds a tree. The prompt asks for eight; this is what happens when a model
