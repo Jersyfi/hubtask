@@ -144,8 +144,15 @@ type Produce struct {
 // The allow list is per prompt for that reason - a summariser that came back with labels has
 // answered a question nobody asked.
 var promptFields = map[string]map[string]bool{
+	// No `labels`. A label is a word a collection agreed on, and a jumble entry is in no
+	// collection: the person converting names the destination, so at the moment the question is
+	// asked there is no vocabulary to choose from. Words a model invented instead would be
+	// vocabulary a model invented, which is the naming this milestone's second decision keeps a
+	// model out of - the same reasoning `classify` states from the other side, where the set does
+	// exist and the answer is a choice from it. A converted entry is classified the moment it is
+	// in a collection, which is where labels live.
 	"suggest-fields": {
-		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
+		"title": true, "notes": true, dueKey: true, "subtasks": true,
 	},
 	"summarize": {"notes": true},
 	// The other two thirds of §2's Summarisation row (K-05). Same answer shape, different

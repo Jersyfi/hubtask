@@ -48,7 +48,10 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 	}
 
 	for id, want := range map[string][]string{
-		"suggest-fields": {"title", "notes", "due_date", "labels", "subtasks"},
+		// No `labels`: a jumble entry is in no collection, so there is no vocabulary to choose
+		// from, and words a model invented would be vocabulary it invented. Labels are the
+		// classifier's, chosen from the set it was shown.
+		"suggest-fields": {"title", "notes", "due_date", "subtasks"},
 		// All three chosen from what the material carried (K-02, K-03): the collection's
 		// vocabulary, the columns of the entry's board, and the values of the fields it declared.
 		// The keys inside `custom_fields` are the workspace's own and belong to no shape.
