@@ -937,6 +937,10 @@ type producerWorld struct {
 	// held is what the entry carries under its declared keys, which travels beside each field so
 	// that a model can leave one that is already right alone.
 	held map[string]any
+	// Where the person who asked lives, as the two reads answer it: their own preference, and the
+	// workspace's default behind it. Both empty is a workspace that has neither.
+	accountLocale, accountZone     string
+	workspaceLocale, workspaceZone string
 }
 
 // The board a classification is offered, and the entry's own column among it.
@@ -1036,6 +1040,21 @@ func (w *producerWorld) Invoke(
 		return usecase.Output{"data": w.comments}, nil
 	case "ListWorkItems":
 		return usecase.Output{"data": w.level}, nil
+	case ownAccountName:
+		// Absent rather than empty when the account inherits, which is what accountOutput does -
+		// a fake that always answered the key would hide the fallback the production code needs.
+		out := usecase.Output{"id": actor.AccountID.String()}
+		if w.accountLocale != "" {
+			out["locale"] = w.accountLocale
+		}
+		if w.accountZone != "" {
+			out["time_zone"] = w.accountZone
+		}
+		return out, nil
+	case readWorkspaceName:
+		return usecase.Output{
+			"default_locale": w.workspaceLocale, "default_time_zone": w.workspaceZone,
+		}, nil
 	case "GetContainer":
 		return usecase.Output{
 			"id": containerTargetID.String(), "name": "This quarter",
@@ -1090,4 +1109,82 @@ type sequentialIDs struct{}
 
 func (sequentialIDs) NewID() shared.ID {
 	return shared.MustParseID("0192f000-0000-7000-8000-0000000000d9")
+}
+
+// A job presents no credential, so nothing has resolved where the person who asked lives - and an
+// actor with no zone reads a date-only due date in UTC without complaining. The producer walks the
+// chain `AuthenticateToken` walks for a request, through the ordinary reads.
+func TestAJobsActorIsGivenTheAskingPersonsZone(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+	world.accountLocale, world.accountZone = "de-AT", "Europe/Vienna"
+	world.workspaceLocale, world.workspaceZone = "en", "UTC"
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	read := performedOn(world, "ListJumbleEntries")
+	if read == nil {
+		t.Fatal("the material was never read")
+	}
+	if read.actor.TimeZone != "Europe/Vienna" || read.actor.Locale != "de-AT" {
+		t.Errorf("the material was read as %q / %q, want the account's own preference",
+			read.actor.Locale, read.actor.TimeZone)
+	}
+}
+
+// The account inherits, which `accountOutput` reports by leaving the key out rather than by
+// answering an empty one. The workspace's default is what the person is then spoken to in.
+func TestAnAccountThatInheritsTakesTheWorkspacesZone(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+	world.workspaceLocale, world.workspaceZone = "de", "Europe/Berlin"
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	read := performedOn(world, "ListJumbleEntries")
+	if read == nil {
+		t.Fatal("the material was never read")
+	}
+	if read.actor.TimeZone != "Europe/Berlin" || read.actor.Locale != "de" {
+		t.Errorf("the material was read as %q / %q, want the workspace's default",
+			read.actor.Locale, read.actor.TimeZone)
+	}
+}
+
+// An actor that came through a request has both already, and asking again would be two reads per
+// suggestion to learn what the caller told us.
+func TestAnActorThatAlreadyKnowsWhereItIsIsNotAskedAgain(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+
+	actor := person()
+	actor.Locale, actor.TimeZone = "en-GB", "Europe/London"
+	if err := produce.Execute(context.Background(), actor, Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	for _, name := range []string{ownAccountName, readWorkspaceName} {
+		if performedOn(world, name) != nil {
+			t.Errorf("%s was read for an actor that already carries its zone", name)
+		}
+	}
+}
+
+func performedOn(world *producerWorld, name string) *performed {
+	for i, call := range world.performed {
+		if call.name == name {
+			return &world.performed[i]
+		}
+	}
+	return nil
 }

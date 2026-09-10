@@ -247,6 +247,16 @@ func (h Produce) Execute(
 	}
 	targetType, targetID, kind := request.TargetType, request.TargetID, request.Kind
 
+	// Where the person who asked lives. A job presents no credential, so nothing has resolved it:
+	// the worker builds the actor from the identity the payload carries and stops there, and an
+	// actor with no zone reads a date-only due date in UTC without complaining. That is a
+	// suggestion applied by a rule landing on a different day from the same suggestion accepted by
+	// a person, which is not a difference anybody could explain.
+	actor, err = h.located(ctx, actor)
+	if err != nil {
+		return err
+	}
+
 	provider, err := h.Providers.For(ctx, actor)
 	if err != nil {
 		return err
@@ -349,6 +359,61 @@ type Request struct {
 	// applied answer is therefore not a shortcut past any of it - it is the same path with nobody
 	// pausing in the middle.
 	Apply bool
+}
+
+// The two ordinary reads that answer where the person who asked lives.
+//
+// Named here for `appliers`' reason: what this package can do to a workspace is exactly what it can
+// name, and a short list is what makes that reviewable.
+const (
+	ownAccountName    = "GetOwnAccount"
+	readWorkspaceName = "ReadWorkspace"
+)
+
+// located fills in the locale and the time zone an actor arrived without.
+//
+// The same chain `AuthenticateToken` walks for a request - the person's own preference, then the
+// workspace's default - through the ordinary reads, as the person, because that is how everything
+// else this job reads is read. Nothing is stored and nothing new travels: putting a time zone in
+// the job payload would put a personal preference in a table with no row level security, to save a
+// read that happens once per job.
+//
+// An actor that already has a zone is left alone, which is every actor that came through a request.
+// A workspace that answers neither leaves the zone empty, and what depends on it says so where it
+// depends on it rather than guessing here.
+func (h Produce) located(
+	ctx context.Context, actor appshared.ActorContext,
+) (appshared.ActorContext, error) {
+	if actor.TimeZone != "" || h.Catalogue == nil {
+		return actor, nil
+	}
+
+	account, err := h.Catalogue.Invoke(ctx, ownAccountName, actor, usecase.Input{})
+	if err != nil {
+		return actor, err
+	}
+	actor.Locale = firstWritten(actor.Locale, account.String("locale"))
+	actor.TimeZone = account.String("time_zone")
+	if actor.TimeZone != "" && actor.Locale != "" {
+		return actor, nil
+	}
+
+	workspace, err := h.Catalogue.Invoke(ctx, readWorkspaceName, actor, usecase.Input{})
+	if err != nil {
+		return actor, err
+	}
+	actor.Locale = firstWritten(actor.Locale, workspace.String("default_locale"))
+	actor.TimeZone = firstWritten(actor.TimeZone, workspace.String("default_time_zone"))
+	return actor, nil
+}
+
+func firstWritten(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // applicable is the set of fields the use case that would apply this suggestion declares, or
