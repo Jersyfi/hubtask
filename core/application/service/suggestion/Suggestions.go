@@ -250,27 +250,53 @@ func (c Cases) decide(
 	return answered, nil
 }
 
-// appliers maps what a suggestion is about, and what accepting it does, onto the use case that
-// does it.
+// accepted is what accepting one shape of proposal does.
 //
 // A table in code rather than a use case name on the row, and that is a security decision: a stored
 // use-case name would be a stored capability, and a producer that could write one could point an
 // acceptance at anything within the accepter's rights. Here the payload is data and the use case is
 // code, which is the only arrangement in which "a suggestion grants nothing" is structural.
+type accepted struct {
+	// Applier is the use case the payload is handed to, or the one a walk calls per node.
+	Applier string
+	// Walk marks a proposal the acceptance walks itself rather than merging into one input.
+	Walk bool
+	// Refusal is the detail code for a shape nothing accepts. A shape with one is not a gap in
+	// this build - it is a proposal whose answer is somebody's decision, and dismissing closes it.
+	Refusal string
+}
+
+// acceptance says, for every shape of proposal this build can produce, what accepting it does.
 //
-// The combinations this build does not serve yet are absent rather than wrong. J-06 adds the jumble
-// entry's, J-07 the decomposition's, and a caller meeting a gap is told it is not built rather than
-// that the suggestion is invalid - the distinction `deferredActions` draws for automation kinds.
-var appliers = map[applierKey]string{
-	{domain.TargetWorkItem, domain.KindFields}: "UpdateWorkItem",
+// One declaration rather than three conditions and a map, because `Produce` narrows a proposal to
+// what the acceptance can take and the gate compares the two: a shape whose handling is spelled in
+// an `if` is a shape neither of them can read. `apply` dispatches on this and on nothing else,
+// which is what keeps the declaration honest - a row nothing obeys would be a row written to make a
+// gate green.
+//
+// The combinations this build does not produce are absent rather than wrong, and a caller meeting a
+// gap is told it is not built rather than that the suggestion is invalid - the distinction
+// `deferredActions` draws for automation kinds.
+var acceptance = map[applierKey]accepted{
+	{domain.TargetWorkItem, domain.KindFields}: {Applier: "UpdateWorkItem"},
 	// Accepting a proposal about a jumble entry is converting it (J-06), which is why the
 	// acceptance takes overrides: a model cannot name a destination collection, and
 	// ConvertJumbleEntry requires one.
-	{domain.TargetJumbleEntry, domain.KindFields}: "ConvertJumbleEntry",
+	{domain.TargetJumbleEntry, domain.KindFields}: {Applier: "ConvertJumbleEntry"},
 	// A decomposition is not one call but a walk (J-07): one CreateWorkItem per node, in order,
-	// each with the accepting person's rights at its destination. The name is here all the same,
-	// because what this package can do is still exactly what it can name.
-	{domain.TargetWorkItem, domain.KindDecomposition}: createWorkItemName,
+	// each with the accepting person's rights at its destination.
+	{domain.TargetWorkItem, domain.KindDecomposition}: {
+		Applier: createWorkItemName, Walk: true,
+	},
+	// A summary of how a collection stands is something to read (K-05). There is nowhere to put
+	// it: a collection's description says what it is *for*, not how its week went, and writing a
+	// status into it would overwrite the one with the other.
+	{domain.TargetContainer, domain.KindFields}: {Refusal: "suggestions.nothing_to_apply"},
+	// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build. A
+	// duplicate is two entries and a decision about them - archive one, trash one, move one under
+	// the other - and which of those somebody means is theirs to say, through the use case that
+	// owns it.
+	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
 }
 
 // The use cases this package calls for something other than applying a payload: J-07's walk and
@@ -310,21 +336,7 @@ func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
 	overrides map[string]any,
 ) error {
-	if proposal.TargetType == domain.TargetContainer {
-		// A summary of how a collection stands is something to read (K-05). There is nowhere to
-		// put it: a collection's description says what it is *for*, not how its week went, and
-		// writing a status into it would overwrite the one with the other. Dismissing closes it.
-		return shared.ErrValidation.WithDetail("suggestions.nothing_to_apply")
-	}
-	if proposal.Kind == domain.KindDuplicates {
-		// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build.
-		// A duplicate is two entries and a decision about them - archive one, trash one, move one
-		// under the other - and which of those somebody means is theirs to say, through the use
-		// case that owns it. Dismissing is what closes the proposal.
-		return shared.ErrValidation.WithDetail("suggestions.decided_by_hand")
-	}
-
-	name, served := appliers[applierKey{proposal.TargetType, proposal.Kind}]
+	how, served := acceptance[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
 		return shared.ErrUnavailable.
 			WithDetail("suggestions.acceptance_not_built").
@@ -332,8 +344,13 @@ func (c Cases) apply(
 				"target_type": string(proposal.TargetType), "kind": string(proposal.Kind),
 			})
 	}
-
-	if proposal.Kind == domain.KindDecomposition {
+	if how.Refusal != "" {
+		// Nothing accepts this shape, and that is an answer rather than a gap. Dismissing closes
+		// the proposal.
+		return shared.ErrValidation.WithDetail(how.Refusal)
+	}
+	name := how.Applier
+	if how.Walk {
 		return c.plant(ctx, actor, name, proposal, overrides)
 	}
 

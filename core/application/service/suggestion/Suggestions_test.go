@@ -1310,3 +1310,59 @@ func TestADueDateWithNoZoneAnywhereIsWrittenInUtc(t *testing.T) {
 	}
 	t.Fatal("the due date was not applied")
 }
+
+// `apply` dispatches on the declaration and on nothing else, so the two shapes nothing accepts
+// answer what they always answered rather than "not built yet" - which is a different sentence and
+// would send somebody looking for a version that has it.
+func TestTheShapesNothingAcceptsSayWhyRatherThanNotBuilt(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		shape  func(domain.Suggestion) domain.Suggestion
+		detail string
+	}{
+		{"a collection's summary", func(s domain.Suggestion) domain.Suggestion {
+			s.TargetType, s.TargetID = domain.TargetContainer, containerTargetID
+			// Fingerprinted against the collection, which is what a summary of one is made from.
+			s.InputDigest = domain.Digest("This quarter", "")
+			return s
+		}, "suggestions.nothing_to_apply"},
+		{"a duplicate", func(s domain.Suggestion) domain.Suggestion {
+			s.Kind = domain.KindDuplicates
+			s.Payload = map[string]any{"duplicates": []any{}}
+			return s
+		}, "suggestions.decided_by_hand"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			cases, world := newWorld()
+			world.store.proposals[proposalID] = testCase.shape(proposal())
+
+			_, err := (AcceptSuggestion{Cases: cases}).
+				Execute(context.Background(), person(), proposalID, nil)
+			if err == nil {
+				t.Fatal("it was accepted")
+			}
+			if shared.AsError(err).DetailCode != testCase.detail {
+				t.Errorf("the answer is %v, want %s", err, testCase.detail)
+			}
+		})
+	}
+}
+
+// And every shape the acceptance declares an applier for names a use case this package can call.
+// A row naming something the catalogue does not carry would be an acceptance that fails at the
+// moment somebody uses it.
+func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
+	callable := map[string]bool{
+		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
+		createWorkItemName: true, moveWorkItemName: true,
+		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
+	}
+	for key, how := range acceptance {
+		switch {
+		case how.Refusal != "" && how.Applier != "":
+			t.Errorf("%v both refuses and names an applier", key)
+		case how.Refusal == "" && !callable[how.Applier]:
+			t.Errorf("%v names %q, which this package cannot call", key, how.Applier)
+		}
+	}
+}

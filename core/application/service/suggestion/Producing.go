@@ -440,7 +440,7 @@ type Request struct {
 
 // The two ordinary reads that answer where the person who asked lives.
 //
-// Named here for `appliers`' reason: what this package can do to a workspace is exactly what it can
+// Named here for `acceptance`' reason: what this package can do to a workspace is exactly what it can
 // name, and a short list is what makes that reviewable.
 const (
 	ownAccountName    = "GetOwnAccount"
@@ -496,17 +496,19 @@ func firstWritten(values ...string) string {
 // applicable is the set of fields the use case that would apply this suggestion declares, or
 // nothing where this build cannot say - which narrows nothing rather than everything.
 //
-// It reads the descriptor rather than a second list beside `appliers`, so the day somebody adds a
+// It reads the descriptor rather than a second list beside `acceptance`, so the day somebody adds a
 // field to `ConvertJumbleEntry` the suggestions may propose it, with nothing to remember.
 func (h Produce) applicable(request Request) map[string]bool {
 	if h.Fields == nil {
 		return nil
 	}
-	name, served := appliers[applierKey{request.TargetType, request.Kind}]
-	if !served {
+	how, served := acceptance[applierKey{request.TargetType, request.Kind}]
+	if !served || how.Walk || how.Refusal != "" {
+		// A walk is not narrowed by a descriptor's inputs - `keptTree` fixes its shape - and a
+		// shape nothing accepts has no applier to be narrowed against.
 		return nil
 	}
-	declared, known := h.Fields.InputsOf(name)
+	declared, known := h.Fields.InputsOf(how.Applier)
 	if !known {
 		return nil
 	}
