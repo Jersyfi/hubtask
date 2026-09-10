@@ -179,7 +179,7 @@ Four levels, deliberately kept separate:
 | `/healthz` | The process is alive, the event loop responds. **Checks no dependencies** — otherwise a database outage kills every pod at once. | Liveness probe |
 | `/startupz` | Initialisation complete, the migration state is compatible | Startup probe |
 | `/readyz` | The process can serve traffic: the database is reachable, the pool is not exhausted, the schema is compatible, and it is not shutting down | Readiness probe, load balancer |
-| `GET /api/v1/meta/health` (authenticated, admin scope) | **Deep self-diagnosis**: per dependency the status, latency, last error, and circuit breaker state; per feature the degradation state; backlogs (outbox, queue, webhook retries); configuration warnings | Operators, support, a status page |
+| `GET /api/v1/meta/health` (authenticated) | **Deep self-diagnosis**: per dependency the status, latency, last error, and circuit breaker state; per feature the degradation state; backlogs (outbox, queue, webhook retries); configuration warnings. **One route, two answers** since K-06: a credential holding `admin:tenants` reads all of it; anybody else reads `status`, `version` and `degraded_features` and needs `ops:read` plus a workspace administrator's permission. The rest is the installation's internals and does not cross a tenant boundary. The same report is served unauthenticated at `/meta/health` on the operations listener, which answers `503` when the status is `down` where this route answers `200` | Operators, support, a status page, and the client's health banner |
 
 An example response (abridged):
 

@@ -61,6 +61,10 @@ Six decisions taken while writing this backlog, so that nobody re-derives them l
   (`observability-reliability.md` §5). `design-system.md` §4's `HealthBanner` is therefore built
   and fed where the actor may read it; an ordinary member learns of a degradation when an operation
   degrades. Inventing a second, unauthenticated health surface is not this milestone's business.
+  *(The scope named here never existed, and every `admin:*` scope is withheld from a session — so
+  the route this decision points at answered `404` to the client that was built against it. K-06
+  closed that in `0.7.5`: one route, two answers, and the banner is fed by the reduced one. The
+  decision itself held; only the scope in it was wrong.)*
 * **Contrast is measured before eighteen components inherit it.** `design-system.md` §9 records
   that the label tokens "are calculated for ≥ 4.5:1 but have not been measured". F1-02 comes before
   the waves for that reason: a token pair that fails is cheap to change while nothing uses it.

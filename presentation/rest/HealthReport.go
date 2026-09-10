@@ -4,9 +4,13 @@
 package rest
 
 import (
+	"context"
+	"net/http"
 	"time"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	health "github.com/Jersyfi/hubtask/core/port/health"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 // The wire format of GET /meta/health, schema HealthReport in api/openapi.yaml. Hand-written for
@@ -22,7 +26,7 @@ type healthReport struct {
 	Version          string             `json:"version"`
 	Role             []string           `json:"role,omitempty"`
 	Migration        *migrationState    `json:"migration,omitempty"`
-	Dependencies     []dependencyHealth `json:"dependencies"`
+	Dependencies     []dependencyHealth `json:"dependencies,omitempty"`
 	DegradedFeatures []degradedFeature  `json:"degraded_features,omitempty"`
 	Backlogs         *backlogs          `json:"backlogs,omitempty"`
 	Warnings         []healthWarning    `json:"warnings,omitempty"`
@@ -135,4 +139,38 @@ func healthReportJSON(report health.Report) healthReport {
 	}
 
 	return out
+}
+
+// HealthReportReader is the slice of the use case this controller needs (K-06).
+type HealthReportReader interface {
+	Execute(context.Context, appshared.ActorContext) (health.Report, error)
+}
+
+// GetHealthReport answers GET /api/v1/meta/health, the door the contract has declared since A-06
+// and `Pending.go` answered `404` to until K-06 (#507).
+//
+// It answers `200` even when the status is `down`, which the internal listener deliberately does
+// not: the contract says in its own description that "the HTTP status describes whether the
+// endpoint is reachable, the `status` field describes the system", and a client that receives a
+// `503` here cannot tell a report that says "down" from a gateway that never reached this process.
+// The operations listener keeps its `503` because a status page reads a status code and holds no
+// token. The two differ on purpose.
+//
+// Who sees how much is not decided here. The use case answers the whole report or the reduced one,
+// because that is an authorisation decision and those live in the application layer (rule 2).
+func (c *RestController) GetHealthReport(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.HealthReport == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	report, err := c.HealthReport.Execute(r.Context(), actorOf(r))
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	writeJSON(w, r, http.StatusOK, healthReportJSON(report))
 }

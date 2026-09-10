@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	port "github.com/Jersyfi/hubtask/core/port/health"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/presentation/rest"
@@ -176,4 +177,39 @@ func TestTheReportIsNotCacheable(t *testing.T) {
 	if got := rec.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
 		t.Errorf("Content-Type = %q", got)
 	}
+}
+
+// reducedReader answers the shape a reader who is not the installation's operator receives: the
+// status, the version and what is degraded, and nothing that describes the installation (K-06).
+type reducedReader struct{ report port.Report }
+
+func (r reducedReader) Execute(
+	context.Context, appshared.ActorContext,
+) (port.Report, error) {
+	return r.report, nil
+}
+
+// The reduced answer is still a HealthReport. It is the one shape of this schema that carries no
+// `dependencies`, which is why `required` names only `status` and `version` - and why this test
+// exists rather than being covered by the two above.
+func TestTheReducedReportMatchesTheSchema(t *testing.T) {
+	controller := rest.NewRestController()
+	controller.HealthReport = reducedReader{report: port.Report{
+		Status:  port.StatusDegraded,
+		Version: "0.7.5",
+		DegradedFeatures: []port.DegradedFeature{{
+			Feature:    "media",
+			ReasonCode: "dependency.unavailable",
+			Since:      time.Unix(1_755_000_000, 0).UTC(),
+		}},
+	}}
+
+	rec := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(rec, httptest.NewRequestWithContext(
+		context.Background(), http.MethodGet, rest.APIBasePath+"/meta/health", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	mustValidate(t, rec.Body.Bytes())
 }

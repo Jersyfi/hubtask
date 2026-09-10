@@ -39,6 +39,14 @@ type RestController struct {
 	// operation falls back to the pending answer rather than panicking.
 	Capabilities CapabilityReader
 
+	// HealthReport answers /api/v1/meta/health (K-06, #507). A typed field rather than a call
+	// through the catalogue, although the use case is registered in it: the wire format of this
+	// report is hand-written and validated against the schema by a contract test, and it
+	// distinguishes "no latency measured" from "zero milliseconds" with a pointer. Carrying it
+	// through `usecase.Output`'s map would lose exactly those distinctions on the one route whose
+	// readers - a status page, an operator, a support thread - are the people who need them.
+	HealthReport HealthReportReader
+
 	// UseCases is the catalogue every business operation goes through. One field rather than one
 	// per use case: the operations that arrive from here on are entries in it, not new
 	// dependencies of this controller (arc42 §4).
