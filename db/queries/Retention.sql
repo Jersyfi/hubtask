@@ -24,7 +24,11 @@ INSERT INTO retention_rule (
 -- name: ListRetentionRules :many
 -- Every rule the tenant has, narrowest scope first so that a reader walking the list meets the
 -- winner before the ones it beats.
-SELECT id, scope_kind, scope_id, data_kind, condition, retain_days, action,
+--
+-- The tenant is selected rather than left to row level security to imply, because the aggregate
+-- carries it: a correction rebuilds the rule from the row that was read, and `NewRule` refuses one
+-- whose tenant is zero (F4-18).
+SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
        export_target_id, created_by, created_at, updated_at, version
 FROM retention_rule
@@ -33,7 +37,7 @@ ORDER BY data_kind,
          created_at;
 
 -- name: FindRetentionRule :one
-SELECT id, scope_kind, scope_id, data_kind, condition, retain_days, action,
+SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
        export_target_id, created_by, created_at, updated_at, version
 FROM retention_rule

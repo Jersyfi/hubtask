@@ -353,39 +353,19 @@ func (q *Queries) FindItemRetention(ctx context.Context, id pgtype.UUID) (FindIt
 }
 
 const findRetentionRule = `-- name: FindRetentionRule :one
-SELECT id, scope_kind, scope_id, data_kind, condition, retain_days, action,
+SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
        export_target_id, created_by, created_at, updated_at, version
 FROM retention_rule
 WHERE id = $1
 `
 
-type FindRetentionRuleRow struct {
-	ID             pgtype.UUID
-	ScopeKind      string
-	ScopeID        pgtype.UUID
-	DataKind       string
-	Condition      *string
-	RetainDays     int32
-	Action         string
-	ThenAfterDays  *int32
-	ThenAction     *string
-	GraceDays      int32
-	Notify         []byte
-	Justification  *string
-	Enabled        bool
-	ExportTargetID pgtype.UUID
-	CreatedBy      pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	Version        int32
-}
-
-func (q *Queries) FindRetentionRule(ctx context.Context, id pgtype.UUID) (FindRetentionRuleRow, error) {
+func (q *Queries) FindRetentionRule(ctx context.Context, id pgtype.UUID) (RetentionRule, error) {
 	row := q.db.QueryRow(ctx, findRetentionRule, id)
-	var i FindRetentionRuleRow
+	var i RetentionRule
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.ScopeKind,
 		&i.ScopeID,
 		&i.DataKind,
@@ -473,7 +453,7 @@ func (q *Queries) InsertRetentionRule(ctx context.Context, arg InsertRetentionRu
 }
 
 const listRetentionRules = `-- name: ListRetentionRules :many
-SELECT id, scope_kind, scope_id, data_kind, condition, retain_days, action,
+SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
        export_target_id, created_by, created_at, updated_at, version
 FROM retention_rule
@@ -482,40 +462,24 @@ ORDER BY data_kind,
          created_at
 `
 
-type ListRetentionRulesRow struct {
-	ID             pgtype.UUID
-	ScopeKind      string
-	ScopeID        pgtype.UUID
-	DataKind       string
-	Condition      *string
-	RetainDays     int32
-	Action         string
-	ThenAfterDays  *int32
-	ThenAction     *string
-	GraceDays      int32
-	Notify         []byte
-	Justification  *string
-	Enabled        bool
-	ExportTargetID pgtype.UUID
-	CreatedBy      pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	Version        int32
-}
-
 // Every rule the tenant has, narrowest scope first so that a reader walking the list meets the
 // winner before the ones it beats.
-func (q *Queries) ListRetentionRules(ctx context.Context) ([]ListRetentionRulesRow, error) {
+//
+// The tenant is selected rather than left to row level security to imply, because the aggregate
+// carries it: a correction rebuilds the rule from the row that was read, and `NewRule` refuses one
+// whose tenant is zero (F4-18).
+func (q *Queries) ListRetentionRules(ctx context.Context) ([]RetentionRule, error) {
 	rows, err := q.db.Query(ctx, listRetentionRules)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListRetentionRulesRow{}
+	items := []RetentionRule{}
 	for rows.Next() {
-		var i ListRetentionRulesRow
+		var i RetentionRule
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.ScopeKind,
 			&i.ScopeID,
 			&i.DataKind,

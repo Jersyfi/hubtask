@@ -34,6 +34,7 @@
   import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import BackupView from './views/BackupView.svelte';
+  import RetentionView from './views/RetentionView.svelte';
   import RulesView from './views/RulesView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
@@ -132,6 +133,8 @@
     <QuotasView />
   {:else if route.name === 'backup'}
     <BackupView />
+  {:else if route.name === 'retention'}
+    <RetentionView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}
