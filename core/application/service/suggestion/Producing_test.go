@@ -120,6 +120,130 @@ func TestOnlyTheFieldsTheModelWasAskedForSurvive(t *testing.T) {
 	}
 }
 
+// The subtasks the material implies, which `suggest-fields` has asked for since J-06 and the allow
+// list discarded until K-01. Titles alone, in the order they were proposed.
+func TestTheSubtasksAJumbleEntryImpliesAreKept(t *testing.T) {
+	produce, world := producer(`{"title":"Move house","subtasks":["Book a van","Pack the kitchen"]}`)
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	for _, recorded := range world.store.proposals {
+		titles, held := recorded.Payload["subtasks"].([]any)
+		if !held || len(titles) != 2 {
+			t.Fatalf("the payload is %v", recorded.Payload)
+		}
+		if titles[0] != "Book a van" || titles[1] != "Pack the kitchen" {
+			t.Errorf("the titles arrived as %v, and the order is what a person read", titles)
+		}
+	}
+}
+
+// A note describing one indivisible thing produces the same suggestion without them - not an empty
+// list somebody has to read as "none".
+func TestAnEntryWithNothingSeparableProposesNoSubtasks(t *testing.T) {
+	produce, world := producer(`{"title":"Call the dentist"}`)
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	if len(world.store.proposals) != 1 {
+		t.Fatalf("%d suggestions recorded", len(world.store.proposals))
+	}
+	for _, recorded := range world.store.proposals {
+		if _, held := recorded.Payload["subtasks"]; held {
+			t.Errorf("subtasks were invented: %v", recorded.Payload)
+		}
+		if recorded.Payload["title"] != "Call the dentist" {
+			t.Errorf("the payload is %v", recorded.Payload)
+		}
+	}
+}
+
+// A list this build could not walk is dropped alone, and the fields beside it stand. A tree is the
+// whole proposal and a malformed one records nothing; a field set is several proposals at once.
+func TestASubtaskListThatIsNotOneIsDroppedWithoutTheSuggestion(t *testing.T) {
+	many := `"a","b","c","d","e","f","g","h","i","j","k"`
+	for _, testCase := range []struct{ name, answer string }{
+		{"not a list", `{"title":"A","subtasks":"Book a van"}`},
+		{"a node rather than a title", `{"title":"A","subtasks":[{"title":"Book a van"}]}`},
+		{"a blank title", `{"title":"A","subtasks":["Book a van","  "]}`},
+		{"an empty list", `{"title":"A","subtasks":[]}`},
+		{"more than the prompt asked for", `{"title":"A","subtasks":[` + many + `]}`},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			produce, world := producer(testCase.answer)
+
+			if err := produce.Execute(context.Background(), person(), Request{
+				TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+			}); err != nil {
+				t.Fatalf("producing: %v", err)
+			}
+			if len(world.store.proposals) != 1 {
+				t.Fatalf("%d suggestions recorded, want the fields to stand", len(world.store.proposals))
+			}
+			for _, recorded := range world.store.proposals {
+				if _, held := recorded.Payload["subtasks"]; held {
+					t.Errorf("a list this build could not walk was kept: %v", recorded.Payload)
+				}
+				if recorded.Payload["title"] != "A" {
+					t.Errorf("the fields beside it were lost: %v", recorded.Payload)
+				}
+			}
+		})
+	}
+}
+
+// The narrowing J-16 added, and the one key that gets past it. `subtasks` is not an input of
+// `ConvertJumbleEntry` and never will be - the acceptance walks it - while a key that is neither
+// declared nor grown is dropped as it always was.
+func TestWhatTheAcceptanceGrowsSurvivesTheNarrowingAndNothingElseDoes(t *testing.T) {
+	produce, world := producer(
+		`{"title":"Move house","notes":"a note","subtasks":["Book a van"]}`)
+	produce.Fields = declaredFields{"ConvertJumbleEntry": {"entry_id", "collection_id", "title"}}
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	for _, recorded := range world.store.proposals {
+		if _, held := recorded.Payload["subtasks"]; !held {
+			t.Errorf("the titles the acceptance walks were narrowed away: %v", recorded.Payload)
+		}
+		if _, held := recorded.Payload["notes"]; held {
+			t.Errorf("a field the applier cannot take was kept: %v", recorded.Payload)
+		}
+	}
+}
+
+// And about a work item they are not proposed at all: `UpdateWorkItem` declares no such input, so a
+// payload carrying them would be a suggestion whose every acceptance answered validation_failed.
+// Breaking an entry down is what a decomposition is for.
+func TestSubtasksAreNotProposedAboutAWorkItem(t *testing.T) {
+	produce, world := producer(`{"title":"Move house","subtasks":["Book a van"]}`)
+	produce.Fields = declaredFields{"UpdateWorkItem": {"item_id", "title", "notes"}}
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetWorkItem, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	for _, recorded := range world.store.proposals {
+		if _, held := recorded.Payload["subtasks"]; held {
+			t.Errorf("a work item was proposed subtasks nobody could accept: %v", recorded.Payload)
+		}
+	}
+}
+
 // Models fence their JSON and talk around it. Both are read; nothing else is repaired.
 func TestAnAnswerIsReadThroughItsFencingAndNotRepaired(t *testing.T) {
 	for _, testCase := range []struct {
@@ -343,6 +467,14 @@ func (fixedPrompts) Get(id string) (aiprovider.Prompt, error) {
 }
 
 func (fixedPrompts) IDs() []string { return []string{"suggest-fields"} }
+
+// declaredFields is the registry's answer about what a use case takes, as J-16 wired it.
+type declaredFields map[string][]string
+
+func (f declaredFields) InputsOf(name string) ([]string, bool) {
+	declared, known := f[name]
+	return declared, known
+}
 
 type sequentialIDs struct{}
 
