@@ -251,6 +251,38 @@ func TestTheSummariesAreRefusedWithoutAProvider(t *testing.T) {
 	}
 }
 
+// Both are refused for somebody who may not read what they would summarise, and the refusal comes
+// from the read rather than from a second permission written beside it: the entry and the
+// collection are read through their own use cases, which is where that question is answered.
+func TestASummaryIsRefusedForWhatTheAskerMayNotRead(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		run  func(asker) error
+	}{
+		{"an entry", func(a asker) error {
+			return AiSummarizeThread(a.ask).Execute(context.Background(), person(), targetID, false)
+		}},
+		{"a collection", func(a asker) error {
+			return AiSummarizeContainer(a.ask).Execute(context.Background(), person(), containerTargetID)
+		}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			a := newAsker(true)
+			a.world.readFails = shared.ErrNotFound.WithDetail("containers.not_found")
+
+			if err := testCase.run(a); !errors.Is(err, shared.ErrNotFound) {
+				t.Fatalf("the answer was %v, want the read's own refusal", err)
+			}
+			if len(a.jobs.queued) != 0 {
+				t.Error("a question was queued about something the asker cannot read")
+			}
+			if len(a.world.entries) != 0 {
+				t.Error("a refused ask was recorded as one that happened")
+			}
+		})
+	}
+}
+
 // The fixtures.
 
 type asker struct {
