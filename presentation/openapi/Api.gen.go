@@ -2735,6 +2735,7 @@ func (e SuggestionStatus) Valid() bool {
 
 // Defines values for SuggestionTargetType.
 const (
+	SuggestionTargetTypeCONTAINER   SuggestionTargetType = "CONTAINER"
 	SuggestionTargetTypeJUMBLEENTRY SuggestionTargetType = "JUMBLE_ENTRY"
 	SuggestionTargetTypeWORKITEM    SuggestionTargetType = "WORK_ITEM"
 )
@@ -2742,6 +2743,8 @@ const (
 // Valid indicates whether the value is a known member of the SuggestionTargetType enum.
 func (e SuggestionTargetType) Valid() bool {
 	switch e {
+	case SuggestionTargetTypeCONTAINER:
+		return true
 	case SuggestionTargetTypeJUMBLEENTRY:
 		return true
 	case SuggestionTargetTypeWORKITEM:
@@ -6114,7 +6117,7 @@ type Suggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry (K-05): a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -6144,7 +6147,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry (K-05): a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -7915,6 +7918,9 @@ type MoveContainerJSONRequestBody MoveContainerJSONBody
 // ReorderContainerJSONRequestBody defines body for ReorderContainer for application/json ContentType.
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 
+// AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
+type AiSummarizeContainerJSONRequestBody = AiAsk
+
 // DefineCustomFieldJSONRequestBody defines body for DefineCustomField for application/json ContentType.
 type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 
@@ -8001,6 +8007,9 @@ type AiSuggestFieldsJSONRequestBody = AiAsk
 
 // AiSummarizeJSONRequestBody defines body for AiSummarize for application/json ContentType.
 type AiSummarizeJSONRequestBody = AiAsk
+
+// AiSummarizeThreadJSONRequestBody defines body for AiSummarizeThread for application/json ContentType.
+type AiSummarizeThreadJSONRequestBody = AiAsk
 
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
@@ -8352,6 +8361,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:restore)
 	RestoreContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params RestoreContainerParams)
+	// AiSummarizeContainer Ask AI how a collection stands
+	// (POST /containers/{containerId}:summarize)
+	AiSummarizeContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (POST /containers/{containerId}:unarchive)
 	UnarchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UnarchiveContainerParams)
@@ -8571,6 +8583,9 @@ type ServerInterface interface {
 	// AiSummarize Ask AI to summarise this entry
 	// (POST /items/{itemId}:summarize)
 	AiSummarize(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// AiSummarizeThread Ask AI to summarise this entry's discussion
+	// (POST /items/{itemId}:summarize-thread)
+	AiSummarizeThread(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:unarchive)
 	UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnarchiveWorkItemParams)
@@ -11637,6 +11652,32 @@ func (siw *ServerInterfaceWrapper) RestoreContainer(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RestoreContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AiSummarizeContainer operation middleware
+func (siw *ServerInterfaceWrapper) AiSummarizeContainer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiSummarizeContainer(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14758,6 +14799,32 @@ func (siw *ServerInterfaceWrapper) AiSummarize(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// AiSummarizeThread operation middleware
+func (siw *ServerInterfaceWrapper) AiSummarizeThread(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiSummarizeThread(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UnarchiveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -17663,6 +17730,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize", wrapper.AiSummarize)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:classify", wrapper.AiClassify)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize-thread", wrapper.AiSummarizeThread)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:summarize", wrapper.AiSummarizeContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:duplicates", wrapper.SuggestDuplicates)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:accept", wrapper.AcceptSuggestion)

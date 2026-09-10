@@ -78,9 +78,12 @@ type TargetType string
 const (
 	TargetWorkItem    TargetType = "WORK_ITEM"
 	TargetJumbleEntry TargetType = "JUMBLE_ENTRY"
+	// TargetContainer is a collection: a summary of how it stands is about the collection rather
+	// than about anything in it (K-05).
+	TargetContainer TargetType = "CONTAINER"
 )
 
-var targetTypes = []TargetType{TargetWorkItem, TargetJumbleEntry}
+var targetTypes = []TargetType{TargetWorkItem, TargetJumbleEntry, TargetContainer}
 
 // TargetTypes is the closed set, in the contract's order.
 func TargetTypes() []TargetType { return slices.Clone(targetTypes) }

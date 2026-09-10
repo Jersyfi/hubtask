@@ -1844,7 +1844,7 @@ CREATE TABLE ai_suggestion (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   -- No foreign key: the two target kinds live in two tables, and a polymorphic reference cannot
   -- be one. The application checks the target, which it must do anyway to authorise the read.
-  target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY')),
+  target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY', 'CONTAINER')),
   target_id     uuid NOT NULL,
   kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES')),
   status        text NOT NULL DEFAULT 'PROPOSED'
