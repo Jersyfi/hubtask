@@ -2694,6 +2694,7 @@ func (e SuggestionSource) Valid() bool {
 // Defines values for SuggestionKind.
 const (
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
+	DUPLICATES    SuggestionKind = "DUPLICATES"
 	FIELDS        SuggestionKind = "FIELDS"
 )
 
@@ -2701,6 +2702,8 @@ const (
 func (e SuggestionKind) Valid() bool {
 	switch e {
 	case DECOMPOSITION:
+		return true
+	case DUPLICATES:
 		return true
 	case FIELDS:
 		return true
@@ -6088,12 +6091,13 @@ type Suggestion struct {
 	Id        openapi_types.UUID  `json:"id"`
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -6127,6 +6131,7 @@ type SuggestionAcceptance struct {
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
 // SuggestionPage defines model for SuggestionPage.
@@ -8539,6 +8544,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:duplicate)
 	DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params DuplicateWorkItemParams)
+	// SuggestDuplicates Which entries look like this one
+	// (POST /items/{itemId}:duplicates)
+	SuggestDuplicates(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params MoveWorkItemParams)
@@ -14396,6 +14404,32 @@ func (siw *ServerInterfaceWrapper) DuplicateWorkItem(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// SuggestDuplicates operation middleware
+func (siw *ServerInterfaceWrapper) SuggestDuplicates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuggestDuplicates(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // MoveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -17629,6 +17663,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize", wrapper.AiSummarize)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:classify", wrapper.AiClassify)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:duplicates", wrapper.SuggestDuplicates)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:accept", wrapper.AcceptSuggestion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:dismiss", wrapper.DismissSuggestion)
