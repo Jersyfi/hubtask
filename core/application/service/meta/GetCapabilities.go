@@ -9,6 +9,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
@@ -25,11 +26,11 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// What is deliberately absent: automation triggers and event types. They are declared in the
-// schema and will be answered by the tasks that build them. An empty list would read as "this
-// installation has none", which is a different statement from "this part of the contract is not
-// implemented yet" - and the first of those is a lie a client would act on. The view layouts left
-// this sentence with D-07, which is the task that gave them a writer.
+// What is deliberately absent: automation triggers. They are declared in the schema and will be
+// answered by the task that builds them. An empty list would read as "this installation has none",
+// which is a different statement from "this part of the contract is not implemented yet" - and the
+// first of those is a lie a client would act on. The view layouts left this sentence with D-07 and
+// the event types with F4-15, which are the tasks that gave each of them a reader.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
@@ -47,6 +48,12 @@ type Capabilities struct {
 	// consulted, which is what makes new frontend views possible without a backend change
 	// (api-guidelines.md §3).
 	ViewLayouts []view.Layout
+	// EventTypes is every type this build emits, and therefore every type a webhook subscription
+	// may name (F4-15). Read from the domain rather than restated here, for the reason the roles
+	// are: `SubscribedTypes` refuses a type this build does not emit, so a client offering a list
+	// of its own would offer a choice that is refused at the end - and a subscription cannot
+	// quietly wait for something that will never arrive.
+	EventTypes []event.Type
 	// TextLanguages are the languages this installation can index the text of, as BCP 47 tags
 	// (C-08, ADR-0034).
 	//
@@ -205,6 +212,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		ItemTypes:              profiles,
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
+		EventTypes:             event.Types(),
 		TextLanguages:          languages,
 		NotificationCategories: notificationCategories(),
 		NotificationChannels:   notificationChannels(),

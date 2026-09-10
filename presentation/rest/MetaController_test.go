@@ -12,6 +12,7 @@ import (
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -41,6 +42,7 @@ func manifest() usecase.Capabilities {
 		}},
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
+		EventTypes:             event.Types(),
 		TextLanguages:          []string{"de", "en"},
 		NotificationCategories: []string{"ASSIGNMENT", "COMMENT"},
 		NotificationChannels:   []string{"EMAIL"},
@@ -69,6 +71,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 			Groupable bool     `json:"groupable"`
 		} `json:"query_fields"`
 		ViewLayouts []string `json:"view_layouts"`
+		EventTypes  []string `json:"event_types"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("the manifest is not JSON: %v", err)
@@ -84,6 +87,17 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 	for index, layout := range view.Layouts() {
 		if body.ViewLayouts[index] != string(layout) {
 			t.Errorf("layout %d is %q, want %q", index, body.ViewLayouts[index], layout)
+		}
+	}
+	// Every type this build emits, published verbatim, because a subscription may name exactly
+	// these and the server refuses the rest (F4-15). A client that offered a list of its own would
+	// offer a choice refused at the end.
+	if len(body.EventTypes) != len(event.Types()) {
+		t.Fatalf("%d event types published, %d emitted", len(body.EventTypes), len(event.Types()))
+	}
+	for index, eventType := range event.Types() {
+		if body.EventTypes[index] != string(eventType) {
+			t.Errorf("event type %d is %q, want %q", index, body.EventTypes[index], eventType)
 		}
 	}
 
