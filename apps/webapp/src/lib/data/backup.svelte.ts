@@ -206,7 +206,14 @@ class Backup {
   }
 
   /**
-   * Reads the manifests at the target. Works after a total loss; the database is not consulted.
+   * Reads the manifests at the target, and then each archive's run row.
+   *
+   * The listing itself works after a total loss and the database is not consulted for it — that
+   * is the whole point of reading at the target. The second half is a read per archive, and it is
+   * the contract's shape rather than a slip: a manifest says whether the checksums were checked
+   * *at the target*, and whether *this installation* has verified an archive lives on the run
+   * (`verified_at`, `verify_ok`). One question, two places, and the screen needs both. The number
+   * of reads is the number of archives kept, which a generation plan bounds.
    *
    * `refresh` bypasses the server's cache, which is what a reader asks for after a run they
    * watched finish — the cached answer is from before it.
@@ -216,9 +223,14 @@ class Backup {
     this.#archives = { ...this.#archives, [targetId]: { status: 'loading' } };
     const answer = await engine.refresh<readonly Archive[]>({ path });
     this.#archives = { ...this.#archives, [targetId]: answer };
+    if (answer.status !== 'ready') return;
+    for (const archive of answer.data) await this.readRun(archive.archive_id);
   }
 
-  /** Reads one run's row — the half of an archive that says whether it has been opened since. */
+  /**
+   * Reads one run's row — the half of an archive that says whether this installation has opened
+   * it since. A row that is not there any more is not an error: the archive outlives the record.
+   */
   async readRun(runId: string): Promise<void> {
     const answer = await engine.refresh<Run>({ path: `${RUNS}/${runId}` });
     if (answer.status === 'ready') this.#runs = { ...this.#runs, [runId]: answer.data };
@@ -281,21 +293,6 @@ class Backup {
     });
     jobs.watch(accepted);
     return accepted;
-  }
-
-  /**
-   * The run a `JobRef` points at, taken from `result_url`.
-   *
-   * The last segment of the path the server named, and nothing is assumed about the rest of it:
-   * the contract says `result_url` is where the result can be fetched, and for both of these
-   * operations that is `/backups/{id}`. A `JobRef` without one answers nothing rather than a
-   * guess.
-   */
-  runIdOf(accepted: JobRef): string | undefined {
-    const url = accepted.result_url;
-    if (!url) return undefined;
-    const segment = url.split('?')[0]?.split('/').pop();
-    return segment === '' ? undefined : segment;
   }
 }
 

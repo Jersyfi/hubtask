@@ -56,5 +56,6 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/administration').name, 'administration');
   assert.equal(resolve(ROUTES, '/administration/workspace').name, 'workspace-settings');
   assert.equal(resolve(ROUTES, '/administration/quotas').name, 'quotas');
+  assert.equal(resolve(ROUTES, '/administration/backup').name, 'backup');
   assert.equal(resolve(ROUTES, '/administration/identity-provider').name, 'identity-provider');
 });
