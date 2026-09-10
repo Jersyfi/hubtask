@@ -3597,6 +3597,43 @@ paths:
         "503":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:duplicates:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: suggestDuplicates
+      summary: Which entries look like this one
+      description: >
+        Answers the entries that sit near this one in the embedding space (K-04, `ai-first.md` §2).
+        **No provider is asked and no budget is spent**: the vectors are the ones J-10's pass
+        already maintains, so this is a query with a threshold rather than a completion.
+
+        Answered `200` with a suggestion when something is near, and `204` when nothing is — which
+        is also the answer where the installation carries no `pgvector`, where the workspace has no
+        provider that can embed, and where the entry's own vector has not been produced yet. All
+        four are "nothing to propose" rather than an error, and the first two are visible before
+        anybody asks, under `semantic_search` in `GET /meta/capabilities`.
+
+        The neighbours are narrowed to what the caller may read, and an entry's own parent and its
+        children are never among them: a work package is not a duplicate of the task it sits in.
+
+        **Accepting is not what happens to a duplicate.** The suggestion records what was found;
+        what a person does about it — archive one, trash one, move one under the other — is their
+        own decision through the ordinary use cases, so `POST /suggestions/{id}:accept` refuses a
+        `DUPLICATES` suggestion and `:dismiss` is the answer that closes it.
+      responses:
+        "200":
+          description: Entries near this one
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Suggestion"
+        "204":
+          description: Nothing near this entry, or nothing that could look
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /suggestions:
     get:
       tags: [suggestions]
@@ -7108,8 +7145,11 @@ components:
             What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the
             target entry, and about a jumble entry it may also carry `subtasks` — the titles the
             material implied, which accepting creates under the converted entry rather than setting
-            on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. It is
-            data, never an instruction, and nothing acts on it until somebody accepts.
+            on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For
+            `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first,
+            each with the identifier and the similarity that put it there — identifiers only, so
+            what a reader sees of them is what they could have read anyway. It is data, never an
+            instruction, and nothing acts on it until somebody accepts.
         source:
           type: string
           enum: [AI]
@@ -7192,12 +7232,18 @@ components:
 
     SuggestionKind:
       type: string
-      enum: [FIELDS, DECOMPOSITION]
+      enum: [FIELDS, DECOMPOSITION, DUPLICATES]
       description: >
         What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values
         for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a
         classification are `FIELDS` suggestions whose payload happens to be notes or labels — they
         are not kinds of their own, because accepting them is the same act.
+
+        `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this
+        one, and what to do about that is a person's decision through the ordinary use cases —
+        `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced,
+        so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model
+        whose vectors were compared.
 
     SuggestionStatus:
       type: string

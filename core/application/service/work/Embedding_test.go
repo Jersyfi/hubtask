@@ -82,6 +82,15 @@ func (w *embeddingWorld) Owed(_ context.Context, model string, batch int) ([]rep
 
 func (w *embeddingWorld) CountMissing(context.Context, int) (int, error) { return len(w.owed), nil }
 
+// Near is the neighbourhood query (K-04). The embedding pass neither reads it nor could: this
+// fake carries it because the port is one interface, and a pass that started asking about
+// neighbours would be a pass doing something nobody asked it to.
+func (w *embeddingWorld) Near(
+	context.Context, shared.ID, float64, int,
+) (repository.Nearby, error) {
+	return repository.Nearby{}, nil
+}
+
 func (w *embeddingWorld) Store(_ context.Context, embedding repository.StoredEmbedding) error {
 	if w.storeErr != nil {
 		return w.storeErr

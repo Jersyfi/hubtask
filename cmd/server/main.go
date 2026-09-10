@@ -1080,6 +1080,16 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
+		// The one that asks nothing of a provider (K-04): no `AI`, no `Queue`, and no provider
+		// anywhere in its dependencies - which is what makes "no budget is spent" structural.
+		suggestionservice.SuggestDuplicates{
+			Cases:      suggestionCases,
+			Neighbours: postgres.NewEmbeddingRepository(),
+			Semantic:   postgres.NewSemanticSearchRepository(),
+			Reader:     authorizer,
+			IDs:        ids,
+			Floor:      cfg.AI.DuplicateThreshold,
+		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),

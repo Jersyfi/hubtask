@@ -1846,14 +1846,14 @@ CREATE TABLE ai_suggestion (
   -- be one. The application checks the target, which it must do anyway to authorise the read.
   target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY')),
   target_id     uuid NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION')),
+  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES')),
   status        text NOT NULL DEFAULT 'PROPOSED'
                   CHECK (status IN ('PROPOSED', 'ACCEPTED', 'DISMISSED')),
   payload       jsonb NOT NULL,
   source        text NOT NULL DEFAULT 'AI' CHECK (source IN ('AI')),
   model         text NOT NULL CHECK (length(model) BETWEEN 1 AND 200),
-  prompt_id     text NOT NULL CHECK (length(prompt_id) BETWEEN 1 AND 200),
-  prompt_version text NOT NULL CHECK (length(prompt_version) BETWEEN 1 AND 50),
+  prompt_id     text NOT NULL CHECK (length(prompt_id) BETWEEN 0 AND 200),
+  prompt_version text NOT NULL CHECK (length(prompt_version) BETWEEN 0 AND 50),
   -- When the provider answered, which is not when this row was written.
   produced_at   timestamptz NOT NULL,
   -- What the suggestion was made from. Acceptance compares it and refuses a stale one.

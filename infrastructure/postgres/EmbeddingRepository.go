@@ -5,9 +5,12 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -50,6 +53,44 @@ const (
 		  WHERE wi.deleted_at IS NULL AND e.item_id IS NULL
 		  LIMIT $1
 		) AS owed`
+
+	// The neighbourhood of one entry (K-04). A query and a threshold: nothing is asked of a
+	// provider, because the vectors are the ones J-10's pass already wrote.
+	//
+	// Four things it refuses to call a duplicate, and each is a line rather than a comment
+	// afterwards. The entry itself, which is trivially its own nearest neighbour. A row from
+	// another *model*, because vectors are comparable only inside one model's space and ranking
+	// the mixture would rank by nothing. Anything on the entry's own branch - its ancestors and
+	// its descendants - because a work package is not a duplicate of the task it sits in. And a
+	// deleted entry, which is not a duplicate of anything.
+	//
+	// The tenant is nobody's parameter here either: row level security bounds both sides of the
+	// comparison (ADR-0010), so `me` and the candidates are one workspace's by construction.
+	nearEmbeddings = `
+		WITH me AS (
+		  SELECT e.embedding, e.model, wi.path
+		  FROM item_embedding e
+		  JOIN work_item wi ON wi.tenant_id = e.tenant_id AND wi.id = e.item_id
+		  WHERE e.item_id = $1
+		)
+		SELECT wi.id, wi.collection_id, c.parent_id,
+		       (1 - (e.embedding <=> me.embedding))::float8 AS similarity
+		FROM item_embedding e
+		JOIN work_item wi ON wi.tenant_id = e.tenant_id AND wi.id = e.item_id
+		JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+		CROSS JOIN me
+		WHERE e.item_id <> $1
+		  AND e.model = me.model
+		  AND wi.deleted_at IS NULL
+		  AND NOT starts_with(wi.path, me.path)
+		  AND NOT starts_with(me.path, wi.path)
+		  AND (1 - (e.embedding <=> me.embedding)) >= $2
+		ORDER BY e.embedding <=> me.embedding, wi.id
+		LIMIT $3`
+
+	// What the entry's own vector was made with, which is the proposal's provenance and the answer
+	// to "has the pass reached this entry at all".
+	embeddingModelOf = `SELECT model FROM item_embedding WHERE item_id = $1`
 
 	storeEmbedding = `
 		INSERT INTO item_embedding (tenant_id, item_id, model, embedding, source_digest, updated_at)
@@ -116,6 +157,73 @@ func (EmbeddingRepository) CountMissing(ctx context.Context, ceiling int) (int, 
 			WithCause(fmt.Errorf("counting entries without an embedding: %w", err))
 	}
 	return int(missing), nil
+}
+
+// Near answers the entries closest to one entry, nearest first.
+//
+// Two statements rather than one, and the first is the cheap one: an entry the embedding pass has
+// not reached has no model, and asking for its neighbours would be asking the index to compare
+// nothing. It is also what tells a proposal which model to record.
+func (EmbeddingRepository) Near(
+	ctx context.Context, itemID shared.ID, floor float64, limit int,
+) (repository.Nearby, error) {
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return repository.Nearby{}, err
+	}
+	id, err := uuidOf(itemID)
+	if err != nil {
+		return repository.Nearby{}, err
+	}
+
+	var model string
+	switch err := tx.QueryRow(ctx, embeddingModelOf, id).Scan(&model); {
+	case errors.Is(err, pgx.ErrNoRows):
+		// Not embedded yet, or not embedded at all. Not an error: the entry is found by nobody and
+		// finds nobody until the pass reaches it (J-10).
+		return repository.Nearby{}, nil
+	case err != nil:
+		return repository.Nearby{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an entry's embedding model: %w", err))
+	}
+
+	rows, err := tx.Query(ctx, nearEmbeddings, id, floor, limit)
+	if err != nil {
+		return repository.Nearby{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an entry's neighbours: %w", err))
+	}
+	defer rows.Close()
+
+	near := repository.Nearby{Embedded: true, Model: model}
+	for rows.Next() {
+		var (
+			candidate, collection string
+			hub                   *string
+			similarity            float64
+		)
+		if err := rows.Scan(&candidate, &collection, &hub, &similarity); err != nil {
+			return repository.Nearby{}, shared.Internalf("reading a neighbour: %w", err)
+		}
+
+		neighbour := repository.Neighbour{Similarity: similarity}
+		if neighbour.ItemID, err = shared.ParseID(candidate); err != nil {
+			return repository.Nearby{}, err
+		}
+		if neighbour.CollectionID, err = shared.ParseID(collection); err != nil {
+			return repository.Nearby{}, err
+		}
+		if hub != nil {
+			if neighbour.HubID, err = shared.ParseID(*hub); err != nil {
+				return repository.Nearby{}, err
+			}
+		}
+		near.Candidates = append(near.Candidates, neighbour)
+	}
+	if err := rows.Err(); err != nil {
+		return repository.Nearby{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an entry's neighbours: %w", err))
+	}
+	return near, nil
 }
 
 // Store writes one entry's vector.

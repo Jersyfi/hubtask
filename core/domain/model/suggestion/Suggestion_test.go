@@ -203,6 +203,56 @@ func TestTheRecordKeepsItsOwnCopyOfTheDigest(t *testing.T) {
 	}
 }
 
+// A proposal no prompt produced carries no prompt, and one that carries half of the pair is a
+// record that resolves to nothing (K-04).
+func TestAProposalCarriesAPromptAndItsVersionOrNeither(t *testing.T) {
+	for _, testCase := range []struct {
+		name        string
+		id, version string
+		recorded    bool
+	}{
+		{"a prompt and its version", "classify", "v2", true},
+		{"neither, which is what a nearest-neighbour query has", "", "", true},
+		{"a prompt whose version nobody wrote down", "classify", "", false},
+		{"a version belonging to no prompt", "", "v2", false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			in := input()
+			in.Kind = domain.KindDuplicates
+			in.Provenance.PromptID, in.Provenance.PromptVersion = testCase.id, testCase.version
+
+			recorded, err := domain.New(in)
+			if testCase.recorded {
+				if err != nil {
+					t.Fatalf("recording: %v", err)
+				}
+				if recorded.PromptID != testCase.id {
+					t.Errorf("the prompt came back as %q", recorded.PromptID)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("half a provenance was recorded")
+			}
+			if got := shared.AsError(err).DetailCode; got != "suggestions.provenance_incomplete" {
+				t.Errorf("detail code %q", got)
+			}
+		})
+	}
+}
+
+// The model is required whatever produced the proposal: for a completion it is what answered, and
+// for a nearest-neighbour query it is the embedding model whose vectors were compared - a
+// similarity means nothing outside one model's space.
+func TestAProposalWithoutAModelIsNotRecorded(t *testing.T) {
+	in := input()
+	in.Provenance.Model = ""
+
+	if _, err := domain.New(in); err == nil {
+		t.Fatal("a proposal that names no model was recorded")
+	}
+}
+
 func TestTheClosedSetsAreClosed(t *testing.T) {
 	if domain.Kind("SUMMARY").Valid() {
 		t.Error("SUMMARY reports itself a kind; it is a FIELDS suggestion whose payload is notes")
@@ -210,7 +260,7 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 	if domain.TargetType("COMMENT").Valid() || domain.Status("PENDING").Valid() {
 		t.Error("an invented value reports itself valid")
 	}
-	if len(domain.Kinds()) != 2 || len(domain.TargetTypes()) != 2 || len(domain.Statuses()) != 3 {
+	if len(domain.Kinds()) != 3 || len(domain.TargetTypes()) != 2 || len(domain.Statuses()) != 3 {
 		t.Error("a value was added to a closed set without this test being told")
 	}
 	if domain.StatusProposed.Decided() {

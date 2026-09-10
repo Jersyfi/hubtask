@@ -52,10 +52,13 @@ type Provenance struct {
 	// ambiguous.
 	Source Source
 	// Model is what the provider said answered, which is not always what was configured - a
-	// provider resolving an alias answers under the resolved name.
+	// provider resolving an alias answers under the resolved name. For a proposal read off the
+	// embedding index rather than from a completion, it is the *embedding* model whose vectors
+	// were compared: a similarity means nothing outside one model's space (K-04).
 	Model string
 	// PromptID and PromptVersion resolve to the words that produced this, because prompt files
-	// are versioned in their names and the old ones stay (ADR-0049 decision 3).
+	// are versioned in their names and the old ones stay (ADR-0049 decision 3). Both empty for a
+	// proposal no prompt produced, and never one without the other.
 	PromptID      string
 	PromptVersion string
 	// ProducedAt is when the provider answered, which is not when the record was written: a
@@ -87,7 +90,7 @@ func (t TargetType) Valid() bool { return slices.Contains(targetTypes, t) }
 
 // Kind is what accepting does, which is the only thing a kind has to say.
 //
-// Two, and there is a reason there are not four. A summary and a classification are FIELDS
+// Three, and there is a reason there are not six. A summary and a classification are FIELDS
 // suggestions whose payload happens to be notes or labels - the act of accepting them is the same
 // act - and a kind per *feature* rather than per *effect* would be a closed set that grows with
 // every feature and tells the acceptance nothing it does not already know.
@@ -98,9 +101,16 @@ const (
 	KindFields Kind = "FIELDS"
 	// KindDecomposition proposes a tree of entries under the target.
 	KindDecomposition Kind = "DECOMPOSITION"
+	// KindDuplicates says which entries look like the target, and is the one kind nothing accepts
+	// (K-04). It follows the rule above rather than breaking it: what accepting *would* do is
+	// nothing, because deciding two entries are the same is a person's act through the ordinary
+	// use cases - archive one, trash one, move one under the other - and a proposal cannot know
+	// which of those they mean. So it is a kind of its own precisely because its effect is its
+	// own, and `:dismiss` is what closes it.
+	KindDuplicates Kind = "DUPLICATES"
 )
 
-var kinds = []Kind{KindFields, KindDecomposition}
+var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates}
 
 // Kinds is the closed set, in the contract's order.
 func Kinds() []Kind { return slices.Clone(kinds) }
@@ -172,10 +182,17 @@ func New(in NewInput) (Suggestion, error) {
 
 	provenance := in.Provenance
 	provenance.Source = SourceAI
-	if provenance.Model == "" || provenance.PromptID == "" || provenance.PromptVersion == "" ||
-		provenance.ProducedAt.IsZero() {
+	if provenance.Model == "" || provenance.ProducedAt.IsZero() {
 		// The whole point of the record. A suggestion without provenance is indistinguishable
 		// from a person's own draft, which is exactly what ADR-0012 promised it never would be.
+		return Suggestion{}, shared.ErrInternal.WithDetail("suggestions.provenance_incomplete")
+	}
+	if (provenance.PromptID == "") != (provenance.PromptVersion == "") {
+		// A prompt and its version, or neither. Neither is what a proposal no prompt produced
+		// carries - the nearest neighbours of an entry's vector are a query, and the honest answer
+		// to "which prompt produced this" is that none did (K-04) - and half of the pair is a
+		// record that resolves to nothing, which is what the versioning exists to prevent
+		// (ADR-0049 decision 3).
 		return Suggestion{}, shared.ErrInternal.WithDetail("suggestions.provenance_incomplete")
 	}
 	provenance.ProducedAt = provenance.ProducedAt.UTC()

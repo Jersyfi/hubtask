@@ -1012,6 +1012,11 @@ func (pending) AiClassify(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
+// SuggestDuplicates is overridden by RestController, for the reason given at CreateContainer.
+func (pending) SuggestDuplicates(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 func (pending) SuggestDecomposition(
 	w http.ResponseWriter, r *http.Request, _ openapi.ItemId,
 	_ openapi.SuggestDecompositionParams,

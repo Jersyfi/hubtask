@@ -216,6 +216,7 @@ func Descriptors() []usecase.Descriptor {
 		suggestionservice.AiSuggestFields{}.Descriptor(),
 		suggestionservice.AiSummarize{}.Descriptor(),
 		suggestionservice.AiClassify{}.Descriptor(),
+		suggestionservice.SuggestDuplicates{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),
