@@ -427,6 +427,35 @@ expect_docs_failure "a citation of an ADR nobody wrote" \
 
 The reasoning is in ADR-0099.'
 
+header "Prompts and the code that reads them (make gate-architecture)"
+
+# What a prompt asks a provider for and what the code keeps are a markdown file and a Go map, and
+# until K-01 nothing read both: `suggest-fields` asked for `subtasks` for four milestones while the
+# allow list dropped the key, so every jumble suggestion paid for an answer nobody read. The probe
+# is a prompt file, so it gets one of its own - the prompts are embedded from one directory and a
+# subdirectory would not be read at all.
+expect_prompt_failure() {
+	local name="$1" content="$2"
+	CHECKS=$((CHECKS + 1))
+
+	local probe="infrastructure/ai/prompts/gate-selftest-probe.v1.md"
+	printf '%s\n' "$content" > "$probe"
+	if make --no-print-directory gate-architecture >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-architecture stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-architecture\n' "$name"
+	fi
+	rm -f "$probe"
+}
+
+expect_prompt_failure "a prompt no allow list names" \
+'Describe what follows.
+
+```
+{"title": "…", "subtasks": ["…"]}
+```'
+
 header "Event schemas (make gate-contract)"
 
 # The schemas under api/events/ are the contract a subscriber outside this repository writes
