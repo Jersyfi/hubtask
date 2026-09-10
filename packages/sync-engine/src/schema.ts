@@ -157,6 +157,7 @@ export type TrashPage = components['schemas']['TrashPage'];
 export type TrashEntry = components['schemas']['TrashEntry'];
 /** What one pass of a removal did, including what it kept and why (`legal_hold`). */
 export type PurgeSummary = components['schemas']['PurgeSummary'];
+export type RetentionDataKind = components['schemas']['RetentionDataKind'];
 export type RetentionPolicy = components['schemas']['RetentionPolicy'];
 
 /**

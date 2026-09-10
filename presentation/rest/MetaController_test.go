@@ -13,6 +13,7 @@ import (
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -43,6 +44,7 @@ func manifest() usecase.Capabilities {
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
 		EventTypes:             event.Types(),
+		RetentionDataKinds:     lifecycle.Catalogue(),
 		TextLanguages:          []string{"de", "en"},
 		NotificationCategories: []string{"ASSIGNMENT", "COMMENT"},
 		NotificationChannels:   []string{"EMAIL"},
@@ -70,8 +72,13 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 			Sortable  bool     `json:"sortable"`
 			Groupable bool     `json:"groupable"`
 		} `json:"query_fields"`
-		ViewLayouts []string `json:"view_layouts"`
-		EventTypes  []string `json:"event_types"`
+		ViewLayouts        []string `json:"view_layouts"`
+		EventTypes         []string `json:"event_types"`
+		RetentionDataKinds []struct {
+			DataKind string   `json:"data_kind"`
+			Actions  []string `json:"actions"`
+			MaxDays  *int     `json:"max_days"`
+		} `json:"retention_data_kinds"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("the manifest is not JSON: %v", err)
@@ -98,6 +105,31 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 	for index, eventType := range event.Types() {
 		if body.EventTypes[index] != string(eventType) {
 			t.Errorf("event type %d is %q, want %q", index, body.EventTypes[index], eventType)
+		}
+	}
+
+	// The catalogue of `data-retention.md` §3, published verbatim - including the kinds nothing
+	// sweeps yet, whose empty `actions` is the fact that separates them from a kind that does not
+	// exist. A client builds its rule editor from this (F4-18).
+	if len(body.RetentionDataKinds) != len(lifecycle.Catalogue()) {
+		t.Fatalf(
+			"%d data kinds published, %d in the catalogue",
+			len(body.RetentionDataKinds), len(lifecycle.Catalogue()),
+		)
+	}
+	for index, kind := range lifecycle.Catalogue() {
+		answered := body.RetentionDataKinds[index]
+		if answered.DataKind != string(kind.Name) {
+			t.Errorf("data kind %d is %q, want %q", index, answered.DataKind, kind.Name)
+		}
+		if len(answered.Actions) != len(kind.Actions) {
+			t.Errorf(
+				"%s published %d actions, the catalogue has %d",
+				kind.Name, len(answered.Actions), len(kind.Actions),
+			)
+		}
+		if (answered.MaxDays == nil) != (kind.MaxDays == nil) {
+			t.Errorf("%s published max_days %v, the catalogue has %v", kind.Name, answered.MaxDays, kind.MaxDays)
 		}
 	}
 
