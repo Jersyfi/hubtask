@@ -36,6 +36,13 @@ export default defineConfig({
   server: {
     // In development the API is a separate process. In production both come from the same origin,
     // which is the whole point of embedding, so no proxy exists there.
-    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true } },
+    //
+    // `changeOrigin: false` is the whole of what makes a workspace reachable in development. An
+    // installation that serves several workspaces tells them apart by the subdomain the browser
+    // asked for, and rewriting the `Host` header to the proxy's target - which `changeOrigin: true`
+    // does - throws that away before the API ever sees it. With it off, opening
+    // `http://<slug>.localhost:5173` reaches that workspace, and the bare `localhost` reaches none,
+    // which is exactly what the server answers in production.
+    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: false } },
   },
 });
