@@ -33,6 +33,7 @@
   import PermissionsView from './views/PermissionsView.svelte';
   import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
+  import BackupView from './views/BackupView.svelte';
   import RulesView from './views/RulesView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
@@ -126,6 +127,8 @@
     <RunsView />
   {:else if route.name === 'quotas'}
     <QuotasView />
+  {:else if route.name === 'backup'}
+    <BackupView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}
