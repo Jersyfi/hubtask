@@ -1366,3 +1366,70 @@ func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
 		}
 	}
 }
+
+// `ConvertJumbleEntry` takes a title and no notes, so a proposal's notes were dropped by the
+// narrowing — and reading the body of an arriving mail is most of what jumble processing is for.
+// They are written on the item the conversion made, by the use case that owns an entry's fields.
+func TestAcceptingAJumbleProposalWritesTheNotesItProposed(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.TargetType = domain.TargetJumbleEntry
+	stored.Payload = map[string]any{"title": "Renew the domain", notesKey: "Before it lapses."}
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).Execute(
+		context.Background(), person(), proposalID,
+		usecase.Input{"collection_id": collectionID.String()},
+	); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var described, converted usecase.Input
+	for _, call := range world.performed {
+		switch call.name {
+		case updateWorkItemName:
+			described = call.in
+		case "ConvertJumbleEntry":
+			converted = call.in
+		}
+	}
+	if described == nil {
+		t.Fatal("the proposed notes were not written")
+	}
+	if described["item_id"] != world.convertedItemID.String() ||
+		described[notesKey] != "Before it lapses." {
+		t.Errorf("the notes went to %v", described)
+	}
+	// And never to the applier, which declares no such input: the registry would have refused the
+	// whole acceptance.
+	if _, held := converted[notesKey]; held {
+		t.Errorf("the applier was handed a key it does not declare: %v", converted)
+	}
+}
+
+// About a work item they are the applier's own business: `UpdateWorkItem` declares `notes`, so a
+// second write would be the same field set applied twice.
+func TestAWorkItemsNotesAreWrittenByTheApplierAlone(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.Payload = map[string]any{"title": "Renew the domain", notesKey: "Before it lapses."}
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	updates := 0
+	for _, call := range world.performed {
+		if call.name == updateWorkItemName {
+			updates++
+			if call.in[notesKey] != "Before it lapses." {
+				t.Errorf("the applier was not given the notes: %v", call.in)
+			}
+		}
+	}
+	if updates != 1 {
+		t.Errorf("%d updates, want the applier's own and no second one", updates)
+	}
+}

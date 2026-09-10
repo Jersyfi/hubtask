@@ -278,7 +278,7 @@ type accepted struct {
 // gap is told it is not built rather than that the suggestion is invalid - the distinction
 // `deferredActions` draws for automation kinds.
 var acceptance = map[applierKey]accepted{
-	{domain.TargetWorkItem, domain.KindFields}: {Applier: "UpdateWorkItem"},
+	{domain.TargetWorkItem, domain.KindFields}: {Applier: updateWorkItemName},
 	// Accepting a proposal about a jumble entry is converting it (J-06), which is why the
 	// acceptance takes overrides: a model cannot name a destination collection, and
 	// ConvertJumbleEntry requires one.
@@ -310,6 +310,7 @@ const (
 	addLabelName       = "AddLabel"
 	setCustomFieldName = "SetCustomField"
 	setDueDateName     = "SetDueDate"
+	updateWorkItemName = "UpdateWorkItem"
 )
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
@@ -384,8 +385,13 @@ func (c Cases) apply(
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
 	//
-	// The due date goes first, because a refusal here is the answer and there is no reason to
-	// create children under an entry whose acceptance is about to be turned down.
+	// The entry's own fields go first, because a refusal in either is the answer and there is no
+	// reason to create children under an entry whose acceptance is about to be turned down.
+	if grows[notesKey] {
+		if err := c.describe(ctx, actor, proposal, out); err != nil {
+			return err
+		}
+	}
 	if grows[dueKey] {
 		if err := c.date(ctx, actor, proposal, out); err != nil {
 			return err
@@ -410,6 +416,38 @@ func (c Cases) apply(
 		return c.place(ctx, actor, proposal)
 	}
 	return nil
+}
+
+// describe writes the notes a proposal made for an entry a conversion just created.
+//
+// `ConvertJumbleEntry` takes a title and no notes, so a proposal's notes were dropped by the
+// narrowing and every jumble suggestion since J-06 paid a provider for a paragraph nobody read -
+// which is most of what reading an arriving mail is for. They are written by `UpdateWorkItem`,
+// which is the use case that owns an entry's own fields, as the accepting person.
+//
+// Only for a jumble entry: `UpdateWorkItem` declares `notes`, so a proposal about a work item hands
+// them to the applier and this never runs.
+//
+// **A refusal is the answer**, for `date`'s reason: the notes are part of what was accepted, and
+// the acceptance is one transaction.
+func (c Cases) describe(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+	out usecase.Output,
+) error {
+	written, held := proposal.Payload[notesKey].(string)
+	if !held || strings.TrimSpace(written) == "" {
+		return nil
+	}
+	// The item the conversion answered, never the payload's and never the overrides', for
+	// `place`'s reason.
+	converted, err := shared.ParseID(out.String("target_item_id"))
+	if err != nil {
+		return nil
+	}
+	_, err = c.Catalogue.Invoke(ctx, updateWorkItemName, actor, usecase.Input{
+		"item_id": converted.String(), notesKey: written,
+	})
+	return err
 }
 
 // date puts the due date a proposal named on the entry, through the use case that owns due dates.

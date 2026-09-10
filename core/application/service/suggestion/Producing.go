@@ -273,7 +273,14 @@ var grown = map[applierKey]map[string]bool{
 	// version bump: `UpdateWorkItem` would have taken `due_at` and ends in the same
 	// `DueDateWriter.write` this call reaches, so the event, the audit entry and the history step
 	// are identical either way, and only the number of writes differs.
-	{domain.TargetJumbleEntry, domain.KindFields}: {"subtasks": true, dueKey: true},
+	//
+	// `notes` is here for the jumble alone. `UpdateWorkItem` declares it, so a proposal about a
+	// work item hands it straight to the applier; `ConvertJumbleEntry` does not, and the body of
+	// an arriving mail becoming the entry's notes is most of what jumble processing is - so the
+	// acceptance writes them, through the use case that owns an entry's own fields.
+	{domain.TargetJumbleEntry, domain.KindFields}: {
+		"subtasks": true, dueKey: true, notesKey: true,
+	},
 	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
 	// here rather than absent: putting a card in another column is a *move*, and the history entry
 	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.

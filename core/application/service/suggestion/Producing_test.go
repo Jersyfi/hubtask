@@ -206,7 +206,10 @@ func TestASubtaskListThatIsNotOneIsDroppedWithoutTheSuggestion(t *testing.T) {
 func TestWhatTheAcceptanceGrowsSurvivesTheNarrowingAndNothingElseDoes(t *testing.T) {
 	produce, world := producer(
 		`{"title":"Move house","notes":"a note","subtasks":["Book a van"]}`)
-	produce.Fields = declaredFields{"ConvertJumbleEntry": {"entry_id", "collection_id", "title"}}
+	// A `ConvertJumbleEntry` that declares no title, so that the narrowing has something left to
+	// drop: every key `suggest-fields` keeps is now either declared by the real descriptor or
+	// grown by the acceptance, which is the whole of what this branch changed.
+	produce.Fields = declaredFields{"ConvertJumbleEntry": {"entry_id", "collection_id"}}
 
 	if err := produce.Execute(context.Background(), person(), Request{
 		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
@@ -215,10 +218,16 @@ func TestWhatTheAcceptanceGrowsSurvivesTheNarrowingAndNothingElseDoes(t *testing
 	}
 
 	for _, recorded := range world.store.proposals {
-		if _, held := recorded.Payload["subtasks"]; !held {
-			t.Errorf("the titles the acceptance walks were narrowed away: %v", recorded.Payload)
+		// The titles the acceptance walks, and the notes it writes through UpdateWorkItem: neither
+		// is an input `ConvertJumbleEntry` declares, and both survive because `grown` says the
+		// acceptance performs them itself.
+		for _, grownKey := range []string{"subtasks", "notes"} {
+			if _, held := recorded.Payload[grownKey]; !held {
+				t.Errorf("%s is grown by the acceptance and was narrowed away: %v",
+					grownKey, recorded.Payload)
+			}
 		}
-		if _, held := recorded.Payload["notes"]; held {
+		if _, held := recorded.Payload["title"]; held {
 			t.Errorf("a field the applier cannot take was kept: %v", recorded.Payload)
 		}
 	}
