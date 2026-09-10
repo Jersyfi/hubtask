@@ -342,6 +342,9 @@ type world struct {
 	// convertedItemID is the item a conversion answers, which is the only place the walk under it
 	// may read its parent from.
 	convertedItemID shared.ID
+	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
+	// a person without the right to move it meets.
+	moveFails error
 }
 
 type performed struct {
@@ -395,6 +398,9 @@ func (w *world) Invoke(
 		return usecase.Output{"data": []usecase.Output{{
 			"id": targetID.String(), "raw_subject": w.title, "raw_body": "",
 		}}}, nil
+	}
+	if name == "MoveWorkItem" && w.moveFails != nil {
+		return nil, w.moveFails
 	}
 	if name == "CreateWorkItem" {
 		w.creates++
@@ -895,6 +901,94 @@ func TestASubtaskTitleThatIssuesInstructionsIsATitle(t *testing.T) {
 		}
 	}
 }
+
+// Accepting a classification puts the entry in the column it chose - through the use case that
+// owns moving, as the accepting person (K-02).
+func TestAcceptingAClassificationMovesTheEntryThroughTheOrdinaryUseCase(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = classified()
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var moved, updated usecase.Input
+	for _, call := range world.performed {
+		switch call.name {
+		case "MoveWorkItem":
+			moved = call.in
+		case "UpdateWorkItem":
+			updated = call.in
+		}
+	}
+	if moved == nil {
+		t.Fatal("the entry was not moved; a card going into another column is a move")
+	}
+	if moved["target_bucket_id"] != doingColumn || moved["item_id"] != targetID.String() {
+		t.Errorf("the move is %v", moved)
+	}
+	// `UpdateWorkItem` declares bucket_id and would have written it. The labels are its business
+	// and the column is not.
+	if updated == nil {
+		t.Fatal("the labels were not applied")
+	}
+	if _, held := updated[bucketKey]; held {
+		t.Errorf("the column was written by the applier as well: %v", updated)
+	}
+	if world.performed[len(world.performed)-1].name != "MoveWorkItem" {
+		t.Error("the move did not happen after the rest of the payload")
+	}
+}
+
+// Somebody who may not move the entry has not half-accepted a classification - they have been
+// refused one, and the labels go back with it.
+func TestAClassificationIsRefusedWhenTheMoveIs(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = classified()
+	// Only the move refuses. Everything else answers, so what is under test is the move's own
+	// refusal rather than any refusal on the way to it.
+	world.moveFails = shared.ErrForbidden
+
+	_, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the answer was %v, want the move's own refusal", err)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Error("a classification whose move was refused was marked accepted")
+	}
+}
+
+// A classification that proposed no column is applied and nothing is moved.
+func TestAClassificationWithNoColumnMovesNothing(t *testing.T) {
+	cases, world := newWorld()
+	stored := classified()
+	delete(stored.Payload, bucketKey)
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+	for _, call := range world.performed {
+		if call.name == "MoveWorkItem" {
+			t.Error("an entry was moved by a classification that chose no column")
+		}
+	}
+}
+
+// classified is a work item proposal carrying labels and the column the board offered.
+func classified() domain.Suggestion {
+	stored := proposal()
+	stored.Payload = map[string]any{
+		"labels":  []any{"move"},
+		bucketKey: doingColumn,
+	}
+	return stored
+}
+
+const doingColumn = "0192f000-0000-7000-8000-0000000000b2"
 
 // implied is a jumble proposal carrying the titles the material implied.
 func implied() domain.Suggestion {
