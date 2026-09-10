@@ -11075,6 +11075,28 @@ components:
           type: integer
           description: The row's version, so a restore can be sent with the version it was read at.
 
+    RetentionDataKind:
+      type: object
+      description: >
+        One class of data a retention rule may name, and what this build can do to it.
+      properties:
+        data_kind: { type: string, example: COMPLETED_ITEM }
+        default_days:
+          type: integer
+          description: The period a workspace starts with. Zero means the kind is off by default.
+        min_days: { type: integer, description: What no rule may undercut. }
+        max_days:
+          type: [integer, "null"]
+          description: >
+            The upper bound where the operator has set one, and null where there is none. Exceeding
+            it needs a `justification`.
+        actions:
+          type: array
+          description: >
+            What this build can do to this kind. Anything else is refused at configuration time,
+            and an empty list is a kind the catalogue names and nothing removes yet.
+          items: { type: string }
+
     RetentionPolicy:
       type: object
       required: [scope, data_kind, retain_days, action]
@@ -11562,6 +11584,19 @@ components:
         event_types:
           type: array
           items: { type: string }
+        retention_data_kinds:
+          type: array
+          description: >
+            The classes of data a retention rule may name, as `data-retention.md` §3 lists them,
+            and what this build can do to each. A client builds its rule editor from this rather
+            than from a table compiled into it: the document says a new kind "is then immediately
+            configurable through the API - with no code change to the engine", and a client with
+            its own list would be the one place that still needed the code change.
+
+            `actions` is empty for a kind this build names and nothing removes yet. That is not the
+            same as a kind that does not exist, and it is why the entry is answered at all: a rule
+            for one of those is refused with a code that says which of the two it is.
+          items: { $ref: "#/components/schemas/RetentionDataKind" }
         notification_categories:
           type: array
           description: >
