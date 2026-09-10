@@ -259,6 +259,10 @@ ingress:
   enabled: false
   className: ""
   host: ""
+  # Further host names this installation answers on, beside `host`, on the same certificate. An
+  # installation reached by workspace subdomains needs each name the browser may ask for - unless
+  # `host` is a wildcard and something else issues the certificate, which is what a platform does.
+  extraHosts: []
   annotations: {}
   tls: { enabled: true, secretName: "" }
 

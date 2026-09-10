@@ -43,6 +43,13 @@ ingress:
   enabled: true
   className: traefik
   host: api.integration.hubtask.eu
+  # The workspace R-08's walk signs in to. In multi-tenant operation a workspace is reached by its
+  # own subdomain, so the bare host above answers no workspace at all - it is the installation's
+  # name, not anybody's. A wildcard entry is not an option here: cert-manager issues over HTTP-01,
+  # which cannot do wildcards, so each name is named. The DNS record for `*.api.integration` already
+  # points at this node.
+  extraHosts:
+    - demo.api.integration.hubtask.eu
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
   tls:

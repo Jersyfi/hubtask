@@ -507,6 +507,22 @@ gate-chart:
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
+	@# Every host the operator names has to reach the API and be on the certificate. A name in the
+	@# rules and not in the `tls` block is a route a browser refuses before the application sees it.
+	@routed="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets \
+		--set ingress.enabled=true --set ingress.host=hubtask.example.com \
+		--set 'ingress.extraHosts[0]=one.hubtask.example.com' \
+		--show-only templates/ingress.yaml)"; \
+		for name in hubtask.example.com one.hubtask.example.com; do \
+			printf '%s' "$$routed" | grep -q -- "- host: \"$$name\"" || \
+				{ echo "chart: $$name is named and has no route"; exit 1; }; \
+			printf '%s' "$$routed" | grep -q -- "$$name" || \
+				{ echo "chart: $$name is routed and not on the certificate"; exit 1; }; \
+		done; \
+		printf '%s' "$$routed" | grep -q 'hosts: \["hubtask.example.com", "one.hubtask.example.com"\]' || \
+			{ echo "chart: the certificate does not carry both names"; exit 1; }; \
+		echo "chart: every named host is routed and on the certificate"
 	@# With the database the chart may own (ADR-0046): the Cluster, its backup and its metrics
 	@# route rendered together, and the backup refused without the path it needs.
 	$(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \

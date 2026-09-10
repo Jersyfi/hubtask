@@ -20,6 +20,68 @@ make db-up && make migrate
 make verify          # must be green
 ```
 
+## Signing in locally
+
+`make db-up && make migrate` gives you a database and a schema. It gives you no workspace and
+nobody to be, and until #525 nothing here said how to get either — which is how a whole milestone
+of screens came to be merged without anybody opening one.
+
+Four things, once:
+
+**1. The application role needs its login.** `make migrate` runs goose, which creates the role
+without a password because a credential has no business in a migration. The migrator binary is what
+grants it:
+
+```bash
+HUBTASK_DB_DSN=postgres://hubtask:hubtask-dev@localhost:5432/hubtask?sslmode=disable \
+HUBTASK_DB_APP_PASSWORD=local-development-only \
+go run ./cmd/migrate up
+```
+
+**2. Run the server as the application role, never as the database owner.**
+
+```bash
+export HUBTASK_DB_DSN=postgres://hubtask_app:local-development-only@localhost:5432/hubtask?sslmode=disable
+export HUBTASK_SECRET_KEY=local-development-only-not-a-secret-000000
+export HUBTASK_TENANCY_MODE=multi
+export HUBTASK_BASE_URL=http://localhost
+make run
+```
+
+This one matters more than it looks. The owner role carries `BYPASSRLS`, so a server connected as it
+reads **every** workspace's rows and nothing complains: the screens fill with other people's data
+and look entirely plausible doing it. If a listing shows more than you created, check the role
+before you check the code — that mistake cost an hour and nearly became a bug report.
+
+The mode is `multi` for the same reason the integration environment runs it: single mode resolves
+"the only workspace", and a database with more than one in it then resolves nothing.
+
+**3. Make a workspace and somebody who can sign in.**
+
+```bash
+export HUBTASK_PSQL="docker exec -i hubtask-dev-postgres-1 psql -U hubtask -d hubtask"
+export HUBTASK_SECRET_KEY=local-development-only-not-a-secret-000000
+scripts/dev-workspace.sh --bootstrap          # once per database; prints a token
+
+export HUBTASK_ADMIN_TOKEN=…                  # the token it printed
+export HUBTASK_DEMO_PASSWORD='correct horse battery staple'
+scripts/dev-workspace.sh
+```
+
+**4. Open the workspace, not the bare host.**
+
+```bash
+pnpm --filter @hubtask/webapp dev
+# http://demo.localhost:5173/
+```
+
+`localhost:5173` answers no workspace and never will: an installation that serves several tells
+them apart by the subdomain in the address, which is what it does in production too. `*.localhost`
+resolves to your own machine without any configuration.
+
+The same script points at the integration environment with `--api`; its header says what each
+environment needs.
+
 Branch names: `feat/short-description`, `fix/…`, `docs/…`, `chore/…`.
 
 **Conventional Commits**, in English:
