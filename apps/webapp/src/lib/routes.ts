@@ -49,6 +49,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
   { name: 'runs', pattern: '/administration/runs', area: 'administration' },
+  { name: 'webhooks', pattern: '/administration/webhooks', area: 'administration' },
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
