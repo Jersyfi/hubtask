@@ -55,6 +55,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'retention', pattern: '/administration/retention', area: 'administration' },
   { name: 'restore', pattern: '/administration/restore', area: 'administration' },
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
+  { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content
   // and a query string travels through access logs, proxies and browser history. A route that

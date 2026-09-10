@@ -38,6 +38,7 @@
     { path: '/administration/retention', label: 'app.admin.retention', hint: 'app.admin.retention_hint' },
     { path: '/administration/restore', label: 'app.admin.restore', hint: 'app.admin.restore_hint' },
     { path: '/administration/audit', label: 'app.admin.audit', hint: 'app.admin.audit_hint' },
+    { path: '/administration/privacy', label: 'app.admin.privacy', hint: 'app.admin.privacy_hint' },
     {
       path: '/administration/identity-provider',
       label: 'app.admin.identity_provider',

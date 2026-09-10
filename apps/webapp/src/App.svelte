@@ -37,6 +37,7 @@
   import RetentionView from './views/RetentionView.svelte';
   import RestoreView from './views/RestoreView.svelte';
   import AuditView from './views/AuditView.svelte';
+  import PrivacyView from './views/PrivacyView.svelte';
   import RulesView from './views/RulesView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
@@ -141,6 +142,8 @@
     <RestoreView />
   {:else if route.name === 'audit'}
     <AuditView />
+  {:else if route.name === 'privacy'}
+    <PrivacyView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}
