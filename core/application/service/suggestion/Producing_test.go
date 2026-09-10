@@ -1188,3 +1188,65 @@ func performedOn(world *producerWorld, name string) *performed {
 	}
 	return nil
 }
+
+// A due date cannot be answered honestly without a reference: "by Friday" resolves against a
+// calendar or against a training cutoff, and only one of those is this year.
+func TestAQuestionThatAsksForADueDateSaysWhatDayItIs(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+	world.accountZone = "Europe/Vienna"
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	shown := world.asked[0].Messages[1].Content
+	// `now` is noon UTC on the ninth, which is two in the afternoon in Vienna and still the ninth.
+	if !strings.Contains(shown, "2026-09-09 (Europe/Vienna)") {
+		t.Errorf("the material carries no date the answer can be measured against:\n%s", shown)
+	}
+	// In the content, never in the instruction: the date is one more thing the material says.
+	if strings.Contains(world.asked[0].Messages[0].Content, "2026-09-09") {
+		t.Error("the date reached the system message")
+	}
+}
+
+// An actor with no zone at all - a workspace that has set none either - is spelled UTC rather than
+// loaded as one, because `LoadLocation("")` answers UTC without saying so.
+func TestAnEntryWithNoZoneAnywhereIsDatedInUtc(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	if !strings.Contains(world.asked[0].Messages[1].Content, "2026-09-09 (UTC)") {
+		t.Errorf("the material is not dated:\n%s", world.asked[0].Messages[1].Content)
+	}
+}
+
+// And a question that keeps no due date is sent no date. A summariser given one would be a
+// summariser sent something no allow list of its keeps - the waste this task ends, introduced
+// while ending it.
+func TestAQuestionThatKeepsNoDueDateIsSentNoDate(t *testing.T) {
+	for _, promptID := range []string{"summarize", "classify"} {
+		produce, world := producer(`{"notes":"Short."}`)
+		produce.Catalogue = world
+		world.accountZone = "Europe/Vienna"
+
+		if err := produce.Execute(context.Background(), person(), Request{
+			TargetType: domain.TargetWorkItem, TargetID: targetID,
+			Kind: domain.KindFields, PromptID: promptID,
+		}); err != nil {
+			t.Fatalf("%s: producing: %v", promptID, err)
+		}
+		if strings.Contains(world.asked[0].Messages[1].Content, "Today's date") {
+			t.Errorf("%s was sent a date it keeps no key for:\n%s",
+				promptID, world.asked[0].Messages[1].Content)
+		}
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -288,7 +289,7 @@ func (h Produce) Execute(
 	// Prompt.Ask is the only place the instruction and the content are put together, and it puts
 	// them in two messages with two roles. That is ai-first.md §1.3 as a shape rather than as a
 	// rule somebody remembers: this code cannot merge them if it tries.
-	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material)))
+	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material, h.today(actor, promptID))))
 	if err != nil {
 		return err
 	}
@@ -474,6 +475,38 @@ func payloadFrom(
 	}
 }
 
+// today is the calendar date the material is read against, for a question that asks for one.
+//
+// Without it a due date cannot be answered honestly. The prompt asks for a date "only where the
+// material names or clearly implies one", and half of what a person writes down implies one
+// relatively - "by Friday", "in two weeks", "before the quarter ends". A model with no reference
+// answers those from its training cutoff, which is a guess wearing a date's clothes; a model with
+// one either resolves them or leaves the field out, and both are answers.
+//
+// Only for a prompt that asks for a due date. A summariser sent the date would be a summariser sent
+// something no allow list of its keeps, which is the waste this task exists to end, introduced
+// while ending it.
+//
+// The line describes itself, so no prompt has to explain it. It travels in the same message as the
+// material and is therefore data like the rest of it, which is what keeps `Prompt.Ask`'s two roles
+// meaning what they say.
+func (h Produce) today(actor appshared.ActorContext, promptID string) string {
+	if !promptFields[promptID][dueKey] {
+		return ""
+	}
+	// `LoadLocation("")` answers UTC without complaining, so an empty zone is spelled rather than
+	// loaded: a date resolved in UTC and labelled Europe/Berlin would be worse than one labelled
+	// what it is.
+	zone := time.UTC
+	if actor.TimeZone != "" {
+		if loaded, err := time.LoadLocation(actor.TimeZone); err == nil {
+			zone = loaded
+		}
+	}
+	return "\n\nToday's date, for anything the material says about time: " +
+		h.Clock.Now().In(zone).Format("2006-01-02") + " (" + zone.String() + ")."
+}
+
 // withOptions is the material as the provider sees it: what was written, and then the sets the
 // answer may choose from.
 //
@@ -484,8 +517,11 @@ func payloadFrom(
 // After the emptiness check in Execute, deliberately: a board is not material. An entry with no
 // text of its own is nothing to describe, and offering a provider a list of columns to classify
 // nothing into would spend a call on it.
-func withOptions(material Material) string {
+func withOptions(material Material, today string) string {
 	content := material.Content
+	if today != "" {
+		content += today
+	}
 	if declared := writtenFields(material.Declared); declared != "" {
 		content += declared
 	}
