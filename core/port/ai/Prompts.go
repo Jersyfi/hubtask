@@ -38,6 +38,16 @@ type Prompt struct {
 	// and so an unknown one is refused by name rather than ignored - the same discipline a use
 	// case input has (ADR-0012, `usecase.Field`).
 	Arguments []PromptArgument
+	// Answers are the top-level keys of the answer shape this prompt documents, in the order it
+	// documents them. Empty for a prompt that asks for prose - which is every published one.
+	//
+	// It is here so that what a prompt *asks for* and what the code *keeps* can be compared, and
+	// it is emphatically not the allow list itself (K-01). The allow list is a security control: a
+	// declared key is one somebody decided the code may accept, and deriving it from the prompt
+	// text would mean a prompt edit widened the filter. What this makes possible is the other
+	// direction - a gate that reads both and refuses a prompt asking a provider for a key the code
+	// discards, which is the defect that paid for an answer nobody read from J-06 until 0.7.5.
+	Answers []string
 }
 
 // PromptArgument is one thing a caller supplies when it asks for a prompt.
