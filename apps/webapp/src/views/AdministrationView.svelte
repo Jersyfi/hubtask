@@ -36,6 +36,7 @@
     { path: '/administration/quotas', label: 'app.admin.quotas', hint: 'app.admin.quotas_hint' },
     { path: '/administration/backup', label: 'app.admin.backup', hint: 'app.admin.backup_hint' },
     { path: '/administration/retention', label: 'app.admin.retention', hint: 'app.admin.retention_hint' },
+    { path: '/administration/restore', label: 'app.admin.restore', hint: 'app.admin.restore_hint' },
     {
       path: '/administration/identity-provider',
       label: 'app.admin.identity_provider',
