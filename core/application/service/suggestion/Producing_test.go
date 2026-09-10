@@ -542,7 +542,7 @@ func TestABucketNameThatReadsAsAnInstructionIsANameOnly(t *testing.T) {
 	}
 	for _, call := range world.performed {
 		switch call.name {
-		case "GetWorkItem", "ListBuckets", "ListLabels":
+		case "GetWorkItem", "ListBuckets", "ListLabels", "ListCustomFields":
 		default:
 			t.Errorf("a column's name caused %q to run", call.name)
 		}
@@ -615,11 +615,137 @@ func TestAnEntryWithNoVocabularyIsProposedNoLabels(t *testing.T) {
 	}
 }
 
+// The values of the fields a workspace declared, which is where "priority" lives (K-03). The
+// declaration is the closed set; the validation is the declaration's own.
+func TestAClassificationFillsTheFieldsTheCollectionDeclared(t *testing.T) {
+	produce, world := producer(`{"custom_fields":{
+		"priority":"high",
+		"areas":["kitchen"],
+		"needs_review":true,
+		"colour":"blue",
+		"estimate":3,
+		"sprint":"one"
+	}}`)
+	world.fields = declarations()
+	world.held = map[string]any{"priority": "normal"}
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetWorkItem, TargetID: targetID,
+		Kind: domain.KindFields, PromptID: "classify",
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	shown := world.asked[0].Messages[1].Content
+	for _, want := range []string{
+		"Fields this collection asks for",
+		"priority: one of low, normal, high (the entry holds: normal)",
+		"areas: any of kitchen, garden",
+		"needs_review: true or false",
+	} {
+		if !strings.Contains(shown, want) {
+			t.Errorf("the material does not carry %q:\n%s", want, shown)
+		}
+	}
+	// An open set is not a classification, and a field this entry's level does not carry is not
+	// this entry's field.
+	for _, forbidden := range []string{"estimate", "brief", "sprint"} {
+		if strings.Contains(shown, forbidden) {
+			t.Errorf("%q was offered:\n%s", forbidden, shown)
+		}
+	}
+
+	for _, recorded := range world.store.proposals {
+		filled, held := recorded.Payload["custom_fields"].(map[string]any)
+		if !held {
+			t.Fatalf("the payload is %v", recorded.Payload)
+		}
+		if filled["priority"] != "high" || filled["needs_review"] != true {
+			t.Errorf("the values kept are %v", filled)
+		}
+		if areas, listed := filled["areas"].([]any); !listed || len(areas) != 1 ||
+			areas[0] != "kitchen" {
+			t.Errorf("the multi-select came back as %v", filled["areas"])
+		}
+		// A key nobody declared, a value for a field that was never offered, and a field for
+		// another level: none of the three is a classification of this entry.
+		for _, forbidden := range []string{"colour", "estimate", "sprint"} {
+			if _, held := filled[forbidden]; held {
+				t.Errorf("%q was kept: %v", forbidden, filled)
+			}
+		}
+	}
+}
+
+// A value the declaration would refuse is refused here, by the declaration's own code, and the
+// rest of the answer stands. Anything else would be a suggestion whose acceptance answers
+// validation_failed with a person's name on it.
+func TestAValueTheDeclarationRefusesIsDropped(t *testing.T) {
+	for _, testCase := range []struct{ name, answer string }{
+		{"an option nobody declared", `{"custom_fields":{"priority":"urgent","needs_review":true}}`},
+		{"a number where a choice belongs", `{"custom_fields":{"priority":7,"needs_review":true}}`},
+		{"text where true or false belongs",
+			`{"custom_fields":{"priority":"high","needs_review":"yes"},"label_ids":[]}`},
+		{"a selection outside the options",
+			`{"custom_fields":{"areas":["kitchen","cellar"],"needs_review":true}}`},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			produce, world := producer(testCase.answer)
+			world.fields = declarations()
+
+			if err := produce.Execute(context.Background(), person(), Request{
+				TargetType: domain.TargetWorkItem, TargetID: targetID,
+				Kind: domain.KindFields, PromptID: "classify",
+			}); err != nil {
+				t.Fatalf("producing: %v", err)
+			}
+			if len(world.store.proposals) != 1 {
+				t.Fatalf("%d suggestions recorded, want the rest to stand",
+					len(world.store.proposals))
+			}
+			for _, recorded := range world.store.proposals {
+				filled, _ := recorded.Payload["custom_fields"].(map[string]any)
+				if len(filled) != 1 {
+					t.Errorf("the values kept are %v, want the one the declaration allows", filled)
+				}
+			}
+		})
+	}
+}
+
+// A workspace that declared none gets what it always got: one call, no options, and a payload with
+// nothing in it about fields.
+func TestAWorkspaceThatDeclaredNoFieldsIsUnchanged(t *testing.T) {
+	produce, world := producer(`{"label_ids":["` + movingLabel + `"],"custom_fields":{"priority":"high"}}`)
+	world.labels, world.fields = vocabulary(), nil
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetWorkItem, TargetID: targetID,
+		Kind: domain.KindFields, PromptID: "classify",
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+	if len(world.asked) != 1 {
+		t.Errorf("%d completions asked, want the one this always cost", len(world.asked))
+	}
+	if strings.Contains(world.asked[0].Messages[1].Content, "Fields this collection asks for") {
+		t.Error("fields were offered where the collection declared none")
+	}
+	for _, recorded := range world.store.proposals {
+		if _, held := recorded.Payload["custom_fields"]; held {
+			t.Errorf("values were invented: %v", recorded.Payload)
+		}
+		if recorded.Payload["label_ids"] == nil {
+			t.Errorf("the labels were lost with them: %v", recorded.Payload)
+		}
+	}
+}
+
 // A summary of the same entry is not offered the board: reading it would spend a query and put a
 // workspace's columns in front of a provider for a question that cannot use them.
 func TestOnlyTheQuestionThatChoosesReadsTheBoard(t *testing.T) {
 	produce, world := producer(`{"notes":"A shorter version."}`)
-	world.buckets, world.labels = board(), vocabulary()
+	world.buckets, world.labels, world.fields = board(), vocabulary(), declarations()
 
 	if err := produce.Execute(context.Background(), person(), Request{
 		TargetType: domain.TargetWorkItem, TargetID: targetID,
@@ -628,7 +754,8 @@ func TestOnlyTheQuestionThatChoosesReadsTheBoard(t *testing.T) {
 		t.Fatalf("producing: %v", err)
 	}
 	for _, call := range world.performed {
-		if call.name == "ListBuckets" || call.name == "ListLabels" {
+		switch call.name {
+		case "ListBuckets", "ListLabels", "ListCustomFields":
 			t.Errorf("a summary read %q", call.name)
 		}
 	}
@@ -648,9 +775,14 @@ type producerWorld struct {
 	// ListLabels does; parentID makes the entry one that has no place on a board at all.
 	buckets     []usecase.Output
 	labels      []usecase.Output
+	fields      []usecase.Output
 	bucketsFail error
 	labelsFail  error
+	fieldsFail  error
 	parentID    string
+	// held is what the entry carries under its declared keys, which travels beside each field so
+	// that a model can leave one that is already right alone.
+	held map[string]any
 }
 
 // The board a classification is offered, and the entry's own column among it.
@@ -671,6 +803,26 @@ const (
 	movingLabel = "0192f000-0000-7000-8000-0000000000a1"
 	homeLabel   = "0192f000-0000-7000-8000-0000000000a2"
 )
+
+// The fields the collection declares: one of each closed kind, and two open ones that are
+// deliberately never offered.
+func declarations() []usecase.Output {
+	return []usecase.Output{
+		{"key": "priority", "kind": "SELECT", "options": []string{"low", "normal", "high"},
+			"applies_to": []string{"TASK"}, "is_required": false},
+		{"key": "areas", "kind": "MULTI_SELECT", "options": []string{"kitchen", "garden"},
+			"applies_to": []string{"TASK"}, "is_required": false},
+		{"key": "needs_review", "kind": "BOOL", "options": []string{},
+			"applies_to": []string{"TASK"}, "is_required": false},
+		{"key": "estimate", "kind": "NUMBER", "options": []string{},
+			"applies_to": []string{"TASK"}, "is_required": false},
+		{"key": "brief", "kind": "TEXT", "options": []string{},
+			"applies_to": []string{"TASK"}, "is_required": false},
+		// Declared for a level this entry is not.
+		{"key": "sprint", "kind": "SELECT", "options": []string{"one", "two"},
+			"applies_to": []string{"WORK_PACKAGE"}, "is_required": false},
+	}
+}
 
 func vocabulary() []usecase.Output {
 	return []usecase.Output{
@@ -704,11 +856,12 @@ func (w *producerWorld) Invoke(
 		}}}, nil
 	case "GetWorkItem":
 		return usecase.Output{
-			"title": w.subject, "notes": w.body,
+			"title": w.subject, "notes": w.body, "type": "TASK",
 			"collection_id": "0192f000-0000-7000-8000-0000000000c1",
 			"parent_id":     w.parentID,
 			// The entry is in Doing, which is what the options mark.
-			"bucket_id": doingBucket,
+			"bucket_id":     doingBucket,
+			"custom_fields": w.held,
 		}, nil
 	case "ListBuckets":
 		if w.bucketsFail != nil {
@@ -720,6 +873,11 @@ func (w *producerWorld) Invoke(
 			return nil, w.labelsFail
 		}
 		return usecase.Output{"data": w.labels}, nil
+	case "ListCustomFields":
+		if w.fieldsFail != nil {
+			return nil, w.fieldsFail
+		}
+		return usecase.Output{"data": w.fields}, nil
 	default:
 		return usecase.Output{}, nil
 	}

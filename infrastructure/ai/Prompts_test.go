@@ -49,9 +49,10 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 
 	for id, want := range map[string][]string{
 		"suggest-fields": {"title", "notes", "due_date", "labels", "subtasks"},
-		// Both chosen from what the material carried (K-02): the collection's vocabulary, and
-		// the columns of the entry's board.
-		"classify":  {"label_ids", "bucket_id"},
+		// All three chosen from what the material carried (K-02, K-03): the collection's
+		// vocabulary, the columns of the entry's board, and the values of the fields it declared.
+		// The keys inside `custom_fields` are the workspace's own and belong to no shape.
+		"classify":  {"label_ids", "bucket_id", "custom_fields"},
 		"summarize": {"notes"},
 		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
 		// answer's level, and what a node may carry is `keptTree`'s business.
