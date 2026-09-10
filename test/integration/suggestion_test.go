@@ -67,6 +67,11 @@ func proposalFor(t *testing.T, id, tenantID shared.ID, at time.Time) domain.Sugg
 			// rather than words, which is what makes them applicable at all.
 			"label_ids": []any{sugLabelA.String()},
 			"bucket_id": sugBucketA.String(),
+			// And the values it proposed for the fields the collection declared (K-03), which are
+			// a nested document inside the payload's own.
+			"custom_fields": map[string]any{
+				"priority": "high", "areas": []any{"kitchen"},
+			},
 		},
 		Provenance: domain.Provenance{
 			Model: "a-model", PromptID: "suggest-fields", PromptVersion: "v1",
@@ -161,6 +166,14 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 		}
 		if found.Payload["bucket_id"] != sugBucketA.String() {
 			t.Errorf("the chosen column came back as %v", found.Payload["bucket_id"])
+		}
+		filled, held := found.Payload["custom_fields"].(map[string]any)
+		if !held || filled["priority"] != "high" {
+			t.Errorf("the proposed values came back as %v", found.Payload["custom_fields"])
+		}
+		if areas, listed := filled["areas"].([]any); !listed || len(areas) != 1 ||
+			areas[0] != "kitchen" {
+			t.Errorf("a multi-select value did not survive the round trip: %v", filled["areas"])
 		}
 		return nil
 	})
