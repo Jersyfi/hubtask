@@ -1,6 +1,6 @@
 # ADR-0053 — The TOTP QR code: a dependency, an encoder, or neither
 
-**Status:** proposed · **Date:** 2026-09-09
+**Status:** accepted · **Date:** 2026-09-09 · **Decided:** 2026-09-11
 
 ## Context
 
@@ -72,39 +72,41 @@ is the common case.
 
 ## Decision
 
-**Deferred to the owner.** This ADR is `proposed` and F4-04 ships **C and D** meanwhile: the secret
-in groups of four with a copy control, and the provisioning URI as a link for the reader who is
-already on the device that will hold it.
+**B, decided by the owner on 2026-09-11.** The design system gains an encoder for the QR code and
+a component that draws the matrix as an SVG. No dependency is added.
 
-That is not a placeholder in the sense of something that has to be replaced. It is a complete
-enrolment, and it is what the contract's own `secret` field exists to make possible. What it is not
-is the enrolment somebody expects from a product in 2026, and choosing A or B later is additive: the
-screen grows an image beside the secret it already shows.
+Until that work lands, the enrolment screen stays as F4-04 shipped it — **C and D**: the secret in
+groups of four with a copy control, and the provisioning URI as a link for the reader who is
+already on the device that will hold it. That is a complete enrolment, and it is what the
+contract's own `secret` field exists to make possible; B adds an image beside it, it does not
+replace it.
 
-**The recommendation, for whoever decides, is B** — on the reasoning that this project applies to
-every other dependency question it has taken. `router.ts` is in-house because the need was path
-matching against a stable browser API; `positioning.ts` is in-house because the need was one
-fallback; the ICU renderer is in-house because a second catalogue was not an option. A QR encoder
-is the same shape of need: fixed by a standard, bounded by one input, with no second caller and no
-version churn ahead of it. The counter-argument is real and should be weighed rather than dismissed:
-correctness here is not obvious by reading, and a wrong code is a *silent* wrong code — it scans,
-it produces six digits, and they are the wrong six digits. That is why B is a recommendation and not
-a decision taken in a backlog task.
+The reasoning is the one this project applies to every other dependency question it has taken.
+`router.ts` is in-house because the need was path matching against a stable browser API;
+`positioning.ts` is in-house because the need was one fallback; the ICU renderer is in-house
+because a second catalogue was not an option. A QR encoder is the same shape of need: fixed by a
+standard, bounded by one input, with no second caller and no version churn ahead of it. The
+counter-argument was weighed, not dismissed: correctness here is not obvious by reading, and a
+wrong code is a *silent* wrong code — it scans, it produces six digits, and they are the wrong six
+digits. That is why the encoder's tests are not its own: they are the standard's published vectors,
+and the pull request that adds it proves a real authenticator reads the code it draws.
 
 ## Consequences
 
-* **F4-04 is not blocked.** Enrolment ships, is confirmed by a code from a real authenticator, and
-  arms. Nothing in the second-factor work waits on this answer.
-* **The screen has a seam for it.** The secret and the URI are rendered by one component, so
-  whichever of A or B is chosen adds an image inside it rather than rearranging a screen.
-* **If A is chosen**, the pull request that adds it carries the lockfile change, the licence entry
-  and the answer to `security.md` §7's supply-chain questions, and this ADR is superseded by one
-  naming the package and the version policy.
-* **If B is chosen**, the encoder ships with the published test vectors as its tests, in
-  `packages/design-system`, and `design-system.md` §4 gains a component row for what draws it.
-* **If C stands**, this ADR is accepted as it is and the enrolment screen stops being described as
-  provisional — which is the outcome that needs to be *decided* rather than reached by nobody
-  choosing.
+* **F4-04 was never blocked.** Enrolment shipped, is confirmed by a code from a real authenticator,
+  and arms. Nothing in the second-factor work waited on this answer.
+* **The screen has a seam for it.** The secret and the URI are rendered by one component, so the
+  encoder adds an image inside it rather than rearranging a screen.
+* **The encoder is a task, with these bounds.** It lives in `packages/design-system`, takes a
+  string, and answers a matrix; the component draws the matrix as an SVG from the design tokens.
+  One version's alignment table is enough — an `otpauth://` URI sits inside version 4 at error
+  correction level M — and the code says so rather than carrying all forty. Its tests are the
+  published vectors: a known input, the exact matrix the standard prescribes for it, and the mask
+  the penalty rules choose. `design-system.md` §4 gains a component row for what draws it. The
+  acceptance line is a real authenticator enrolling from the drawn code and the six digits it
+  produces being accepted by `POST /auth/mfa/totp:confirm`.
+* **A is closed.** No QR dependency enters the lockfile; a future pull request that adds one
+  reopens this decision rather than quietly reversing it.
 
 ## References
 

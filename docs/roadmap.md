@@ -354,11 +354,11 @@ the automation triggers and answered none of them, so three pickers had nothing 
 task that needed each list published it (the third, #542, is still open). It found one thing a
 client task cannot settle alone, in the same shape F3-09 found its: the TOTP provisioning URI needs
 a QR code, a QR code needs an encoder, and an encoder is either a new dependency or two hundred
-lines in the design system — F4-04 opened ADR-0053 and shipped manual entry meanwhile, and the ADR
-still waits on its owner. And it found, by driving finished screens against a real server, a kind
-of defect no test had seen: three aggregates read back without their tenant, so that no webhook
-delivery had ever been retried and no retention rule ever corrected on any installation (#536,
-#538). The third R-08 walk ([2026-09-11](./evidence/R-08-2026-09-11.md)) opened every one of the
+lines in the design system — F4-04 opened ADR-0053 and shipped manual entry meanwhile, and the
+owner chose the encoder (accepted 2026-09-11; the encoder itself is #553). And it found, by
+driving finished screens against a real server, a kind of defect no test had seen: three
+aggregates read back without their tenant, so that no webhook delivery had ever been retried and
+no retention rule ever corrected on any installation (#536, #538). The third R-08 walk ([2026-09-11](./evidence/R-08-2026-09-11.md)) opened every one of the
 area's seventeen screens in a browser, signed in with a password and a second factor, and left
 eight issues, one of them a missing surface. One product question it records without answering:
 nothing in this contract disables or removes an account, so a workspace has no offboarding beyond
