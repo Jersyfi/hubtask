@@ -59,5 +59,6 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/administration/backup').name, 'backup');
   assert.equal(resolve(ROUTES, '/administration/webhooks').name, 'webhooks');
   assert.equal(resolve(ROUTES, '/administration/retention').name, 'retention');
+  assert.equal(resolve(ROUTES, '/administration/restore').name, 'restore');
   assert.equal(resolve(ROUTES, '/administration/identity-provider').name, 'identity-provider');
 });
