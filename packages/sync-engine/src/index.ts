@@ -113,6 +113,7 @@ export type {
   ReminderInput,
   ReminderState,
   ReminderUpdate,
+  RetentionDataKind,
   RetentionPolicy,
   SavedView,
   SavedViewCreate,

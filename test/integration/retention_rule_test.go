@@ -71,6 +71,23 @@ func TestARuleIsWrittenAndReadBackWhole(t *testing.T) {
 		t.Fatalf("writing the rule: %v", err)
 	}
 
+	// The tenant, first, because it is the field a query can leave out without anything looking
+	// wrong: row level security already scopes the row, so nothing in a unit test or a service
+	// test misses it. What misses it is every correction — `applyTo` rebuilds the rule from the
+	// row that was read and `NewRule` refuses one whose tenant is zero, so **every** PATCH on a
+	// retention rule answered `lifecycle.rule_incomplete` on `/data_kind`, which is the last field
+	// anybody would suspect (F4-18).
+	if found.TenantID != tenantA {
+		t.Errorf("the rule came back with tenant %v, want %v", found.TenantID, tenantA)
+	}
+	// What a correction does: `NewRule` again, with the stored values and one field changed.
+	if _, err := domain.NewRule(domain.NewRuleInput{
+		ID: found.ID, TenantID: found.TenantID, Scope: found.Scope, DataKind: found.DataKind,
+		RetainDays: 30, Action: found.Action, CreatedBy: found.CreatedBy, Now: time.Now().UTC(),
+	}); err != nil {
+		t.Errorf("a rule read back could not be corrected: %v", err)
+	}
+
 	switch {
 	case found.DataKind != domain.KindCompletedItem:
 		t.Errorf("the kind came back as %s", found.DataKind)

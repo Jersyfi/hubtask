@@ -33,8 +33,14 @@
   import PermissionsView from './views/PermissionsView.svelte';
   import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
+  import BackupView from './views/BackupView.svelte';
+  import RetentionView from './views/RetentionView.svelte';
+  import RestoreView from './views/RestoreView.svelte';
+  import AuditView from './views/AuditView.svelte';
+  import PrivacyView from './views/PrivacyView.svelte';
   import RulesView from './views/RulesView.svelte';
   import RunsView from './views/RunsView.svelte';
+  import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -124,8 +130,20 @@
     <RulesView />
   {:else if route.name === 'runs'}
     <RunsView />
+  {:else if route.name === 'webhooks'}
+    <WebhooksView />
   {:else if route.name === 'quotas'}
     <QuotasView />
+  {:else if route.name === 'backup'}
+    <BackupView />
+  {:else if route.name === 'retention'}
+    <RetentionView />
+  {:else if route.name === 'restore'}
+    <RestoreView />
+  {:else if route.name === 'audit'}
+    <AuditView />
+  {:else if route.name === 'privacy'}
+    <PrivacyView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
   {:else if route.name === 'search'}

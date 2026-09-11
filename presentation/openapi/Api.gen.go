@@ -4041,6 +4041,10 @@ type Capabilities struct {
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`
 
+	// RetentionDataKinds The classes of data a retention rule may name, as `data-retention.md` §3 lists them, and what this build can do to each. A client builds its rule editor from this rather than from a table compiled into it: the document says a new kind "is then immediately configurable through the API - with no code change to the engine", and a client with its own list would be the one place that still needed the code change.
+	// `actions` is empty for a kind this build names and nothing removes yet. That is not the same as a kind that does not exist, and it is why the entry is answered at all: a rule for one of those is refused with a code that says which of the two it is.
+	RetentionDataKinds *[]RetentionDataKind `json:"retention_data_kinds,omitempty"`
+
 	// Roles The role matrix as this installation enforces it (domain-model.md §3.2). A client decides from this which actions to offer, rather than from a table compiled into it: two cells of the matrix are qualifiers no permission name can carry - a contributor writes only what is assigned to them, and a guest may comment on an entry without being able to change it - and a client that does not know them offers buttons the server refuses.
 	Roles            *[]RoleDescription `json:"roles,omitempty"`
 	SupportedLocales *[]struct {
@@ -5598,6 +5602,22 @@ type RestoreRunMode string
 
 // RestoreRunStatus defines model for RestoreRun.Status.
 type RestoreRunStatus string
+
+// RetentionDataKind One class of data a retention rule may name, and what this build can do to it.
+type RetentionDataKind struct {
+	// Actions What this build can do to this kind. Anything else is refused at configuration time, and an empty list is a kind the catalogue names and nothing removes yet.
+	Actions  *[]string `json:"actions,omitempty"`
+	DataKind *string   `json:"data_kind,omitempty"`
+
+	// DefaultDays The period a workspace starts with. Zero means the kind is off by default.
+	DefaultDays *int `json:"default_days,omitempty"`
+
+	// MaxDays The upper bound where the operator has set one, and null where there is none. Exceeding it needs a `justification`.
+	MaxDays *int `json:"max_days,omitempty"`
+
+	// MinDays What no rule may undercut.
+	MinDays *int `json:"min_days,omitempty"`
+}
 
 // RetentionPolicy defines model for RetentionPolicy.
 type RetentionPolicy struct {

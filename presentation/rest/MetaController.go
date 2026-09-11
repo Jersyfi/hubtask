@@ -140,6 +140,36 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		viewLayouts = append(viewLayouts, string(layout))
 	}
 
+	// Every type this build emits, and therefore every type a subscription may name (F4-15). An
+	// array rather than absent, for the same reason: a client that read nothing here would offer
+	// a picker of its own, and the server refuses a type it does not emit.
+	eventTypes := make([]string, 0, len(source.EventTypes))
+	for _, eventType := range source.EventTypes {
+		eventTypes = append(eventTypes, string(eventType))
+	}
+
+	// The catalogue of §3, with what this build can do to each. `actions` is always an array,
+	// including the empty one: a kind nothing removes is named here on purpose, and an absent key
+	// would be indistinguishable from a kind that does not exist (F4-18).
+	dataKinds := make([]openapi.RetentionDataKind, 0, len(source.RetentionDataKinds))
+	for _, kind := range source.RetentionDataKinds {
+		name := string(kind.Name)
+		defaultDays := kind.DefaultDays
+		minDays := kind.MinDays
+		actions := make([]string, 0, len(kind.Actions))
+		for _, action := range kind.Actions {
+			actions = append(actions, string(action))
+		}
+		entry := openapi.RetentionDataKind{
+			DataKind: &name, DefaultDays: &defaultDays, MinDays: &minDays, Actions: &actions,
+		}
+		if kind.MaxDays != nil {
+			ceiling := *kind.MaxDays
+			entry.MaxDays = &ceiling
+		}
+		dataKinds = append(dataKinds, entry)
+	}
+
 	// Always arrays, like the languages: absent would read as "this server does not know about
 	// notification preferences", and a client would hide the form.
 	notificationCategories := source.NotificationCategories
@@ -169,6 +199,8 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		ItemTypes:              &itemTypes,
 		QueryFields:            &queryFields,
 		ViewLayouts:            &viewLayouts,
+		EventTypes:             &eventTypes,
+		RetentionDataKinds:     &dataKinds,
 		TextLanguages:          &textLanguages,
 		NotificationCategories: &notificationCategories,
 		NotificationChannels:   &notificationChannels,

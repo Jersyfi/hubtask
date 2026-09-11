@@ -196,7 +196,7 @@ func (r RetentionRuleRepository) List(ctx context.Context) ([]domain.Rule, error
 
 	rules := make([]domain.Rule, 0, len(rows))
 	for _, row := range rows {
-		rule, err := ruleFrom(sqlc.FindRetentionRuleRow(row))
+		rule, err := ruleFrom(sqlc.RetentionRule(row))
 		if err != nil {
 			return nil, err
 		}
@@ -249,7 +249,7 @@ func (r RetentionRuleRepository) CarryOver(
 	return nil
 }
 
-func ruleFrom(row sqlc.FindRetentionRuleRow) (domain.Rule, error) {
+func ruleFrom(row sqlc.RetentionRule) (domain.Rule, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
 		return domain.Rule{}, err
@@ -279,8 +279,17 @@ func ruleFrom(row sqlc.FindRetentionRuleRow) (domain.Rule, error) {
 		warning.Recipients = append(warning.Recipients, domain.Recipient(recipient))
 	}
 
+	// The tenant, and it is load bearing: a correction rebuilds the rule from the row that was
+	// read, and `NewRule` refuses one whose tenant is zero - which is what made every PATCH on a
+	// retention rule answer `lifecycle.rule_incomplete` (F4-18).
+	tenantID, err := idFrom(row.TenantID)
+	if err != nil {
+		return domain.Rule{}, err
+	}
+
 	return domain.Rule{
-		ID: id, Scope: domain.Scope{Kind: domain.ScopeKind(row.ScopeKind), ID: scopeID},
+		ID: id, TenantID: tenantID,
+		Scope:    domain.Scope{Kind: domain.ScopeKind(row.ScopeKind), ID: scopeID},
 		DataKind: domain.DataKind(row.DataKind), Condition: stringFrom(row.Condition),
 		RetainDays: int(row.RetainDays), Action: domain.Action(row.Action),
 		ThenAfterDays: stageFrom(row.ThenAfterDays),

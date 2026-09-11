@@ -230,6 +230,13 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 	if err != nil {
 		return repository.StoredSubscription{}, err
 	}
+	// The tenant, and it is load bearing: every auditable operation on a subscription writes its
+	// entry under `subscription.TenantID`, and an entry with a zero tenant is refused by the audit
+	// port - which is what made every replay answer `audit.entry_incomplete` (F4-15).
+	tenantID, err := idFrom(row.TenantID)
+	if err != nil {
+		return repository.StoredSubscription{}, err
+	}
 	createdBy, err := idFrom(row.CreatedBy)
 	if err != nil {
 		return repository.StoredSubscription{}, err
@@ -243,6 +250,7 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 	return repository.StoredSubscription{
 		Subscription: domain.WebhookSubscription{
 			ID:                  id,
+			TenantID:            tenantID,
 			TargetURL:           row.TargetUrl,
 			EventTypes:          types,
 			Filter:              stringFrom(row.FilterExpr),
@@ -344,7 +352,7 @@ func (WebhookDeliveryRepository) Find(
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the webhook delivery: %w", err))
 	}
-	return deliveryFrom(sqlc.WebhookDeliveriesRow(row))
+	return deliveryFrom(row)
 }
 
 func (WebhookDeliveryRepository) List(
@@ -426,8 +434,16 @@ func (WebhookDeliveryRepository) RecordOutcome(
 	return nil
 }
 
-func deliveryFrom(row sqlc.WebhookDeliveriesRow) (domain.WebhookDelivery, error) {
+func deliveryFrom(row sqlc.WebhookDelivery) (domain.WebhookDelivery, error) {
 	id, err := idFrom(row.ID)
+	if err != nil {
+		return domain.WebhookDelivery{}, err
+	}
+	// The tenant, and it is load bearing rather than decoration: `Retried` and `Replayed` build
+	// the next attempt out of the row that was read, and both refuse a delivery whose tenant is
+	// zero. Leaving it to row level security to imply is what made every retry and every replay
+	// answer `webhooks.delivery_incomplete` (F4-15).
+	tenantID, err := idFrom(row.TenantID)
 	if err != nil {
 		return domain.WebhookDelivery{}, err
 	}
@@ -441,7 +457,7 @@ func deliveryFrom(row sqlc.WebhookDeliveriesRow) (domain.WebhookDelivery, error)
 	}
 
 	delivery := domain.WebhookDelivery{
-		ID: id, SubscriptionID: subscriptionID, EventID: eventID,
+		ID: id, TenantID: tenantID, SubscriptionID: subscriptionID, EventID: eventID,
 		Attempt:       int(row.Attempt),
 		Status:        domain.DeliveryStatus(row.Status),
 		ErrorCode:     stringFrom(row.ErrorCode),

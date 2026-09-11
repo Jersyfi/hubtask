@@ -9,7 +9,9 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -25,11 +27,11 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// What is deliberately absent: automation triggers and event types. They are declared in the
-// schema and will be answered by the tasks that build them. An empty list would read as "this
-// installation has none", which is a different statement from "this part of the contract is not
-// implemented yet" - and the first of those is a lie a client would act on. The view layouts left
-// this sentence with D-07, which is the task that gave them a writer.
+// What is deliberately absent: automation triggers. They are declared in the schema and will be
+// answered by the task that builds them. An empty list would read as "this installation has none",
+// which is a different statement from "this part of the contract is not implemented yet" - and the
+// first of those is a lie a client would act on. The view layouts left this sentence with D-07 and
+// the event types with F4-15, which are the tasks that gave each of them a reader.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
@@ -47,6 +49,23 @@ type Capabilities struct {
 	// consulted, which is what makes new frontend views possible without a backend change
 	// (api-guidelines.md §3).
 	ViewLayouts []view.Layout
+	// EventTypes is every type this build emits, and therefore every type a webhook subscription
+	// may name (F4-15). Read from the domain rather than restated here, for the reason the roles
+	// are: `SubscribedTypes` refuses a type this build does not emit, so a client offering a list
+	// of its own would offer a choice that is refused at the end - and a subscription cannot
+	// quietly wait for something that will never arrive.
+	EventTypes []event.Type
+	// RetentionDataKinds is the catalogue of `data-retention.md` §3, and what this build can do to
+	// each (F4-18). The catalogue itself rather than a copy of it, for the reason the query fields
+	// are: the document says a new kind "is then immediately configurable through the API - with
+	// no code change to the engine", and a client carrying its own list would be the one place
+	// that still needed the code change.
+	//
+	// Every kind the document names, including the ones nothing sweeps yet - which is what the
+	// catalogue's own comment already said this endpoint would answer. A kind with no actions is
+	// named here and removed by nothing, which is a different fact from a kind that does not exist,
+	// and the two are refused with different codes.
+	RetentionDataKinds []lifecycle.Kind
 	// TextLanguages are the languages this installation can index the text of, as BCP 47 tags
 	// (C-08, ADR-0034).
 	//
@@ -205,6 +224,8 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		ItemTypes:              profiles,
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
+		EventTypes:             event.Types(),
+		RetentionDataKinds:     lifecycle.Catalogue(),
 		TextLanguages:          languages,
 		NotificationCategories: notificationCategories(),
 		NotificationChannels:   notificationChannels(),
