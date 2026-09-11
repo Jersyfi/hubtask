@@ -5,10 +5,55 @@ package work
 
 import (
 	"context"
+	"errors"
+	"strconv"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
+
+// EmbeddingWidth is the geometry of the index: the number of dimensions the store holds, and the
+// most a model may produce (ADR-0054).
+//
+// A vector narrower than this is zero-padded to it before it is stored or compared - exact for
+// cosine, which is the only distance the product uses, since padding changes neither the dot
+// product nor either norm. A vector wider than this is refused, because truncating one is exact
+// only for models trained for it and silently wrong for every other.
+//
+// One number rather than a question the store answers, because it is a contract rather than a
+// measurement: the column is built for it, and an integration test holds the column to it. That
+// test is what makes a constant that mirrors a migration honest.
+const EmbeddingWidth = 1536
+
+// embeddingTooWide is the detail code for a vector the index cannot hold.
+const embeddingTooWide = "ai.embedding_too_wide"
+
+// EmbeddingTooWide is the refusal for a vector wider than the index, naming the model, its width
+// and the index's. A validation error rather than an internal one: the model is a configuration
+// somebody chose, and the answer tells them what to choose instead.
+func EmbeddingTooWide(model string, dimensions int) error {
+	return shared.ErrValidation.WithDetail(embeddingTooWide).WithParams(map[string]string{
+		"model":      model,
+		"dimensions": strconv.Itoa(dimensions),
+		"width":      strconv.Itoa(EmbeddingWidth),
+	})
+}
+
+// EmbeddingEmpty is the refusal for a vector with no dimensions at all. Refused before the store
+// rather than by it, because padded to the index it would be a vector of zeros, and a zero vector's
+// cosine distance to everything is NaN - a value that sorts first. A provider defect rather than a
+// configuration, so an internal error.
+func EmbeddingEmpty(model string) error {
+	return shared.ErrInternal.WithDetail("ai.embedding_empty").
+		WithParams(map[string]string{"model": model})
+}
+
+// IsEmbeddingTooWide reports whether an error is that refusal, so a caller can finish rather than
+// retry: a model's width does not change on the next attempt. By detail code, because `Is` on the
+// typed error compares the category and would match every validation error.
+func IsEmbeddingTooWide(err error) bool {
+	return errors.Is(err, shared.ErrValidation) && shared.AsError(err).DetailCode == embeddingTooWide
+}
 
 // OwedEmbedding is one entry that has no vector, or whose vector was made from text that has
 // since changed.
