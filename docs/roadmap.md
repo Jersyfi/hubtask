@@ -339,23 +339,30 @@ the preferences, because the notification record has one channel, `EMAIL`, and a
 client would be a new channel rather than a screen. The maturity stage is not a question this
 time — `stable` belongs to convergence.
 
-**F4 is open**, and its backlog is [`backlog/milestone-F4.md`](./backlog/milestone-F4.md) —
-twenty-one tasks, F4-01…F4-21, and now the longest of the track, because it builds the surface for
+**F4 is done**, and its backlog is [`backlog/milestone-F4.md`](./backlog/milestone-F4.md) —
+twenty-one tasks, F4-01…F4-21, the longest of the track, because it builds the surface for
 **three** core milestones rather than two. That is the first thing cutting it settled: the table
 above said `0.4.5` and `0.5.0` while its own contents column named MFA, sessions and step-up, the
 OIDC connection and quotas — all of them `0.6.0`'s. The contents column governs and the cell is
 corrected, because the window rule exists so that the client works against a contract that has
 stopped moving, and `0.6.0`'s has: fifteen of its sixteen tasks are closed and the one that is not
 (#267) has no client surface. Cutting it found **two** gaps of the kind every client milestone has
-found: the workspace cannot read or change its own settings, so the TOTP enforcement switch H-02
-put in `tenant.settings` is readable by the sign-in path and writable only in psql; and three
-pieces of operational configuration — a backup target, a backup schedule, a retention policy — can
-be created and never revised, one of them not even listed. It also found one thing a client task
-cannot settle alone, in the same shape F3-09 found its: the TOTP provisioning URI needs a QR code, a
-QR code needs an encoder, and an encoder is either a new dependency or two hundred lines in the
-design system — F4-04 opens with a draft ADR and ships manual entry meanwhile. And one product
-question it records without answering: nothing in this contract disables or removes an account, so
-a workspace has no offboarding beyond revoking every membership.
+found — the workspace could not read or change its own settings, and three pieces of operational
+configuration could be created and never revised — and **building** it found three more of a kind
+no cutting could have: `/meta/capabilities` declared the event types, the retention catalogue and
+the automation triggers and answered none of them, so three pickers had nothing to offer until the
+task that needed each list published it (the third, #542, is still open). It found one thing a
+client task cannot settle alone, in the same shape F3-09 found its: the TOTP provisioning URI needs
+a QR code, a QR code needs an encoder, and an encoder is either a new dependency or two hundred
+lines in the design system — F4-04 opened ADR-0053 and shipped manual entry meanwhile, and the ADR
+still waits on its owner. And it found, by driving finished screens against a real server, a kind
+of defect no test had seen: three aggregates read back without their tenant, so that no webhook
+delivery had ever been retried and no retention rule ever corrected on any installation (#536,
+#538). The third R-08 walk ([2026-09-11](./evidence/R-08-2026-09-11.md)) opened every one of the
+area's seventeen screens in a browser, signed in with a password and a second factor, and left
+eight issues, one of them a missing surface. One product question it records without answering:
+nothing in this contract disables or removes an account, so a workspace has no offboarding beyond
+revoking every membership.
 
 ### The website: a pre-release site from the `0.4.0` window
 
