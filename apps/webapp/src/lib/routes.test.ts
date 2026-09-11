@@ -29,6 +29,47 @@ test('the administration area is exactly the routes under its prefix', () => {
   assert.ok(tagged.length >= 1, 'the area is empty, which means the reading is broken');
 });
 
+test('the administration area is exactly the screens F4 built, by name', () => {
+  // The first test says the tag and the prefix agree; this one says what the set *is*. A screen
+  // added under `/administration` later joins this list on purpose, or the walk that found it
+  // missing is repeated. F4-21's walk is where the list was read off the running application.
+  const built = ROUTES.filter((route) => route.area === 'administration')
+    .map((route) => route.name)
+    .sort();
+  assert.deepEqual(built, [
+    'administration',
+    'apps',
+    'audit',
+    'backup',
+    'groups',
+    'identity-provider',
+    'people',
+    'permissions',
+    'privacy',
+    'quotas',
+    'restore',
+    'retention',
+    'rules',
+    'runs',
+    'service-accounts',
+    'webhooks',
+    'workspace-settings',
+  ]);
+});
+
+test('every route resolves to one of the three areas, and the profile ones are named', () => {
+  // ADR-0032's three areas are the whole of what the mobile shell switches on. A route that
+  // resolved to none would be one the shell had to classify by reading it; a profile route that
+  // was not tagged would ship as end-user and be excluded from nothing, which is not what
+  // "own security is not administration" means.
+  for (const route of ROUTES) {
+    const area = resolve(ROUTES, route.pattern.replaceAll(/:\w+/g, 'x')).area;
+    assert.ok(['end-user', 'profile', 'administration'].includes(area), `${route.name} is in ${area}`);
+  }
+  const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
+  assert.deepEqual(profile, ['profile', 'tokens']);
+});
+
 test('every route has a unique name and a unique pattern', () => {
   // Two routes with one name is a `route.name` switch that renders the wrong screen; two with one
   // pattern is a table where the second is unreachable, because the first match wins.
