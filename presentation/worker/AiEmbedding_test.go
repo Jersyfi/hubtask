@@ -66,9 +66,11 @@ func (passthroughUnitOfWork) WithinReadOnly(
 	return fn(ctx)
 }
 
-type batchProvider struct{}
+// batchProvider answers three-wide vectors, or - when `dimensions` says so - vectors of a width
+// the index cannot hold.
+type batchProvider struct{ dimensions int }
 
-func (batchProvider) Capabilities() aiprovider.ProviderCapabilities {
+func (p batchProvider) Capabilities() aiprovider.ProviderCapabilities {
 	return aiprovider.ProviderCapabilities{
 		Kind: "stub", Embedding: true, EmbeddingModel: "embed-3", EmbeddingDimensions: 3,
 	}
@@ -80,20 +82,24 @@ func (batchProvider) Complete(
 	return aiprovider.CompletionResult{}, aiprovider.ErrUnavailable
 }
 
-func (batchProvider) Embed(
+func (p batchProvider) Embed(
 	_ context.Context, texts []string,
 ) (aiprovider.EmbeddingResult, error) {
 	vectors := make([][]float32, 0, len(texts))
 	for range texts {
 		vectors = append(vectors, []float32{0.1, 0.2, 0.3})
 	}
-	return aiprovider.EmbeddingResult{Vectors: vectors, Model: "embed-3", Dimensions: 3}, nil
+	dimensions := p.dimensions
+	if dimensions == 0 {
+		dimensions = 3
+	}
+	return aiprovider.EmbeddingResult{Vectors: vectors, Model: "embed-3", Dimensions: dimensions}, nil
 }
 
-type oneProvider struct{}
+type oneProvider struct{ dimensions int }
 
-func (oneProvider) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {
-	return batchProvider{}, nil
+func (p oneProvider) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {
+	return batchProvider(p), nil
 }
 
 func embeddingFor(rows, batch int) AiEmbedding {
@@ -177,4 +183,23 @@ func (r *actorRecorder) For(
 ) (aiprovider.Provider, error) {
 	r.actor = actor
 	return batchProvider{}, nil
+}
+
+// A model wider than the index is a misconfiguration, not a failure of this pass: it is not
+// retried and not dead-lettered, because a model's width does not change on the next attempt, and
+// the pass comes back at the ordinary interval so a reconfiguration is noticed without anybody
+// having to write an entry first (ADR-0054).
+func TestAModelWiderThanTheIndexFinishesThePassAndComesBack(t *testing.T) {
+	handler := embeddingFor(1, 10)
+	handler.Embed.Providers = oneProvider{dimensions: repository.EmbeddingWidth + 1}
+
+	result, err := handler.Run(
+		t.Context(), queue.Job{Kind: queue.KindAiEmbed, TenantID: embedTenant})
+	if err != nil {
+		t.Fatalf("a wide model failed the pass, which is a retry ladder for a refusal a retry "+
+			"cannot change: %v", err)
+	}
+	if !result.Repeat || result.RepeatAfter != time.Hour {
+		t.Errorf("the pass answered %+v, want to come back at the ordinary interval", result)
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 )
@@ -69,6 +70,15 @@ func TestEveryReasonNotToEmbedIsALexicalSearchRatherThanAnError(t *testing.T) {
 		{
 			name:  "the provider answers the wrong number of vectors",
 			world: &embeddingWorld{available: true, embedding: true, model: "embed-3", vectors: [][]float32{{0.1}, {0.2}}},
+			words: "invoices",
+			asked: true,
+		},
+		{
+			name: "the model is wider than the index (ADR-0054)",
+			world: &embeddingWorld{
+				available: true, embedding: true, model: "embed-wide",
+				vectors: [][]float32{{0.1, 0.2, 0.3}}, dimensions: repository.EmbeddingWidth + 1,
+			},
 			words: "invoices",
 			asked: true,
 		},

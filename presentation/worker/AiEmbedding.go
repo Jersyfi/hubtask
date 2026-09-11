@@ -5,8 +5,10 @@ package worker
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -59,6 +61,22 @@ func (h AiEmbedding) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 	actor := appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: job.TenantID}
 
 	outcome, err := h.Embed.Execute(ctx, actor)
+	if repository.IsEmbeddingTooWide(err) {
+		// The configured model is wider than the index (ADR-0054). Not retried and not dead-
+		// lettered: a model's width does not change on the next attempt, and a dead letter is
+		// for work that might have succeeded. Logged - the model's name and its width are
+		// configuration, not content - and the pass comes back at the ordinary interval, so a
+		// reconfiguration is noticed without anybody having to write an entry first.
+		refusal := shared.AsError(err)
+		slog.WarnContext(ctx, "the embedding model is wider than the index; search stays lexical",
+			slog.String("job_id", job.ID.String()),
+			slog.String("tenant_id", job.TenantID.String()),
+			slog.String("code", refusal.DetailCode),
+			slog.String("model", refusal.Params["model"]),
+			slog.String("dimensions", refusal.Params["dimensions"]),
+			slog.String("width", refusal.Params["width"]))
+		return queue.Result{Repeat: true, RepeatAfter: h.Interval}, nil
+	}
 	if err != nil {
 		return queue.Result{}, err
 	}

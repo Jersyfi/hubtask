@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -89,6 +90,12 @@ func (m SearchMeaning) Of(
 		// Every failure is the same answer, which is the port's own discipline applied to a read:
 		// a slow provider, an open circuit, an exhausted budget and a refused key are one thing to
 		// somebody who is waiting for search results.
+		return nil, nil
+	}
+	if answer.Dimensions > repository.EmbeddingWidth || len(answer.Vectors[0]) > repository.EmbeddingWidth {
+		// A model wider than the index (ADR-0054). The same answer as every other failure, for the
+		// same reason - and the embedding job, which runs for the workspace rather than for a
+		// person waiting, is where the misconfiguration is reported.
 		return nil, nil
 	}
 	return answer.Vectors[0], nil
