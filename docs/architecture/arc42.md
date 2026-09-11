@@ -762,7 +762,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0050 | pgvector is a capability, not a requirement | proposed |
 | 0051 | An MCP resource is a catalogue read with a URI for an argument | proposed |
 | 0052 | Managed PostgreSQL is supported, and migration 0002 is corrected to allow it | accepted |
-| 0053 | The TOTP QR code: a dependency, an encoder, or neither | proposed |
+| 0053 | The TOTP QR code: a dependency, an encoder, or neither | accepted |
 
 ---
 
