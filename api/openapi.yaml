@@ -10700,8 +10700,8 @@ components:
       type: object
       description: Read from the manifest at the target, not from the database.
       properties:
-        archive_id: { type: string }
-        path: { type: string }
+        archive_id: { type: string, description: The manifest's own identifier - not what a restore names. }
+        path: { type: string, description: Where the archive lies at the target, and what `RestoreRequest.archive_id` takes. }
         created_at: { type: string, format: date-time }
         mode: { type: string, enum: [FULL, INCREMENTAL] }
         parent_archive_id: { type: [string, "null"] }
@@ -10845,9 +10845,23 @@ components:
       required: [target_id, archive_id, mode]
       properties:
         target_id: { type: string, format: uuid }
-        archive_id: { type: string }
+        archive_id:
+          type: string
+          description: >
+            Where the archive lies at the target: the `path` of a `BackupArchive` as
+            `GET /backup-targets/{targetId}/backups` lists it (and as `RestoreRun.source_archive`
+            echoes it), not the `archive_id` beside it, which is the manifest's. A path rather than an identifier because a restore has to be possible
+            when the database that recorded the run is gone. A path the target holds nothing at
+            fails the run with `backup.archive_not_found`.
         mode: { type: string, enum: [INSPECT, SELECTIVE, MERGE, REPLACE_TENANT, NEW_TENANT, INSTANCE] }
-        target_tenant_id: { type: [string, "null"], format: uuid }
+        target_tenant_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The tenant being restored into. Required for every mode a workspace may ask for -
+            `INSPECT`, `SELECTIVE`, `MERGE`, `REPLACE_TENANT` - and refused with
+            `backup.restore_tenant_required` when missing; refused for `NEW_TENANT`, which mints
+            its own, and `INSTANCE`, which crosses tenants and is the operator's.
         conflict_rule: { type: string, enum: [SKIP, OVERWRITE, DUPLICATE], default: SKIP }
         selection:
           type: object

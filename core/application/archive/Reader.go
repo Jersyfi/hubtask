@@ -152,6 +152,13 @@ func (r *Reader) Chain(ctx context.Context, prefix string) ([]Description, error
 		description, err := r.Describe(ctx, at)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
+				if at == prefix {
+					// The archive asked for is not there at all. That is not a broken chain - there
+					// is no chain - and saying "chain" sent a caller who had sent the manifest's
+					// identifier instead of the path looking for a missing parent (issue 548).
+					return nil, shared.ErrNotFound.WithDetail(CodeArchiveNotFound).
+						WithParams(map[string]string{"path": at}).WithCause(err)
+				}
 				return nil, shared.ErrValidation.WithDetail(CodeChainBroken).
 					WithParams(map[string]string{"prefix": at, "reason": "missing"}).WithCause(err)
 			}
@@ -412,6 +419,10 @@ func archive(key string) string {
 
 // The refusals of a read.
 const (
+	// CodeArchiveNotFound is a path at which the target holds no archive: nothing to restore, as
+	// opposed to a chain that cannot be completed. A caller that sent the manifest's archive_id
+	// where the path belongs meets this rather than a broken chain.
+	CodeArchiveNotFound = "backup.archive_not_found"
 	// CodeChainBroken is an incremental whose parent is missing, or a chain that does not end at
 	// a full archive. Restoring the part that happens to be present would restore a tenant to a
 	// state it was never in.

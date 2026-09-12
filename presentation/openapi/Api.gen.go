@@ -3678,6 +3678,7 @@ type AutomationRuleUpdateOnError string
 
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
+	// ArchiveId The manifest's own identifier - not what a restore names.
 	ArchiveId      *string                      `json:"archive_id,omitempty"`
 	ChecksumStatus *BackupArchiveChecksumStatus `json:"checksum_status,omitempty"`
 
@@ -3691,10 +3692,12 @@ type BackupArchive struct {
 	MediaCount      *int               `json:"media_count,omitempty"`
 	Mode            *BackupArchiveMode `json:"mode,omitempty"`
 	ParentArchiveId *string            `json:"parent_archive_id,omitempty"`
-	Path            *string            `json:"path,omitempty"`
-	ProductVersion  *string            `json:"product_version,omitempty"`
-	SchemaVersion   *string            `json:"schema_version,omitempty"`
-	Scope           *struct {
+
+	// Path Where the archive lies at the target
+	Path           *string `json:"path,omitempty"`
+	ProductVersion *string `json:"product_version,omitempty"`
+	SchemaVersion  *string `json:"schema_version,omitempty"`
+	Scope          *struct {
 		Id    *openapi_types.UUID     `json:"id,omitempty"`
 		Kind  *BackupArchiveScopeKind `json:"kind,omitempty"`
 		Label *string                 `json:"label,omitempty"`
@@ -5539,6 +5542,7 @@ type RestoreReport struct {
 
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {
+	// ArchiveId Where the archive lies at the target: the `path` of a `BackupArchive` as `GET /backup-targets/{targetId}/backups` lists it (and as `RestoreRun.source_archive` echoes it), not the `archive_id` beside it, which is the manifest's. A path rather than an identifier because a restore has to be possible when the database that recorded the run is gone. A path the target holds nothing at fails the run with `backup.archive_not_found`.
 	ArchiveId string `json:"archive_id"`
 
 	// Confirmation For destructive modes, the exact tenant name.
@@ -5556,8 +5560,10 @@ type RestoreRequest struct {
 	} `json:"selection,omitempty"`
 
 	// StepUpToken The proof of a fresh, stronger authentication for a destructive mode (§8.3). Sessions and MFA arrive in `0.6.0`; until an installation can issue one of these, a destructive restore is refused rather than silently permitted. A confirmation that is structurally impossible to give is a stronger position than one that is skipped.
-	StepUpToken    *string             `json:"step_up_token,omitempty"`
-	TargetId       openapi_types.UUID  `json:"target_id"`
+	StepUpToken *string            `json:"step_up_token,omitempty"`
+	TargetId    openapi_types.UUID `json:"target_id"`
+
+	// TargetTenantId The tenant being restored into. Required for every mode a workspace may ask for - `INSPECT`, `SELECTIVE`, `MERGE`, `REPLACE_TENANT` - and refused with `backup.restore_tenant_required` when missing; refused for `NEW_TENANT`, which mints its own, and `INSTANCE`, which crosses tenants and is the operator's.
 	TargetTenantId *openapi_types.UUID `json:"target_tenant_id,omitempty"`
 }
 
