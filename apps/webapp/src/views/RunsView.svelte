@@ -34,7 +34,7 @@
   let ruleFilter = $state('');
   let statusFilter = $state('');
   let opened = $state<string | undefined>(undefined);
-  let testing = $state<string | undefined>(undefined);
+  let testing = $state('');
   let sampleType = $state('');
   let sampleSubject = $state('');
   let tested = $state<TestResult | undefined>(undefined);
@@ -134,14 +134,14 @@
         <Input label={t('app.runs.sample_type')} hint={t('app.runs.sample_type_hint')} bind:value={sampleType} />
         <Input label={t('app.runs.sample_subject')} hint={t('app.runs.sample_subject_hint')} bind:value={sampleSubject} />
         <div class="row">
-          <Button tone="primary" isBusy={isWorking} busyLabel={t('app.runs.trying')} onclick={() => void dryRun(testing!)}>
+          <Button tone="primary" isBusy={isWorking} busyLabel={t('app.runs.trying')} onclick={() => void dryRun(testing)}>
             {t('app.runs.try')}
           </Button>
           <Button
             tone="secondary"
             isBusy={isWorking}
             busyLabel={t('app.runs.triggering')}
-            onclick={() => void attempt(() => runs.trigger(testing!))}
+            onclick={() => void attempt(() => runs.trigger(testing))}
           >
             {t('app.runs.trigger')}
           </Button>

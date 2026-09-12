@@ -456,6 +456,46 @@ expect_prompt_failure "a prompt no allow list names" \
 {"title": "…", "subtasks": ["…"]}
 ```'
 
+# The second half of the same rule, and the one #529 exists for: a key an allow list keeps that the
+# use case applying the proposal cannot take is dropped by J-16's narrowing, silently, and the
+# provider was paid for it. K-01's gate cannot see that - it compares the prompt with the allow
+# list, and those two agree the whole time.
+#
+# The probe bites the *descriptor* rather than the allow list, and it has to: editing the allow list
+# would put the prompt and the code out of step, K-01's gate would go red first, and
+# gate-architecture would be red for the old reason while the new check went unexercised. Editing a
+# Go file back afterwards is the event schema probes' pattern.
+expect_descriptor_failure() {
+	local name="$1" file="$2" from="$3" to="$4"
+	CHECKS=$((CHECKS + 1))
+
+	local original
+	original="$(cat "$file")"
+	if ! perl -0pi -e "s/\Q$from\E/$to/" "$file"; then
+		printf '  FAILED  %-44s the probe could not be applied\n' "$name"
+		FAILURES=$((FAILURES + 1))
+		printf '%s\n' "$original" > "$file"
+		return
+	fi
+	if make --no-print-directory gate-architecture >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-architecture stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-architecture\n' "$name"
+	fi
+	# With the newline `$(cat)` stripped put back, or the probe leaves a diff of its own behind -
+	# which is a gate that edits the tree and does not put it back, and the next commit carries it.
+	printf '%s\n' "$original" > "$file"
+}
+
+# `notes` is a key `suggest-item-fields` keeps and `UpdateWorkItem` declares. Take the input away
+# and the proposal still carries the key, the narrowing drops it before the write, and a provider
+# has been paid for a paragraph nobody reads.
+expect_descriptor_failure "an answer key the applier cannot take" \
+	"core/application/service/work/UpdateWorkItem.go" \
+	'Name: "notes", Kind: usecase.KindString,' \
+	'Name: "notes_probe", Kind: usecase.KindString,'
+
 header "Event schemas (make gate-contract)"
 
 # The schemas under api/events/ are the contract a subscriber outside this repository writes
