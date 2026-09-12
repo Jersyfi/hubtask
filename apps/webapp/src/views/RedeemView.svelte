@@ -20,6 +20,20 @@
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
 
+  interface Props {
+    /**
+     * Where to go once there is a session. The frame's router, as the OIDC callback takes it.
+     *
+     * The screen has to send the person on itself: once there is a session, `/redeem` is no
+     * longer a screen - `App.svelte` renders it only while signed out - and a person left on the
+     * address would be signed in and looking at "nothing here". An invited person has no path
+     * to return to, so the start is where they go.
+     */
+    onnavigate?: (path: string) => void;
+  }
+
+  let { onnavigate }: Props = $props();
+
   /** `security.md` §5's floor, said here so that it is said before the round trip. */
   const MINIMUM_LENGTH = 12;
 
@@ -56,10 +70,11 @@
     mismatched = password !== repeated;
     if (tooShort || mismatched) return;
 
-    await session.redeem(token, password);
+    const signedIn = await session.redeem(token, password);
     // Out of the component's state whatever happened.
     password = '';
     repeated = '';
+    if (signedIn) onnavigate?.('/');
   }
 </script>
 
