@@ -120,7 +120,23 @@ provisioned="$(curl -sS -X POST "$API/api/v1/admin/tenants" \
 	-d "{\"slug\":\"$SLUG\",\"display_name\":\"$NAME\",\"owner_email\":\"$EMAIL\"}")"
 
 redemption="$(printf '%s' "$provisioned" | field owner_redemption_token)"
-[ -n "$redemption" ] || die "provisioning answered no redemption token: $provisioned"
+if [ -z "$redemption" ]; then
+	# The one refusal worth explaining, because it was met twice on the integration environment
+	# and both times the token row was there: the credential is well-formed and names the right
+	# workspace, but its hash is not the stored one. Either --bootstrap ran under a
+	# HUBTASK_SECRET_KEY that was not the server's, or this shell still holds the token an
+	# earlier --bootstrap printed. --bootstrap is idempotent and replaces the row.
+	if [ "$(printf '%s' "$provisioned" | field detail_code)" = "access.token_unknown" ]; then
+		die "provisioning refused the token: $provisioned
+
+The server knows no token with this hash. Two causes, both seen:
+  - --bootstrap ran with a HUBTASK_SECRET_KEY that is not the one the server runs with
+    (on the integration environment: the decoded 'secret-key' of the 'hubtask-secrets' secret);
+  - HUBTASK_ADMIN_TOKEN in this shell is the token of an earlier --bootstrap, not the last one.
+Run --bootstrap again with the server's key, then export the token it prints."
+	fi
+	die "provisioning answered no redemption token: $provisioned"
+fi
 
 # The redemption token carries its own workspace, so this call needs no subdomain and no header —
 # which is what lets the whole script talk to the installation's own address.
