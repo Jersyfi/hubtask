@@ -158,9 +158,12 @@ func (h SuggestFromJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: SuggestFromJumbleEntryName,
 		Summary: "Asks the workspace's AI provider to propose a title, notes, a due date and " +
-			"labels for one jumble entry. It proposes and changes nothing: the proposal is read " +
-			"through the suggestions, and the entry becomes work only when somebody converts it. " +
-			"Asking twice produces two proposals rather than a refusal.",
+			"the subtasks the material implies, for one jumble entry. Not labels: a label is a " +
+			"word a collection agreed on, and an entry in the inbox is in no collection yet - " +
+			"the entry is classified once it has been converted. It proposes and changes " +
+			"nothing: the proposal is read through the suggestions, and the entry becomes work " +
+			"only when somebody converts it. Asking twice produces two proposals rather than a " +
+			"refusal.",
 		SideEffects: "Queues one question to the provider and writes an audit entry. Creates " +
 			"nothing and changes no entry.",
 		TokenScope: itemsWriteScope,

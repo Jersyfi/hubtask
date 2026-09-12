@@ -15,6 +15,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -249,27 +250,53 @@ func (c Cases) decide(
 	return answered, nil
 }
 
-// appliers maps what a suggestion is about, and what accepting it does, onto the use case that
-// does it.
+// accepted is what accepting one shape of proposal does.
 //
 // A table in code rather than a use case name on the row, and that is a security decision: a stored
 // use-case name would be a stored capability, and a producer that could write one could point an
 // acceptance at anything within the accepter's rights. Here the payload is data and the use case is
 // code, which is the only arrangement in which "a suggestion grants nothing" is structural.
+type accepted struct {
+	// Applier is the use case the payload is handed to, or the one a walk calls per node.
+	Applier string
+	// Walk marks a proposal the acceptance walks itself rather than merging into one input.
+	Walk bool
+	// Refusal is the detail code for a shape nothing accepts. A shape with one is not a gap in
+	// this build - it is a proposal whose answer is somebody's decision, and dismissing closes it.
+	Refusal string
+}
+
+// acceptance says, for every shape of proposal this build can produce, what accepting it does.
 //
-// The combinations this build does not serve yet are absent rather than wrong. J-06 adds the jumble
-// entry's, J-07 the decomposition's, and a caller meeting a gap is told it is not built rather than
-// that the suggestion is invalid - the distinction `deferredActions` draws for automation kinds.
-var appliers = map[applierKey]string{
-	{domain.TargetWorkItem, domain.KindFields}: "UpdateWorkItem",
+// One declaration rather than three conditions and a map, because `Produce` narrows a proposal to
+// what the acceptance can take and the gate compares the two: a shape whose handling is spelled in
+// an `if` is a shape neither of them can read. `apply` dispatches on this and on nothing else,
+// which is what keeps the declaration honest - a row nothing obeys would be a row written to make a
+// gate green.
+//
+// The combinations this build does not produce are absent rather than wrong, and a caller meeting a
+// gap is told it is not built rather than that the suggestion is invalid - the distinction
+// `deferredActions` draws for automation kinds.
+var acceptance = map[applierKey]accepted{
+	{domain.TargetWorkItem, domain.KindFields}: {Applier: updateWorkItemName},
 	// Accepting a proposal about a jumble entry is converting it (J-06), which is why the
 	// acceptance takes overrides: a model cannot name a destination collection, and
 	// ConvertJumbleEntry requires one.
-	{domain.TargetJumbleEntry, domain.KindFields}: "ConvertJumbleEntry",
+	{domain.TargetJumbleEntry, domain.KindFields}: {Applier: "ConvertJumbleEntry"},
 	// A decomposition is not one call but a walk (J-07): one CreateWorkItem per node, in order,
-	// each with the accepting person's rights at its destination. The name is here all the same,
-	// because what this package can do is still exactly what it can name.
-	{domain.TargetWorkItem, domain.KindDecomposition}: createWorkItemName,
+	// each with the accepting person's rights at its destination.
+	{domain.TargetWorkItem, domain.KindDecomposition}: {
+		Applier: createWorkItemName, Walk: true,
+	},
+	// A summary of how a collection stands is something to read (K-05). There is nowhere to put
+	// it: a collection's description says what it is *for*, not how its week went, and writing a
+	// status into it would overwrite the one with the other.
+	{domain.TargetContainer, domain.KindFields}: {Refusal: "suggestions.nothing_to_apply"},
+	// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build. A
+	// duplicate is two entries and a decision about them - archive one, trash one, move one under
+	// the other - and which of those somebody means is theirs to say, through the use case that
+	// owns it.
+	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
 }
 
 // The use cases this package calls for something other than applying a payload: J-07's walk and
@@ -282,6 +309,8 @@ const (
 	moveWorkItemName   = "MoveWorkItem"
 	addLabelName       = "AddLabel"
 	setCustomFieldName = "SetCustomField"
+	setDueDateName     = "SetDueDate"
+	updateWorkItemName = "UpdateWorkItem"
 )
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
@@ -308,21 +337,7 @@ func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
 	overrides map[string]any,
 ) error {
-	if proposal.TargetType == domain.TargetContainer {
-		// A summary of how a collection stands is something to read (K-05). There is nowhere to
-		// put it: a collection's description says what it is *for*, not how its week went, and
-		// writing a status into it would overwrite the one with the other. Dismissing closes it.
-		return shared.ErrValidation.WithDetail("suggestions.nothing_to_apply")
-	}
-	if proposal.Kind == domain.KindDuplicates {
-		// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build.
-		// A duplicate is two entries and a decision about them - archive one, trash one, move one
-		// under the other - and which of those somebody means is theirs to say, through the use
-		// case that owns it. Dismissing is what closes the proposal.
-		return shared.ErrValidation.WithDetail("suggestions.decided_by_hand")
-	}
-
-	name, served := appliers[applierKey{proposal.TargetType, proposal.Kind}]
+	how, served := acceptance[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
 		return shared.ErrUnavailable.
 			WithDetail("suggestions.acceptance_not_built").
@@ -330,8 +345,13 @@ func (c Cases) apply(
 				"target_type": string(proposal.TargetType), "kind": string(proposal.Kind),
 			})
 	}
-
-	if proposal.Kind == domain.KindDecomposition {
+	if how.Refusal != "" {
+		// Nothing accepts this shape, and that is an answer rather than a gap. Dismissing closes
+		// the proposal.
+		return shared.ErrValidation.WithDetail(how.Refusal)
+	}
+	name := how.Applier
+	if how.Walk {
 		return c.plant(ctx, actor, name, proposal, overrides)
 	}
 
@@ -364,6 +384,19 @@ func (c Cases) apply(
 		return err
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
+	//
+	// The entry's own fields go first, because a refusal in either is the answer and there is no
+	// reason to create children under an entry whose acceptance is about to be turned down.
+	if grows[notesKey] {
+		if err := c.describe(ctx, actor, proposal, out); err != nil {
+			return err
+		}
+	}
+	if grows[dueKey] {
+		if err := c.date(ctx, actor, proposal, out); err != nil {
+			return err
+		}
+	}
 	if grows["subtasks"] {
 		if err := c.grow(ctx, actor, proposal, in, out); err != nil {
 			return err
@@ -383,6 +416,96 @@ func (c Cases) apply(
 		return c.place(ctx, actor, proposal)
 	}
 	return nil
+}
+
+// describe writes the notes a proposal made for an entry a conversion just created.
+//
+// `ConvertJumbleEntry` takes a title and no notes, so a proposal's notes were dropped by the
+// narrowing and every jumble suggestion since J-06 paid a provider for a paragraph nobody read -
+// which is most of what reading an arriving mail is for. They are written by `UpdateWorkItem`,
+// which is the use case that owns an entry's own fields, as the accepting person.
+//
+// Only for a jumble entry: `UpdateWorkItem` declares `notes`, so a proposal about a work item hands
+// them to the applier and this never runs.
+//
+// **A refusal is the answer**, for `date`'s reason: the notes are part of what was accepted, and
+// the acceptance is one transaction.
+func (c Cases) describe(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+	out usecase.Output,
+) error {
+	written, held := proposal.Payload[notesKey].(string)
+	if !held || strings.TrimSpace(written) == "" {
+		return nil
+	}
+	// The item the conversion answered, never the payload's and never the overrides', for
+	// `place`'s reason.
+	converted, err := shared.ParseID(out.String("target_item_id"))
+	if err != nil {
+		return nil
+	}
+	_, err = c.Catalogue.Invoke(ctx, updateWorkItemName, actor, usecase.Input{
+		"item_id": converted.String(), notesKey: written,
+	})
+	return err
+}
+
+// date puts the due date a proposal named on the entry, through the use case that owns due dates.
+//
+// A calendar date and not an instant: the model was asked for a day and answered one, so what is
+// written is an all-day due date in a named zone, which is what the domain means by `DateOnly` -
+// "a date in that zone, never a midnight that shifts with the viewer".
+//
+// The zone is the **accepting** person's. An all-day date is a calendar day rather than a moment,
+// so the day it names does not move; what the zone decides is where that day begins for whoever
+// reads it, and that is the person reading it. Where nobody has a zone - a workspace that set no
+// default either - it is UTC, which is the same zone the material was dated in, so the date a model
+// was shown and the date that is written are read the same way round.
+//
+// **A refusal is the answer**, as it is for the column: the due date is part of what was accepted.
+// The whole acceptance is one transaction, so a refusal here leaves nothing half-applied.
+func (c Cases) date(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
+	out usecase.Output,
+) error {
+	written, held := proposal.Payload[dueKey].(string)
+	if !held || strings.TrimSpace(written) == "" {
+		return nil
+	}
+
+	zone := time.UTC
+	if actor.TimeZone != "" {
+		if loaded, err := time.LoadLocation(actor.TimeZone); err == nil {
+			zone = loaded
+		}
+	}
+	// The shape was checked when the answer was read, so a date that does not parse here is a
+	// payload somebody edited in the database rather than a model's answer. Refused, not repaired.
+	day, err := time.ParseInLocation(dateLayout, strings.TrimSpace(written), zone)
+	if err != nil {
+		return shared.ErrValidation.WithDetail("suggestions.due_date_unreadable")
+	}
+
+	// The entry the date goes on: the suggestion's own, or - for a converted jumble entry - the
+	// item the conversion answered. Never the payload's and never the overrides', for `place`'s
+	// reason: a proposal able to name the entry it dates would be a proposal about one entry
+	// dating another.
+	itemID := proposal.TargetID.String()
+	if proposal.TargetType == domain.TargetJumbleEntry {
+		converted, err := shared.ParseID(out.String("target_item_id"))
+		if err != nil {
+			return nil
+		}
+		itemID = converted.String()
+	}
+
+	_, err = c.Catalogue.Invoke(ctx, setDueDateName, actor, usecase.Input{
+		"item_id":       itemID,
+		"due_at":        day.Format(time.RFC3339),
+		"due_date_only": true,
+		"due_time_zone": zone.String(),
+	})
+	return err
 }
 
 // fill writes the values a classification proposed for the fields a collection declared (K-03).

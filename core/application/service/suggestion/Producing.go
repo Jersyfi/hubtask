@@ -9,6 +9,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -143,10 +144,24 @@ type Produce struct {
 // The allow list is per prompt for that reason - a summariser that came back with labels has
 // answered a question nobody asked.
 var promptFields = map[string]map[string]bool{
+	// No `labels`. A label is a word a collection agreed on, and a jumble entry is in no
+	// collection: the person converting names the destination, so at the moment the question is
+	// asked there is no vocabulary to choose from. Words a model invented instead would be
+	// vocabulary a model invented, which is the naming this milestone's second decision keeps a
+	// model out of - the same reasoning `classify` states from the other side, where the set does
+	// exist and the answer is a choice from it. A converted entry is classified the moment it is
+	// in a collection, which is where labels live.
 	"suggest-fields": {
-		"title": true, "notes": true, "due_date": true, "labels": true, "subtasks": true,
+		"title": true, "notes": true, dueKey: true, "subtasks": true,
 	},
-	"summarize": {"notes": true},
+	// The same question about an entry that already exists, and its own prompt rather than a
+	// second target for the one above. `subtasks` is the difference: under a jumble entry the
+	// acceptance grows them, and under a work item nothing does - breaking a work item down is
+	// what KindDecomposition is for, with a tree and types rather than a flat list. One allow list
+	// per prompt is already the rule here, for the reason written above it, and the same sentence
+	// says a question about an existing entry has no business asking for titles nobody will read.
+	"suggest-item-fields": {"title": true, "notes": true, dueKey: true},
+	"summarize":           {"notes": true},
 	// The other two thirds of §2's Summarisation row (K-05). Same answer shape, different
 	// material: a discussion rather than an entry, and a collection rather than either.
 	"summarize-thread":     {"notes": true},
@@ -175,6 +190,96 @@ var promptFields = map[string]map[string]bool{
 // nothing under that key while the rest of its answer stands.
 var choiceSets = map[string][]string{
 	"classify": {"bucket_id", "label_ids"},
+}
+
+// promptTargets says what each prompt is asked *about*.
+//
+// The allow list is per prompt and the narrowing is per target, so until this map existed the two
+// could only be compared by knowing which pairs occur - which nothing wrote down, and which is
+// exactly the gap `promptFields` and the descriptors had between them. It is read by the runtime
+// rather than only by the gate: an undeclared pair is refused where the question is asked, so a
+// call site that queued one fails in its own test instead of in a worker at three in the morning.
+// The kind travels with the target because the two together are what `acceptance` is keyed on, and
+// because a prompt's answer shape *is* its kind: `decompose` produces a tree and the other six a
+// field set, and a prompt that produced both would be a prompt read two ways.
+var promptTargets = map[string]map[domain.TargetType]domain.Kind{
+	"suggest-fields":       {domain.TargetJumbleEntry: domain.KindFields},
+	"suggest-item-fields":  {domain.TargetWorkItem: domain.KindFields},
+	"summarize":            {domain.TargetWorkItem: domain.KindFields},
+	"summarize-thread":     {domain.TargetWorkItem: domain.KindFields},
+	"summarize-collection": {domain.TargetContainer: domain.KindFields},
+	"classify":             {domain.TargetWorkItem: domain.KindFields},
+	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
+}
+
+// PromptTargets is the map above, for the gate that reads it beside the registry.
+func PromptTargets() map[string]map[domain.TargetType]domain.Kind { return promptTargets }
+
+// promptTarget is one pair, for the map below.
+type promptTarget struct {
+	prompt string
+	target domain.TargetType
+}
+
+// superseded maps a pair a previous release queued onto the prompt that asks that question now.
+//
+// `defaultPrompts` exists for the same problem and states the reasoning: the payload outlives the
+// process that wrote it. A refusal instead would not be a quiet one - it is `ErrInternal`, the
+// worker returns it, and the queue spends the whole retry ladder before the dead letter, for every
+// job in flight at the moment of an upgrade.
+var superseded = map[promptTarget]string{
+	{"suggest-fields", domain.TargetWorkItem}: "suggest-item-fields",
+}
+
+// AsksAbout reports whether this build asks that prompt about that target, and answers the prompt
+// that asks it - which is the prompt named, unless a previous release named its predecessor.
+//
+// Exported for the asking, which checks the pair before it spends a workspace's consent and writes
+// an audit entry, and for the gate.
+func AsksAbout(promptID string, target domain.TargetType, kind domain.Kind) (string, bool) {
+	if renamed, old := superseded[promptTarget{promptID, target}]; old {
+		promptID = renamed
+	}
+	asked, declared := promptTargets[promptID][target]
+	// The kind is checked rather than taken, so the value in the map is one the runtime obeys
+	// rather than one only the gate reads: a caller asking for a tree with a prompt that answers a
+	// field set would otherwise be narrowed by one shape and read as another.
+	return promptID, declared && asked == kind
+}
+
+// Applicable answers, for one shape of proposal, the keys its acceptance can apply - the inputs the
+// applier declares, plus what the acceptance grows itself - or nothing where this build accepts
+// that shape by walking it or by refusing it.
+//
+// Exported for the gate. It takes the declared inputs rather than a registry, because the
+// application layer may not import one, and because what the gate is comparing is exactly this
+// function's two halves against the allow list.
+func Applicable(
+	target domain.TargetType, kind domain.Kind, inputsOf func(string) ([]string, bool),
+) (map[string]bool, bool) {
+	how, served := acceptance[applierKey{target, kind}]
+	if !served || how.Walk || how.Refusal != "" {
+		return nil, false
+	}
+	declared, known := inputsOf(how.Applier)
+	if !known {
+		return nil, false
+	}
+	fields := make(map[string]bool, len(declared))
+	for _, field := range declared {
+		fields[field] = true
+	}
+	for field := range grown[applierKey{target, kind}] {
+		fields[field] = true
+	}
+	return fields, true
+}
+
+// AcceptedBy answers how a shape of proposal is accepted, for the gate: the applier's name, whether
+// it is walked, and the reason nothing accepts it.
+func AcceptedBy(target domain.TargetType, kind domain.Kind) (applier string, walk bool, refusal string, served bool) {
+	how, known := acceptance[applierKey{target, kind}]
+	return how.Applier, how.Walk, how.Refusal, known
 }
 
 // AnswerKeys is this map, for the gate that reads it beside the prompt store (K-01).
@@ -206,12 +311,26 @@ func AnswerKeys() map[string][]string {
 // the whole acceptance - J-16's defect from the other side. Breaking a work item down is what
 // KindDecomposition is for.
 var grown = map[applierKey]map[string]bool{
-	{domain.TargetJumbleEntry, domain.KindFields}: {"subtasks": true},
+	// `due_date` is here for both targets, and for one reason rather than two. `ConvertJumbleEntry`
+	// declares no due date at all, so a proposed one can only be written by a second call - and
+	// once the jumble's answer is applied by `SetDueDate`, a work item's arriving anywhere else
+	// would be the same proposal written two ways. What it costs on a work item is one extra
+	// version bump: `UpdateWorkItem` would have taken `due_at` and ends in the same
+	// `DueDateWriter.write` this call reaches, so the event, the audit entry and the history step
+	// are identical either way, and only the number of writes differs.
+	//
+	// `notes` is here for the jumble alone. `UpdateWorkItem` declares it, so a proposal about a
+	// work item hands it straight to the applier; `ConvertJumbleEntry` does not, and the body of
+	// an arriving mail becoming the entry's notes is most of what jumble processing is - so the
+	// acceptance writes them, through the use case that owns an entry's own fields.
+	{domain.TargetJumbleEntry, domain.KindFields}: {
+		"subtasks": true, dueKey: true, notesKey: true,
+	},
 	// `UpdateWorkItem` declares `bucket_id` and would take it, which is exactly why this entry is
 	// here rather than absent: putting a card in another column is a *move*, and the history entry
 	// and the event a person reads should say so (K-02). The acceptance calls `MoveWorkItem`.
 	{domain.TargetWorkItem, domain.KindFields}: {
-		"bucket_id": true, "label_ids": true, "custom_fields": true,
+		"bucket_id": true, "label_ids": true, "custom_fields": true, dueKey: true,
 	},
 }
 
@@ -241,11 +360,31 @@ func (h Produce) Execute(
 		return shared.ErrInternal.WithDetail("ai.prompt_unknown").
 			WithParams(map[string]string{"prompt": promptID})
 	}
+	promptID, asked := AsksAbout(promptID, request.TargetType, request.Kind)
+	if !asked {
+		// A pair nothing declares is a question this build does not ask. Refused rather than
+		// asked anyway: the allow list belongs to the prompt and the narrowing to the target, so
+		// an undeclared pair is a proposal narrowed by rules nobody compared.
+		return shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
+			WithParams(map[string]string{
+				"prompt": promptID, "target_type": string(request.TargetType),
+			})
+	}
 	prompt, err := h.Prompts.Get(promptID)
 	if err != nil {
 		return err
 	}
 	targetType, targetID, kind := request.TargetType, request.TargetID, request.Kind
+
+	// Where the person who asked lives. A job presents no credential, so nothing has resolved it:
+	// the worker builds the actor from the identity the payload carries and stops there, and an
+	// actor with no zone reads a date-only due date in UTC without complaining. That is a
+	// suggestion applied by a rule landing on a different day from the same suggestion accepted by
+	// a person, which is not a difference anybody could explain.
+	actor, err = h.located(ctx, actor)
+	if err != nil {
+		return err
+	}
 
 	provider, err := h.Providers.For(ctx, actor)
 	if err != nil {
@@ -278,7 +417,7 @@ func (h Produce) Execute(
 	// Prompt.Ask is the only place the instruction and the content are put together, and it puts
 	// them in two messages with two roles. That is ai-first.md §1.3 as a shape rather than as a
 	// rule somebody remembers: this code cannot merge them if it tries.
-	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material)))
+	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material, h.today(actor, promptID))))
 	if err != nil {
 		return err
 	}
@@ -351,20 +490,77 @@ type Request struct {
 	Apply bool
 }
 
+// The two ordinary reads that answer where the person who asked lives.
+//
+// Named here for `acceptance`' reason: what this package can do to a workspace is exactly what it can
+// name, and a short list is what makes that reviewable.
+const (
+	ownAccountName    = "GetOwnAccount"
+	readWorkspaceName = "ReadWorkspace"
+)
+
+// located fills in the locale and the time zone an actor arrived without.
+//
+// The same chain `AuthenticateToken` walks for a request - the person's own preference, then the
+// workspace's default - through the ordinary reads, as the person, because that is how everything
+// else this job reads is read. Nothing is stored and nothing new travels: putting a time zone in
+// the job payload would put a personal preference in a table with no row level security, to save a
+// read that happens once per job.
+//
+// An actor that already has a zone is left alone, which is every actor that came through a request.
+// A workspace that answers neither leaves the zone empty, and what depends on it says so where it
+// depends on it rather than guessing here.
+func (h Produce) located(
+	ctx context.Context, actor appshared.ActorContext,
+) (appshared.ActorContext, error) {
+	if actor.TimeZone != "" || h.Catalogue == nil {
+		return actor, nil
+	}
+
+	account, err := h.Catalogue.Invoke(ctx, ownAccountName, actor, usecase.Input{})
+	if err != nil {
+		return actor, err
+	}
+	actor.Locale = firstWritten(actor.Locale, account.String("locale"))
+	actor.TimeZone = account.String("time_zone")
+	if actor.TimeZone != "" && actor.Locale != "" {
+		return actor, nil
+	}
+
+	workspace, err := h.Catalogue.Invoke(ctx, readWorkspaceName, actor, usecase.Input{})
+	if err != nil {
+		return actor, err
+	}
+	actor.Locale = firstWritten(actor.Locale, workspace.String("default_locale"))
+	actor.TimeZone = firstWritten(actor.TimeZone, workspace.String("default_time_zone"))
+	return actor, nil
+}
+
+func firstWritten(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 // applicable is the set of fields the use case that would apply this suggestion declares, or
 // nothing where this build cannot say - which narrows nothing rather than everything.
 //
-// It reads the descriptor rather than a second list beside `appliers`, so the day somebody adds a
+// It reads the descriptor rather than a second list beside `acceptance`, so the day somebody adds a
 // field to `ConvertJumbleEntry` the suggestions may propose it, with nothing to remember.
 func (h Produce) applicable(request Request) map[string]bool {
 	if h.Fields == nil {
 		return nil
 	}
-	name, served := appliers[applierKey{request.TargetType, request.Kind}]
-	if !served {
+	how, served := acceptance[applierKey{request.TargetType, request.Kind}]
+	if !served || how.Walk || how.Refusal != "" {
+		// A walk is not narrowed by a descriptor's inputs - `keptTree` fixes its shape - and a
+		// shape nothing accepts has no applier to be narrowed against.
 		return nil
 	}
-	declared, known := h.Fields.InputsOf(name)
+	declared, known := h.Fields.InputsOf(how.Applier)
 	if !known {
 		return nil
 	}
@@ -401,12 +597,44 @@ func payloadFrom(
 	case domain.KindFields:
 		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
 		kept = keptChoices(kept, promptID, material.Choices)
-		return keptTitles(keptDeclared(kept, material.Declared)), true
+		return keptDate(keptTitles(keptDeclared(kept, material.Declared))), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
 		return nil, false
 	}
+}
+
+// today is the calendar date the material is read against, for a question that asks for one.
+//
+// Without it a due date cannot be answered honestly. The prompt asks for a date "only where the
+// material names or clearly implies one", and half of what a person writes down implies one
+// relatively - "by Friday", "in two weeks", "before the quarter ends". A model with no reference
+// answers those from its training cutoff, which is a guess wearing a date's clothes; a model with
+// one either resolves them or leaves the field out, and both are answers.
+//
+// Only for a prompt that asks for a due date. A summariser sent the date would be a summariser sent
+// something no allow list of its keeps, which is the waste this task exists to end, introduced
+// while ending it.
+//
+// The line describes itself, so no prompt has to explain it. It travels in the same message as the
+// material and is therefore data like the rest of it, which is what keeps `Prompt.Ask`'s two roles
+// meaning what they say.
+func (h Produce) today(actor appshared.ActorContext, promptID string) string {
+	if !promptFields[promptID][dueKey] {
+		return ""
+	}
+	// `LoadLocation("")` answers UTC without complaining, so an empty zone is spelled rather than
+	// loaded: a date resolved in UTC and labelled Europe/Berlin would be worse than one labelled
+	// what it is.
+	zone := time.UTC
+	if actor.TimeZone != "" {
+		if loaded, err := time.LoadLocation(actor.TimeZone); err == nil {
+			zone = loaded
+		}
+	}
+	return "\n\nToday's date, for anything the material says about time: " +
+		h.Clock.Now().In(zone).Format(dateLayout) + " (" + zone.String() + ")."
 }
 
 // withOptions is the material as the provider sees it: what was written, and then the sets the
@@ -419,8 +647,11 @@ func payloadFrom(
 // After the emptiness check in Execute, deliberately: a board is not material. An entry with no
 // text of its own is nothing to describe, and offering a provider a list of columns to classify
 // nothing into would spend a call on it.
-func withOptions(material Material) string {
+func withOptions(material Material, today string) string {
 	content := material.Content
+	if today != "" {
+		content += today
+	}
 	if declared := writtenFields(material.Declared); declared != "" {
 		content += declared
 	}
@@ -593,6 +824,37 @@ func chosenFrom(offered []Choices, key, id string) bool {
 	}
 	return false
 }
+
+// keptDate reads a proposed due date as what the prompt asks for - a calendar date, and nothing
+// else - and drops the key whole where it is anything else.
+//
+// Dropped alone rather than taking the suggestion with it, for `keptTitles`' reason: a field set is
+// several proposals at once, and losing a good title because a model wrote the date in its own
+// country's order would be the wrong trade. What is checked here is only the *shape*; whether the
+// date is one this workspace will accept is the acceptance's question, asked by the domain where
+// every other due date is asked.
+func keptDate(payload map[string]any) map[string]any {
+	proposed, held := payload[dueKey]
+	if !held {
+		return payload
+	}
+	written, isText := proposed.(string)
+	if !isText {
+		delete(payload, dueKey)
+		return payload
+	}
+	// Parsed in UTC and thrown away: this is a format check, and the instant the date becomes is
+	// the accepting person's zone's business rather than this one's.
+	if _, err := time.ParseInLocation(dateLayout, strings.TrimSpace(written), time.UTC); err != nil {
+		delete(payload, dueKey)
+		return payload
+	}
+	payload[dueKey] = strings.TrimSpace(written)
+	return payload
+}
+
+// dateLayout is the shape the prompt asks a date in, and the only shape read back.
+const dateLayout = "2006-01-02"
 
 // maxProposedSubtasks bounds the titles a field set may carry. The prompt asks for ten; this is
 // what happens when a model ignores it.
