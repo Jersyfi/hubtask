@@ -6699,7 +6699,11 @@ components:
       name: Idempotency-Key
       in: header
       required: false
-      description: A UUID; identical requests return the same result for 24 h.
+      description: >
+        A UUID; identical requests return the same result for 24 h. Two answers are not kept: a
+        `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the
+        repeat reaches the operation again. A client that is asked for a proof retries with the
+        proof under the same key (api-guidelines.md §5).
       schema: { type: string, format: uuid }
     IfMatch:
       name: If-Match

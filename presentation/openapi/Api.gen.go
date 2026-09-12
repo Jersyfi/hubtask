@@ -6925,13 +6925,13 @@ type WebhookId = openapi_types.UUID
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -6971,7 +6971,7 @@ type VerifyAuditChainJSONBody struct {
 
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
 type CreateServiceAccountParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -6983,7 +6983,7 @@ type ListAccessTokensParams struct {
 
 // CreateAccessTokenParams defines parameters for CreateAccessToken.
 type CreateAccessTokenParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required` and the accepted methods.
@@ -7004,31 +7004,31 @@ type ListRulesParams struct {
 
 // CreateRuleParams defines parameters for CreateRule.
 type CreateRuleParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // DisableRuleParams defines parameters for DisableRule.
 type DisableRuleParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // EnableRuleParams defines parameters for EnableRule.
 type EnableRuleParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RotateInboundTriggerParams defines parameters for RotateInboundTrigger.
 type RotateInboundTriggerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // TriggerRuleManuallyParams defines parameters for TriggerRuleManually.
 type TriggerRuleManuallyParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7055,7 +7055,7 @@ type ListRuleRunsParamsTrigger string
 
 // ReplayRuleRunParams defines parameters for ReplayRuleRun.
 type ReplayRuleRunParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7084,7 +7084,7 @@ type ListContainersParams struct {
 
 // CreateContainerParams defines parameters for CreateContainer.
 type CreateContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7144,7 +7144,7 @@ type UpdateContainerPoliciesParams struct {
 
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7159,7 +7159,7 @@ type MoveContainerJSONBody struct {
 
 // MoveContainerParams defines parameters for MoveContainer.
 type MoveContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7171,7 +7171,7 @@ type ReorderContainerJSONBody struct {
 
 // ReorderContainerParams defines parameters for ReorderContainer.
 type ReorderContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -7180,13 +7180,13 @@ type ReorderContainerParams struct {
 
 // RestoreContainerParams defines parameters for RestoreContainer.
 type RestoreContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UnarchiveContainerParams defines parameters for UnarchiveContainer.
 type UnarchiveContainerParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7198,7 +7198,7 @@ type ListCustomFieldsParams struct {
 
 // DefineCustomFieldParams defines parameters for DefineCustomField.
 type DefineCustomFieldParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7222,7 +7222,7 @@ type ListGroupsParams struct {
 
 // CreateGroupParams defines parameters for CreateGroup.
 type CreateGroupParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7234,7 +7234,7 @@ type UpdateGroupParams struct {
 
 // CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
 type CreateCalendarFeedParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7247,7 +7247,7 @@ type PollTriggerEventsParams struct {
 
 // CreateWebhookSubscriptionParams defines parameters for CreateWebhookSubscription.
 type CreateWebhookSubscriptionParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7271,7 +7271,7 @@ type ListWebhookDeliveriesParamsStatus string
 
 // RotateWebhookSecretParams defines parameters for RotateWebhookSecret.
 type RotateWebhookSecretParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7289,7 +7289,7 @@ type ListWorkItemsParams struct {
 
 // CreateWorkItemParams defines parameters for CreateWorkItem.
 type CreateWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7337,7 +7337,7 @@ type AddCommentJSONBody struct {
 
 // AddCommentParams defines parameters for AddComment.
 type AddCommentParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7402,13 +7402,13 @@ type SetRecurrenceParams struct {
 
 // SkipOccurrenceParams defines parameters for SkipOccurrence.
 type SkipOccurrenceParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateReminderParams defines parameters for CreateReminder.
 type CreateReminderParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7426,13 +7426,13 @@ type UpdateReminderParams struct {
 
 // ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
 type ArchiveWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // AssignWorkItemParams defines parameters for AssignWorkItem.
 type AssignWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -7441,7 +7441,7 @@ type AssignWorkItemParams struct {
 
 // AutoAssignWorkItemParams defines parameters for AutoAssignWorkItem.
 type AutoAssignWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -7455,13 +7455,13 @@ type CompleteWorkItemJSONBody struct {
 
 // CompleteWorkItemParams defines parameters for CompleteWorkItem.
 type CompleteWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // SuggestDecompositionParams defines parameters for SuggestDecomposition.
 type SuggestDecompositionParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7482,7 +7482,7 @@ type DuplicateWorkItemJSONBody struct {
 
 // DuplicateWorkItemParams defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7501,19 +7501,19 @@ type MoveWorkItemJSONBody struct {
 
 // MoveWorkItemParams defines parameters for MoveWorkItem.
 type MoveWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // PurgeWorkItemParams defines parameters for PurgeWorkItem.
 type PurgeWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ReopenWorkItemParams defines parameters for ReopenWorkItem.
 type ReopenWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7525,25 +7525,25 @@ type ReorderWorkItemJSONBody struct {
 
 // ReorderWorkItemParams defines parameters for ReorderWorkItem.
 type ReorderWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RestoreWorkItemParams defines parameters for RestoreWorkItem.
 type RestoreWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UnarchiveWorkItemParams defines parameters for UnarchiveWorkItem.
 type UnarchiveWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UnassignWorkItemParams defines parameters for UnassignWorkItem.
 type UnassignWorkItemParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -7559,13 +7559,13 @@ type BulkUpdateWorkItemsJSONBody struct {
 
 // BulkUpdateWorkItemsParams defines parameters for BulkUpdateWorkItems.
 type BulkUpdateWorkItemsParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CancelJobParams defines parameters for CancelJob.
 type CancelJobParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7589,31 +7589,31 @@ type ListJumbleEntriesParamsChannel string
 
 // SubmitJumbleEntryParams defines parameters for SubmitJumbleEntry.
 type SubmitJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
 type ConvertJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // DismissJumbleEntryParams defines parameters for DismissJumbleEntry.
 type DismissJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // SuggestFromJumbleEntryParams defines parameters for SuggestFromJumbleEntry.
 type SuggestFromJumbleEntryParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RotateJumbleIntakeParams defines parameters for RotateJumbleIntake.
 type RotateJumbleIntakeParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7624,13 +7624,13 @@ type ListLegalHoldsParams struct {
 
 // RequestMediaUploadParams defines parameters for RequestMediaUpload.
 type RequestMediaUploadParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ConfirmMediaUploadParams defines parameters for ConfirmMediaUpload.
 type ConfirmMediaUploadParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7658,7 +7658,7 @@ type ListMembershipsParams struct {
 
 // GrantMembershipParams defines parameters for GrantMembership.
 type GrantMembershipParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required` and the accepted methods.
@@ -7673,7 +7673,7 @@ type RevokeMembershipParams struct {
 
 // RegisterOauthClientParams defines parameters for RegisterOauthClient.
 type RegisterOauthClientParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7691,7 +7691,7 @@ type ListDataSubjectRequestsParams struct {
 
 // CreateDataSubjectRequestParams defines parameters for CreateDataSubjectRequest.
 type CreateDataSubjectRequestParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7736,7 +7736,7 @@ type ListTemplatesParams struct {
 
 // CreateTemplateParams defines parameters for CreateTemplate.
 type CreateTemplateParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7754,7 +7754,7 @@ type UpdateTemplateParams struct {
 
 // InstantiateTemplateParams defines parameters for InstantiateTemplate.
 type InstantiateTemplateParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7772,7 +7772,7 @@ type ListTrashParams struct {
 
 // EmptyTrashParams defines parameters for EmptyTrash.
 type EmptyTrashParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7784,7 +7784,7 @@ type ListSavedViewsParams struct {
 
 // CreateSavedViewParams defines parameters for CreateSavedView.
 type CreateSavedViewParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
@@ -7802,13 +7802,13 @@ type UpdateSavedViewParams struct {
 
 // ExportViewParams defines parameters for ExportView.
 type ExportViewParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ShareSavedViewParams defines parameters for ShareSavedView.
 type ShareSavedViewParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 
 	// IfMatch The ETag of the state last read (optimistic locking).
