@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -213,6 +214,30 @@ func TestAReadFailureSurfaces(t *testing.T) {
 
 	if !errors.Is(err, shared.ErrUnavailable) {
 		t.Errorf("error = %v", err)
+	}
+}
+
+// Issue 542: what starts a rule and what a rule may do are answered, and answered from the
+// domain and the catalogue rather than from a copy - the F4-13 editor read nothing here and could
+// save no rule.
+func TestTheManifestReportsTheAutomationVocabulary(t *testing.T) {
+	h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	h.Actions = []string{"COMPLETE_WORK_ITEM", "CREATE_CONTAINER"}
+	manifest, err := h.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("reading the manifest: %v", err)
+	}
+
+	if !slices.Equal(manifest.AutomationTriggers, automation.TriggerKinds()) {
+		t.Errorf("triggers %v, want the domain's %v", manifest.AutomationTriggers, automation.TriggerKinds())
+	}
+	for _, kind := range manifest.AutomationTriggers {
+		if !kind.Valid() {
+			t.Errorf("the manifest offers %q, which no rule may carry", kind)
+		}
+	}
+	if !slices.Equal(manifest.AutomationActions, h.Actions) {
+		t.Errorf("actions %v, want the catalogue's %v", manifest.AutomationActions, h.Actions)
 	}
 }
 

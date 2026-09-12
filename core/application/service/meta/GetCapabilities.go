@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
@@ -27,11 +28,12 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// What is deliberately absent: automation triggers. They are declared in the schema and will be
-// answered by the task that builds them. An empty list would read as "this installation has none",
-// which is a different statement from "this part of the contract is not implemented yet" - and the
-// first of those is a lie a client would act on. The view layouts left this sentence with D-07 and
-// the event types with F4-15, which are the tasks that gave each of them a reader.
+// Nothing the schema declares is deliberately absent any more. The rule while something was:
+// an empty list would read as "this installation has none", which is a different statement from
+// "this part of the contract is not implemented yet" - and the first of those is a lie a client
+// would act on. The view layouts left that sentence with D-07, the event types with F4-15, the
+// retention kinds with F4-18 and the automation triggers and actions with issue 542, each with the
+// task that gave it a reader.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
@@ -55,6 +57,16 @@ type Capabilities struct {
 	// of its own would offer a choice that is refused at the end - and a subscription cannot
 	// quietly wait for something that will never arrive.
 	EventTypes []event.Type
+	// AutomationTriggers is every way a rule may be started, and AutomationActions every use case
+	// a rule may perform, named the way a rule names them (automation.md §1.1, §1.3). A rule
+	// editor is built from these two lists rather than from a copy: a client with its own would be
+	// wrong on the installation that has one more, and the F4-13 editor built without them was
+	// complete and unusable (issue 542). The triggers are read from the domain, the actions handed
+	// in for the reason the scopes are: the catalogue is assembled from these very use cases. The
+	// engine's own flow kinds - WAIT, BRANCH, STOP - are not actions in this sense and are not in
+	// the list; the contract says a client names those three itself.
+	AutomationTriggers []automation.TriggerKind
+	AutomationActions  []string
 	// RetentionDataKinds is the catalogue of `data-retention.md` §3, and what this build can do to
 	// each (F4-18). The catalogue itself rather than a copy of it, for the reason the query fields
 	// are: the document says a new kind "is then immediately configurable through the API - with
@@ -155,6 +167,9 @@ type GetCapabilities struct {
 	Providers  AiProviders
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
+	// Actions is every automation action kind that is a use case, handed in from the catalogue at
+	// composition for the reason Scopes is.
+	Actions []string
 	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
 	// for the reason the field on Capabilities records.
 	Scopes []string
@@ -225,6 +240,8 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
 		EventTypes:             event.Types(),
+		AutomationTriggers:     automation.TriggerKinds(),
+		AutomationActions:      g.Actions,
 		RetentionDataKinds:     lifecycle.Catalogue(),
 		TextLanguages:          languages,
 		NotificationCategories: notificationCategories(),

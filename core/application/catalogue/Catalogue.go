@@ -298,6 +298,20 @@ func Scopes() []string {
 	return scopes
 }
 
+// AutomationActions is every action kind a rule may name that is a use case, sorted: what the
+// manifest answers and a rule editor offers (issue 542). Derived from the descriptors for the
+// reason Scopes is, and handed to the manifest by the composition root for the same reason - the
+// engine's own flow kinds (WAIT, BRANCH, STOP) are not in it because they are in no catalogue;
+// the contract says so, and a client names those three itself.
+func AutomationActions() []string {
+	actions := make([]string, 0, len(Descriptors()))
+	for _, descriptor := range Descriptors() {
+		actions = append(actions, descriptor.AutomationAction())
+	}
+	slices.Sort(actions)
+	return actions
+}
+
 // SessionScopes is what a session-authenticated person may exercise: every declared scope except
 // the control plane's. A session is the person themselves - but the admin surface is entered by
 // a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0
