@@ -228,6 +228,10 @@ type stepUpDouble struct {
 
 func (s *stepUpDouble) Available() bool { return s.available }
 
+func (s *stepUpDouble) Methods(_ context.Context, _, _ shared.ID) ([]stepup.Method, error) {
+	return []stepup.Method{stepup.MethodPassword}, nil
+}
+
 func (s *stepUpDouble) Satisfied(_ context.Context, _ shared.ID, token string) (bool, error) {
 	s.tokens = append(s.tokens, token)
 	return s.satisfied, nil

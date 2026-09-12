@@ -57,6 +57,23 @@ func TestTheSourceCatalogueStaysWithinTheSubset(t *testing.T) {
 	}
 }
 
+// The subset has no plural, and the catalogue must not fake one either. "schedule(s)" is a
+// plural written by hand, read as a hedge by a person and as nothing by a translator; the shape the
+// file uses instead puts the number last, after a colon ("Days left: {days}."), where it is right
+// for one and for many. Found on the runs screen (issue 547) and once more beside it.
+func TestTheSourceCatalogueDoesNotHedgePlurals(t *testing.T) {
+	catalogue, err := LoadEnglish()
+	if err != nil {
+		t.Fatalf("loading the source catalogue: %v", err)
+	}
+	hedge := regexp.MustCompile(`[a-z]\(s\)`)
+	for code, message := range catalogue.messages {
+		if hedge.MatchString(message) {
+			t.Errorf("%s hedges a plural with \"(s)\": %q - put the count last, after a colon", code, message)
+		}
+	}
+}
+
 func TestMessageRendering(t *testing.T) {
 	catalogue := Catalogue{messages: map[string]string{
 		"a.plain":     "Nothing to fill in.",
