@@ -43,6 +43,10 @@ type stepUpFake struct {
 
 func (s *stepUpFake) Available() bool { return true }
 
+func (s *stepUpFake) Methods(_ context.Context, _, _ shared.ID) ([]stepup.Method, error) {
+	return []stepup.Method{stepup.MethodPassword}, nil
+}
+
 func (s *stepUpFake) Satisfied(_ context.Context, _ shared.ID, token string) (bool, error) {
 	if token != s.expect {
 		return false, nil
