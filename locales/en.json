@@ -128,7 +128,7 @@
   "auth.mfa_required_by_tenant": "This workspace requires a second factor for your role. It cannot be disabled here.",
   "auth.mfa_credential_required": "This operation needs a signed-in session or the pending credential of a sign-in.",
   "auth.mfa_enrollment_pending": "The enrolment is not confirmed yet. Confirm it with a code from your authenticator.",
-  "auth.step_up_required": "This action needs you to prove who you are again. Call POST /auth/step-up with your {methods}, then repeat this call with the X-Hubtask-Step-Up header.",
+  "auth.step_up_required": "This needs you to prove it is you first: your password, or the code from your authenticator if you have one set up.",
   "auth.step_up_method_required": "Send password, or code where a second factor is armed - one of the two, never both.",
   "auth.step_up_session_required": "A step-up is a session's act. Sign in with your password first; a personal access token cannot prove a person afresh.",
   "oauth.client_incomplete": "This installation could not register that app.",
