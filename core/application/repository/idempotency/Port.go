@@ -45,4 +45,9 @@ type Store interface {
 
 	// Complete stores the answer of a finished attempt.
 	Complete(ctx context.Context, key Key, status int, body []byte) error
+	// Release lets a reservation go, for an attempt whose answer is not an outcome of the intent -
+	// a server failure, or a demand for a proof the request did not carry. The next repeat then
+	// finds the key free and performs what the first attempt never did (G-09 for the engine's
+	// half of the same rule).
+	Release(ctx context.Context, key Key) error
 }

@@ -12,6 +12,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
 var (
@@ -39,6 +40,7 @@ type store struct {
 	completedStatus int
 	completedBody   []byte
 	completeCalls   int
+	releaseCalls    int
 }
 
 func (s *store) Reserve(context.Context, repository.Key, []byte) (repository.Record, bool, error) {
@@ -48,6 +50,11 @@ func (s *store) Reserve(context.Context, repository.Key, []byte) (repository.Rec
 func (s *store) Complete(_ context.Context, _ repository.Key, status int, body []byte) error {
 	s.completeCalls++
 	s.completedStatus, s.completedBody = status, body
+	return nil
+}
+
+func (s *store) Release(_ context.Context, _ repository.Key) error {
+	s.releaseCalls++
 	return nil
 }
 
@@ -131,7 +138,7 @@ func TestAnAnswerIsStored(t *testing.T) {
 	store := &store{}
 	guard := Guard{Store: store, UnitOfWork: &unitOfWork{}}
 
-	if err := guard.Complete(t.Context(), actor(), key, 201, []byte(`{"id":"x"}`)); err != nil {
+	if err := guard.Complete(t.Context(), actor(), key, Answer{Status: 201, Body: []byte(`{"id":"x"}`)}); err != nil {
 		t.Fatalf("complete failed: %v", err)
 	}
 	if store.completedStatus != 201 || string(store.completedBody) != `{"id":"x"}` {
@@ -140,18 +147,48 @@ func TestAnAnswerIsStored(t *testing.T) {
 }
 
 // A 5xx is not a decision the server stands behind. Storing it would turn one bad minute into a
-// permanent answer for that key.
-func TestAServerFailureIsNotStored(t *testing.T) {
+// permanent answer for that key - and leaving the reservation would turn it into "in progress"
+// for as long as the record lives, so the key is released for the retry.
+func TestAServerFailureIsReleasedRatherThanStored(t *testing.T) {
 	store := &store{}
 	guard := Guard{Store: store, UnitOfWork: &unitOfWork{}}
 
 	for _, status := range []int{500, 502, 503} {
-		if err := guard.Complete(t.Context(), actor(), key, status, nil); err != nil {
+		if err := guard.Complete(t.Context(), actor(), key, Answer{Status: status}); err != nil {
 			t.Fatalf("complete failed: %v", err)
 		}
 	}
 	if store.completeCalls != 0 {
 		t.Errorf("%d server failures were stored", store.completeCalls)
+	}
+	if store.releaseCalls != 3 {
+		t.Errorf("%d of 3 reservations were released", store.releaseCalls)
+	}
+}
+
+// A demand for a proof is not an outcome of the intent: the request was not attempted. The
+// client's retry carries the proof under the same key - that is what "the same intent" means to
+// it - and a replay of the demand would refuse every privileged action forever (issue 543).
+func TestAStepUpDemandIsReleasedRatherThanStored(t *testing.T) {
+	store := &store{}
+	guard := Guard{Store: store, UnitOfWork: &unitOfWork{}}
+
+	demand := Answer{Status: 403, Body: []byte(`{"code":"forbidden","detail_code":"auth.step_up_required"}`),
+		DetailCode: stepup.CodeRequired}
+	if err := guard.Complete(t.Context(), actor(), key, demand); err != nil {
+		t.Fatalf("complete failed: %v", err)
+	}
+	if store.completeCalls != 0 || store.releaseCalls != 1 {
+		t.Errorf("stored %d, released %d; want 0 and 1", store.completeCalls, store.releaseCalls)
+	}
+
+	// Any other 403 is a decision about the request, and stays one.
+	refusal := Answer{Status: 403, Body: []byte(`{"code":"forbidden"}`)}
+	if err := guard.Complete(t.Context(), actor(), key, refusal); err != nil {
+		t.Fatalf("complete failed: %v", err)
+	}
+	if store.completeCalls != 1 {
+		t.Error("a plain refusal was not stored")
 	}
 }
 
@@ -161,7 +198,7 @@ func TestAClientErrorIsStored(t *testing.T) {
 	store := &store{}
 	guard := Guard{Store: store, UnitOfWork: &unitOfWork{}}
 
-	if err := guard.Complete(t.Context(), actor(), key, 422, []byte(`{"code":"validation_failed"}`)); err != nil {
+	if err := guard.Complete(t.Context(), actor(), key, Answer{Status: 422, Body: []byte(`{"code":"validation_failed"}`)}); err != nil {
 		t.Fatalf("complete failed: %v", err)
 	}
 	if store.completeCalls != 1 {
