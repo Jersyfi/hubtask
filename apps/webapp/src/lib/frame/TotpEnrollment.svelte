@@ -4,13 +4,13 @@
   // Enrolling a second factor (H-02), from two places: a person doing it from their profile, and
   // an administrator a tenant switch routed into it instead of into a session.
   //
-  // **There is no QR code here, and that is a decision rather than an omission.**
-  // [ADR-0053](../../../../docs/adr/ADR-0053-totp-qr-code.md) puts the question — a dependency, an
-  // encoder, or neither — with the costs each carries, and it is the owner's. Meanwhile this shows
-  // what the contract's `secret` field exists for: the base32 secret in groups of four, which
-  // every authenticator accepts typed in, and the `otpauth://` URI as a link, which is the best
-  // answer of all on the device that holds the authenticator. When the ADR is decided, an image
-  // joins what is already here rather than replacing a screen.
+  // **The QR code is drawn by the design system, and it is an aid rather than the enrolment.**
+  // [ADR-0053](../../../../docs/adr/ADR-0053-totp-qr-code.md) chose an encoder over a dependency;
+  // the image stands beside what F4-04 shipped and does not replace it: the base32 secret in
+  // groups of four, which every authenticator accepts typed in, and the `otpauth://` URI as a
+  // link, which is the best answer of all on the device that holds the authenticator. A URI the
+  // encoder cannot draw - past its thirteen versions, which takes a very long issuer and address
+  // together - is not an error here: the image is left out and the two ways in remain.
   //
   // **The secret and the codes are shown once.** No call answers them again, so they are held in
   // memory by `mfa.svelte.ts` for as long as this panel lives and dropped when it leaves. The
@@ -21,7 +21,7 @@
   // **Enrolling arms nothing.** Sign-in is unchanged until a valid code confirms it, so a reader
   // who closes the tab halfway through is exactly where they started.
 
-  import { Banner, Button, Checkbox, Input, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Checkbox, Input, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
 
   import { mfa } from '../data/mfa.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -44,6 +44,17 @@
   // phone is where a mistake happens, and the confirmation would then say "wrong code" about a
   // secret that was mistyped rather than a code that was.
   const grouped = $derived((enrollment?.secret ?? '').replace(/(.{4})/g, '$1 ').trim());
+
+  // The image, where the encoder can draw one. Undefined past its tables is the one refusal it
+  // has, and the screen answers it by showing the secret without a picture rather than nothing.
+  const matrix = $derived.by(() => {
+    if (!enrollment) return undefined;
+    try {
+      return encodeQr(enrollment.otpauth_uri);
+    } catch {
+      return undefined;
+    }
+  });
 
   $effect(() => () => mfa.forget());
 
@@ -78,6 +89,9 @@
     <Stack gap="150">
       <h3 class="section">{t('app.mfa.secret_title')}</h3>
       <p class="quiet">{t('app.mfa.secret_hint')}</p>
+      {#if matrix}
+        <QrCode {matrix} label={t('app.mfa.qr_label')} />
+      {/if}
       <!-- Selectable text rather than a field: it is read and copied, never edited. -->
       <p class="secret">{grouped}</p>
       <p>
