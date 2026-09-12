@@ -2851,9 +2851,11 @@ paths:
         needs a second proof.
 
         The operation that found the proof missing answered `403` with `auth.step_up_required`
-        and the accepted methods; this is where a client goes with that answer. The token travels
-        back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the
-        contract has carried since 0.4.5.
+        and, in `params.methods`, the methods this account can answer with: a space-separated
+        list drawn from `PASSWORD` and `TOTP` - the password for every account, the code only
+        where a factor is armed. A client builds its prompt from that list, never from a guess.
+        This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up`
+        header - or, for the restore, in the request field the contract has carried since 0.4.5.
       requestBody:
         required: true
         content:
@@ -6563,7 +6565,8 @@ components:
       description: >
         The proof a privileged operation demanded (H-03, security.md §5): the token
         `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that
-        needs one refuses with `auth.step_up_required` and the accepted methods.
+        needs one refuses with `auth.step_up_required`, naming in `params.methods` what this
+        account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
       schema: { type: string }
 
     ContainerId:
@@ -6699,7 +6702,11 @@ components:
       name: Idempotency-Key
       in: header
       required: false
-      description: A UUID; identical requests return the same result for 24 h.
+      description: >
+        A UUID; identical requests return the same result for 24 h. Two answers are not kept: a
+        `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the
+        repeat reaches the operation again. A client that is asked for a proof retries with the
+        proof under the same key (api-guidelines.md §5).
       schema: { type: string, format: uuid }
     IfMatch:
       name: If-Match

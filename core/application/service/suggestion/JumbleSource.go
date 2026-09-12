@@ -159,6 +159,9 @@ func (s CatalogueSources) set(
 const (
 	threadPrompt     = "summarize-thread"
 	collectionPrompt = "summarize-collection"
+	// The field question about an entry that already exists, which is a different question from
+	// the jumble's and therefore a different prompt (see `promptFields`).
+	itemFieldsPrompt = "suggest-item-fields"
 )
 
 // maxSummarisedComments and maxSummarisedEntries bound what a summary is made from.
@@ -304,6 +307,10 @@ func dateOf(value any) string {
 // The answer keys a closed set is chosen under, and what applies them at acceptance:
 // `MoveWorkItem`'s `target_bucket_id`, and one `AddLabel` per chosen label.
 const (
+	// dueKey is the answer key a proposed calendar date arrives under. Named here beside the
+	// other three because the material is built around what a prompt asks for.
+	dueKey    = "due_date"
+	notesKey  = "notes"
 	bucketKey = "bucket_id"
 	labelsKey = "label_ids"
 	fieldsKey = "custom_fields"

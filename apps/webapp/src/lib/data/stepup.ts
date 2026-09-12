@@ -43,9 +43,12 @@ export async function withStepUp<T>(
 /**
  * Which methods the refusal named, defaulting to the password.
  *
- * The server names them in the problem's parameters; a refusal that names none still has to
- * produce a usable prompt, and the password is the one every account has — an account with an
- * armed factor is offered the code by the same answer that armed it. A name this client does not
+ * The server names them in the problem's parameters as a space-separated list — `PASSWORD TOTP`
+ * for an account with a factor armed, `PASSWORD` for one without — and the contract says so at
+ * `POST /auth/step-up`. Splitting on commas as well costs nothing and is what this once did
+ * alone, which read the whole list as one unknown name and offered the password to exactly the
+ * accounts a step-up protects (issue 544). A refusal that names none still has to produce a
+ * usable prompt, and the password is the one every account has. A name this client does not
  * know is dropped rather than shown: a prompt with a field nobody can fill is worse than one
  * field fewer.
  */
@@ -53,7 +56,7 @@ export function methodsOf(cause: TransportError): readonly StepUpMethod[] {
   const named = cause.params?.methods;
   if (typeof named !== 'string' || named.trim() === '') return ['PASSWORD'];
   const methods = named
-    .split(',')
+    .split(/[\s,]+/)
     .map((method) => method.trim().toUpperCase())
     .filter((method): method is StepUpMethod => method === 'PASSWORD' || method === 'TOTP');
   return methods.length > 0 ? methods : ['PASSWORD'];

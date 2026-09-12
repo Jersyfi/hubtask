@@ -205,7 +205,7 @@ func (g *recordingGuard) Begin(
 }
 
 func (g *recordingGuard) Complete(
-	context.Context, appshared.ActorContext, repository.Key, int, []byte,
+	context.Context, appshared.ActorContext, repository.Key, idempotency.Answer,
 ) error {
 	return nil
 }

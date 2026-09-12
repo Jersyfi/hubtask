@@ -82,7 +82,7 @@ func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		FieldsAskedAction, domain.KindFields, "suggest-fields", apply)
+		FieldsAskedAction, domain.KindFields, itemFieldsPrompt, apply)
 }
 
 // Execute asks for a summary.
@@ -141,8 +141,10 @@ func askInput(what string) []usecase.Field {
 func (h AiSuggestFields) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: AiSuggestFieldsName,
-		Summary: "Asks the workspace's AI provider to propose a title, notes, a due date and " +
-			"labels for one entry. The answer is a suggestion somebody accepts, unless the caller " +
+		Summary: "Asks the workspace's AI provider to propose a title, notes and a due date " +
+			"for one entry that already exists. Not labels, which are the classifier's and are " +
+			"chosen from the vocabulary the collection agreed on; and not subtasks, which are a " +
+			"decomposition's. The answer is a suggestion somebody accepts, unless the caller " +
 			"asked for it to be applied.",
 		SideEffects: "Queues one question to the provider and writes an audit entry.",
 		TokenScope:  suggestionsWrite,

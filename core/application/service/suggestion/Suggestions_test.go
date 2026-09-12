@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -352,6 +353,9 @@ type world struct {
 	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
 	// a person without the right to move it meets.
 	moveFails error
+	// dateFails refuses SetDueDate alone, for moveFails' reason: the due date is part of what was
+	// accepted, so its refusal has to be tellable from any other.
+	dateFails error
 	// labelFails refuses AddLabel alone, for moveFails' reason; fieldFails does the same for
 	// SetCustomField.
 	labelFails error
@@ -397,6 +401,11 @@ func (w *world) Invoke(
 			"id": targetID.String(), "status": "PROCESSED",
 			"target_item_id": w.convertedItemID.String(),
 		}, nil
+	case setDueDateName:
+		if w.dateFails != nil {
+			return nil, w.dateFails
+		}
+		return usecase.Output{}, nil
 	case "GetContainer":
 		if w.readFails != nil {
 			return nil, w.readFails
@@ -1174,4 +1183,253 @@ func breakdown() domain.Suggestion {
 		map[string]any{"type": "ACTIVITY", "title": "Send"},
 	}}
 	return stored
+}
+
+// A proposed due date used to be dropped before the write: `ConvertJumbleEntry` declares no due
+// date at all, so the narrowing threw the key away and a provider was paid for an answer nobody
+// read. It is applied by the use case that owns due dates, on the item the conversion made.
+func TestAcceptingAJumbleProposalPutsTheDueDateOnTheItemItMade(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.TargetType = domain.TargetJumbleEntry
+	stored.Payload = map[string]any{"title": "Renew the domain", dueKey: "2026-09-30"}
+	world.store.proposals[proposalID] = stored
+
+	actor := person()
+	actor.TimeZone = "Europe/Vienna"
+	if _, err := (AcceptSuggestion{Cases: cases}).Execute(
+		context.Background(), actor, proposalID,
+		usecase.Input{"collection_id": collectionID.String()},
+	); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var dated, converted usecase.Input
+	for _, call := range world.performed {
+		switch call.name {
+		case setDueDateName:
+			dated = call.in
+		case "ConvertJumbleEntry":
+			converted = call.in
+		}
+	}
+	if dated == nil {
+		t.Fatal("the proposed due date was not applied")
+	}
+	// On the item the conversion answered, never on the entry and never on anything the payload
+	// or the overrides could name.
+	if dated["item_id"] != world.convertedItemID.String() {
+		t.Errorf("the due date went to %v", dated["item_id"])
+	}
+	if dated["due_date_only"] != true || dated["due_time_zone"] != "Europe/Vienna" {
+		t.Errorf("the due date is not an all-day date in the accepting person's zone: %v", dated)
+	}
+	if !strings.HasPrefix(dated["due_at"].(string), "2026-09-30T00:00:00") {
+		t.Errorf("the due date is %v", dated["due_at"])
+	}
+	// And the key never reached the applier, which declares no such input: the registry would
+	// have refused the whole acceptance.
+	if _, held := converted[dueKey]; held {
+		t.Errorf("the applier was handed a key it does not declare: %v", converted)
+	}
+}
+
+// The same key on a work item. `UpdateWorkItem` would have taken `due_at`, but the model answers a
+// calendar date under `due_date`, and one proposal written two ways is two things to keep right.
+func TestAcceptingAFieldSetPutsTheDueDateOnTheEntry(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.Payload = map[string]any{"title": "Renew the domain", dueKey: "2026-10-01"}
+	world.store.proposals[proposalID] = stored
+
+	actor := person()
+	actor.TimeZone = "Europe/Berlin"
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), actor, proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var dated, updated usecase.Input
+	for _, call := range world.performed {
+		switch call.name {
+		case setDueDateName:
+			dated = call.in
+		case "UpdateWorkItem":
+			updated = call.in
+		}
+	}
+	if dated == nil {
+		t.Fatal("the proposed due date was not applied")
+	}
+	if dated["item_id"] != targetID.String() || dated["due_time_zone"] != "Europe/Berlin" {
+		t.Errorf("the due date is %v", dated)
+	}
+	if _, held := updated[dueKey]; held {
+		t.Errorf("the applier was handed a key it does not declare: %v", updated)
+	}
+}
+
+// Somebody who may not set the due date has not half-accepted a proposal - they have been refused
+// one, and the whole acceptance goes back with it.
+func TestAProposalIsRefusedWhenTheDueDateIs(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.Payload = map[string]any{"title": "Renew the domain", dueKey: "2026-10-01"}
+	world.store.proposals[proposalID] = stored
+	world.dateFails = shared.ErrForbidden
+
+	_, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the answer was %v, want the due date's own refusal", err)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Error("a proposal whose due date was refused was marked accepted")
+	}
+}
+
+// A workspace that has no zone anywhere is UTC - the same zone the material was dated in, so the
+// date a model was shown and the date that is written are read the same way round.
+func TestADueDateWithNoZoneAnywhereIsWrittenInUtc(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.Payload = map[string]any{dueKey: "2026-10-01"}
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+	for _, call := range world.performed {
+		if call.name == setDueDateName {
+			if call.in["due_time_zone"] != "UTC" {
+				t.Errorf("the zone is %v", call.in["due_time_zone"])
+			}
+			return
+		}
+	}
+	t.Fatal("the due date was not applied")
+}
+
+// `apply` dispatches on the declaration and on nothing else, so the two shapes nothing accepts
+// answer what they always answered rather than "not built yet" - which is a different sentence and
+// would send somebody looking for a version that has it.
+func TestTheShapesNothingAcceptsSayWhyRatherThanNotBuilt(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		shape  func(domain.Suggestion) domain.Suggestion
+		detail string
+	}{
+		{"a collection's summary", func(s domain.Suggestion) domain.Suggestion {
+			s.TargetType, s.TargetID = domain.TargetContainer, containerTargetID
+			// Fingerprinted against the collection, which is what a summary of one is made from.
+			s.InputDigest = domain.Digest("This quarter", "")
+			return s
+		}, "suggestions.nothing_to_apply"},
+		{"a duplicate", func(s domain.Suggestion) domain.Suggestion {
+			s.Kind = domain.KindDuplicates
+			s.Payload = map[string]any{"duplicates": []any{}}
+			return s
+		}, "suggestions.decided_by_hand"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			cases, world := newWorld()
+			world.store.proposals[proposalID] = testCase.shape(proposal())
+
+			_, err := (AcceptSuggestion{Cases: cases}).
+				Execute(context.Background(), person(), proposalID, nil)
+			if err == nil {
+				t.Fatal("it was accepted")
+			}
+			if shared.AsError(err).DetailCode != testCase.detail {
+				t.Errorf("the answer is %v, want %s", err, testCase.detail)
+			}
+		})
+	}
+}
+
+// And every shape the acceptance declares an applier for names a use case this package can call.
+// A row naming something the catalogue does not carry would be an acceptance that fails at the
+// moment somebody uses it.
+func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
+	callable := map[string]bool{
+		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
+		createWorkItemName: true, moveWorkItemName: true,
+		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
+	}
+	for key, how := range acceptance {
+		switch {
+		case how.Refusal != "" && how.Applier != "":
+			t.Errorf("%v both refuses and names an applier", key)
+		case how.Refusal == "" && !callable[how.Applier]:
+			t.Errorf("%v names %q, which this package cannot call", key, how.Applier)
+		}
+	}
+}
+
+// `ConvertJumbleEntry` takes a title and no notes, so a proposal's notes were dropped by the
+// narrowing — and reading the body of an arriving mail is most of what jumble processing is for.
+// They are written on the item the conversion made, by the use case that owns an entry's fields.
+func TestAcceptingAJumbleProposalWritesTheNotesItProposed(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.TargetType = domain.TargetJumbleEntry
+	stored.Payload = map[string]any{"title": "Renew the domain", notesKey: "Before it lapses."}
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).Execute(
+		context.Background(), person(), proposalID,
+		usecase.Input{"collection_id": collectionID.String()},
+	); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	var described, converted usecase.Input
+	for _, call := range world.performed {
+		switch call.name {
+		case updateWorkItemName:
+			described = call.in
+		case "ConvertJumbleEntry":
+			converted = call.in
+		}
+	}
+	if described == nil {
+		t.Fatal("the proposed notes were not written")
+	}
+	if described["item_id"] != world.convertedItemID.String() ||
+		described[notesKey] != "Before it lapses." {
+		t.Errorf("the notes went to %v", described)
+	}
+	// And never to the applier, which declares no such input: the registry would have refused the
+	// whole acceptance.
+	if _, held := converted[notesKey]; held {
+		t.Errorf("the applier was handed a key it does not declare: %v", converted)
+	}
+}
+
+// About a work item they are the applier's own business: `UpdateWorkItem` declares `notes`, so a
+// second write would be the same field set applied twice.
+func TestAWorkItemsNotesAreWrittenByTheApplierAlone(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.Payload = map[string]any{"title": "Renew the domain", notesKey: "Before it lapses."}
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting: %v", err)
+	}
+
+	updates := 0
+	for _, call := range world.performed {
+		if call.name == updateWorkItemName {
+			updates++
+			if call.in[notesKey] != "Before it lapses." {
+				t.Errorf("the applier was not given the notes: %v", call.in)
+			}
+		}
+	}
+	if updates != 1 {
+		t.Errorf("%d updates, want the applier's own and no second one", updates)
+	}
 }
