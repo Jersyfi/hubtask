@@ -38,6 +38,35 @@ What the host needs beforehand: ports 22, 80, 443 and 6443 open inbound, and a D
 `*.<environment>.hubtask.eu` pointing at it (A and AAAA). Port 80 is not optional — it is where
 Let's Encrypt validates.
 
+## A workspace somebody can sign in to
+
+A rebuilt environment has no workspace, and nothing in it issues the first credential that could
+provision one. [`scripts/dev-workspace.sh`](../../scripts/dev-workspace.sh) does both, the same way
+it does locally (`CONTRIBUTING.md` § "Signing in locally") — with two values that have to be the
+cluster's own:
+
+```bash
+export SSH="ssh -i <key> root@<host>"
+HUBTASK_PSQL="$SSH kubectl -n hubtask exec -i hubtask-db-0 -- psql -U hubtask -d hubtask" \
+HUBTASK_SECRET_KEY="$($SSH kubectl -n hubtask get secret hubtask-secrets -o jsonpath='{.data.secret-key}' | base64 --decode)" \
+scripts/dev-workspace.sh --bootstrap
+```
+
+`HUBTASK_SECRET_KEY` must be the value the server runs with, decoded — the token's hash is
+peppered with it, and one bootstrapped under any other value is a row the server never matches
+(`access.token_unknown`; the script says so when it meets it). The bootstrap prints the token once;
+it goes into the GitHub environment `integration` beside `KUBE_CONFIG`, and into the shell that
+runs the second step — the shell keeps whatever it held before, so export the one just printed:
+
+```bash
+HUBTASK_ADMIN_TOKEN=… HUBTASK_DEMO_PASSWORD='…' \
+scripts/dev-workspace.sh --api https://api.integration.hubtask.eu --slug demo
+```
+
+Then `https://demo.api.integration.hubtask.eu/` is a sign-in screen, and `owner@example.org` with
+that password gets in. The bootstrap is idempotent: run again, it replaces the token row and prints
+a new token, which is also how a lost one is replaced.
+
 ## Monitoring
 
 The environment watches itself (`observability-reliability.md` §14, O-1): Prometheus scrapes every
