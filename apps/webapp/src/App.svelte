@@ -101,7 +101,7 @@
   {:else if !session.isSignedIn && route.name === 'redeem'}
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
-    <RedeemView />
+    <RedeemView onnavigate={(path) => router.navigate(path)} />
   {:else if !session.isSignedIn}
     <SignInView />
   {:else if route.name === 'home'}
