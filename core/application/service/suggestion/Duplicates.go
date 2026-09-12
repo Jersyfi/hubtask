@@ -84,14 +84,25 @@ type SuggestDuplicates struct {
 // A number somebody has to choose, and one chosen by a session is one nobody can defend later - so
 // it is configuration (`HUBTASK_AI_DUPLICATE_THRESHOLD`) and this is only its default.
 //
-// 0.9 rather than something lower, because the cost of the two mistakes is not symmetric. A
-// duplicate that is not proposed is a duplicate somebody finds by searching, which is what they do
-// today; a proposal that is not a duplicate is an inbox of noise, and an inbox of noise is how a
-// feature stops being read at all. The embedding models this product speaks to produce vectors
-// normalised for cosine similarity, where two texts about the same subject in different words sit
-// well above 0.8 and two paraphrases of one sentence sit above 0.95 - so 0.9 is the band where
-// "the same piece of work, written twice" lives rather than "about the same subject".
-const DefaultDuplicateFloor = 0.9
+// **Measured, not argued for**: docs/evidence/K-04-2026-09-11.md, against a 295-entry corpus in two
+// languages on the two Ollama embedding models the product stores, with the floor chosen on one
+// half of the corpus and reported on the other. What it found: a same-language paraphrase sits
+// around 0.85-0.89, not above 0.95 as this comment used to claim - that is where a copy with one
+// word changed sits. At 0.9 the product found a third of the paraphrases, mostly those copies. At
+// 0.85 it found between half and four fifths, and showed a false candidate to four entries in a
+// hundred - every one of them a near-miss a person can reasonably be asked about (the kitchen tap
+// and the bathroom tap, the cat's vaccination and the dog's). Below 0.825 the false candidates
+// climb faster than the found ones.
+//
+// The reasoning K-04 wrote stands and is what keeps the number here rather than lower: the cost of
+// the two mistakes is not symmetric. A duplicate that is not proposed is a duplicate somebody finds
+// by searching, which is what they do today; a proposal that is not a duplicate is an inbox of
+// noise, and an inbox of noise is how a feature stops being read at all.
+//
+// One number for both models, because they disagree by less than a title-only pair and a pair with
+// notes do; and no floor at all for a translation, which neither model puts nearer than a mere
+// relative. Both are the measurement's findings, and ai-first.md §2 says so.
+const DefaultDuplicateFloor = 0.85
 
 // defaultDuplicateLimit is how many neighbours one answer carries. Small: this is a question about
 // whether something already exists, and a person reads two or three candidates. A list of twenty is

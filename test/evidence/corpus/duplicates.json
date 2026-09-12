@@ -1,0 +1,2420 @@
+{
+ "$comment": "The corpus for measuring suggestion.DefaultDuplicateFloor (#532). Author-written and labelled before any similarity was computed; the labels are the groups and the roles, and the pair classes are derived from them by the harness in test/evidence. Titles and notes are content and may be in any language the product indexes; every field name, role and group name is English (rule 13).",
+ "roles": {
+  "anchor": "the reference piece of work in its group",
+  "duplicate": "the same work, paraphrased, in the anchor's language",
+  "duplicate-xl": "the same work in the other language",
+  "near-identical": "the anchor with one word or a punctuation mark changed - a control that must sit at the very top of the duplicate band, or the model is the finding",
+  "related": "the same subject, different work - the hard band the floor has to sit above; `twin` names the item it is a translation of, which makes that one pair a cross-lingual duplicate",
+  "namesake": "shares a proper noun with the anchor and nothing else - a control that must sit in the unrelated band",
+  "single": "a group of one; every pair it is in is unrelated"
+ },
+ "items": [
+  {
+   "group": "domain-renewal",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Renew the domain registration",
+   "notes": "",
+   "id": "en-000"
+  },
+  {
+   "group": "domain-renewal",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Renew the domain name before it lapses",
+   "notes": "",
+   "id": "en-001"
+  },
+  {
+   "group": "domain-renewal",
+   "role": "related",
+   "lang": "en",
+   "title": "Renew the TLS certificate",
+   "notes": "Expires end of month; the registrar's auto-renew is off.",
+   "id": "en-002"
+  },
+  {
+   "group": "domain-renewal",
+   "role": "related",
+   "lang": "en",
+   "title": "Move the domain to a different registrar",
+   "notes": "",
+   "id": "en-003"
+  },
+  {
+   "group": "domain-renewal",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Domain-Registrierung verlängern",
+   "notes": "",
+   "id": "de-004"
+  },
+  {
+   "group": "oat-milk",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Buy oat milk",
+   "notes": "",
+   "id": "en-005"
+  },
+  {
+   "group": "oat-milk",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Get oat milk from the shop",
+   "notes": "",
+   "id": "en-006"
+  },
+  {
+   "group": "oat-milk",
+   "role": "related",
+   "lang": "en",
+   "title": "Buy almond milk for the guests",
+   "notes": "",
+   "id": "en-007"
+  },
+  {
+   "group": "oat-milk",
+   "role": "related",
+   "lang": "en",
+   "title": "Return the empty milk crates",
+   "notes": "",
+   "id": "en-008"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Write the quarterly report",
+   "notes": "Numbers from finance by the 5th, narrative by the 8th, review with Dana on the 10th.",
+   "id": "en-009"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Draft the Q3 report",
+   "notes": "Finance sends the figures on the 5th; the text needs to be with Dana for review by the 10th.",
+   "id": "en-010"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "related",
+   "lang": "en",
+   "title": "Read last quarter's report before the planning meeting",
+   "notes": "",
+   "id": "en-011"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "related",
+   "lang": "en",
+   "title": "Book the room for the quarterly review",
+   "notes": "",
+   "id": "en-012"
+  },
+  {
+   "group": "dentist",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Book a dentist appointment",
+   "notes": "",
+   "id": "en-013"
+  },
+  {
+   "group": "dentist",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Call the dentist to schedule a check-up",
+   "notes": "",
+   "id": "en-014"
+  },
+  {
+   "group": "dentist",
+   "role": "related",
+   "lang": "en",
+   "title": "Pay the dentist's invoice",
+   "notes": "Was in the post last week; due in 14 days.",
+   "id": "en-015"
+  },
+  {
+   "group": "dentist",
+   "role": "related",
+   "lang": "en",
+   "title": "Cancel the dentist appointment on Thursday",
+   "notes": "",
+   "id": "en-016"
+  },
+  {
+   "group": "tyres",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Change to winter tyres",
+   "notes": "Garage on Elm Street, they have the set in storage.",
+   "id": "en-017"
+  },
+  {
+   "group": "tyres",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Get the winter tyres put on",
+   "notes": "The set is stored at the garage on Elm Street.",
+   "id": "en-018"
+  },
+  {
+   "group": "tyres",
+   "role": "related",
+   "lang": "en",
+   "title": "Check the tyre pressure before the trip",
+   "notes": "",
+   "id": "en-019"
+  },
+  {
+   "group": "tyres",
+   "role": "related",
+   "lang": "en",
+   "title": "Buy new summer tyres",
+   "notes": "The front ones are below 3 mm.",
+   "id": "en-020"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Fix the dripping kitchen tap",
+   "notes": "",
+   "id": "en-021"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Repair the leaking tap in the kitchen",
+   "notes": "",
+   "id": "en-022"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "related",
+   "lang": "en",
+   "title": "Replace the kitchen tap with a mixer",
+   "notes": "",
+   "id": "en-023"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "related",
+   "lang": "en",
+   "title": "Fix the dripping tap in the bathroom",
+   "notes": "",
+   "id": "en-024"
+  },
+  {
+   "group": "passport",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Renew my passport",
+   "notes": "Expires in March; the appointment takes weeks to get.",
+   "id": "en-025"
+  },
+  {
+   "group": "passport",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Apply for a new passport before the old one expires",
+   "notes": "March expiry, appointments are booked out for weeks.",
+   "id": "en-026"
+  },
+  {
+   "group": "passport",
+   "role": "related",
+   "lang": "en",
+   "title": "Get passport photos taken",
+   "notes": "",
+   "id": "en-027"
+  },
+  {
+   "group": "passport",
+   "role": "related",
+   "lang": "en",
+   "title": "Renew the kids' passports",
+   "notes": "",
+   "id": "en-028"
+  },
+  {
+   "group": "backup-restore",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Test restoring the backup",
+   "notes": "Nobody has tried a restore since the storage move.",
+   "id": "en-029"
+  },
+  {
+   "group": "backup-restore",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Do a restore drill from last night's backup",
+   "notes": "The backups have not been restored once since we moved storage.",
+   "id": "en-030"
+  },
+  {
+   "group": "backup-restore",
+   "role": "related",
+   "lang": "en",
+   "title": "Rotate the backup encryption key",
+   "notes": "",
+   "id": "en-031"
+  },
+  {
+   "group": "backup-restore",
+   "role": "related",
+   "lang": "en",
+   "title": "Move the backups to the new bucket",
+   "notes": "",
+   "id": "en-032"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Buy a birthday present for Mum",
+   "notes": "",
+   "id": "en-033"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Get Mum something for her birthday",
+   "notes": "",
+   "id": "en-034"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "related",
+   "lang": "en",
+   "title": "Book a table for Mum's birthday dinner",
+   "notes": "",
+   "id": "en-035"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "related",
+   "lang": "en",
+   "title": "Buy a birthday present for Tom",
+   "notes": "",
+   "id": "en-036"
+  },
+  {
+   "group": "flaky-test",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Fix the flaky session sweep test",
+   "notes": "Fails about one run in ten on CI, never locally.",
+   "id": "en-037"
+  },
+  {
+   "group": "flaky-test",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Make the session sweep test stop flaking",
+   "notes": "Red roughly every tenth CI run; cannot reproduce on a laptop.",
+   "id": "en-038"
+  },
+  {
+   "group": "flaky-test",
+   "role": "related",
+   "lang": "en",
+   "title": "Fix the flaky idle stream test",
+   "notes": "One red in a full run, green on re-run.",
+   "id": "en-039"
+  },
+  {
+   "group": "flaky-test",
+   "role": "related",
+   "lang": "en",
+   "title": "Add a test for the session sweep's batch size",
+   "notes": "",
+   "id": "en-040"
+  },
+  {
+   "group": "bike-service",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Take the bike in for a service",
+   "notes": "",
+   "id": "en-041"
+  },
+  {
+   "group": "bike-service",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Get the bicycle serviced",
+   "notes": "",
+   "id": "en-042"
+  },
+  {
+   "group": "bike-service",
+   "role": "related",
+   "lang": "en",
+   "title": "Fix the puncture on the back wheel",
+   "notes": "",
+   "id": "en-043"
+  },
+  {
+   "group": "bike-service",
+   "role": "related",
+   "lang": "en",
+   "title": "Buy a new bike lock",
+   "notes": "",
+   "id": "en-044"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Pay the plumber's invoice",
+   "notes": "€340, bank transfer, reference 2026-118.",
+   "id": "en-045"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Transfer the €340 to the plumber",
+   "notes": "Invoice 2026-118.",
+   "id": "en-046"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "related",
+   "lang": "en",
+   "title": "Ask the plumber for a quote for the bathroom",
+   "notes": "",
+   "id": "en-047"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "related",
+   "lang": "en",
+   "title": "Pay the electrician's invoice",
+   "notes": "€180, due Friday.",
+   "id": "en-048"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Update the onboarding document",
+   "notes": "The VPN section is out of date and the laptop request form moved.",
+   "id": "en-049"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Bring the new-starter guide up to date",
+   "notes": "VPN instructions are stale; the form for requesting a laptop has a new location.",
+   "id": "en-050"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "related",
+   "lang": "en",
+   "title": "Onboard the new developer starting Monday",
+   "notes": "",
+   "id": "en-051"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "related",
+   "lang": "en",
+   "title": "Write the offboarding checklist",
+   "notes": "",
+   "id": "en-052"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Trim the hedge",
+   "notes": "",
+   "id": "en-053"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Cut the hedge back",
+   "notes": "",
+   "id": "en-054"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "related",
+   "lang": "en",
+   "title": "Mow the lawn",
+   "notes": "",
+   "id": "en-055"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "related",
+   "lang": "en",
+   "title": "Plant a new hedge along the fence",
+   "notes": "",
+   "id": "en-056"
+  },
+  {
+   "group": "tax-return",
+   "role": "anchor",
+   "lang": "en",
+   "title": "File the tax return",
+   "notes": "Deadline 31 July. Need the pension statement and the donation receipts.",
+   "id": "en-057"
+  },
+  {
+   "group": "tax-return",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Submit this year's tax declaration",
+   "notes": "Due end of July; still missing the pension statement and the receipts for donations.",
+   "id": "en-058"
+  },
+  {
+   "group": "tax-return",
+   "role": "related",
+   "lang": "en",
+   "title": "Find the donation receipts",
+   "notes": "",
+   "id": "en-059"
+  },
+  {
+   "group": "tax-return",
+   "role": "related",
+   "lang": "en",
+   "title": "Appeal the tax assessment",
+   "notes": "",
+   "id": "en-060"
+  },
+  {
+   "group": "conference-talk",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Prepare the conference talk",
+   "notes": "25 minutes, slides due to the organisers a week before.",
+   "id": "en-061"
+  },
+  {
+   "group": "conference-talk",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Write the slides for the conference",
+   "notes": "It is a 25-minute slot and the organisers want the deck one week ahead.",
+   "id": "en-062"
+  },
+  {
+   "group": "conference-talk",
+   "role": "related",
+   "lang": "en",
+   "title": "Book the train to the conference",
+   "notes": "",
+   "id": "en-063"
+  },
+  {
+   "group": "conference-talk",
+   "role": "related",
+   "lang": "en",
+   "title": "Submit a talk proposal for next year's conference",
+   "notes": "",
+   "id": "en-064"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Replace the smoke alarm batteries",
+   "notes": "",
+   "id": "en-065"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Put new batteries in the smoke detectors",
+   "notes": "",
+   "id": "en-066"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "related",
+   "lang": "en",
+   "title": "Install a smoke alarm in the hallway",
+   "notes": "",
+   "id": "en-067"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "related",
+   "lang": "en",
+   "title": "Replace the batteries in the TV remote",
+   "notes": "",
+   "id": "en-068"
+  },
+  {
+   "group": "rate-limit",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Rate-limit the login endpoint",
+   "notes": "Per IP and per account, with a 429 that names the retry window.",
+   "id": "en-069"
+  },
+  {
+   "group": "rate-limit",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Add throttling to POST /auth/login",
+   "notes": "Limit by IP and by account; answer 429 with Retry-After.",
+   "id": "en-070"
+  },
+  {
+   "group": "rate-limit",
+   "role": "related",
+   "lang": "en",
+   "title": "Rate-limit the search endpoint",
+   "notes": "",
+   "id": "en-071"
+  },
+  {
+   "group": "rate-limit",
+   "role": "related",
+   "lang": "en",
+   "title": "Log failed login attempts",
+   "notes": "",
+   "id": "en-072"
+  },
+  {
+   "group": "car-insurance",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Compare car insurance offers",
+   "notes": "Current policy renews in November; two quotes from the comparison site are cheaper.",
+   "id": "en-073"
+  },
+  {
+   "group": "car-insurance",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Look for a cheaper car insurance before November",
+   "notes": "Renewal is in November and the comparison site shows two cheaper quotes.",
+   "id": "en-074"
+  },
+  {
+   "group": "car-insurance",
+   "role": "related",
+   "lang": "en",
+   "title": "Cancel the old car insurance",
+   "notes": "",
+   "id": "en-075"
+  },
+  {
+   "group": "car-insurance",
+   "role": "related",
+   "lang": "en",
+   "title": "Compare home insurance offers",
+   "notes": "",
+   "id": "en-076"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Move the daily stand-up to 9:30",
+   "notes": "",
+   "id": "en-077"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Reschedule the morning stand-up to half past nine",
+   "notes": "",
+   "id": "en-078"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "related",
+   "lang": "en",
+   "title": "Cancel the stand-up on Friday",
+   "notes": "",
+   "id": "en-079"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "related",
+   "lang": "en",
+   "title": "Move the retrospective to Thursday",
+   "notes": "",
+   "id": "en-080"
+  },
+  {
+   "group": "boiler-service",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Book the annual boiler service",
+   "notes": "",
+   "id": "en-081"
+  },
+  {
+   "group": "boiler-service",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Arrange the yearly gas boiler inspection",
+   "notes": "",
+   "id": "en-082"
+  },
+  {
+   "group": "boiler-service",
+   "role": "related",
+   "lang": "en",
+   "title": "Bleed the radiators before winter",
+   "notes": "",
+   "id": "en-083"
+  },
+  {
+   "group": "boiler-service",
+   "role": "related",
+   "lang": "en",
+   "title": "Get a quote for a heat pump",
+   "notes": "",
+   "id": "en-084"
+  },
+  {
+   "group": "library-books",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Return the library books",
+   "notes": "Due Saturday, three of them, the children's ones too.",
+   "id": "en-085"
+  },
+  {
+   "group": "library-books",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Take the books back to the library by Saturday",
+   "notes": "Three books including the kids'.",
+   "id": "en-086"
+  },
+  {
+   "group": "library-books",
+   "role": "related",
+   "lang": "en",
+   "title": "Renew the library card",
+   "notes": "",
+   "id": "en-087"
+  },
+  {
+   "group": "library-books",
+   "role": "related",
+   "lang": "en",
+   "title": "Reserve the new novel at the library",
+   "notes": "",
+   "id": "en-088"
+  },
+  {
+   "group": "expense-claim",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Submit the expense claim for the Berlin trip",
+   "notes": "Hotel, two train tickets, one dinner. Receipts are in the blue folder.",
+   "id": "en-089"
+  },
+  {
+   "group": "expense-claim",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "File expenses from Berlin",
+   "notes": "The hotel, both train tickets and the dinner; receipts in the blue folder.",
+   "id": "en-090"
+  },
+  {
+   "group": "expense-claim",
+   "role": "related",
+   "lang": "en",
+   "title": "Submit the expense claim for the Vienna trip",
+   "notes": "Only the flight; the hotel was paid centrally.",
+   "id": "en-091"
+  },
+  {
+   "group": "expense-claim",
+   "role": "related",
+   "lang": "en",
+   "title": "Approve Priya's expense claim",
+   "notes": "",
+   "id": "en-092"
+  },
+  {
+   "group": "migration-index",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Add an index on job.run_at",
+   "notes": "The dispatcher's query is a sequential scan once the table passes a million rows.",
+   "id": "en-093"
+  },
+  {
+   "group": "migration-index",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Index the run_at column of the job table",
+   "notes": "Dispatch does a seq scan above ~1M rows.",
+   "id": "en-094"
+  },
+  {
+   "group": "migration-index",
+   "role": "related",
+   "lang": "en",
+   "title": "Add an index on audit_entry.occurred_at",
+   "notes": "",
+   "id": "en-095"
+  },
+  {
+   "group": "migration-index",
+   "role": "related",
+   "lang": "en",
+   "title": "Drop the unused index on job.dedupe_key",
+   "notes": "",
+   "id": "en-096"
+  },
+  {
+   "group": "wedding-rsvp",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Reply to Sam and Lea's wedding invitation",
+   "notes": "By the end of the month; say whether we bring the kids.",
+   "id": "en-097"
+  },
+  {
+   "group": "wedding-rsvp",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "RSVP to the wedding",
+   "notes": "Sam and Lea want to know by month end, and whether the children come.",
+   "id": "en-098"
+  },
+  {
+   "group": "wedding-rsvp",
+   "role": "related",
+   "lang": "en",
+   "title": "Buy a wedding present for Sam and Lea",
+   "notes": "",
+   "id": "en-099"
+  },
+  {
+   "group": "wedding-rsvp",
+   "role": "related",
+   "lang": "en",
+   "title": "Book a hotel near the wedding venue",
+   "notes": "",
+   "id": "en-100"
+  },
+  {
+   "group": "printer-toner",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Order toner for the office printer",
+   "notes": "",
+   "id": "en-101"
+  },
+  {
+   "group": "printer-toner",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Buy a new toner cartridge for the printer",
+   "notes": "",
+   "id": "en-102"
+  },
+  {
+   "group": "printer-toner",
+   "role": "related",
+   "lang": "en",
+   "title": "Fix the paper jam in the office printer",
+   "notes": "",
+   "id": "en-103"
+  },
+  {
+   "group": "printer-toner",
+   "role": "related",
+   "lang": "en",
+   "title": "Order paper for the office",
+   "notes": "",
+   "id": "en-104"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Take the cat for her vaccination",
+   "notes": "",
+   "id": "en-105"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Vet appointment for the cat's booster jab",
+   "notes": "",
+   "id": "en-106"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "related",
+   "lang": "en",
+   "title": "Buy cat food",
+   "notes": "",
+   "id": "en-107"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "related",
+   "lang": "en",
+   "title": "Take the dog for his vaccination",
+   "notes": "",
+   "id": "en-108"
+  },
+  {
+   "group": "csv-export",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Export the members list as CSV",
+   "notes": "For the accountant; name, email, join date, nothing else.",
+   "id": "en-109"
+  },
+  {
+   "group": "csv-export",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Send the accountant a CSV of all members",
+   "notes": "Just name, email and the date they joined.",
+   "id": "en-110"
+  },
+  {
+   "group": "csv-export",
+   "role": "related",
+   "lang": "en",
+   "title": "Import last year's members from the old spreadsheet",
+   "notes": "",
+   "id": "en-111"
+  },
+  {
+   "group": "csv-export",
+   "role": "related",
+   "lang": "en",
+   "title": "Export the invoices as CSV",
+   "notes": "",
+   "id": "en-112"
+  },
+  {
+   "group": "kids-school",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Sign the school trip permission form",
+   "notes": "Back by Wednesday, with the €12.",
+   "id": "en-113"
+  },
+  {
+   "group": "kids-school",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Return the signed form for the school trip",
+   "notes": "Wednesday at the latest, and enclose 12 euros.",
+   "id": "en-114"
+  },
+  {
+   "group": "kids-school",
+   "role": "related",
+   "lang": "en",
+   "title": "Pack a lunch for the school trip",
+   "notes": "",
+   "id": "en-115"
+  },
+  {
+   "group": "kids-school",
+   "role": "related",
+   "lang": "en",
+   "title": "Sign up for the parents' evening",
+   "notes": "",
+   "id": "en-116"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Rotate the staging TLS certificate",
+   "notes": "Expires on the 14th; the renewal bot has been failing since the DNS move.",
+   "id": "en-117"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Renew the certificate on staging before the 14th",
+   "notes": "Automatic renewal broke when DNS moved.",
+   "id": "en-118"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "related",
+   "lang": "en",
+   "title": "Fix the renewal bot's DNS challenge",
+   "notes": "",
+   "id": "en-119"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "related",
+   "lang": "en",
+   "title": "Rotate the production database password",
+   "notes": "",
+   "id": "en-120"
+  },
+  {
+   "group": "boiler-service",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Heizungswartung für den Herbst vereinbaren",
+   "notes": "",
+   "id": "de-121"
+  },
+  {
+   "group": "boiler-service",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Termin für die jährliche Wartung der Gasheizung ausmachen",
+   "notes": "",
+   "id": "de-122"
+  },
+  {
+   "group": "boiler-service",
+   "role": "related",
+   "lang": "de",
+   "title": "Heizkörper vor dem Winter entlüften",
+   "notes": "",
+   "twin": "en-083",
+   "id": "de-123"
+  },
+  {
+   "group": "boiler-service",
+   "role": "related",
+   "lang": "de",
+   "title": "Angebot für eine Wärmepumpe einholen",
+   "notes": "",
+   "twin": "en-084",
+   "id": "de-124"
+  },
+  {
+   "group": "de-kita",
+   "role": "anchor",
+   "lang": "de",
+   "title": "Kita-Anmeldung für Lina abgeben",
+   "notes": "Bis zum 15. beim Amt, mit Geburtsurkunde und Arbeitgeberbescheinigung.",
+   "id": "de-125"
+  },
+  {
+   "group": "de-kita",
+   "role": "duplicate",
+   "lang": "de",
+   "title": "Lina für die Kita anmelden",
+   "notes": "Frist ist der 15.; Geburtsurkunde und die Bescheinigung vom Arbeitgeber mitnehmen.",
+   "id": "de-126"
+  },
+  {
+   "group": "de-kita",
+   "role": "related",
+   "lang": "de",
+   "title": "Elternabend in der Kita",
+   "notes": "",
+   "id": "de-127"
+  },
+  {
+   "group": "de-kita",
+   "role": "related",
+   "lang": "de",
+   "title": "Kindergeldantrag für Lina stellen",
+   "notes": "",
+   "id": "de-128"
+  },
+  {
+   "group": "de-umzug",
+   "role": "anchor",
+   "lang": "de",
+   "title": "Umzugskartons besorgen",
+   "notes": "Etwa 30 Stück, plus Klebeband und Marker.",
+   "id": "de-129"
+  },
+  {
+   "group": "de-umzug",
+   "role": "duplicate",
+   "lang": "de",
+   "title": "Kartons für den Umzug kaufen",
+   "notes": "Ungefähr dreißig, dazu Paketband und Stifte zum Beschriften.",
+   "id": "de-130"
+  },
+  {
+   "group": "de-umzug",
+   "role": "related",
+   "lang": "de",
+   "title": "Umzugswagen für Samstag mieten",
+   "notes": "",
+   "id": "de-131"
+  },
+  {
+   "group": "de-umzug",
+   "role": "related",
+   "lang": "de",
+   "title": "Nachsendeauftrag bei der Post einrichten",
+   "notes": "",
+   "id": "de-132"
+  },
+  {
+   "group": "de-bahncard",
+   "role": "anchor",
+   "lang": "de",
+   "title": "BahnCard kündigen",
+   "notes": "Läuft sonst automatisch weiter; Kündigungsfrist sechs Wochen vor Ablauf.",
+   "id": "de-133"
+  },
+  {
+   "group": "de-bahncard",
+   "role": "duplicate",
+   "lang": "de",
+   "title": "Die BahnCard rechtzeitig abbestellen",
+   "notes": "Sechs Wochen vor Ende, sonst verlängert sie sich von selbst.",
+   "id": "de-134"
+  },
+  {
+   "group": "de-bahncard",
+   "role": "related",
+   "lang": "de",
+   "title": "Zugticket nach Hamburg buchen",
+   "notes": "",
+   "id": "de-135"
+  },
+  {
+   "group": "de-bahncard",
+   "role": "related",
+   "lang": "de",
+   "title": "Zeitschriftenabo kündigen",
+   "notes": "",
+   "id": "de-136"
+  },
+  {
+   "group": "de-mietvertrag",
+   "role": "anchor",
+   "lang": "de",
+   "title": "Mietvertrag für die neue Wohnung unterschreiben",
+   "notes": "Termin beim Vermieter Dienstag 17 Uhr, Personalausweis und Gehaltsnachweise mitbringen.",
+   "id": "de-137"
+  },
+  {
+   "group": "de-mietvertrag",
+   "role": "duplicate",
+   "lang": "de",
+   "title": "Den Vertrag für die Wohnung beim Vermieter unterzeichnen",
+   "notes": "Dienstag um 17 Uhr; Ausweis und die letzten Gehaltsabrechnungen nicht vergessen.",
+   "id": "de-138"
+  },
+  {
+   "group": "de-mietvertrag",
+   "role": "related",
+   "lang": "de",
+   "title": "Alte Wohnung fristgerecht kündigen",
+   "notes": "",
+   "id": "de-139"
+  },
+  {
+   "group": "de-mietvertrag",
+   "role": "related",
+   "lang": "de",
+   "title": "Kaution für die neue Wohnung überweisen",
+   "notes": "",
+   "id": "de-140"
+  },
+  {
+   "group": "migration-index",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Index auf job.run_at anlegen",
+   "notes": "Die Abfrage des Dispatchers macht ab einer Million Zeilen einen Sequential Scan.",
+   "id": "de-141"
+  },
+  {
+   "group": "migration-index",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Die Spalte run_at der Job-Tabelle indizieren",
+   "notes": "Ab etwa 1 Mio. Zeilen läuft der Dispatch als Seq Scan.",
+   "id": "de-142"
+  },
+  {
+   "group": "migration-index",
+   "role": "related",
+   "lang": "de",
+   "title": "Index auf audit_entry.occurred_at anlegen",
+   "notes": "",
+   "twin": "en-095",
+   "id": "de-143"
+  },
+  {
+   "group": "migration-index",
+   "role": "related",
+   "lang": "de",
+   "title": "Ungenutzten Index auf job.dedupe_key entfernen",
+   "notes": "",
+   "twin": "en-096",
+   "id": "de-144"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Katze zum Impfen bringen",
+   "notes": "",
+   "id": "de-145"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Tierarzttermin für die Auffrischungsimpfung der Katze",
+   "notes": "",
+   "id": "de-146"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "related",
+   "lang": "de",
+   "title": "Katzenfutter kaufen",
+   "notes": "",
+   "twin": "en-107",
+   "id": "de-147"
+  },
+  {
+   "group": "vaccination-cat",
+   "role": "related",
+   "lang": "de",
+   "title": "Hund zum Impfen bringen",
+   "notes": "",
+   "twin": "en-108",
+   "id": "de-148"
+  },
+  {
+   "group": "printer-toner",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Toner für den Bürodrucker bestellen",
+   "notes": "",
+   "id": "de-149"
+  },
+  {
+   "group": "printer-toner",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Neue Tonerkartusche für den Drucker kaufen",
+   "notes": "",
+   "id": "de-150"
+  },
+  {
+   "group": "printer-toner",
+   "role": "related",
+   "lang": "de",
+   "title": "Papierstau im Bürodrucker beheben",
+   "notes": "",
+   "twin": "en-103",
+   "id": "de-151"
+  },
+  {
+   "group": "printer-toner",
+   "role": "related",
+   "lang": "de",
+   "title": "Papier fürs Büro bestellen",
+   "notes": "",
+   "twin": "en-104",
+   "id": "de-152"
+  },
+  {
+   "group": "kids-school",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Einverständniserklärung für den Schulausflug unterschreiben",
+   "notes": "Bis Mittwoch zurück, mit den 12 €.",
+   "id": "de-153"
+  },
+  {
+   "group": "kids-school",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Den unterschriebenen Zettel für den Ausflug abgeben",
+   "notes": "Spätestens Mittwoch, und 12 Euro beilegen.",
+   "id": "de-154"
+  },
+  {
+   "group": "kids-school",
+   "role": "related",
+   "lang": "de",
+   "title": "Brotdose für den Schulausflug packen",
+   "notes": "",
+   "twin": "en-115",
+   "id": "de-155"
+  },
+  {
+   "group": "kids-school",
+   "role": "related",
+   "lang": "de",
+   "title": "Für den Elternsprechtag eintragen",
+   "notes": "",
+   "twin": "en-116",
+   "id": "de-156"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "TLS-Zertifikat auf Staging erneuern",
+   "notes": "Läuft am 14. ab; der Erneuerungs-Bot scheitert seit dem DNS-Umzug.",
+   "id": "de-157"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Das Staging-Zertifikat vor dem 14. verlängern",
+   "notes": "Die automatische Erneuerung ist beim DNS-Umzug kaputtgegangen.",
+   "id": "de-158"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "related",
+   "lang": "de",
+   "title": "DNS-Challenge des Erneuerungs-Bots reparieren",
+   "notes": "",
+   "twin": "en-119",
+   "id": "de-159"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "related",
+   "lang": "de",
+   "title": "Passwort der Produktionsdatenbank rotieren",
+   "notes": "",
+   "twin": "en-120",
+   "id": "de-160"
+  },
+  {
+   "group": "domain-renewal",
+   "role": "near-identical",
+   "lang": "en",
+   "title": "Renew the domain registrations",
+   "notes": "",
+   "id": "en-161"
+  },
+  {
+   "group": "oat-milk",
+   "role": "near-identical",
+   "lang": "en",
+   "title": "Buy oat milk!",
+   "notes": "",
+   "id": "en-162"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "near-identical",
+   "lang": "en",
+   "title": "Write the quarterly report",
+   "notes": "Numbers from finance by the 5th, narrative by the 8th, review with Dana on the 11th.",
+   "id": "en-163"
+  },
+  {
+   "group": "dentist",
+   "role": "near-identical",
+   "lang": "en",
+   "title": "Book a dentist appointment.",
+   "notes": "",
+   "id": "en-164"
+  },
+  {
+   "group": "tax-return",
+   "role": "near-identical",
+   "lang": "en",
+   "title": "File the tax return",
+   "notes": "Deadline 31 July. Need the pension statement and the donation receipts!",
+   "id": "en-165"
+  },
+  {
+   "group": "de-kita",
+   "role": "near-identical",
+   "lang": "de",
+   "title": "Kita-Anmeldung für Lina abgeben",
+   "notes": "Bis zum 15. beim Amt, mit Geburtsurkunde und Arbeitgeberbescheinigung",
+   "id": "de-166"
+  },
+  {
+   "group": "de-umzug",
+   "role": "near-identical",
+   "lang": "de",
+   "title": "Umzugskartons besorgen",
+   "notes": "Etwa 30 Stück, plus Klebeband und Marker",
+   "id": "de-167"
+  },
+  {
+   "group": "cert-expiry",
+   "role": "near-identical",
+   "lang": "en",
+   "title": "Rotate the staging TLS certificate",
+   "notes": "Expires on the 14th; the renewal bot has been failing since the DNS change.",
+   "id": "en-168"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "namesake",
+   "lang": "en",
+   "title": "Send Dana the photos from the hike",
+   "notes": "",
+   "id": "en-169"
+  },
+  {
+   "group": "wedding-rsvp",
+   "role": "namesake",
+   "lang": "en",
+   "title": "Ask Sam whether the ladder is still in his garage",
+   "notes": "",
+   "id": "en-170"
+  },
+  {
+   "group": "expense-claim",
+   "role": "namesake",
+   "lang": "en",
+   "title": "Recommend a restaurant in Berlin to Marta",
+   "notes": "",
+   "id": "en-171"
+  },
+  {
+   "group": "tyres",
+   "role": "namesake",
+   "lang": "en",
+   "title": "Pick up the parcel from Elm Street",
+   "notes": "",
+   "id": "en-172"
+  },
+  {
+   "group": "de-kita",
+   "role": "namesake",
+   "lang": "de",
+   "title": "Lina zum Schwimmkurs anmelden",
+   "notes": "",
+   "id": "de-173"
+  },
+  {
+   "group": "de-mietvertrag",
+   "role": "namesake",
+   "lang": "de",
+   "title": "Dem Vermieter die Weihnachtskarte schicken",
+   "notes": "",
+   "id": "de-174"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Clear out the garage",
+   "notes": "Everything on the left wall goes: the old bikes, the paint tins, the broken shelving. Take the paint to the recycling centre, not the bin. Keep the camping gear and the winter tyres. Ask Jonas first whether he wants the workbench before it goes on the free-stuff site.",
+   "id": "en-175"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Sort out the garage",
+   "notes": "The left wall is all rubbish - old bicycles, tins of paint, shelves that fell apart. Paint goes to recycling, the rest to the tip. Camping things and the winter tyres stay. Offer Jonas the workbench before giving it away.",
+   "id": "en-176"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "related",
+   "lang": "en",
+   "title": "Fix the garage door opener",
+   "notes": "It stops halfway on cold mornings. Probably the sensor; the manual is in the drawer under the printer.",
+   "id": "en-177"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "related",
+   "lang": "en",
+   "title": "Clear out the attic",
+   "notes": "Boxes from the last move are still up there, mostly books and the kids' baby clothes. The clothes go to the charity shop, the books get sorted on the kitchen table one evening.",
+   "id": "en-178"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Garage entrümpeln",
+   "notes": "Alles an der linken Wand kommt weg: die alten Fahrräder, die Farbeimer, das kaputte Regal. Die Farbe zum Wertstoffhof, nicht in die Tonne. Campingsachen und Winterreifen bleiben. Vorher Jonas fragen, ob er die Werkbank will, bevor sie auf die Verschenk-Seite kommt.",
+   "id": "de-179"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Die Garage ausmisten",
+   "notes": "Die linke Wand ist nur Gerümpel - alte Räder, Farbdosen, ein zerfallenes Regal. Farbe zum Wertstoffhof, der Rest zum Sperrmüll. Campingzeug und die Winterreifen bleiben. Jonas die Werkbank anbieten, bevor sie verschenkt wird.",
+   "id": "de-180"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "related",
+   "lang": "de",
+   "title": "Garagentoröffner reparieren",
+   "notes": "Bleibt an kalten Morgen auf halber Höhe stehen. Vermutlich der Sensor; die Anleitung liegt in der Schublade unter dem Drucker.",
+   "id": "de-181",
+   "twin": "en-177"
+  },
+  {
+   "group": "garage-clearout",
+   "role": "related",
+   "lang": "de",
+   "title": "Dachboden entrümpeln",
+   "notes": "Die Kartons vom letzten Umzug stehen noch oben, vor allem Bücher und Babykleidung. Die Kleidung zur Kleiderkammer, die Bücher an einem Abend am Küchentisch sortieren.",
+   "id": "de-182",
+   "twin": "en-178"
+  },
+  {
+   "group": "sync-conflict",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Preserve both sides of a sync conflict",
+   "notes": "When two devices edit the same field offline, the loser's value must be kept somewhere the person can see it, not silently discarded. The conflict record needs the field, both values, both timestamps and which device wrote each. The UI work is separate; this is the record and the merge rule only.",
+   "id": "en-183"
+  },
+  {
+   "group": "sync-conflict",
+   "role": "duplicate",
+   "lang": "en",
+   "title": "Keep the losing value when two offline edits collide",
+   "notes": "Same field edited on two devices while offline: don't throw the loser away. Store a conflict row with the field, the two values, the two timestamps and the two device ids. Rendering it is a separate task - this one is the row and the merge rule.",
+   "id": "en-184"
+  },
+  {
+   "group": "sync-conflict",
+   "role": "related",
+   "lang": "en",
+   "title": "Render sync conflicts in the entry's history",
+   "notes": "Show the conflict rows from the sync record in the history view, with the value that lost and a way to restore it. Depends on the record existing first.",
+   "id": "en-185"
+  },
+  {
+   "group": "sync-conflict",
+   "role": "related",
+   "lang": "en",
+   "title": "Use a fractional index for offline reordering",
+   "notes": "Two devices reordering the same list offline must not produce a collision on merge; a fractional key between neighbours does that without renumbering.",
+   "id": "en-186"
+  },
+  {
+   "group": "tax-return",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Steuererklärung abgeben",
+   "notes": "Frist 31. Juli. Rentenbescheinigung und Spendenquittungen fehlen noch.",
+   "id": "de-187"
+  },
+  {
+   "group": "tax-return",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Die Steuererklärung für dieses Jahr einreichen",
+   "notes": "Bis Ende Juli; die Bescheinigung der Rentenversicherung und die Quittungen für die Spenden sind noch nicht da.",
+   "id": "de-188"
+  },
+  {
+   "group": "tax-return",
+   "role": "related",
+   "lang": "de",
+   "title": "Spendenquittungen heraussuchen",
+   "notes": "",
+   "twin": "en-059",
+   "id": "de-189"
+  },
+  {
+   "group": "tax-return",
+   "role": "related",
+   "lang": "de",
+   "title": "Einspruch gegen den Steuerbescheid einlegen",
+   "notes": "",
+   "twin": "en-060",
+   "id": "de-190"
+  },
+  {
+   "group": "dentist",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Zahnarzttermin vereinbaren",
+   "notes": "",
+   "id": "de-191"
+  },
+  {
+   "group": "dentist",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Beim Zahnarzt anrufen und einen Termin zur Kontrolle ausmachen",
+   "notes": "",
+   "id": "de-192"
+  },
+  {
+   "group": "dentist",
+   "role": "related",
+   "lang": "de",
+   "title": "Zahnarztrechnung bezahlen",
+   "notes": "Kam letzte Woche mit der Post, zahlbar in 14 Tagen.",
+   "twin": "en-015",
+   "id": "de-193"
+  },
+  {
+   "group": "dentist",
+   "role": "related",
+   "lang": "de",
+   "title": "Zahnarzttermin am Donnerstag absagen",
+   "notes": "",
+   "twin": "en-016",
+   "id": "de-194"
+  },
+  {
+   "group": "tyres",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Winterreifen aufziehen lassen",
+   "notes": "Werkstatt in der Ulmenstraße, die haben den Satz eingelagert.",
+   "id": "de-195"
+  },
+  {
+   "group": "tyres",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Auf Winterreifen wechseln",
+   "notes": "Der Satz liegt bei der Werkstatt in der Ulmenstraße.",
+   "id": "de-196"
+  },
+  {
+   "group": "tyres",
+   "role": "related",
+   "lang": "de",
+   "title": "Reifendruck vor der Fahrt prüfen",
+   "notes": "",
+   "twin": "en-019",
+   "id": "de-197"
+  },
+  {
+   "group": "tyres",
+   "role": "related",
+   "lang": "de",
+   "title": "Neue Sommerreifen kaufen",
+   "notes": "Die vorderen sind unter 3 mm.",
+   "twin": "en-020",
+   "id": "de-198"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Tropfenden Wasserhahn in der Küche reparieren",
+   "notes": "",
+   "id": "de-199"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Den undichten Küchenhahn richten",
+   "notes": "",
+   "id": "de-200"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "related",
+   "lang": "de",
+   "title": "Küchenarmatur gegen eine Mischbatterie tauschen",
+   "notes": "",
+   "twin": "en-023",
+   "id": "de-201"
+  },
+  {
+   "group": "kitchen-tap",
+   "role": "related",
+   "lang": "de",
+   "title": "Tropfenden Wasserhahn im Bad reparieren",
+   "notes": "",
+   "twin": "en-024",
+   "id": "de-202"
+  },
+  {
+   "group": "passport",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Reisepass verlängern",
+   "notes": "Läuft im März ab; auf einen Termin wartet man Wochen.",
+   "id": "de-203"
+  },
+  {
+   "group": "passport",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Neuen Reisepass beantragen, bevor der alte abläuft",
+   "notes": "Ablauf im März, Termine sind wochenlang ausgebucht.",
+   "id": "de-204"
+  },
+  {
+   "group": "passport",
+   "role": "related",
+   "lang": "de",
+   "title": "Passfotos machen lassen",
+   "notes": "",
+   "twin": "en-027",
+   "id": "de-205"
+  },
+  {
+   "group": "passport",
+   "role": "related",
+   "lang": "de",
+   "title": "Kinderreisepässe verlängern",
+   "notes": "",
+   "twin": "en-028",
+   "id": "de-206"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Quartalsbericht schreiben",
+   "notes": "Zahlen von der Buchhaltung bis zum 5., Text bis zum 8., Durchsicht mit Dana am 10.",
+   "id": "de-207"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Den Bericht für Q3 entwerfen",
+   "notes": "Die Buchhaltung schickt die Zahlen am 5.; der Text muss bis zum 10. bei Dana zur Durchsicht sein.",
+   "id": "de-208"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "related",
+   "lang": "de",
+   "title": "Bericht vom letzten Quartal vor der Planung lesen",
+   "notes": "",
+   "twin": "en-011",
+   "id": "de-209"
+  },
+  {
+   "group": "quarterly-report",
+   "role": "related",
+   "lang": "de",
+   "title": "Raum für die Quartalsbesprechung buchen",
+   "notes": "",
+   "twin": "en-012",
+   "id": "de-210"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Hecke schneiden",
+   "notes": "",
+   "id": "de-211"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Die Hecke zurückschneiden",
+   "notes": "",
+   "id": "de-212"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "related",
+   "lang": "de",
+   "title": "Rasen mähen",
+   "notes": "",
+   "twin": "en-055",
+   "id": "de-213"
+  },
+  {
+   "group": "garden-hedge",
+   "role": "related",
+   "lang": "de",
+   "title": "Neue Hecke am Zaun pflanzen",
+   "notes": "",
+   "twin": "en-056",
+   "id": "de-214"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Geburtstagsgeschenk für Mama kaufen",
+   "notes": "",
+   "id": "de-215"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Mama etwas zum Geburtstag besorgen",
+   "notes": "",
+   "id": "de-216"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "related",
+   "lang": "de",
+   "title": "Tisch fürs Geburtstagsessen von Mama reservieren",
+   "notes": "",
+   "twin": "en-035",
+   "id": "de-217"
+  },
+  {
+   "group": "birthday-mum",
+   "role": "related",
+   "lang": "de",
+   "title": "Geburtstagsgeschenk für Tom kaufen",
+   "notes": "",
+   "twin": "en-036",
+   "id": "de-218"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Batterien der Rauchmelder wechseln",
+   "notes": "",
+   "id": "de-219"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Neue Batterien in die Rauchmelder einsetzen",
+   "notes": "",
+   "id": "de-220"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "related",
+   "lang": "de",
+   "title": "Rauchmelder im Flur anbringen",
+   "notes": "",
+   "twin": "en-067",
+   "id": "de-221"
+  },
+  {
+   "group": "smoke-alarm",
+   "role": "related",
+   "lang": "de",
+   "title": "Batterien der Fernbedienung wechseln",
+   "notes": "",
+   "twin": "en-068",
+   "id": "de-222"
+  },
+  {
+   "group": "car-insurance",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Kfz-Versicherungsangebote vergleichen",
+   "notes": "Der aktuelle Vertrag verlängert sich im November; zwei Angebote vom Vergleichsportal sind günstiger.",
+   "id": "de-223"
+  },
+  {
+   "group": "car-insurance",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Vor November eine günstigere Autoversicherung suchen",
+   "notes": "Verlängerung im November, das Vergleichsportal zeigt zwei günstigere Tarife.",
+   "id": "de-224"
+  },
+  {
+   "group": "car-insurance",
+   "role": "related",
+   "lang": "de",
+   "title": "Alte Kfz-Versicherung kündigen",
+   "notes": "",
+   "twin": "en-075",
+   "id": "de-225"
+  },
+  {
+   "group": "car-insurance",
+   "role": "related",
+   "lang": "de",
+   "title": "Hausratversicherungen vergleichen",
+   "notes": "",
+   "twin": "en-076",
+   "id": "de-226"
+  },
+  {
+   "group": "conference-talk",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Vortrag für die Konferenz vorbereiten",
+   "notes": "25 Minuten, Folien eine Woche vorher an die Veranstalter.",
+   "id": "de-227"
+  },
+  {
+   "group": "conference-talk",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Folien für die Konferenz schreiben",
+   "notes": "Es ist ein 25-Minuten-Slot, und die Veranstalter wollen die Folien eine Woche vorher.",
+   "id": "de-228"
+  },
+  {
+   "group": "conference-talk",
+   "role": "related",
+   "lang": "de",
+   "title": "Zug zur Konferenz buchen",
+   "notes": "",
+   "twin": "en-063",
+   "id": "de-229"
+  },
+  {
+   "group": "conference-talk",
+   "role": "related",
+   "lang": "de",
+   "title": "Vortragsvorschlag für die Konferenz im nächsten Jahr einreichen",
+   "notes": "",
+   "twin": "en-064",
+   "id": "de-230"
+  },
+  {
+   "group": "bike-service",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Fahrrad zur Inspektion bringen",
+   "notes": "",
+   "id": "de-231"
+  },
+  {
+   "group": "bike-service",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Das Rad warten lassen",
+   "notes": "",
+   "id": "de-232"
+  },
+  {
+   "group": "bike-service",
+   "role": "related",
+   "lang": "de",
+   "title": "Platten am Hinterrad flicken",
+   "notes": "",
+   "twin": "en-043",
+   "id": "de-233"
+  },
+  {
+   "group": "bike-service",
+   "role": "related",
+   "lang": "de",
+   "title": "Neues Fahrradschloss kaufen",
+   "notes": "",
+   "twin": "en-044",
+   "id": "de-234"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Rechnung vom Klempner bezahlen",
+   "notes": "340 €, Überweisung, Verwendungszweck 2026-118.",
+   "id": "de-235"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Die 340 € an den Klempner überweisen",
+   "notes": "Rechnung 2026-118.",
+   "id": "de-236"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "related",
+   "lang": "de",
+   "title": "Klempner um ein Angebot fürs Bad bitten",
+   "notes": "",
+   "twin": "en-047",
+   "id": "de-237"
+  },
+  {
+   "group": "invoice-plumber",
+   "role": "related",
+   "lang": "de",
+   "title": "Rechnung vom Elektriker bezahlen",
+   "notes": "180 €, fällig Freitag.",
+   "twin": "en-048",
+   "id": "de-238"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Daily auf 9:30 verschieben",
+   "notes": "",
+   "id": "de-239"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Das morgendliche Stand-up auf halb zehn legen",
+   "notes": "",
+   "id": "de-240"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "related",
+   "lang": "de",
+   "title": "Daily am Freitag ausfallen lassen",
+   "notes": "",
+   "twin": "en-079",
+   "id": "de-241"
+  },
+  {
+   "group": "stand-up-time",
+   "role": "related",
+   "lang": "de",
+   "title": "Retrospektive auf Donnerstag verschieben",
+   "notes": "",
+   "twin": "en-080",
+   "id": "de-242"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Onboarding-Dokument aktualisieren",
+   "notes": "Der VPN-Abschnitt ist veraltet und das Formular für die Laptop-Bestellung ist umgezogen.",
+   "id": "de-243"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Den Leitfaden für neue Kolleginnen auf den aktuellen Stand bringen",
+   "notes": "Die VPN-Anleitung stimmt nicht mehr; das Formular zum Anfordern eines Laptops liegt woanders.",
+   "id": "de-244"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "related",
+   "lang": "de",
+   "title": "Neue Entwicklerin ab Montag einarbeiten",
+   "notes": "",
+   "twin": "en-051",
+   "id": "de-245"
+  },
+  {
+   "group": "onboarding-doc",
+   "role": "related",
+   "lang": "de",
+   "title": "Offboarding-Checkliste schreiben",
+   "notes": "",
+   "twin": "en-052",
+   "id": "de-246"
+  },
+  {
+   "group": "oat-milk",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Hafermilch kaufen",
+   "notes": "",
+   "id": "de-247"
+  },
+  {
+   "group": "oat-milk",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Hafermilch vom Laden mitbringen",
+   "notes": "",
+   "id": "de-248"
+  },
+  {
+   "group": "oat-milk",
+   "role": "related",
+   "lang": "de",
+   "title": "Mandelmilch für die Gäste kaufen",
+   "notes": "",
+   "twin": "en-007",
+   "id": "de-249"
+  },
+  {
+   "group": "oat-milk",
+   "role": "related",
+   "lang": "de",
+   "title": "Leere Milchkisten zurückbringen",
+   "notes": "",
+   "twin": "en-008",
+   "id": "de-250"
+  },
+  {
+   "group": "xl-00",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Descale the kettle",
+   "notes": "",
+   "id": "en-251"
+  },
+  {
+   "group": "xl-01",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Cancel the gym membership",
+   "notes": "",
+   "id": "en-252"
+  },
+  {
+   "group": "xl-02",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Read the pension letter",
+   "notes": "",
+   "id": "en-253"
+  },
+  {
+   "group": "xl-03",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Order a new mattress",
+   "notes": "",
+   "id": "en-254"
+  },
+  {
+   "group": "xl-04",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Upgrade PostgreSQL on the staging cluster to 17",
+   "notes": "",
+   "id": "en-255"
+  },
+  {
+   "group": "xl-05",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Write the release notes for 0.7.5",
+   "notes": "",
+   "id": "en-256"
+  },
+  {
+   "group": "xl-06",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Send the signed contract back to the publisher",
+   "notes": "",
+   "id": "en-257"
+  },
+  {
+   "group": "xl-07",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Plant the tulip bulbs before the frost",
+   "notes": "",
+   "id": "en-258"
+  },
+  {
+   "group": "xl-08",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Find a piano teacher for Mia",
+   "notes": "",
+   "id": "en-259"
+  },
+  {
+   "group": "xl-09",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Replace the broken hinge on the wardrobe door",
+   "notes": "",
+   "id": "en-260"
+  },
+  {
+   "group": "xl-10",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Ask HR about the parental leave form",
+   "notes": "",
+   "id": "en-261"
+  },
+  {
+   "group": "xl-11",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Back up the photos from the old phone",
+   "notes": "",
+   "id": "en-262"
+  },
+  {
+   "group": "xl-12",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Review the pull request on the audit export",
+   "notes": "",
+   "id": "en-263"
+  },
+  {
+   "group": "xl-13",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Get the chimney swept",
+   "notes": "",
+   "id": "en-264"
+  },
+  {
+   "group": "xl-14",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Sign up for the first-aid course",
+   "notes": "",
+   "id": "en-265"
+  },
+  {
+   "group": "xl-15",
+   "role": "anchor",
+   "lang": "en",
+   "title": "Rehearse the demo for Friday",
+   "notes": "",
+   "id": "en-266"
+  },
+  {
+   "group": "xl-00",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Wasserkocher entkalken",
+   "notes": "",
+   "id": "de-267"
+  },
+  {
+   "group": "xl-01",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Fitnessstudio-Vertrag kündigen",
+   "notes": "",
+   "id": "de-268"
+  },
+  {
+   "group": "xl-02",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Brief von der Rentenversicherung lesen",
+   "notes": "",
+   "id": "de-269"
+  },
+  {
+   "group": "xl-03",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Neue Matratze bestellen",
+   "notes": "",
+   "id": "de-270"
+  },
+  {
+   "group": "xl-04",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "PostgreSQL auf dem Staging-Cluster auf 17 aktualisieren",
+   "notes": "",
+   "id": "de-271"
+  },
+  {
+   "group": "xl-05",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Release Notes für 0.7.5 schreiben",
+   "notes": "",
+   "id": "de-272"
+  },
+  {
+   "group": "xl-06",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Unterschriebenen Vertrag an den Verlag zurückschicken",
+   "notes": "",
+   "id": "de-273"
+  },
+  {
+   "group": "xl-07",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Tulpenzwiebeln vor dem Frost setzen",
+   "notes": "",
+   "id": "de-274"
+  },
+  {
+   "group": "xl-08",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Klavierlehrerin für Mia suchen",
+   "notes": "",
+   "id": "de-275"
+  },
+  {
+   "group": "xl-09",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Kaputtes Scharnier an der Schranktür ersetzen",
+   "notes": "",
+   "id": "de-276"
+  },
+  {
+   "group": "xl-10",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Bei der Personalabteilung nach dem Elternzeit-Formular fragen",
+   "notes": "",
+   "id": "de-277"
+  },
+  {
+   "group": "xl-11",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Fotos vom alten Handy sichern",
+   "notes": "",
+   "id": "de-278"
+  },
+  {
+   "group": "xl-12",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Pull Request zum Audit-Export reviewen",
+   "notes": "",
+   "id": "de-279"
+  },
+  {
+   "group": "xl-13",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Schornsteinfeger bestellen",
+   "notes": "",
+   "id": "de-280"
+  },
+  {
+   "group": "xl-14",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Zum Erste-Hilfe-Kurs anmelden",
+   "notes": "",
+   "id": "de-281"
+  },
+  {
+   "group": "xl-15",
+   "role": "duplicate-xl",
+   "lang": "de",
+   "title": "Demo für Freitag proben",
+   "notes": "",
+   "id": "de-282"
+  },
+  {
+   "group": "single-00",
+   "role": "single",
+   "lang": "en",
+   "title": "Buy stamps",
+   "notes": "",
+   "id": "en-283"
+  },
+  {
+   "group": "single-01",
+   "role": "single",
+   "lang": "en",
+   "title": "Defrost the freezer",
+   "notes": "",
+   "id": "en-284"
+  },
+  {
+   "group": "single-02",
+   "role": "single",
+   "lang": "en",
+   "title": "Write a thank-you note to the neighbours",
+   "notes": "",
+   "id": "en-285"
+  },
+  {
+   "group": "single-03",
+   "role": "single",
+   "lang": "en",
+   "title": "Check the tide times for Sunday",
+   "notes": "",
+   "id": "en-286"
+  },
+  {
+   "group": "single-04",
+   "role": "single",
+   "lang": "en",
+   "title": "Rename the staging namespace",
+   "notes": "",
+   "id": "en-287"
+  },
+  {
+   "group": "single-05",
+   "role": "single",
+   "lang": "en",
+   "title": "Sharpen the kitchen knives",
+   "notes": "",
+   "id": "en-288"
+  },
+  {
+   "group": "single-06",
+   "role": "single",
+   "lang": "de",
+   "title": "Fahrradanhänger beim Nachbarn abholen",
+   "notes": "",
+   "id": "de-289"
+  },
+  {
+   "group": "single-07",
+   "role": "single",
+   "lang": "de",
+   "title": "Vorhänge fürs Kinderzimmer aussuchen",
+   "notes": "",
+   "id": "de-290"
+  },
+  {
+   "group": "single-08",
+   "role": "single",
+   "lang": "de",
+   "title": "Gutschein vom Buchladen einlösen",
+   "notes": "",
+   "id": "de-291"
+  },
+  {
+   "group": "single-09",
+   "role": "single",
+   "lang": "de",
+   "title": "Rollladen im Schlafzimmer reparieren lassen",
+   "notes": "",
+   "id": "de-292"
+  },
+  {
+   "group": "single-10",
+   "role": "single",
+   "lang": "de",
+   "title": "Bewerbungsgespräch mit dem Kandidaten für die Backend-Stelle",
+   "notes": "",
+   "id": "de-293"
+  },
+  {
+   "group": "single-11",
+   "role": "single",
+   "lang": "de",
+   "title": "Wasserzähler ablesen und melden",
+   "notes": "",
+   "id": "de-294"
+  }
+ ]
+}
