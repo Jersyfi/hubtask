@@ -38,7 +38,7 @@ func minioImage() string {
 	if image := os.Getenv("HUBTASK_TEST_MINIO_IMAGE"); image != "" {
 		return image
 	}
-	return "minio/minio:latest"
+	return "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z"
 }
 
 // startMinIO runs one MinIO for this test and returns the adapter pointed at it.
