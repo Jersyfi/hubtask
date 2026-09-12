@@ -26,7 +26,7 @@ func TestEachActionAsksItsOwnQuestion(t *testing.T) {
 	}{
 		{"AI_SUGGEST_FIELDS", func(a asker) error {
 			return AiSuggestFields(a.ask).Execute(context.Background(), person(), targetID, false)
-		}, "suggest-fields"},
+		}, itemFieldsPrompt},
 		{"AI_SUMMARIZE", func(a asker) error {
 			return AiSummarize(a.ask).Execute(context.Background(), person(), targetID, false)
 		}, "summarize"},
