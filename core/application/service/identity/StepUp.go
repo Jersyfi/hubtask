@@ -250,6 +250,34 @@ func (v StepUpVerifier) Satisfied(
 	return satisfied, nil
 }
 
+// Methods names what this account can prove itself with: the password always, and the code
+// where a factor is armed. An unconfirmed enrolment is no factor - the person has not shown they
+// hold the authenticator yet - so it is not offered either.
+func (v StepUpVerifier) Methods(
+	ctx context.Context, tenantID, accountID shared.ID,
+) ([]stepupport.Method, error) {
+	w := v.Writer
+	methods := []stepupport.Method{stepupport.MethodPassword}
+	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID, ActorID: accountID},
+		func(ctx context.Context) error {
+			enrollment, err := w.Enrollments.Find(ctx, accountID)
+			if err != nil {
+				if errors.Is(err, shared.ErrNotFound) {
+					return nil
+				}
+				return err
+			}
+			if !enrollment.ConfirmedAt.IsZero() {
+				methods = append(methods, stepupport.MethodTotp)
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return methods, nil
+}
+
 // Descriptor is the catalogue entry.
 func (h StepUp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{

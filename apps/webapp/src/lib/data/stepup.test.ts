@@ -112,6 +112,10 @@ test('a refusal that is not about a proof is not a proof question', async () => 
 
 test('the methods offered are the refusal’s, and the password is the floor', () => {
   assert.deepEqual(methodsOf(refusal({ methods: 'TOTP' })), ['TOTP']);
+  // The server's own shape, space-separated (stepup.Required, the contract at POST /auth/step-up):
+  // the value that was once read as one unknown name and answered with the password alone.
+  assert.deepEqual(methodsOf(refusal({ methods: 'PASSWORD TOTP' })), ['PASSWORD', 'TOTP']);
+  assert.deepEqual(methodsOf(refusal({ methods: 'PASSWORD' })), ['PASSWORD']);
   assert.deepEqual(methodsOf(refusal({ methods: 'password, totp' })), ['PASSWORD', 'TOTP']);
   // Named nothing: every account has a password, so that is the prompt that always works.
   assert.deepEqual(methodsOf(refusal()), ['PASSWORD']);

@@ -23,6 +23,7 @@ package stepup
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -32,29 +33,64 @@ import (
 // (H-03).
 const CodeRequired = "auth.step_up_required"
 
-// Required is the demand itself, minted in exactly one place.
-func Required() error {
+// Method is one way a person proves themselves afresh, as `POST /auth/step-up` takes it.
+type Method string
+
+const (
+	// MethodPassword is the proof every account with a password can give.
+	MethodPassword Method = "PASSWORD"
+	// MethodTotp is the authenticator's code, offered only where a factor is armed.
+	MethodTotp Method = "TOTP"
+)
+
+// Required is the demand itself, minted in exactly one place, naming the methods this account can
+// answer with - space-separated, in the order given, the way the contract describes the
+// parameter. A demand that names TOTP to an account without a factor sends the person to a
+// prompt for a code they cannot produce (issue 544), which is why the list is the account's and
+// not the endpoint's.
+func Required(methods ...Method) error {
+	if len(methods) == 0 {
+		methods = []Method{MethodPassword}
+	}
+	names := make([]string, 0, len(methods))
+	for _, method := range methods {
+		names = append(names, string(method))
+	}
 	return shared.ErrForbidden.
 		WithDetail(CodeRequired).
-		WithParams(map[string]string{"methods": "PASSWORD TOTP"})
+		WithParams(map[string]string{"methods": strings.Join(names, " ")})
 }
 
 // Demand is the check every privileged operation runs: a wired verifier, a presented token, a
 // satisfied proof - or the one refusal. A nil or unavailable verifier refuses rather than
 // permits, because a destructive mode permitted by omission is the failure E-06 built this seam
-// against.
-func Demand(ctx context.Context, verifier Verifier, accountID shared.ID, token string) error {
-	if verifier == nil || !verifier.Available() || token == "" {
-		return Required()
+// against; it names both methods, because nothing can look the account's up.
+func Demand(
+	ctx context.Context, verifier Verifier, tenantID, accountID shared.ID, token string,
+) error {
+	if verifier == nil || !verifier.Available() {
+		return Required(MethodPassword, MethodTotp)
+	}
+	if token == "" {
+		return refuse(ctx, verifier, tenantID, accountID)
 	}
 	satisfied, err := verifier.Satisfied(ctx, accountID, token)
 	if err != nil {
 		return err
 	}
 	if !satisfied {
-		return Required()
+		return refuse(ctx, verifier, tenantID, accountID)
 	}
 	return nil
+}
+
+// refuse is the demand with the account's own methods in it.
+func refuse(ctx context.Context, verifier Verifier, tenantID, accountID shared.ID) error {
+	methods, err := verifier.Methods(ctx, tenantID, accountID)
+	if err != nil {
+		return err
+	}
+	return Required(methods...)
 }
 
 // Verifier judges the proof.
@@ -73,4 +109,8 @@ type Verifier interface {
 	// The token is opaque here on purpose: what proves a step-up is an authentication decision,
 	// and the application layer's business is whether one was made rather than how.
 	Satisfied(ctx context.Context, accountID shared.ID, token string) (bool, error)
+
+	// Methods answers which proofs this account can give, for the refusal to name: the password
+	// always, the code where a factor is armed. Asked only when a demand is about to refuse.
+	Methods(ctx context.Context, tenantID, accountID shared.ID) ([]Method, error)
 }
