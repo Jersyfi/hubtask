@@ -31,7 +31,7 @@ type EntryTargets struct {
 var _ Targets = EntryTargets{}
 
 // The use cases a target is read through, one per target kind this build serves. A table for
-// `appliers`' reason: what this package can read is exactly what it can name.
+// `acceptance`'s reason: what this package can read is exactly what it can name.
 var readers = map[domain.TargetType]string{
 	domain.TargetWorkItem: "GetWorkItem",
 	// There is no GetJumbleEntry: the inbox is read as a list (G-10). The list is filtered to the

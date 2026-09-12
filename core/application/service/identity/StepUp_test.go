@@ -204,6 +204,43 @@ func TestTheVerifierConsumesOnceAndExpiresByTheClock(t *testing.T) {
 	}
 }
 
+// demandedMethods reads the methods a refusal named, which is what a client builds its prompt
+// from (issue 544).
+func demandedMethods(t *testing.T, err error) string {
+	t.Helper()
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) {
+		t.Fatalf("the refusal is not a domain error: %v", err)
+	}
+	return domainErr.Params["methods"]
+}
+
+// The refusal names the account's own methods, not the endpoint's: the password for everybody,
+// the code only where a factor is armed. A prompt built from the wrong list asks for a code the
+// person cannot produce, or hides the one they have.
+func TestTheDemandNamesTheAccountsOwnMethods(t *testing.T) {
+	fixture := stepUpFixture(now)
+	verifier := StepUpVerifier{Writer: fixture.writer}
+	actor := signedInActor()
+
+	err := stepup.Demand(t.Context(), verifier, actor.TenantID, actor.AccountID, "")
+	if methods := demandedMethods(t, err); methods != "PASSWORD" {
+		t.Errorf("without a factor: %q, want PASSWORD", methods)
+	}
+
+	enrolled(t, fixture)
+	err = stepup.Demand(t.Context(), verifier, actor.TenantID, actor.AccountID, "")
+	if methods := demandedMethods(t, err); methods != "PASSWORD TOTP" {
+		t.Errorf("with a factor armed: %q, want PASSWORD TOTP", methods)
+	}
+
+	// Unavailable: nothing can look the account up, so both are named rather than neither.
+	err = stepup.Demand(t.Context(), nil, actor.TenantID, actor.AccountID, "")
+	if methods := demandedMethods(t, err); methods != "PASSWORD TOTP" {
+		t.Errorf("without a verifier: %q, want PASSWORD TOTP", methods)
+	}
+}
+
 // The demand reaches the operations security.md §5 names: an OWNER grant without a proof is
 // refused with the one demand, and with a proof it passes.
 func TestAnOwnerGrantDemandsTheProof(t *testing.T) {
@@ -221,6 +258,9 @@ func TestAnOwnerGrantDemandsTheProof(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), stepup.CodeRequired) {
 		t.Fatalf("an OWNER grant without a proof answered %v", err)
+	}
+	if methods := demandedMethods(t, err); methods != "PASSWORD" {
+		t.Errorf("an account without a factor was offered %q, want PASSWORD", methods)
 	}
 
 	proof, err := StepUp{Writer: fixture.writer}.Execute(t.Context(), signedInActor(),

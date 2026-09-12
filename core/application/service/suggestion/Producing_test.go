@@ -206,7 +206,10 @@ func TestASubtaskListThatIsNotOneIsDroppedWithoutTheSuggestion(t *testing.T) {
 func TestWhatTheAcceptanceGrowsSurvivesTheNarrowingAndNothingElseDoes(t *testing.T) {
 	produce, world := producer(
 		`{"title":"Move house","notes":"a note","subtasks":["Book a van"]}`)
-	produce.Fields = declaredFields{"ConvertJumbleEntry": {"entry_id", "collection_id", "title"}}
+	// A `ConvertJumbleEntry` that declares no title, so that the narrowing has something left to
+	// drop: every key `suggest-fields` keeps is now either declared by the real descriptor or
+	// grown by the acceptance, which is the whole of what this branch changed.
+	produce.Fields = declaredFields{"ConvertJumbleEntry": {"entry_id", "collection_id"}}
 
 	if err := produce.Execute(context.Background(), person(), Request{
 		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
@@ -215,10 +218,16 @@ func TestWhatTheAcceptanceGrowsSurvivesTheNarrowingAndNothingElseDoes(t *testing
 	}
 
 	for _, recorded := range world.store.proposals {
-		if _, held := recorded.Payload["subtasks"]; !held {
-			t.Errorf("the titles the acceptance walks were narrowed away: %v", recorded.Payload)
+		// The titles the acceptance walks, and the notes it writes through UpdateWorkItem: neither
+		// is an input `ConvertJumbleEntry` declares, and both survive because `grown` says the
+		// acceptance performs them itself.
+		for _, grownKey := range []string{"subtasks", "notes"} {
+			if _, held := recorded.Payload[grownKey]; !held {
+				t.Errorf("%s is grown by the acceptance and was narrowed away: %v",
+					grownKey, recorded.Payload)
+			}
 		}
-		if _, held := recorded.Payload["notes"]; held {
+		if _, held := recorded.Payload["title"]; held {
 			t.Errorf("a field the applier cannot take was kept: %v", recorded.Payload)
 		}
 	}
@@ -937,6 +946,10 @@ type producerWorld struct {
 	// held is what the entry carries under its declared keys, which travels beside each field so
 	// that a model can leave one that is already right alone.
 	held map[string]any
+	// Where the person who asked lives, as the two reads answer it: their own preference, and the
+	// workspace's default behind it. Both empty is a workspace that has neither.
+	accountLocale, accountZone     string
+	workspaceLocale, workspaceZone string
 }
 
 // The board a classification is offered, and the entry's own column among it.
@@ -1036,6 +1049,21 @@ func (w *producerWorld) Invoke(
 		return usecase.Output{"data": w.comments}, nil
 	case "ListWorkItems":
 		return usecase.Output{"data": w.level}, nil
+	case ownAccountName:
+		// Absent rather than empty when the account inherits, which is what accountOutput does -
+		// a fake that always answered the key would hide the fallback the production code needs.
+		out := usecase.Output{"id": actor.AccountID.String()}
+		if w.accountLocale != "" {
+			out["locale"] = w.accountLocale
+		}
+		if w.accountZone != "" {
+			out["time_zone"] = w.accountZone
+		}
+		return out, nil
+	case readWorkspaceName:
+		return usecase.Output{
+			"default_locale": w.workspaceLocale, "default_time_zone": w.workspaceZone,
+		}, nil
 	case "GetContainer":
 		return usecase.Output{
 			"id": containerTargetID.String(), "name": "This quarter",
@@ -1090,4 +1118,205 @@ type sequentialIDs struct{}
 
 func (sequentialIDs) NewID() shared.ID {
 	return shared.MustParseID("0192f000-0000-7000-8000-0000000000d9")
+}
+
+// A job presents no credential, so nothing has resolved where the person who asked lives - and an
+// actor with no zone reads a date-only due date in UTC without complaining. The producer walks the
+// chain `AuthenticateToken` walks for a request, through the ordinary reads.
+func TestAJobsActorIsGivenTheAskingPersonsZone(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+	world.accountLocale, world.accountZone = "de-AT", "Europe/Vienna"
+	world.workspaceLocale, world.workspaceZone = "en", "UTC"
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	read := performedOn(world, "ListJumbleEntries")
+	if read == nil {
+		t.Fatal("the material was never read")
+	}
+	if read.actor.TimeZone != "Europe/Vienna" || read.actor.Locale != "de-AT" {
+		t.Errorf("the material was read as %q / %q, want the account's own preference",
+			read.actor.Locale, read.actor.TimeZone)
+	}
+}
+
+// The account inherits, which `accountOutput` reports by leaving the key out rather than by
+// answering an empty one. The workspace's default is what the person is then spoken to in.
+func TestAnAccountThatInheritsTakesTheWorkspacesZone(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+	world.workspaceLocale, world.workspaceZone = "de", "Europe/Berlin"
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	read := performedOn(world, "ListJumbleEntries")
+	if read == nil {
+		t.Fatal("the material was never read")
+	}
+	if read.actor.TimeZone != "Europe/Berlin" || read.actor.Locale != "de" {
+		t.Errorf("the material was read as %q / %q, want the workspace's default",
+			read.actor.Locale, read.actor.TimeZone)
+	}
+}
+
+// An actor that came through a request has both already, and asking again would be two reads per
+// suggestion to learn what the caller told us.
+func TestAnActorThatAlreadyKnowsWhereItIsIsNotAskedAgain(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+
+	actor := person()
+	actor.Locale, actor.TimeZone = "en-GB", "Europe/London"
+	if err := produce.Execute(context.Background(), actor, Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	for _, name := range []string{ownAccountName, readWorkspaceName} {
+		if performedOn(world, name) != nil {
+			t.Errorf("%s was read for an actor that already carries its zone", name)
+		}
+	}
+}
+
+func performedOn(world *producerWorld, name string) *performed {
+	for i, call := range world.performed {
+		if call.name == name {
+			return &world.performed[i]
+		}
+	}
+	return nil
+}
+
+// A due date cannot be answered honestly without a reference: "by Friday" resolves against a
+// calendar or against a training cutoff, and only one of those is this year.
+func TestAQuestionThatAsksForADueDateSaysWhatDayItIs(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	produce.Catalogue = world
+	world.accountZone = "Europe/Vienna"
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	shown := world.asked[0].Messages[1].Content
+	// `now` is noon UTC on the ninth, which is two in the afternoon in Vienna and still the ninth.
+	if !strings.Contains(shown, "2026-09-09 (Europe/Vienna)") {
+		t.Errorf("the material carries no date the answer can be measured against:\n%s", shown)
+	}
+	// In the content, never in the instruction: the date is one more thing the material says.
+	if strings.Contains(world.asked[0].Messages[0].Content, "2026-09-09") {
+		t.Error("the date reached the system message")
+	}
+}
+
+// An actor with no zone at all - a workspace that has set none either - is spelled UTC rather than
+// loaded as one, because `LoadLocation("")` answers UTC without saying so.
+func TestAnEntryWithNoZoneAnywhereIsDatedInUtc(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	if !strings.Contains(world.asked[0].Messages[1].Content, "2026-09-09 (UTC)") {
+		t.Errorf("the material is not dated:\n%s", world.asked[0].Messages[1].Content)
+	}
+}
+
+// And a question that keeps no due date is sent no date. A summariser given one would be a
+// summariser sent something no allow list of its keeps - the waste this task ends, introduced
+// while ending it.
+func TestAQuestionThatKeepsNoDueDateIsSentNoDate(t *testing.T) {
+	for _, promptID := range []string{"summarize", "classify"} {
+		produce, world := producer(`{"notes":"Short."}`)
+		produce.Catalogue = world
+		world.accountZone = "Europe/Vienna"
+
+		if err := produce.Execute(context.Background(), person(), Request{
+			TargetType: domain.TargetWorkItem, TargetID: targetID,
+			Kind: domain.KindFields, PromptID: promptID,
+		}); err != nil {
+			t.Fatalf("%s: producing: %v", promptID, err)
+		}
+		if strings.Contains(world.asked[0].Messages[1].Content, "Today's date") {
+			t.Errorf("%s was sent a date it keeps no key for:\n%s",
+				promptID, world.asked[0].Messages[1].Content)
+		}
+	}
+}
+
+// The allow list belongs to the prompt and the narrowing to the target, so a pair nothing declares
+// is a proposal narrowed by two rules nobody compared. Refused where the question is asked.
+func TestAPairThisBuildDoesNotAskIsRefused(t *testing.T) {
+	produce, world := producer(`{"notes":"Short."}`)
+
+	err := produce.Execute(context.Background(), person(), Request{
+		// A collection summarised with the entry's own question: both halves exist, the pair does
+		// not.
+		TargetType: domain.TargetContainer, TargetID: containerTargetID,
+		Kind: domain.KindFields, PromptID: "suggest-fields",
+	})
+	if err == nil {
+		t.Fatal("a pair nothing declares was asked anyway")
+	}
+	if shared.AsError(err).DetailCode != "ai.prompt_target_unknown" {
+		t.Errorf("the refusal is %v", err)
+	}
+	if len(world.asked) != 0 {
+		t.Error("a provider was paid for a question this build does not ask")
+	}
+}
+
+// A job written by the release before this one names the prompt that asked the work item's field
+// question then. It is answered with the prompt that asks it now rather than refused: a refusal is
+// ErrInternal, the worker returns it, and the queue spends its whole retry ladder on every job in
+// flight at the moment of an upgrade.
+func TestAJobFromThePreviousReleaseAsksTheQuestionThatSupersededIt(t *testing.T) {
+	produce, world := producer(`{"title":"Renew the domain"}`)
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetWorkItem, TargetID: targetID,
+		Kind: domain.KindFields, PromptID: "suggest-fields",
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+
+	if len(world.asked) != 1 {
+		t.Fatalf("%d completions asked", len(world.asked))
+	}
+	if world.asked[0].PromptID != itemFieldsPrompt {
+		t.Errorf("the question asked was %q", world.asked[0].PromptID)
+	}
+}
+
+// And what the pair map says is what the code does: every prompt this build carries is asked about
+// at least one target, and every target it is asked about narrows with an allow list that has
+// something left in it.
+func TestEveryPromptIsAskedAboutSomething(t *testing.T) {
+	for promptID := range promptFields {
+		targets, declared := promptTargets[promptID]
+		if !declared || len(targets) == 0 {
+			t.Errorf("%s is in the allow list and is asked about nothing", promptID)
+		}
+	}
+	for promptID := range promptTargets {
+		if _, allowed := promptFields[promptID]; !allowed {
+			t.Errorf("%s is asked about something and keeps nothing", promptID)
+		}
+	}
 }

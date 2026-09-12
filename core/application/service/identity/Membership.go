@@ -84,7 +84,7 @@ func (h GrantMembership) Execute(
 	// Handing out OWNER is changing the OWNER role (security.md §5): the privileged act demands
 	// a fresh proof, and the proof is consumed by this one grant.
 	if grant.Role == domain.RoleOwner {
-		if err := stepup.Demand(ctx, h.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 			return domain.Grant{}, err
 		}
 	}
@@ -346,7 +346,7 @@ func (h RevokeMembership) Execute(
 
 	// Taking OWNER away is changing the OWNER role as much as handing it out is (security.md §5).
 	if grant.Role == domain.RoleOwner {
-		if err := stepup.Demand(ctx, h.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 			return err
 		}
 	}
