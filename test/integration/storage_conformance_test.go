@@ -34,11 +34,16 @@ import (
 
 // minioImage is overridable the way the PostgreSQL image is (test/dbtest), so the support matrix
 // can vary it without a code change.
+//
+// From quay.io and pinned to a release, as scripts/pitr-drill.sh has it: `minio/minio` on Docker
+// Hub answered "repository does not exist" from 2026-09-11, and a `latest` from a registry the
+// vendor stopped updating in 2025 is a tag that will never move again. The same is true of the
+// other two copies of this function; they are three because the three suites are three packages.
 func minioImage() string {
 	if image := os.Getenv("HUBTASK_TEST_MINIO_IMAGE"); image != "" {
 		return image
 	}
-	return "minio/minio:latest"
+	return "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z"
 }
 
 // startMinIO runs one MinIO for this test and returns the adapter pointed at it.
