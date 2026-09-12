@@ -7344,7 +7344,12 @@ components:
           description: The model a suggestion is asked of. Empty means this provider does not complete.
         embedding_model:
           type: string
-          description: The model a vector is asked of. Empty means this provider does not embed.
+          description: >
+            The model a vector is asked of. Empty means this provider does not embed. The index
+            holds 1536 dimensions: a model that produces fewer is stored exactly, padded, and one
+            that produces more is refused at the first embedding rather than stored truncated
+            (ADR-0054). The two Ollama embedding models in common use produce 768 and 1024 and
+            are taken; a model above 1536 cannot be used.
         jurisdiction:
           $ref: "#/components/schemas/AiJurisdiction"
         has_api_key:

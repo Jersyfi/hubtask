@@ -36,7 +36,9 @@ type embeddingWorld struct {
 	embedded      [][]string
 	askedModel    []string
 	embedErr      error
-	storeErr      error
+	// dimensions is the width the provider answers with; zero means the fixtures' three.
+	dimensions int
+	storeErr   error
 	// watcher, where one is set, says whether a transaction is open while the provider is called.
 	watcher        *transactionWatcher
 	embeddedInside bool
@@ -130,8 +132,12 @@ func (p embeddingProvider) Embed(
 	if p.world.embedErr != nil {
 		return aiprovider.EmbeddingResult{}, p.world.embedErr
 	}
+	dimensions := p.world.dimensions
+	if dimensions == 0 {
+		dimensions = 3
+	}
 	return aiprovider.EmbeddingResult{
-		Vectors: p.world.vectors, Model: p.world.answeredModel, Dimensions: 3,
+		Vectors: p.world.vectors, Model: p.world.answeredModel, Dimensions: dimensions,
 	}, nil
 }
 
@@ -346,5 +352,82 @@ func TestTheProviderIsNotCalledInsideATransaction(t *testing.T) {
 	}
 	if uow.writes != 1 || uow.reads != 1 {
 		t.Errorf("the pass opened %d writes and %d reads, want one of each", uow.writes, uow.reads)
+	}
+}
+
+// A model wider than the index is refused before the store, as a validation error naming the model
+// and the two widths, and nothing is written (ADR-0054). The field ADR-0049 carried for exactly this
+// is read at last.
+func TestAModelWiderThanTheIndexIsRefusedBeforeTheStore(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-wide",
+		owed:       []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors:    [][]float32{{1, 0, 0}},
+		dimensions: repository.EmbeddingWidth + 1,
+	}
+
+	_, err := embeddingHarness(world).Execute(t.Context(), embeddingActor())
+	if !repository.IsEmbeddingTooWide(err) {
+		t.Fatalf("a model wider than the index answered %v", err)
+	}
+	refusal := shared.AsError(err)
+	if refusal.Params["model"] != "embed-wide" || refusal.Params["width"] == "" {
+		t.Errorf("the refusal does not say which model and which width: %v", refusal.Params)
+	}
+	if len(world.stored) != 0 {
+		t.Errorf("%d vectors were stored from a model the index cannot hold", len(world.stored))
+	}
+}
+
+// A narrower model is not refused here: the store pads it, exactly, for cosine.
+func TestAModelNarrowerThanTheIndexIsStored(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-3",
+		owed:       []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors:    [][]float32{{1, 0, 0}},
+		dimensions: 3,
+	}
+
+	if _, err := embeddingHarness(world).Execute(t.Context(), embeddingActor()); err != nil {
+		t.Fatalf("a narrower model was refused: %v", err)
+	}
+	if len(world.stored) != 1 {
+		t.Errorf("%d vectors stored, want one", len(world.stored))
+	}
+}
+
+// An empty vector is refused before the store: padded to the index it would be zeros, and zeros
+// have no direction to compare.
+func TestAnEmptyVectorIsRefusedBeforeTheStore(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-3",
+		owed:    []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors: [][]float32{{}},
+	}
+
+	_, err := embeddingHarness(world).Execute(t.Context(), embeddingActor())
+	if !errors.Is(err, shared.ErrInternal) || shared.AsError(err).DetailCode != "ai.embedding_empty" {
+		t.Fatalf("an empty vector answered %v", err)
+	}
+	if len(world.stored) != 0 {
+		t.Errorf("%d vectors were stored from an empty answer", len(world.stored))
+	}
+}
+
+// And wide vectors answered under a zero `Dimensions` are caught by their own length, before the
+// write transaction rather than inside it.
+func TestWideVectorsUnderAZeroDimensionsAreStillRefused(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-wide",
+		owed:    []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors: [][]float32{make([]float32, repository.EmbeddingWidth+1)},
+		// Reported as nothing useful: the fake reads zero as its usual three, so a value the
+		// width check cannot object to stands in for an adapter that did not count.
+		dimensions: -1,
+	}
+
+	_, err := embeddingHarness(world).Execute(t.Context(), embeddingActor())
+	if !repository.IsEmbeddingTooWide(err) {
+		t.Fatalf("wide vectors under a zero dimensions answered %v", err)
 	}
 }

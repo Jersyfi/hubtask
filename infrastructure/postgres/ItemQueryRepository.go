@@ -300,6 +300,11 @@ func (r ItemRepository) Search(
 	}
 
 	size := search.Request.Size
+	// A query vector wider than the index is refused here for `Store`'s reason: the application
+	// layer already fell back to a lexical search, and this is the second refusal a bypass meets.
+	if len(search.Meaning) > repository.EmbeddingWidth {
+		return repository.ItemHitPage{}, repository.EmbeddingTooWide("", len(search.Meaning))
+	}
 	// The vector is rendered here rather than in the compiler, so that package keeps writing only
 	// constants and binding values (ADR-0026). Empty whenever the search is lexical - no provider,
 	// no consent, no store, or a provider that did not answer in time - and the compiler then
