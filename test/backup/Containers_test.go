@@ -75,7 +75,7 @@ func startMinIO(t *testing.T) string {
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image: imageOr("HUBTASK_TEST_MINIO_IMAGE", "minio/minio:latest"),
+			Image: imageOr("HUBTASK_TEST_MINIO_IMAGE", "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z"),
 			Env: map[string]string{
 				"MINIO_ROOT_USER":     "conformance",
 				"MINIO_ROOT_PASSWORD": "conformance-secret",
