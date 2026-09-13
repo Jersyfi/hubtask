@@ -16,6 +16,8 @@ import (
 	usecase "github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 const idempotencyKey = "5f9d1f8e-0000-4000-8000-000000000001"
@@ -29,6 +31,7 @@ type guard struct {
 	completed  bool
 	gotStatus  int
 	gotBody    []byte
+	gotDetail  string
 	beginCalls int
 }
 
@@ -44,10 +47,10 @@ func (g *guard) Begin(
 }
 
 func (g *guard) Complete(
-	_ context.Context, _ appshared.ActorContext, _ repository.Key, status int, body []byte,
+	_ context.Context, _ appshared.ActorContext, _ repository.Key, answer usecase.Answer,
 ) error {
 	g.completed = true
-	g.gotStatus, g.gotBody = status, body
+	g.gotStatus, g.gotBody, g.gotDetail = answer.Status, answer.Body, answer.DetailCode
 	return nil
 }
 
@@ -94,6 +97,25 @@ func TestAFirstKeyedPostRunsAndIsStored(t *testing.T) {
 	// The endpoint half of the key is the route template, not the path.
 	if g.beganWith.Endpoint != http.MethodPost+" "+APIBasePath+"/containers" {
 		t.Errorf("endpoint = %q", g.beganWith.Endpoint)
+	}
+}
+
+// The guard decides what is replayed by the answer's meaning, and a problem's meaning is its
+// detail code: the middleware reads it back off the document it wrote, so a step-up demand
+// reaches the guard as one rather than as an anonymous 403 (issue 543).
+func TestAProblemsDetailCodeReachesTheGuard(t *testing.T) {
+	g := &guard{}
+
+	response := serveIdempotent(t, g, idempotentRequest(t, http.MethodPost, `{"role":"OWNER"}`, true),
+		func(w http.ResponseWriter, r *http.Request) {
+			WriteProblem(w, stepup.Required(), correlation.RequestIDFrom(r.Context()))
+		})
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status %d", response.Code)
+	}
+	if !g.completed || g.gotStatus != http.StatusForbidden || g.gotDetail != stepup.CodeRequired {
+		t.Errorf("the guard was handed %v %d %q", g.completed, g.gotStatus, g.gotDetail)
 	}
 }
 

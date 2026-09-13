@@ -125,7 +125,7 @@ backend change (requirement C-14).
 
 | Mechanism | Implementation |
 |---|---|
-| **Idempotency** | The `Idempotency-Key` header (a UUID) on all `POST`s; the result is stored for 24 h and returned identically on a repeat — mandatory for automation and agent use |
+| **Idempotency** | The `Idempotency-Key` header (a UUID) on all `POST`s; the result is stored for 24 h and returned identically on a repeat — mandatory for automation and agent use. Two answers are not stored, and the key is released for the repeat instead: a `5xx` (not a decision the server stands behind) and `403 auth.step_up_required` (the request was not attempted for want of a proof — the retry carrying the proof is the same intent under the same key) |
 | **Optimistic locking** | `ETag` on `GET`, `If-Match` on `PATCH`/`PUT`; a conflict → `409 version_conflict` with the current version in the payload |
 | **Partial updates** | `PATCH` with JSON Merge Patch (RFC 7396); `null` deletes a field explicitly |
 | **Bulk** | `POST /items:bulk` with at most 500 operations; the response contains a result per operation (`207`-like in the body, HTTP 200), and `atomic: true` enforces all-or-nothing |

@@ -108,7 +108,7 @@ func (h RequestTenantDeletion) Execute(
 					Path: "/confirmation", Code: "admin.deletion_confirmation_required",
 				})
 		}
-		if err := stepup.Demand(ctx, h.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 			return err
 		}
 

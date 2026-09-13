@@ -17,6 +17,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
 // Guard reserves keys and stores answers.
@@ -79,23 +80,42 @@ func (g Guard) Begin(
 	return attempt, nil
 }
 
-// Complete stores the answer so the next repeat can be served from it.
+// Answer is what the operation produced, as far as the guard needs to know it: the status, the
+// body to replay, and the detail code where the body is a problem document.
+type Answer struct {
+	Status     int
+	Body       []byte
+	DetailCode string
+}
+
+// Replayable reports whether the answer is an outcome of the intent, which is what a repeat may
+// be served from.
 //
-// Only answers below 500 are stored. A 5xx is not a decision the server stands behind - it is one
-// it may make differently next time - so a retry has to reach the operation rather than the
-// stored failure (api-guidelines.md §5).
+// Two kinds are not. A 5xx is not a decision the server stands behind - it is one it may make
+// differently next time. And auth.step_up_required is not a decision about the request at all:
+// it says the request was not attempted for want of a proof, and the retry that carries the
+// proof is, by the client's own account, the same intent under the same key. Replaying the
+// demand at it would make every privileged action impossible from a client that keeps its key,
+// which is exactly the client the key exists for (issue 543, api-guidelines.md §5).
+func (a Answer) Replayable() bool {
+	return a.Status < serverErrorFloor && a.DetailCode != stepup.CodeRequired
+}
+
+// Complete stores the answer so the next repeat can be served from it - or, where the answer is
+// not one to replay, lets the reservation go so the next repeat reaches the operation. Leaving
+// the reservation standing would be worse than either: the repeat would be refused as in
+// progress for as long as the record lives.
 func (g Guard) Complete(
 	ctx context.Context,
 	actor appshared.ActorContext,
 	key repository.Key,
-	status int,
-	body []byte,
+	answer Answer,
 ) error {
-	if status >= serverErrorFloor {
-		return nil
-	}
 	return g.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return g.Store.Complete(ctx, key, status, body)
+		if !answer.Replayable() {
+			return g.Store.Release(ctx, key)
+		}
+		return g.Store.Complete(ctx, key, answer.Status, answer.Body)
 	})
 }
 

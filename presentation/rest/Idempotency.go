@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -44,7 +45,7 @@ const maxStoredResponseBytes = 1 << 20
 // IdempotencyGuard is the slice of the guard use case this middleware needs.
 type IdempotencyGuard interface {
 	Begin(context.Context, appshared.ActorContext, repository.Key, []byte) (usecase.Attempt, error)
-	Complete(context.Context, appshared.ActorContext, repository.Key, int, []byte) error
+	Complete(context.Context, appshared.ActorContext, repository.Key, usecase.Answer) error
 }
 
 // Idempotent executes a keyed write once and replays its answer for every repeat.
@@ -120,7 +121,7 @@ func (i Idempotent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// client that hung up must not leave a reservation nobody ever completes, because the next
 	// repeat would then be refused as "in progress" for as long as the record lives.
 	ctx := context.WithoutCancel(r.Context())
-	if err := i.Guard.Complete(ctx, actor, record, captured.statusCode(), captured.stored()); err != nil {
+	if err := i.Guard.Complete(ctx, actor, record, captured.answer()); err != nil {
 		// The client already has its answer. Failing now would report an error for an operation
 		// that succeeded, which is worse than a repeat running twice.
 		slog.WarnContext(ctx, "storing the idempotent answer failed",
@@ -203,6 +204,22 @@ func (c *capturedResponse) stored() []byte {
 		return nil
 	}
 	return c.buffer.Bytes()
+}
+
+// answer is what the guard decides over: the status, the body, and - where the body is a problem
+// document - its detail code, read back off the bytes this layer wrote. The guard's rule is about
+// the answer's meaning, and the code is where a problem's meaning lives (ADR-0025).
+func (c *capturedResponse) answer() usecase.Answer {
+	answer := usecase.Answer{Status: c.statusCode(), Body: c.stored()}
+	if answer.Status >= http.StatusBadRequest && len(answer.Body) > 0 {
+		var problem struct {
+			DetailCode string `json:"detail_code"`
+		}
+		// A body that is not a problem document has no code, and that is an answer too.
+		_ = json.Unmarshal(answer.Body, &problem)
+		answer.DetailCode = problem.DetailCode
+	}
+	return answer
 }
 
 // isUUID accepts the canonical 8-4-4-4-12 form in either case. Looser than the identifier parser

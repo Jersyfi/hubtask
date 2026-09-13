@@ -121,7 +121,7 @@ func (h CreateAccessToken) Execute(
 		if adminScopes[scope] {
 			// A token that could reach the control plane is minted behind a fresh proof
 			// (security.md §5), consumed by this one mint.
-			if err := stepup.Demand(ctx, w.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+			if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 				return MintedToken{}, err
 			}
 			break

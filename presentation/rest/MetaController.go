@@ -148,6 +148,22 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		eventTypes = append(eventTypes, string(eventType))
 	}
 
+	// What starts a rule and what a rule may do (issue 542). Both always arrays, for the reason
+	// the event types are: a client that read nothing here would offer a picker of its own, and
+	// the server refuses a kind it does not serve.
+	triggers := make([]string, 0, len(source.AutomationTriggers))
+	for _, kind := range source.AutomationTriggers {
+		triggers = append(triggers, kind.String())
+	}
+	automationActions := source.AutomationActions
+	if automationActions == nil {
+		automationActions = []string{}
+	}
+	automationManifest := struct {
+		Actions  *[]string `json:"actions,omitempty"`
+		Triggers *[]string `json:"triggers,omitempty"`
+	}{Actions: &automationActions, Triggers: &triggers}
+
 	// The catalogue of §3, with what this build can do to each. `actions` is always an array,
 	// including the empty one: a kind nothing removes is named here on purpose, and an absent key
 	// would be indistinguishable from a kind that does not exist (F4-18).
@@ -200,6 +216,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		QueryFields:            &queryFields,
 		ViewLayouts:            &viewLayouts,
 		EventTypes:             &eventTypes,
+		Automation:             &automationManifest,
 		RetentionDataKinds:     &dataKinds,
 		TextLanguages:          &textLanguages,
 		NotificationCategories: &notificationCategories,

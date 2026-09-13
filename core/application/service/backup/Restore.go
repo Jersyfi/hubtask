@@ -463,7 +463,7 @@ func (h StartRestore) confirm(
 
 	// The demand H-03 finally made satisfiable: a fresh proof, consumed by this one restore.
 	// E-06's "nothing here can prove it" refusal died with the verifier that proves it.
-	return stepup.Demand(ctx, h.Restorer.StepUp, actor.AccountID, request.StepUpToken)
+	return stepup.Demand(ctx, h.Restorer.StepUp, actor.TenantID, actor.AccountID, request.StepUpToken)
 }
 
 // Execute answers one restore.
