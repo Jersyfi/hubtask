@@ -108,6 +108,26 @@ and the pull request that adds it proves a real authenticator reads the code it 
 * **A is closed.** No QR dependency enters the lockfile; a future pull request that adds one
   reopens this decision rather than quietly reversing it.
 
+## Amendment — 2026-09-12, the bound was measured wrong
+
+The consequence above says an `otpauth://` URI "sits inside version 4 at error correction level
+M", so that one alignment table would do. Measured against what `TotpProvisioningURI` actually
+writes — the issuer twice (label and `issuer=`), the account's email address, and `algorithm`,
+`digits`, `period` and the 32-character secret, all URL-encoded — the URI is around **140 bytes**
+for an ordinary address and **220** for a long issuer with a long address. Version 4 at level M
+holds 62 bytes; version 8 holds 152; version 11 holds 251.
+
+The encoder that implements this decision therefore carries the tables for **versions 1 to 13**
+(331 bytes), which is also the last version with no remainder bits, so the placement needs no
+second rule. Each row was checked two ways: an invariant of the symbol — every non-function module
+carries a bit, and the last alignment centre sits seven modules from the edge — and a real decoder
+reading back every version boundary. Past version 13 the encoder refuses by name and the
+enrolment screen shows the secret without an image, which is the enrolment F4-04 shipped and the
+one this ADR says is complete.
+
+Nothing else in the decision changes: option B, no dependency, the published vectors as the
+tests, a real authenticator as the acceptance line.
+
 ## References
 
 * [`security.md`](../architecture/security.md) §5, §7 — MFA, and the supply-chain questions
