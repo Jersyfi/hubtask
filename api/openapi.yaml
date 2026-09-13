@@ -2851,9 +2851,11 @@ paths:
         needs a second proof.
 
         The operation that found the proof missing answered `403` with `auth.step_up_required`
-        and the accepted methods; this is where a client goes with that answer. The token travels
-        back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the
-        contract has carried since 0.4.5.
+        and, in `params.methods`, the methods this account can answer with: a space-separated
+        list drawn from `PASSWORD` and `TOTP` - the password for every account, the code only
+        where a factor is armed. A client builds its prompt from that list, never from a guess.
+        This is where it goes with the answer. The token travels back in the `X-Hubtask-Step-Up`
+        header - or, for the restore, in the request field the contract has carried since 0.4.5.
       requestBody:
         required: true
         content:
@@ -6563,7 +6565,8 @@ components:
       description: >
         The proof a privileged operation demanded (H-03, security.md §5): the token
         `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that
-        needs one refuses with `auth.step_up_required` and the accepted methods.
+        needs one refuses with `auth.step_up_required`, naming in `params.methods` what this
+        account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
       schema: { type: string }
 
     ContainerId:
@@ -6699,7 +6702,11 @@ components:
       name: Idempotency-Key
       in: header
       required: false
-      description: A UUID; identical requests return the same result for 24 h.
+      description: >
+        A UUID; identical requests return the same result for 24 h. Two answers are not kept: a
+        `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the
+        repeat reaches the operation again. A client that is asked for a proof retries with the
+        proof under the same key (api-guidelines.md §5).
       schema: { type: string, format: uuid }
     IfMatch:
       name: If-Match
@@ -10693,8 +10700,8 @@ components:
       type: object
       description: Read from the manifest at the target, not from the database.
       properties:
-        archive_id: { type: string }
-        path: { type: string }
+        archive_id: { type: string, description: The manifest's own identifier - not what a restore names. }
+        path: { type: string, description: Where the archive lies at the target, and what `RestoreRequest.archive_id` takes. }
         created_at: { type: string, format: date-time }
         mode: { type: string, enum: [FULL, INCREMENTAL] }
         parent_archive_id: { type: [string, "null"] }
@@ -10838,9 +10845,23 @@ components:
       required: [target_id, archive_id, mode]
       properties:
         target_id: { type: string, format: uuid }
-        archive_id: { type: string }
+        archive_id:
+          type: string
+          description: >
+            Where the archive lies at the target: the `path` of a `BackupArchive` as
+            `GET /backup-targets/{targetId}/backups` lists it (and as `RestoreRun.source_archive`
+            echoes it), not the `archive_id` beside it, which is the manifest's. A path rather than an identifier because a restore has to be possible
+            when the database that recorded the run is gone. A path the target holds nothing at
+            fails the run with `backup.archive_not_found`.
         mode: { type: string, enum: [INSPECT, SELECTIVE, MERGE, REPLACE_TENANT, NEW_TENANT, INSTANCE] }
-        target_tenant_id: { type: [string, "null"], format: uuid }
+        target_tenant_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The tenant being restored into. Required for every mode a workspace may ask for -
+            `INSPECT`, `SELECTIVE`, `MERGE`, `REPLACE_TENANT` - and refused with
+            `backup.restore_tenant_required` when missing; refused for `NEW_TENANT`, which mints
+            its own, and `INSTANCE`, which crosses tenants and is the operator's.
         conflict_rule: { type: string, enum: [SKIP, OVERWRITE, DUPLICATE], default: SKIP }
         selection:
           type: object
@@ -11574,12 +11595,23 @@ components:
               week_start: { type: string }
         automation:
           type: object
+          description: >
+            The vocabulary a rule is written in, and what a rule editor is built from rather than
+            from a list compiled into it - a client with its own would be wrong on the
+            installation that has one more (automation.md §1).
           properties:
             triggers:
               type: array
+              description: Every way a rule may be started, as `RuleTrigger.kind` names them.
               items: { type: string }
             actions:
               type: array
+              description: >
+                Every use case a rule may perform, as `RuleAction.kind` names it - one
+                name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow
+                kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures
+                rather than use cases and are in no catalogue, so a client names those three
+                itself.
               items: { type: string }
         event_types:
           type: array
