@@ -111,17 +111,21 @@ const (
 	TriggerJumbleEntry TriggerKind = "JUMBLE_ENTRY"
 )
 
+// TriggerKinds is the six, in the order automation.md §1.1 lists them: what the manifest answers
+// and a rule editor offers (issue 542). Read from here rather than restated, so that the kind a
+// client may pick is the kind ValidTrigger accepts.
+func TriggerKinds() []TriggerKind {
+	return []TriggerKind{
+		TriggerEvent, TriggerSchedule, TriggerRelativeDate,
+		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry,
+	}
+}
+
 // Valid reports whether the kind is one of the six. Asked where a kind arrives from outside the
 // aggregate - a stored run, a job payload - rather than in ValidTrigger, which needs the switch
 // anyway to check the fields each kind carries.
 func (k TriggerKind) Valid() bool {
-	switch k {
-	case TriggerEvent, TriggerSchedule, TriggerRelativeDate,
-		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry:
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(TriggerKinds(), k)
 }
 
 // String is the stored value, which is also the contract's.

@@ -11595,12 +11595,23 @@ components:
               week_start: { type: string }
         automation:
           type: object
+          description: >
+            The vocabulary a rule is written in, and what a rule editor is built from rather than
+            from a list compiled into it - a client with its own would be wrong on the
+            installation that has one more (automation.md §1).
           properties:
             triggers:
               type: array
+              description: Every way a rule may be started, as `RuleTrigger.kind` names them.
               items: { type: string }
             actions:
               type: array
+              description: >
+                Every use case a rule may perform, as `RuleAction.kind` names it - one
+                name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow
+                kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures
+                rather than use cases and are in no catalogue, so a client names those three
+                itself.
               items: { type: string }
         event_types:
           type: array

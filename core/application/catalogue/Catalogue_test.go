@@ -96,6 +96,36 @@ func TestScopesAreTheDescriptorsOwnSetSortedAndUnique(t *testing.T) {
 // Sessions never carry the control plane (H-06, 0.6.0 decision 6), nor the agent capability
 // (J-14): whatever this build declares, SessionScopes leaves those two out - and changes nothing
 // else.
+// The action kinds the manifest answers are exactly the ones the rule writer accepts: one name
+// per use case, sorted, and each resolvable through the lookup the writer uses (issue 542).
+func TestAutomationActionsAreTheDescriptorsOwnKindsSortedAndUnique(t *testing.T) {
+	actions := catalogue.AutomationActions()
+	if len(actions) != len(catalogue.Descriptors()) {
+		t.Fatalf("%d actions for %d use cases", len(actions), len(catalogue.Descriptors()))
+	}
+	if !slices.IsSorted(actions) {
+		t.Errorf("the actions are not sorted: %v", actions)
+	}
+
+	registry, err := usecase.NewRegistry(nil, catalogue.Descriptors()...)
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, action := range actions {
+		if seen[action] {
+			t.Errorf("%s appears twice", action)
+		}
+		seen[action] = true
+		if _, found := registry.ByAutomationAction(action); !found {
+			t.Errorf("the manifest would offer %s, which the rule writer refuses", action)
+		}
+	}
+	if !seen["CREATE_CONTAINER"] {
+		t.Error("CREATE_CONTAINER is not in the list; the derivation is broken")
+	}
+}
+
 func TestSessionScopesLeaveOutTheControlPlaneAndTheAgentCapability(t *testing.T) {
 	session := catalogue.SessionScopes()
 	for _, scope := range session {

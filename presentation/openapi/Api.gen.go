@@ -4014,8 +4014,13 @@ type CalendarFeedSecret struct {
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
 	ApiVersion *string `json:"api_version,omitempty"`
+
+	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more (automation.md §1).
 	Automation *struct {
-		Actions  *[]string `json:"actions,omitempty"`
+		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
+		Actions *[]string `json:"actions,omitempty"`
+
+		// Triggers Every way a rule may be started, as `RuleTrigger.kind` names them.
 		Triggers *[]string `json:"triggers,omitempty"`
 	} `json:"automation,omitempty"`
 	EventTypes *[]string `json:"event_types,omitempty"`
