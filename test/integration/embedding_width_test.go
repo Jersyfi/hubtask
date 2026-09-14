@@ -153,7 +153,7 @@ func TestANarrowerVectorIsStoredAndFoundAtTheSimilarityItWasGiven(t *testing.T) 
 			Kind: repository.AnchorCollection, CollectionID: collection, IncludeDescendants: true,
 		},
 		Request: view.Search{Words: "zzz-nothing-carries-this", Language: "en", Size: 50},
-		Meaning: narrowOn(axis),
+		Meaning: narrowOn(axis), MeaningModel: model,
 	})
 	hits := map[shared.ID]bool{}
 	for _, hit := range page.Hits {
