@@ -317,6 +317,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_MEDIA_RECONCILE_INTERVAL` | `6h` | Wait after a pass that found nothing left to reclaim. A pass that filled its batch comes back at once instead (data-protection.md §5) |
 | `HUBTASK_DEFAULT_LOCALE` | `en` | BCP 47; the last link in the chain request → account → tenant → installation |
 | `HUBTASK_DEFAULT_TIMEZONE` | `UTC` | IANA name, never a fixed offset — an offset cannot represent daylight saving |
+| `HUBTASK_LOCALE_DIR` | — | A directory of `<tag>.json` catalogues laid over the embedded ones, read once at start: a file for a tag the binary carries overrides it key by key, a file for a new tag adds the locale (`i18n-l10n.md` §1). A path that is not a directory, or a file that is not a catalogue, refuses to start |
 
 Durations are Go syntax (`30s`, `5m`, `1h30m`). A bare number is rejected rather than guessed at.
 

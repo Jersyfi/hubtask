@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"mime"
+	"mime/quotedprintable"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -202,11 +203,40 @@ func (s SMTP) compose(message port.Message) string {
 	// So that a mail client and an autoresponder both know this is machine-generated: RFC 3834
 	// asks for it, and it is what stops an out-of-office reply bouncing around a notification.
 	out.WriteString("Auto-Submitted: auto-generated\r\n")
+	// A body in most languages is not ASCII, and a body with no transfer encoding declared is
+	// 7-bit by definition (RFC 2045 §6.1) - so a German or Arabic sentence sent as it stands is a
+	// message whose declaration is false, and what a relay does with an undeclared 8-bit byte is
+	// the relay's choice. Quoted-printable is what every receiver decodes and no relay touches;
+	// an ASCII body keeps the default, because encoding it would only fold its lines.
+	body := strings.ReplaceAll(message.Body, "\n", "\r\n")
+	if !isASCII(body) {
+		out.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+		body = quotedPrintable(body)
+	}
 	out.WriteString("\r\n")
 	// Dot-stuffing: a line that is a single dot would end the DATA command. net/smtp's writer
 	// does this itself, so the body goes in as it stands.
-	out.WriteString(strings.ReplaceAll(message.Body, "\n", "\r\n"))
+	out.WriteString(body)
 	return out.String()
+}
+
+func isASCII(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// quotedPrintable encodes a body per RFC 2045 §6.7. The writer cannot fail on a strings.Builder,
+// which is why the errors are not threaded through: there is no path on which they occur.
+func quotedPrintable(body string) string {
+	var encoded strings.Builder
+	writer := quotedprintable.NewWriter(&encoded)
+	_, _ = writer.Write([]byte(body))
+	_ = writer.Close()
+	return encoded.String()
 }
 
 // deadline gives the call the configured timeout where the caller brought none (rule 7).

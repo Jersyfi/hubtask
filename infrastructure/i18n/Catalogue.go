@@ -5,22 +5,32 @@
 //
 // The backend emits no display text: an answer carries a code and its parameters, and whoever has
 // a person in front of them builds the sentence (ADR-0011, i18n-l10n.md §3). This package is the
-// other half of that bargain for the clients that ship with the server - today the CLI, later the
-// web frontend's fallback.
+// other half of that bargain for the clients that ship with the server - the CLI, and the mail an
+// account receives.
 package i18n
 
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"sort"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/locales"
 )
+
+// SourceLocale is the language the catalogue is written in and the end of every fallback chain
+// (i18n-l10n.md §2, §3).
+const SourceLocale = "en"
 
 // metadataPrefix marks a key that is not a message. The catalogue documents itself in `_comment`,
 // and a renderer that offered that as a message would be offering the reader a note to the
 // translators.
 const metadataPrefix = "_"
+
+// catalogueSuffix is what a catalogue file is called: the tag, then this.
+const catalogueSuffix = ".json"
 
 // Catalogue is one locale's messages, keyed by message code.
 //
@@ -30,18 +40,70 @@ type Catalogue struct {
 }
 
 // LoadEnglish parses the embedded source catalogue.
-//
-// English rather than a locale argument, because there is one file today. When de.json arrives,
-// this grows a sibling that takes a tag and falls back to this one - the fallback chain is a
-// decision for the day there is something to fall back from.
 func LoadEnglish() (Catalogue, error) {
-	return load(locales.English)
+	catalogues, err := LoadEmbedded()
+	if err != nil {
+		return Catalogue{}, err
+	}
+	return catalogues[SourceLocale], nil
+}
+
+// LoadEmbedded parses every catalogue compiled into the binary, keyed by its lower-cased tag.
+//
+// The source language must be among them: it is the end of every fallback chain, and a build
+// without it has nothing to fall back to.
+func LoadEmbedded() (map[string]Catalogue, error) {
+	catalogues, err := LoadDirectory(locales.Files)
+	if err != nil {
+		return nil, err
+	}
+	if _, present := catalogues[SourceLocale]; !present {
+		return nil, fmt.Errorf("reading the message catalogues: the source language %s is not embedded", SourceLocale)
+	}
+	return catalogues, nil
+}
+
+// LoadDirectory parses every `<tag>.json` at the root of a file system, keyed by the lower-cased
+// tag. It is what the embedded catalogues and an operator's override directory (i18n-l10n.md §1)
+// have in common, so the two are one reader.
+//
+// A file whose name is not a well-formed BCP 47 tag is refused rather than skipped: a catalogue
+// nobody can ask for is a typo, and a typo that is silently ignored is how a translation goes
+// missing without a trace. A subdirectory is ignored, so that a directory an operator mounts may
+// hold whatever else it holds.
+func LoadDirectory(files fs.FS) (map[string]Catalogue, error) {
+	entries, err := fs.ReadDir(files, ".")
+	if err != nil {
+		return nil, fmt.Errorf("reading the message catalogues: %w", err)
+	}
+
+	catalogues := make(map[string]Catalogue, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, catalogueSuffix) {
+			continue
+		}
+		tag, ok := shared.LanguageTag(strings.TrimSuffix(name, catalogueSuffix))
+		if !ok || tag == "" {
+			return nil, fmt.Errorf("reading the message catalogue %s: the file name is not a language tag", name)
+		}
+		raw, err := fs.ReadFile(files, name)
+		if err != nil {
+			return nil, fmt.Errorf("reading the message catalogue %s: %w", name, err)
+		}
+		catalogue, err := load(raw)
+		if err != nil {
+			return nil, fmt.Errorf("reading the message catalogue %s: %w", name, err)
+		}
+		catalogues[strings.ToLower(tag)] = catalogue
+	}
+	return catalogues, nil
 }
 
 func load(raw []byte) (Catalogue, error) {
 	var entries map[string]string
 	if err := json.Unmarshal(raw, &entries); err != nil {
-		return Catalogue{}, fmt.Errorf("reading the message catalogue: %w", err)
+		return Catalogue{}, fmt.Errorf("not a flat map of codes to messages: %w", err)
 	}
 
 	messages := make(map[string]string, len(entries))
@@ -77,9 +139,45 @@ func (c Catalogue) Has(code string) bool {
 	return known
 }
 
+// Len is how many messages the catalogue holds. What a coverage report divides by.
+func (c Catalogue) Len() int {
+	return len(c.messages)
+}
+
+// Codes answers every code the catalogue knows, sorted. For the gates that compare a translation
+// against its source; not for rendering.
+func (c Catalogue) Codes() []string {
+	codes := make([]string, 0, len(c.messages))
+	for code := range c.messages {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	return codes
+}
+
+// Pattern answers the raw message for a code, unrendered. For the gates.
+func (c Catalogue) Pattern(code string) (string, bool) {
+	message, known := c.messages[code]
+	return message, known
+}
+
+// overlaid answers a catalogue with every message of `over` on top of this one: a key in both is
+// the overlay's, a key in one is that one's. What an operator's file does to the embedded
+// catalogue of the same tag - key by key, never as a whole (i18n-l10n.md §1).
+func (c Catalogue) overlaid(over Catalogue) Catalogue {
+	merged := make(map[string]string, len(c.messages)+len(over.messages))
+	for code, message := range c.messages {
+		merged[code] = message
+	}
+	for code, message := range over.messages {
+		merged[code] = message
+	}
+	return Catalogue{messages: merged}
+}
+
 // substitute replaces `{name}` with the parameter of that name.
 //
-// This is the simple-argument subset of ICU MessageFormat, which is all the source catalogue uses.
+// This is the simple-argument subset of ICU MessageFormat, which is all the catalogues use.
 // That is not an assumption but a checked property: Catalogue_test.go refuses a message with a
 // plural, a select or a format style, so that adding one turns a build red here rather than
 // printing braces at a user.
