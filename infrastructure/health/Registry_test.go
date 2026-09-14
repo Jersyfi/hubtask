@@ -18,12 +18,14 @@ type probe struct {
 	required bool
 	status   port.Status
 	impact   []string
+	// code is what the probe says the reason is, where it says one.
+	code string
 }
 
 func (p *probe) Name() string   { return p.name }
 func (p *probe) Required() bool { return p.required }
 func (p *probe) Check(context.Context) port.Result {
-	return port.Result{Status: p.status, Impact: p.impact, Since: time.Unix(0, 0).UTC()}
+	return port.Result{Status: p.status, Impact: p.impact, Since: time.Unix(0, 0).UTC(), ErrorCode: p.code}
 }
 
 type recordedSignals struct {
@@ -213,5 +215,29 @@ func TestReadinessFollowsTheLifecycle(t *testing.T) {
 	registry.MarkClosing()
 	if ok, reason := registry.Ready(context.Background()); ok || reason != "shutting_down" {
 		t.Errorf("while shutting down: ok=%v reason=%q", ok, reason)
+	}
+}
+
+// A probe that gives its own reason is quoted, so a client can tell "cannot be reached" from
+// "configured with something this installation cannot use" (#569); one that gives none is the
+// generic outage, which is every dependency that is simply down.
+func TestAProbesOwnReasonReachesTheDegradedFeature(t *testing.T) {
+	registry := startedRegistry(
+		&probe{name: "ai", status: port.StatusDegraded, impact: []string{"semantic_search"},
+			code: "ai.embedding_too_wide"},
+		&probe{name: "smtp", status: port.StatusDown, impact: []string{"notifications"}},
+	)
+
+	report := registry.Report(context.Background())
+
+	reasons := map[string]string{}
+	for _, f := range report.DegradedFeatures {
+		reasons[f.Feature] = f.ReasonCode
+	}
+	if reasons["semantic_search"] != "ai.embedding_too_wide" {
+		t.Errorf("the search's reason is %q, want the probe's own", reasons["semantic_search"])
+	}
+	if reasons["notifications"] != "dependency.unavailable" {
+		t.Errorf("an outage's reason is %q, want the generic one", reasons["notifications"])
 	}
 }

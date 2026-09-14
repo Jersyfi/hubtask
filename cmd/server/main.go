@@ -32,6 +32,7 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
@@ -924,13 +925,15 @@ func run() error {
 	// What this process has learned about embedding models' widths, per endpoint and model, the
 	// way the breakers are per endpoint (#569): the embedding pass writes it, and the capability
 	// report and the health probe read it without a call.
-	aiWidths := &aiadapter.WidthPool{}
+	// Three of the pass's hourly intervals: one missed pass does not clear a real degradation,
+	// and a workspace that switched models stops being reported within the afternoon.
+	aiWidths := &aiadapter.WidthPool{StaleAfter: 3 * time.Hour}
 	aiResolver := aiadapter.Resolver{
 		Providers: postgres.NewAiProviderRepository(), UnitOfWork: unitOfWork,
 		Encryptor: encryptor, Client: outboundClient, Clock: clockadapter.System{},
 		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
 	}
-	registry.Register(aiadapter.NewProbe(aiBreakers))
+	registry.Register(aiadapter.NewProbe(aiBreakers, aiWidths, workrepo.EmbeddingWidth, clockadapter.System{}))
 	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside it
 	// (J-15). It is a quota like every other row of multi-tenancy.md §4 - resolved from the
 	// workspace's settings, reported on the same ratio metric, watched by the same alert - and a

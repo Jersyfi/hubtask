@@ -100,3 +100,45 @@ func TestAWidthNobodyAsksForStopsCountingAsDegraded(t *testing.T) {
 		t.Error("confirming a key nobody recorded invented one")
 	}
 }
+
+// A model this process has learned the index cannot hold is a degradation, not an outage: every
+// endpoint answers, suggestions work, and the search is lexical for as long as the model stays
+// configured. The probe says so, names the feature and the code, and names no model (#569).
+func TestAModelWiderThanTheIndexDegradesTheSearchAndNothingElse(t *testing.T) {
+	breakers := &BreakerPool{New: func(string) Breaker { return nil }}
+	breakers.For("http://models.internal:11434")
+	widths := &WidthPool{StaleAfter: time.Hour}
+	since := time.Date(2026, 9, 14, 10, 0, 0, 0, time.UTC)
+	now := &tickingClock{at: since}
+	probe := NewProbe(breakers, widths, 1536, now)
+
+	if result := probe.Check(t.Context()); result.Status != "ok" {
+		t.Fatalf("a pool with a fitting model reports %q", result.Status)
+	}
+
+	widths.Record("http://models.internal:11434", "a-wide-model", 3072, since)
+	result := probe.Check(t.Context())
+	if result.Status != "degraded" {
+		t.Fatalf("status %q, want degraded", result.Status)
+	}
+	if result.ErrorCode != "ai.embedding_too_wide" || !result.Since.Equal(since) {
+		t.Errorf("the result is %+v", result)
+	}
+	if len(result.Impact) != 1 || result.Impact[0] != "semantic_search" {
+		t.Errorf("it degrades %v, want the search alone", result.Impact)
+	}
+	if result.CircuitState != "closed" {
+		t.Errorf("the circuit is reported %q; nothing was cut off", result.CircuitState)
+	}
+
+	// And it heals: an operator who switched the workspace to a fitting model stops the question
+	// being asked, and the row is ok again once the entry is stale - without a restart.
+	now.at = since.Add(2 * time.Hour)
+	if result := probe.Check(t.Context()); result.Status != "ok" {
+		t.Errorf("a width nobody asks for any more still reports %q", result.Status)
+	}
+}
+
+type tickingClock struct{ at time.Time }
+
+func (c *tickingClock) Now() time.Time { return c.at }

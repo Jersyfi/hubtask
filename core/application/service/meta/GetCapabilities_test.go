@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -588,6 +589,35 @@ func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
 			}
 			if got, present := capabilities.Features["natural_ordering"]; !present || got != tc.want {
 				t.Errorf("natural_ordering = %v (present %v), want %v", got, present, tc.want)
+			}
+		})
+	}
+}
+
+// A model this process knows the index cannot hold is a search that is lexical for as long as it
+// stays configured (#569, ADR-0054), and the manifest says so rather than offering a control for
+// what the product cannot do. A width not yet known is not "does not fit".
+func TestAModelKnownToBeTooWideOffersNoMeaning(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		width int
+		want  bool
+	}{
+		{"a width nobody has learned yet", 0, true},
+		{"a width that fits", workrepo.EmbeddingWidth, true},
+		{"a width the index cannot hold", workrepo.EmbeddingWidth + 1, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			handler, _ := aiManifest(true, aiprovider.ProviderCapabilities{
+				Kind: "ollama", Embedding: true, EmbeddingModel: "an-embedding-model",
+				EmbeddingDimensions: c.width,
+			})
+			capabilities, err := handler.Execute(t.Context(), member())
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if capabilities.Features["semantic_search"] != c.want {
+				t.Errorf("semantic_search = %v, want %v", capabilities.Features["semantic_search"], c.want)
 			}
 		})
 	}
