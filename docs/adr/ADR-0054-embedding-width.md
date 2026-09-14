@@ -101,20 +101,19 @@ and measures something else. Not taken; refused instead.
 * A model wider than 1536 is a documented refusal rather than a raw error. The search stays
   lexical and the worker logs why, with the job and the workspace named — a repeating job records
   no outcome of its own, so the log line is the only place it is said.
-* **The refusal is paid for.** The width is known only once a batch has been embedded, so a wide
-  model costs one batch of embedding per pass, every interval, and one query embedding per search,
-  each discarded, and both drawn from the workspace's AI budget. For a local model that is nothing;
-  for a metered one it is a slow drain. Two things would end it and both are deferred: populating
-  `ProviderCapabilities.EmbeddingDimensions` — from configuration for an OpenAI-compatible provider,
-  from `/api/show` for Ollama — so the job refuses before it calls; and remembering the refusal
-  somewhere the search and `/meta/capabilities` can read it. Neither is in this decision, and
-  their absence is the cost of it rather than a property to defend.
-* **No degradation signal, yet.** `/meta/capabilities` keeps answering `semantic_search: true` and
-  `/meta/health` sees only the breaker, where ADR-0050's two other degradations both surface. The
-  honest reason is the one above: a refusal that nothing remembers is a refusal nothing can report.
-  It belongs with the deferred work, not with a claim that the current behaviour is right.
+* **The refusal was paid for, and since #569 it is not.** As decided, the width was known only
+  once a batch had been embedded, so a wide model cost one batch per pass and one query embedding
+  per search, each discarded and each drawn from the workspace's AI budget. `Measured` closed that:
+  a provider says its model's width before the first text is sent — Ollama from its model
+  description, the OpenAI-compatible adapter from what the vendor documents — the pass asks once
+  and refuses before the batch, and what it learned is kept per process in a width pool, the way
+  breaker state is. A provider that cannot describe its model answers zero, the batch goes ahead,
+  and the check after the call is what catches it; that one batch is the remaining cost, paid once
+  per process rather than once per pass.
+* **The degradation is reported, since #569.** `/meta/capabilities` answers `semantic_search:
+  false` for a model this process knows the index cannot hold, and `/meta/health` reports the
+  provider `degraded` — not `down`, since every endpoint answers — with `ai.embedding_too_wide` and
+  the search as the one feature affected. Both read the width pool without a call, which is what
+  makes a request path the wrong place to ask and the embedding pass the right one.
 * #532 becomes measurable: the two local models are models the product stores, so where their
   paraphrase bands sit is a question about the product rather than about a fixture.
-* `ProviderCapabilities.EmbeddingDimensions` stays declared and unread. Populating it would let an
-  OpenAI-compatible configuration be refused before the first call, and it is a smaller task than
-  this one; it is left for the moment somebody wants it rather than done here for completeness.
