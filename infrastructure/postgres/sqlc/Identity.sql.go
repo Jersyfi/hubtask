@@ -594,9 +594,10 @@ SELECT id, name, description, version
 FROM account_group
 WHERE (
     $1::text IS NULL
-    OR (lower(name), id) > ($1::text, $2::uuid)
+    OR (lower(name) COLLATE hubtask_name, id)
+       > ($1::text COLLATE hubtask_name, $2::uuid)
   )
-ORDER BY lower(name), id
+ORDER BY lower(name) COLLATE hubtask_name, id
 LIMIT $3
 `
 
@@ -617,6 +618,8 @@ type ListGroupsRow struct {
 // so that a page boundary survives a concurrent insert (api-guidelines.md §4); `id` is the
 // tiebreak the guidelines require, and lower() is the order the unique index already keeps. One row
 // more than the page size is read, and the caller reports has_more from it.
+// The keyset comparison and the order under one collation, or the page boundary and the page
+// disagree about where a name sorts (migration 0080).
 func (q *Queries) ListGroups(ctx context.Context, arg ListGroupsParams) ([]ListGroupsRow, error) {
 	rows, err := q.db.Query(ctx, listGroups, arg.CursorName, arg.CursorID, arg.PageSize)
 	if err != nil {

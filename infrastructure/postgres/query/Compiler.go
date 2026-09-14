@@ -917,8 +917,9 @@ func (b *builder) after(name string, term view.SortTerm, key string) {
 		comparison = ` < `
 	}
 	if !term.Field.Nullable {
-		b.write(name, comparison)
+		b.write(name, collationOf(term.Field), comparison)
 		b.boundaryValue(term, key)
+		b.write(collationOf(term.Field))
 		return
 	}
 
@@ -932,9 +933,9 @@ func (b *builder) after(name string, term view.SortTerm, key string) {
 		b.boundaryValue(term, key)
 		b.write(` IS NULL THEN false WHEN `, name, ` IS NULL THEN true `)
 	}
-	b.write(`ELSE `, name, comparison)
+	b.write(`ELSE `, name, collationOf(term.Field), comparison)
 	b.boundaryValue(term, key)
-	b.write(` END)`)
+	b.write(collationOf(term.Field), ` END)`)
 }
 
 // seekable reports whether the sort can be compared as a row: every term ascending, and no term on

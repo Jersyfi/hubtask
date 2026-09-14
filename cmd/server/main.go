@@ -1675,6 +1675,7 @@ func run() error {
 			Profiles:  profiles,
 			Languages: postgres.NewTextLanguageRepository(),
 			Semantic:  postgres.NewSemanticSearchRepository(),
+			Ordering:  postgres.NewNaturalOrderingRepository(),
 			// The same resolver every asking route reaches through, so the manifest cannot say
 			// the workspace has AI while the route refuses (issue 502). Budgeted, which is the
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next

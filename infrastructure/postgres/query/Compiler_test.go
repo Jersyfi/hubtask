@@ -290,7 +290,7 @@ func TestTheOrderingIsTheSortAndThenTheIdentifier(t *testing.T) {
 				map[string]any{"field": "is_completed"},
 				map[string]any{"field": "title", "dir": "DESC"},
 			},
-			` ORDER BY wi.is_completed ASC, wi.title DESC, wi.id LIMIT `,
+			` ORDER BY wi.is_completed ASC, wi.title COLLATE hubtask_name DESC, wi.id LIMIT `,
 		},
 	}
 
@@ -325,13 +325,13 @@ func TestTheKeysetContinuesTheWalk(t *testing.T) {
 			"two ascending keys stay a row comparison",
 			[]any{map[string]any{"field": "title"}, map[string]any{"field": "depth"}},
 			[]string{"vAlpha", "v2"},
-			`(wi.title, wi.depth, wi.id) > ($2::text, $3::bigint, $4::uuid)`,
+			`(wi.title COLLATE hubtask_name, wi.depth, wi.id) > ($2::text COLLATE hubtask_name, $3::bigint, $4::uuid)`,
 		},
 		{
 			"a descending sort expands",
 			[]any{map[string]any{"field": "title", "dir": "DESC"}},
 			[]string{"vAlpha"},
-			`(wi.title < $2::text OR (wi.title IS NOT DISTINCT FROM $3::text AND wi.id > $4::uuid))`,
+			`(wi.title COLLATE hubtask_name < $2::text COLLATE hubtask_name OR (wi.title IS NOT DISTINCT FROM $3::text AND wi.id > $4::uuid))`,
 		},
 		{
 			"a nullable key carries where its nulls were placed",
