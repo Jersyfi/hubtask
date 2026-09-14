@@ -651,6 +651,11 @@ gate-kind: docker-build
 	$(call require_tool,helm)
 	scripts/kind-smoke.sh $(VERSION)
 
+## locales: How complete each translation is, per family (M-03, ADR-0055)
+.PHONY: locales
+locales:
+	$(GO) run ./tools/locales
+
 ## gate-docs: Check cross references and the ADR index
 .PHONY: gate-docs
 gate-docs:
