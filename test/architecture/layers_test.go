@@ -365,3 +365,47 @@ func TestTheIdentityProviderLibraryIsBehindOneAdapter(t *testing.T) {
 			}
 		})
 }
+
+// The text libraries live in exactly the packages ADR-0056 names, and this is the gate it promised
+// (M-02). golang.org/x/text and golang.org/x/net/idna were already in the module graph; what the
+// ADR added is which four packages of them the binary imports and from where - the matcher and
+// the plural rules from the i18n adapter, the normaliser and the domain encoder from the text
+// adapter. An import from anywhere else is the decision being made twice.
+//
+// `x/net` as a whole is not confined: `x/net/http2` and its neighbours arrive underneath the
+// telemetry exporters and are nobody's import here. The gate names the one package the ADR does.
+func TestTheTextLibrariesAreBehindTheirAdapters(t *testing.T) {
+	allowed := map[string][]string{
+		"golang.org/x/text/language":       {"infrastructure/i18n"},
+		"golang.org/x/text/feature/plural": {"infrastructure/i18n"},
+		"golang.org/x/text/unicode/norm":   {"infrastructure/text"},
+		"golang.org/x/net/idna":            {"infrastructure/text"},
+	}
+
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			for _, imp := range f.Imports {
+				importPath := strings.Trim(imp.Path.Value, `"`)
+				isText := strings.HasPrefix(importPath, "golang.org/x/text/")
+				isIDNA := importPath == "golang.org/x/net/idna"
+				if !isText && !isIDNA {
+					continue
+				}
+				adapters, known := allowed[importPath]
+				if !known {
+					t.Errorf("%s imports %s: not one of the four packages ADR-0056 admits", rel(path), importPath)
+					continue
+				}
+				permitted := false
+				for _, adapter := range adapters {
+					if strings.Contains(filepath.ToSlash(path), adapter) {
+						permitted = true
+					}
+				}
+				if !permitted {
+					t.Errorf("%s imports %s: it belongs in %v and nowhere else (ADR-0056, ADR-0001)",
+						rel(path), importPath, adapters)
+				}
+			}
+		})
+}

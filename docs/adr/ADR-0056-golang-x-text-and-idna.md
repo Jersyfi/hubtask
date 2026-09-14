@@ -73,8 +73,10 @@ the system's ICU version, for four functions.
 
 ## Consequences
 
-* `go.mod` gains two lines in the direct block and loses two in the indirect one. `go mod tidy`
-  produces no other change.
+* `go.mod` moves `golang.org/x/text` to the direct block with M-02, and `golang.org/x/net` with
+  M-10 — Go lists a module as direct only once a package of it is imported, and `idna` is M-10's
+  import. Tidying with M-02 also moved `github.com/nats-io/nats.go` to the direct block, where
+  ADR-0042's import had put it in fact if not in the file.
 * The Go renderer can implement the client's ICU subset with the same CLDR categories
   `Intl.PluralRules` carries, which is what makes one subset on both sides possible (M-02).
 * The negotiation becomes one matcher over `Renderer.Locales()` (M-04), and §2's sentence is true
