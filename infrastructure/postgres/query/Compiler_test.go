@@ -653,3 +653,36 @@ func textSearchOf(words string) repository.TextSearch {
 		Request: view.Search{Words: words, Language: "en", Size: 50},
 	}
 }
+
+// The query vector is compared only with rows of the model that produced it, in both places the
+// statement reaches into item_embedding - the join and the neighbourhood - and the model's name
+// is bound, never written: it is configuration somebody typed (#568, rule 9).
+func TestASearchReadsOnlyTheRowsOfTheQueryVectorsModel(t *testing.T) {
+	search := textSearchOf("quarterly report")
+	search.MeaningModel = "embed'; DROP TABLE item_embedding; --"
+
+	statement, err := Search(search, "[0.1,0.2,0.3]", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if strings.Contains(statement.SQL, "DROP") {
+		t.Fatalf("the model name reached the statement's text:\n  %s", statement.SQL)
+	}
+	for _, want := range []string{
+		"AND e.item_id = wi.id AND e.model = $",
+		"FROM item_embedding WHERE model = $",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the statement is missing %q:\n  %s", want, statement.SQL)
+		}
+	}
+	bound := 0
+	for _, arg := range statement.Args {
+		if value, ok := arg.(string); ok && value == search.MeaningModel {
+			bound++
+		}
+	}
+	if bound != 2 {
+		t.Errorf("the model is bound %d times, want once for the join and once for the neighbourhood", bound)
+	}
+}
