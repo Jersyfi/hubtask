@@ -273,7 +273,7 @@ func run() error {
 	// roles decide is which loops run (ADR-0014).
 	mailSender := buildMailSender(cfg, registry, metrics)
 
-	renderer, err := i18n.NewRenderer()
+	renderer, err := i18n.NewRendererFromConfig(cfg.Locale)
 	if err != nil {
 		return fmt.Errorf("message catalogue: %w", err)
 	}
