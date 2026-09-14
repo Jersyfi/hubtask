@@ -158,10 +158,30 @@ type ProviderCapabilities struct {
 	// provenance. Empty where the corresponding capability is false.
 	CompletionModel string
 	EmbeddingModel  string
-	// EmbeddingDimensions is the vector length this provider produces, or zero when it does not
-	// embed. The search's index is built for one length, so a change is a re-index rather than a
-	// setting (J-09).
+	// EmbeddingDimensions is the vector length this provider produces, or zero where this process
+	// does not know it yet. The search's index is built for one length (ADR-0054): a provider whose
+	// width is known to exceed it is refused before anything is sent, and reported as such. What
+	// fills it is the adapter's own knowledge - a documented width for a hosted model, an answer
+	// from a local server's model description, or the width of the first batch this process saw -
+	// kept per process the way breaker state is (#569).
 	EmbeddingDimensions int
+}
+
+// Measured is a provider that can say how wide its embedding vectors are before it is asked for
+// one (#569).
+//
+// Optional rather than part of Provider, because not every provider can say: an OpenAI-compatible
+// endpoint serving a model nobody documented cannot, and answering zero is the honest answer -
+// "find out at the first call", which is the behaviour a provider without this method has. Never a
+// refusal: a provider that cannot describe its model is still a provider that can embed.
+//
+// The application layer asks it once per embedding pass, when there is something to embed, so a
+// model the index cannot hold costs one description rather than one batch per pass for ever.
+// The search does not ask: a request path is no place for a metadata call, and it reads what the
+// pass learned through Capabilities instead.
+type Measured interface {
+	// MeasureEmbedding answers the configured embedding model's width, or zero when it cannot say.
+	MeasureEmbedding(ctx context.Context) (int, error)
 }
 
 // Enabled reports whether this provider can do anything at all. It is what the health probe reads

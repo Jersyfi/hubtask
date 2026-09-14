@@ -35,10 +35,35 @@ type budgetWorld struct {
 	// be: the provider call is outside one, and the ledger write is a write.
 	openTransactions int
 	meteredInside    bool
+	// measures is what the provider answers to the width question; measurable false hands out a
+	// provider that cannot be asked at all.
+	measures   int
+	measurable bool
 }
 
 func (w *budgetWorld) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {
+	if w.measures > 0 && !w.measurable {
+		// The world was told a width but not made measurable: the test flipped it off.
+		return unmeasurable{inner: budgetProvider{world: w}}, nil
+	}
 	return budgetProvider{world: w}, nil
+}
+
+// MeasureEmbedding is the width question, answered from the world (#569).
+func (p budgetProvider) MeasureEmbedding(context.Context) (int, error) { return p.world.measures, nil }
+
+// unmeasurable is a provider without the optional method, which is what the interface assertion
+// has to answer zero for. A field rather than an embedding, or the method would be promoted.
+type unmeasurable struct{ inner budgetProvider }
+
+func (u unmeasurable) Capabilities() aiprovider.ProviderCapabilities {
+	return u.inner.Capabilities()
+}
+func (u unmeasurable) Complete(ctx context.Context, r aiprovider.CompletionRequest) (aiprovider.CompletionResult, error) {
+	return u.inner.Complete(ctx, r)
+}
+func (u unmeasurable) Embed(ctx context.Context, t []string) (aiprovider.EmbeddingResult, error) {
+	return u.inner.Embed(ctx, t)
 }
 
 func (w *budgetWorld) AiTokens(context.Context, string, time.Time) (bool, error) {
@@ -231,5 +256,36 @@ func TestWithoutABudgetTheResolverIsUntouched(t *testing.T) {
 	}
 	if !provider.Capabilities().Enabled() {
 		t.Error("a build with no budget refused a configured provider")
+	}
+}
+
+// The budget wrapper forwards the width question to a provider that can answer it, and answers
+// zero for one that cannot - and meters nothing either way, because no budget counts a question
+// about a model (#569). Without this test, dropping the forwarding would send every pass back to
+// the after-call path and every other test would still pass.
+func TestTheBudgetWrapperForwardsTheWidthQuestionAndMetersNothing(t *testing.T) {
+	world := &budgetWorld{room: true, measures: 3072, measurable: true}
+
+	provider, err := budgeted(world).For(t.Context(), budgetActor())
+	if err != nil {
+		t.Fatalf("resolving was refused: %v", err)
+	}
+	measured, can := provider.(aiprovider.Measured)
+	if !can {
+		t.Fatal("a metered provider cannot be asked its width")
+	}
+	width, err := measured.MeasureEmbedding(t.Context())
+	if err != nil || width != 3072 {
+		t.Fatalf("the question answered %d, %v", width, err)
+	}
+	if len(world.metered) != 0 {
+		t.Errorf("the question was metered: %v", world.metered)
+	}
+
+	// And a provider that cannot say answers zero rather than refusing.
+	world.measurable = false
+	provider, _ = budgeted(world).For(t.Context(), budgetActor())
+	if width, err := provider.(aiprovider.Measured).MeasureEmbedding(t.Context()); err != nil || width != 0 {
+		t.Errorf("an unmeasurable provider answered %d, %v", width, err)
 	}
 }
