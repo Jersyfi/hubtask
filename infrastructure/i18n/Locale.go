@@ -5,6 +5,7 @@ package i18n
 
 import (
 	"log/slog"
+	"strings"
 
 	"golang.org/x/text/language"
 
@@ -15,6 +16,7 @@ import (
 type LocaleInfo = port.LocaleInfo
 
 var _ port.Locales = Renderer{}
+var _ port.WeekStarts = Renderer{}
 
 // The writing direction is the script's, and the script is what `language.Tag.Script()` infers
 // for a tag that does not state one - which is why this is a list of scripts and not of
@@ -96,4 +98,26 @@ func (r Renderer) LogUnknownLocales(logger *slog.Logger) {
 				slog.String("locale", tag))
 		}
 	}
+}
+
+// WeekStartOf is the port's method: the row of the catalogue the tag lands on, through the same
+// matcher a message is rendered through, so that `de-AT` reads `de`'s row and `pt-BR` reads
+// `pt`'s; a tag that lands nowhere - or on a catalogue without a row - starts on Monday.
+func (r Renderer) WeekStartOf(locale string) string {
+	tag := strings.TrimSpace(locale)
+	if tag == "" {
+		return defaultWeekStart
+	}
+	parsed, err := language.Parse(tag)
+	if err != nil {
+		return defaultWeekStart
+	}
+	index, confidence := r.match(parsed)
+	if confidence == language.No {
+		return defaultWeekStart
+	}
+	if row, known := weekAndDecimal[r.Locales()[index]]; known {
+		return row.week
+	}
+	return defaultWeekStart
 }
