@@ -1839,6 +1839,9 @@ func run() error {
 											cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
 										Next: rest.Localised{
 											Locale: cfg.Locale,
+											// The catalogues present decide what a header lands
+											// on (M-04); the renderer is the matcher.
+											Negotiator: renderer,
 											Next: rest.Authenticated{
 												Routes:        apiRoutes,
 												Authenticator: authenticate,

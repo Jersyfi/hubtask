@@ -14,6 +14,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
 func TestADeclaredBodyOverTheLimitIsRefusedBeforeItIsRead(t *testing.T) {
@@ -105,30 +106,46 @@ func TestEveryHandlerInheritsADeadline(t *testing.T) {
 	}
 }
 
-func TestPreferredLocale(t *testing.T) {
-	cases := []struct {
-		name   string
-		header string
-		want   string
-	}{
-		{"no header falls back", "", "en"},
-		{"a single tag", "de", "de"},
-		{"a region tag", "pt-BR", "pt-BR"},
-		{"the highest weight wins", "de;q=0.3, fr;q=0.9, en;q=0.5", "fr"},
-		{"equal weights keep the client's order", "de, fr", "de"},
-		{"an unweighted tag beats a weighted one", "de;q=0.8, fr", "fr"},
-		{"q=0 means not acceptable", "de;q=0", "en"},
-		{"the wildcard is not a language", "*", "en"},
-		{"a script subtag", "zh-Hans-CN", "zh-Hans-CN"},
-		{"rubbish falls back", "!!;q=x", "en"},
-		{"a header that is too long falls back", strings.Repeat("de,", 200), "en"},
-		{"an injection attempt falls back", "de\nX-Evil: 1", "en"},
-	}
+// firstTag stands in for the i18n adapter's negotiator (M-04): the header's first tag, which is
+// enough to prove the middleware hands the header over and carries the answer. What a real
+// header negotiates against the catalogues present is the adapter's own test.
+type firstTag struct{}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := preferredLocale(c.header, "en"); got != c.want {
-				t.Errorf("preferredLocale(%q) = %q, want %q", c.header, got, c.want)
+func (firstTag) Negotiate(header string) string {
+	first, _, _ := strings.Cut(header, ",")
+	first, _, _ = strings.Cut(first, ";")
+	return strings.TrimSpace(first)
+}
+
+// The middleware owns nothing about the header but the hand-over: what the negotiator answers is
+// the request's preference, and nothing answered is the installation's default - and no
+// negotiator at all is the same as nothing answered.
+func TestTheNegotiatedLocaleIsTheRequestsPreference(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		negotiator i18n.Negotiator
+		header     string
+		want       string
+	}{
+		{"what the negotiator answers", firstTag{}, "de-AT, en;q=0.5", "de-AT"},
+		{"nothing stated", firstTag{}, "", "en"},
+		{"no negotiator wired", nil, "de-AT", "en"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var actor appshared.ActorContext
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta/capabilities", nil)
+			if tc.header != "" {
+				request.Header.Set("Accept-Language", tc.header)
+			}
+			Localised{
+				Locale:     env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+				Negotiator: tc.negotiator,
+				Next: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+					actor, _ = appshared.ActorFrom(r.Context())
+				}),
+			}.ServeHTTP(httptest.NewRecorder(), request)
+			if actor.Locale != tc.want {
+				t.Errorf("locale %q, want %q", actor.Locale, tc.want)
 			}
 		})
 	}
@@ -142,7 +159,8 @@ func TestTheLocaleReachesTheActorContext(t *testing.T) {
 	request.Header.Set("Accept-Language", "de-AT;q=0.9, en;q=0.4")
 
 	Localised{
-		Locale: env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "Europe/Berlin"},
+		Locale:     env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "Europe/Berlin"},
+		Negotiator: firstTag{},
 		Next: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			actor, found = appshared.ActorFrom(r.Context())
 		}),
