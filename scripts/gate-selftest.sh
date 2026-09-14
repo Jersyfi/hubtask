@@ -25,7 +25,7 @@ SKIPPED=0
 
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	rm -f locales/zz.json
+	rm -f db/queries/zz_gate_selftest.sql locales/zz.json
 }
 trap cleanup EXIT INT TERM
 cleanup
@@ -391,6 +391,25 @@ func Selftest(n int) int {
 	}
 	return -n
 }'
+
+# A query that orders by a name and does not say which collation (M-08). The gate globs
+# db/queries/*.sql, so the violation is a file there rather than a Go package.
+expect_query_failure() {
+	local name="$1" content="$2" file="db/queries/zz_gate_selftest.sql"
+	CHECKS=$((CHECKS + 1))
+	printf '%s\n' "$content" > "$file"
+	if make --no-print-directory gate-architecture >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-architecture stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-architecture\n' "$name"
+	fi
+	rm -f "$file"
+}
+
+expect_query_failure "a name ordered without its collation" \
+'-- name: SelftestLabels :many
+SELECT id, name FROM label ORDER BY name, id;'
 
 # A translation the gate must refuse (M-03): a key the source does not have, a placeholder that
 # does not match the source's, a message outside the ICU subset, a key written twice. Each is a
