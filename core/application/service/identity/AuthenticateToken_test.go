@@ -189,7 +189,11 @@ func TestTheLookupRunsInTheTokensTenant(t *testing.T) {
 	}
 }
 
-func TestTheLocaleChainPrefersTheRequest(t *testing.T) {
+// The chain of i18n-l10n.md §2 for a person: the account's own preference first, then what the
+// request asked for, then the workspace's default, then the installation's. A preference set on
+// the account is not overridden by whichever browser somebody is sitting at - which is the rule
+// the client renders by too (M-04).
+func TestTheLocaleChainPrefersTheAccount(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.Account.Locale = "fr"
 	credential.Account.TimeZone = "Europe/Paris"
@@ -201,8 +205,8 @@ func TestTheLocaleChainPrefersTheRequest(t *testing.T) {
 		wantLocale       string
 		wantTimeZoneFrom string
 	}{
-		{"the request wins", "pt-BR", "fr", "pt-BR", "Europe/Paris"},
-		{"then the account", "", "fr", "fr", "Europe/Paris"},
+		{"the account wins", "pt-BR", "fr", "fr", "Europe/Paris"},
+		{"then the request", "pt-BR", "", "pt-BR", "Europe/Paris"},
 		{"then the tenant", "", "", "de", "Europe/Paris"},
 	}
 
