@@ -154,3 +154,14 @@ func TestForAnswersTheMergedCatalogue(t *testing.T) {
 		t.Errorf("an unknown locale is not the source catalogue: %d messages", unknown.Len())
 	}
 }
+
+// A key written twice is a message that says two things, and a map keeps the last without a
+// word. Found in en.json by this very check: four codes, one of them with two different sentences.
+func TestAKeyWrittenTwiceRefusesTheFile(t *testing.T) {
+	_, err := LoadDirectory(fstest.MapFS{"en.json": &fstest.MapFile{
+		Data: []byte(`{"a.one": "One", "a.two": "Two", "a.one": "Eins"}`),
+	}})
+	if err == nil || !strings.Contains(err.Error(), "a.one") {
+		t.Errorf("a duplicate key was not refused by name: %v", err)
+	}
+}
