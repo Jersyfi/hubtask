@@ -161,6 +161,11 @@ type GetCapabilities struct {
 	// otherwise" and the safe direction - a client offers one control fewer rather than one that
 	// will always refuse.
 	Semantic repository.SemanticSearch
+	// Ordering answers whether names sort under the ICU root collation here (M-08). Optional,
+	// like Semantic and for the same reason: a build wired without it answers `false`, which is
+	// the honest reading of "nothing here says otherwise" - names still sort, in the database's
+	// own order.
+	Ordering repository.NaturalOrdering
 	// Providers answers what the caller's workspace can ask a model to do (issue 502). Optional,
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise".
@@ -192,6 +197,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		profiles  []work.CapabilityProfile
 		languages []string
 		semantic  bool
+		ordering  bool
 	)
 	err := g.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		var err error
@@ -203,6 +209,11 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		// a client reads before it has signed in.
 		if languages, err = g.Languages.List(ctx); err != nil {
 			return err
+		}
+		if g.Ordering != nil {
+			if ordering, err = g.Ordering.Available(ctx); err != nil {
+				return err
+			}
 		}
 		if g.Semantic == nil {
 			return nil
@@ -308,6 +319,13 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// An installation missing either searches lexically, which is complete - so this is a
 			// manifest entry and not a warning.
 			"semantic_search": semantic && ai.Embedding,
+			// Whether names sort under the ICU root collation, the same on every installation
+			// (M-08, i18n-l10n.md §5). Read from pg_collation rather than assumed, because
+			// migration 0080 falls back to the database's own locale where PostgreSQL has no
+			// ICU - names still sort then, so this is a manifest entry and not a warning, and a
+			// client sorting a list itself with Intl.Collator reads here whether the server
+			// already did.
+			"natural_ordering": ordering,
 		},
 	}, nil
 }
