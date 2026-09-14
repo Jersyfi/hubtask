@@ -336,6 +336,13 @@ import "net/http"
 
 func Selftest() *http.Client { return &http.Client{} }'
 
+expect_gate_failure "the plural rules imported outside the i18n adapter" gate-architecture infrastructure \
+'package selftest
+
+import "golang.org/x/text/feature/plural"
+
+func Selftest() *plural.Rules { return plural.Cardinal }'
+
 expect_gate_failure "a permission question that does not name its entry" gate-architecture core/application \
 'package selftest
 

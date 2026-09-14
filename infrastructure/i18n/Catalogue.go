@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/text/language"
+
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/locales"
 )
@@ -35,8 +37,19 @@ const catalogueSuffix = ".json"
 // Catalogue is one locale's messages, keyed by message code.
 //
 // It is immutable once loaded and safe to share: nothing writes to the map after Load returns.
+// Every message is parsed when the catalogue is, so that a construct the renderer does not
+// implement refuses the file rather than printing braces at a recipient (i18n-l10n.md §3).
 type Catalogue struct {
-	messages map[string]string
+	messages map[string]entry
+}
+
+// entry is one message: its pattern, the parsed form, and the language whose plural rules it
+// is rendered under - carried per message rather than per catalogue, because a merged catalogue
+// (For) holds the locale's messages beside the source's and each keeps its own rules.
+type entry struct {
+	pattern string
+	nodes   []node
+	tag     language.Tag
 }
 
 // LoadEnglish parses the embedded source catalogue.
@@ -91,7 +104,7 @@ func LoadDirectory(files fs.FS) (map[string]Catalogue, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading the message catalogue %s: %w", name, err)
 		}
-		catalogue, err := load(raw)
+		catalogue, err := load(raw, language.Make(tag))
 		if err != nil {
 			return nil, fmt.Errorf("reading the message catalogue %s: %w", name, err)
 		}
@@ -100,18 +113,22 @@ func LoadDirectory(files fs.FS) (map[string]Catalogue, error) {
 	return catalogues, nil
 }
 
-func load(raw []byte) (Catalogue, error) {
+func load(raw []byte, tag language.Tag) (Catalogue, error) {
 	var entries map[string]string
 	if err := json.Unmarshal(raw, &entries); err != nil {
 		return Catalogue{}, fmt.Errorf("not a flat map of codes to messages: %w", err)
 	}
 
-	messages := make(map[string]string, len(entries))
+	messages := make(map[string]entry, len(entries))
 	for code, message := range entries {
 		if strings.HasPrefix(code, metadataPrefix) {
 			continue
 		}
-		messages[code] = message
+		nodes, err := parseMessage(message)
+		if err != nil {
+			return Catalogue{}, fmt.Errorf("%s: %w", code, err)
+		}
+		messages[code] = entry{pattern: message, nodes: nodes, tag: tag}
 	}
 	return Catalogue{messages: messages}, nil
 }
@@ -128,7 +145,7 @@ func (c Catalogue) Message(code string, params map[string]string) (string, bool)
 	if !known {
 		return code, false
 	}
-	return substitute(message, params), true
+	return render(message.nodes, params, message.tag), true
 }
 
 // Has reports whether the catalogue knows a code, without rendering it. What a caller with two
@@ -158,14 +175,14 @@ func (c Catalogue) Codes() []string {
 // Pattern answers the raw message for a code, unrendered. For the gates.
 func (c Catalogue) Pattern(code string) (string, bool) {
 	message, known := c.messages[code]
-	return message, known
+	return message.pattern, known
 }
 
 // overlaid answers a catalogue with every message of `over` on top of this one: a key in both is
 // the overlay's, a key in one is that one's. What an operator's file does to the embedded
 // catalogue of the same tag - key by key, never as a whole (i18n-l10n.md §1).
 func (c Catalogue) overlaid(over Catalogue) Catalogue {
-	merged := make(map[string]string, len(c.messages)+len(over.messages))
+	merged := make(map[string]entry, len(c.messages)+len(over.messages))
 	for code, message := range c.messages {
 		merged[code] = message
 	}
@@ -173,43 +190,4 @@ func (c Catalogue) overlaid(over Catalogue) Catalogue {
 		merged[code] = message
 	}
 	return Catalogue{messages: merged}
-}
-
-// substitute replaces `{name}` with the parameter of that name.
-//
-// This is the simple-argument subset of ICU MessageFormat, which is all the catalogues use.
-// That is not an assumption but a checked property: Catalogue_test.go refuses a message with a
-// plural, a select or a format style, so that adding one turns a build red here rather than
-// printing braces at a user.
-func substitute(message string, params map[string]string) string {
-	if len(params) == 0 || !strings.ContainsRune(message, '{') {
-		return message
-	}
-
-	var out strings.Builder
-	out.Grow(len(message))
-	rest := message
-	for {
-		before, after, found := strings.Cut(rest, "{")
-		out.WriteString(before)
-		if !found {
-			return out.String()
-		}
-
-		name, tail, closed := strings.Cut(after, "}")
-		if !closed {
-			// An unterminated brace is not a placeholder. Written out as it stands.
-			out.WriteString("{")
-			out.WriteString(after)
-			return out.String()
-		}
-		if value, ok := params[name]; ok {
-			out.WriteString(value)
-		} else {
-			out.WriteString("{")
-			out.WriteString(name)
-			out.WriteString("}")
-		}
-		rest = tail
-	}
 }
