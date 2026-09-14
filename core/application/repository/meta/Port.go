@@ -60,3 +60,15 @@ type SemanticSearch interface {
 	// failure: search is then lexical, which is complete.
 	Available(ctx context.Context) (bool, error)
 }
+
+// NaturalOrdering reads whether names sort under the ICU root collation on this installation
+// (M-08, i18n-l10n.md §5).
+//
+// A port for the reason the two above are: migration 0080 defines the collation the queries
+// order by from `und-x-icu` where PostgreSQL has it and from the database's own locale where it
+// does not, so which of the two an installation got is a property of the database this binary was
+// pointed at. False is a statement rather than a failure - names still sort, in the order the
+// database was created with.
+type NaturalOrdering interface {
+	Available(ctx context.Context) (bool, error)
+}

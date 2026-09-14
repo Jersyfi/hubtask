@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -561,5 +562,33 @@ func TestBothKeysArePresentEvenWhenTheAnswerIsNo(t *testing.T) {
 		if _, answered := capabilities.Features[key]; !answered {
 			t.Errorf("the manifest does not mention %q at all", key)
 		}
+	}
+}
+
+// Whether names sort under the ICU root collation is the database's answer, read from it, and a
+// build wired without the seam says false - names still sort then, in the database's own order,
+// which is why the honest default is the safe one (M-08, i18n-l10n.md §5).
+func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ordering repository.NaturalOrdering
+		want     bool
+	}{
+		{"an ICU collation", store{present: true}, true},
+		{"the database's own locale", store{present: false}, false},
+		{"a build without the seam", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+			handler.Ordering = tc.ordering
+
+			capabilities, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if got, present := capabilities.Features["natural_ordering"]; !present || got != tc.want {
+				t.Errorf("natural_ordering = %v (present %v), want %v", got, present, tc.want)
+			}
+		})
 	}
 }

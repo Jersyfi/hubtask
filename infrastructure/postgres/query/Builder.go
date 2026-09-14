@@ -249,9 +249,17 @@ func enumCast(field view.Field) string {
 // `en_US.UTF-8` the two spaces interleave, and the order this query returns would then disagree
 // with the order the domain assigns - so the collation is stated, here and in the index that serves
 // it (migration 0010), rather than inherited from whatever the database was created with.
+//
+// A title is the other case: read by people, and "Ä" belongs beside "A" for them on every
+// installation, which is `hubtask_name` - the ICU root collation where PostgreSQL has it, the
+// database's own where it does not (migration 0080, i18n-l10n.md §5). Both sides of every
+// comparison say it, or the page boundary and the page disagree about where a name sorts.
 func collationOf(field view.Field) string {
-	if field.Name == view.FieldOrderKey {
+	switch field.Name {
+	case view.FieldOrderKey:
 		return ` COLLATE "C"`
+	case view.FieldTitle:
+		return ` COLLATE hubtask_name`
 	}
 	return ""
 }

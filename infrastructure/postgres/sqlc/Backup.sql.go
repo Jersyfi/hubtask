@@ -725,7 +725,7 @@ SELECT id, tenant_id, name, kind, config, credential_key_id, encryption_mode, en
        region_note, insecure_ack_by, insecure_ack_at, enabled,
        last_test_at, last_test_ok, last_test_error, created_at, created_by, version
 FROM backup_target
-ORDER BY lower(name)
+ORDER BY lower(name) COLLATE hubtask_name
 `
 
 type ListBackupTargetsRow struct {

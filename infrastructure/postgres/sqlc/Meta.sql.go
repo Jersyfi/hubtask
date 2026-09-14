@@ -177,6 +177,26 @@ func (q *Queries) ListTextLanguages(ctx context.Context) ([]string, error) {
 	return items, nil
 }
 
+const naturalOrderingAvailable = `-- name: NaturalOrderingAvailable :one
+SELECT EXISTS (
+  SELECT 1 FROM pg_catalog.pg_collation WHERE collname = 'hubtask_name' AND collprovider = 'i'
+)::boolean AS available
+`
+
+// Whether names sort under the ICU root collation here (M-08, i18n-l10n.md §5).
+//
+// Migration 0080 defines `hubtask_name` from `und-x-icu` where this PostgreSQL was built with ICU
+// and from the database's own libc locale where it was not; the queries say `COLLATE hubtask_name`
+// either way. The provider of the object is what says which of the two an installation got - and
+// a client that sorts a list itself with Intl.Collator can read here whether the server already
+// sorted it the same way.
+func (q *Queries) NaturalOrderingAvailable(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, naturalOrderingAvailable)
+	var available bool
+	err := row.Scan(&available)
+	return available, err
+}
+
 const semanticSearchAvailable = `-- name: SemanticSearchAvailable :one
 SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available
 `
