@@ -921,10 +921,14 @@ func run() error {
 			},
 		})
 	}}
+	// What this process has learned about embedding models' widths, per endpoint and model, the
+	// way the breakers are per endpoint (#569): the embedding pass writes it, and the capability
+	// report and the health probe read it without a call.
+	aiWidths := &aiadapter.WidthPool{}
 	aiResolver := aiadapter.Resolver{
 		Providers: postgres.NewAiProviderRepository(), UnitOfWork: unitOfWork,
 		Encryptor: encryptor, Client: outboundClient, Clock: clockadapter.System{},
-		Meter: metrics, Breakers: aiBreakers,
+		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers))
 	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside it
