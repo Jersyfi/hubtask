@@ -7,22 +7,14 @@ import (
 	"log/slog"
 
 	"golang.org/x/text/language"
+
+	port "github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
-// LocaleInfo is one row of the manifest's `supported_locales` (i18n-l10n.md §2, §6): a locale
-// this installation has a catalogue for, and the three facts a client needs before it has
-// rendered anything.
-type LocaleInfo struct {
-	// Tag is BCP 47, as the catalogue file is named.
-	Tag string
-	// Direction is `ltr` or `rtl`, from the locale's script.
-	Direction string
-	// WeekStart is `MONDAY`, `SUNDAY` or `SATURDAY` - the account's own vocabulary, so that a
-	// client compares the two without translating.
-	WeekStart string
-	// DecimalSeparator is the character between the integer and the fraction.
-	DecimalSeparator string
-}
+// LocaleInfo is the port's row, answered from the catalogues present and the table below.
+type LocaleInfo = port.LocaleInfo
+
+var _ port.Locales = Renderer{}
 
 // The writing direction is the script's, and the script is what `language.Tag.Script()` infers
 // for a tag that does not state one - which is why this is a list of scripts and not of

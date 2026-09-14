@@ -27,3 +27,27 @@ type Renderer interface {
 	// (i18n-l10n.md §2).
 	Render(locale, code string, params map[string]string) string
 }
+
+// LocaleInfo is one row of the manifest's `supported_locales` (i18n-l10n.md §2, §6): a locale
+// this installation has a catalogue for, and the three facts a client needs before it has
+// rendered anything - which way the script runs, the day the week starts, and the character
+// between the integer and the fraction.
+type LocaleInfo struct {
+	// Tag is BCP 47, as the catalogue file is named.
+	Tag string
+	// Direction is `ltr` or `rtl`.
+	Direction string
+	// WeekStart is `MONDAY`, `SUNDAY` or `SATURDAY` - the account's own vocabulary, so that a
+	// client compares the two without translating.
+	WeekStart string
+	// DecimalSeparator is `.` or `,` or the locale's own.
+	DecimalSeparator string
+}
+
+// Locales answers which locales this installation serves. Derived from the catalogue files
+// present rather than from a constant, which is what makes a new language a file and not a
+// release (arc42 QS-08).
+type Locales interface {
+	// SupportedLocales answers one row per catalogue, the source language first.
+	SupportedLocales() []LocaleInfo
+}
