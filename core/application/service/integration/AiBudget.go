@@ -119,6 +119,17 @@ func (m metered) Capabilities() aiprovider.ProviderCapabilities {
 	return m.provider.Capabilities()
 }
 
+// MeasureEmbedding forwards to the provider where it can measure, and answers zero where it
+// cannot - a description is not metered, because no budget counts a question about a model.
+func (m metered) MeasureEmbedding(ctx context.Context) (int, error) {
+	if measured, can := m.provider.(aiprovider.Measured); can {
+		return measured.MeasureEmbedding(ctx)
+	}
+	return 0, nil
+}
+
+var _ aiprovider.Measured = metered{}
+
 func (m metered) Complete(
 	ctx context.Context, request aiprovider.CompletionRequest,
 ) (aiprovider.CompletionResult, error) {

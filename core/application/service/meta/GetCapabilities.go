@@ -8,6 +8,7 @@ import (
 	"context"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
@@ -318,7 +319,13 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			//
 			// An installation missing either searches lexically, which is complete - so this is a
 			// manifest entry and not a warning.
-			"semantic_search": semantic && ai.Embedding,
+			//
+			// And not for a model this process knows the index cannot hold (#569, ADR-0054): the
+			// pass refused it and the search is lexical for as long as it stays configured, so a
+			// control that offered meaning would offer what the product cannot do. Zero is "not
+			// known yet", which is not the same as "fits", and is answered as it always was.
+			"semantic_search": semantic && ai.Embedding &&
+				ai.EmbeddingDimensions <= workrepo.EmbeddingWidth,
 			// Whether names sort under the ICU root collation, the same on every installation
 			// (M-08, i18n-l10n.md §5). Read from pg_collation rather than assumed, because
 			// migration 0080 falls back to the database's own locale where PostgreSQL has no

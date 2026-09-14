@@ -107,6 +107,25 @@ func (h EmbedItems) Execute(
 		return EmbedOutcome{}, nil
 	}
 
+	// Before the batch is sent: what the provider can say about its model's width (#569). A model
+	// the index cannot hold is refused here for the price of one description rather than one
+	// batch per pass for ever - and what a description taught is remembered, so the next pass's
+	// question is answered from memory. Asked every pass rather than only until known, because
+	// the asking is what keeps the memory current: an entry nobody asks for goes stale, and that
+	// is how a workspace that switched models stops being reported. A provider that cannot
+	// describe its model answers zero, and the check after the call still stands.
+	width := capabilities.EmbeddingDimensions
+	if measured, can := provider.(aiprovider.Measured); can {
+		if known, err := measured.MeasureEmbedding(ctx); err == nil && known > 0 {
+			// A description that failed is not a refusal: the batch that follows fails or
+			// succeeds on its own, and the ordinary handling covers both.
+			width = known
+		}
+	}
+	if width > repository.EmbeddingWidth {
+		return EmbedOutcome{}, repository.EmbeddingTooWide(capabilities.EmbeddingModel, width)
+	}
+
 	// The provider is called outside a transaction, for the reason every provider call in this
 	// product is: it reaches somebody else's machine, and a transaction waiting on one holds a
 	// connection for as long as they feel like taking (observability-reliability.md §8).

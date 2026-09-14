@@ -78,6 +78,13 @@ func (m SearchMeaning) Of(
 	if !capabilities.Embedding {
 		return nil, "", nil
 	}
+	if capabilities.EmbeddingDimensions > repository.EmbeddingWidth {
+		// A model this process knows the index cannot hold (#569): lexical without a call, rather
+		// than a query embedded, paid for and thrown away. Known from what the embedding pass
+		// learned - the search asks no question of its own, because a request path is no place
+		// for a metadata call.
+		return nil, "", nil
+	}
 
 	timeout := m.Timeout
 	if timeout <= 0 {
