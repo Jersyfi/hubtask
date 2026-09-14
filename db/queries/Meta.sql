@@ -48,6 +48,18 @@ SELECT l.tag::text FROM hubtask_text_languages() AS l(tag, configuration);
 -- installation's schema, and the two are joined where both are known - in the manifest (issue 502).
 SELECT (to_regclass('public.item_embedding') IS NOT NULL)::boolean AS available;
 
+-- name: NaturalOrderingAvailable :one
+-- Whether names sort under the ICU root collation here (M-08, i18n-l10n.md §5).
+--
+-- Migration 0080 defines `hubtask_name` from `und-x-icu` where this PostgreSQL was built with ICU
+-- and from the database's own libc locale where it was not; the queries say `COLLATE hubtask_name`
+-- either way. The provider of the object is what says which of the two an installation got - and
+-- a client that sorts a list itself with Intl.Collator can read here whether the server already
+-- sorted it the same way.
+SELECT EXISTS (
+  SELECT 1 FROM pg_catalog.pg_collation WHERE collname = 'hubtask_name' AND collprovider = 'i'
+)::boolean AS available;
+
 -- name: FindWorkspace :one
 -- The tenant's own row, read from inside the tenant (F4-01). No tenant parameter: row level
 -- security has already bound the transaction to exactly one, which is what makes another

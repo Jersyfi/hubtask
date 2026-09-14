@@ -425,7 +425,7 @@ SELECT l.id
 FROM item_label il
 JOIN label l ON l.id = il.label_id
 WHERE il.item_id = $1 AND l.deleted_at IS NULL
-ORDER BY l.name, l.id
+ORDER BY l.name COLLATE hubtask_name, l.id
 `
 
 // The labels one item carries, deleted ones left out: the label is gone from the collection's
@@ -456,15 +456,17 @@ SELECT
   id, tenant_id, collection_id, name, color_token, description, deleted_at, version
 FROM label
 WHERE collection_id = $1 AND deleted_at IS NULL
-ORDER BY name, id
+ORDER BY name COLLATE hubtask_name, id
 `
 
 // A collection's vocabulary, in the order a person reads it: by name. Not by a rank, because a
 // label has none - it is a chip in a set rather than a column in a sequence, and inventing an order
 // for it would be a field nothing means.
 //
-// The order is the database's collation deliberately, unlike the boards: this one is read by people
-// and "Ä" belongs beside "A" for them, which is exactly what a byte order would not do.
+// The order is hubtask_name deliberately, unlike the boards: this one is read by people and "Ä"
+// belongs beside "A" for them, which is exactly what a byte order would not do - and beside it on
+// every installation, which is what the database's own collation would not promise (migration
+// 0080, i18n-l10n.md §5).
 func (q *Queries) ListLabels(ctx context.Context, collectionID pgtype.UUID) ([]Label, error) {
 	rows, err := q.db.Query(ctx, listLabels, collectionID)
 	if err != nil {
@@ -500,7 +502,7 @@ FROM item_label il
 JOIN label l ON l.id = il.label_id
 WHERE il.item_id = ANY($1::uuid[])
   AND l.deleted_at IS NULL
-ORDER BY il.item_id, l.name, l.id
+ORDER BY il.item_id, l.name COLLATE hubtask_name, l.id
 `
 
 type ListLabelsOfItemsRow struct {
