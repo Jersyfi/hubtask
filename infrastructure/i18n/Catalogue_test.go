@@ -27,32 +27,40 @@ func TestTheSourceCatalogueLoads(t *testing.T) {
 }
 
 // The renderer implements the simple-argument subset of ICU MessageFormat. This is what keeps
-// that honest: the day a message needs a plural or a select, this test fails and whoever adds it
-// has to teach the renderer rather than watch it print braces at a user.
-func TestTheSourceCatalogueStaysWithinTheSubset(t *testing.T) {
-	catalogue, err := LoadEnglish()
+// that honest, for every catalogue the binary carries and not only the source: the day a message
+// needs a plural or a select, this test fails and whoever adds it has to teach the renderer
+// rather than watch it print braces at a user. (M-02 is that teaching; until it lands a
+// translation lives inside the same subset the source does.)
+func TestEveryEmbeddedCatalogueStaysWithinTheSubset(t *testing.T) {
+	catalogues, err := LoadEmbedded()
 	if err != nil {
-		t.Fatalf("loading the source catalogue: %v", err)
+		t.Fatalf("loading the catalogues: %v", err)
+	}
+	if len(catalogues) < 1 {
+		t.Fatal("no catalogue is embedded")
 	}
 
 	// A simple argument is `{name}` and nothing else - no comma, no nested brace, no format style.
 	simpleArgument := regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	for code, message := range catalogue.messages {
-		rest := message
-		for {
-			_, after, found := strings.Cut(rest, "{")
-			if !found {
-				break
+	for tag, catalogue := range catalogues {
+		for code, message := range catalogue.messages {
+			rest := message
+			for {
+				_, after, found := strings.Cut(rest, "{")
+				if !found {
+					break
+				}
+				name, tail, closed := strings.Cut(after, "}")
+				if !closed {
+					t.Errorf("%s %s: an unterminated { in %q", tag, code, message)
+					break
+				}
+				if !simpleArgument.MatchString(name) {
+					t.Errorf("%s %s: %q is not a simple argument - the renderer would print it as text",
+						tag, code, "{"+name+"}")
+				}
+				rest = tail
 			}
-			name, tail, closed := strings.Cut(after, "}")
-			if !closed {
-				t.Errorf("%s: an unterminated { in %q", code, message)
-				break
-			}
-			if !simpleArgument.MatchString(name) {
-				t.Errorf("%s: %q is not a simple argument - the renderer would print it as text", code, "{"+name+"}")
-			}
-			rest = tail
 		}
 	}
 }
