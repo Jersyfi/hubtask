@@ -124,7 +124,7 @@ func newHybridFixture(ctx context.Context, t *testing.T) hybridFixture {
 				return err
 			}
 			if err := embeddings.Store(ctx, repository.StoredEmbedding{
-				ItemID: entry.id, Model: "test-embed-1", Vector: entry.vector,
+				ItemID: entry.id, Model: hybridModel, Vector: entry.vector,
 				SourceDigest: suggestion.Digest(entry.title, ""),
 				UpdatedAt:    time.Now().UTC(),
 			}); err != nil {
@@ -150,13 +150,17 @@ func requirePgvector(ctx context.Context, t *testing.T) {
 	}
 }
 
+// hybridModel names the fixtures' vectors and the query's, which is what makes them comparable
+// at all: the search reads only the rows of the model its query vector came from (#568).
+const hybridModel = "test-embed-1"
+
 func hybridSearch(f hybridFixture, meaning []float32) repository.TextSearch {
 	return repository.TextSearch{
 		Anchor: repository.Anchor{
 			Kind: repository.AnchorCollection, CollectionID: f.collection, IncludeDescendants: true,
 		},
 		Request: view.Search{Words: f.word, Language: "de", Size: 50},
-		Meaning: meaning,
+		Meaning: meaning, MeaningModel: hybridModel,
 	}
 }
 

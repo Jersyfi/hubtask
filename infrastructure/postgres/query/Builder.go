@@ -29,6 +29,9 @@ type builder struct {
 	// nothing said. Only MATCHES reads it, and it is on the builder rather than passed down because
 	// the walk that reaches a leaf carries nothing else of the request either.
 	language string
+	// model is the embedding model a search's query vector came from, for the two places the
+	// statement reaches into item_embedding. On the builder for language's reason.
+	model string
 }
 
 // newBuilder starts a statement for one query.
