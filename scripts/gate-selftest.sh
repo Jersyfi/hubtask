@@ -25,7 +25,7 @@ SKIPPED=0
 
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	rm -f db/queries/zz_gate_selftest.sql
+	rm -f db/queries/zz_gate_selftest.sql locales/zz.json
 }
 trap cleanup EXIT INT TERM
 cleanup
@@ -410,6 +410,34 @@ expect_query_failure() {
 expect_query_failure "a name ordered without its collation" \
 '-- name: SelftestLabels :many
 SELECT id, name FROM label ORDER BY name, id;'
+
+# A translation the gate must refuse (M-03): a key the source does not have, a placeholder that
+# does not match the source's, a message outside the ICU subset, a key written twice. Each is a
+# catalogue file under locales/, which is what the gate reads - a Go package would prove nothing.
+expect_catalogue_failure() {
+	local name="$1" content="$2" file="locales/zz.json"
+	CHECKS=$((CHECKS + 1))
+	printf '%s\n' "$content" > "$file"
+	if make --no-print-directory gate-architecture >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-architecture stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-architecture\n' "$name"
+	fi
+	rm -f "$file"
+}
+
+expect_catalogue_failure "a translation of a key the source does not have" \
+'{"errors.invented_by_the_translator": "Nichts"}'
+
+expect_catalogue_failure "a translation whose placeholder differs from the source" \
+'{"errors.internal": "Auf unserer Seite ist etwas schiefgegangen. Referenz: {reference}"}'
+
+expect_catalogue_failure "a translation outside the ICU subset" \
+'{"errors.forbidden": "Dazu fehlt dir die Berechtigung seit {at, date, short}."}'
+
+expect_catalogue_failure "a translation with a key written twice" \
+'{"errors.forbidden": "Nein", "errors.forbidden": "Doch"}'
 
 header "Licence headers (make gate-architecture)"
 
