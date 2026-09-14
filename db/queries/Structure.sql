@@ -165,13 +165,15 @@ WHERE id = $1;
 -- label has none - it is a chip in a set rather than a column in a sequence, and inventing an order
 -- for it would be a field nothing means.
 --
--- The order is the database's collation deliberately, unlike the boards: this one is read by people
--- and "Ä" belongs beside "A" for them, which is exactly what a byte order would not do.
+-- The order is hubtask_name deliberately, unlike the boards: this one is read by people and "Ä"
+-- belongs beside "A" for them, which is exactly what a byte order would not do - and beside it on
+-- every installation, which is what the database's own collation would not promise (migration
+-- 0080, i18n-l10n.md §5).
 SELECT
   id, tenant_id, collection_id, name, color_token, description, deleted_at, version
 FROM label
 WHERE collection_id = $1 AND deleted_at IS NULL
-ORDER BY name, id;
+ORDER BY name COLLATE hubtask_name, id;
 
 -- name: InsertLabel :exec
 INSERT INTO label (
@@ -206,7 +208,7 @@ SELECT l.id
 FROM item_label il
 JOIN label l ON l.id = il.label_id
 WHERE il.item_id = $1 AND l.deleted_at IS NULL
-ORDER BY l.name, l.id;
+ORDER BY l.name COLLATE hubtask_name, l.id;
 
 -- name: AddItemLabel :exec
 -- ON CONFLICT DO NOTHING rather than a check first: adding a label an item already carries is the
@@ -306,4 +308,4 @@ FROM item_label il
 JOIN label l ON l.id = il.label_id
 WHERE il.item_id = ANY(sqlc.arg('item_ids')::uuid[])
   AND l.deleted_at IS NULL
-ORDER BY il.item_id, l.name, l.id;
+ORDER BY il.item_id, l.name COLLATE hubtask_name, l.id;
