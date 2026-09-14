@@ -764,6 +764,8 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0052 | Managed PostgreSQL is supported, and migration 0002 is corrected to allow it | accepted |
 | 0053 | The TOTP QR code: a dependency, an encoder, or neither | accepted |
 | 0054 | An embedding narrower than the index is padded, and a wider one is refused | proposed |
+| 0055 | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted |
+| 0056 | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted |
 
 ---
 
