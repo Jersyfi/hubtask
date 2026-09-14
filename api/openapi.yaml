@@ -11592,12 +11592,43 @@ components:
           items: { type: string }
         supported_locales:
           type: array
+          description: >
+            The locales this installation has a catalogue for, in the order it serves them - the
+            source language first - with the metadata a client needs before it has rendered
+            anything (`i18n-l10n.md` §2, §6). Derived from the catalogue files present, the
+            embedded ones and an operator's `HUBTASK_LOCALE_DIR`, so adding a language is a file
+            and not a release. A locale is what the account's language picker offers and what
+            `Accept-Language` is negotiated against; a language absent here still renders, in the
+            source language, and is still an entry's `content_language`.
           items:
             type: object
+            required: [locale, direction, week_start, decimal_separator]
             properties:
-              locale: { type: string }
-              direction: { type: string, enum: [ltr, rtl] }
-              week_start: { type: string }
+              locale:
+                type: string
+                description: BCP 47, as the file is named - `en`, `de`, `pt-BR`, `zh-Hans`.
+              direction:
+                type: string
+                enum: [ltr, rtl]
+                description: >
+                  The writing direction of the locale's script, which is what a client sets
+                  `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left
+                  scripts; the interface's layout is the client's business, the flag is the
+                  server's (§6).
+              week_start:
+                type: string
+                enum: [MONDAY, SUNDAY, SATURDAY]
+                description: >
+                  The first day of the week where the locale is spoken, per CLDR, in the same
+                  vocabulary as the account's own `week_start` so that a client compares the two
+                  without translating. The account's value overrides it where set (§4).
+              decimal_separator:
+                type: string
+                description: >
+                  The character between the integer and the fraction where the locale is spoken -
+                  `.` or `,`. What a client that formats before `Intl` is available, or a form
+                  that parses what somebody typed, reads; a client with `Intl` formats with it
+                  (§7).
         automation:
           type: object
           description: >
