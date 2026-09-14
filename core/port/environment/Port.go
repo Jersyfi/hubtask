@@ -509,6 +509,12 @@ type LocaleConfig struct {
 	// DefaultTimeZone is an IANA name (Europe/Berlin), never a fixed UTC offset - an offset
 	// cannot represent daylight saving.
 	DefaultTimeZone string
+	// Directory is where an operator lays catalogues over the embedded ones: `<tag>.json` files,
+	// read once at start, each overriding the embedded catalogue of its tag key by key or adding
+	// a locale the binary does not carry (i18n-l10n.md §1). Empty means none, which is the
+	// default; a directory that is not there is a configuration error, because a path an operator
+	// set and mistyped is a translation that silently never arrives.
+	Directory string
 }
 
 func (c Config) HasRole(r Role) bool {

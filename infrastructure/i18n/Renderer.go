@@ -4,41 +4,86 @@
 package i18n
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	port "github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
-// SourceLocale is the language the catalogue is written in and the end of every fallback chain
-// (i18n-l10n.md §2, §3).
-const SourceLocale = "en"
-
 // Renderer is the adapter for the i18n port: the catalogues this installation has, and the
 // fallback between them.
 //
-// One catalogue today, which is the honest state - locales/ holds en.json and nothing else. The
-// shape is what matters: a locale is an argument, so the day de.json arrives the rendering of an
-// email in German is a file in a directory rather than a change here.
+// The catalogues are what the binary embeds - every `locales/<tag>.json` - with an operator's
+// directory laid over them key by key (i18n-l10n.md §1). A locale is an argument to every call,
+// so a language is a file in a directory and not a change here (arc42 QS-08).
 type Renderer struct {
 	// catalogues is keyed by the lower-cased BCP 47 tag. Immutable once built and safe to share:
-	// nothing writes to it after New returns.
+	// nothing writes to it after the constructor returns.
 	catalogues map[string]Catalogue
 	source     Catalogue
 }
 
-// NewRenderer builds the renderer over the embedded catalogues.
+// NewRenderer builds the renderer over the embedded catalogues alone.
 func NewRenderer() (Renderer, error) {
-	english, err := LoadEnglish()
+	embedded, err := LoadEmbedded()
 	if err != nil {
 		return Renderer{}, err
 	}
-	return Renderer{
-		catalogues: map[string]Catalogue{SourceLocale: english},
-		source:     english,
-	}, nil
+	return newRenderer(embedded, nil)
+}
+
+// NewRendererWithOverrides builds the renderer over the embedded catalogues with an operator's
+// laid over them: a file for a tag the binary carries overrides that catalogue key by key, and a
+// file for a new tag adds the locale (i18n-l10n.md §1).
+//
+// Key by key rather than file by file, because a partial override is the normal case - an
+// operator correcting one sentence, or translating the ten a workspace sees first - and a whole
+// catalogue replaced by a partial one would render the rest as codes.
+func NewRendererWithOverrides(overrides map[string]Catalogue) (Renderer, error) {
+	embedded, err := LoadEmbedded()
+	if err != nil {
+		return Renderer{}, err
+	}
+	return newRenderer(embedded, overrides)
+}
+
+func newRenderer(embedded, overrides map[string]Catalogue) (Renderer, error) {
+	catalogues := make(map[string]Catalogue, len(embedded)+len(overrides))
+	for tag, catalogue := range embedded {
+		catalogues[tag] = catalogue
+	}
+	for tag, over := range overrides {
+		tag = strings.ToLower(tag)
+		if base, present := catalogues[tag]; present {
+			catalogues[tag] = base.overlaid(over)
+		} else {
+			catalogues[tag] = over
+		}
+	}
+
+	source, present := catalogues[SourceLocale]
+	if !present {
+		return Renderer{}, fmt.Errorf("building the renderer: no catalogue for the source language %s", SourceLocale)
+	}
+	return Renderer{catalogues: catalogues, source: source}, nil
 }
 
 var _ port.Renderer = Renderer{}
+
+// Locales answers the tags this renderer has a catalogue for: the source language first, the
+// rest sorted. Lower-cased, as they are keyed. It is what the manifest's `supported_locales`
+// is derived from (i18n-l10n.md §2: "derived from the catalogue files present").
+func (r Renderer) Locales() []string {
+	tags := make([]string, 0, len(r.catalogues))
+	for tag := range r.catalogues {
+		if tag != SourceLocale {
+			tags = append(tags, tag)
+		}
+	}
+	sort.Strings(tags)
+	return append([]string{SourceLocale}, tags...)
+}
 
 // Render builds the sentence in the locale, or as close to it as this installation can get.
 //
@@ -57,12 +102,23 @@ func (r Renderer) Render(locale, code string, params map[string]string) string {
 	return message
 }
 
+// For answers one catalogue that renders as Render would for the locale: the locale's messages
+// over the source's. What a caller with many codes to render in one locale - the CLI - holds
+// instead of a renderer and a tag.
+func (r Renderer) For(locale string) Catalogue {
+	catalogue, known := r.catalogue(locale)
+	if !known {
+		return r.source
+	}
+	return r.source.overlaid(catalogue)
+}
+
 // catalogue resolves a BCP 47 tag down its fallback chain: `de-AT` to `de-at`, then `de`, then
 // nothing - and the caller falls back to the source language.
 //
 // By hand rather than through golang.org/x/text/language.NewMatcher, which i18n-l10n.md §2 names
-// for the day there is more than one catalogue to match against. A matcher over a set of one
-// always answers the one, so it would be a dependency doing arithmetic on an empty set.
+// and M-04 introduces once ADR-0056 has made the module direct. Until then the chain is exact
+// for the tags that are prefixes of one another and no more than that.
 func (r Renderer) catalogue(locale string) (Catalogue, bool) {
 	tag := strings.ToLower(strings.TrimSpace(locale))
 	for tag != "" {
