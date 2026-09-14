@@ -88,6 +88,15 @@ func TestEveryReasonNotToEmbedIsALexicalSearchRatherThanAnError(t *testing.T) {
 			asked: true,
 		},
 		{
+			name: "the model is known to be wider than the index, so nothing is asked (#569)",
+			world: &embeddingWorld{
+				available: true, embedding: true, model: "embed-wide",
+				vectors: [][]float32{{0.1, 0.2, 0.3}}, known: repository.EmbeddingWidth + 1,
+			},
+			words: "invoices",
+			asked: false,
+		},
+		{
 			name:  "there are no words to embed",
 			world: &embeddingWorld{available: true, embedding: true, model: "embed-3", vectors: [][]float32{{0.1}}},
 			words: "",
