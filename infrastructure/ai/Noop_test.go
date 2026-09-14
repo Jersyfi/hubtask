@@ -78,7 +78,7 @@ func TestAnInstallationCallingNoProviderIsDisabledRatherThanDown(t *testing.T) {
 		{"a pool nothing has used", &ai.BreakerPool{New: func(string) ai.Breaker { return nil }}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := ai.NewProbe(testCase.pool).Check(context.Background())
+			result := ai.NewProbe(testCase.pool, nil, 1536, fixedClock{}).Check(context.Background())
 
 			if result.Status != health.StatusDisabled {
 				t.Fatalf("status %q, want %q", result.Status, health.StatusDisabled)
@@ -94,7 +94,7 @@ func TestAnInstallationCallingNoProviderIsDisabledRatherThanDown(t *testing.T) {
 }
 
 func TestTheProbeIsOptionalAndNamedForTheMetric(t *testing.T) {
-	probe := ai.NewProbe(nil)
+	probe := ai.NewProbe(nil, nil, 1536, fixedClock{})
 
 	if probe.Required() {
 		t.Error("the AI provider is required; the failure of an optional dependency must never block the write path")
@@ -121,7 +121,7 @@ func TestAnOpenBreakerDegradesSuggestionsAndNothingElse(t *testing.T) {
 		}
 	}
 
-	result := ai.NewProbe(pool).Check(context.Background())
+	result := ai.NewProbe(pool, nil, 1536, fixedClock{}).Check(context.Background())
 
 	if result.Status != health.StatusDown {
 		t.Fatalf("status %q, want %q", result.Status, health.StatusDown)
@@ -151,7 +151,7 @@ func TestAWorkingEndpointIsOkRatherThanDisabled(t *testing.T) {
 	}}
 	pool.For("https://api.example.org/v1")
 
-	if result := ai.NewProbe(pool).Check(context.Background()); result.Status != health.StatusOK {
+	if result := ai.NewProbe(pool, nil, 1536, fixedClock{}).Check(context.Background()); result.Status != health.StatusOK {
 		t.Fatalf("status %q, want %q", result.Status, health.StatusOK)
 	}
 }

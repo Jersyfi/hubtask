@@ -137,9 +137,16 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 			continue
 		}
 
+		// The probe's own code where it gave one, so a client can tell "cannot be reached" from
+		// "configured with something this installation cannot use" (#569); the generic code where
+		// it did not, which is every outage.
+		reason := "dependency.unavailable"
+		if res.ErrorCode != "" {
+			reason = res.ErrorCode
+		}
 		for _, f := range res.Impact {
 			rep.DegradedFeatures = append(rep.DegradedFeatures, port.DegradedFeature{
-				Feature: f, ReasonCode: "dependency.unavailable", Since: res.Since,
+				Feature: f, ReasonCode: reason, Since: res.Since,
 			})
 		}
 	}

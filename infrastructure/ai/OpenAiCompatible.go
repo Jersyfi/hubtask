@@ -53,6 +53,8 @@ type OpenAiCompatible struct {
 	APIKey          secret.Secret
 	CompletionModel string
 	EmbeddingModel  string
+	// Widths is what this process has learned about models' widths (#569). Nil learns nothing.
+	Widths *WidthPool
 }
 
 // Breaker is the slice of the circuit breaker this adapter needs. A local interface rather than an
@@ -72,7 +74,37 @@ type Meter interface {
 	AiTokens(ctx context.Context, kind, operation string, input, output int)
 }
 
-var _ port.Provider = OpenAiCompatible{}
+var (
+	_ port.Provider = OpenAiCompatible{}
+	_ port.Measured = OpenAiCompatible{}
+)
+
+// documentedWidths is what the embedding models in common use produce, as their vendors document
+// it. A table rather than a call, because the OpenAI wire has no way to describe a model: the
+// width of one nobody listed here is learned from the first batch and remembered from then on.
+var documentedWidths = map[string]int{
+	"text-embedding-3-small": 1536,
+	"text-embedding-3-large": 3072,
+	"text-embedding-ada-002": 1536,
+}
+
+// MeasureEmbedding answers the documented width, or what this process has already seen, or zero
+// - "find out at the first batch". No call is made: the wire has none to make.
+func (p OpenAiCompatible) MeasureEmbedding(context.Context) (int, error) {
+	if p.EmbeddingModel == "" {
+		return 0, nil
+	}
+	now := p.Clock.Now().UTC()
+	if known := p.Widths.Confirm(p.BaseURL, p.EmbeddingModel, now); known > 0 {
+		return known, nil
+	}
+	// Recorded, so that the health probe learns a documented width the way it learns a measured
+	// one: the pass refuses a documented wide model before any batch, and a batch is where the
+	// pool would otherwise have learned it.
+	documented := documentedWidths[p.EmbeddingModel]
+	p.Widths.Record(p.BaseURL, p.EmbeddingModel, documented, now)
+	return documented, nil
+}
 
 func (p OpenAiCompatible) transport() transport {
 	meter := p.Meter
@@ -94,7 +126,21 @@ func (p OpenAiCompatible) Capabilities() port.ProviderCapabilities {
 		Embedding:       p.EmbeddingModel != "",
 		CompletionModel: p.CompletionModel,
 		EmbeddingModel:  p.EmbeddingModel,
+		// What this process has seen where it has, else the documented width, else zero - the
+		// same precedence MeasureEmbedding uses, and the seen width first because a gateway may
+		// serve a documented name downsized. No call: Capabilities is asked on request paths.
+		EmbeddingDimensions: firstPositive(
+			p.Widths.Known(p.BaseURL, p.EmbeddingModel), documentedWidths[p.EmbeddingModel]),
 	}
+}
+
+func firstPositive(values ...int) int {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 // The wire shapes. Only the fields this adapter sends and reads: a struct that mirrored the whole
@@ -228,6 +274,8 @@ func (p OpenAiCompatible) Embed(
 		vectors[entry.Index] = entry.Embedding
 	}
 	p.Meter.AiTokens(ctx, OpenAiCompatibleKind, "embed", answer.Usage.PromptTokens, 0)
+	// A model the table does not list teaches this process its width with the first batch.
+	p.Widths.Record(p.BaseURL, p.EmbeddingModel, dimensions, p.Clock.Now().UTC())
 
 	return port.EmbeddingResult{
 		Vectors:    vectors,
