@@ -168,6 +168,26 @@ model has never had, and a summary of a comment thread nothing reads. The backlo
 (`docs/backlog/milestone-0.7.5.md`) builds the difference in six tasks and says in its own header
 that a row nobody built is a promise to whoever reads it next — which, for §2, is `F5`.
 
+**`0.8.0` is cut**, and its backlog is [`backlog/milestone-0.8.0.md`](./backlog/milestone-0.8.0.md)
+— fourteen tasks, `M-01`…`M-14` (L is skipped because `L-01 … [L]` collides with the marker in its
+own title). Cutting it read `i18n-l10n.md` line by line *before* the first task rather than after
+the last, which is the lesson of `0.7.5`, and found that the `0.8.0` row above promises three
+things in the wrong place: "CLDR formats" from a server that delivers no display text (§7 puts
+formatting in the client), "language-dependent search" that `0.3.0` built, and "localised emails"
+whose mechanism `0.3.0` built — while omitting the translation its own `0.7.0` row says moved here.
+What the milestone actually builds is the second catalogue and the directory an operator lays over
+it, one ICU subset on both renderers with a gate each, the matcher §2 names, the manifest's locale
+metadata that `F1`'s language picker has been waiting on, the week a person starts on, NFC on the
+way in, a collation that sorts names the same on every installation, the reindex that brings a
+search current after its configuration arrives, IDN addresses, the translation, and the
+frontend's two requirement lists. The row is rewritten by `M-14`, together with the milestone's
+own acceptance: arc42 **QS-08**, walked with an operator's `ar.json` and filed as evidence.
+Two decisions sit in their own ADRs — [ADR-0055](./adr/ADR-0055-translation-process.md), no
+Weblate instance until there is a translator to serve, and
+[ADR-0056](./adr/ADR-0056-golang-x-text-and-idna.md), `golang.org/x/text` and `x/net/idna`
+promoted from indirect to direct — and the `1.0` locale set is eleven: the ten most spoken
+languages by total speakers plus German, of which `0.8.0` ships `en` and `de`.
+
 ---
 
 ## Requirements that arrive late
