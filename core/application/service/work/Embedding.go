@@ -118,6 +118,25 @@ func (h EmbedItems) Execute(
 	if err != nil {
 		return EmbedOutcome{}, err
 	}
+	for _, vector := range answer.Vectors {
+		// The vectors' own length beside the field that reports it, so an adapter that answered
+		// wide vectors under a zero is caught here rather than inside the write transaction. And
+		// an empty vector at all: padded, it would be zeros, and zeros have no direction.
+		if len(vector) > repository.EmbeddingWidth {
+			return EmbedOutcome{}, repository.EmbeddingTooWide(capabilities.EmbeddingModel, len(vector))
+		}
+		if len(vector) == 0 {
+			return EmbedOutcome{}, repository.EmbeddingEmpty(capabilities.EmbeddingModel)
+		}
+	}
+	if answer.Dimensions > repository.EmbeddingWidth {
+		// The field ADR-0049 carried "so a caller can reject a batch that does not match its
+		// index", read at last (ADR-0054). Refused before the store rather than by it, and as a
+		// validation error naming the model, because the model is a configuration somebody chose
+		// and the answer should say what to choose instead. A narrower batch is not refused: the
+		// store pads it, exactly, for cosine.
+		return EmbedOutcome{}, repository.EmbeddingTooWide(capabilities.EmbeddingModel, answer.Dimensions)
+	}
 	if len(answer.Vectors) != len(owed) {
 		// The adapter already refuses an unalignable batch; this is the same check on the other
 		// side of the port, because attaching one entry's meaning to another's row is the one

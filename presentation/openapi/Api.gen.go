@@ -3391,7 +3391,7 @@ type AiProvider struct {
 	CompletionModel *string   `json:"completion_model,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 
-	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed.
+	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed. The index holds 1536 dimensions: a model that produces fewer is stored exactly, padded, and one that produces more is refused at the first embedding rather than stored truncated (ADR-0054). The two Ollama embedding models in common use produce 768 and 1024 and are taken; a model above 1536 cannot be used.
 	EmbeddingModel *string `json:"embedding_model,omitempty"`
 
 	// HasApiKey Whether a key is stored, which is the whole of what this surface says about one (J-02). The key itself is sealed on the way in and answered by nothing afterwards - so this is the only way an operator can tell "configured with a key" from "configured without one", and a setup screen that could not tell them apart would have to ask for the key again to find out.

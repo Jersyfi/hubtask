@@ -25,9 +25,10 @@ import (
 // come back as one ordered page are all PostgreSQL's answers, and a fake would only ever agree with
 // whatever this file assumed.
 
-// embeddingDimensions is the width migration 0075 fixed the column at. A vector of any other length
-// is refused by the database, which is the point of fixing it: an index is built for one geometry.
-const embeddingDimensions = 1536
+// embeddingDimensions is the width migration 0075 fixed the column at, as the port declares it
+// (ADR-0054). These fixtures are built at the full width so what they measure is the index's own
+// geometry; a narrower vector's padding is proved by its own test.
+const embeddingDimensions = repository.EmbeddingWidth
 
 // axes hands each fixture a direction of its own.
 //

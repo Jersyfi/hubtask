@@ -752,6 +752,8 @@
   "ai.not_configured": "This workspace has not chosen an AI provider.",
   "ai.prompt_unknown": "This installation does not carry the prompt {prompt}.",
   "ai.prompt_target_unknown": "This version of Hubtask does not ask {prompt} about a {target_type}.",
+  "ai.embedding_too_wide": "{model} produces {dimensions}-dimension vectors and this installation's index holds {width}. Choose a model of at most {width} dimensions.",
+  "ai.embedding_empty": "{model} answered a vector with no dimensions, which nothing can compare against.",
   "ai.provider_incomplete": "That AI configuration is missing something Hubtask needs to store it.",
   "ai.kind_unknown": "{value} is not a kind of AI provider Hubtask can talk to.",
   "ai.jurisdiction_unknown": "{value} is not one of the jurisdictions a provider can be declared in.",
