@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/text/language"
+
 	port "github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
@@ -22,6 +24,10 @@ type Renderer struct {
 	// nothing writes to it after the constructor returns.
 	catalogues map[string]Catalogue
 	source     Catalogue
+	// locales is Locales() as built once: the source first, the rest sorted. The matcher's
+	// supported list, in the same order, so that an index into one is an index into the other.
+	locales []string
+	matcher language.Matcher
 }
 
 // NewRenderer builds the renderer over the embedded catalogues alone.
@@ -66,7 +72,32 @@ func newRenderer(embedded, overrides map[string]Catalogue) (Renderer, error) {
 	if !present {
 		return Renderer{}, fmt.Errorf("building the renderer: no catalogue for the source language %s", SourceLocale)
 	}
-	return Renderer{catalogues: catalogues, source: source}, nil
+
+	// The matcher i18n-l10n.md §2 names, over exactly the catalogues present, the source first
+	// because the first supported tag is the matcher's default: `de-AT` lands on `de` when that
+	// is what there is, `pt-BR` prefers `pt-BR` over `pt` and takes `pt` otherwise, and a tag
+	// nothing here serves lands on the source with no confidence - which is what the fallback
+	// reads (ADR-0056).
+	locales := sortedLocales(catalogues)
+	supported := make([]language.Tag, 0, len(locales))
+	for _, tag := range locales {
+		supported = append(supported, language.Make(tag))
+	}
+	return Renderer{
+		catalogues: catalogues, source: source,
+		locales: locales, matcher: language.NewMatcher(supported),
+	}, nil
+}
+
+func sortedLocales(catalogues map[string]Catalogue) []string {
+	tags := make([]string, 0, len(catalogues))
+	for tag := range catalogues {
+		if tag != SourceLocale {
+			tags = append(tags, tag)
+		}
+	}
+	sort.Strings(tags)
+	return append([]string{SourceLocale}, tags...)
 }
 
 var _ port.Renderer = Renderer{}
@@ -75,14 +106,7 @@ var _ port.Renderer = Renderer{}
 // rest sorted. Lower-cased, as they are keyed. It is what the manifest's `supported_locales`
 // is derived from (i18n-l10n.md §2: "derived from the catalogue files present").
 func (r Renderer) Locales() []string {
-	tags := make([]string, 0, len(r.catalogues))
-	for tag := range r.catalogues {
-		if tag != SourceLocale {
-			tags = append(tags, tag)
-		}
-	}
-	sort.Strings(tags)
-	return append([]string{SourceLocale}, tags...)
+	return append([]string(nil), r.locales...)
 }
 
 // Render builds the sentence in the locale, or as close to it as this installation can get.
@@ -113,23 +137,21 @@ func (r Renderer) For(locale string) Catalogue {
 	return r.source.overlaid(catalogue)
 }
 
-// catalogue resolves a BCP 47 tag down its fallback chain: `de-AT` to `de-at`, then `de`, then
-// nothing - and the caller falls back to the source language.
-//
-// By hand rather than through golang.org/x/text/language.NewMatcher, which i18n-l10n.md §2 names
-// and M-04 introduces once ADR-0056 has made the module direct. Until then the chain is exact
-// for the tags that are prefixes of one another and no more than that.
+// catalogue answers the catalogue a BCP 47 tag lands on, through the matcher: `de-AT` on `de`,
+// `zh-Hant-HK` on `zh-Hant` where that exists, and nothing - the caller then falls back to the
+// source language - when the matcher can offer only its default.
 func (r Renderer) catalogue(locale string) (Catalogue, bool) {
-	tag := strings.ToLower(strings.TrimSpace(locale))
-	for tag != "" {
-		if catalogue, known := r.catalogues[tag]; known {
-			return catalogue, true
-		}
-		cut := strings.LastIndex(tag, "-")
-		if cut < 0 {
-			break
-		}
-		tag = tag[:cut]
+	tag := strings.TrimSpace(locale)
+	if tag == "" {
+		return Catalogue{}, false
 	}
-	return Catalogue{}, false
+	parsed, err := language.Parse(tag)
+	if err != nil {
+		return Catalogue{}, false
+	}
+	index, confidence := r.match(parsed)
+	if confidence == language.No {
+		return Catalogue{}, false
+	}
+	return r.catalogues[r.locales[index]], true
 }
