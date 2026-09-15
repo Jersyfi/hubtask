@@ -743,6 +743,12 @@ CREATE TABLE comment (
   edited_at         timestamptz,
   deleted_at        timestamptz,
   version           integer NOT NULL DEFAULT 1,
+  -- What somebody wrote, or what the server filed on their behalf: the displaced version of a
+  -- free-text field that lost a merge (migration 0084, offline-sync.md §5). A system comment's
+  -- heading is a message code with parameters, never a sentence the server composed.
+  kind              text NOT NULL DEFAULT 'USER' CONSTRAINT comment_kind_known CHECK (kind IN ('USER', 'SYSTEM')),
+  system_code       text,
+  system_params     jsonb,
   CONSTRAINT comment_item_id_fkey
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );

@@ -10203,6 +10203,23 @@ components:
         edited_at: { type: [string, "null"], format: date-time }
         deleted_at: { type: [string, "null"], format: date-time }
         version: { type: integer }
+        kind:
+          type: string
+          enum: [USER, SYSTEM]
+          default: USER
+          description: |
+            `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
+            displaced version of a free-text field that lost a merge (offline-sync.md §5), whose
+            body is the text that lost and whose heading is `system_code` with `system_params` -
+            a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
+            author, never from a sentence the server wrote. A system comment cannot be edited.
+        system_code:
+          type: [string, "null"]
+          description: The message code of a system comment's heading, such as `sync.displaced_version`; null for what somebody wrote.
+        system_params:
+          type: [object, "null"]
+          additionalProperties: { type: string }
+          description: The parameters of the heading - for a displaced version, the field, the device and the reading.
 
 
     Recurrence:
