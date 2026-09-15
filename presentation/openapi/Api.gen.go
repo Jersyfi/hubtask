@@ -273,6 +273,21 @@ func (e AiProviderKind) Valid() bool {
 	}
 }
 
+// Defines values for AiTranslationSource.
+const (
+	AiTranslationSourceAI AiTranslationSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AiTranslationSource enum.
+func (e AiTranslationSource) Valid() bool {
+	switch e {
+	case AiTranslationSourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -2699,13 +2714,13 @@ func (e StepUpGrantMethod) Valid() bool {
 
 // Defines values for SuggestionSource.
 const (
-	AI SuggestionSource = "AI"
+	SuggestionSourceAI SuggestionSource = "AI"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionSource enum.
 func (e SuggestionSource) Valid() bool {
 	switch e {
-	case AI:
+	case SuggestionSourceAI:
 		return true
 	default:
 		return false
@@ -3456,6 +3471,32 @@ type AiProviderConfiguration struct {
 
 // AiProviderKind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 type AiProviderKind string
+
+// AiTranslateRequest Which language to read the entry in.
+type AiTranslateRequest struct {
+	// TargetLocale BCP 47 (`de`, `pt-BR`). Absent, the caller's own locale — the account's, else the request's — which is the language they read anything in. A tag the installation has no catalogue for is fine: the provider translates into languages the product does not render.
+	TargetLocale *string `json:"target_locale,omitempty"`
+}
+
+// AiTranslation The entry's title and notes as the provider rendered them in the target language, with the provenance every AI output carries (`ai-first.md` §2). Not a record: it has no id, no status and nothing to accept, because it is not stored anywhere.
+type AiTranslation struct {
+	Model string `json:"model"`
+
+	// Notes Empty where the entry has no notes.
+	Notes         string              `json:"notes"`
+	ProducedAt    time.Time           `json:"produced_at"`
+	PromptId      string              `json:"prompt_id"`
+	PromptVersion string              `json:"prompt_version"`
+	Source        AiTranslationSource `json:"source"`
+
+	// SourceLanguage The entry's `content_language`, which is what the provider was told the source is; null where the entry states none.
+	SourceLanguage *string `json:"source_language,omitempty"`
+	TargetLocale   string  `json:"target_locale"`
+	Title          string  `json:"title"`
+}
+
+// AiTranslationSource defines model for AiTranslation.Source.
+type AiTranslationSource string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -6059,6 +6100,14 @@ type SavedViewUpdate struct {
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
 
+// SearchReindex What a reindex answers - the job to watch, and how many rows it will rewrite.
+type SearchReindex struct {
+	JobId openapi_types.UUID `json:"job_id"`
+
+	// Stale How many entries were indexed under a configuration that is not what the installation would use for them today - including the ones written before the configuration was recorded at all. Zero means the index is current, and the job finishes without rewriting anything.
+	Stale int64 `json:"stale"`
+}
+
 // ServiceAccountCreate defines model for ServiceAccountCreate.
 type ServiceAccountCreate struct {
 	// DisplayName What the audit trail records next to the identifier. Name it after what it does - "the nightly export", not "svc1" - because it is what a reader of the trail sees.
@@ -8077,6 +8126,9 @@ type AiSummarizeJSONRequestBody = AiAsk
 // AiSummarizeThreadJSONRequestBody defines body for AiSummarizeThread for application/json ContentType.
 type AiSummarizeThreadJSONRequestBody = AiAsk
 
+// AiTranslateJSONRequestBody defines body for AiTranslate for application/json ContentType.
+type AiTranslateJSONRequestBody = AiTranslateRequest
+
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
@@ -8652,6 +8704,9 @@ type ServerInterface interface {
 	// AiSummarizeThread Ask AI to summarise this entry's discussion
 	// (POST /items/{itemId}:summarize-thread)
 	AiSummarizeThread(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// AiTranslate Read this entry in another language
+	// (POST /items/{itemId}:translate)
+	AiTranslate(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:unarchive)
 	UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnarchiveWorkItemParams)
@@ -8799,6 +8854,9 @@ type ServerInterface interface {
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
+	// ReindexSearch Bring the workspace's search documents current
+	// (POST /search:reindex)
+	ReindexSearch(w http.ResponseWriter, r *http.Request)
 	// StreamChanges The change stream, as server-sent events
 	// (GET /stream)
 	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
@@ -14891,6 +14949,32 @@ func (siw *ServerInterfaceWrapper) AiSummarizeThread(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// AiTranslate operation middleware
+func (siw *ServerInterfaceWrapper) AiTranslate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiTranslate(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UnarchiveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -16591,6 +16675,20 @@ func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ReindexSearch operation middleware
+func (siw *ServerInterfaceWrapper) ReindexSearch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReindexSearch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StreamChanges operation middleware
 func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.Request) {
 
@@ -17795,6 +17893,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:decompose", wrapper.SuggestDecomposition)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize", wrapper.AiSummarize)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:translate", wrapper.AiTranslate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:classify", wrapper.AiClassify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize-thread", wrapper.AiSummarizeThread)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:summarize", wrapper.AiSummarizeContainer)
@@ -17844,6 +17943,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)

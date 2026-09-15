@@ -1308,6 +1308,17 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The entry in another language (M-11): a read through the entry's own read, then the
+		// budgeted provider - so a workspace without consent, without a provider or without
+		// budget is refused the way the search's meaning is, and nothing is stored.
+		work.AiTranslate{
+			Reader: work.GetWorkItem{
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork,
+			},
+			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1330,6 +1341,12 @@ func run() error {
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
 				UnitOfWork: unitOfWork,
 			},
+		}.Descriptor(),
+		// The index brought current at an administrator's request (M-09): what the row's
+		// recorded configuration says was built differently from how it would be built today.
+		work.ReindexSearch{
+			Index: postgres.NewSearchIndexRepository(), Jobs: jobs, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
@@ -2042,6 +2059,9 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// The workspace's default language for a recipient who has not chosen one (#603),
+			// and the installation's after it - the chain authentication resolves too.
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
 			Signals: metrics,
 			// The invitation mail's link is the redemption token (H-01), minted at delivery so
@@ -2323,6 +2343,16 @@ func run() error {
 			// straight back while there is known work left. The retention sweep's two numbers, for
 			// the same reason it has two.
 			Interval: time.Hour, Continuation: 5 * time.Second,
+		},
+		// One workspace's search documents brought current, batch by batch, at an
+		// administrator's request (M-09, ADR-0034). Detached like the embedding pass, so that
+		// each batch commits on its own; unlike it, the walk finishes.
+		queueport.KindSearchReindex: worker.SearchReindex{
+			Rebuild: work.RebuildSearchIndex{
+				Index: postgres.NewSearchIndexRepository(), UnitOfWork: unitOfWork,
+			},
+			Progress:     jobs,
+			Continuation: 2 * time.Second,
 		},
 		queueport.KindNotificationDeliver: notificationDelivery,
 		queueport.KindWebhookDeliver:      webhookDelivery,
