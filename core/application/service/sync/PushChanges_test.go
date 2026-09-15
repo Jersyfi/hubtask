@@ -53,6 +53,8 @@ type invocation struct {
 	in    usecase.Input
 	// device is what the context named at the time of the call.
 	device shared.ID
+	// push is the push the context named, and the moment it carried (N-10).
+	push appshared.Push
 }
 
 // stubCatalogue records what it is asked to run and answers what the test set up, per use case.
@@ -65,7 +67,8 @@ type stubCatalogue struct {
 func (c *stubCatalogue) Invoke(
 	ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	c.calls = append(c.calls, invocation{name: name, actor: actor, in: in, device: appshared.DeviceFrom(ctx)})
+	push, _ := appshared.PushFrom(ctx)
+	c.calls = append(c.calls, invocation{name: name, actor: actor, in: in, device: appshared.DeviceFrom(ctx), push: push})
 	if err := c.errs[name]; err != nil {
 		return nil, err
 	}
@@ -97,11 +100,18 @@ func pushing(t *testing.T) pushFixture {
 		push: PushChanges{
 			Stream: pull.Stream, Devices: devices, Ops: ops,
 			Tombstones: tombstoneStore{held: map[shared.ID]bool{purged: true}},
-			Catalogue:  catalogue,
+			Catalogue:  catalogue, IDs: pushIDs{},
 		},
 		stream: f, ops: ops, catalogue: catalogue, devices: devices,
 	}
 }
+
+// pushIDs mints the push's identity, one for every push of a test.
+type pushIDs struct{}
+
+func (pushIDs) NewID() shared.ID { return pushID }
+
+var pushID = shared.ID("01936f2a-7c1e-7000-8000-00000000f001")
 
 func pusher() appshared.ActorContext {
 	a := signedIn()
@@ -261,6 +271,39 @@ func TestAReadingBeyondTheSkewIsBoundedToServerTime(t *testing.T) {
 	_, err = f.push.bound(t.Context(), Mutation{OpID: opA, HLC: "not a clock"})
 	if got := shared.AsError(err).DetailCode; got != "sync.hlc_malformed" {
 		t.Errorf("a malformed reading was answered %q", got)
+	}
+}
+
+// Every use case a push performs runs under the push's name and the device's moment (N-10,
+// offline-sync.md §8): the mutation's bounded reading, or the latest of a patch's fields', so
+// that the events it raises carry the moment the person acted beside the server's time.
+func TestAMutationIsAppliedUnderThePushAndTheDevicesMoment(t *testing.T) {
+	f := pushing(t)
+	reading, _ := shared.NewHLC(now.Add(-2*time.Minute), 1, "dev-a")
+	later, _ := shared.NewHLC(now.Add(-time.Minute), 1, "dev-a")
+	f.catalogue.outputs["GetWorkItem"] = usecase.Output{"id": itemX.String(), "version": 1}
+	f.catalogue.outputs["UpdateWorkItem"] = usecase.Output{"id": itemX.String(), "version": 2}
+
+	if _, err := f.push.Push(t.Context(), pusher(), PushRequest{DeviceID: device, Mutations: []Mutation{
+		{OpID: opA, Kind: domain.ItemCreate, ItemID: itemX, HLC: reading.String(),
+			Payload: map[string]any{"type": "TASK", "collection_id": readable.String(), "title": "Fix the tap"}},
+	}}); err != nil {
+		t.Fatalf("pushing: %v", err)
+	}
+	for _, call := range f.catalogue.calls {
+		if call.push.ID != pushID || !call.push.OccurredAt.Equal(reading.Physical) {
+			t.Errorf("%s ran under push %q at %v, want %q at the device's moment", call.name, call.push.ID, call.push.OccurredAt, pushID)
+		}
+	}
+
+	// A patch carries its fields' readings; the latest is the mutation's moment.
+	if got := momentOf(Mutation{Fields: map[string]FieldChange{
+		"title": {HLC: reading.String()}, "notes": {HLC: later.String()},
+	}}); !got.Equal(later.Physical) {
+		t.Errorf("a patch's moment is %v, want its latest field's", got)
+	}
+	if got := momentOf(Mutation{}); !got.IsZero() {
+		t.Errorf("a mutation without a reading has a moment: %v", got)
 	}
 }
 

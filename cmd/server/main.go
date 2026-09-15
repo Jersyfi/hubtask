@@ -1744,7 +1744,7 @@ func run() error {
 			// The push applies a device's queue through the catalogue as the pushing person
 			// (N-04): nothing here writes by any other path.
 			Push: syncservice.PushChanges{
-				Stream: changeStream, Devices: postgres.NewDeviceRepository(),
+				Stream: changeStream, Devices: postgres.NewDeviceRepository(), IDs: ids,
 				Ops: postgres.NewSyncOpLog(), Tombstones: postgres.NewTombstoneRepository(),
 				// The server's clock per field, kept by the change log (N-05).
 				Clocks:    changes,
