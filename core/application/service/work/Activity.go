@@ -59,6 +59,18 @@ func (j ActivityJournal) record(
 	})
 }
 
+// RecordStep writes one step of an entry's history on behalf of something that is not a use case:
+// the push, marking a merge or a change that lost (N-06). The entry is named by its identifiers
+// rather than handed over whole, because the caller holds the server's copy as the catalogue
+// answered it and not as the domain type.
+func (j ActivityJournal) RecordStep(
+	ctx context.Context, actor appshared.ActorContext, tenantID, itemID, collectionID shared.ID,
+	verb activity.Verb, changeSet map[string]any, at time.Time,
+) error {
+	return j.record(ctx, actor, domain.WorkItem{TenantID: tenantID, ID: itemID, CollectionID: collectionID},
+		verb, changeSet, at)
+}
+
 // verbIsTheChange is the change set of a step that moved no field.
 //
 // Archiving an entry is the whole of what happened, and a diff of the stamp it wrote would say the

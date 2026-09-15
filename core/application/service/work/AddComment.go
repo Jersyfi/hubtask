@@ -74,6 +74,11 @@ type AddCommentCommand struct {
 	// commenting offline assigns its own (offline-sync.md §3.2), CreateWorkItemCommand's rule.
 	ID     shared.ID
 	ItemID shared.ID
+	// SystemCode and SystemParams make the comment one the server files on the author's behalf
+	// (N-06, offline-sync.md §5). Not declared as inputs: nobody asks for a system comment over a
+	// channel, and FileDisplaced is the one caller.
+	SystemCode   string
+	SystemParams map[string]string
 	// ParentCommentID is the comment being replied to, empty for a top-level comment.
 	ParentCommentID shared.ID
 	Body            string
@@ -157,14 +162,16 @@ func (h AddComment) Execute(
 				WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
 		}
 		comment, err := domain.NewComment(domain.NewCommentInput{
-			ID:       id,
-			TenantID: actor.TenantID,
-			ItemID:   item.ID,
-			AuthorID: actor.AccountID,
-			Parent:   parent,
-			Body:     cmd.Body,
-			Now:      now,
-			Text:     w.Text,
+			ID:           id,
+			TenantID:     actor.TenantID,
+			ItemID:       item.ID,
+			AuthorID:     actor.AccountID,
+			Parent:       parent,
+			Body:         cmd.Body,
+			Now:          now,
+			Text:         w.Text,
+			SystemCode:   cmd.SystemCode,
+			SystemParams: cmd.SystemParams,
 		})
 		if err != nil {
 			return err
@@ -343,6 +350,21 @@ func commentOutput(comment domain.Comment) usecase.Output {
 		out["body"] = comment.Body
 	}
 	return out
+}
+
+// FileDisplaced files the version of a free-text field that lost a merge as a system comment on
+// the entry, in the merging person's name (N-06, offline-sync.md §5): the body is the text that
+// lost, the heading is `sync.displaced_version` with the field, the device and the reading. The
+// same write as any comment - the same permission, the same event, the same change log entry -
+// so a device that may not comment on the entry is told so, and the push answers the conflict
+// with both values and no comment.
+func (h AddComment) FileDisplaced(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, body string,
+	params map[string]string,
+) (domain.Comment, error) {
+	return h.Execute(ctx, actor, AddCommentCommand{
+		ItemID: itemID, Body: body, SystemCode: domain.DisplacedVersionCode, SystemParams: params,
+	})
 }
 
 // Descriptor is the catalogue entry. Registering it is what makes the use case reachable through
