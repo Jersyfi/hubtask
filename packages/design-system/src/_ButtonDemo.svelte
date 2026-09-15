@@ -39,7 +39,7 @@
       <Button tone="primary" icon="plus">{labels.create}</Button>
       <Button tone="secondary">{labels.save}</Button>
       <Button tone="subtle" icon="ellipsis">{labels.more}</Button>
-      <Button tone="danger" icon="trash-2">{labels.del}</Button>
+      <Button tone="danger" icon="trash">{labels.del}</Button>
     </Inline>
     <Inline gap="150" align="center">
       <Button tone="primary" size="sm" icon="plus">{labels.create}</Button>
