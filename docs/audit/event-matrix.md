@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**223 use cases, 194 distinct action codes, 160 of them recorded on every call.** A use case that
+**224 use cases, 195 distinct action codes, 161 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -310,6 +310,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `lifecycle.rule_changed` | PreviewRetentionPolicy | `retention_policy` | INFO | When refused |
 | `lifecycle.rule_changed` | UpdateRetentionPolicy | `retention_policy` | WARNING | Every time |
 | `lifecycle.rule_withdrawn` | DeleteRetentionPolicy | `retention_policy` | WARNING | Every time |
+
+## Search
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `search.reindex_asked` | ReindexSearch | `workspace` | NOTICE | Every time |
 
 ## Structure: buckets and labels
 
