@@ -15,6 +15,7 @@ run:
     - contract
     - resilience
     - load
+    - evidence
 
 linters:
   default: none
