@@ -10,6 +10,7 @@
 package i18n
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -118,6 +119,12 @@ func load(raw []byte, tag language.Tag) (Catalogue, error) {
 	if err := json.Unmarshal(raw, &entries); err != nil {
 		return Catalogue{}, fmt.Errorf("not a flat map of codes to messages: %w", err)
 	}
+	// A key written twice is a message that says two things, and a map keeps the last of them
+	// without a word. Refused rather than resolved: the file is the source of truth, and a source
+	// with two truths is nobody's.
+	if duplicate := duplicateKey(raw); duplicate != "" {
+		return Catalogue{}, fmt.Errorf("the code %s appears twice", duplicate)
+	}
 
 	messages := make(map[string]entry, len(entries))
 	for code, message := range entries {
@@ -190,4 +197,32 @@ func (c Catalogue) overlaid(over Catalogue) Catalogue {
 		merged[code] = message
 	}
 	return Catalogue{messages: merged}
+}
+
+// duplicateKey walks the tokens of a flat JSON object and answers the first key that appears
+// twice, or nothing. The token stream is the only place a duplicate is still visible: by the time
+// the file is a map, the earlier value is gone.
+func duplicateKey(raw []byte) string {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	if _, err := decoder.Token(); err != nil { // the opening brace
+		return ""
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return ""
+		}
+		key, _ := token.(string)
+		if seen[key] {
+			return key
+		}
+		seen[key] = true
+		// The value, skipped whole: a string here, but a nested value would be one token too many.
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return ""
+		}
+	}
+	return ""
 }

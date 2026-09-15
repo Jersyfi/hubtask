@@ -169,3 +169,26 @@ func TestAPluralOperandThatIsNotANumberLeavesThePlaceholder(t *testing.T) {
 		t.Errorf("%q", got)
 	}
 }
+
+// The names a message takes, for the gate that compares a translation against its source.
+func TestArgumentsAnswersEveryNameAMessageTakes(t *testing.T) {
+	for pattern, want := range map[string]string{
+		"Hello {name}":                  "name",
+		"{actor} put “{title}” on you.": "actor,title",
+		"{n, plural, one{{actor} added # label} other{# labels}}": "actor,n",
+		"{scope, select, hub{the hub {name}} other{this}}":        "name,scope",
+		"'{'not an argument'}'":                                   "",
+		"{value} and {value} again.":                              "value",
+	} {
+		names, err := Arguments(pattern)
+		if err != nil {
+			t.Fatalf("%q: %v", pattern, err)
+		}
+		if got := strings.Join(names, ","); got != want {
+			t.Errorf("%q takes %q, want %q", pattern, got, want)
+		}
+	}
+	if _, err := Arguments("{n, number}"); err == nil {
+		t.Error("a message outside the subset answered its arguments instead of refusing")
+	}
+}
