@@ -38,9 +38,13 @@ to serve.**
 Ready means, concretely — and `0.8.0` builds each of these:
 
 1. One catalogue per locale, `locales/<tag>.json`, flat, keys to ICU strings in the subset both
-   renderers implement (M-01, M-02). The layout is what Weblate's JSON format reads unchanged; that
-   was checked against Weblate's file-format documentation at the time of writing and is recorded
-   here rather than depended on.
+   renderers implement (M-01, M-02). The layout is what Weblate's "JSON file" format reads
+   unchanged — one object, keys to strings, nested keys optional and unused here, the file mask
+   `locales/*.json` with `locales/en.json` as the monolingual base — checked against Weblate's
+   file-format documentation (docs.weblate.org, *Supported file formats → JSON files*) on
+   2026-09-15 and recorded here rather than depended on. What Weblate would need beyond the layout
+   is a commit identity and a branch, which are an instance's configuration and not the
+   repository's.
 2. A gate that holds every translation to the source — an unknown key fails, a missing key is
    reported, the placeholders must agree, every message must parse (M-03) — so that a contribution
    from any source, a person or a platform, is checked the same way.
