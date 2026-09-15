@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 // The push (N-04, offline-sync.md §3.2): a device's queue of mutations, applied one at a time
@@ -220,7 +221,7 @@ func (p PushChanges) apply(
 		return *seen, nil
 	}
 
-	bounded, err := p.bound(ctx, deviceID, m)
+	bounded, err := p.bound(ctx, m)
 	if err != nil {
 		return rejected(m, err), nil
 	}
@@ -279,7 +280,7 @@ func (p PushChanges) record(
 
 // bound parses every reading the mutation carries and applies §4.1's rule to each; a reading that
 // was moved is logged with the device and the drift, never the content.
-func (p PushChanges) bound(ctx context.Context, deviceID shared.ID, m Mutation) (Mutation, error) {
+func (p PushChanges) bound(ctx context.Context, m Mutation) (Mutation, error) {
 	skew := p.Skew
 	if skew == 0 {
 		skew = DefaultSkew
@@ -295,8 +296,12 @@ func (p PushChanges) bound(ctx context.Context, deviceID shared.ID, m Mutation) 
 		}
 		bounded, drift := domain.Bound(reading, now, skew)
 		if drift > 0 {
+			// The drift and the request, and no byte of the request: the device and the operation
+			// are request values, and a log line shaped by one is the injection T-06 names. The
+			// request identifier is the line's own, and the request log beside it names the
+			// route and the actor; the device is on the operation log's row.
 			slog.WarnContext(ctx, "a device's clock reading was bounded to server time",
-				"device_id", deviceID.String(), "drift", drift.String(), "op_id", m.OpID.String())
+				"drift", drift.String(), "request_id", correlation.RequestIDFrom(ctx))
 		}
 		return bounded.String(), nil
 	}

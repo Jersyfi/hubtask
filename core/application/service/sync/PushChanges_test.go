@@ -240,7 +240,7 @@ func TestAReadingBeyondTheSkewIsBoundedToServerTime(t *testing.T) {
 	threeHoursOut, _ := shared.NewHLC(now.Add(3*time.Hour), 7, "dev-a")
 	inTime, _ := shared.NewHLC(now.Add(time.Minute), 1, "dev-a")
 
-	bounded, err := f.push.bound(t.Context(), device, Mutation{
+	bounded, err := f.push.bound(t.Context(), Mutation{
 		OpID: opA, Kind: domain.ItemPatch, HLC: threeHoursOut.String(),
 		Fields: map[string]FieldChange{
 			"title":  {Value: "x", HLC: threeHoursOut.String()},
@@ -258,7 +258,7 @@ func TestAReadingBeyondTheSkewIsBoundedToServerTime(t *testing.T) {
 		t.Errorf("a reading within the skew was changed to %s", bounded.Fields["due_at"].HLC)
 	}
 
-	_, err = f.push.bound(t.Context(), device, Mutation{OpID: opA, HLC: "not a clock"})
+	_, err = f.push.bound(t.Context(), Mutation{OpID: opA, HLC: "not a clock"})
 	if got := shared.AsError(err).DetailCode; got != "sync.hlc_malformed" {
 		t.Errorf("a malformed reading was answered %q", got)
 	}
