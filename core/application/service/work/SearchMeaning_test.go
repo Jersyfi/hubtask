@@ -29,12 +29,17 @@ func TestAQueryIsEmbeddedWhereEverythingIsInPlace(t *testing.T) {
 		vectors: [][]float32{{0.1, 0.2, 0.3}},
 	}
 
-	vector, err := meaningHarness(world).Of(t.Context(), itemActor(), "the thing about invoices")
+	vector, model, err := meaningHarness(world).Of(t.Context(), itemActor(), "the thing about invoices")
 	if err != nil {
 		t.Fatalf("embedding the query failed: %v", err)
 	}
 	if len(vector) != 3 {
 		t.Fatalf("the query embedded to %v", vector)
+	}
+	// The configured name, which is what the rows carry - the vector is compared with those rows
+	// and no others (#568).
+	if model != "embed-3" {
+		t.Errorf("the vector was named %q, want the configured model", model)
 	}
 	if len(world.embedded) != 1 || world.embedded[0][0] != "the thing about invoices" {
 		t.Errorf("the provider was asked %v", world.embedded)
@@ -83,13 +88,22 @@ func TestEveryReasonNotToEmbedIsALexicalSearchRatherThanAnError(t *testing.T) {
 			asked: true,
 		},
 		{
+			name: "the model is known to be wider than the index, so nothing is asked (#569)",
+			world: &embeddingWorld{
+				available: true, embedding: true, model: "embed-wide",
+				vectors: [][]float32{{0.1, 0.2, 0.3}}, known: repository.EmbeddingWidth + 1,
+			},
+			words: "invoices",
+			asked: false,
+		},
+		{
 			name:  "there are no words to embed",
 			world: &embeddingWorld{available: true, embedding: true, model: "embed-3", vectors: [][]float32{{0.1}}},
 			words: "",
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			vector, err := meaningHarness(c.world).Of(t.Context(), itemActor(), c.words)
+			vector, _, err := meaningHarness(c.world).Of(t.Context(), itemActor(), c.words)
 			if err != nil {
 				t.Fatalf("a search was failed rather than made lexical: %v", err)
 			}
@@ -111,7 +125,7 @@ func TestASlowProviderIsALexicalSearch(t *testing.T) {
 	handler.Providers = slowProvider{embeddingProvider{world: world}}
 	handler.Timeout = time.Millisecond
 
-	vector, err := handler.Of(t.Context(), itemActor(), "invoices")
+	vector, _, err := handler.Of(t.Context(), itemActor(), "invoices")
 	if err != nil {
 		t.Fatalf("a slow provider failed the search: %v", err)
 	}
@@ -127,7 +141,7 @@ func TestAProviderThatCannotBeResolvedIsALexicalSearch(t *testing.T) {
 	handler := meaningHarness(world)
 	handler.Providers = brokenProviders{}
 
-	vector, err := handler.Of(t.Context(), itemActor(), "invoices")
+	vector, _, err := handler.Of(t.Context(), itemActor(), "invoices")
 	if err != nil {
 		t.Fatalf("an unresolvable provider failed the search: %v", err)
 	}
@@ -139,7 +153,7 @@ func TestAProviderThatCannotBeResolvedIsALexicalSearch(t *testing.T) {
 // A search that is not wired for meaning at all - an installation running without the seam - is the
 // search this product had before J-10, rather than a nil dereference.
 func TestASearchWithoutTheSeamIsTheSearchItAlwaysWas(t *testing.T) {
-	vector, err := SearchMeaning{}.Of(t.Context(), itemActor(), "invoices")
+	vector, _, err := SearchMeaning{}.Of(t.Context(), itemActor(), "invoices")
 	if err != nil || vector != nil {
 		t.Fatalf("an unwired seam answered %v, %v", vector, err)
 	}

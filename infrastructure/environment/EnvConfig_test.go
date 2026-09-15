@@ -271,6 +271,7 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		{"HUBTASK_DEFAULT_LOCALE", "not a locale", "config.locale_invalid"},
 		{"HUBTASK_DEFAULT_TIMEZONE", "Mars/Olympus_Mons", "config.timezone_unknown"},
 		{"HUBTASK_DEFAULT_TIMEZONE", "+02:00", "config.timezone_unknown"},
+		{"HUBTASK_LOCALE_DIR", "/nowhere/such/directory", "config.locale_dir_missing"},
 		{"HUBTASK_REQUEST_TIMEOUT", "30", "config.duration_invalid"},
 		{"HUBTASK_DB_STATEMENT_TIMEOUT", "soon", "config.duration_invalid"},
 		{"HUBTASK_HTTP_TIMEOUT", "10", "config.duration_invalid"},

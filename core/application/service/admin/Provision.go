@@ -29,6 +29,7 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -105,9 +106,11 @@ type ProvisionedTenant struct {
 // exists whole or not at all. Idempotent under `Idempotency-Key` through the middleware every
 // POST already has.
 type ProvisionTenant struct {
-	Tenants    adminrepo.Tenants
-	Journal    adminrepo.Journal
-	Accounts   AccountSeeder
+	Tenants  adminrepo.Tenants
+	Journal  adminrepo.Journal
+	Accounts AccountSeeder
+	// Domains brings the owner's address to its stored form (M-10).
+	Domains    text.DomainEncoder
 	Redemption RedemptionTokens
 	Grants     MembershipSeeder
 	Containers ContainerSeeder
@@ -154,7 +157,7 @@ func (h ProvisionTenant) Execute(
 	if ownerName == "" {
 		ownerName = cmd.OwnerEmail
 	}
-	owner, err := domain.Invite(h.IDs.NewID(), tenant.ID, cmd.OwnerEmail, ownerName)
+	owner, err := domain.Invite(h.IDs.NewID(), tenant.ID, cmd.OwnerEmail, ownerName, h.Domains)
 	if err != nil {
 		return ProvisionedTenant{}, err
 	}

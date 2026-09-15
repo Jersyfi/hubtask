@@ -34,6 +34,13 @@ const (
 	// The workspace, in multi mode. A sign-in has no credential to read the tenant off yet
 	// (multi-tenancy.md §3), so it has to be said.
 	envTenant = "HUBTASK_TENANT"
+	// The language the CLI speaks, a BCP 47 tag. Read from here first, then from what the shell
+	// says in LC_ALL, LC_MESSAGES and LANG (`de_AT.UTF-8` is `de-AT`), then the source language.
+	// The same catalogues the server renders email from, so a German operator reads German
+	// refusals (i18n-l10n.md §1); and the same directory variable as the server's, so a
+	// translation an operator laid over the installation is read here too.
+	envLocale    = "HUBTASK_LOCALE"
+	envLocaleDir = "HUBTASK_LOCALE_DIR"
 )
 
 // profileFileMode and profileDirMode keep the credential to its owner. A token is a password;

@@ -221,7 +221,7 @@ merely a feature switch but a confirmation-gated, audited configuration step.
 | **EU AI Act** (Reg. 2024/1689) | The AI features are supporting suggestions, not a high-risk system; transparency obligations are nonetheless relevant | AI output is always marked as a suggestion with provenance, the model and provider are disclosed, the feature is switchable, there is no automated decision with legal effect, and AI use is logged in the audit |
 | **eIDAS / ePrivacy** | Cookies and tracking primarily concern the frontend | The backend uses bearer tokens rather than tracking cookies; a binding client requirement: no non-essential cookies without consent |
 | **Data Act** (Reg. 2023/2854) | Switching and portability obligations for data processing services | A complete tenant export in a documented format, importers for third-party systems, no lock-in formats |
-| **European Accessibility Act** | Concerns the frontend | A binding client requirement (WCAG 2.2 AA) in the roadmap; the backend delivers message codes rather than text |
+| **European Accessibility Act** | Concerns the frontend | A binding client requirement: WCAG 2.2 AA by criterion, the two walks and the accessibility statement, in [`design-system.md` §10](../design/design-system.md#10-accessibility) (M-13), built by `F5` and demonstrated for `1.0.0` criterion 16; the backend delivers message codes rather than text, and its side of localisation is [`i18n-l10n.md`](./i18n-l10n.md) §6 |
 
 The CRA point is strategically relevant: it hits precisely the commercial variant the licence model
 provides for — and its obligations (SBOM, vulnerability handling, update period, secure by default)

@@ -252,3 +252,54 @@ func localAdapter(client *recordingClient) ai.Ollama {
 		EmbeddingModel: "an-embedding-model",
 	}
 }
+
+// The width is asked of the server's model description before any text is sent, read off
+// `<architecture>.embedding_length`, and remembered per process: the second question costs no
+// call, and Capabilities answers it from then on without one (#569).
+func TestTheWidthIsReadOffTheModelDescriptionOnceAndRemembered(t *testing.T) {
+	client := &recordingClient{body: `{"model_info":{"general.architecture":"nomic-bert",
+		"nomic-bert.embedding_length":768,"nomic-bert.context_length":2048}}`}
+	pool := &ai.WidthPool{}
+	provider := localAdapter(client)
+	provider.Widths = pool
+
+	if provider.Capabilities().EmbeddingDimensions != 0 {
+		t.Fatal("a width nobody has measured was reported")
+	}
+	width, err := provider.MeasureEmbedding(context.Background())
+	if err != nil || width != 768 {
+		t.Fatalf("the description answered %d, %v", width, err)
+	}
+	if !strings.HasSuffix(client.sent.URL, "/api/show") || !strings.Contains(string(client.sent.Body), `"an-embedding-model"`) {
+		t.Errorf("the description was asked of %s with %s", client.sent.URL, client.sent.Body)
+	}
+
+	again, err := provider.MeasureEmbedding(context.Background())
+	if err != nil || again != 768 || client.calls != 1 {
+		t.Errorf("the second question answered %d after %d calls", again, client.calls)
+	}
+	if provider.Capabilities().EmbeddingDimensions != 768 {
+		t.Error("Capabilities does not report what the process learned")
+	}
+}
+
+// A description the server cannot give - an older server, a model without the field - is zero,
+// and zero is "find out at the first batch": the batch itself then teaches the process.
+func TestAnUndescribedModelIsLearnedFromItsFirstBatch(t *testing.T) {
+	client := &recordingClient{body: `{"model_info":{}}`}
+	pool := &ai.WidthPool{}
+	provider := localAdapter(client)
+	provider.Widths = pool
+
+	if width, err := provider.MeasureEmbedding(context.Background()); err != nil || width != 0 {
+		t.Fatalf("an undescribed model answered %d, %v", width, err)
+	}
+
+	client.body = `{"model":"an-embedding-model","embeddings":[[0.1,0.2,0.3,0.4]],"prompt_eval_count":3}`
+	if _, err := provider.Embed(context.Background(), []string{"x"}); err != nil {
+		t.Fatalf("embedding: %v", err)
+	}
+	if provider.Capabilities().EmbeddingDimensions != 4 {
+		t.Errorf("the first batch taught %d", provider.Capabilities().EmbeddingDimensions)
+	}
+}

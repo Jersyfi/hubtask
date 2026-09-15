@@ -6,12 +6,12 @@ package rest
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -115,17 +115,24 @@ func (b Bounded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // It runs before authentication, because an unauthenticated answer needs a language too - a 401
 // is rendered by the client from a code and its parameters, and the client needs to know which
 // language it was asked for. Authentication then replaces the anonymous actor with the real one,
-// keeping the account's and the tenant's preference where they exist (i18n-l10n.md §2).
+// putting the account's own preference first where there is one (i18n-l10n.md §2).
 type Localised struct {
 	Next   http.Handler
 	Locale env.LocaleConfig
+	// Negotiator reads Accept-Language against the catalogues the installation has (M-04): it is
+	// the i18n adapter, because the matching is a library's and this layer may not import it
+	// (ADR-0056). Nil negotiates nothing, which is the installation default for everybody.
+	Negotiator i18n.Negotiator
 }
 
 func (l Localised) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Empty when the client stated no usable preference. The distinction matters one middleware
-	// later: an account's own language wins over the installation default, but not over a
-	// language the client asked for.
-	requested := preferredLocale(r.Header.Get("Accept-Language"), "")
+	// later: a preference the client stated stands between the account's own and the
+	// workspace's default, and an absent one stands nowhere.
+	requested := ""
+	if l.Negotiator != nil {
+		requested = l.Negotiator.Negotiate(r.Header.Get("Accept-Language"))
+	}
 
 	actor := appshared.Anonymous(
 		firstNonEmpty(requested, l.Locale.DefaultLocale), l.Locale.DefaultTimeZone)
@@ -154,72 +161,4 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-// maxAcceptLanguageLength bounds what is parsed. The header comes from outside, it ends up in a
-// context and in a response, and a client with an opinion about 400 languages is not one worth
-// answering carefully.
-const maxAcceptLanguageLength = 256
-
-// preferredLocale picks the highest-weighted acceptable tag from Accept-Language (RFC 9110 §12.5.4).
-//
-// It resolves only the request end of the chain; the account and the tenant are read once
-// authentication has produced them. A tag is checked for shape rather than against a catalogue:
-// the catalogue is the client's business, since the backend emits codes and never sentences
-// (ADR-0011). An unusable header falls back to the installation default rather than failing - a
-// wrong language is a nuisance, a rejected request is an outage.
-func preferredLocale(header, fallback string) string {
-	if header == "" || len(header) > maxAcceptLanguageLength {
-		return fallback
-	}
-
-	best, bestQuality := fallback, 0.0
-	for _, entry := range strings.Split(header, ",") {
-		tag, parameters, _ := strings.Cut(strings.TrimSpace(entry), ";")
-		tag = strings.TrimSpace(tag)
-		if tag == "" || tag == "*" || !isLanguageTag(tag) {
-			continue
-		}
-
-		quality := 1.0
-		if raw, found := strings.CutPrefix(strings.TrimSpace(parameters), "q="); found {
-			parsed, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-			if err != nil || parsed < 0 || parsed > 1 {
-				continue
-			}
-			quality = parsed
-		}
-		// q=0 means "not acceptable", and strictly greater keeps the first of equal weights,
-		// which is the order the client listed them in.
-		if quality > bestQuality {
-			best, bestQuality = tag, quality
-		}
-	}
-	return best
-}
-
-// maxLanguageTagLength is generous for a BCP 47 tag (de-AT, pt-BR, zh-Hans-CN) and still far
-// short of anything worth carrying around.
-const maxLanguageTagLength = 35
-
-// isLanguageTag checks the shape of a BCP 47 tag: subtags of letters or digits, separated by
-// hyphens. Enough to keep a header value from becoming a log injection or a reflected payload,
-// which is all this layer owes (security.md §7).
-func isLanguageTag(tag string) bool {
-	if len(tag) < 2 || len(tag) > maxLanguageTagLength {
-		return false
-	}
-	for _, subtag := range strings.Split(tag, "-") {
-		if subtag == "" {
-			return false
-		}
-		for _, c := range subtag {
-			isLetter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-			isDigit := c >= '0' && c <= '9'
-			if !isLetter && !isDigit {
-				return false
-			}
-		}
-	}
-	return true
 }

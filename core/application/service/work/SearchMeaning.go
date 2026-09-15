@@ -46,9 +46,9 @@ var _ QueryMeaning = SearchMeaning{}
 // Of embeds the query, or answers nothing.
 func (m SearchMeaning) Of(
 	ctx context.Context, actor appshared.ActorContext, words string,
-) ([]float32, error) {
+) ([]float32, string, error) {
 	if m.Providers == nil || m.Semantic == nil || words == "" {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	// The cheapest question first: an installation with no store cannot use a vector however good
@@ -61,10 +61,10 @@ func (m SearchMeaning) Of(
 			available, err = m.Semantic.Available(ctx)
 			return err
 		}); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if !available {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	provider, err := m.Providers.For(ctx, actor)
@@ -72,10 +72,18 @@ func (m SearchMeaning) Of(
 		// A provider that cannot be resolved - an unopenable key, a database that answered badly -
 		// is a lexical search rather than a failed one. The resolver already answers NoopAi for
 		// every ordinary reason; this covers the rest.
-		return nil, nil
+		return nil, "", nil
 	}
-	if !provider.Capabilities().Embedding {
-		return nil, nil
+	capabilities := provider.Capabilities()
+	if !capabilities.Embedding {
+		return nil, "", nil
+	}
+	if capabilities.EmbeddingDimensions > repository.EmbeddingWidth {
+		// A model this process knows the index cannot hold (#569): lexical without a call, rather
+		// than a query embedded, paid for and thrown away. Known from what the embedding pass
+		// learned - the search asks no question of its own, because a request path is no place
+		// for a metadata call.
+		return nil, "", nil
 	}
 
 	timeout := m.Timeout
@@ -90,13 +98,16 @@ func (m SearchMeaning) Of(
 		// Every failure is the same answer, which is the port's own discipline applied to a read:
 		// a slow provider, an open circuit, an exhausted budget and a refused key are one thing to
 		// somebody who is waiting for search results.
-		return nil, nil
+		return nil, "", nil
 	}
 	if answer.Dimensions > repository.EmbeddingWidth || len(answer.Vectors[0]) > repository.EmbeddingWidth {
 		// A model wider than the index (ADR-0054). The same answer as every other failure, for the
 		// same reason - and the embedding job, which runs for the workspace rather than for a
 		// person waiting, is where the misconfiguration is reported.
-		return nil, nil
+		return nil, "", nil
 	}
-	return answer.Vectors[0], nil
+	// The configured name rather than the one the provider answered, for the reason the pass
+	// stores the configured one: it is what the rows carry, and a provider that resolves an alias
+	// would otherwise name a model no row is stored under.
+	return answer.Vectors[0], capabilities.EmbeddingModel, nil
 }

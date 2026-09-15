@@ -38,6 +38,12 @@ type embeddingWorld struct {
 	embedErr      error
 	// dimensions is the width the provider answers with; zero means the fixtures' three.
 	dimensions int
+	// known is what Capabilities reports as already learned; measures is what a description
+	// answers, measured how often one was asked, measureErr what asking fails with.
+	known      int
+	measures   int
+	measured   int
+	measureErr error
 	storeErr   error
 	// watcher, where one is set, says whether a transaction is open while the provider is called.
 	watcher        *transactionWatcher
@@ -110,10 +116,26 @@ func (w *embeddingWorld) For(context.Context, appshared.ActorContext) (aiprovide
 type embeddingProvider struct{ world *embeddingWorld }
 
 func (p embeddingProvider) Capabilities() aiprovider.ProviderCapabilities {
+	// known is what the process has learned; zero here is the fixtures' usual three, and a
+	// negative value stands for "nothing known yet" so a test can make the pass ask.
+	known := p.world.known
+	switch {
+	case known == 0:
+		known = 3
+	case known < 0:
+		known = 0
+	}
 	return aiprovider.ProviderCapabilities{
 		Kind: "stub", Embedding: p.world.embedding, EmbeddingModel: p.world.model,
-		EmbeddingDimensions: 3,
+		EmbeddingDimensions: known,
 	}
+}
+
+// MeasureEmbedding is the description the provider gives when asked (#569): what `measures`
+// says, counted, so a test can tell one question from a batch.
+func (p embeddingProvider) MeasureEmbedding(context.Context) (int, error) {
+	p.world.measured++
+	return p.world.measures, p.world.measureErr
 }
 
 func (p embeddingProvider) Complete(
@@ -429,5 +451,70 @@ func TestWideVectorsUnderAZeroDimensionsAreStillRefused(t *testing.T) {
 	_, err := embeddingHarness(world).Execute(t.Context(), embeddingActor())
 	if !repository.IsEmbeddingTooWide(err) {
 		t.Fatalf("wide vectors under a zero dimensions answered %v", err)
+	}
+}
+
+// A model the index cannot hold is refused before the batch, for the price of one description:
+// the provider is asked what it knows, and the texts are never sent (#569).
+func TestAWideModelIsRefusedBeforeAnyTextIsSent(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-wide",
+		owed:     []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors:  [][]float32{{1, 0, 0}},
+		known:    -1,
+		measures: repository.EmbeddingWidth + 1,
+	}
+
+	_, err := embeddingHarness(world).Execute(t.Context(), embeddingActor())
+	if !repository.IsEmbeddingTooWide(err) {
+		t.Fatalf("a wide model answered %v", err)
+	}
+	if world.measured != 1 {
+		t.Errorf("the provider was asked to describe its model %d times, want once", world.measured)
+	}
+	if len(world.embedded) != 0 {
+		t.Errorf("texts were sent to a model the index cannot hold: %v", world.embedded)
+	}
+}
+
+// The pass asks every pass - the asking is what keeps the process's memory current, so a
+// workspace that switched models stops being reported - and a width already known is answered
+// from memory and refused without a batch. The description then costs nothing: see the adapters.
+func TestAKnownWideWidthIsRefusedWithoutABatch(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-wide",
+		owed:     []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		known:    repository.EmbeddingWidth + 1,
+		measures: repository.EmbeddingWidth + 1,
+	}
+
+	_, err := embeddingHarness(world).Execute(t.Context(), embeddingActor())
+	if !repository.IsEmbeddingTooWide(err) {
+		t.Fatalf("a known wide model answered %v", err)
+	}
+	if world.measured != 1 {
+		t.Errorf("the pass asked %d times, want once per pass", world.measured)
+	}
+	if len(world.embedded) != 0 {
+		t.Errorf("texts were sent for a width the process already knew: %v", world.embedded)
+	}
+}
+
+// A description that fails, or a provider that cannot give one, is not a refusal: the batch is
+// sent and the check after the call still stands.
+func TestAModelThatCannotBeDescribedIsEmbeddedAndCheckedAfterwards(t *testing.T) {
+	world := &embeddingWorld{
+		available: true, embedding: true, model: "embed-3",
+		owed:       []repository.OwedEmbedding{owedFixture(taskID, "Quarterly report", "")},
+		vectors:    [][]float32{{1, 0, 0}},
+		known:      -1,
+		measureErr: errors.New("the description endpoint is gone"),
+	}
+
+	if _, err := embeddingHarness(world).Execute(t.Context(), embeddingActor()); err != nil {
+		t.Fatalf("a model that could not be described was refused: %v", err)
+	}
+	if len(world.stored) != 1 {
+		t.Errorf("%d vectors stored, want the batch to have gone ahead", len(world.stored))
 	}
 }

@@ -186,6 +186,7 @@ func Search(
 	search repository.TextSearch, meaning string, boundary SearchBoundary, probe int,
 ) (Statement, error) {
 	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
+	b.model = search.MeaningModel
 
 	b.write(`SELECT `, itemColumns, `, c.parent_id, `)
 	b.rank(search, meaning)
@@ -268,7 +269,11 @@ func (b *builder) meaningJoin(meaning string) {
 	if meaning == "" {
 		return
 	}
-	b.write(` LEFT JOIN item_embedding e ON e.tenant_id = wi.tenant_id AND e.item_id = wi.id`)
+	// And only the rows of the model the query vector came from: two models' vectors are not
+	// comparable, and between a reconfiguration and the end of the re-embedding pass the table
+	// holds both (#568). Bound, never written - a model name is configuration somebody typed.
+	b.write(` LEFT JOIN item_embedding e ON e.tenant_id = wi.tenant_id AND e.item_id = wi.id AND e.model = `)
+	b.param(b.model)
 }
 
 // searchPredicates writes what the search matches: the scope, the lifecycle, the narrowing, and the
@@ -336,7 +341,9 @@ func (b *builder) neighbourhood(meaning string) {
 	}
 	b.write(` OR wi.id IN (SELECT n.item_id FROM (SELECT item_id, embedding <=> `)
 	b.param(meaning)
-	b.write(`::vector AS distance FROM item_embedding ORDER BY distance LIMIT `, semanticCandidates)
+	b.write(`::vector AS distance FROM item_embedding WHERE model = `)
+	b.param(b.model)
+	b.write(` ORDER BY distance LIMIT `, semanticCandidates)
 	b.write(`) n WHERE n.distance < `, semanticFloor, `)`)
 }
 
@@ -910,8 +917,9 @@ func (b *builder) after(name string, term view.SortTerm, key string) {
 		comparison = ` < `
 	}
 	if !term.Field.Nullable {
-		b.write(name, comparison)
+		b.write(name, collationOf(term.Field), comparison)
 		b.boundaryValue(term, key)
+		b.write(collationOf(term.Field))
 		return
 	}
 
@@ -925,9 +933,9 @@ func (b *builder) after(name string, term view.SortTerm, key string) {
 		b.boundaryValue(term, key)
 		b.write(` IS NULL THEN false WHEN `, name, ` IS NULL THEN true `)
 	}
-	b.write(`ELSE `, name, comparison)
+	b.write(`ELSE `, name, collationOf(term.Field), comparison)
 	b.boundaryValue(term, key)
-	b.write(` END)`)
+	b.write(collationOf(term.Field), ` END)`)
 }
 
 // seekable reports whether the sort can be compared as a row: every term ascending, and no term on

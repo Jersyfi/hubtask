@@ -9,6 +9,8 @@ import (
 	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -18,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -561,5 +564,95 @@ func TestBothKeysArePresentEvenWhenTheAnswerIsNo(t *testing.T) {
 		if _, answered := capabilities.Features[key]; !answered {
 			t.Errorf("the manifest does not mention %q at all", key)
 		}
+	}
+}
+
+// Whether names sort under the ICU root collation is the database's answer, read from it, and a
+// build wired without the seam says false - names still sort then, in the database's own order,
+// which is why the honest default is the safe one (M-08, i18n-l10n.md §5).
+func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ordering repository.NaturalOrdering
+		want     bool
+	}{
+		{"an ICU collation", store{present: true}, true},
+		{"the database's own locale", store{present: false}, false},
+		{"a build without the seam", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+			handler.Ordering = tc.ordering
+
+			capabilities, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if got, present := capabilities.Features["natural_ordering"]; !present || got != tc.want {
+				t.Errorf("natural_ordering = %v (present %v), want %v", got, present, tc.want)
+			}
+		})
+	}
+}
+
+// locales stands in for the renderer: the catalogues present, as rows (M-05).
+type locales []i18n.LocaleInfo
+
+func (l locales) SupportedLocales() []i18n.LocaleInfo { return l }
+
+// The locales are the catalogues present, in the renderer's order, and a build wired without
+// the seam answers the source language alone - what every installation before 0.8.0 was.
+func TestTheManifestListsTheCataloguesPresent(t *testing.T) {
+	handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	handler.Locales = locales{
+		{Tag: "en", Direction: "ltr", WeekStart: "SUNDAY", DecimalSeparator: "."},
+		{Tag: "ar", Direction: "rtl", WeekStart: "SATURDAY", DecimalSeparator: "."},
+		{Tag: "de", Direction: "ltr", WeekStart: "MONDAY", DecimalSeparator: ","},
+	}
+
+	capabilities, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if len(capabilities.SupportedLocales) != 3 || capabilities.SupportedLocales[1].Direction != "rtl" {
+		t.Errorf("supported locales = %+v", capabilities.SupportedLocales)
+	}
+
+	handler.Locales = nil
+	capabilities, err = handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if len(capabilities.SupportedLocales) != 1 || capabilities.SupportedLocales[0].Tag != "en" {
+		t.Errorf("without the seam the manifest answers %+v, want the source language alone", capabilities.SupportedLocales)
+	}
+}
+
+// A model this process knows the index cannot hold is a search that is lexical for as long as it
+// stays configured (#569, ADR-0054), and the manifest says so rather than offering a control for
+// what the product cannot do. A width not yet known is not "does not fit".
+func TestAModelKnownToBeTooWideOffersNoMeaning(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		width int
+		want  bool
+	}{
+		{"a width nobody has learned yet", 0, true},
+		{"a width that fits", workrepo.EmbeddingWidth, true},
+		{"a width the index cannot hold", workrepo.EmbeddingWidth + 1, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			handler, _ := aiManifest(true, aiprovider.ProviderCapabilities{
+				Kind: "ollama", Embedding: true, EmbeddingModel: "an-embedding-model",
+				EmbeddingDimensions: c.width,
+			})
+			capabilities, err := handler.Execute(t.Context(), member())
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if capabilities.Features["semantic_search"] != c.want {
+				t.Errorf("semantic_search = %v, want %v", capabilities.Features["semantic_search"], c.want)
+			}
+		})
 	}
 }

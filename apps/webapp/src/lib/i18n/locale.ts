@@ -17,11 +17,16 @@
 
 import { SOURCE_LOCALE } from './catalogue.ts';
 
-/** One entry of `/meta/capabilities`' `supported_locales`. Direction is the manifest's answer. */
+/**
+ * One entry of `/meta/capabilities`' `supported_locales`. Direction is the manifest's answer;
+ * the week start and the decimal separator are optional here because a client reads the manifest
+ * of whichever server it is signed into, and one older than 0.8.0 answered the entry without them.
+ */
 export interface SupportedLocale {
   readonly locale: string;
   readonly direction: 'ltr' | 'rtl';
-  readonly week_start?: string;
+  readonly week_start?: 'MONDAY' | 'SUNDAY' | 'SATURDAY';
+  readonly decimal_separator?: string;
 }
 
 /** Where a locale can come from, most specific first in the sense §2 means. */

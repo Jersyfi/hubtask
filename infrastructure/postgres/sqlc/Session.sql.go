@@ -566,6 +566,7 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
+       a.week_start AS account_week_start,
        n.default_locale, n.default_time_zone,
        n.slug AS tenant_slug, n.status::text AS tenant_status,
        coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
@@ -592,6 +593,7 @@ type FindSessionForAuthRow struct {
 	AccountDisplayName string
 	AccountLocale      *string
 	AccountTimeZone    *string
+	AccountWeekStart   *string
 	DefaultLocale      string
 	DefaultTimeZone    string
 	TenantSlug         string
@@ -620,6 +622,7 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.AccountDisplayName,
 		&i.AccountLocale,
 		&i.AccountTimeZone,
+		&i.AccountWeekStart,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
 		&i.TenantSlug,

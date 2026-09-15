@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	port "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -40,9 +41,15 @@ type Ollama struct {
 	BaseURL         string
 	CompletionModel string
 	EmbeddingModel  string
+	// Widths is what this process has learned about models' widths (#569). Nil learns nothing,
+	// which is what a test that constructs the adapter by hand gets.
+	Widths *WidthPool
 }
 
-var _ port.Provider = Ollama{}
+var (
+	_ port.Provider = Ollama{}
+	_ port.Measured = Ollama{}
+)
 
 // Capabilities answers from configuration, like every provider's.
 //
@@ -56,7 +63,31 @@ func (p Ollama) Capabilities() port.ProviderCapabilities {
 		Embedding:       p.EmbeddingModel != "",
 		CompletionModel: p.CompletionModel,
 		EmbeddingModel:  p.EmbeddingModel,
+		// Known or zero, from the pool alone: Capabilities is asked on request paths and asks
+		// nothing over the network.
+		EmbeddingDimensions: p.Widths.Known(p.BaseURL, p.EmbeddingModel),
 	}
+}
+
+// MeasureEmbedding asks the server to describe the embedding model, and reads the width off the
+// description: `model_info` carries `<architecture>.embedding_length` for every model Ollama
+// serves. One call, remembered per process; a description the server cannot give is zero, and
+// zero is "find out at the first batch" rather than a refusal.
+func (p Ollama) MeasureEmbedding(ctx context.Context) (int, error) {
+	if p.EmbeddingModel == "" {
+		return 0, nil
+	}
+	if known := p.Widths.Confirm(p.BaseURL, p.EmbeddingModel, p.Clock.Now().UTC()); known > 0 {
+		return known, nil
+	}
+	var answer ollamaShowResponse
+	if err := p.transport().call(ctx, "show", endpoint(p.BaseURL, "/api/show"),
+		ollamaShowRequest{Model: p.EmbeddingModel}, &answer); err != nil {
+		return 0, err
+	}
+	dimensions := answer.embeddingLength()
+	p.Widths.Record(p.BaseURL, p.EmbeddingModel, dimensions, p.Clock.Now().UTC())
+	return dimensions, nil
 }
 
 func (p Ollama) transport() transport {
@@ -81,6 +112,35 @@ type ollamaChatRequest struct {
 	// Options carries what OpenAI puts at the top level. Omitted when nothing is set, so a
 	// provider that does not read it is never sent an empty object.
 	Options *ollamaOptions `json:"options,omitempty"`
+}
+
+// ollamaShowRequest and ollamaShowResponse are `POST /api/show`, read for one number.
+type ollamaShowRequest struct {
+	Model string `json:"model"`
+}
+
+type ollamaShowResponse struct {
+	// ModelInfo is keyed by `<architecture>.<property>`; the architecture is named under
+	// `general.architecture`. Values are numbers or strings, so it is read as untyped JSON.
+	ModelInfo map[string]any `json:"model_info"`
+}
+
+// embeddingLength reads `<architecture>.embedding_length`, by the named architecture first and by
+// suffix if the description names none.
+func (r ollamaShowResponse) embeddingLength() int {
+	if arch, named := r.ModelInfo["general.architecture"].(string); named {
+		if length, held := r.ModelInfo[arch+".embedding_length"].(float64); held {
+			return int(length)
+		}
+	}
+	for key, value := range r.ModelInfo {
+		if strings.HasSuffix(key, ".embedding_length") {
+			if length, isNumber := value.(float64); isNumber {
+				return int(length)
+			}
+		}
+	}
+	return 0
 }
 
 type ollamaOptions struct {
@@ -184,6 +244,9 @@ func (p Ollama) Embed(ctx context.Context, texts []string) (port.EmbeddingResult
 		}
 	}
 	p.transport().meter.AiTokens(ctx, OllamaKind, "embed", answer.PromptEvalCount, 0)
+	// What the batch turned out to be is worth as much as a description, and it is what a model
+	// the server could not describe teaches this process.
+	p.Widths.Record(p.BaseURL, p.EmbeddingModel, dimensions, p.Clock.Now().UTC())
 
 	return port.EmbeddingResult{
 		Vectors:    answer.Embeddings,

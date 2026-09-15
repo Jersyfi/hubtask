@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // MaxAllowedEmailDomains bounds the linking list. Ten is more organisations than any workspace
@@ -222,7 +223,7 @@ func ParseOidcFlowState(raw string) (Token, error) { return parsePrefixed(raw, O
 // none leaves the account without one, and everything that needs an address says so itself rather
 // than inventing one.
 func ProvisionExternal(
-	id, tenantID shared.ID, email, displayName string,
+	id, tenantID shared.ID, email, displayName string, domains text.DomainEncoder,
 ) (Account, error) {
 	if id.IsZero() || tenantID.IsZero() {
 		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
@@ -230,7 +231,7 @@ func ProvisionExternal(
 
 	address := ""
 	if strings.TrimSpace(email) != "" {
-		normalised, err := emailAddress(email)
+		normalised, err := emailAddress(email, domains)
 		if err != nil {
 			return Account{}, err
 		}

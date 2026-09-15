@@ -141,3 +141,28 @@ func (r SemanticSearchRepository) Available(ctx context.Context) (bool, error) {
 	}
 	return available, nil
 }
+
+// NaturalOrderingRepository answers whether names sort under the ICU root collation (M-08).
+//
+// Beside the two above and for the same reason: a read of what this installation *is*.
+type NaturalOrderingRepository struct{}
+
+func NewNaturalOrderingRepository() NaturalOrderingRepository { return NaturalOrderingRepository{} }
+
+var _ repository.NaturalOrdering = NaturalOrderingRepository{}
+
+// Available reports whether hubtask_name is an ICU collation.
+func (r NaturalOrderingRepository) Available(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	available, err := queries.NaturalOrderingAvailable(ctx)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading which collation names sort under: %w", err))
+	}
+	return available, nil
+}

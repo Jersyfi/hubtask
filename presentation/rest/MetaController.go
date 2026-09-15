@@ -203,6 +203,29 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		tokenScopes = []string{}
 	}
 
+	// One row per catalogue present, in the order the renderer serves them (M-05). Always an
+	// array: the source language alone is the least an installation answers, and absent would
+	// read as "this server knows no languages", which a client's picker would render as nothing.
+	supportedLocales := make([]struct {
+		DecimalSeparator string                                        `json:"decimal_separator"`
+		Direction        openapi.CapabilitiesSupportedLocalesDirection `json:"direction"`
+		Locale           string                                        `json:"locale"`
+		WeekStart        openapi.CapabilitiesSupportedLocalesWeekStart `json:"week_start"`
+	}, 0, len(source.SupportedLocales))
+	for _, row := range source.SupportedLocales {
+		supportedLocales = append(supportedLocales, struct {
+			DecimalSeparator string                                        `json:"decimal_separator"`
+			Direction        openapi.CapabilitiesSupportedLocalesDirection `json:"direction"`
+			Locale           string                                        `json:"locale"`
+			WeekStart        openapi.CapabilitiesSupportedLocalesWeekStart `json:"week_start"`
+		}{
+			DecimalSeparator: row.DecimalSeparator,
+			Direction:        openapi.CapabilitiesSupportedLocalesDirection(row.Direction),
+			Locale:           row.Tag,
+			WeekStart:        openapi.CapabilitiesSupportedLocalesWeekStart(row.WeekStart),
+		})
+	}
+
 	productVersion := source.ProductVersion
 	apiVersion := source.APIVersion
 	tenancy := openapi.CapabilitiesTenancyMode(source.TenancyMode)
@@ -219,6 +242,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Automation:             &automationManifest,
 		RetentionDataKinds:     &dataKinds,
 		TextLanguages:          &textLanguages,
+		SupportedLocales:       &supportedLocales,
 		NotificationCategories: &notificationCategories,
 		NotificationChannels:   &notificationChannels,
 		TokenScopes:            &tokenScopes,
