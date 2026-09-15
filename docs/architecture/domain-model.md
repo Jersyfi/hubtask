@@ -577,6 +577,17 @@ workspace's rather than one hub's. What a job answers is deliberately narrow: it
 progress where it can compute one, a result reference and the code of the last failure. The
 payload, the attempt count, the lease and the deduplication key are the queue's and stay there.
 
+**What is deliberately not in the catalogue: the synchronisation protocol.** `GET /stream`,
+`POST /sync:pull` and `POST /sync:push` are served by `core/application/service/sync` and have no
+MCP tool and no automation action, because the catalogue is the list of things a person, an agent
+or a rule can *ask for*, and none of the three is that: the stream is a connection being held, a
+pull is the same reader served in pages, and a push is a device's queue being applied — an agent
+has no offline queue, and a rule that pulled would be reading its own effects (C-10, N-01,
+[offline-sync.md](./offline-sync.md) §3). What a push *applies* is never its own code path: every
+mutation is an ordinary use case of this catalogue performed as the pushing person, so a push
+grants nothing and somebody who could not make a change by hand cannot make it by pushing (N-04,
+the shape J-05 gave accepting a suggestion).
+
 ---
 
 ## 6. Persistence sketch

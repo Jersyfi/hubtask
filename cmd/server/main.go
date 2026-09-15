@@ -1707,19 +1707,26 @@ func run() error {
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
 		// poll interval.
+		changeStream := syncservice.StreamChanges{
+			Changes: changes, Containers: containers, Authorizer: authorizer,
+			UnitOfWork: unitOfWork, Cursors: streamCursors,
+			Clock: clockadapter.System{},
+			// The maximum offline window, which is also the minimum tombstone period: beyond
+			// it the log no longer holds everything that happened (offline-sync.md §7).
+			Window: cfg.Retention.TombstoneWindow,
+			Batch:  cfg.Queue.OutboxBatch,
+		}
 		controller.Stream = &rest.StreamController{
-			Stream: syncservice.StreamChanges{
-				Changes: changes, Containers: containers, Authorizer: authorizer,
-				UnitOfWork: unitOfWork, Cursors: streamCursors,
-				Clock: clockadapter.System{},
-				// The maximum offline window, which is also the minimum tombstone period: beyond
-				// it the log no longer holds everything that happened (offline-sync.md §7).
-				Window: cfg.Retention.TombstoneWindow,
-				Batch:  cfg.Queue.OutboxBatch,
-			},
+			Stream:   changeStream,
 			Registry: streams,
 			Wakeups:  changeListener,
 			Signals:  metrics,
+		}
+		// The pull is the same reader served in pages (N-01): the same records, the same order,
+		// the same cursor, which is what makes the stream an accelerator over it.
+		controller.Sync = &rest.SyncController{
+			Pull:    syncservice.PullChanges{Stream: changeStream},
+			Signals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{

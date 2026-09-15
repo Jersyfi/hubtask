@@ -68,6 +68,9 @@ func (s *changeStore) Latest(context.Context) (int64, error) {
 type containerStore struct {
 	lookups int
 	missing map[shared.ID]bool
+	// parents names the hub above a collection, for the scope filter; a container not in it is a
+	// collection with no parent, which is all the stream's own tests need.
+	parents map[shared.ID]shared.ID
 }
 
 func (s *containerStore) Find(_ context.Context, id shared.ID) (work.Container, error) {
@@ -75,7 +78,16 @@ func (s *containerStore) Find(_ context.Context, id shared.ID) (work.Container, 
 	if s.missing[id] {
 		return work.Container{}, shared.ErrNotFound
 	}
-	return work.Container{ID: id, TenantID: tenant, Type: work.ContainerCollection}, nil
+	kind := work.ContainerCollection
+	parent, hasParent := s.parents[id]
+	if !hasParent {
+		for _, above := range s.parents {
+			if above == id {
+				kind = work.ContainerHub
+			}
+		}
+	}
+	return work.Container{ID: id, TenantID: tenant, Type: kind, ParentID: parent}, nil
 }
 
 // authorizer permits the containers it was told to permit, and counts the questions.
@@ -176,7 +188,7 @@ func streaming(t *testing.T, entries ...repository.Recorded) fixture {
 	t.Helper()
 
 	changes := &changeStore{entries: entries}
-	containers := &containerStore{missing: map[shared.ID]bool{}}
+	containers := &containerStore{missing: map[shared.ID]bool{}, parents: map[shared.ID]shared.ID{}}
 	auth := &authorizer{allowed: map[shared.ID]bool{readable: true}}
 	work := &unitOfWork{}
 
