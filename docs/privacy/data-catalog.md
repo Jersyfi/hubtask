@@ -59,7 +59,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Workspace (name, slug, locale, settings) | `tenant` | `NON_PERSONAL` | The boundary everything else sits in | Contract | The lifetime of the workspace | `CASCADE` (everything below it) |
 | Group (name, description) | `account_group` | `NON_PERSONAL` | Permissions in bulk | Contract | The lifetime of the group | `CASCADE` |
 | Consent (purpose, granted, revoked, source) | `consent_record` | `PERSONAL_BASIC` | Evidence of a consent given or withdrawn | Consent (Art. 7(1) as evidence) | 3 years after withdrawal | `RETENTION` |
-| Device (platform, name, last seen, push token, cursor) | `sync_device` | `PERSONAL_TECHNICAL` | Offline synchronisation, push | Contract | 90 days after the last contact | `RETENTION` |
+| Device (platform, name, last seen, cursor, the credential it last synchronised under; `push_token` is a column nothing writes) | `sync_device` | `PERSONAL_TECHNICAL` | Offline synchronisation | Contract | 30 days after the last contact — the `DEVICE` retention kind ([offline-sync.md](../architecture/offline-sync.md) §6); the session it held is revoked as the row goes | `RETENTION` |
 
 ---
 

@@ -233,6 +233,17 @@ var catalogue = []Kind{
 		Actions: []Action{ActionHardDelete},
 	},
 	{
+		// The devices that synchronise (N-03). offline-sync.md §6: a device that does not check
+		// in for longer than the configured period loses its refresh token and has to
+		// re-authenticate, its local cache discarded in the process - so the row it held is over
+		// too, and the sweep revokes the session the device last synchronised under before it
+		// removes the row. Thirty days, §6's default; a device forgotten by its owner ages out
+		// the same way. No marking phase, the session's reason: a device is not an entry, and
+		// there is nobody to announce to but the device that is not there.
+		Name: KindDevice, Anchor: AnchorLastSeenAt, DefaultDays: 30,
+		Actions: []Action{ActionHardDelete},
+	},
+	{
 		// 400 days is a decision rather than a placeholder since H-13 (audit.md §9, A-1): a year
 		// plus a quarter, so that an annual review still reaches the start of the year it is
 		// reviewing. No action, because nothing in this build removes an audit entry - the trail
@@ -261,6 +272,7 @@ const (
 	// had it (G-02, ADR-0007's second countermeasure).
 	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
 	KindSession               DataKind = "SESSION"
+	KindDevice                DataKind = "DEVICE"
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"

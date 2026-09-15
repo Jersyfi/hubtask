@@ -918,3 +918,42 @@ func TestAHeldInboxDoesNotBringTheJobStraightBack(t *testing.T) {
 		t.Error("the held entries were passed over in silence")
 	}
 }
+
+// The DEVICE kind (N-03): devices silent past their period age out through the engine under
+// their own data kind, thirty days from the last contact - the adapter revokes the session each
+// held on the way, which the store stands in for here.
+func TestAPassSweepsStaleDevicesAtTheirOwnPeriod(t *testing.T) {
+	h := newRunHarness()
+	devices := &sessionStore{rows: []sessionRow{
+		{lastSeen: now.Add(-60 * 24 * time.Hour), over: true},
+		{lastSeen: now.Add(-time.Hour), over: true},
+	}}
+	h.run.Devices = devices
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if want := now.AddDate(0, 0, -30); !devices.askedAt.Equal(want) {
+		t.Errorf("cut off at %v, want thirty days back", devices.askedAt)
+	}
+	if len(devices.rows) != 1 {
+		t.Errorf("%d rows left, want the recent one", len(devices.rows))
+	}
+	if outcome.Removed < 1 {
+		t.Errorf("the pass reported %d removed, and a device went", outcome.Removed)
+	}
+	if !slices.Contains(h.runs.kinds, domain.KindDevice) {
+		t.Errorf("the log names %v and not the devices", h.runs.kinds)
+	}
+}
+
+func TestAPassWithoutTheDeviceSweepStillRuns(t *testing.T) {
+	h := newRunHarness()
+	h.run.Devices = nil
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("a pass without the device sweep failed: %v", err)
+	}
+}

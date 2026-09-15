@@ -2232,6 +2232,9 @@ func run() error {
 			// The SESSION kind (H-01): expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
+			// The devices that synchronise (N-03): silent past their period, their sign-in is
+			// revoked and the row goes.
+			Devices: postgres.NewDeviceRepository(),
 			// What AI proposed (J-05). Thirty days, the shortest default in the catalogue: a
 			// suggestion is about a state of an entry, and an entry's state does not stay still.
 			Proposals: postgres.NewSuggestionRepository(cursors),

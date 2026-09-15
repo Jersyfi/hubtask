@@ -75,6 +75,7 @@ turning out to be relevant after all.
 | `WEBHOOK_DELIVERY` | `created_at` | 30 days | Delivery log |
 | `OUTBOX_EVENT` | `occurred_at` | 7 days | Dispatched events (ADR-0007). A row nobody has consumed yet is never due, whatever the period says. It is also the window a polling trigger may reach back into: a cursor older than this period is refused rather than restarted, because the events it names are gone (automation.md §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | |
+| `DEVICE` | `last_seen_at` | 30 days | The devices that synchronise (N-03). A device silent past the period loses its sign-in - the session it last synchronised under is revoked before the row goes ([offline-sync.md](./offline-sync.md) §6) - and a device its owner forgot ages out the same way. No marking phase, the session's reason |
 | `AUDIT` | `occurred_at` | 400 days | Special case: pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
 | `MEDIA_ORPHAN` | `created_at` | 7 days | Unreferenced objects |
 | `DELETED_ACCOUNT_RESIDUE` | `deleted_at` | 30 days | Residual data after account deletion |

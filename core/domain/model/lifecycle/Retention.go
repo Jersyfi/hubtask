@@ -76,6 +76,10 @@ func DefaultPolicies() []Policy {
 		// notification history's reason - the sweep's own guard only ever removes what is already
 		// over, so a shorter period keeps less client-hint data and ends nothing.
 		{DataKind: KindSession, RetainDays: 30},
+		// Devices (N-03). Thirty days from the last contact, offline-sync.md §6's period, and no
+		// lower bound for the session's reason: a device forgotten sooner is a device that has to
+		// sign in again, which ends nothing a person cannot repeat.
+		{DataKind: KindDevice, RetainDays: 30},
 	}
 }
 
