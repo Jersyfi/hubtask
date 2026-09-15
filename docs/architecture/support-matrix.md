@@ -49,7 +49,7 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 | PostgreSQL **built with ICU** (names sort the same everywhere) | 16, 17 | `supported` | `ci.yml:integration` — `TestNamesSortUnderTheICURootCollation` proves migration `0080` copied `und-x-icu` into `hubtask_name`. Every image in this table has ICU, and so do the managed services above; a build without it is **not unsupported**: the migration falls back to the database's own locale, names still sort, only in that locale's order, and `/meta/capabilities` answers `natural_ordering: false`. The fallback branch is proved on the same database (`TestTheFallbackCollationIsTheDatabasesOwnLocale`), because no image in the matrix lacks ICU |
 | PostgreSQL | ≤ 15 | `unsupported` | — the schema uses what 16 offers; nothing checks 15, so nothing may claim it. The hard floor is 15, which added `ON DELETE SET NULL (column)`; the tenant-scoped foreign keys need it ([ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md)) |
 | PostgreSQL without a superuser (a managed service) | 16, 17 | `supported` | `ci.yml:integration` — the migrations applied by an owner with `CREATEROLE` and no superuser, and the tenant boundary asserted afterwards ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)). The operator creates the two roles and owns the database with `hubtask_migrator`; [multi-tenancy.md §2.1](./multi-tenancy.md) says how |
-| Go (building from source) | 1.26 | `supported` | `ci.yml:quick` and every other job |
+| Go (building from source) | 1.27 | `supported` | `ci.yml:quick` and every other job |
 
 ## 4. `hubctl` (the CLI)
 
