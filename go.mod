@@ -9,17 +9,19 @@ module github.com/Jersyfi/hubtask
 // here therefore turns a green pipeline into a coin toss.
 //
 // 1.25 left Go's support window when 1.27 shipped; Go patches only the two most recent majors.
+// The line moved to 1.27 with the builder image (dependabot.yml says the two travel together),
+// and tools/checkdocs holds every other statement of the version to this one.
 //
 // The `.0` is not a pinned patch and does not contradict the paragraph above: it is the *first*
-// release of 1.26, so every 1.26.x toolchain satisfies it and nothing is turned into a coin toss.
-// It is there because golang.org/x/crypto v0.56.0 - the release that closes GO-2026-6354 and
-// GO-2026-6355 - declares `go 1.26.0`, and a module cannot require less than what it depends on.
-go 1.26.0
+// release of 1.27, so every 1.27.x toolchain satisfies it and nothing is turned into a coin toss.
+// The form was chosen when golang.org/x/crypto v0.56.0 - the release that closes GO-2026-6354 and
+// GO-2026-6355 - declared `go 1.26.0`, and a module cannot require less than what it depends on.
+go 1.27.0
 
 // The toolchain is pinned to a patched release: gate-security runs govulncheck, and an unpatched
 // standard library is a finding there. Whoever builds with an older Go gets this one fetched
 // automatically - which is the guarantee the `go` directive above must not try to make.
-toolchain go1.26.7
+toolchain go1.27.1
 
 // Dependencies are added step by step from milestone 0.1.0 onwards.
 // The core (core/domain, core/port, core/shared) stays permanently free of

@@ -119,13 +119,13 @@ func (IdentityProviderRepository) FindWithSecret(
 			WithCause(fmt.Errorf("reading the identity provider: %w", err))
 	}
 	return identity.IdentityProvider{
-			Issuer:              row.Issuer,
-			ClientID:            row.ClientID,
-			AllowedEmailDomains: row.AllowedEmailDomains,
-			Enabled:             row.Enabled,
-		}, crypto.Sealed{
-			KeyID: row.ClientSecretKeyID, Ciphertext: row.ClientSecretEnc,
-		}, nil
+		Issuer:              row.Issuer,
+		ClientID:            row.ClientID,
+		AllowedEmailDomains: row.AllowedEmailDomains,
+		Enabled:             row.Enabled,
+	}, crypto.Sealed{
+		KeyID: row.ClientSecretKeyID, Ciphertext: row.ClientSecretEnc,
+	}, nil
 }
 
 func (IdentityProviderRepository) Delete(ctx context.Context) (bool, error) {

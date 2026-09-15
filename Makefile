@@ -272,10 +272,14 @@ verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-c
 	@echo "All locally runnable gates are green."
 
 ## gate-quick: Format, lint, generation without a diff
+# gofmt is taken from the toolchain go.mod selects, not from PATH: `go` follows the `toolchain`
+# directive and fetches the pinned release, a bare `gofmt` is whichever Go is installed - and the
+# two disagree on what is formatted when the installed one is a line older (1.26 and 1.27 do).
 .PHONY: gate-quick
 gate-quick:
 	$(call require_tool,golangci-lint)
-	@test -z "$$(gofmt -l . | grep -v '^vendor/')" || { echo "gofmt violations:"; gofmt -l .; exit 1; }
+	@gofmt="$$($(GO) env GOROOT)/bin/gofmt"; \
+		test -z "$$($$gofmt -l . | grep -v '^vendor/')" || { echo "gofmt violations:"; $$gofmt -l .; exit 1; }
 	@diff=$$($(TOOLS_DIR)/golangci-lint fmt --diff ./... 2>&1); \
 		test -z "$$diff" || { echo "formatting violations - run 'make fmt':"; echo "$$diff"; exit 1; }
 	$(GO) vet ./...
