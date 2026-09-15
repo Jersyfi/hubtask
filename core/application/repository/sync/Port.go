@@ -163,3 +163,34 @@ type InCollection[T any] struct {
 	Value        T
 	CollectionID shared.ID
 }
+
+// OpRecord is what a push did with one mutation, kept so that a repeated push takes effect
+// exactly once (offline-sync.md §3.2, §7): the answer is served from here, and nothing is applied
+// a second time.
+type OpRecord struct {
+	OpID     shared.ID
+	DeviceID shared.ID
+	Result   syncdomain.ResultKind
+	EntityID shared.ID
+	// Response is the result as it was answered, so that the repeat answers the same thing.
+	Response  map[string]any
+	AppliedAt time.Time
+}
+
+// OpLog remembers processed operations for the offline window (N-04). Rows age out with the
+// window: a device may be away for the whole of it and then push its queue.
+type OpLog interface {
+	// Find answers the record of an operation this workspace has already processed, and false
+	// when it has not.
+	Find(ctx context.Context, opID shared.ID) (OpRecord, bool, error)
+	// Record writes the record inside the caller's transaction - the one that applied the
+	// mutation, so that a push that dies halfway leaves neither the effect nor the record.
+	Record(ctx context.Context, record OpRecord) error
+}
+
+// Tombstones answers whether an entity has been purged (offline-sync.md §7): a mutation naming
+// one is refused rather than applied to nothing, and a creation under its identifier is refused
+// rather than bringing it back.
+type Tombstones interface {
+	Holds(ctx context.Context, entity string, id shared.ID) (bool, error)
+}
