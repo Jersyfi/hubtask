@@ -149,6 +149,18 @@ func (q *Queries) PurgeContainers(ctx context.Context, ids []pgtype.UUID) (int64
 	return result.RowsAffected(), nil
 }
 
+const purgeFieldClocks = `-- name: PurgeFieldClocks :exec
+DELETE FROM field_clock
+WHERE tenant_id = current_tenant_id() AND entity_id = ANY($1::uuid[])
+`
+
+// The merge's bookkeeping goes with the entity it is about (N-05): a purged entry's clocks would
+// otherwise decide a merge over an identifier that a tombstone refuses anyway.
+func (q *Queries) PurgeFieldClocks(ctx context.Context, ids []pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, purgeFieldClocks, ids)
+	return err
+}
+
 const purgeWorkItems = `-- name: PurgeWorkItems :execrows
 DELETE FROM work_item
 WHERE id = ANY($1::uuid[])

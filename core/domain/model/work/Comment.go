@@ -40,7 +40,26 @@ type Comment struct {
 	EditedAt  *time.Time
 	DeletedAt *time.Time
 	Version   int
+	// Kind tells what somebody wrote from what the server filed on their behalf (N-06,
+	// offline-sync.md §5). SystemCode and SystemParams are a system comment's heading - a
+	// message code and its parameters, never a sentence the server composed (rule 8) - and
+	// empty on a comment somebody wrote.
+	Kind         CommentKind
+	SystemCode   string
+	SystemParams map[string]string
 }
+
+// CommentKind is who a comment is from: the person, or the server on the person's behalf.
+type CommentKind string
+
+const (
+	CommentByUser   CommentKind = "USER"
+	CommentBySystem CommentKind = "SYSTEM"
+)
+
+// DisplacedVersionCode is the heading of the one system comment this build files: the version of
+// a free-text field that lost a merge (offline-sync.md §5).
+const DisplacedVersionCode = "sync.displaced_version"
 
 // MaxCommentBodyLength counts code points rather than bytes, for the reason the title limit does
 // (I-W7): a limit in bytes would measure the alphabet rather than the text.
@@ -58,6 +77,10 @@ type NewCommentInput struct {
 	Parent *Comment
 	Body   string
 	Now    time.Time
+	// System marks a comment the server files on the author's behalf, with the code and the
+	// parameters of its heading. Empty is what somebody wrote.
+	SystemCode   string
+	SystemParams map[string]string
 
 	// Text brings the body to normal form C before it is bounded and stored (i18n-l10n.md §5,
 	// M-07); NewWorkItemInput says why it is handed in.
@@ -105,7 +128,7 @@ func NewComment(input NewCommentInput) (Comment, error) {
 		parentID = parent.ID
 	}
 
-	return Comment{
+	comment := Comment{
 		ID:              input.ID,
 		TenantID:        input.TenantID,
 		ItemID:          input.ItemID,
@@ -114,7 +137,12 @@ func NewComment(input NewCommentInput) (Comment, error) {
 		Body:            body,
 		CreatedAt:       input.Now,
 		Version:         1,
-	}, nil
+		Kind:            CommentByUser,
+	}
+	if input.SystemCode != "" {
+		comment.Kind, comment.SystemCode, comment.SystemParams = CommentBySystem, input.SystemCode, input.SystemParams
+	}
+	return comment, nil
 }
 
 // Edited returns the comment with its body rewritten.
@@ -130,6 +158,13 @@ func (c Comment) Edited(body string, form text.Normalizer, at time.Time) (Commen
 		return Comment{}, shared.ErrConflict.
 			WithDetail("comments.comment_deleted").
 			WithFields(shared.FieldError{Path: "/body", Code: "comments.comment_deleted"})
+	}
+	if c.Kind == CommentBySystem {
+		// The displaced version is a record of what lost; rewriting it would make the record
+		// say something else. It can be deleted, like any comment.
+		return Comment{}, shared.ErrConflict.
+			WithDetail("comments.system_comment_immutable").
+			WithFields(shared.FieldError{Path: "/body", Code: "comments.system_comment_immutable"})
 	}
 	valid, err := validCommentBody(body, form)
 	if err != nil {

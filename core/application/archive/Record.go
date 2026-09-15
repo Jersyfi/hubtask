@@ -561,7 +561,12 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// The cursor and the markers of the live system. Restoring them would hand devices numbers
 	// that no longer mean anything.
 	"change_log": "the offline cursor; its sequence numbers belong to the database that issued them",
-	"tombstone":  "carried as DELETE lines inside each entity's file, which is what makes a chain complete",
+	// The clock each field was last written under (N-05). A restore rewrites every row without
+	// change log entries and forces every device to resynchronise from scratch (B-5, N-11), and a
+	// field with no clock loses to the first device that writes it - which is the rule for a
+	// field nobody stamped, and the right one for a workspace whose history was just replaced.
+	"field_clock": "the merge's bookkeeping; a restored workspace starts unstamped, as an installation does",
+	"tombstone":   "carried as DELETE lines inside each entity's file, which is what makes a chain complete",
 	// The compliance machinery. Each of these is a live case with a deadline or an attestation,
 	// and a restored copy would revive a clock that has already run out.
 	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one (E-09)",

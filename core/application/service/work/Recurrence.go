@@ -491,6 +491,7 @@ func (w RecurrenceWriter) recordFields(
 			ContainerID: item.CollectionID,
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
+			Field:       change.Field,
 			Payload:     map[string]any{change.Field: change.To},
 		})
 		if err != nil {

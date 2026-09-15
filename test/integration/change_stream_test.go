@@ -595,3 +595,76 @@ func TestAChangeRecordedUnderAPushNamesTheDevice(t *testing.T) {
 		}
 	}
 }
+
+// The server's clock per field (N-05, offline-sync.md §4.2): an entry naming a field stamps the
+// clock in the same transaction, a push's reading in the context replaces the writer's, and the
+// clocks are read back per entity - never from another tenant.
+func TestAChangeNamingAFieldStampsTheClockAndAPushesReadingReplacesTheWriters(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	container, entity := freshID(t), freshID(t)
+	server, _ := shared.HLC{}.Tick(created, "server-1")
+	device, _ := shared.NewHLC(created.Add(time.Hour), 3, "dev-a")
+
+	record := func(ctx context.Context, tenant shared.ID, field string, reading shared.HLC) {
+		t.Helper()
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			return postgres.NewChangeLog().Record(ctx, changelog.Change{
+				TenantID: tenant, Entity: "item", EntityID: entity, Op: changelog.Upsert,
+				ContainerID: container, ActorID: authorA, HLC: reading, Field: field,
+				Payload: map[string]any{field: "x"},
+			})
+		}); err != nil {
+			t.Fatalf("recording %s: %v", field, err)
+		}
+	}
+	record(ctx, tenantA, "title", server)
+	// A push's reading for the notes, carried in the context, replaces the writer's fresh one.
+	record(appshared.ContextWithReadings(ctx, map[string]shared.HLC{"notes": device}), tenantA, "notes", server)
+	// An entry naming no field - a creation - stamps nothing.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewChangeLog().Record(ctx, changelog.Change{
+			TenantID: tenantA, Entity: "item", EntityID: entity, Op: changelog.Upsert,
+			ContainerID: container, HLC: server, Payload: map[string]any{"title": "x", "notes": "y"},
+		})
+	}); err != nil {
+		t.Fatalf("recording the creation: %v", err)
+	}
+
+	var clocks map[string]shared.HLC
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		clocks, err = postgres.NewChangeLog().Of(ctx, "item", entity)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the clocks: %v", err)
+	}
+	if len(clocks) != 2 || clocks["title"].Compare(server) != 0 || clocks["notes"].Compare(device) != 0 {
+		t.Errorf("the clocks are %v, want the writer's for the title and the device's for the notes", clocks)
+	}
+
+	// The reading of the write that landed replaces what stood, whichever way the clocks go.
+	earlier, _ := shared.NewHLC(created.Add(-time.Hour), 1, "server-1")
+	record(ctx, tenantA, "notes", earlier)
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		clocks, err = postgres.NewChangeLog().Of(ctx, "item", entity)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the clocks again: %v", err)
+	}
+	if clocks["notes"].Compare(earlier) != 0 {
+		t.Errorf("the notes' clock is %s, want the reading of the write that landed", clocks["notes"])
+	}
+
+	// Gate SG-3: the clocks of tenant A's entity are not readable from tenant B.
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		clocks, err := postgres.NewChangeLog().Of(ctx, "item", entity)
+		if len(clocks) != 0 {
+			t.Errorf("tenant B read %d of tenant A's clocks", len(clocks))
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("reading from tenant B: %v", err)
+	}
+}
