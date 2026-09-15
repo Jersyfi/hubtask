@@ -158,7 +158,7 @@ func (w TemplateWriter) change(
 				ctx, actor, removed, TemplateDeletedAction, wholeTemplateAudit(removed), now)
 		}
 
-		wanted, changes, err := stored.Changed(cmd.Patch, now)
+		wanted, changes, err := stored.Changed(cmd.Patch, w.Text, now)
 		if err != nil {
 			return err
 		}

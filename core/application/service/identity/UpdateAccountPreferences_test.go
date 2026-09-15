@@ -15,7 +15,7 @@ import (
 
 func settled(t *testing.T) domain.Account {
 	t.Helper()
-	account, err := domain.Invite(adminID, tenant, "anna@example.org", "Anna", nil)
+	account, err := domain.Invite(adminID, tenant, "anna@example.org", "Anna", nil, nil)
 	if err != nil {
 		t.Fatalf("preparing the account: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestChangingOnesOwnPreferencesNeedsNoPermission(t *testing.T) {
 
 // Changing somebody else's is administering them, and needs the permission that says so.
 func TestChangingSomebodyElsesNeedsThePermission(t *testing.T) {
-	other, err := domain.Invite(invitedID, tenant, "bert@example.org", "Bert", nil)
+	other, err := domain.Invite(invitedID, tenant, "bert@example.org", "Bert", nil, nil)
 	if err != nil {
 		t.Fatalf("preparing: %v", err)
 	}

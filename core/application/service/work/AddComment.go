@@ -23,6 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -58,6 +59,8 @@ type CommentWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Text brings the body to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // AddComment puts a contribution on an entry's discussion.
@@ -150,6 +153,7 @@ func (h AddComment) Execute(
 			Parent:   parent,
 			Body:     cmd.Body,
 			Now:      now,
+			Text:     w.Text,
 		})
 		if err != nil {
 			return err

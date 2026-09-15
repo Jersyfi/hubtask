@@ -24,6 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -68,6 +69,8 @@ type Rules struct {
 	// never learns which engine evaluates one - and the same port the automation rules use, which is
 	// what makes "the same expression language" one statement rather than two.
 	Conditions expression.Compiler
+	// Text brings a justification to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // CreateRetentionPolicy writes down what this workspace deletes and when.
@@ -165,7 +168,7 @@ func (h CreateRetentionPolicy) Execute(
 		Action: cmd.Action, ThenAfterDays: cmd.ThenAfterDays, ThenAction: cmd.ThenAction,
 		GraceDays: cmd.GraceDays, Notify: cmd.Notify, Justification: cmd.Justification,
 		Enabled: cmd.Enabled, ExportTargetID: cmd.ExportTargetID,
-		CreatedBy: actor.AccountID, Now: now, Ceiling: ceiling,
+		CreatedBy: actor.AccountID, Now: now, Ceiling: ceiling, Text: h.Rules.Text,
 	})
 	if err != nil {
 		return domain.Rule{}, Preview{}, err

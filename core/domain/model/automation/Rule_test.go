@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -33,7 +34,7 @@ func validInput() automation.NewRuleInput {
 			Kind: automation.TriggerEvent, EventType: event.ItemOverdue,
 		},
 		Actions:   []automation.Action{{Kind: "ADD_LABEL", Params: map[string]any{"label_id": "x"}}},
-		CreatedBy: authorID, Now: written,
+		CreatedBy: authorID, Now: written, Text: text.Composing{},
 	}
 }
 
@@ -582,5 +583,22 @@ func TestARuleNeedsAnAccountToRunAs(t *testing.T) {
 	_, err := automation.NewRule(in)
 	if code := fieldCodes(t, err)["/run_as"]; code != "automation.run_as_required" {
 		t.Errorf("the refusal says %q, want automation.run_as_required", code)
+	}
+}
+
+// The name is stored in normal form C (i18n-l10n.md §5, M-07), like every label a person types.
+func TestARuleNameIsStoredInNormalFormC(t *testing.T) {
+	in := validInput()
+	in.Name = "U\u0308berfa\u0308llige Freigaben eskalieren"
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("building: %v", err)
+	}
+	if rule.Name != "\u00dcberf\u00e4llige Freigaben eskalieren" {
+		t.Errorf("name = %q, want the composed form", rule.Name)
+	}
+	in.Text = nil
+	if _, err := automation.NewRule(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }

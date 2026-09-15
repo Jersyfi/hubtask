@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -19,8 +20,8 @@ var (
 	newID    = shared.MustParseID("0192f000-0000-7000-8000-00000000000c")
 	actorID  = shared.MustParseID("0192f000-0000-7000-8000-00000000000d")
 	created  = time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
-	baseHub  = work.NewContainerInput{ID: newID, TenantID: tenant, Type: work.ContainerHub, Name: "Private", OrderKey: "m", CreatedBy: actorID, Now: created}
-	baseColl = work.NewContainerInput{ID: newID, TenantID: tenant, Type: work.ContainerCollection, ParentID: hubID, Name: "Shopping", OrderKey: "m", CreatedBy: actorID, Now: created}
+	baseHub  = work.NewContainerInput{ID: newID, TenantID: tenant, Type: work.ContainerHub, Name: "Private", OrderKey: "m", CreatedBy: actorID, Now: created, Text: text.Composing{}}
+	baseColl = work.NewContainerInput{ID: newID, TenantID: tenant, Type: work.ContainerCollection, ParentID: hubID, Name: "Shopping", OrderKey: "m", CreatedBy: actorID, Now: created, Text: text.Composing{}}
 )
 
 func TestNewContainerAcceptsBothLevels(t *testing.T) {
@@ -58,7 +59,7 @@ func TestNewContainerChecksTheName(t *testing.T) {
 		detailCode string
 	}{
 		{name: "trimmed", input: "  Team  ", wantName: "Team"},
-		{name: "combining marks count as one code point each", input: strings.Repeat("é", 100), wantName: strings.Repeat("é", 100)},
+		{name: "the limit counts the composed form", input: strings.Repeat("e\u0301", 200), wantName: strings.Repeat("\u00e9", 200)},
 		{name: "at the limit", input: strings.Repeat("a", 200), wantName: strings.Repeat("a", 200)},
 		{name: "empty", input: "", detailCode: "containers.name_empty"},
 		{name: "whitespace only", input: " \t ", detailCode: "containers.name_empty"},
@@ -92,6 +93,31 @@ func TestNewContainerChecksTheName(t *testing.T) {
 }
 
 // I-C1 in both directions.
+// The name and the description are stored in normal form C (i18n-l10n.md §5, M-07): two spellings
+// of one visible character are one name to the unique index because they are one string here.
+// Without the port, a name that is not ASCII is refused rather than stored as it came.
+func TestNewContainerStoresItsTextInNormalFormC(t *testing.T) {
+	in := baseHub
+	in.Name = " U\u0308bersicht "
+	in.Description = "Fu\u0308r alles, was keinen Platz hat"
+
+	container, err := work.NewContainer(in)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if container.Name != "\u00dcbersicht" {
+		t.Errorf("name = %q, want it composed and trimmed", container.Name)
+	}
+	if container.Description != "F\u00fcr alles, was keinen Platz hat" {
+		t.Errorf("description = %q, want it composed", container.Description)
+	}
+
+	in.Text = nil
+	if _, err := work.NewContainer(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
+	}
+}
+
 func TestNewContainerChecksTheParentInvariant(t *testing.T) {
 	t.Run("a hub with a parent", func(t *testing.T) {
 		in := baseHub

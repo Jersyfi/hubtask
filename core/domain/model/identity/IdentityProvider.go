@@ -223,7 +223,8 @@ func ParseOidcFlowState(raw string) (Token, error) { return parsePrefixed(raw, O
 // none leaves the account without one, and everything that needs an address says so itself rather
 // than inventing one.
 func ProvisionExternal(
-	id, tenantID shared.ID, email, displayName string, domains text.DomainEncoder,
+	id, tenantID shared.ID, email, displayName string,
+	domains text.DomainEncoder, form text.Normalizer,
 ) (Account, error) {
 	if id.IsZero() || tenantID.IsZero() {
 		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
@@ -238,7 +239,7 @@ func ProvisionExternal(
 		address = normalised
 	}
 
-	name, err := accountDisplayName(displayName, address)
+	name, err := accountDisplayName(displayName, address, form)
 	if err != nil {
 		return Account{}, err
 	}

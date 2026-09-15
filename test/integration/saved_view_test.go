@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -73,7 +74,7 @@ func TestASavedViewRoundTripsWhole(t *testing.T) {
 	}
 
 	// The attributes write whole, under the lock; the sharing has its own statement.
-	renamed, _, err := stored.Updated(view.ViewAttributes{Name: strPtr("Overdue board")})
+	renamed, _, err := stored.Updated(view.ViewAttributes{Name: strPtr("Overdue board")}, text.Composing{})
 	if err != nil {
 		t.Fatalf("the rename was refused: %v", err)
 	}
@@ -243,7 +244,7 @@ func TestSavedViewsAreInvisibleFromAnotherTenant(t *testing.T) {
 	})
 
 	t.Run("attributes", func(t *testing.T) {
-		renamed, _, err := saved.Updated(view.ViewAttributes{Name: strPtr("Stolen")})
+		renamed, _, err := saved.Updated(view.ViewAttributes{Name: strPtr("Stolen")}, text.Composing{})
 		if err != nil {
 			t.Fatal(err)
 		}

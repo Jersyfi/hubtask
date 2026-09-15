@@ -37,6 +37,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -93,6 +94,8 @@ type Writer struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Config     env.Config
+	// Text brings a target's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // CreateBackupTarget writes down where backups go.
@@ -144,6 +147,7 @@ func (h CreateBackupTarget) Execute(
 		ID: id, TenantID: actor.TenantID, Name: cmd.Name, Kind: cmd.Kind, Config: cmd.Config,
 		EncryptionMode: cmd.EncryptionMode, RegionNote: cmd.RegionNote,
 		InsecureAcknowledged: cmd.InsecureAcknowledged, CreatedBy: actor.AccountID, Now: now,
+		Text: h.Writer.Text,
 	})
 	if err != nil {
 		return domain.Target{}, err

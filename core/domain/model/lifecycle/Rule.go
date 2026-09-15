@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // ScopeKind is how wide a rule reaches (data-retention.md §2).
@@ -139,6 +140,10 @@ type NewRuleInput struct {
 	// catalogue's kinds carry no maximum, and `retention_policy.max_days` is where an operator puts
 	// one - so the caller reads it and hands it in, and the domain decides what it means.
 	Ceiling int
+
+	// Text brings the justification - the one field here a person writes in sentences - to
+	// normal form C before it is stored (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // NewRule builds a rule and refuses what the model cannot mean.
@@ -204,6 +209,10 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	if in.Enabled != nil {
 		enabled = *in.Enabled
 	}
+	justification, err := shared.NFC(strings.TrimSpace(in.Justification), in.Text)
+	if err != nil {
+		return Rule{}, err
+	}
 	return Rule{
 		ID: in.ID, TenantID: in.TenantID, Scope: in.Scope, DataKind: in.DataKind,
 		// Trimmed, so that what the sweep compiles is what somebody wrote rather than what they
@@ -211,7 +220,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 		Condition:  strings.TrimSpace(in.Condition),
 		RetainDays: in.RetainDays, Action: in.Action,
 		ThenAfterDays: in.ThenAfterDays, ThenAction: in.ThenAction,
-		GraceDays: grace, Notify: notify, Justification: strings.TrimSpace(in.Justification),
+		GraceDays: grace, Notify: notify, Justification: justification,
 		Enabled: enabled, ExportTargetID: in.ExportTargetID,
 		CreatedBy: in.CreatedBy, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil

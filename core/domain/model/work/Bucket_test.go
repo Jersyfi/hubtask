@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 
 	baseBucket = work.NewBucketInput{
 		ID: bucketID, TenantID: tenant, CollectionID: collectionID, Name: "Doing", OrderKey: "m",
+		Text: text.Composing{},
 	}
 )
 
@@ -66,7 +68,7 @@ func TestNewBucketChecksTheName(t *testing.T) {
 	}{
 		{name: "trimmed", input: "  Doing  ", wantName: "Doing"},
 		{name: "at the limit", input: strings.Repeat("a", 120), wantName: strings.Repeat("a", 120)},
-		{name: "combining marks count as one code point each", input: strings.Repeat("é", 120), wantName: strings.Repeat("é", 120)},
+		{name: "the limit counts the composed form", input: strings.Repeat("e\u0301", 120), wantName: strings.Repeat("\u00e9", 120)},
 		{name: "empty", input: "", detailCode: "buckets.name_empty"},
 		{name: "whitespace only", input: " \t ", detailCode: "buckets.name_empty"},
 		{name: "one code point too long", input: strings.Repeat("a", 121), detailCode: "buckets.name_too_long"},
@@ -100,6 +102,30 @@ func TestNewBucketChecksTheName(t *testing.T) {
 
 // Zero is how a caller clears the limit, and the column refuses it as a value - so nothing is lost
 // by reading it that way. A negative one is a caller's mistake and is named as one.
+// A column's name is stored in normal form C, on creation and on update (i18n-l10n.md §5, M-07):
+// "Spa\u0308ter" and "Sp\u00e4ter" are one name to the unique index because they are one string here.
+func TestABucketNameIsStoredInNormalFormC(t *testing.T) {
+	in := baseBucket
+	in.Name = "Spa\u0308ter"
+	bucket := newBucket(t, in)
+	if bucket.Name != "Sp\u00e4ter" {
+		t.Errorf("name = %q, want it composed", bucket.Name)
+	}
+
+	updated, changes, err := bucket.Updated(work.BucketAttributes{Name: pointerTo("Erledigt fu\u0308r heute")}, text.Composing{})
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if updated.Name != "Erledigt f\u00fcr heute" || len(changes) != 1 || changes[0].To != updated.Name {
+		t.Errorf("stored %q with changes %+v, want the composed form in both", updated.Name, changes)
+	}
+
+	in.Text = nil
+	if _, err := work.NewBucket(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
+	}
+}
+
 func TestNewBucketChecksTheWipLimit(t *testing.T) {
 	for _, c := range []struct {
 		name       string
@@ -174,7 +200,7 @@ func TestBucketUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	t.Run("a change that changes nothing writes nothing", func(t *testing.T) {
 		unchanged, changes, err := bucket.Updated(work.BucketAttributes{
 			Name: pointerTo("Doing"), WipLimit: pointerTo(3), ColorToken: pointerTo("surface.blue"),
-		})
+		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("an update to the stored values was refused: %v", err)
 		}
@@ -189,7 +215,7 @@ func TestBucketUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	t.Run("the fields that moved, and no others", func(t *testing.T) {
 		updated, changes, err := bucket.Updated(work.BucketAttributes{
 			Name: pointerTo("In progress"), IsDoneBucket: pointerTo(true),
-		})
+		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("the update was refused: %v", err)
 		}
@@ -210,7 +236,7 @@ func TestBucketUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	// The empty string is how "not set" reaches a change set - for a number as much as for a
 	// text, so that a recipient never has to read 0 as a limit nobody may drop into.
 	t.Run("clearing the limit travels as the empty string", func(t *testing.T) {
-		updated, changes, err := bucket.Updated(work.BucketAttributes{WipLimit: pointerTo(0)})
+		updated, changes, err := bucket.Updated(work.BucketAttributes{WipLimit: pointerTo(0)}, text.Composing{})
 		if err != nil {
 			t.Fatalf("clearing the limit was refused: %v", err)
 		}
@@ -223,7 +249,7 @@ func TestBucketUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	})
 
 	t.Run("clearing the colour", func(t *testing.T) {
-		updated, changes, err := bucket.Updated(work.BucketAttributes{ColorToken: pointerTo("")})
+		updated, changes, err := bucket.Updated(work.BucketAttributes{ColorToken: pointerTo("")}, text.Composing{})
 		if err != nil {
 			t.Fatalf("clearing the colour was refused: %v", err)
 		}
@@ -261,7 +287,7 @@ func TestBucketUpdatedChecksWhatItIsGiven(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			_, _, err := bucket.Updated(c.attributes)
+			_, _, err := bucket.Updated(c.attributes, text.Composing{})
 			assertDetail(t, err, shared.ErrValidation, c.detailCode)
 		})
 	}
@@ -345,7 +371,7 @@ func TestADeletedBucketRefusesEveryChange(t *testing.T) {
 	}
 
 	t.Run("update", func(t *testing.T) {
-		_, _, err := deleted.Updated(work.BucketAttributes{Name: pointerTo("Later")})
+		_, _, err := deleted.Updated(work.BucketAttributes{Name: pointerTo("Later")}, text.Composing{})
 		assertDetail(t, err, shared.ErrConflict, "buckets.deleted")
 	})
 

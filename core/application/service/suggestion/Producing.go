@@ -20,6 +20,7 @@ import (
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	porttext "github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // Providers answers which provider a workspace uses (J-03). An interface here rather than the
@@ -134,6 +135,9 @@ type Produce struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings a model's answer for a declared field to the form the definition stores it in
+	// (i18n-l10n.md §5, M-07): what is proposed is what would be written.
+	Text porttext.Normalizer
 }
 
 // The prompts this build can ask with, and what a node of each answer may carry.
@@ -422,7 +426,7 @@ func (h Produce) Execute(
 		return err
 	}
 
-	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request), material)
+	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
@@ -588,6 +592,7 @@ func (h Produce) applicable(request Request) map[string]bool {
 // should be reading what they could actually accept.
 func payloadFrom(
 	kind domain.Kind, promptID, text string, applicable map[string]bool, material Material,
+	form porttext.Normalizer,
 ) (map[string]any, bool) {
 	answered, ok := objectFrom(text)
 	if !ok {
@@ -597,7 +602,7 @@ func payloadFrom(
 	case domain.KindFields:
 		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
 		kept = keptChoices(kept, promptID, material.Choices)
-		return keptDate(keptTitles(keptDeclared(kept, material.Declared))), true
+		return keptDate(keptTitles(keptDeclared(kept, material.Declared, form))), true
 	case domain.KindDecomposition:
 		return keptTree(answered)
 	default:
@@ -737,7 +742,7 @@ func shown(value any) string {
 //
 // A key at a time, and the rest of the answer stands. A model that filled three fields and invented
 // a fourth has classified the entry three times correctly.
-func keptDeclared(payload map[string]any, declared []Declared) map[string]any {
+func keptDeclared(payload map[string]any, declared []Declared, form porttext.Normalizer) map[string]any {
 	answered, held := payload[fieldsKey]
 	if !held {
 		return payload
@@ -759,7 +764,7 @@ func keptDeclared(payload map[string]any, declared []Declared) map[string]any {
 		if !declaredHere || value == nil {
 			continue
 		}
-		checked, err := definition.ValidateValue(value)
+		checked, err := definition.ValidateValue(value, form)
 		if err != nil || checked == nil {
 			continue
 		}

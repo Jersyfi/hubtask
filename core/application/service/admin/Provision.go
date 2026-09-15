@@ -110,7 +110,11 @@ type ProvisionTenant struct {
 	Journal  adminrepo.Journal
 	Accounts AccountSeeder
 	// Domains brings the owner's address to its stored form (M-10).
-	Domains    text.DomainEncoder
+	Domains text.DomainEncoder
+	// Text brings the seeded names to normal form C: they are rendered from the catalogue in the
+	// workspace's language, and a translator's file is as free to carry combining marks as a
+	// keyboard is (i18n-l10n.md §5, M-07).
+	Text       text.Normalizer
 	Redemption RedemptionTokens
 	Grants     MembershipSeeder
 	Containers ContainerSeeder
@@ -148,6 +152,7 @@ func (h ProvisionTenant) Execute(
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
 		ID: h.IDs.NewID(), Slug: cmd.Slug, DisplayName: cmd.DisplayName,
 		DefaultLocale: cmd.DefaultLocale, DefaultTimeZone: cmd.DefaultTimeZone, Now: now,
+		Text: h.Text,
 	})
 	if err != nil {
 		return ProvisionedTenant{}, err
@@ -157,7 +162,7 @@ func (h ProvisionTenant) Execute(
 	if ownerName == "" {
 		ownerName = cmd.OwnerEmail
 	}
-	owner, err := domain.Invite(h.IDs.NewID(), tenant.ID, cmd.OwnerEmail, ownerName, h.Domains)
+	owner, err := domain.Invite(h.IDs.NewID(), tenant.ID, cmd.OwnerEmail, ownerName, h.Domains, h.Text)
 	if err != nil {
 		return ProvisionedTenant{}, err
 	}
@@ -246,7 +251,7 @@ func (h ProvisionTenant) seedStructure(
 
 	hub, err := h.seedContainer(ctx, work.NewContainerInput{
 		ID: h.IDs.NewID(), TenantID: tenant.ID, Type: work.ContainerHub,
-		Name: name("seed.hub.name"), OrderKey: firstOrderKey(),
+		Name: name("seed.hub.name"), OrderKey: firstOrderKey(), Text: h.Text,
 		CreatedBy: owner.ID, Now: now,
 	}, eventActor, now)
 	if err != nil {
@@ -255,7 +260,7 @@ func (h ProvisionTenant) seedStructure(
 
 	collection, err := h.seedContainer(ctx, work.NewContainerInput{
 		ID: h.IDs.NewID(), TenantID: tenant.ID, Type: work.ContainerCollection,
-		ParentID: hub.ID, Name: name("seed.collection.name"), OrderKey: firstOrderKey(),
+		ParentID: hub.ID, Name: name("seed.collection.name"), OrderKey: firstOrderKey(), Text: h.Text,
 		CreatedBy: owner.ID, Now: now,
 	}, eventActor, now)
 	if err != nil {
@@ -279,7 +284,7 @@ func (h ProvisionTenant) seedStructure(
 		orderKey = next
 		if err := h.seedBucket(ctx, work.NewBucketInput{
 			ID: h.IDs.NewID(), TenantID: tenant.ID, CollectionID: collection.ID,
-			Name: name(bucket.code), OrderKey: orderKey,
+			Name: name(bucket.code), OrderKey: orderKey, Text: h.Text,
 			IsDoneBucket: bucket.done, ColorToken: bucket.color,
 		}, eventActor, now); err != nil {
 			return "", "", err
@@ -294,7 +299,7 @@ func (h ProvisionTenant) seedStructure(
 	} {
 		if err := h.seedLabel(ctx, work.NewLabelInput{
 			ID: h.IDs.NewID(), TenantID: tenant.ID, CollectionID: collection.ID,
-			Name: name(label.code), ColorToken: label.color,
+			Name: name(label.code), ColorToken: label.color, Text: h.Text,
 		}, eventActor, now); err != nil {
 			return "", "", err
 		}

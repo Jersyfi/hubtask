@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -30,7 +31,7 @@ func freshEmail(t *testing.T) string {
 
 func invitedIn(t *testing.T, tenant shared.ID) identity.Account {
 	t.Helper()
-	account, err := identity.Invite(freshID(t), tenant, freshEmail(t), "Anna", nil)
+	account, err := identity.Invite(freshID(t), tenant, freshEmail(t), "Anna", nil, nil)
 	if err != nil {
 		t.Fatalf("building the account: %v", err)
 	}
@@ -102,7 +103,7 @@ func TestTheSameAddressCanExistInTwoTenants(t *testing.T) {
 	address := freshEmail(t)
 
 	for _, tenant := range []shared.ID{tenantA, tenantB} {
-		account, err := identity.Invite(freshID(t), tenant, address, "Anna", nil)
+		account, err := identity.Invite(freshID(t), tenant, address, "Anna", nil, nil)
 		if err != nil {
 			t.Fatalf("building: %v", err)
 		}
@@ -120,7 +121,7 @@ func TestTheSameAddressTwiceInOneTenantIsAConflict(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	first := invitedIn(t, tenantA)
 
-	second, err := identity.Invite(freshID(t), tenantA, first.Email, "Anna again", nil)
+	second, err := identity.Invite(freshID(t), tenantA, first.Email, "Anna again", nil, nil)
 	if err != nil {
 		t.Fatalf("building: %v", err)
 	}
@@ -296,7 +297,7 @@ func TestAGroupUpdateWithAStaleVersionIsRefused(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	group := groupIn(t, tenantA)
 
-	renamed, err := group.Rename(freshName(t))
+	renamed, err := group.Rename(freshName(t), text.Composing{})
 	if err != nil {
 		t.Fatalf("renaming: %v", err)
 	}
@@ -330,7 +331,7 @@ func TestAGroupOfAnotherTenantIsUnreachable(t *testing.T) {
 		t.Errorf("reading across tenants: %v, want not found", err)
 	}
 
-	renamed, _ := group.Rename("taken over")
+	renamed, _ := group.Rename("taken over", text.Composing{})
 	err = write(ctx, t, tenantB, func(ctx context.Context) error {
 		return postgres.NewGroupRepository(pageCursors()).Update(ctx, renamed, 1)
 	})

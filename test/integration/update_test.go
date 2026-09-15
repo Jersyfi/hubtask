@@ -13,6 +13,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // SetAttributes against a real database (B-05), with the cross-tenant negative gate SG-3 asks of
@@ -43,7 +44,7 @@ func TestSetAttributesWritesTheFieldsAndBumpsTheVersion(t *testing.T) {
 	before := findItem(ctx, t, tenantA, id)
 	renamed, changes, err := before.Updated(
 		work.ItemAttributes{Title: pointerTo("Buy oat milk"), Notes: pointerTo("Whole, not semi.")},
-		writableProfile(), updatedAt(1))
+		writableProfile(), text.Composing{}, updatedAt(1))
 	if err != nil {
 		t.Fatalf("applying the update: %v", err)
 	}
@@ -82,7 +83,7 @@ func TestSetAttributesClearsTheNotes(t *testing.T) {
 
 	noted := findItem(ctx, t, tenantA, id)
 	withNotes, _, err := noted.Updated(
-		work.ItemAttributes{Notes: pointerTo("Three metres.")}, writableProfile(), updatedAt(1))
+		work.ItemAttributes{Notes: pointerTo("Three metres.")}, writableProfile(), text.Composing{}, updatedAt(1))
 	if err != nil {
 		t.Fatalf("applying the notes: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestSetAttributesClearsTheNotes(t *testing.T) {
 
 	stored := findItem(ctx, t, tenantA, id)
 	cleared, changes, err := stored.Updated(
-		work.ItemAttributes{Notes: pointerTo("")}, writableProfile(), updatedAt(2))
+		work.ItemAttributes{Notes: pointerTo("")}, writableProfile(), text.Composing{}, updatedAt(2))
 	if err != nil {
 		t.Fatalf("clearing the notes: %v", err)
 	}
@@ -120,7 +121,7 @@ func TestSetAttributesRefusesAStaleVersion(t *testing.T) {
 	id := seedTask(ctx, t, tenantA, authorA, collection)
 
 	item := findItem(ctx, t, tenantA, id)
-	first, _, err := item.Updated(work.ItemAttributes{Title: pointerTo("Buy oat milk")}, writableProfile(), updatedAt(1))
+	first, _, err := item.Updated(work.ItemAttributes{Title: pointerTo("Buy oat milk")}, writableProfile(), text.Composing{}, updatedAt(1))
 	if err != nil {
 		t.Fatalf("applying the first update: %v", err)
 	}
@@ -130,7 +131,7 @@ func TestSetAttributesRefusesAStaleVersion(t *testing.T) {
 		t.Fatalf("the first write: %v", err)
 	}
 
-	second, _, err := item.Updated(work.ItemAttributes{Title: pointerTo("Buy soy milk")}, writableProfile(), updatedAt(2))
+	second, _, err := item.Updated(work.ItemAttributes{Title: pointerTo("Buy soy milk")}, writableProfile(), text.Composing{}, updatedAt(2))
 	if err != nil {
 		t.Fatalf("applying the second update: %v", err)
 	}
@@ -155,7 +156,7 @@ func TestSetAttributesCannotReachAnotherTenant(t *testing.T) {
 	id := seedTask(ctx, t, tenantA, authorA, collection)
 
 	item := findItem(ctx, t, tenantA, id)
-	renamed, _, err := item.Updated(work.ItemAttributes{Title: pointerTo("Renamed by B")}, writableProfile(), updatedAt(1))
+	renamed, _, err := item.Updated(work.ItemAttributes{Title: pointerTo("Renamed by B")}, writableProfile(), text.Composing{}, updatedAt(1))
 	if err != nil {
 		t.Fatalf("applying the update: %v", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The structure of a collection: the buckets its items are arranged in, and the labels they are
@@ -26,13 +27,17 @@ const MaxStructureNameLength = 120
 // somebody runs the line that builds it (i18n-l10n.md §3).
 type nameCodes struct{ empty, tooLong, malformed string }
 
-// structureName trims and checks the name of a bucket or a label.
+// structureName normalises, trims and checks the name of a bucket or a label.
 //
-// Trimmed here rather than in the adapter, because the trimmed form is what the uniqueness index
-// compares: " Doing" and "Doing" are the same name to a person, and a check that disagrees with a
-// person is a bug report waiting.
-func structureName(raw string, codes nameCodes) (string, error) {
-	name := strings.TrimSpace(raw)
+// Trimmed and brought to normal form C here rather than in the adapter, because that form is
+// what the uniqueness index compares: " Doing" and "Doing" are the same name to a person, and so
+// are the two spellings of "Später" (i18n-l10n.md §5, M-07); a check that disagrees with a person
+// is a bug report waiting.
+func structureName(raw string, codes nameCodes, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 
 	switch {
 	case name == "":

@@ -32,6 +32,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // MaxNameLength matches the contract. A rule's name is a title somebody wrote, so it is bounded
@@ -252,6 +253,10 @@ type NewRuleInput struct {
 	OnError    OnError
 	CreatedBy  shared.ID
 	Now        time.Time
+
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewRule validates and builds a rule, switched off.
@@ -260,7 +265,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 		return Rule{}, shared.ErrInternal.WithDetail("automation.rule_incomplete")
 	}
 
-	name, err := RuleName(in.Name)
+	name, err := RuleName(in.Name, in.Text)
 	if err != nil {
 		return Rule{}, err
 	}
@@ -302,9 +307,12 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	}, nil
 }
 
-// RuleName checks a title somebody wrote.
-func RuleName(raw string) (string, error) {
-	name := strings.TrimSpace(raw)
+// RuleName checks a title somebody wrote, in normal form C (M-07).
+func RuleName(raw string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	switch {
 	case name == "":
 		return "", fieldError("/name", "automation.name_required")

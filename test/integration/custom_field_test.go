@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -182,7 +183,7 @@ func TestAnEditTakesTheOptimisticLock(t *testing.T) {
 	defined := definedField(ctx, t, tenantA, collection, "size_"+shortSuffix(t), work.CustomFieldSelect, "s")
 
 	options := []string{"s", "m"}
-	updated, changes, err := defined.Updated(work.CustomFieldAttributes{Options: &options}, changedAt)
+	updated, changes, err := defined.Updated(work.CustomFieldAttributes{Options: &options}, text.Composing{}, changedAt)
 	if err != nil || len(changes) != 1 {
 		t.Fatalf("the update answered %+v (%v)", changes, err)
 	}
@@ -291,7 +292,7 @@ func TestACustomFieldOfAnotherTenantIsOutOfReach(t *testing.T) {
 
 	t.Run("update and delete", func(t *testing.T) {
 		required := true
-		wanted, _, err := defined.Updated(work.CustomFieldAttributes{IsRequired: &required}, changedAt)
+		wanted, _, err := defined.Updated(work.CustomFieldAttributes{IsRequired: &required}, text.Composing{}, changedAt)
 		if err != nil {
 			t.Fatal(err)
 		}

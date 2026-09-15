@@ -411,6 +411,7 @@
   "events.account_missing": "This installation could not announce that change.",
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",
+  "text.normalizer_missing": "This installation is misconfigured and could not store that text.",
   "lifecycle.legal_hold": "This cannot be deleted for good: a legal hold is in force on the {scope}. Ask whoever placed it.",
   "lifecycle.hold_incomplete": "That legal hold cannot be placed as described.",
   "lifecycle.hold_scope_invalid": "A legal hold covers the workspace, a hub or collection, an entry, or a person.",

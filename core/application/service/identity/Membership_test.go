@@ -89,7 +89,7 @@ func grantHandler(grants *grantStore, accounts *accountStore, groups *groupStore
 
 func invitedAccount(t *testing.T) domain.Account {
 	t.Helper()
-	account, err := domain.Invite(invitedID, tenant, "bert@example.org", "Bert", nil)
+	account, err := domain.Invite(invitedID, tenant, "bert@example.org", "Bert", nil, nil)
 	if err != nil {
 		t.Fatalf("preparing the account: %v", err)
 	}

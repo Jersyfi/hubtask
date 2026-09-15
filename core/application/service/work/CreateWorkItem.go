@@ -26,6 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -129,6 +130,8 @@ type CreateWorkItem struct {
 	// DueDates is the writer the declared due fields dispatch into, reused whole for the same
 	// reason (D-01).
 	DueDates DueDateWriter
+	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -498,6 +501,7 @@ func (h CreateWorkItem) build(
 		OrderKey:        orderKey,
 		CreatedBy:       actor.AccountID,
 		Now:             now,
+		Text:            h.Text,
 	})
 }
 

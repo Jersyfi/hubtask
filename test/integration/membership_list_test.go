@@ -21,7 +21,7 @@ import (
 // grantedAt writes one membership for a fresh account at the scope and returns it.
 func grantedAt(ctx context.Context, t *testing.T, tenant shared.ID, scope identity.Scope) identity.Grant {
 	t.Helper()
-	account, err := identity.Invite(freshID(t), tenant, freshEmail(t), "Anna", nil)
+	account, err := identity.Invite(freshID(t), tenant, freshEmail(t), "Anna", nil, nil)
 	if err != nil {
 		t.Fatalf("building the account: %v", err)
 	}

@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // CustomFieldKind is what a value for a field looks like. The eight the schema has carried since
@@ -130,6 +131,11 @@ type NewCustomFieldInput struct {
 	IsRequired   bool
 	AppliesTo    []ItemType
 	Now          time.Time
+
+	// Text brings the options to normal form C before they are bounded and stored (i18n-l10n.md
+	// §5, M-07): an option is a value a person typed once and every entry then picks from, so a
+	// choice has to meet it in one form. NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewCustomFieldDefinition builds a definition and checks its invariants.
@@ -148,7 +154,7 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 			WithParams(map[string]string{"value": string(in.Kind)}).
 			WithFields(shared.FieldError{Path: "/kind", Code: "fields.kind_unknown"})
 	}
-	options, err := customFieldOptions(in.Kind, in.Options)
+	options, err := customFieldOptions(in.Kind, in.Options, in.Text)
 	if err != nil {
 		return CustomFieldDefinition{}, err
 	}
@@ -204,8 +210,10 @@ const (
 // That would be the unbounded write the soft delete exists to avoid, and the value is not wrong -
 // it was permitted when it was written. It stops being offered, and the next write of that field
 // is refused unless it picks from the new list.
+//
+// The normaliser is handed in for the reason NewCustomFieldDefinition takes one (M-07).
 func (d CustomFieldDefinition) Updated(
-	attributes CustomFieldAttributes, at time.Time,
+	attributes CustomFieldAttributes, form text.Normalizer, at time.Time,
 ) (CustomFieldDefinition, []FieldChange, error) {
 	if err := d.EnsureEditable(); err != nil {
 		return CustomFieldDefinition{}, nil, err
@@ -214,7 +222,7 @@ func (d CustomFieldDefinition) Updated(
 	var changes []FieldChange
 
 	if attributes.Options != nil {
-		options, err := customFieldOptions(d.Kind, *attributes.Options)
+		options, err := customFieldOptions(d.Kind, *attributes.Options, form)
 		if err != nil {
 			return CustomFieldDefinition{}, nil, err
 		}
@@ -320,7 +328,7 @@ func validCustomFieldKey(key string) bool {
 // customFieldOptions validates the list a SELECT draws from, and insists the other kinds have none:
 // options on a BOOL are a client that misunderstood the field, and storing them would make the
 // misunderstanding survive.
-func customFieldOptions(kind CustomFieldKind, raw []string) ([]string, error) {
+func customFieldOptions(kind CustomFieldKind, raw []string, form text.Normalizer) ([]string, error) {
 	if !kind.TakesOptions() {
 		if len(raw) != 0 {
 			return nil, customFieldError("/options", "fields.options_not_applicable",
@@ -338,7 +346,10 @@ func customFieldOptions(kind CustomFieldKind, raw []string) ([]string, error) {
 
 	options := make([]string, 0, len(raw))
 	for _, option := range raw {
-		value := strings.TrimSpace(option)
+		value, err := shared.NFC(strings.TrimSpace(option), form)
+		if err != nil {
+			return nil, err
+		}
 		if value == "" {
 			return nil, customFieldError("/options", "fields.option_empty", nil)
 		}
@@ -414,7 +425,11 @@ func customFieldError(path, code string, params map[string]string) error {
 // number, `string`, `bool`, `[]any` - because that is what reaches this from all three channels.
 // A NUMBER arriving as a string is refused rather than parsed: a client that sent "3" meant a
 // string, and guessing turns a typo into stored data (domain-model.md §6).
-func (d CustomFieldDefinition) ValidateValue(value any) (any, error) {
+//
+// The normaliser is for the kinds that hold text a person typed (M-07): a TEXT value is stored
+// in normal form C like a note, and a choice is brought to the form the options were stored in
+// before it is looked for among them.
+func (d CustomFieldDefinition) ValidateValue(value any, form text.Normalizer) (any, error) {
 	if value == nil {
 		if d.IsRequired {
 			return nil, d.valueError("fields.value_required", nil)
@@ -424,15 +439,15 @@ func (d CustomFieldDefinition) ValidateValue(value any) (any, error) {
 
 	switch d.Kind {
 	case CustomFieldText:
-		return d.validText(value)
+		return d.validText(value, form)
 	case CustomFieldNumber:
 		return d.validNumber(value)
 	case CustomFieldDate:
 		return d.validDate(value)
 	case CustomFieldSelect:
-		return d.validSelect(value)
+		return d.validSelect(value, form)
 	case CustomFieldMultiSelect:
-		return d.validMultiSelect(value)
+		return d.validMultiSelect(value, form)
 	case CustomFieldBool:
 		return d.validBool(value)
 	case CustomFieldUser:
@@ -445,12 +460,15 @@ func (d CustomFieldDefinition) ValidateValue(value any) (any, error) {
 	}
 }
 
-func (d CustomFieldDefinition) validText(value any) (any, error) {
-	text, ok := value.(string)
+func (d CustomFieldDefinition) validText(value any, form text.Normalizer) (any, error) {
+	raw, ok := value.(string)
 	if !ok {
 		return nil, d.typeMismatch(value)
 	}
-	text = strings.TrimSpace(text)
+	text, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return nil, err
+	}
 	if text == "" {
 		// An empty string is the absence of a value written a second way. One spelling, so that a
 		// required field cannot be satisfied by sending "".
@@ -489,10 +507,14 @@ func (d CustomFieldDefinition) validDate(value any) (any, error) {
 	return text, nil
 }
 
-func (d CustomFieldDefinition) validSelect(value any) (any, error) {
-	text, ok := value.(string)
+func (d CustomFieldDefinition) validSelect(value any, form text.Normalizer) (any, error) {
+	raw, ok := value.(string)
 	if !ok {
 		return nil, d.typeMismatch(value)
+	}
+	text, err := shared.NFC(raw, form)
+	if err != nil {
+		return nil, err
 	}
 	if !slices.Contains(d.Options, text) {
 		// The value is echoed back. It is one a client chose from a list this server published, so
@@ -503,7 +525,7 @@ func (d CustomFieldDefinition) validSelect(value any) (any, error) {
 	return text, nil
 }
 
-func (d CustomFieldDefinition) validMultiSelect(value any) (any, error) {
+func (d CustomFieldDefinition) validMultiSelect(value any, form text.Normalizer) (any, error) {
 	raw, ok := value.([]any)
 	if !ok {
 		return nil, d.typeMismatch(value)
@@ -519,9 +541,13 @@ func (d CustomFieldDefinition) validMultiSelect(value any) (any, error) {
 	chosen := make([]any, 0, len(raw))
 	seen := make([]string, 0, len(raw))
 	for _, element := range raw {
-		text, ok := element.(string)
+		typed, ok := element.(string)
 		if !ok {
 			return nil, d.typeMismatch(element)
+		}
+		text, err := shared.NFC(typed, form)
+		if err != nil {
+			return nil, err
 		}
 		if !slices.Contains(d.Options, text) {
 			return nil, d.valueError("fields.value_not_an_option", map[string]string{"value": text})

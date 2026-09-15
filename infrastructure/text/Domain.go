@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package text is the adapter for core/port/text: golang.org/x/net/idna for domains, and the
-// Unicode normal form when M-07 lands. Both libraries are confined here (ADR-0056).
+// Package text is the adapter for core/port/text: golang.org/x/net/idna for domains, and
+// golang.org/x/text/unicode/norm for the Unicode normal form. Both libraries are confined here
+// (ADR-0056).
 package text
 
 import (

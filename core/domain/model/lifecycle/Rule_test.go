@@ -11,6 +11,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -26,7 +27,7 @@ func ruleInput(change func(*domain.NewRuleInput)) domain.NewRuleInput {
 		ID: ruleID, TenantID: ruleTenant,
 		Scope:    domain.Scope{Kind: domain.ScopeTenant},
 		DataKind: domain.KindCompletedItem, RetainDays: 365,
-		Action: domain.ActionArchive, Now: ruleNow,
+		Action: domain.ActionArchive, Now: ruleNow, Text: text.Composing{},
 	}
 	change(&in)
 	return in
@@ -421,5 +422,23 @@ func TestAWarningWithNoNumberTakesTheDocumentedDefault(t *testing.T) {
 	if rule.Notify.BeforeDays != domain.DefaultNotifyBeforeDays {
 		t.Errorf("the warning goes out %d days ahead, want the documented %d",
 			rule.Notify.BeforeDays, domain.DefaultNotifyBeforeDays)
+	}
+}
+
+// The justification - the one field of a rule a person writes in sentences - is stored in normal
+// form C (i18n-l10n.md §5, M-07).
+func TestAJustificationIsStoredInNormalFormC(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
+		in.Justification = "Aufbewahrung wegen laufender Pru\u0308fung"
+	}))
+	if err != nil {
+		t.Fatalf("building: %v", err)
+	}
+	if rule.Justification != "Aufbewahrung wegen laufender Pr\u00fcfung" {
+		t.Errorf("justification = %q, want the composed form", rule.Justification)
+	}
+	_, err = domain.NewRule(ruleInput(func(in *domain.NewRuleInput) { in.Justification, in.Text = "Pru\u0308fung", nil }))
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed justification was accepted: %v", err)
 	}
 }

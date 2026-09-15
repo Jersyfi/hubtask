@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // Object is one uploaded file: the record beside the bytes (domain-model.md §3.5, arc42 §5.2).
@@ -94,6 +95,11 @@ type NewObjectInput struct {
 	Usage     Usage
 	CreatedBy shared.ID
 	Now       time.Time
+
+	// Text brings the file name to normal form C before it is bounded and stored (i18n-l10n.md
+	// §5, M-07). A file name is the text most likely to arrive decomposed at all: one file
+	// system writes names that way, and a browser hands them on as they are.
+	Text text.Normalizer
 }
 
 // NewPendingObject validates and stages an object.
@@ -119,7 +125,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 	if input.SizeLimit > 0 && input.DeclaredSize > input.SizeLimit {
 		return Object{}, TooLarge(input.SizeLimit)
 	}
-	fileName, err := validFileName(input.FileName)
+	fileName, err := validFileName(input.FileName, input.Text)
 	if err != nil {
 		return Object{}, err
 	}
@@ -197,8 +203,11 @@ func notFound() error {
 // validFileName keeps the name a name: bounded, on one line, and never path material. The
 // separators are refused rather than stripped - a caller that sent "a/b" meant something this
 // field does not store.
-func validFileName(name string) (string, error) {
-	trimmed := strings.TrimSpace(name)
+func validFileName(name string, form text.Normalizer) (string, error) {
+	trimmed, err := shared.NFC(strings.TrimSpace(name), form)
+	if err != nil {
+		return "", err
+	}
 	if trimmed == "" {
 		return "", nil
 	}

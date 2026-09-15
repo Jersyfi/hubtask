@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -85,6 +86,8 @@ type RequestMediaUpload struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Config     env.Config
+	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // UploadCommand is the input, typed.
@@ -123,6 +126,7 @@ func (h RequestMediaUpload) Execute(
 		Usage:        cmd.Usage,
 		CreatedBy:    actor.AccountID,
 		Now:          now,
+		Text:         h.Text,
 	})
 	if err != nil {
 		return StagedUpload{}, err
