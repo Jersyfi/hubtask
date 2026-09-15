@@ -138,6 +138,7 @@ func (r SessionRepository) FindForAuth(
 			Status:      identity.AccountStatus(row.AccountStatus),
 			Locale:      stringFrom(row.AccountLocale),
 			TimeZone:    stringFrom(row.AccountTimeZone),
+			WeekStart:   stringFrom(row.AccountWeekStart),
 		},
 		TenantLocale:       row.DefaultLocale,
 		TenantTimeZone:     row.DefaultTimeZone,

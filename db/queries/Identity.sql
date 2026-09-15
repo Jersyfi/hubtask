@@ -12,6 +12,7 @@ SELECT
   a.status   AS account_status,
   a.locale   AS account_locale,
   a.time_zone AS account_time_zone,
+  a.week_start AS account_week_start,
   n.default_locale,
   n.default_time_zone,
   n.slug         AS tenant_slug,
