@@ -313,7 +313,7 @@ cut into issues when it opens, from the then-current state of this file and the 
 | **F2 — The working surface** | `0.4.5` | `0.2.0` | Wave 2; hubs, collections and the five levels, buckets, labels, ordering and drag and drop, trash and archive, the activity history; the query language made visible — `SearchField`, `QueryBuilder`, `ViewSwitcher` for list and kanban, `TaskRow`, `WorkItemCard`, `BucketColumn`, `LabelChip` and `LabelPicker`, `CapabilityGate`. This is where the tool becomes usable for its own development: daily work moves out of `hubctl` and into the app, which is what risk R-08 was waiting for |
 | **F3 — Collaboration, content, time** | `0.5.0` | `0.3.0` and `0.4.0` | Comments, members and assignment, covers, attachments with presigned upload, custom fields, notifications, the SSE stream, bulk and duplicate — `CommentThread`, `AssigneeControl`, `CustomFieldRenderer`, `ActivityFeed`; and the time surfaces `DueDateControl`, `ReminderEditor`, `RecurrenceEditor`, templates, saved views with their `layout` hint, the timeline, and calendar feed management |
 | **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5`, `0.5.0` and `0.6.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
-| **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, and the AI paths of the jumble and of decomposition; language switching, CLDR formats and the RTL audit against design-system rule 3; and accessibility: WCAG 2.2 AA, keyboard operability, `focus-visible`, a screen-reader pass, and the accessibility statement the European Accessibility Act expects |
+| **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, the AI paths of the jumble and of decomposition, and the entry read in another language (M-11); the client's second catalogue and language switching, `Intl` formats and the RTL audit, cut from the list in [`i18n-l10n.md` §6](./architecture/i18n-l10n.md#6-text-direction-and-presentation); and accessibility — WCAG 2.2 AA by criterion, keyboard operability, `focus-visible`, the screen-reader pass, and the accessibility statement the European Accessibility Act expects — cut from [`design-system.md` §10](./design/design-system.md#10-accessibility) |
 | **F6 — Offline, the shells, the moments** | `0.8.5` | `0.8.5` | The sync engine becomes what its name says: local store, mutation queue, HLC, cursor and tombstone handling, `ACCESS_REVOKED` and `sync.cursor_too_old` behaviour, `SyncStatus` and `ConflictResolver`, the `offline-sync.md` §9 harness against fakes, and `hubctl sync-conformance` passed against a first-party client. Then the Tauri desktop shell — SQLite and keystore behind the `Storage` port, updater, signed distribution, the webview smoke matrix — and after it the mobile shell with signing, the store pipeline, platform adaptation (§9's last gap) and the capability matrix made real — the admin routes F4 tagged are excluded from this build, and each appears as the affordance ADR-0032 asks for: named, and linked to the web app of the server the client is signed into. The celebration kit and the onboarding tour close the milestone: the tour's last step is the first celebration, so they arrive together |
 
 Each open point in [`design-system.md`](./design/design-system.md) §9 therefore has an owner: the
@@ -435,12 +435,18 @@ there is a first implementation to describe. What was settled in preparation and
 
 * The contract: an OpenAPI-generated SDK, `/meta/capabilities` for configuration, saved views with a
   `layout` hint, SSE for live updates.
-* Binding requirements on every frontend: locale and time zone handling through the account
-  preference, RTL support, message codes instead of server text, tolerant behaviour towards unknown
-  fields, and offline-tolerant writing with an `Idempotency-Key`.
+* Binding requirements on every frontend, in two lists that are the source and not restated
+  here (M-13): **localisation** in [`i18n-l10n.md` §6](./architecture/i18n-l10n.md#6-text-direction-and-presentation)
+  — the negotiated locale, the catalogue with its fallback, `Intl` from the account's preference,
+  moments and due dates, the week, the writing direction, the 40 % rule, grapheme clusters, an
+  entry's language — and **accessibility** in [`design-system.md` §10](./design/design-system.md#10-accessibility)
+  — WCAG 2.2 AA by criterion, the two walks, the accessibility statement. What is not in either
+  list stays here: tolerant behaviour towards unknown fields, and offline-tolerant writing with an
+  `Idempotency-Key`.
 * **Accessibility: WCAG 2.2 AA**, with an accessibility statement published for the released
-  clients. [`data-protection.md`](./architecture/data-protection.md) §7 names this list as where
-  the European Accessibility Act lands, and it is demonstrated for `1.0.0` rather than asserted.
+  clients. [`data-protection.md`](./architecture/data-protection.md) §7 names
+  `design-system.md` §10 as where the European Accessibility Act lands, and it is demonstrated for
+  `1.0.0` rather than asserted.
 * **No non-essential cookies without consent** — the second client requirement `data-protection.md`
   §7 places here. The backend uses bearer tokens rather than tracking cookies; nothing a client adds
   may quietly reintroduce them, the website included.
