@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -170,10 +171,17 @@ func (s *auditSink) Append(_ context.Context, entry audit.Entry) error {
 
 // renderer records what it was asked so the test can prove the seeded names came through the
 // workspace's own locale.
-type renderer struct{ asked []string }
+type renderer struct {
+	asked []string
+	// decomposed makes the fake answer the way a catalogue file with combining marks would.
+	decomposed bool
+}
 
 func (r *renderer) Render(locale, code string, _ map[string]string) string {
 	r.asked = append(r.asked, locale+":"+code)
+	if r.decomposed {
+		return "U\u0308bersicht " + code
+	}
 	return "rendered " + code
 }
 
@@ -214,7 +222,7 @@ func newProvisionFixture() *provisionFixture {
 		Buckets: f.buckets, Labels: f.labels, Events: f.events, Changes: f.changes,
 		Audit: f.audit, Renderer: f.renderer, UnitOfWork: f.work,
 		Clock: clock.Fixed(now), IDs: &sequentialIDs{}, HLC: &hlcSource{},
-		Entropy: clock.FixedEntropy{}, Tenancy: env.TenancyMulti,
+		Entropy: clock.FixedEntropy{}, Tenancy: env.TenancyMulti, Text: text.Composing{},
 	}
 	return f
 }
@@ -337,6 +345,29 @@ func TestTheSeededNamesSpeakTheWorkspacesLocale(t *testing.T) {
 	}
 	if f.containers.inserted[0].Name != "rendered seed.hub.name" {
 		t.Errorf("hub name %q", f.containers.inserted[0].Name)
+	}
+}
+
+// What provisioning stores is in normal form C (i18n-l10n.md §5, M-07): the workspace's name
+// and the owner's as the operator typed them, and the seeded structure as the catalogue rendered
+// it - a translator's file is as free to carry combining marks as a keyboard is.
+func TestProvisioningStoresEveryNameInNormalFormC(t *testing.T) {
+	f := newProvisionFixture()
+	f.renderer.decomposed = true
+	cmd := provisionCommand()
+	cmd.DisplayName, cmd.OwnerDisplayName = "Mu\u0308ller GmbH", "Eva Mu\u0308ller"
+
+	if _, err := f.handler.Execute(t.Context(), operator(), cmd); err != nil {
+		t.Fatalf("provisioning: %v", err)
+	}
+	if got := f.tenants.inserted[0].DisplayName; got != "M\u00fcller GmbH" {
+		t.Errorf("the workspace is %q, want the composed form", got)
+	}
+	if got := f.accounts.inserted[0].DisplayName; got != "Eva M\u00fcller" {
+		t.Errorf("the owner is %q, want the composed form", got)
+	}
+	if got := f.containers.inserted[0].Name; got != "\u00dcbersicht seed.hub.name" {
+		t.Errorf("the hub is %q, want the rendered name composed", got)
 	}
 }
 

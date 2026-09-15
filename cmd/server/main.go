@@ -472,13 +472,14 @@ func run() error {
 		Entropy:     clockadapter.CryptoRandom{},
 		KnownScopes: catalogue.Scopes(),
 		StepUp:      identity.StepUpVerifier{Writer: sessionWriter},
+		Text:        forms,
 	}
 
 	// The service accounts share theirs for the same reason: creating one and listing them are
 	// the same permission over the same store.
 	serviceAccounts := identity.ServiceAccounts{
 		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// The work management use cases share theirs the same way. The capability profiles in
@@ -876,6 +877,7 @@ func run() error {
 		Grants:     postgres.NewOauthGrantRepository(),
 		Codes:      postgres.NewOauthCodeRepository(security.NewOauthCodeHasher(cfg.SecretKey)),
 		Authorizer: authorizer, KnownScopes: catalogue.Scopes(),
+		Text: forms,
 	}
 
 	// The relying party (H-04). One object for the installation: the configuration travels per
@@ -893,6 +895,7 @@ func run() error {
 
 	oidcWriter := identity.OidcWriter{
 		Domains:     domains,
+		Text:        forms,
 		Session:     sessionWriter,
 		Providers:   postgres.NewIdentityProviderRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
@@ -990,6 +993,7 @@ func run() error {
 		Audit:      auditSink,
 		UnitOfWork: unitOfWork,
 		Clock:      clockadapter.System{},
+		Text:       forms,
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
@@ -1004,6 +1008,7 @@ func run() error {
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
+			Text: forms,
 		}.Descriptor(),
 		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1037,11 +1042,11 @@ func run() error {
 		identity.GetGroup{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		identity.UpdateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Authorizer: authorizer, Audit: auditSink,

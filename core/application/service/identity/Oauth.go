@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -66,6 +67,8 @@ type OauthWriter struct {
 	// KnownScopes bounds what a person can consent to: the catalogue's own vocabulary, no
 	// parallel one (decision 5).
 	KnownScopes []string
+	// Text brings a client's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // RegisterOauthClient registers a third-party app (H-05).
@@ -102,7 +105,7 @@ func (h RegisterOauthClient) Execute(
 	client, err := domain.NewOauthClient(domain.NewOauthClientInput{
 		ID: w.Session.IDs.NewID(), TenantID: actor.TenantID,
 		Name: cmd.Name, Confidential: cmd.Confidential, RedirectURIs: cmd.RedirectURIs,
-		CreatedBy: actor.AccountID, Now: w.Session.Clock.Now(),
+		CreatedBy: actor.AccountID, Now: w.Session.Clock.Now(), Text: w.Text,
 	})
 	if err != nil {
 		return RegisteredClient{}, err

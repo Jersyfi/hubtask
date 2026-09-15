@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 const (
@@ -75,6 +76,35 @@ func TestTheNameIsCheckedAndNormalised(t *testing.T) {
 	}
 }
 
+// The name and the description are stored in normal form C, on creation, rename and describe
+// (i18n-l10n.md §5, M-07): the uniqueness index unaccents the composed letter, and a combining
+// mark on its own is not one to it.
+func TestAGroupIsStoredInNormalFormC(t *testing.T) {
+	in := validInput()
+	in.Name, in.Description, in.Text = "Bu\u0308ro", "Alle im Bu\u0308ro", text.Composing{}
+	group, err := NewGroup(in)
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if group.Name != "B\u00fcro" || group.Description != "Alle im B\u00fcro" {
+		t.Errorf("stored %q / %q, want both composed", group.Name, group.Description)
+	}
+
+	renamed, err := group.Rename("Ku\u0308che", text.Composing{})
+	if err != nil || renamed.Name != "K\u00fcche" {
+		t.Errorf("renamed to %q, %v; want the composed form", renamed.Name, err)
+	}
+	described, err := group.Describe("Fu\u0308r alle", text.Composing{})
+	if err != nil || described.Description != "F\u00fcr alle" {
+		t.Errorf("described as %q, %v; want the composed form", described.Description, err)
+	}
+
+	in.Text = nil
+	if _, err := NewGroup(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
+	}
+}
+
 func TestADescriptionIsBounded(t *testing.T) {
 	in := validInput()
 	in.Description = strings.Repeat("d", maxGroupDescription+1)
@@ -116,7 +146,7 @@ func TestRenamingReturnsACopyRatherThanMutating(t *testing.T) {
 		t.Fatalf("creating: %v", err)
 	}
 
-	renamed, err := group.Rename("  Platform  ")
+	renamed, err := group.Rename("  Platform  ", text.Composing{})
 	if err != nil {
 		t.Fatalf("renaming: %v", err)
 	}
@@ -127,7 +157,7 @@ func TestRenamingReturnsACopyRatherThanMutating(t *testing.T) {
 		t.Errorf("the original changed to %q - Rename mutated its receiver", group.Name)
 	}
 
-	if _, err := group.Rename(""); err == nil {
+	if _, err := group.Rename("", text.Composing{}); err == nil {
 		t.Error("an empty rename was accepted")
 	}
 }
@@ -135,14 +165,14 @@ func TestRenamingReturnsACopyRatherThanMutating(t *testing.T) {
 func TestDescribingChecksTheSameBound(t *testing.T) {
 	group, _ := NewGroup(validInput())
 
-	described, err := group.Describe("  The people who own the design system  ")
+	described, err := group.Describe("  The people who own the design system  ", text.Composing{})
 	if err != nil {
 		t.Fatalf("describing: %v", err)
 	}
 	if described.Description != "The people who own the design system" {
 		t.Errorf("description %q", described.Description)
 	}
-	if _, err := group.Describe(strings.Repeat("d", maxGroupDescription+1)); err == nil {
+	if _, err := group.Describe(strings.Repeat("d", maxGroupDescription+1), text.Composing{}); err == nil {
 		t.Error("an oversized description was accepted")
 	}
 }

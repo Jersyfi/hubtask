@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -47,6 +48,8 @@ type WorkspaceWriter struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // ReadWorkspace answers the workspace the caller is in (F4-01).
@@ -126,7 +129,7 @@ func (h UpdateWorkspace) Execute(
 		if err != nil {
 			return err
 		}
-		changed, moved, err := stored.With(cmd.Change)
+		changed, moved, err := stored.With(cmd.Change, w.Text)
 		if err != nil {
 			return err
 		}

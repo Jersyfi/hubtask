@@ -152,6 +152,7 @@ func (h ProvisionTenant) Execute(
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
 		ID: h.IDs.NewID(), Slug: cmd.Slug, DisplayName: cmd.DisplayName,
 		DefaultLocale: cmd.DefaultLocale, DefaultTimeZone: cmd.DefaultTimeZone, Now: now,
+		Text: h.Text,
 	})
 	if err != nil {
 		return ProvisionedTenant{}, err
@@ -161,7 +162,7 @@ func (h ProvisionTenant) Execute(
 	if ownerName == "" {
 		ownerName = cmd.OwnerEmail
 	}
-	owner, err := domain.Invite(h.IDs.NewID(), tenant.ID, cmd.OwnerEmail, ownerName, h.Domains)
+	owner, err := domain.Invite(h.IDs.NewID(), tenant.ID, cmd.OwnerEmail, ownerName, h.Domains, h.Text)
 	if err != nil {
 		return ProvisionedTenant{}, err
 	}

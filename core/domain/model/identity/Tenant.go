@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // TenantStatus is the workspace's standing in the lifecycle multi-tenancy.md §5 draws. It rides
@@ -72,6 +73,10 @@ type NewTenantInput struct {
 	DefaultLocale   string
 	DefaultTimeZone string
 	Now             time.Time
+
+	// Text brings the display name to normal form C before it is bounded and stored
+	// (i18n-l10n.md §5, M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewTenant validates what the database would otherwise refuse later, plus what it cannot: the
@@ -88,7 +93,7 @@ func NewTenant(in NewTenantInput) (Tenant, error) {
 			WithFields(shared.FieldError{Path: "/slug", Code: "admin.slug_invalid"})
 	}
 
-	name, err := ValidDisplayName(in.DisplayName)
+	name, err := ValidDisplayName(in.DisplayName, in.Text)
 	if err != nil {
 		return Tenant{}, err
 	}
@@ -122,9 +127,12 @@ func NewTenant(in NewTenantInput) (Tenant, error) {
 }
 
 // ValidDisplayName is the name rule, shared by provisioning and by a workspace changing its own
-// (F4-01) so that one refusal cannot drift into two.
-func ValidDisplayName(value string) (string, error) {
-	name := strings.TrimSpace(value)
+// (F4-01) so that one refusal cannot drift into two. The name is stored in normal form C (M-07).
+func ValidDisplayName(value string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(value), form)
+	if err != nil {
+		return "", err
+	}
 	if name == "" || utf8.RuneCountInString(name) > 200 || strings.ContainsFunc(name, unicode.IsControl) {
 		return "", shared.ErrValidation.
 			WithDetail("admin.display_name_invalid").
