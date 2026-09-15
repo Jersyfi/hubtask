@@ -62,6 +62,11 @@ type Ownership interface {
 // asked for. The assignee and auto_assign joined with C-02, which is the task C-01 left them to;
 // the schedule joined with D-01, the due date dispatching the way the assignee does.
 type CreateWorkItemCommand struct {
+	// ID is the identifier the client minted, or empty for one the server mints. A device
+	// creating an entry offline assigns its own UUIDv7 so that the entry has its final identity
+	// at once and a repeated push is idempotent (offline-sync.md §3.2, §9); through the API a
+	// caller may do the same, and one that does is held to the same rule.
+	ID   shared.ID
 	Type domain.ItemType
 	// CollectionID may be left empty when ParentID is given: an item's collection is the one its
 	// parent is in, and making a client repeat it is making it possible to contradict.
@@ -479,7 +484,14 @@ func (h CreateWorkItem) build(
 		return domain.WorkItem{}, err
 	}
 
-	id := h.IDs.NewID()
+	id := cmd.ID
+	if id.IsZero() {
+		id = h.IDs.NewID()
+	} else if !id.IsUUIDv7() {
+		return domain.WorkItem{}, shared.ErrValidation.
+			WithDetail("sync.id_not_uuidv7").
+			WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
+	}
 	return domain.NewWorkItem(domain.NewWorkItemInput{
 		ID:           id,
 		TenantID:     actor.TenantID,
@@ -798,6 +810,12 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 		TokenScope: itemsWrite,
 		Input: []usecase.Field{
 			{
+				Name: "id", Kind: usecase.KindID,
+				Description: "The identifier the caller minted, a UUIDv7. Offline clients assign " +
+					"their own so that an entry created away from the server has its final " +
+					"identity at once; leave it out and the server mints one.",
+			},
+			{
 				Name: "type", Kind: usecase.KindString, Required: true,
 				Enum: []string{
 					string(domain.ItemTask), string(domain.ItemWorkPackage), string(domain.ItemActivity),
@@ -890,6 +908,10 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 func (h CreateWorkItem) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	collectionID, err := in.ID("collection_id")
 	if err != nil {
 		return nil, err
@@ -908,6 +930,7 @@ func (h CreateWorkItem) invoke(
 	}
 
 	cmd := CreateWorkItemCommand{
+		ID:              id,
 		Type:            domain.ItemType(in.String("type")),
 		CollectionID:    collectionID,
 		ParentID:        parentID,

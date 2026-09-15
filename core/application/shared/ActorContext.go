@@ -140,3 +140,24 @@ func ActorFrom(ctx context.Context) (ActorContext, bool) {
 	actor, ok := ctx.Value(actorKey).(ActorContext)
 	return actor, ok
 }
+
+// deviceKey carries the device a push comes from (N-04).
+type deviceKey struct{}
+
+// ContextWithDevice marks everything done under the context as one device's act, so that the
+// change log entries a push produces name the device - which is what lets that device skip its
+// own echo (offline-sync.md §10, `change_log.device_id`).
+//
+// A context value rather than a field on every writer: fifty-five use cases record changes, and
+// what a push adds to each of them is exactly one fact about the caller, which is what a context
+// is for. The change log adapter reads it when a change names no device of its own.
+func ContextWithDevice(ctx context.Context, deviceID shared.ID) context.Context {
+	return context.WithValue(ctx, deviceKey{}, deviceID)
+}
+
+// DeviceFrom answers the device the context was marked with, or the empty identifier for a
+// change made through the API rather than through a push.
+func DeviceFrom(ctx context.Context) shared.ID {
+	deviceID, _ := ctx.Value(deviceKey{}).(shared.ID)
+	return deviceID
+}

@@ -70,6 +70,9 @@ type AddComment struct {
 
 // AddCommentCommand is the input, typed.
 type AddCommentCommand struct {
+	// ID is the identifier the client minted, or empty for one the server mints - a device
+	// commenting offline assigns its own (offline-sync.md §3.2), CreateWorkItemCommand's rule.
+	ID     shared.ID
 	ItemID shared.ID
 	// ParentCommentID is the comment being replied to, empty for a top-level comment.
 	ParentCommentID shared.ID
@@ -145,8 +148,16 @@ func (h AddComment) Execute(
 			return err
 		}
 
+		id := cmd.ID
+		if id.IsZero() {
+			id = w.IDs.NewID()
+		} else if !id.IsUUIDv7() {
+			return shared.ErrValidation.
+				WithDetail("sync.id_not_uuidv7").
+				WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
+		}
 		comment, err := domain.NewComment(domain.NewCommentInput{
-			ID:       w.IDs.NewID(),
+			ID:       id,
 			TenantID: actor.TenantID,
 			ItemID:   item.ID,
 			AuthorID: actor.AccountID,
@@ -335,6 +346,11 @@ func (h AddComment) Descriptor() usecase.Descriptor {
 		TokenScope: commentsWrite,
 		Input: []usecase.Field{
 			{
+				Name: "id", Kind: usecase.KindID,
+				Description: "The identifier the caller minted, a UUIDv7; offline clients assign " +
+					"their own. Leave it out and the server mints one.",
+			},
+			{
 				Name: "item_id", Kind: usecase.KindID, Required: true,
 				Description: "The entry to comment on.",
 			},
@@ -362,6 +378,10 @@ func (h AddComment) Descriptor() usecase.Descriptor {
 func (h AddComment) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	itemID, err := in.ID("item_id")
 	if err != nil {
 		return nil, err
@@ -372,6 +392,7 @@ func (h AddComment) invoke(
 	}
 
 	comment, err := h.Execute(ctx, actor, AddCommentCommand{
+		ID:              id,
 		ItemID:          itemID,
 		ParentCommentID: parentID,
 		Body:            in.String("body"),

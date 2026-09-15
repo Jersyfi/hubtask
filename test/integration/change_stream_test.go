@@ -570,3 +570,28 @@ func TestACursorOlderThanTheWindowIsRefusedEndToEnd(t *testing.T) {
 		t.Errorf("detail %q", got)
 	}
 }
+
+// A change recorded under a context a push marked names the device, so that device can skip its
+// own echo (N-04, offline-sync.md §10); one recorded through the API names none.
+func TestAChangeRecordedUnderAPushNamesTheDevice(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	container, deviceID := freshID(t), freshID(t)
+	start := latestSeq(ctx, t, tenantA)
+
+	pushed := recordChange(appshared.ContextWithDevice(ctx, deviceID), t, tenantA, authorA, container, "item")
+	direct := recordChange(ctx, t, tenantA, authorA, container, "item")
+
+	for _, entry := range readChanges(ctx, t, tenantA, start, 100) {
+		switch entry.EntityID {
+		case pushed:
+			if entry.DeviceID != deviceID {
+				t.Errorf("the pushed change names device %q, want %s", entry.DeviceID, deviceID)
+			}
+		case direct:
+			if !entry.DeviceID.IsZero() {
+				t.Errorf("a change made through the API names device %q", entry.DeviceID)
+			}
+		}
+	}
+}

@@ -84,6 +84,7 @@ type Config struct {
 	Queue      QueueConfig
 	Bus        BusConfig
 	Retention  RetentionConfig
+	Sync       SyncConfig
 	Encryption EncryptionConfig
 	Backup     BackupConfig
 	Media      MediaConfig
@@ -211,6 +212,14 @@ type BusConfig struct {
 
 // Enabled reports whether this installation has a bus.
 func (b BusConfig) Enabled() bool { return b.URL != "" }
+
+// SyncConfig is the offline synchronisation's operational surface (offline-sync.md §4.1, N-04).
+type SyncConfig struct {
+	// ClockSkew is how far a device's clock reading may stand from server time before a push
+	// replaces it with a server reading. Five minutes by default: wider than any network delay
+	// and narrower than the hours a device clock can be out, which is what the bound is for.
+	ClockSkew time.Duration
+}
 
 // RetentionConfig is the lifecycle context's operational surface: how a deletion run is paced, and
 // how long the marker of a removal has to outlive it (ADR-0020, data-retention.md §5).
