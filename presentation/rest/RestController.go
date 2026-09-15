@@ -94,6 +94,20 @@ type RestController struct {
 	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an
 	// installation built without it should say.
 	Stream *StreamController
+
+	// Sync serves `POST /sync:pull`, which is not a catalogue entry for the stream's reason: a
+	// pull is the stream served in pages (N-01). Nil leaves the route answering the pending 404.
+	Sync *SyncController
+}
+
+// SyncPull answers one page of the delta. Delegated rather than embedded, so that the field being
+// nil is an answer rather than a panic.
+func (c *RestController) SyncPull(w http.ResponseWriter, r *http.Request) {
+	if c.Sync == nil {
+		c.pending.SyncPull(w, r)
+		return
+	}
+	c.Sync.SyncPull(w, r)
 }
 
 // StreamChanges opens the change stream. Delegated rather than embedded, so that the field being

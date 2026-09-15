@@ -190,3 +190,7 @@ func scopeFilter(scopes []Scope) (func(work.Container) bool, error) {
 		return false
 	}, nil
 }
+
+// Encode is how the presentation layer spells a position on the wire - the stream's codec, so that
+// a cursor a pull handed out resumes a stream and the other way round.
+func (p PullChanges) Encode(position Position) string { return p.Stream.Encode(position) }

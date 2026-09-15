@@ -70,6 +70,7 @@ type Metrics struct {
 	streamDuration    metric.Float64Histogram
 	streamRefused     metric.Int64Counter
 	streamRecords     metric.Int64Counter
+	pullRecords       metric.Int64Counter
 	authFailures      metric.Int64Counter
 	poolConnections   metric.Int64Gauge
 	migrationVersion  metric.Int64Gauge
@@ -449,6 +450,12 @@ func (m *Metrics) streamInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("stream record counter: %w", err)
 	}
+	if m.pullRecords, err = meter.Int64Counter(
+		namespace+"_sync_pull_records_total",
+		metric.WithDescription("Change records delivered by sync pulls."),
+	); err != nil {
+		return fmt.Errorf("pull record counter: %w", err)
+	}
 	return nil
 }
 
@@ -472,6 +479,12 @@ func (m *Metrics) StreamRefused(ctx context.Context, reason string) {
 // says whether the streams are keeping up.
 func (m *Metrics) StreamRecords(ctx context.Context, count int) {
 	m.streamRecords.Add(ctx, int64(count))
+}
+
+// PullRecords counts what a pull handed out (N-01). Beside the stream's counter rather than folded
+// into it: the two together say whether devices keep up with the log, and apart, by which door.
+func (m *Metrics) PullRecords(ctx context.Context, count int) {
+	m.pullRecords.Add(ctx, int64(count))
 }
 
 // notificationInstruments are what the notification path publishes (C-09).

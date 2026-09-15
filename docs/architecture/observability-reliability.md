@@ -107,6 +107,7 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_stream_duration_seconds` | Histogram | — | A one-second stream is a client reconnecting in a loop; a day-long one is working |
 | `hubtask_stream_refused_total` | Counter | `reason` | Which cap refused a connection: credential, tenant, process, or a drain |
 | `hubtask_stream_records_total` | Counter | — | Change records delivered; against the log's growth, whether the streams keep up. The change stream alone: an agent is told *that* its resource list moved and re-reads what it needs, so there are no records to count |
+| `hubtask_sync_pull_records_total` | Counter | — | Change records handed out by `POST /sync:pull` (N-01). Beside the stream's counter rather than folded into it: the two together say whether devices keep up with the log, and apart, by which door |
 | `hubtask_rule_runs_total` | Counter | `result`, `trigger_type` | SLO-7 |
 | `hubtask_rule_disabled_total` | Counter | `reason` | Makes self-protection visible |
 | `hubtask_webhook_deliveries_total` | Counter | `result` (`ok`/`retry`/`dead`), `status_class` | SLO-6 |
