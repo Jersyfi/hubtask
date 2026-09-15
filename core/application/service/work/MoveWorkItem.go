@@ -81,6 +81,10 @@ type MoveWorkItemCommand struct {
 	TargetCollectionID shared.ID
 	// BeforeItemID is the sibling to land in front of at the destination. Empty appends.
 	BeforeItemID shared.ID
+	// OrderKey is the rank a device computed itself, between the neighbours it holds, in place of
+	// naming one (offline-sync.md §4.2: the position is a key between neighbours, not an integer).
+	// Empty means the server computes the key from BeforeItemID. Both is a contradiction.
+	OrderKey string
 	// TargetBucketID is the column of the destination's board to land in, meaningful only together
 	// with BucketGiven: the zero value is both "no column" and "not asked for".
 	TargetBucketID  shared.ID
@@ -90,8 +94,10 @@ type MoveWorkItemCommand struct {
 
 // ReorderWorkItemCommand is the input, typed.
 type ReorderWorkItemCommand struct {
-	ItemID          shared.ID
-	BeforeItemID    shared.ID
+	ItemID       shared.ID
+	BeforeItemID shared.ID
+	// OrderKey is the rank the caller computed, MoveWorkItemCommand's field.
+	OrderKey        string
 	ExpectedVersion int
 }
 
@@ -138,9 +144,21 @@ func (h ReorderWorkItem) Execute(
 		return domain.WorkItem{}, itemIDRequired()
 	}
 
+	if cmd.OrderKey != "" && !cmd.BeforeItemID.IsZero() {
+		return domain.WorkItem{}, shared.ErrValidation.
+			WithDetail("items.reorder_ambiguous").
+			WithFields(shared.FieldError{Path: "/order_key", Code: "items.reorder_ambiguous"})
+	}
+	if cmd.OrderKey != "" {
+		if err := service.ValidOrderKey(cmd.OrderKey); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+
 	plan, err := h.Placement.plan(ctx, actor, MoveWorkItemCommand{
 		ItemID:          cmd.ItemID,
 		BeforeItemID:    cmd.BeforeItemID,
+		OrderKey:        cmd.OrderKey,
 		ExpectedVersion: cmd.ExpectedVersion,
 	})
 	if err != nil {
@@ -420,6 +438,13 @@ func (w PlacementWriter) profileFor(
 func (w PlacementWriter) rankAt(
 	ctx context.Context, plan placement, spot service.Placement,
 ) (string, error) {
+	if plan.command.OrderKey != "" {
+		// The device computed the rank between the neighbours it holds; validated at the door,
+		// taken as it is here. Two devices that computed the same key sort by identifier, which
+		// is the tie the scheme leaves to whoever reads the list (offline-sync.md §4.2).
+		return plan.command.OrderKey, nil
+	}
+
 	level := repository.Level{CollectionID: plan.destination.ID, ParentID: spot.ParentID}
 
 	previous, next, err := w.Items.Neighbours(ctx, level, plan.command.BeforeItemID, plan.item.ID)
@@ -713,6 +738,12 @@ func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 				Description: "The sibling to place it before. Omitted moves it to the end of its level.",
 			},
 			{
+				Name: "order_key", Kind: usecase.KindString,
+				Description: "The rank itself, computed by the caller between the neighbours it " +
+					"holds - what an offline device sends instead of naming a sibling. " +
+					"Contradicts before_item_id and is refused beside it.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt,
 				Description: "The version last read, as on a move.",
 			},
@@ -788,6 +819,7 @@ func (h ReorderWorkItem) invoke(
 	item, err := h.Execute(ctx, actor, ReorderWorkItemCommand{
 		ItemID:          itemID,
 		BeforeItemID:    beforeID,
+		OrderKey:        in.String("order_key"),
 		ExpectedVersion: in.Int("expected_version"),
 	})
 	if err != nil {
