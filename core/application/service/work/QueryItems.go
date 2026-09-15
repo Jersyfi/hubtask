@@ -117,7 +117,7 @@ func (h QueryItems) resolvePlaceholders(
 		Now:      h.Clock.Now(),
 		Location: location,
 		ActorID:  actor.AccountID,
-	}, "/filter")
+	}.WithWeekStart(actor.WeekStart), "/filter")
 	if err != nil {
 		return view.Spec{}, err
 	}

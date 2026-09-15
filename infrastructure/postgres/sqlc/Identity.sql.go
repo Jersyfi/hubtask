@@ -251,6 +251,7 @@ SELECT
   a.status   AS account_status,
   a.locale   AS account_locale,
   a.time_zone AS account_time_zone,
+  a.week_start AS account_week_start,
   n.default_locale,
   n.default_time_zone,
   n.slug         AS tenant_slug,
@@ -276,6 +277,7 @@ type FindAccessTokenByHashRow struct {
 	AccountStatus      AccountStatus
 	AccountLocale      *string
 	AccountTimeZone    *string
+	AccountWeekStart   *string
 	DefaultLocale      string
 	DefaultTimeZone    string
 	TenantSlug         string
@@ -299,6 +301,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 		&i.AccountStatus,
 		&i.AccountLocale,
 		&i.AccountTimeZone,
+		&i.AccountWeekStart,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
 		&i.TenantSlug,

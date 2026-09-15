@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -43,6 +44,10 @@ type AuthenticateToken struct {
 	// verifiable without a lookup wherever only integrity matters.
 	Sessions repository.Sessions
 	Signer   cryptoport.SessionTokenSigner
+	// WeekStarts answers the week's first day where a locale is spoken, for an account that set
+	// none of its own (i18n-l10n.md §4). Nil is Monday for everybody, which is what every
+	// installation before 0.8.0 answered.
+	WeekStarts i18n.WeekStarts
 	// SessionScopes is what a session-authenticated person may exercise: every scope this build
 	// declares, because a session is the person themselves rather than a bounded credential.
 	// Passed in from the catalogue for AccessTokenWriter.KnownScopes' reason.
@@ -140,6 +145,7 @@ func (a AuthenticateToken) Execute(
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
+		actor.WeekStart = a.weekStart(credential.Account.WeekStart, actor.Locale)
 		return nil
 	})
 	if err != nil {
@@ -225,6 +231,7 @@ func (a AuthenticateToken) executeSession(
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
+		actor.WeekStart = a.weekStart(credential.Account.WeekStart, actor.Locale)
 		return nil
 	})
 	if err != nil {
@@ -250,4 +257,18 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// weekStart is §4's rule: the account's own preference, otherwise the locale's day, otherwise
+// Monday - the last of the three being what a build without the port answers.
+func (a AuthenticateToken) weekStart(preference, locale string) string {
+	if preference != "" {
+		return preference
+	}
+	if a.WeekStarts != nil {
+		if day := a.WeekStarts.WeekStartOf(locale); day != "" {
+			return day
+		}
+	}
+	return "MONDAY"
 }
