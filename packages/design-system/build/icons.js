@@ -31,7 +31,7 @@ export const DECLARED = {
     'minus', // the third state of a checkbox: some, not all
     'x',
     'pencil',
-    'trash-2',
+    'trash', // lucide 1.45 renamed `trash` to `trash`; the glyph is the same
     'archive',
     'copy',
     'link',
