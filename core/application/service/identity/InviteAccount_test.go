@@ -228,7 +228,7 @@ func TestTheTrailRecordsTheInvitationWithoutTheAddress(t *testing.T) {
 // than a unique constraint surfacing from the depths.
 func TestInvitingSomebodyWhoIsAlreadyHereIsAConflict(t *testing.T) {
 	existing, err := domain.Invite(shared.ID("01936f2a-7c1e-7000-8000-0000000000a9"),
-		tenant, "bert@example.org", "Bert")
+		tenant, "bert@example.org", "Bert", nil)
 	if err != nil {
 		t.Fatalf("preparing: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // maxEmail is the practical bound. The standard allows 254 octets; anything at that length is a
@@ -30,12 +31,14 @@ const maxDisplayName = 200
 // mailbox and choosing a credential, and neither exists before the sign-in flow arrives in 0.6.0
 // (security.md §5). Issuing a token nobody can redeem would be a credential lying around for
 // months.
-func Invite(id shared.ID, tenantID shared.ID, email string, displayName string) (Account, error) {
+func Invite(
+	id shared.ID, tenantID shared.ID, email string, displayName string, domains text.DomainEncoder,
+) (Account, error) {
 	if id.IsZero() || tenantID.IsZero() {
 		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
 	}
 
-	address, err := emailAddress(email)
+	address, err := emailAddress(email, domains)
 	if err != nil {
 		return Account{}, err
 	}
@@ -90,8 +93,14 @@ func NewServiceAccount(id shared.ID, tenantID shared.ID, displayName string) (Ac
 // becomes a row and a send attempt.
 //
 // Lower-cased, because the uniqueness index compares that way (db/schema.sql, account_email_uq)
-// and because two spellings of one address are two accounts for one person.
-func emailAddress(raw string) (string, error) {
+// and because two spellings of one address are two accounts for one person. The domain half is
+// brought to the ASCII form a mail server sees for the same reason (i18n-l10n.md §7, M-10):
+// `anna@müller.de` and `anna@xn--mller-kva.de` are one mailbox, and what is stored is the second.
+// The local part is not touched beyond the case: it is the mailbox's business, and case-folding
+// it is already more than RFC 5321 allows. Without an encoder a domain that is not ASCII is
+// refused rather than stored as it stands - fail closed, so a caller that forgot the port cannot
+// create the second row this exists to prevent.
+func emailAddress(raw string, domains text.DomainEncoder) (string, error) {
 	address := strings.ToLower(strings.TrimSpace(raw))
 	switch {
 	case address == "":
@@ -108,7 +117,50 @@ func emailAddress(raw string) (string, error) {
 		!strings.Contains(domain, ".") || strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
 		return "", shared.ErrValidation.WithDetail("accounts.email_malformed")
 	}
-	return address, nil
+
+	if !isASCII(domain) {
+		if domains == nil {
+			return "", shared.ErrValidation.WithDetail("accounts.email_malformed")
+		}
+		encoded, err := domains.ToASCII(domain)
+		if err != nil || encoded == "" {
+			return "", shared.ErrValidation.WithDetail("accounts.email_malformed")
+		}
+		domain = strings.ToLower(encoded)
+	} else if domains != nil {
+		// An ASCII domain still passes the profile: `xn--` labels that decode to nothing, a
+		// hyphen where a label may not have one. What the encoder refuses, the DNS would too.
+		if _, err := domains.ToASCII(domain); err != nil {
+			return "", shared.ErrValidation.WithDetail("accounts.email_malformed")
+		}
+	}
+	return local + "@" + domain, nil
+}
+
+// LookupAddress brings a typed address to the form a stored one has - lower case, the domain in
+// its ASCII form - without judging it: for a lookup, where an address that is not one simply
+// matches no row. What emailAddress refuses, this leaves as typed, and the row it then fails to
+// find is the right answer.
+func LookupAddress(raw string, domains text.DomainEncoder) string {
+	address := strings.ToLower(strings.TrimSpace(raw))
+	local, domain, found := strings.Cut(address, "@")
+	if !found || domains == nil || isASCII(domain) {
+		return address
+	}
+	encoded, err := domains.ToASCII(domain)
+	if err != nil || encoded == "" {
+		return address
+	}
+	return local + "@" + strings.ToLower(encoded)
+}
+
+func isASCII(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 // accountDisplayName falls back to the local part of the address. An invitation that names nobody

@@ -4,6 +4,7 @@
 package identity
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -15,7 +16,7 @@ const accountID = shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")
 // An invited account is a real account that cannot act. Both halves matter: the permissions can be
 // arranged before the person ever signs in, and until they do, nothing they were given works.
 func TestAnInvitedAccountExistsAndCannotAct(t *testing.T) {
-	account, err := Invite(accountID, tenantID, "Anna@Example.ORG", "Anna")
+	account, err := Invite(accountID, tenantID, "Anna@Example.ORG", "Anna", nil)
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
@@ -34,7 +35,7 @@ func TestAnInvitedAccountExistsAndCannotAct(t *testing.T) {
 // Stored lower case, because the uniqueness index compares that way - two spellings of one address
 // would otherwise be two accounts for one person.
 func TestTheAddressIsNormalisedTheWayTheIndexCompares(t *testing.T) {
-	account, err := Invite(accountID, tenantID, "  Anna@Example.ORG  ", "")
+	account, err := Invite(accountID, tenantID, "  Anna@Example.ORG  ", "", nil)
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestAnAddressThatCannotBeOneIsRefused(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := Invite(accountID, tenantID, c.given, "Anna")
+			_, err := Invite(accountID, tenantID, c.given, "Anna", nil)
 			if err == nil || shared.AsError(err).DetailCode != c.code {
 				t.Fatalf("error %v, want %s", err, c.code)
 			}
@@ -76,7 +77,7 @@ func TestAnAddressThatCannotBeOneIsRefused(t *testing.T) {
 // An invitation that names nobody still has to show something beside every action the account
 // takes; the local part is a better answer than an empty cell.
 func TestADisplayNameFallsBackToTheLocalPart(t *testing.T) {
-	account, err := Invite(accountID, tenantID, "j.winkel@example.org", "   ")
+	account, err := Invite(accountID, tenantID, "j.winkel@example.org", "   ", nil)
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
@@ -86,7 +87,7 @@ func TestADisplayNameFallsBackToTheLocalPart(t *testing.T) {
 }
 
 func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
-	account, err := Invite(accountID, tenantID, "anna@example.org", "Anna")
+	account, err := Invite(accountID, tenantID, "anna@example.org", "Anna", nil)
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
@@ -133,12 +134,78 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 // The preferences are a copy, like every other change here: an unchecked value never reaches the
 // account the caller is holding.
 func TestApplyingPreferencesDoesNotMutate(t *testing.T) {
-	account, _ := Invite(accountID, tenantID, "anna@example.org", "Anna")
+	account, _ := Invite(accountID, tenantID, "anna@example.org", "Anna", nil)
 
 	if _, err := account.WithPreferences(Preferences{TimeZone: "Europe/Atlantis"}); err == nil {
 		t.Fatal("an unknown zone was accepted")
 	}
 	if account.TimeZone != "" {
 		t.Errorf("the account changed to %q despite the error", account.TimeZone)
+	}
+}
+
+// encoder stands in for the idna adapter (M-10): one Unicode domain, and one the DNS refuses.
+type encoder struct{}
+
+func (encoder) ToASCII(domain string) (string, error) {
+	switch domain {
+	case "müller.de":
+		return "xn--mller-kva.de", nil
+	case "-bad.example":
+		return "", errors.New("idna: invalid label")
+	}
+	return domain, nil
+}
+
+// An address with a Unicode domain is stored in the form a mail server sees (i18n-l10n.md §7),
+// so that anna@müller.de and anna@xn--mller-kva.de are one row; without an encoder the domain is
+// refused rather than stored as typed - fail closed, so that a caller that forgot the port
+// cannot create the second row this exists to prevent.
+func TestAUnicodeDomainIsStoredAsPunycode(t *testing.T) {
+	first, err := Invite(accountID, tenantID, "Anna@Müller.de", "Anna", encoder{})
+	if err != nil {
+		t.Fatalf("inviting: %v", err)
+	}
+	second, err := Invite(accountID, tenantID, "anna@xn--MLLER-kva.de", "Anna", encoder{})
+	if err != nil {
+		t.Fatalf("inviting the encoded spelling: %v", err)
+	}
+	if first.Email != "anna@xn--mller-kva.de" || second.Email != first.Email {
+		t.Errorf("the two spellings became %q and %q", first.Email, second.Email)
+	}
+
+	for raw, want := range map[string]string{
+		"anna@-bad.example": "accounts.email_malformed",
+	} {
+		_, err := Invite(accountID, tenantID, raw, "Anna", encoder{})
+		var domainErr *shared.Error
+		if !errors.As(err, &domainErr) || domainErr.DetailCode != want {
+			t.Errorf("%q: %v, want %s", raw, err, want)
+		}
+	}
+
+	_, err = Invite(accountID, tenantID, "anna@müller.de", "Anna", nil)
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "accounts.email_malformed" {
+		t.Errorf("without an encoder the Unicode domain was not refused: %v", err)
+	}
+	if plain, err := Invite(accountID, tenantID, "anna@example.org", "Anna", nil); err != nil || plain.Email != "anna@example.org" {
+		t.Errorf("without an encoder an ASCII address is refused: %v", err)
+	}
+}
+
+func TestLookupAddressBringsATypedAddressToTheStoredForm(t *testing.T) {
+	for raw, want := range map[string]string{
+		"Anna@Müller.de":    "anna@xn--mller-kva.de",
+		"anna@example.org":  "anna@example.org",
+		"not an address":    "not an address",
+		"anna@-bad.example": "anna@-bad.example",
+	} {
+		if got := LookupAddress(raw, encoder{}); got != want {
+			t.Errorf("%q → %q, want %q", raw, got, want)
+		}
+	}
+	if got := LookupAddress("anna@müller.de", nil); got != "anna@müller.de" {
+		t.Errorf("without an encoder the address changed: %q", got)
 	}
 }
