@@ -2300,7 +2300,7 @@ DECLARE
   name   text := parent || '_' || to_char(date_trunc('month', month), 'YYYY_MM');
   target regclass;
 BEGIN
-  IF parent NOT IN ('activity_entry', 'outbox_event', 'rule_run') THEN
+  IF parent NOT IN ('activity_entry', 'outbox_event', 'rule_run', 'change_log') THEN
     RAISE EXCEPTION 'ensure_stream_partition: % is not a partitioned stream', parent
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -2372,6 +2372,7 @@ BEGIN
     WHEN 'activity_entry' THEN 'ACTIVITY_ENTRY'
     WHEN 'outbox_event'   THEN 'OUTBOX_EVENT'
     WHEN 'rule_run'       THEN 'RULE_RUN'
+    WHEN 'change_log'     THEN 'SYNC_LOG'
     ELSE NULL
   END;
   IF kind IS NULL THEN
@@ -2423,6 +2424,7 @@ GRANT EXECUTE ON FUNCTION drop_stream_partition(text, integer) TO hubtask_app;
 SELECT ensure_stream_partition('activity_entry', (date_trunc('month', now()) + interval '1 month')::date);
 SELECT ensure_stream_partition('outbox_event', (date_trunc('month', now()) + interval '1 month')::date);
 SELECT ensure_stream_partition('rule_run', (date_trunc('month', now()) + interval '1 month')::date);
+SELECT ensure_stream_partition('change_log', (date_trunc('month', now()) + interval '1 month')::date);
 
 -- ============================ Restore drill (H-10) ==========================
 -- Two marker rows per drill run, written by the owner at a recorded moment; the drill restores to

@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/test/dbtest"
@@ -68,9 +67,11 @@ func TestTheConversionCarriesExistingDataAndTheOldStatements(t *testing.T) {
 	              '01936f2a-7c1e-7000-8000-00000000d006', 'RUNNING', now() - interval '3 days')`, tenant)
 
 	// The history tables must not be rewritten: the attach is a metadata act, and the filenode
-	// is the witness (the search migration's own probe).
+	// is the witness (the search migration's own probe). The three 0068 converted; the change log
+	// was born partitioned and joined the duty in 0085 with no history to carry.
+	converted := []string{"activity_entry", "outbox_event", "rule_run"}
 	filenodes := map[string]uint32{}
-	for _, table := range streamsrepo.Tables() {
+	for _, table := range converted {
 		var node uint32
 		if err := pool.QueryRow(ctx, `SELECT pg_relation_filenode($1::regclass)`, table).Scan(&node); err != nil {
 			t.Fatalf("reading %s's filenode: %v", table, err)
@@ -82,7 +83,7 @@ func TestTheConversionCarriesExistingDataAndTheOldStatements(t *testing.T) {
 		t.Fatalf("the conversion failed over existing data: %v", err)
 	}
 
-	for _, table := range streamsrepo.Tables() {
+	for _, table := range converted {
 		var node uint32
 		if err := pool.QueryRow(ctx,
 			`SELECT pg_relation_filenode(($1 || '_history')::regclass)`, table).Scan(&node); err != nil {

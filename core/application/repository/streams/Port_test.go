@@ -17,6 +17,7 @@ func TestTheStreamsAndTheirFloorsComeFromTheCatalogue(t *testing.T) {
 		"activity_entry": 0,  // no period in the catalogue: no month of it ever falls
 		"outbox_event":   7,  // the catalogue's shortest default
 		"rule_run":       30, // the run log's month
+		"change_log":     90, // the offline window, the floor of the synchronisation's records
 	}
 
 	tables := streams.Tables()

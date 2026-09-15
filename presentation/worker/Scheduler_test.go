@@ -356,7 +356,8 @@ func TestASchedulerWithoutThePartitionDutyStillTicks(t *testing.T) {
 
 // streamPartitions answers the stream duty's asks, table by table.
 type streamPartitions struct {
-	asked map[string][]time.Time
+	asked  map[string][]time.Time
+	floors map[string]int
 }
 
 func (p *streamPartitions) Ensure(_ context.Context, table string, month time.Time) (string, error) {
@@ -367,7 +368,11 @@ func (p *streamPartitions) Ensure(_ context.Context, table string, month time.Ti
 	return table + "_" + month.Format("2006_01"), nil
 }
 
-func (p *streamPartitions) DropAged(context.Context, string, int) ([]streams.Dropped, error) {
+func (p *streamPartitions) DropAged(_ context.Context, table string, defaultDays int) ([]streams.Dropped, error) {
+	if p.floors == nil {
+		p.floors = map[string]int{}
+	}
+	p.floors[table] = defaultDays
 	return nil, nil
 }
 
@@ -409,6 +414,31 @@ func TestTheLeaderEnsuresEveryStreamsComingMonths(t *testing.T) {
 		if months[1].Format("2006-01") != now.UTC().AddDate(0, 1, 0).Format("2006-01") {
 			t.Errorf("%s's second month was %s", table, months[1])
 		}
+	}
+}
+
+// The change log's drop floor is the installation's offline window when that is longer than the
+// catalogue's default (N-09): a month falling inside the window would let a device that was
+// offline recreate what was deleted. The other streams keep the catalogue's floor.
+func TestTheChangeLogsDropFloorIsTheOfflineWindow(t *testing.T) {
+	partitions := &streamPartitions{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.StreamPartitions = partitions
+	leader.OfflineWindow = 120*24*time.Hour + time.Hour
+
+	leader.tick(t.Context(), false, now)
+
+	if partitions.floors[streams.ChangeLog] != 121 {
+		t.Errorf("the change log's floor is %d days, want the window rounded up", partitions.floors[streams.ChangeLog])
+	}
+	if partitions.floors["outbox_event"] != streams.DefaultDays("outbox_event") {
+		t.Errorf("the outbox's floor moved to %d", partitions.floors["outbox_event"])
+	}
+
+	leader.OfflineWindow = 30 * 24 * time.Hour
+	leader.tick(t.Context(), false, now)
+	if partitions.floors[streams.ChangeLog] != streams.DefaultDays(streams.ChangeLog) {
+		t.Errorf("a window shorter than the default lowered the floor to %d", partitions.floors[streams.ChangeLog])
 	}
 }
 
