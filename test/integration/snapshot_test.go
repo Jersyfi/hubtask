@@ -13,6 +13,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -108,10 +109,13 @@ func snapshotWalk[T any](
 ) (found bool, rows []T) {
 	t.Helper()
 
+	// One pool for the whole walk: the per-call helper opens one per call, and a walk over the
+	// shared database is hundreds of pages.
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	var after shared.ID
 	for {
 		var batch []T
-		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		if err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: tenant}, func(ctx context.Context) error {
 			var err error
 			batch, err = page(ctx, after, 2)
 			return err
@@ -173,11 +177,12 @@ func TestTheSnapshotPagesEveryKindByIdentifier(t *testing.T) {
 		}
 	})
 	t.Run("set elements", func(t *testing.T) {
+		uow := postgres.NewUnitOfWork(appPool(ctx, t))
 		var after repository.SetElementKey
 		found := false
 		for {
 			var batch []repository.ItemSetElement
-			if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			if err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
 				var err error
 				batch, err = repo.SetElements(ctx, after, 2)
 				return err

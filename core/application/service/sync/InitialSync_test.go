@@ -6,6 +6,7 @@ package sync
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -436,5 +437,33 @@ func TestAWalkRecordDescribesTheWholeObject(t *testing.T) {
 	}
 	if !strings.HasPrefix(records[0].Payload["id"].(string), "01936f2a") {
 		t.Errorf("the first record is %v", records[0].Payload)
+	}
+}
+
+// A run of rows the caller may not read that happens to fill a batch does not end the kind: the
+// walk stays on it, past those rows, until it is genuinely exhausted. Found by the shared
+// integration database, where one tenant's containers outnumber any page.
+func TestAFullBatchOfWithheldRowsDoesNotEndTheKind(t *testing.T) {
+	pull, f, store := walking(t)
+	// Six hubs the caller may not read, sorting before the fixture's own containers (…00b1 to …00b6
+	// against the fixture's …00c1 and up).
+	for i := 1; i <= 6; i++ {
+		id := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000b" + strconv.Itoa(i))
+		store.containers = append([]work.Container{{ID: id, TenantID: tenant, Type: work.ContainerHub}}, store.containers...)
+		f.auth.allowed[id] = false
+	}
+	slices.SortFunc(store.containers, func(a, b work.Container) int {
+		return strings.Compare(a.ID.String(), b.ID.String())
+	})
+
+	records, _ := wholeWalk(t, pull, 3)
+	containers := 0
+	for _, record := range records {
+		if record.Entity == "container" {
+			containers++
+		}
+	}
+	if containers != 3 {
+		t.Errorf("%d containers delivered, want the fixture's three behind the withheld run", containers)
 	}
 }

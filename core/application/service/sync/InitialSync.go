@@ -76,7 +76,8 @@ func (p PullChanges) walk(
 	position := from
 	for kind < len(walkKinds) {
 		position.Kind = walkKinds[kind]
-		rows, err := p.readKind(ctx, actor, position.Kind, position.After, limit-len(records))
+		batch := limit - len(records)
+		rows, err := p.readKind(ctx, actor, position.Kind, position.After, batch)
 		if err != nil {
 			return Batch{}, err
 		}
@@ -103,6 +104,12 @@ func (p PullChanges) walk(
 		}
 		if len(records) >= limit {
 			return Batch{Records: records, Cursor: position, More: true}, nil
+		}
+		if len(rows) == batch {
+			// A full batch, and the page is not full: every row in it was withheld or out of
+			// scope. The kind is not exhausted - the walk stays on it, past those rows. Moving on
+			// here would skip whatever this kind still holds behind a run of somebody else's.
+			continue
 		}
 		// The kind is exhausted - fewer rows than asked for - and the walk moves on to the next
 		// one from its start.
