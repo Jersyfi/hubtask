@@ -30,7 +30,7 @@ func freshEmail(t *testing.T) string {
 
 func invitedIn(t *testing.T, tenant shared.ID) identity.Account {
 	t.Helper()
-	account, err := identity.Invite(freshID(t), tenant, freshEmail(t), "Anna")
+	account, err := identity.Invite(freshID(t), tenant, freshEmail(t), "Anna", nil)
 	if err != nil {
 		t.Fatalf("building the account: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestTheSameAddressCanExistInTwoTenants(t *testing.T) {
 	address := freshEmail(t)
 
 	for _, tenant := range []shared.ID{tenantA, tenantB} {
-		account, err := identity.Invite(freshID(t), tenant, address, "Anna")
+		account, err := identity.Invite(freshID(t), tenant, address, "Anna", nil)
 		if err != nil {
 			t.Fatalf("building: %v", err)
 		}
@@ -120,7 +120,7 @@ func TestTheSameAddressTwiceInOneTenantIsAConflict(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	first := invitedIn(t, tenantA)
 
-	second, err := identity.Invite(freshID(t), tenantA, first.Email, "Anna again")
+	second, err := identity.Invite(freshID(t), tenantA, first.Email, "Anna again", nil)
 	if err != nil {
 		t.Fatalf("building: %v", err)
 	}

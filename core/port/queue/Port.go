@@ -266,6 +266,14 @@ const (
 	// is an operator asking rather than a schedule. Deduplicated per tenant, so asking twice before
 	// the first round has run queues nothing new.
 	KindSecretReseal Kind = "secret.reseal"
+
+	// KindSearchReindex rewrites the search documents of one workspace that were built under a
+	// configuration the installation has since replaced or gained (M-09, ADR-0034): the rows
+	// whose recorded configuration differs from what the resolver answers today, in batches, in
+	// the job's own transactions. One job per tenant, enqueued by a workspace administrator's
+	// request - a workspace's operation, because nothing may enumerate tenants - and
+	// deduplicated per tenant, so asking twice before the walk has finished queues nothing new.
+	KindSearchReindex Kind = "search.reindex"
 )
 
 func (k Kind) String() string { return string(k) }

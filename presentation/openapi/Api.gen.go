@@ -273,6 +273,21 @@ func (e AiProviderKind) Valid() bool {
 	}
 }
 
+// Defines values for AiTranslationSource.
+const (
+	AiTranslationSourceAI AiTranslationSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AiTranslationSource enum.
+func (e AiTranslationSource) Valid() bool {
+	switch e {
+	case AiTranslationSourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -903,6 +918,27 @@ func (e CapabilitiesSupportedLocalesDirection) Valid() bool {
 	case Ltr:
 		return true
 	case Rtl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CapabilitiesSupportedLocalesWeekStart.
+const (
+	CapabilitiesSupportedLocalesWeekStartMONDAY   CapabilitiesSupportedLocalesWeekStart = "MONDAY"
+	CapabilitiesSupportedLocalesWeekStartSATURDAY CapabilitiesSupportedLocalesWeekStart = "SATURDAY"
+	CapabilitiesSupportedLocalesWeekStartSUNDAY   CapabilitiesSupportedLocalesWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesSupportedLocalesWeekStart enum.
+func (e CapabilitiesSupportedLocalesWeekStart) Valid() bool {
+	switch e {
+	case CapabilitiesSupportedLocalesWeekStartMONDAY:
+		return true
+	case CapabilitiesSupportedLocalesWeekStartSATURDAY:
+		return true
+	case CapabilitiesSupportedLocalesWeekStartSUNDAY:
 		return true
 	default:
 		return false
@@ -2678,13 +2714,13 @@ func (e StepUpGrantMethod) Valid() bool {
 
 // Defines values for SuggestionSource.
 const (
-	AI SuggestionSource = "AI"
+	SuggestionSourceAI SuggestionSource = "AI"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionSource enum.
 func (e SuggestionSource) Valid() bool {
 	switch e {
-	case AI:
+	case SuggestionSourceAI:
 		return true
 	default:
 		return false
@@ -3391,7 +3427,7 @@ type AiProvider struct {
 	CompletionModel *string   `json:"completion_model,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 
-	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed.
+	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed. The index holds 1536 dimensions: a model that produces fewer is stored exactly, padded, and one that produces more is refused at the first embedding rather than stored truncated (ADR-0054). The two Ollama embedding models in common use produce 768 and 1024 and are taken; a model above 1536 cannot be used.
 	EmbeddingModel *string `json:"embedding_model,omitempty"`
 
 	// HasApiKey Whether a key is stored, which is the whole of what this surface says about one (J-02). The key itself is sealed on the way in and answered by nothing afterwards - so this is the only way an operator can tell "configured with a key" from "configured without one", and a setup screen that could not tell them apart would have to ask for the key again to find out.
@@ -3435,6 +3471,32 @@ type AiProviderConfiguration struct {
 
 // AiProviderKind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 type AiProviderKind string
+
+// AiTranslateRequest Which language to read the entry in.
+type AiTranslateRequest struct {
+	// TargetLocale BCP 47 (`de`, `pt-BR`). Absent, the caller's own locale — the account's, else the request's — which is the language they read anything in. A tag the installation has no catalogue for is fine: the provider translates into languages the product does not render.
+	TargetLocale *string `json:"target_locale,omitempty"`
+}
+
+// AiTranslation The entry's title and notes as the provider rendered them in the target language, with the provenance every AI output carries (`ai-first.md` §2). Not a record: it has no id, no status and nothing to accept, because it is not stored anywhere.
+type AiTranslation struct {
+	Model string `json:"model"`
+
+	// Notes Empty where the entry has no notes.
+	Notes         string              `json:"notes"`
+	ProducedAt    time.Time           `json:"produced_at"`
+	PromptId      string              `json:"prompt_id"`
+	PromptVersion string              `json:"prompt_version"`
+	Source        AiTranslationSource `json:"source"`
+
+	// SourceLanguage The entry's `content_language`, which is what the provider was told the source is; null where the entry states none.
+	SourceLanguage *string `json:"source_language,omitempty"`
+	TargetLocale   string  `json:"target_locale"`
+	Title          string  `json:"title"`
+}
+
+// AiTranslationSource defines model for AiTranslation.Source.
+type AiTranslationSource string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -4026,8 +4088,9 @@ type Capabilities struct {
 	EventTypes *[]string `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions` and `semantic_search`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health` (observability-reliability.md §7), so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace (`ai-first.md` §2); an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
+	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU (`i18n-l10n.md` §5). Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features  *map[string]bool `json:"features,omitempty"`
 	ItemTypes *[]struct {
 		AllowedChildTypes *[]ItemType `json:"allowed_child_types,omitempty"`
@@ -4054,11 +4117,21 @@ type Capabilities struct {
 	RetentionDataKinds *[]RetentionDataKind `json:"retention_data_kinds,omitempty"`
 
 	// Roles The role matrix as this installation enforces it (domain-model.md §3.2). A client decides from this which actions to offer, rather than from a table compiled into it: two cells of the matrix are qualifiers no permission name can carry - a contributor writes only what is assigned to them, and a guest may comment on an entry without being able to change it - and a client that does not know them offers buttons the server refuses.
-	Roles            *[]RoleDescription `json:"roles,omitempty"`
+	Roles *[]RoleDescription `json:"roles,omitempty"`
+
+	// SupportedLocales The locales this installation has a catalogue for, in the order it serves them - the source language first - with the metadata a client needs before it has rendered anything (`i18n-l10n.md` §2, §6). Derived from the catalogue files present, the embedded ones and an operator's `HUBTASK_LOCALE_DIR`, so adding a language is a file and not a release. A locale is what the account's language picker offers and what `Accept-Language` is negotiated against; a language absent here still renders, in the source language, and is still an entry's `content_language`.
 	SupportedLocales *[]struct {
-		Direction *CapabilitiesSupportedLocalesDirection `json:"direction,omitempty"`
-		Locale    *string                                `json:"locale,omitempty"`
-		WeekStart *string                                `json:"week_start,omitempty"`
+		// DecimalSeparator The character between the integer and the fraction where the locale is spoken - `.` or `,`. What a client that formats before `Intl` is available, or a form that parses what somebody typed, reads; a client with `Intl` formats with it (§7).
+		DecimalSeparator string `json:"decimal_separator"`
+
+		// Direction The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's (§6).
+		Direction CapabilitiesSupportedLocalesDirection `json:"direction"`
+
+		// Locale BCP 47, as the file is named - `en`, `de`, `pt-BR`, `zh-Hans`.
+		Locale string `json:"locale"`
+
+		// WeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set (§4).
+		WeekStart CapabilitiesSupportedLocalesWeekStart `json:"week_start"`
 	} `json:"supported_locales,omitempty"`
 	TenancyMode *CapabilitiesTenancyMode `json:"tenancy_mode,omitempty"`
 
@@ -4071,8 +4144,11 @@ type Capabilities struct {
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 }
 
-// CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.
+// CapabilitiesSupportedLocalesDirection The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's (§6).
 type CapabilitiesSupportedLocalesDirection string
+
+// CapabilitiesSupportedLocalesWeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set (§4).
+type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
@@ -4493,7 +4569,7 @@ type FilterNode struct {
 	Nodes *[]FilterNode `json:"nodes,omitempty"`
 	Op    FilterNodeOp  `json:"op"`
 
-	// Value On a leaf, what to compare against - a scalar for most operators, an array for `IN`, `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end is the last instant of its period, so `LTE @end_of_month` means what it says.
+	// Value On a leaf, what to compare against - a scalar for most operators, an array for `IN`, `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end is the last instant of its period, so `LTE @end_of_month` means what it says. The week starts where the caller's account says, or where their locale does (`supported_locales[].week_start`) - Monday, Sunday or Saturday - so two colleagues reading one saved view may see two weeks, and each sees their own.
 	Value interface{} `json:"value,omitempty"`
 }
 
@@ -6023,6 +6099,14 @@ type SavedViewUpdate struct {
 // SearchMode How much of the search to use (J-10).
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
+
+// SearchReindex What a reindex answers - the job to watch, and how many rows it will rewrite.
+type SearchReindex struct {
+	JobId openapi_types.UUID `json:"job_id"`
+
+	// Stale How many entries were indexed under a configuration that is not what the installation would use for them today - including the ones written before the configuration was recorded at all. Zero means the index is current, and the job finishes without rewriting anything.
+	Stale int64 `json:"stale"`
+}
 
 // ServiceAccountCreate defines model for ServiceAccountCreate.
 type ServiceAccountCreate struct {
@@ -8042,6 +8126,9 @@ type AiSummarizeJSONRequestBody = AiAsk
 // AiSummarizeThreadJSONRequestBody defines body for AiSummarizeThread for application/json ContentType.
 type AiSummarizeThreadJSONRequestBody = AiAsk
 
+// AiTranslateJSONRequestBody defines body for AiTranslate for application/json ContentType.
+type AiTranslateJSONRequestBody = AiTranslateRequest
+
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
@@ -8617,6 +8704,9 @@ type ServerInterface interface {
 	// AiSummarizeThread Ask AI to summarise this entry's discussion
 	// (POST /items/{itemId}:summarize-thread)
 	AiSummarizeThread(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// AiTranslate Read this entry in another language
+	// (POST /items/{itemId}:translate)
+	AiTranslate(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:unarchive)
 	UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnarchiveWorkItemParams)
@@ -8764,6 +8854,9 @@ type ServerInterface interface {
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
+	// ReindexSearch Bring the workspace's search documents current
+	// (POST /search:reindex)
+	ReindexSearch(w http.ResponseWriter, r *http.Request)
 	// StreamChanges The change stream, as server-sent events
 	// (GET /stream)
 	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
@@ -14856,6 +14949,32 @@ func (siw *ServerInterfaceWrapper) AiSummarizeThread(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// AiTranslate operation middleware
+func (siw *ServerInterfaceWrapper) AiTranslate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiTranslate(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UnarchiveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -16556,6 +16675,20 @@ func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ReindexSearch operation middleware
+func (siw *ServerInterfaceWrapper) ReindexSearch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReindexSearch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StreamChanges operation middleware
 func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.Request) {
 
@@ -17760,6 +17893,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:decompose", wrapper.SuggestDecomposition)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize", wrapper.AiSummarize)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:translate", wrapper.AiTranslate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:classify", wrapper.AiClassify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize-thread", wrapper.AiSummarizeThread)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:summarize", wrapper.AiSummarizeContainer)
@@ -17809,6 +17943,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)

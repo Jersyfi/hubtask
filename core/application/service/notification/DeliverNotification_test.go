@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -426,5 +427,55 @@ func TestOnlyTheInvitationMintsARedemptionToken(t *testing.T) {
 	}
 	if strings.Contains(fixture.mailbox.sent[0].Body, "hbt_inv_") {
 		t.Error("an assignment mail carries a redemption token")
+	}
+}
+
+// workspaceOf stands in for the workspace reader: one row, with a default language.
+type workspaceOf struct {
+	locale string
+	err    error
+}
+
+func (w workspaceOf) Find(context.Context) (identity.Workspace, error) {
+	if w.err != nil {
+		return identity.Workspace{}, w.err
+	}
+	workspace := identity.Workspace{}
+	workspace.DefaultLocale = w.locale
+	return workspace, nil
+}
+
+// §2's chain for a recipient who has not chosen a language - which an invited person, by
+// definition, has not: the workspace's default, then the installation's, and only then the
+// source (#603, found by the QS-08 walk).
+func TestARecipientWithoutALocaleIsWrittenToInTheWorkspacesLanguage(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		workspaces WorkspaceReader
+		fallback   string
+		wantGerman bool
+	}{
+		{"the workspace's default", workspaceOf{locale: "de"}, "en", true},
+		{"then the installation's", workspaceOf{locale: ""}, "de", true},
+		{"a workspace row that is gone", workspaceOf{err: shared.ErrNotFound}, "de", true},
+		{"nothing anywhere", nil, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := delivery(t, domain.CategoryInvitation, true)
+			fixture.delivery.Accounts = newAccounts(
+				person(anna, "Anna", "anna@example.org", "en"),
+				person(bert, "Bert", "bert@example.org", ""),
+			)
+			fixture.delivery.Workspaces = tc.workspaces
+			fixture.delivery.FallbackLocale = tc.fallback
+
+			if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			german := strings.HasPrefix(fixture.mailbox.sent[0].Subject, "[de]")
+			if german != tc.wantGerman {
+				t.Errorf("the subject was %q", fixture.mailbox.sent[0].Subject)
+			}
+		})
 	}
 }

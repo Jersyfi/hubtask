@@ -311,6 +311,14 @@ type TextSearch struct {
 	// not, and the repository is handed either a vector or nothing. A repository that called a
 	// provider would be one that could fail a search because somebody else's machine was slow.
 	Meaning []float32
+	// MeaningModel is the model that produced Meaning, and the only rows the vector is compared
+	// with are the ones that name it. Vectors from two models are not comparable (ADR-0049
+	// decision 4), and between a reconfiguration and the end of the re-embedding pass the table
+	// holds both: without this a query from the new model was ranked against rows from the old
+	// one, and the semantic half of the ranking was noise (#568). An entry embedded under another
+	// name is found by its words alone until the pass reaches it - J-10's own degradation for an
+	// entry not yet embedded, applied to one whose vector no longer counts.
+	MeaningModel string
 }
 
 // ItemHit is one entry a search found: the entry, where it sits, and how well it matched.

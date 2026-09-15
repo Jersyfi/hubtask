@@ -25,9 +25,10 @@ import (
 // come back as one ordered page are all PostgreSQL's answers, and a fake would only ever agree with
 // whatever this file assumed.
 
-// embeddingDimensions is the width migration 0075 fixed the column at. A vector of any other length
-// is refused by the database, which is the point of fixing it: an index is built for one geometry.
-const embeddingDimensions = 1536
+// embeddingDimensions is the width migration 0075 fixed the column at, as the port declares it
+// (ADR-0054). These fixtures are built at the full width so what they measure is the index's own
+// geometry; a narrower vector's padding is proved by its own test.
+const embeddingDimensions = repository.EmbeddingWidth
 
 // axes hands each fixture a direction of its own.
 //
@@ -123,7 +124,7 @@ func newHybridFixture(ctx context.Context, t *testing.T) hybridFixture {
 				return err
 			}
 			if err := embeddings.Store(ctx, repository.StoredEmbedding{
-				ItemID: entry.id, Model: "test-embed-1", Vector: entry.vector,
+				ItemID: entry.id, Model: hybridModel, Vector: entry.vector,
 				SourceDigest: suggestion.Digest(entry.title, ""),
 				UpdatedAt:    time.Now().UTC(),
 			}); err != nil {
@@ -149,13 +150,17 @@ func requirePgvector(ctx context.Context, t *testing.T) {
 	}
 }
 
+// hybridModel names the fixtures' vectors and the query's, which is what makes them comparable
+// at all: the search reads only the rows of the model its query vector came from (#568).
+const hybridModel = "test-embed-1"
+
 func hybridSearch(f hybridFixture, meaning []float32) repository.TextSearch {
 	return repository.TextSearch{
 		Anchor: repository.Anchor{
 			Kind: repository.AnchorCollection, CollectionID: f.collection, IncludeDescendants: true,
 		},
 		Request: view.Search{Words: f.word, Language: "de", Size: 50},
-		Meaning: meaning,
+		Meaning: meaning, MeaningModel: hybridModel,
 	}
 }
 

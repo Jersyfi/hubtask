@@ -183,6 +183,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Locale: env.LocaleConfig{
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),
 			DefaultTimeZone: get("HUBTASK_DEFAULT_TIMEZONE", "UTC"),
+			Directory:       get("HUBTASK_LOCALE_DIR", ""),
 		},
 		UI: env.UIConfig{
 			Enabled: getBool("HUBTASK_UI_ENABLED", true),
@@ -652,6 +653,18 @@ func validateLocale(l env.LocaleConfig) []error {
 				"variable": "HUBTASK_DEFAULT_TIMEZONE",
 				"value":    l.DefaultTimeZone,
 			}))
+	}
+	// Only that the directory is one. Its files are read where the renderer is built, and a file
+	// that does not parse is refused there with its own code - this is the check that catches a
+	// mistyped path before a single catalogue is looked for.
+	if l.Directory != "" {
+		if info, err := os.Stat(l.Directory); err != nil || !info.IsDir() {
+			errs = append(errs, configError("config.locale_dir_missing", "HUBTASK_LOCALE_DIR").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_LOCALE_DIR",
+					"value":    l.Directory,
+				}))
+		}
 	}
 	return errs
 }

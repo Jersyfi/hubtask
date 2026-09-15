@@ -107,6 +107,25 @@ func (h EmbedItems) Execute(
 		return EmbedOutcome{}, nil
 	}
 
+	// Before the batch is sent: what the provider can say about its model's width (#569). A model
+	// the index cannot hold is refused here for the price of one description rather than one
+	// batch per pass for ever - and what a description taught is remembered, so the next pass's
+	// question is answered from memory. Asked every pass rather than only until known, because
+	// the asking is what keeps the memory current: an entry nobody asks for goes stale, and that
+	// is how a workspace that switched models stops being reported. A provider that cannot
+	// describe its model answers zero, and the check after the call still stands.
+	width := capabilities.EmbeddingDimensions
+	if measured, can := provider.(aiprovider.Measured); can {
+		if known, err := measured.MeasureEmbedding(ctx); err == nil && known > 0 {
+			// A description that failed is not a refusal: the batch that follows fails or
+			// succeeds on its own, and the ordinary handling covers both.
+			width = known
+		}
+	}
+	if width > repository.EmbeddingWidth {
+		return EmbedOutcome{}, repository.EmbeddingTooWide(capabilities.EmbeddingModel, width)
+	}
+
 	// The provider is called outside a transaction, for the reason every provider call in this
 	// product is: it reaches somebody else's machine, and a transaction waiting on one holds a
 	// connection for as long as they feel like taking (observability-reliability.md §8).
@@ -117,6 +136,25 @@ func (h EmbedItems) Execute(
 	answer, err := provider.Embed(ctx, texts)
 	if err != nil {
 		return EmbedOutcome{}, err
+	}
+	for _, vector := range answer.Vectors {
+		// The vectors' own length beside the field that reports it, so an adapter that answered
+		// wide vectors under a zero is caught here rather than inside the write transaction. And
+		// an empty vector at all: padded, it would be zeros, and zeros have no direction.
+		if len(vector) > repository.EmbeddingWidth {
+			return EmbedOutcome{}, repository.EmbeddingTooWide(capabilities.EmbeddingModel, len(vector))
+		}
+		if len(vector) == 0 {
+			return EmbedOutcome{}, repository.EmbeddingEmpty(capabilities.EmbeddingModel)
+		}
+	}
+	if answer.Dimensions > repository.EmbeddingWidth {
+		// The field ADR-0049 carried "so a caller can reject a batch that does not match its
+		// index", read at last (ADR-0054). Refused before the store rather than by it, and as a
+		// validation error naming the model, because the model is a configuration somebody chose
+		// and the answer should say what to choose instead. A narrower batch is not refused: the
+		// store pads it, exactly, for cosine.
+		return EmbedOutcome{}, repository.EmbeddingTooWide(capabilities.EmbeddingModel, answer.Dimensions)
 	}
 	if len(answer.Vectors) != len(owed) {
 		// The adapter already refuses an unalignable batch; this is the same check on the other
