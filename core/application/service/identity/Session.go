@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -74,6 +75,9 @@ type SessionWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Entropy    clock.Entropy
+	// Domains brings a typed address's domain to the ASCII form the stored one has, so that a
+	// person who types `anna@müller.de` finds the row that holds `anna@xn--mller-kva.de` (M-10).
+	Domains text.DomainEncoder
 	// Multi is decision 3's mode switch: in multi mode the tenant comes from the subdomain or
 	// the header, in single mode from the installation's only row - one code path, one special
 	// case (multi-tenancy.md §1).
@@ -159,7 +163,8 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 
-	subjects := attemptSubjects(cmd.Email, cmd.RemoteAddr)
+	address := domain.LookupAddress(cmd.Email, w.Domains)
+	subjects := attemptSubjects(address, cmd.RemoteAddr)
 	scope := persistence.Scope{TenantID: tenantID}
 
 	// First transaction: the ledger's standing and the stored hash. The password work happens
@@ -175,7 +180,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 			return err
 		}
 
-		read, err := w.Accounts.FindForSignIn(ctx, cmd.Email)
+		read, err := w.Accounts.FindForSignIn(ctx, address)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
 				// Remembered, not answered: the decoy below makes this cost what a real check

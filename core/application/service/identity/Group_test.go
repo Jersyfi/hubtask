@@ -174,7 +174,7 @@ func settledGroup(t *testing.T) domain.Group {
 // somebody would be impossible to express.
 func TestTheMemberListReplacesRatherThanAdds(t *testing.T) {
 	second := shared.ID("01936f2a-7c1e-7000-8000-0000000000a3")
-	other, err := domain.Invite(second, tenant, "cara@example.org", "Cara")
+	other, err := domain.Invite(second, tenant, "cara@example.org", "Cara", nil)
 	if err != nil {
 		t.Fatalf("preparing: %v", err)
 	}
