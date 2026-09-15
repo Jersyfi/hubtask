@@ -1741,6 +1741,14 @@ func run() error {
 				Snapshot: postgres.NewSnapshotRepository(),
 			},
 			Signals: metrics,
+			// The push applies a device's queue through the catalogue as the pushing person
+			// (N-04): nothing here writes by any other path.
+			Push: syncservice.PushChanges{
+				Stream: changeStream, Devices: postgres.NewDeviceRepository(),
+				Ops: postgres.NewSyncOpLog(), Tombstones: postgres.NewTombstoneRepository(),
+				Catalogue: useCases, Skew: cfg.Sync.ClockSkew,
+			},
+			PushSignals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{

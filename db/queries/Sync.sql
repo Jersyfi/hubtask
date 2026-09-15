@@ -232,3 +232,27 @@ FROM template
 WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- The operation log (N-04, offline-sync.md §3.2): what a push did with each op_id, kept for the
+-- offline window so that a repeated push takes effect exactly once.
+
+-- name: FindSyncOp :one
+SELECT op_id, device_id, result, entity_id, applied_at, response
+FROM sync_op_log
+WHERE tenant_id = current_tenant_id() AND op_id = sqlc.arg('op_id');
+
+-- name: RecordSyncOp :exec
+-- Written in the transaction that applied the mutation. A conflict is a repeat that raced this
+-- one and is left standing: the first answer is the answer.
+INSERT INTO sync_op_log (tenant_id, op_id, device_id, result, entity_id, applied_at, response)
+VALUES (current_tenant_id(), sqlc.arg('op_id'), sqlc.narg('device_id'), sqlc.arg('result'),
+        sqlc.narg('entity_id'), sqlc.arg('applied_at'), sqlc.narg('response'))
+ON CONFLICT (tenant_id, op_id) DO NOTHING;
+
+-- name: HoldsTombstone :one
+-- Whether an entity has been purged (offline-sync.md §7). The trash is not a tombstone: a trashed
+-- entry can still be restored, and the use case that receives a mutation about it says so itself.
+SELECT EXISTS (
+  SELECT 1 FROM tombstone
+  WHERE tenant_id = current_tenant_id() AND entity = sqlc.arg('entity') AND entity_id = sqlc.arg('entity_id')
+)::boolean AS held;

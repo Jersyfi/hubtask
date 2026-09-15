@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -52,7 +53,14 @@ func (c ChangeLog) Record(ctx context.Context, change changelog.Change) error {
 	if err != nil {
 		return err
 	}
-	deviceID, err := optionalUUID(change.DeviceID)
+	// The device a push marked the context with, when the change names none of its own: the
+	// writers are the ordinary use cases, and the one fact a push adds to them is whose act it
+	// was (appshared.ContextWithDevice).
+	device := change.DeviceID
+	if device.IsZero() {
+		device = appshared.DeviceFrom(ctx)
+	}
+	deviceID, err := optionalUUID(device)
 	if err != nil {
 		return err
 	}

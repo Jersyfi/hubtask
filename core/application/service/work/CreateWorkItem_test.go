@@ -1275,3 +1275,27 @@ func TestTheItemsCeilingHoldsTheDoor(t *testing.T) {
 		t.Errorf("a permitting guard refused: %v", err)
 	}
 }
+
+// A client that minted the identifier - a device creating an entry offline - keeps it, so that
+// the entry has its final identity at once and a repeated push is idempotent (offline-sync.md
+// §3.2, §9). One the client did not mint as a UUIDv7 is refused.
+func TestAClientMintedIdentifierIsKeptAndHasToBeAUUIDv7(t *testing.T) {
+	h := newItemHarness()
+	minted := shared.MustParseID("0192f000-0000-7000-8000-00000000c1e1")
+
+	cmd := taskCommand()
+	cmd.ID = minted
+	task, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("creating with a minted identifier: %v", err)
+	}
+	if task.ID != minted {
+		t.Errorf("the entry was created as %s, want the minted %s", task.ID, minted)
+	}
+
+	cmd.ID = shared.MustParseID("0192f000-0000-4000-8000-00000000c1e1")
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), cmd); err == nil ||
+		shared.AsError(err).DetailCode != "sync.id_not_uuidv7" {
+		t.Errorf("a v4 identifier was answered %v", err)
+	}
+}
