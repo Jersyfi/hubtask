@@ -7,6 +7,8 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"io"
+	"mime/quotedprintable"
 	"net"
 	"strings"
 	"sync"
@@ -338,4 +340,53 @@ func headerOf(t *testing.T, message, name string) string {
 	}
 	t.Fatalf("no %s header in:\n%s", name, message)
 	return ""
+}
+
+// A body in most languages is not ASCII, and a body with no transfer encoding declared is 7-bit
+// by definition. A German sentence therefore travels quoted-printable and arrives as itself.
+func TestANonASCIIBodyIsQuotedPrintable(t *testing.T) {
+	smtpServer := newServer(t)
+	sender := mail.NewSMTP(configFor(smtpServer))
+
+	const german = "Anna hat dich zu „Angebot prüfen“ hinzugefügt.\n\nhttps://hub.test.invalid/redeem#token=abc"
+	if err := sender.Send(context.Background(), port.Message{
+		To: "anna@test.invalid", Subject: "Hello", Body: german,
+	}); err != nil {
+		t.Fatalf("sending: %v", err)
+	}
+
+	message := smtpServer.messages()[0]
+	if headerOf(t, message, "Content-Transfer-Encoding") != "quoted-printable" {
+		t.Fatalf("the encoding is not declared:\n%s", message)
+	}
+	_, rawBody, found := strings.Cut(message, "\n\n")
+	if !found {
+		t.Fatalf("no body:\n%s", message)
+	}
+	if strings.Contains(rawBody, "ü") {
+		t.Errorf("an 8-bit byte travelled undeclared:\n%s", rawBody)
+	}
+	decoded, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(rawBody)))
+	if err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if got := strings.ReplaceAll(string(decoded), "\r\n", "\n"); strings.TrimRight(got, "\n") != german {
+		t.Errorf("the body did not survive the encoding:\n%q\nwant\n%q", got, german)
+	}
+}
+
+// An ASCII body keeps the default: encoding it would only fold its lines.
+func TestAnASCIIBodyTravelsAsItIs(t *testing.T) {
+	smtpServer := newServer(t)
+	sender := mail.NewSMTP(configFor(smtpServer))
+
+	if err := sender.Send(context.Background(), port.Message{
+		To: "anna@test.invalid", Subject: "Hello", Body: "there\n\nhttps://hub.test.invalid/items/1",
+	}); err != nil {
+		t.Fatalf("sending: %v", err)
+	}
+	message := smtpServer.messages()[0]
+	if strings.Contains(message, "Content-Transfer-Encoding") {
+		t.Errorf("an ASCII body was encoded:\n%s", message)
+	}
 }

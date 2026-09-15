@@ -75,11 +75,31 @@ $$
       || setweight(to_tsvector(hubtask_text_config(language), coalesce(notes, '')), 'B')
 $$;
 
+-- The collation names sort under (M-08, i18n-l10n.md §5, migration 0080): the ICU root collation
+-- where PostgreSQL has it, the database's own locale where it does not. The queries say
+-- `COLLATE hubtask_name` either way; /meta/capabilities answers which of the two an installation
+-- got. No index is built on it, so its ICU version is nobody's to track.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'hubtask_name') THEN
+    RETURN;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'und-x-icu') THEN
+    EXECUTE 'CREATE COLLATION hubtask_name FROM "und-x-icu"';
+  ELSE
+    EXECUTE format('CREATE COLLATION hubtask_name (provider = libc, locale = %L)',
+                   (SELECT datcollate FROM pg_database WHERE datname = current_database()));
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION work_item_search_document() RETURNS trigger
   LANGUAGE plpgsql AS
 $$
 BEGIN
   NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.notes);
+  -- Which configuration built it (M-09): a row whose stored name differs from what
+  -- hubtask_text_config() answers today is stale, and the reindex rewrites exactly those.
+  NEW.search_configuration := hubtask_text_config(NEW.content_language)::text;
   RETURN NEW;
 END $$;
 
@@ -577,6 +597,7 @@ CREATE TABLE work_item (
   -- The language-dependent document the search reads, maintained by the trigger below and dropping
   -- the generated column above in a later migration (C-08, migration 0019, ADR-0034).
   search_document    tsvector,
+  search_configuration text,             -- the configuration that built the document (M-09)
   due_soon_announced_at timestamptz,
   overdue_announced_at  timestamptz,
   -- What a marked object carries between the two phases of a retention run (migration 0038,

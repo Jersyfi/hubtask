@@ -303,3 +303,52 @@ func (m *countingMeter) AiTokens(_ context.Context, kind, operation string, inpu
 	m.tokens = append(m.tokens, kind+"/"+operation)
 	_, _ = input, output
 }
+
+// The OpenAI wire has no way to describe a model, so the width is the documented one where a
+// vendor documented it, what this process has seen where not, and zero before either (#569).
+func TestAHostedModelsWidthIsTheDocumentedOne(t *testing.T) {
+	for model, want := range map[string]int{
+		"text-embedding-3-small": 1536, "text-embedding-3-large": 3072, "somebody-elses-model": 0,
+	} {
+		provider := adapter(&recordingClient{})
+		provider.EmbeddingModel = model
+		width, err := provider.MeasureEmbedding(context.Background())
+		if err != nil || width != want {
+			t.Errorf("%s measured %d, %v, want %d", model, width, err, want)
+		}
+		if provider.Capabilities().EmbeddingDimensions != want {
+			t.Errorf("%s reports %d", model, provider.Capabilities().EmbeddingDimensions)
+		}
+	}
+}
+
+// A documented width is recorded when measured, so the health probe learns a documented wide
+// model the way it learns a measured one - the pass refuses it before any batch, and a batch is
+// where the pool would otherwise have learned it.
+func TestADocumentedWidthIsRecordedForTheHealthProbe(t *testing.T) {
+	pool := &ai.WidthPool{}
+	provider := adapter(&recordingClient{})
+	provider.EmbeddingModel, provider.Widths = "text-embedding-3-large", pool
+
+	if _, err := provider.MeasureEmbedding(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if wider, _ := pool.Wider(1536, fixedClock{}.Now()); wider != 1 {
+		t.Errorf("the probe would count %d wide models after measuring a documented one", wider)
+	}
+}
+
+// What this process has seen outranks what the vendor documents, in both readers: a gateway may
+// serve a documented name downsized.
+func TestASeenWidthOutranksTheDocumentedOne(t *testing.T) {
+	pool := &ai.WidthPool{}
+	pool.Record("https://api.example.org/v1/", "text-embedding-3-large", 1536, fixedClock{}.Now())
+	provider := adapter(&recordingClient{})
+	provider.EmbeddingModel, provider.Widths = "text-embedding-3-large", pool
+
+	measured, _ := provider.MeasureEmbedding(context.Background())
+	if measured != 1536 || provider.Capabilities().EmbeddingDimensions != 1536 {
+		t.Errorf("measured %d, reports %d; want the seen 1536 over the documented 3072",
+			measured, provider.Capabilities().EmbeddingDimensions)
+	}
+}

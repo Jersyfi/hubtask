@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	provider "github.com/Jersyfi/hubtask/core/port/identityprovider"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -57,6 +58,8 @@ type OidcWriter struct {
 	External  repository.ExternalAccounts
 	Accounts  repository.Accounts
 	Relying   provider.Port
+	// Domains brings a provisioned address's domain to its ASCII form (M-10).
+	Domains text.DomainEncoder
 	// RedirectURL is where the provider sends the browser back, and it is this installation's
 	// own - computed by the composition root from the configured base URL. Never from a request:
 	// a redirect target a caller chooses is how authorization codes end up somewhere else.
@@ -244,7 +247,7 @@ func (w OidcWriter) settleAccount(
 		// A first arrival. If the provider vouched for an address inside the configured
 		// domains, and an account here already holds it, this is the same person.
 		if configured.LinksAddress(arriving.Email, arriving.EmailVerified) {
-			existing, err := w.Accounts.FindByEmail(ctx, arriving.Email)
+			existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 			switch {
 			case err == nil:
 				linked, err := w.External.LinkSubject(
@@ -266,7 +269,7 @@ func (w OidcWriter) settleAccount(
 		}
 
 		provisioned, err := domain.ProvisionExternal(
-			w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName)
+			w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains)
 		if err != nil {
 			return err
 		}

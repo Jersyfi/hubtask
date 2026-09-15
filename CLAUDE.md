@@ -61,6 +61,7 @@ where. They load when work happens in that directory.
 | `api/openapi.yaml`, `db/queries/` | `make generate`, then `make verify` — it must produce no diff |
 | `packages/design-system/tokens/tokens.json` | `make tokens`, then commit the regenerated `core/domain/model/shared/LabelTokens.go` |
 | `api/openapi.yaml` (client side) | `make api-client` |
+| A translation under `locales/` | `make gate-architecture` — the translation gate — and `make locales` for how complete it is |
 | Anything under `apps/` or `packages/` | `pnpm -r build && pnpm -r lint && pnpm -r typecheck && pnpm -r test` |
 | A component in `packages/design-system/src/` | `make workbench` — and it needs a story beside it, or `pnpm test` fails ([ADR-0037](docs/adr/ADR-0037-component-workbench.md)) |
 | `deploy/docker/` | `make gate-compose` — it builds the image and starts the stack |

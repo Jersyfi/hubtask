@@ -441,3 +441,61 @@ teaches the screenshots.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
 list: the wordmark in `F1`, because the website needs it; platform adaptation in `F6`, with the mobile shell that raises the question.
+
+---
+
+## 10. Accessibility
+
+This is the accessibility half of the binding client requirements — the list
+[`roadmap.md`](../roadmap.md) phase 5 and [`data-protection.md`](../architecture/data-protection.md)
+§7 point at rather than restate (M-13); the localisation half is
+[`i18n-l10n.md` §6](../architecture/i18n-l10n.md#6-text-direction-and-presentation). The European
+Accessibility Act lands here: `F5` builds against this list, and `1.0.0` criterion 16 demonstrates
+it rather than asserts it. Much of it is already a rule or a test elsewhere in this document; the
+point of gathering it is that a milestone can be cut from one place.
+
+**The bar is WCAG 2.2 level AA**, for the web app and for the shells that render it. Not "as far
+as possible" and not a subset chosen later: the success criteria below are the ones the product
+commits to by number, and each names what proves it. Where a criterion is met by a rule above, the
+rule is the proof; where it needs a walk, the walk is evidence in `docs/evidence/`.
+
+| Criterion | What the product commits to | Proved by |
+|---|---|---|
+| 1.1.1 Non-text content | Every `Icon` carries a name or is marked decorative; an image a person uploads carries the description they gave it | The `Icon` contract (ADR-0041); the workbench story of every component that draws one |
+| 1.3.1 Info and relationships | Structure is markup: headings, lists, tables, labels bound to controls, `VisuallyHidden` where a name is not on screen | The workbench's tab-order walk; a screen-reader pass at `F5` |
+| 1.4.1 Use of colour | Colour never stands alone — rule 3 | Rule 3, reviewed per story |
+| 1.4.3 / 1.4.11 Contrast | Text 4.5:1, controls and the focus ring 3:1, in both modes, against every surface | `test/contrast.test.js` on every `pnpm test` (§1) |
+| 1.4.4 Resize text | 200 % through page zoom without loss, the trade §3 records | The workbench's zoom axis |
+| 1.4.10 Reflow | 320 CSS px without horizontal scrolling for content that does not require it | The workbench's five breakpoints |
+| 1.4.12 Text spacing | Nothing breaks when spacing is widened | Checked in the screen-reader pass with the text-spacing bookmarklet |
+| 2.1.1 / 2.1.2 Keyboard | Everything operable by keyboard, no trap; `Dialog` traps focus and returns it | Rule 5; the tab-order walk; `layers.ts` (§6) |
+| 2.4.3 Focus order | The order of the DOM is the order that makes sense | The tab-order walk |
+| 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6) |
+| 2.5.7 Dragging movements | Every drag has a keyboard or button alternative — ordering by drag and drop is also ordering by a menu | `F2`'s ordering surfaces; walked at `F5` |
+| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§9) and its token test |
+| 2.3.3 Animation from interactions | Reduced motion honoured from the media query and from the product's own preference | Rule 6; `[data-motion="reduced"]` (ADR-0037) |
+| 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry rendered in another language (`content_language`) | `i18n-l10n.md` §6, lines 1 and 9 |
+| 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | Reviewed per story |
+| 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and says what would be accepted — the problem document's `fields[]`, rendered from codes | `F1-07`'s problem-details rendering |
+| 3.3.7 Redundant entry | Nothing asks twice for what it already has in the same flow | Reviewed per flow at `F5` |
+| 3.3.8 Accessible authentication | No cognitive test at sign-in; the TOTP code may be pasted | The sign-in and step-up surfaces (`F4`) |
+| 4.1.2 Name, role, value | Every control has a name, a role and a state the accessibility tree exposes — native elements first, ARIA only where nothing native exists | The workbench's tab-order walk; the screen-reader pass |
+| 4.1.3 Status messages | A change that is not focused is announced — `HealthBanner`, a save, a sync status — through a live region | The components named; walked at `F5` |
+
+**Two walks, filed as evidence.** A screen-reader pass with VoiceOver (macOS and iOS), NVDA
+(Windows) and Orca (GNOME), through every route in the capability manifest, filed as
+`docs/evidence/A11Y-<date>.md` in the shape of the resilience evidence; and the keyboard walk the
+workbench's tab-order axis makes per component, done once per route as a whole. Both at `F5`, both
+repeated before `1.0.0`.
+
+**The accessibility statement.** What the European Accessibility Act expects of a product made
+available in the EU after 28 June 2025: a public statement naming the standard (EN 301 549, which
+carries WCAG 2.2 AA for web content), the conformance status, the known exceptions with their
+reasons and dates, a way to report a barrier, and the date of the last assessment. It is published
+on the website at convergence (`roadmap.md` phase 5, the 1.0 site) and reachable from the app's
+own footer, unversioned like the site, and it is updated whenever an assessment is — a statement
+that describes a walk two releases ago is a statement that is false.
+
+**What is deliberately not promised.** Level AAA anywhere; a sign-language or audio-description
+provision (the product has no video); and a conformance claim for a third-party client, which
+makes its own.

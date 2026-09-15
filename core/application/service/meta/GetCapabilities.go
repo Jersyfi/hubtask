@@ -8,6 +8,7 @@ import (
 	"context"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
@@ -19,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -78,6 +80,12 @@ type Capabilities struct {
 	// named here and removed by nothing, which is a different fact from a kind that does not exist,
 	// and the two are refused with different codes.
 	RetentionDataKinds []lifecycle.Kind
+	// SupportedLocales are the locales this installation has a catalogue for, with the metadata
+	// a client needs before it has rendered anything (M-05, i18n-l10n.md §2, §6). Derived from
+	// the catalogue files present - the embedded ones and an operator's directory - which is what
+	// makes a new language a file rather than a release (arc42 QS-08). The account's language
+	// picker is this list.
+	SupportedLocales []i18n.LocaleInfo
 	// TextLanguages are the languages this installation can index the text of, as BCP 47 tags
 	// (C-08, ADR-0034).
 	//
@@ -156,11 +164,21 @@ type AiProviders interface {
 type GetCapabilities struct {
 	Profiles  repository.CapabilityProfiles
 	Languages repository.TextLanguages
+	// Locales answers the catalogues present (M-05). Optional for the reason Semantic and
+	// Ordering are: a build wired without it answers the source language alone, which is the
+	// honest reading of "nothing here says otherwise" and what every installation before this
+	// milestone was.
+	Locales i18n.Locales
 	// Semantic answers whether this installation can search by meaning (J-09, ADR-0050). Optional:
 	// a build wired without it answers `false`, which is the honest reading of "nothing here says
 	// otherwise" and the safe direction - a client offers one control fewer rather than one that
 	// will always refuse.
 	Semantic repository.SemanticSearch
+	// Ordering answers whether names sort under the ICU root collation here (M-08). Optional,
+	// like Semantic and for the same reason: a build wired without it answers `false`, which is
+	// the honest reading of "nothing here says otherwise" - names still sort, in the database's
+	// own order.
+	Ordering repository.NaturalOrdering
 	// Providers answers what the caller's workspace can ask a model to do (issue 502). Optional,
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise".
@@ -192,6 +210,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		profiles  []work.CapabilityProfile
 		languages []string
 		semantic  bool
+		ordering  bool
 	)
 	err := g.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		var err error
@@ -203,6 +222,11 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		// a client reads before it has signed in.
 		if languages, err = g.Languages.List(ctx); err != nil {
 			return err
+		}
+		if g.Ordering != nil {
+			if ordering, err = g.Ordering.Available(ctx); err != nil {
+				return err
+			}
 		}
 		if g.Semantic == nil {
 			return nil
@@ -223,6 +247,14 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 	// Only for an authenticated caller, because a provider is configured per workspace and an
 	// anonymous one has no workspace to ask about. `false` is then not merely the safe direction
 	// but the accurate answer: an anonymous caller can run no search and ask for no suggestion.
+	// The catalogues present, read once at start and answered as they are: a file in a directory
+	// is the whole of "enabling the locale" (QS-08), and a source-language-only default where
+	// nothing is wired.
+	supportedLocales := []i18n.LocaleInfo{{Tag: "en", Direction: "ltr", WeekStart: "SUNDAY", DecimalSeparator: "."}}
+	if g.Locales != nil {
+		supportedLocales = g.Locales.SupportedLocales()
+	}
+
 	var ai aiprovider.ProviderCapabilities
 	if g.Providers != nil && actor.IsAuthenticated() {
 		provider, err := g.Providers.For(ctx, actor)
@@ -244,6 +276,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		AutomationActions:      g.Actions,
 		RetentionDataKinds:     lifecycle.Catalogue(),
 		TextLanguages:          languages,
+		SupportedLocales:       supportedLocales,
 		NotificationCategories: notificationCategories(),
 		NotificationChannels:   notificationChannels(),
 		TokenScopes:            g.Scopes,
@@ -307,7 +340,20 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			//
 			// An installation missing either searches lexically, which is complete - so this is a
 			// manifest entry and not a warning.
-			"semantic_search": semantic && ai.Embedding,
+			//
+			// And not for a model this process knows the index cannot hold (#569, ADR-0054): the
+			// pass refused it and the search is lexical for as long as it stays configured, so a
+			// control that offered meaning would offer what the product cannot do. Zero is "not
+			// known yet", which is not the same as "fits", and is answered as it always was.
+			"semantic_search": semantic && ai.Embedding &&
+				ai.EmbeddingDimensions <= workrepo.EmbeddingWidth,
+			// Whether names sort under the ICU root collation, the same on every installation
+			// (M-08, i18n-l10n.md §5). Read from pg_collation rather than assumed, because
+			// migration 0080 falls back to the database's own locale where PostgreSQL has no
+			// ICU - names still sort then, so this is a manifest entry and not a warning, and a
+			// client sorting a list itself with Intl.Collator reads here whether the server
+			// already did.
+			"natural_ordering": ordering,
 		},
 	}, nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -63,6 +64,9 @@ type InviteAccount struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Domains brings the address's domain to its ASCII form before it is stored or compared, so
+	// that two spellings of one mailbox are one row (i18n-l10n.md §7, M-10).
+	Domains text.DomainEncoder
 }
 
 // Execute invites the account and returns it.
@@ -81,7 +85,7 @@ func (h InviteAccount) Execute(
 		return domain.Account{}, err
 	}
 
-	invited, err := domain.Invite(h.IDs.NewID(), actor.TenantID, cmd.Email, cmd.DisplayName)
+	invited, err := domain.Invite(h.IDs.NewID(), actor.TenantID, cmd.Email, cmd.DisplayName, h.Domains)
 	if err != nil {
 		return domain.Account{}, err
 	}

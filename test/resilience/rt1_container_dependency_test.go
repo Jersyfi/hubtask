@@ -292,7 +292,7 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 	registry := healthadapter.NewRegistry("test", []string{"api"})
 	registry.Register(storageadapter.NewProbe(storageBreaker))
 	registry.Register(mailadapter.NewProbe(mailBreaker, true))
-	registry.Register(aiadapter.NewProbe(aiBreakers))
+	registry.Register(aiadapter.NewProbe(aiBreakers, nil, 1536, clockport.Fixed(time.Now())))
 	registry.SetSignals(metrics)
 	registry.MarkStarted()
 

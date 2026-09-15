@@ -75,3 +75,30 @@ func TestSearchPagingTravelsInThePageObject(t *testing.T) {
 		t.Errorf("the body %q does not carry the page", stub.body)
 	}
 }
+
+// The one verb the group has beside searching (M-09): `hubctl search reindex` asks for the
+// workspace's search documents to be brought current and prints the job and the count. The word
+// on its own is the verb; with any other word it is words again.
+func TestSearchReindexAsksAndPrintsTheJob(t *testing.T) {
+	stub := serveJSON(t, http.StatusAccepted,
+		`{"job_id":"0192f000-0000-7000-8000-0000000000c1","stale":42}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "search", "reindex")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if want := APIPath + searchReindexPath; stub.request.URL.Path != want {
+		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+	}
+	if !strings.Contains(out, "42") || !strings.Contains(out, "0192f000-0000-7000-8000-0000000000c1") {
+		t.Errorf("the answer was not shown: %q", out)
+	}
+
+	search := serveJSON(t, http.StatusOK, `{"data":[],"page":{"has_more":false,"next_cursor":null}}`)
+	if code, _, errOut := invokeAgainst(t, search, signedIn(search), "", "search", "reindex", "now"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if search.request.URL.Path != APIPath+searchPath || !strings.Contains(search.body, `"q":"reindex now"`) {
+		t.Errorf("two words did not search: %s %s", search.request.URL.Path, search.body)
+	}
+}

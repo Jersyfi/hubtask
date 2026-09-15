@@ -4,9 +4,11 @@
 package i18n
 
 import (
+	"errors"
 	"regexp"
-	"strings"
 	"testing"
+
+	"golang.org/x/text/language"
 )
 
 func TestTheSourceCatalogueLoads(t *testing.T) {
@@ -26,33 +28,32 @@ func TestTheSourceCatalogueLoads(t *testing.T) {
 	}
 }
 
-// The renderer implements the simple-argument subset of ICU MessageFormat. This is what keeps
-// that honest: the day a message needs a plural or a select, this test fails and whoever adds it
-// has to teach the renderer rather than watch it print braces at a user.
-func TestTheSourceCatalogueStaysWithinTheSubset(t *testing.T) {
-	catalogue, err := LoadEnglish()
+// Every message in every embedded catalogue is inside the subset the renderer implements - the
+// same subset the client implements, so a construct outside it refuses the file when the
+// catalogue is loaded rather than printing braces at a recipient (i18n-l10n.md §3, M-02). The
+// refusal is heard here, at build time; an operator's file meets it at start.
+func TestEveryEmbeddedCatalogueLoadsAndIsWithinTheSubset(t *testing.T) {
+	catalogues, err := LoadEmbedded()
 	if err != nil {
-		t.Fatalf("loading the source catalogue: %v", err)
+		t.Fatalf("a catalogue the binary carries does not load: %v", err)
 	}
+	if len(catalogues) < 2 {
+		t.Fatalf("%d catalogues embedded, want the source and German at least", len(catalogues))
+	}
+}
 
-	// A simple argument is `{name}` and nothing else - no comma, no nested brace, no format style.
-	simpleArgument := regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	for code, message := range catalogue.messages {
-		rest := message
-		for {
-			_, after, found := strings.Cut(rest, "{")
-			if !found {
-				break
-			}
-			name, tail, closed := strings.Cut(after, "}")
-			if !closed {
-				t.Errorf("%s: an unterminated { in %q", code, message)
-				break
-			}
-			if !simpleArgument.MatchString(name) {
-				t.Errorf("%s: %q is not a simple argument - the renderer would print it as text", code, "{"+name+"}")
-			}
-			rest = tail
+func TestAMessageOutsideTheSubsetRefusesTheCatalogue(t *testing.T) {
+	for _, message := range []string{
+		`{"a.date": "Due {at, date, short}"}`,
+		`{"a.number": "{n, number} entries"}`,
+		`{"a.open": "An open {brace"}`,
+		`{"a.stray": "a } stray"}`,
+		`{"a.plural": "{n, plural, one{# item}}"}`,
+	} {
+		_, err := load([]byte(message), language.English)
+		var syntaxErr *MessageSyntaxError
+		if !errors.As(err, &syntaxErr) {
+			t.Errorf("%s: loaded, want a refusal naming the construct (got %v)", message, err)
 		}
 	}
 }
@@ -68,22 +69,25 @@ func TestTheSourceCatalogueDoesNotHedgePlurals(t *testing.T) {
 	}
 	hedge := regexp.MustCompile(`[a-z]\(s\)`)
 	for code, message := range catalogue.messages {
-		if hedge.MatchString(message) {
-			t.Errorf("%s hedges a plural with \"(s)\": %q - put the count last, after a colon", code, message)
+		if hedge.MatchString(message.pattern) {
+			t.Errorf("%s hedges a plural with \"(s)\": %q - put the count last, after a colon", code, message.pattern)
 		}
 	}
 }
 
 func TestMessageRendering(t *testing.T) {
-	catalogue := Catalogue{messages: map[string]string{
+	catalogue, err := load([]byte(`{
 		"a.plain":     "Nothing to fill in.",
 		"a.one":       "The variable {variable} is not set.",
 		"a.two":       "{variable} must be at least {minimum} characters long.",
 		"a.repeated":  "{value} and {value} again.",
-		"a.unclosed":  "An open {brace",
 		"a.adjacent":  "{first}{second}",
 		"a.untouched": "A literal {variable} with no parameters.",
-	}}
+		"a.plural":    "{count, plural, one{# entry} other{# entries}}"
+	}`), language.English)
+	if err != nil {
+		t.Fatalf("loading: %v", err)
+	}
 
 	for _, tc := range []struct {
 		name   string
@@ -102,7 +106,7 @@ func TestMessageRendering(t *testing.T) {
 			"The variable K is not set.", true},
 		{"a placeholder with no parameter", "a.two", map[string]string{"variable": "KEY"},
 			"KEY must be at least {minimum} characters long.", true},
-		{"an unterminated brace", "a.unclosed", map[string]string{"brace": "x"}, "An open {brace", true},
+		{"a plural", "a.plural", map[string]string{"count": "3"}, "3 entries", true},
 		{"adjacent placeholders", "a.adjacent", map[string]string{"first": "1", "second": "2"}, "12", true},
 		{"no parameters at all", "a.untouched", nil, "A literal {variable} with no parameters.", true},
 		{"an unknown code renders as itself", "a.missing", nil, "a.missing", false},
@@ -120,7 +124,7 @@ func TestMessageRendering(t *testing.T) {
 }
 
 func TestABrokenCatalogueIsAnError(t *testing.T) {
-	if _, err := load([]byte(`{"a.code": 7}`)); err == nil {
+	if _, err := load([]byte(`{"a.code": 7}`), language.English); err == nil {
 		t.Error("a catalogue whose values are not strings loaded without complaint")
 	}
 }

@@ -32,15 +32,37 @@ func TestTheRendererSubstitutesInTheAskedForLocale(t *testing.T) {
 	}
 }
 
-// The fallback chain of i18n-l10n.md §2, walked down to the source language. One catalogue exists
-// today, so every one of these lands on English - what is proved is that none of them fails.
+// The fallback chain of i18n-l10n.md §2, walked down to the source language: a locale with no
+// catalogue, and a locale whose catalogue lacks the key, both land on English - and none fails.
 func TestEveryLocaleResolvesToSomething(t *testing.T) {
-	english := renderer(t).Render("en", "notifications.no_address", nil)
+	const code = "notifications.no_address" // outside the families de.json translates
+	english := renderer(t).Render("en", code, nil)
 
 	for _, locale := range []string{"de-AT", "de", "pt-BR", "zh-Hans", "", "  ", "nonsense"} {
-		if got := renderer(t).Render(locale, "notifications.no_address", nil); got != english {
+		if got := renderer(t).Render(locale, code, nil); got != english {
 			t.Errorf("%q rendered %q, want the source language %q", locale, got, english)
 		}
+	}
+}
+
+// The second catalogue, as the server uses it: a German workspace is seeded with German
+// structure and its people are written to in German (M-01), with de-AT falling to de.
+func TestGermanRendersWhatTheServerRenders(t *testing.T) {
+	for _, tc := range []struct{ locale, code, want string }{
+		{"de", "seed.bucket.todo", "Zu erledigen"},
+		{"de-AT", "seed.bucket.doing", "In Arbeit"},
+		{"de-CH", "seed.bucket.done", "Erledigt"},
+		{"de", "email.invitation.subject", "Du wurdest zu Hubtask eingeladen"},
+		{"de", "errors.forbidden", "Dazu fehlt dir die Berechtigung."},
+	} {
+		if got := renderer(t).Render(tc.locale, tc.code, nil); got != tc.want {
+			t.Errorf("%s %s rendered %q, want %q", tc.locale, tc.code, got, tc.want)
+		}
+	}
+
+	rendered := renderer(t).Render("de", "email.reminder.subject", map[string]string{"title": "Angebot prüfen"})
+	if rendered != "Erinnerung: „Angebot prüfen“" {
+		t.Errorf("the parameter did not reach the German sentence: %q", rendered)
 	}
 }
 

@@ -48,6 +48,8 @@ type Resolver struct {
 	Meter      Meter
 	// Breakers hands out one breaker per endpoint. Never nil in production.
 	Breakers *BreakerPool
+	// Widths remembers what this process learned about models' widths (#569). Nil learns nothing.
+	Widths *WidthPool
 }
 
 // For answers the provider of the actor's workspace.
@@ -106,6 +108,7 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 			BaseURL: configured.BaseURL, APIKey: key,
 			CompletionModel: configured.CompletionModel,
 			EmbeddingModel:  configured.EmbeddingModel,
+			Widths:          r.Widths,
 		}, nil
 	case domain.AiOllama:
 		// No key: a local endpoint is reached over the installation's own network and Ollama has
@@ -117,6 +120,7 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 			BaseURL:         configured.BaseURL,
 			CompletionModel: configured.CompletionModel,
 			EmbeddingModel:  configured.EmbeddingModel,
+			Widths:          r.Widths,
 		}, nil
 	default:
 		// A kind the domain accepted and this build has no adapter for. Unreachable while the

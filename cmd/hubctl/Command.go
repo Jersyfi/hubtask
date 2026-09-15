@@ -18,6 +18,7 @@ import (
 	openapitypes "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 )
 
@@ -181,11 +182,11 @@ func Run(ctx context.Context, args []string, streams Streams, env func(string) s
 // catalogue and the profile are cheap and always needed; the client is built by the commands that
 // make a call, because `hubctl auth logout` should not need an address.
 func prepare(cli *CLI, flagURL string) error {
-	catalogue, err := i18n.LoadEnglish()
+	renderer, err := i18n.NewRendererFromConfig(env.LocaleConfig{Directory: cli.Env(envLocaleDir)})
 	if err != nil {
 		return err
 	}
-	cli.Catalogue = catalogue
+	cli.Catalogue = renderer.For(shellLocale(cli.Env))
 
 	path, err := ProfilePath(cli.Env)
 	if err != nil {
@@ -282,6 +283,8 @@ Environment:
   HUBTASK_STEP_UP    a proof from 'hubctl step-up', for a command that cannot mint one
   HUBTASK_TENANT     the workspace, where an installation runs more than one
   HUBTASK_PROFILE    where the profile is stored
+  HUBTASK_LOCALE     the language hubctl speaks, as a BCP 47 tag; otherwise LC_ALL, LC_MESSAGES, LANG
+  HUBTASK_LOCALE_DIR a directory of catalogues laid over the built-in ones, as on the server
 
 Commands:
 `)
@@ -415,3 +418,28 @@ func (cli *CLI) parseIDs(what, raw string) ([]openapitypes.UUID, error) {
 // errorString is errors.New under a name that says what it is for: a sentence that has already
 // been rendered from the catalogue and only needs to become an error.
 func errorString(message string) error { return errors.New(message) }
+
+// shellLocale is the language the person running the CLI reads, resolved the way every other
+// piece of the environment is: HUBTASK_LOCALE, then the POSIX variables in their own order of
+// precedence, then nothing - and nothing is the source language.
+//
+// A POSIX locale is `de_AT.UTF-8` or `de_AT@euro`; the tag is what stands before the dot or the
+// at-sign, with its underscore made a hyphen. `C` and `POSIX` name no language and answer nothing.
+func shellLocale(getenv func(string) string) string {
+	if tag := strings.TrimSpace(getenv(envLocale)); tag != "" {
+		return tag
+	}
+	for _, variable := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
+		value := strings.TrimSpace(getenv(variable))
+		if value == "" {
+			continue
+		}
+		value, _, _ = strings.Cut(value, ".")
+		value, _, _ = strings.Cut(value, "@")
+		if value == "C" || value == "POSIX" {
+			return ""
+		}
+		return strings.ReplaceAll(value, "_", "-")
+	}
+	return ""
+}

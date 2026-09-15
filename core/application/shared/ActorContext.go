@@ -74,6 +74,11 @@ type ActorContext struct {
 	// TimeZone is an IANA name. Every relative date in a query and every reminder is computed in
 	// it, so it travels with the actor rather than being looked up per use case.
 	TimeZone string
+	// WeekStart is `MONDAY`, `SUNDAY` or `SATURDAY`: the account's own preference where it set
+	// one, otherwise the day the week starts where its locale is spoken (i18n-l10n.md §4, M-06).
+	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
+	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
+	WeekStart string
 }
 
 // Anonymous is the actor of a request that carried no credential. It has a locale, because an
