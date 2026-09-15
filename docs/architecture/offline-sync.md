@@ -134,6 +134,16 @@ repeating them would let a stale value win a merge it should never have entered.
 `search_configuration`: the trigger builds them from the fields that did merge, and a device never
 sends either.
 
+**How the server decides.** The reading each field was last written under is kept in `field_clock`,
+stamped in the same transaction as the entry that names the field - a server reading for a write
+over the API, the device's for a write a push applied. A push compares each field's reading against
+that row: the later one wins, a tie is broken by the device identifier the way `HLC.Compare`
+breaks it, and a winning field is applied through the use case that owns it, as the pushing person,
+under the device's reading - so the clock the next device compares against is the clock that
+decided. A field with no row has never been written since the clocks exist and loses to any
+reading: last writer wins over a value nobody stamped, which is the honest answer for a reading the
+log kept only partially, and the rows are not backfilled.
+
 That is also why the write side distinguishes an absent field from an empty one all the way down
 from the merge patch that expressed it (`api-guidelines.md` §"Partial updates"): "leave the notes
 alone" must not reach the log as "set the notes to nothing".
@@ -276,6 +286,7 @@ A conformance test (`hubctl sync-conformance`) checks these points against a run
 | `op_log` | Processed `op_id`s for idempotency (30 days) |
 | `position` | The fractional index per item per context (bucket, view) |
 | `set_element` | OR-set tags for labels, members and attachments |
+| `field_clock` | The server's clock per field: the reading of the write that last landed on each field, stamped beside every change log entry that names a field, which a push's reading is compared against (N-05). Not backfilled: a field written before the table existed has no row and loses to the first device that writes it |
 | Sync service | `core/application/service/SyncService.go`: pull, push, merge rules, conflict log |
 
 The change log is deliberately not the event outbox: the outbox carries business integration events
