@@ -80,6 +80,10 @@ func DefaultPolicies() []Policy {
 		// lower bound for the session's reason: a device forgotten sooner is a device that has to
 		// sign in again, which ends nothing a person cannot repeat.
 		{DataKind: KindDevice, RetainDays: 30},
+		// The synchronisation's records (N-09). Ninety days, the offline window, and the window
+		// is the lower bound too: kept shorter, a device that was offline would recreate what
+		// was deleted and a first push that half-succeeded would apply twice (offline-sync.md §7).
+		{DataKind: KindSyncLog, RetainDays: 90, MinDays: 90},
 	}
 }
 

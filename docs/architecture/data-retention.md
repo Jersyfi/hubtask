@@ -76,6 +76,7 @@ turning out to be relevant after all.
 | `OUTBOX_EVENT` | `occurred_at` | 7 days | Dispatched events (ADR-0007). A row nobody has consumed yet is never due, whatever the period says. It is also the window a polling trigger may reach back into: a cursor older than this period is refused rather than restarted, because the events it names are gone (automation.md §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | |
 | `DEVICE` | `last_seen_at` | 30 days | The devices that synchronise (N-03). A device silent past the period loses its sign-in - the session it last synchronised under is revoked before the row goes ([offline-sync.md](./offline-sync.md) §6) - and a device its owner forgot ages out the same way. No marking phase, the session's reason |
+| `SYNC_LOG` | `occurred_at` | 90 days, the offline window | The synchronisation's own records (N-09): the change log, the operation log and the tombstones, on one clock - `HUBTASK_TOMBSTONE_WINDOW`, the window the stream refuses cursors past and the purge writes tombstones with. The window is the lower bound as well as the default, because kept shorter the log would let a device that was offline recreate what was deleted, the operation log would let a first push that half-succeeded apply twice, and the tombstone would not be there to say so ([offline-sync.md](./offline-sync.md) §7); a tenant may keep the records longer, never shorter. The change log's months fall as partitions (H-09's duty, the window as the floor), the other two through the tenant's sweep; no marking phase, the device's reason |
 | `AUDIT` | `occurred_at` | 400 days | Special case: pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
 | `MEDIA_ORPHAN` | `created_at` | 7 days | Unreferenced objects |
 | `DELETED_ACCOUNT_RESIDUE` | `deleted_at` | 30 days | Residual data after account deletion |
@@ -170,7 +171,7 @@ collection alone. Somebody who qualifies twice is told once.
 | RE-3 | Lower bounds cannot be undercut, upper bounds enforce a `justification` |
 | RE-4 | Grace period: a marked object can be taken out and is then not deleted |
 | RE-5 | A hard delete leaves no orphans in media, the search index, vectors, or counters |
-| RE-6 | The minimum tombstone period is observed; a device offline for 60 days does not resurrect a deleted object |
+| RE-6 | The minimum tombstone period is observed; a device offline for 60 days does not resurrect a deleted object — SY-5 of [offline-sync.md](./offline-sync.md) §11 is the same test: the full synchronisation does not bring the deleted entry back, a push naming it is `sync.gone`, and a cursor past the window is `cursor_too_old` |
 | RE-7 | The first activation of a broadly matching rule warns rather than deletes |
 | RE-8 | Cross-tenant: one tenant's rule never affects another tenant's objects |
 | RE-9 | A chained rule (completed → archive → deletion) passes correctly through every stage |
