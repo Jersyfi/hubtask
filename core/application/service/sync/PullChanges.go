@@ -107,6 +107,9 @@ type PullChanges struct {
 	// Devices registers the device on its first contact and records every one after (N-03).
 	// Nil registers nothing, which is a test's convenience and not an installation's.
 	Devices repository.Devices
+	// Snapshot reads the current state for an initial synchronisation (N-02). Nil means this
+	// installation does not serve one, and a device with no cursor is told so.
+	Snapshot repository.Snapshot
 }
 
 // Pull answers one page.
@@ -127,13 +130,7 @@ func (p PullChanges) Pull(
 		return Page{}, err
 	}
 
-	if request.Cursor == "" {
-		// The initial synchronisation is N-02's. Refused rather than answered with an empty page
-		// and a fresh cursor: that page would be a client believing it is current when it holds
-		// nothing, which is the one state a synchronisation must never leave a device in.
-		return Page{}, shared.ErrUnavailable.WithDetail("sync.initial_sync_unavailable")
-	}
-	from, err := p.Stream.Resume(ctx, actor, request.Cursor)
+	from, err := p.resume(ctx, actor, request.Cursor)
 	if err != nil {
 		return Page{}, err
 	}
@@ -141,7 +138,12 @@ func (p PullChanges) Pull(
 		return Page{}, err
 	}
 
-	batch, err := p.Stream.page(ctx, actor, from, limit, keep)
+	var batch Batch
+	if from.Walking() {
+		batch, err = p.walk(ctx, actor, from, limit, keep)
+	} else {
+		batch, err = p.Stream.page(ctx, actor, from, limit, keep)
+	}
 	if err != nil {
 		return Page{}, err
 	}
@@ -176,6 +178,33 @@ func (p PullChanges) touch(
 		_, err := p.Devices.Touch(ctx, contact)
 		return err
 	})
+}
+
+// resume decides where a pull starts: a fresh walk for a device with no cursor, or wherever the
+// cursor says - in the log, or in the middle of a walk.
+func (p PullChanges) resume(
+	ctx context.Context, actor appshared.ActorContext, cursor string,
+) (Position, error) {
+	if err := actor.RequireScope(streamScope); err != nil {
+		return Position{}, err
+	}
+	if cursor != "" {
+		return p.Stream.decode(cursor)
+	}
+	if p.Snapshot == nil {
+		// Refused rather than answered with an empty page and a fresh cursor: that page would be
+		// a client believing it is current when it holds nothing, which is the one state a
+		// synchronisation must never leave a device in.
+		return Position{}, shared.ErrUnavailable.WithDetail("sync.initial_sync_unavailable")
+	}
+	// The log's position first, then the walk: a change that lands while the walk runs is past
+	// this position and the first delta delivers it. Taken the other way round, a change landing
+	// between the last page and the position would be in neither.
+	latest, err := p.Stream.latest(ctx, actor)
+	if err != nil {
+		return Position{}, err
+	}
+	return Position{Seq: latest, IssuedAt: p.Stream.Clock.Now(), Kind: walkKinds[0]}, nil
 }
 
 // pullLimit settles the page size against the contract's bounds.

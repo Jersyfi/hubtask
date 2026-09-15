@@ -15,6 +15,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // Operation is what happened to an entity from a synchronising client's point of view.
@@ -107,4 +108,58 @@ type Devices interface {
 	Forget(ctx context.Context, id, accountID shared.ID, now time.Time) (syncdomain.Device, bool, error)
 	// Find answers one device of this workspace, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (syncdomain.Device, error)
+}
+
+// Snapshot reads the current state a device starting from nothing is told about, one kind at a
+// time and in pages by identifier (offline-sync.md §3.1, N-02).
+//
+// Tenant-wide rather than per container, because the walk is one sequence with one cursor: a
+// page is "the next batch of this kind after this identifier", and a device that stops halfway
+// resumes at exactly that identifier. Every method reads only what is live - the trash and the
+// deleted are tombstones in the log, not state to hand out - and the permission on each row is
+// the reader's to decide, by the container the row belongs to.
+type Snapshot interface {
+	// Containers pages every live hub and collection, by identifier.
+	Containers(ctx context.Context, after shared.ID, batch int) ([]work.Container, error)
+	// Buckets pages every live column.
+	Buckets(ctx context.Context, after shared.ID, batch int) ([]work.Bucket, error)
+	// Labels pages every live label.
+	Labels(ctx context.Context, after shared.ID, batch int) ([]work.Label, error)
+	// Items pages every live entry - archived ones included, because an archive is an UPSERT
+	// carrying `archived_at` and not a deletion.
+	Items(ctx context.Context, after shared.ID, batch int) ([]work.WorkItem, error)
+	// SetElements pages every tag of every set on every live entry, in the order of the set
+	// element's key: entry, set, element. The key is what a page resumes after.
+	SetElements(ctx context.Context, after SetElementKey, batch int) ([]ItemSetElement, error)
+	// Comments pages every live comment with the collection its entry is in.
+	Comments(ctx context.Context, after shared.ID, batch int) ([]InCollection[work.Comment], error)
+	// Reminders pages every reminder of a live entry with the collection its entry is in.
+	Reminders(ctx context.Context, after shared.ID, batch int) ([]InCollection[work.Reminder], error)
+	// Recurrences pages every recurrence rule of a live entry with the collection its entry is in.
+	Recurrences(ctx context.Context, after shared.ID, batch int) ([]InCollection[work.RecurrenceRule], error)
+	// Templates pages every live template.
+	Templates(ctx context.Context, after shared.ID, batch int) ([]work.Template, error)
+}
+
+// SetElementKey is where a page of set elements resumes: the primary key of the row.
+type SetElementKey struct {
+	ItemID    shared.ID
+	Set       work.SetName
+	ElementID shared.ID
+}
+
+// ItemSetElement is one tag row with what the reader needs beside it: the entry it belongs to and
+// the collection that decides who may see it.
+type ItemSetElement struct {
+	ItemID       shared.ID
+	CollectionID shared.ID
+	Set          work.SetName
+	Element      work.SetElement
+}
+
+// InCollection is a row of a kind that belongs to an entry, with the entry's collection beside it
+// - the container the permission is decided by, joined rather than looked up row by row.
+type InCollection[T any] struct {
+	Value        T
+	CollectionID shared.ID
 }

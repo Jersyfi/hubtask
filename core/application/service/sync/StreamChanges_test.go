@@ -114,27 +114,35 @@ func (a *authorizer) Permits(
 type cursors struct{ err error }
 
 func (c cursors) Encode(position Position) string {
-	return strconv.FormatInt(position.Seq, 10) + "@" +
+	cursor := strconv.FormatInt(position.Seq, 10) + "@" +
 		strconv.FormatInt(position.IssuedAt.Unix(), 10)
+	if position.Walking() {
+		cursor += "@" + position.Kind + "@" + position.After
+	}
+	return cursor
 }
 
 func (c cursors) Decode(cursor string) (Position, error) {
 	if c.err != nil {
 		return Position{}, c.err
 	}
-	seqText, issuedText, found := strings.Cut(cursor, "@")
-	if !found {
+	fields := strings.Split(cursor, "@")
+	if len(fields) != 2 && len(fields) != 4 {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
-	seq, err := strconv.ParseInt(seqText, 10, 64)
+	seq, err := strconv.ParseInt(fields[0], 10, 64)
 	if err != nil {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
-	issued, err := strconv.ParseInt(issuedText, 10, 64)
+	issued, err := strconv.ParseInt(fields[1], 10, 64)
 	if err != nil {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
-	return Position{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC()}, nil
+	position := Position{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC()}
+	if len(fields) == 4 {
+		position.Kind, position.After = fields[2], fields[3]
+	}
+	return position, nil
 }
 
 type unitOfWork struct{ scopes []persistence.Scope }

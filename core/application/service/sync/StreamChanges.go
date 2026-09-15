@@ -46,7 +46,15 @@ type Cursors interface {
 type Position struct {
 	Seq      int64
 	IssuedAt time.Time
+	// Kind and After are where an initial synchronisation stands (N-02): the kind being walked
+	// and the key of the last row handed out. Both empty is a delta position, the only kind the
+	// stream resumes from.
+	Kind  string
+	After string
 }
+
+// Walking reports whether the position is inside an initial synchronisation.
+func (p Position) Walking() bool { return p.Kind != "" }
 
 // Containers is the slice of the container repository this package reads: one lookup, to resolve
 // the permission path of a change. Narrow rather than the whole port, for the reason every slice in
@@ -126,19 +134,30 @@ func (s StreamChanges) Resume(
 	}
 
 	if cursor == "" {
-		var latest int64
-		err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
-			func(ctx context.Context) error {
-				var err error
-				latest, err = s.Changes.Latest(ctx)
-				return err
-			})
+		latest, err := s.latest(ctx, actor)
 		if err != nil {
 			return Position{}, err
 		}
 		return Position{Seq: latest, IssuedAt: s.Clock.Now()}, nil
 	}
 
+	position, err := s.decode(cursor)
+	if err != nil {
+		return Position{}, err
+	}
+	if position.Walking() {
+		// A cursor from the middle of an initial synchronisation names a kind and a key, not a
+		// place in the log. The stream cannot resume it, and the pull that can is where it
+		// belongs; refused as invalid rather than rounded to its log position, because a device
+		// that streamed from it would believe itself complete with half its state missing.
+		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
+	}
+	return position, nil
+}
+
+// decode reads a cursor back and judges its age - the half of Resume the pull shares, which
+// accepts a walk position where the stream does not.
+func (s StreamChanges) decode(cursor string) (Position, error) {
 	position, err := s.Cursors.Decode(cursor)
 	if err != nil {
 		return Position{}, err
@@ -146,12 +165,25 @@ func (s StreamChanges) Resume(
 	if s.Clock.Now().Sub(position.IssuedAt) > s.Window {
 		// The only safe answer. The log keeps the offline window and no longer; a delta across the
 		// gap would silently omit whatever was pruned, and a client applying it would keep objects
-		// that are gone (offline-sync.md §7).
+		// that are gone (offline-sync.md §7). A walk nobody finished inside the window starts
+		// again for the same reason: its log position is as old as its cursor.
 		return Position{}, shared.ErrGone.
 			WithDetail("sync.cursor_too_old").
 			WithParams(map[string]string{"window_days": days(s.Window)})
 	}
 	return position, nil
+}
+
+// latest is where the log stands now, read inside its own transaction.
+func (s StreamChanges) latest(ctx context.Context, actor appshared.ActorContext) (int64, error) {
+	var latest int64
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
+		func(ctx context.Context) error {
+			var err error
+			latest, err = s.Changes.Latest(ctx)
+			return err
+		})
+	return latest, err
 }
 
 // Next reads one round and returns what this actor may see.

@@ -1737,6 +1737,8 @@ func run() error {
 				Stream: changeStream,
 				// Every pull registers or touches the device it comes from (N-03).
 				Devices: postgres.NewDeviceRepository(),
+				// The initial synchronisation reads the current state kind by kind (N-02).
+				Snapshot: postgres.NewSnapshotRepository(),
 			},
 			Signals: metrics,
 		}
@@ -2809,7 +2811,7 @@ type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {
 	return a.codec.Encode(security.StreamPosition{
-		Seq: position.Seq, IssuedAt: position.IssuedAt,
+		Seq: position.Seq, IssuedAt: position.IssuedAt, Kind: position.Kind, After: position.After,
 	})
 }
 
@@ -2818,7 +2820,9 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 	if err != nil {
 		return syncservice.Position{}, err
 	}
-	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
+	return syncservice.Position{
+		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Kind: decoded.Kind, After: decoded.After,
+	}, nil
 }
 
 // dispatchActions and actionScopes bridge the engine to the use case registry (G-07).

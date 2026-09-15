@@ -109,3 +109,38 @@ func flip(cursor string) string {
 	}
 	return string(bytes)
 }
+
+// A walk cursor carries the kind being walked and the key it resumes after, inside the signature
+// (N-02); a delta cursor carries neither, and the two decode to what they were.
+func TestAWalkCursorRoundTripsAndADeltaCursorStaysOne(t *testing.T) {
+	codec := streamCursors()
+
+	walk := security.StreamPosition{
+		Seq: 41, IssuedAt: issued, Kind: "set",
+		After: "0192f000-0000-7000-8000-00000000000a|labels|0192f000-0000-7000-8000-00000000000b",
+	}
+	back, err := codec.Decode(codec.Encode(walk))
+	if err != nil {
+		t.Fatalf("decoding the walk cursor: %v", err)
+	}
+	if back.Seq != 41 || back.Kind != walk.Kind || back.After != walk.After {
+		t.Errorf("the walk came back as %+v", back)
+	}
+
+	// A kind with nothing walked yet - the first page - keeps its empty key.
+	first, err := codec.Decode(codec.Encode(security.StreamPosition{Seq: 41, IssuedAt: issued, Kind: "container"}))
+	if err != nil {
+		t.Fatalf("decoding the first page's cursor: %v", err)
+	}
+	if first.Kind != "container" || first.After != "" {
+		t.Errorf("the first page came back as %+v", first)
+	}
+
+	delta, err := codec.Decode(codec.Encode(security.StreamPosition{Seq: 41, IssuedAt: issued}))
+	if err != nil {
+		t.Fatalf("decoding the delta cursor: %v", err)
+	}
+	if delta.Kind != "" || delta.After != "" {
+		t.Errorf("a delta cursor came back walking: %+v", delta)
+	}
+}
