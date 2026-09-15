@@ -8,8 +8,10 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -598,5 +600,31 @@ func TestALabelAddedTwiceLeavesOneStepInTheHistory(t *testing.T) {
 
 	if step := h.history.only(t); step.Verb != activity.ItemLabelAdded {
 		t.Errorf("the history recorded %s", step.Verb)
+	}
+}
+
+// A push supplies the device's own tag through the context (N-07): the membership, its tag and
+// the change log entry all carry the reading that decided the merge, not a fresh server one.
+func TestAPushesTagIsTheOneTheRowAndTheEntryCarry(t *testing.T) {
+	h := newItemLabelHarness(t)
+	h.withItem(domain.ItemTask)
+	device, err := shared.NewHLC(now.Add(-time.Minute), 7, "dev-a")
+	if err != nil {
+		t.Fatalf("building the tag: %v", err)
+	}
+	ctx := appshared.ContextWithReadings(context.Background(), map[string]shared.HLC{"labels": device})
+
+	if _, err := h.add.Execute(ctx, actor(), labelCmd()); err != nil {
+		t.Fatalf("adding: %v", err)
+	}
+	elements, err := h.itemLabels.Elements(ctx, labelledItem)
+	if err != nil {
+		t.Fatalf("reading the tags: %v", err)
+	}
+	if len(elements) != 1 || elements[0].AddedAt.Compare(device) != 0 {
+		t.Errorf("the row carries %+v, want the device's tag", elements)
+	}
+	if len(h.changes.recorded) != 1 || h.changes.recorded[0].HLC.Compare(device) != 0 {
+		t.Errorf("the change log entry carries %s, want the device's tag", h.changes.recorded[0].HLC)
 	}
 }

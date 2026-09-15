@@ -138,6 +138,8 @@ type PushChanges struct {
 	// Displaced files the version of a free-text field that lost as a comment (§5). Nil files
 	// nothing, and the conflict still carries both values.
 	Displaced DisplacedFiler
+	// Sets is where each set's tags are read for the OR-set merge (N-07).
+	Sets Sets
 	// Skew is how far a device's clock may stand from the server's before its readings are
 	// replaced by server readings (offline-sync.md §4.1). Zero means the contract's five minutes.
 	Skew time.Duration
@@ -375,12 +377,26 @@ func (p PushChanges) purged(ctx context.Context, actor appshared.ActorContext, m
 // patch - before it is applied. A refusal is recorded like any other; an "unavailable" is not,
 // so that a later build applies what this one does not (patchable).
 func (p PushChanges) judge(m Mutation) error {
-	if m.Kind != domain.ItemPatch {
-		return nil
-	}
-	for field := range m.Fields {
-		if err := patchable(field); err != nil {
-			return err
+	switch m.Kind {
+	case domain.ItemPatch:
+		for field := range m.Fields {
+			if err := patchable(field); err != nil {
+				return err
+			}
+		}
+	case domain.SetAdd, domain.SetRemove:
+		if m.Set == string(work.SetWatchers) {
+			// In the contract's enum, and no use case writes a watcher yet: "not yet" rather than
+			// "never", so that a client keeps the mutation for a build that does.
+			return shared.ErrUnavailable.
+				WithDetail("sync.set_unavailable").
+				WithParams(map[string]string{"set": m.Set})
+		}
+		if _, served := p.Sets.owner(work.SetName(m.Set)); !served {
+			return shared.ErrValidation.
+				WithDetail("sync.set_unknown").
+				WithParams(map[string]string{"set": m.Set}).
+				WithFields(shared.FieldError{Path: "/set", Code: "sync.set_unknown"})
 		}
 	}
 	return nil
@@ -388,13 +404,15 @@ func (p PushChanges) judge(m Mutation) error {
 
 // appliers is the table of kinds this build applies. A table in code rather than a name on the
 // mutation, for the suggestion package's reason: a stored use case name would be a stored
-// capability. N-07 adds the two set kinds the contract names beyond these.
+// capability. Every kind the contract names is here.
 func (p PushChanges) appliers() map[domain.MutationKind]applier {
 	return map[domain.MutationKind]applier{
 		domain.ItemCreate: p.create,
 		domain.ItemPatch:  p.patch,
 		domain.ItemDelete: p.trash,
 		domain.Move:       p.move,
+		domain.SetAdd:     p.setChange,
+		domain.SetRemove:  p.setChange,
 		domain.CommentAdd: p.comment,
 	}
 }

@@ -2864,6 +2864,7 @@ func (e SyncMutationKind) Valid() bool {
 
 // Defines values for SyncMutationSet.
 const (
+	SyncMutationSetAttachments SyncMutationSet = "attachments"
 	SyncMutationSetLabels      SyncMutationSet = "labels"
 	SyncMutationSetLessThannil SyncMutationSet = "<nil>"
 	SyncMutationSetMembers     SyncMutationSet = "members"
@@ -2873,6 +2874,8 @@ const (
 // Valid indicates whether the value is a known member of the SyncMutationSet enum.
 func (e SyncMutationSet) Valid() bool {
 	switch e {
+	case SyncMutationSetAttachments:
+		return true
 	case SyncMutationSetLabels:
 		return true
 	case SyncMutationSetLessThannil:
@@ -6366,13 +6369,21 @@ type SyncMutation struct {
 	// OpId The idempotency key
 	OpId    openapi_types.UUID      `json:"op_id"`
 	Payload *map[string]interface{} `json:"payload,omitempty"`
-	Set     *SyncMutationSet        `json:"set,omitempty"`
+
+	// Set Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
+	// device that captured a file offline uploads it once online - the upload needs the
+	// store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+	// is answered `sync.set_unavailable` until a use case writes a watcher.
+	Set *SyncMutationSet `json:"set,omitempty"`
 }
 
 // SyncMutationKind defines model for SyncMutation.Kind.
 type SyncMutationKind string
 
-// SyncMutationSet defines model for SyncMutation.Set.
+// SyncMutationSet Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
+// device that captured a file offline uploads it once online - the upload needs the
+// store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+// is answered `sync.set_unavailable` until a use case writes a watcher.
 type SyncMutationSet string
 
 // SyncMutationResult defines model for SyncMutationResult.
