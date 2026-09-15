@@ -25,6 +25,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -65,6 +66,8 @@ type SetCustomField struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // SetCustomFieldCommand is the input, typed.
@@ -206,7 +209,7 @@ func (h SetCustomField) judge(
 			WithFields(shared.FieldError{Path: "/key", Code: "fields.not_for_this_type"})
 	}
 
-	value, err := definition.ValidateValue(cmd.Value)
+	value, err := definition.ValidateValue(cmd.Value, h.Text)
 	if err != nil {
 		return none, nil, err
 	}

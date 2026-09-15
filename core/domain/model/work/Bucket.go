@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // bucketNameCodes are the codes the bucket's name rule reports with.
@@ -74,6 +75,10 @@ type NewBucketInput struct {
 	WipLimit     *int
 	IsDoneBucket bool
 	ColorToken   string
+
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewBucket builds a bucket and checks its invariants (project-structure.md §3: constructors
@@ -84,7 +89,7 @@ type NewBucketInput struct {
 // `buckets.name_taken` - a check followed by an insert is two statements with a gap between them,
 // and two requests arriving in that gap both pass the check (multi-tenancy.md §2.1).
 func NewBucket(in NewBucketInput) (Bucket, error) {
-	name, err := structureName(in.Name, bucketNameCodes)
+	name, err := structureName(in.Name, bucketNameCodes, in.Text)
 	if err != nil {
 		return Bucket{}, err
 	}
@@ -167,7 +172,7 @@ func (a BucketAttributes) IsEmpty() bool {
 // bucket untouched with no changes at all - the contract Container.Renamed and WorkItem.Updated
 // both keep, and for the same reason: the caller writes nothing, spends no version and announces
 // nothing, which is what makes a repeat harmless rather than merely accepted.
-func (b Bucket) Updated(attributes BucketAttributes) (Bucket, []FieldChange, error) {
+func (b Bucket) Updated(attributes BucketAttributes, form text.Normalizer) (Bucket, []FieldChange, error) {
 	if err := b.EnsureEditable(); err != nil {
 		return Bucket{}, nil, err
 	}
@@ -175,7 +180,7 @@ func (b Bucket) Updated(attributes BucketAttributes) (Bucket, []FieldChange, err
 	var changes []FieldChange
 
 	if attributes.Name != nil {
-		name, err := structureName(*attributes.Name, bucketNameCodes)
+		name, err := structureName(*attributes.Name, bucketNameCodes, form)
 		if err != nil {
 			return Bucket{}, nil, err
 		}

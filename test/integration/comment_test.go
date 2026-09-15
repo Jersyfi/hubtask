@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -126,7 +127,7 @@ func TestAnEditRewritesUnderTheLock(t *testing.T) {
 	task := seedTask(ctx, t, tenantA, authorA, collection)
 	comment := seedComment(ctx, t, tenantA, task, authorA, "Frist", created)
 
-	edited, err := comment.Edited("First", changedAt)
+	edited, err := comment.Edited("First", text.Composing{}, changedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +175,7 @@ func TestTheTombstoneClearsTheText(t *testing.T) {
 	revived, err := work.Comment{
 		ID: comment.ID, TenantID: tenantA, ItemID: task, AuthorID: authorA,
 		Body: "I take it back", CreatedAt: created, Version: stored.Version,
-	}.Edited("I take it back", changedAt.Add(time.Minute))
+	}.Edited("I take it back", text.Composing{}, changedAt.Add(time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +233,7 @@ func TestCommentsAreInvisibleFromAnotherTenant(t *testing.T) {
 	})
 
 	t.Run("set body", func(t *testing.T) {
-		edited, err := comment.Edited("Defaced", changedAt)
+		edited, err := comment.Edited("Defaced", text.Composing{}, changedAt)
 		if err != nil {
 			t.Fatal(err)
 		}

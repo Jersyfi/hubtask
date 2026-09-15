@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -54,6 +55,8 @@ type BucketWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // UpdateBucket changes a column's own fields.
@@ -99,7 +102,7 @@ func (h UpdateBucket) Execute(
 		action:          BucketUpdatedAction,
 		expectedVersion: cmd.ExpectedVersion,
 		apply: func(_ context.Context, bucket domain.Bucket) (domain.Bucket, []domain.FieldChange, error) {
-			return bucket.Updated(cmd.Attributes)
+			return bucket.Updated(cmd.Attributes, h.Writer.Text)
 		},
 		store: repository.Buckets.SetAttributes,
 		announce: func(id shared.ID, bucket domain.Bucket, changes []domain.FieldChange,

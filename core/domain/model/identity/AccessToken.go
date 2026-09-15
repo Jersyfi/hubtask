@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // AccountKind separates a person from a machine. The audit trail records it, because "the token
@@ -98,6 +99,10 @@ type NewAccessTokenInput struct {
 	Scopes    []string
 	ExpiresAt time.Time
 	Now       time.Time
+
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewAccessToken builds the row a mint will store, and refuses anything security.md §5 forbids.
@@ -106,7 +111,10 @@ type NewAccessTokenInput struct {
 // declares is the use case catalogue's, and the domain does not know there is a catalogue - the
 // application layer checks the names against it and this checks their shape (ADR-0001).
 func NewAccessToken(in NewAccessTokenInput) (AccessToken, error) {
-	name := strings.TrimSpace(in.Name)
+	name, err := shared.NFC(strings.TrimSpace(in.Name), in.Text)
+	if err != nil {
+		return AccessToken{}, err
+	}
 	switch {
 	case in.ID.IsZero() || in.TenantID.IsZero() || in.AccountID.IsZero():
 		return AccessToken{}, shared.ErrInternal.WithDetail("access.token_incomplete")

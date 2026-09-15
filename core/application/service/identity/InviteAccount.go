@@ -67,6 +67,8 @@ type InviteAccount struct {
 	// Domains brings the address's domain to its ASCII form before it is stored or compared, so
 	// that two spellings of one mailbox are one row (i18n-l10n.md §7, M-10).
 	Domains text.DomainEncoder
+	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // Execute invites the account and returns it.
@@ -85,7 +87,7 @@ func (h InviteAccount) Execute(
 		return domain.Account{}, err
 	}
 
-	invited, err := domain.Invite(h.IDs.NewID(), actor.TenantID, cmd.Email, cmd.DisplayName, h.Domains)
+	invited, err := domain.Invite(h.IDs.NewID(), actor.TenantID, cmd.Email, cmd.DisplayName, h.Domains, h.Text)
 	if err != nil {
 		return domain.Account{}, err
 	}

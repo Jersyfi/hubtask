@@ -353,6 +353,15 @@ const itemTarget = "item"
 
 func Selftest() access.Request { return access.Request{TargetType: itemTarget} }'
 
+expect_gate_failure "a text constructor built without its normaliser" gate-architecture core/application/service/work \
+'package work
+
+import domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+
+func selftest() (domain.Label, error) {
+	return domain.NewLabel(domain.NewLabelInput{Name: "Selftest", ColorToken: "accent.red"})
+}'
+
 expect_gate_failure "the per-entry matrix read in an adapter" gate-architecture infrastructure \
 'package selftest
 

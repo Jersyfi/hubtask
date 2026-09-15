@@ -67,7 +67,7 @@ func preferenceReader() appshared.ActorContext {
 
 func adminAccount(t *testing.T) domain.Account {
 	t.Helper()
-	account, err := domain.Invite(adminID, tenant, "anna@example.org", "Anna", nil)
+	account, err := domain.Invite(adminID, tenant, "anna@example.org", "Anna", nil, nil)
 	if err != nil {
 		t.Fatalf("preparing the account: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 func offset(t *testing.T, spec string) *time.Duration {
@@ -46,7 +47,7 @@ func draftTemplate(t *testing.T, spec work.TemplateSpec) (work.Template, error) 
 	t.Helper()
 
 	return work.NewTemplate(work.NewTemplateInput{
-		ID: "t1", TenantID: "tenant1", Spec: spec, Now: remindedAt,
+		ID: "t1", TenantID: "tenant1", Spec: spec, Now: remindedAt, Text: text.Composing{},
 	})
 }
 
@@ -150,6 +151,41 @@ func TestATemplateIsCheckedAtItsDefinition(t *testing.T) {
 }
 
 // The bound the backlog set instead of a jobs resource, and the refusal names the number.
+// A template's name, its description and every node's title and notes are stored in normal form C
+// (i18n-l10n.md §5, M-07): the entries an instantiation writes are made from them, and an entry is.
+func TestATemplateIsStoredInNormalFormC(t *testing.T) {
+	spec := moveTemplate(t)
+	spec.Name, spec.Description = "Umzug ins Bu\u0308ro", "Fu\u0308r jeden Umzug"
+	spec.Root.Title, spec.Root.Notes = "Umzug ins Bu\u0308ro", "Schlu\u0308ssel nicht vergessen"
+	spec.Root.Children[0].Title = "Ku\u0308che packen"
+
+	template, err := draftTemplate(t, spec)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if template.Name != "Umzug ins B\u00fcro" || template.Description != "F\u00fcr jeden Umzug" {
+		t.Errorf("stored %q / %q, want both composed", template.Name, template.Description)
+	}
+	if template.Root.Title != "Umzug ins B\u00fcro" || template.Root.Notes != "Schl\u00fcssel nicht vergessen" ||
+		template.Root.Children[0].Title != "K\u00fcche packen" {
+		t.Errorf("the tree was stored as %+v, want every title and note composed", template.Root)
+	}
+
+	renamed := "Umzug ins Bu\u0308ro II"
+	changed, _, err := template.Changed(work.TemplatePatch{Name: &renamed}, text.Composing{}, remindedAt)
+	if err != nil {
+		t.Fatalf("the change was refused: %v", err)
+	}
+	if changed.Name != "Umzug ins B\u00fcro II" {
+		t.Errorf("renamed to %q, want it composed", changed.Name)
+	}
+
+	_, err = work.NewTemplate(work.NewTemplateInput{ID: "t1", TenantID: "tenant1", Spec: spec, Now: remindedAt})
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed template was accepted: %v", err)
+	}
+}
+
 func TestATemplateStaysInsideItsNodeCap(t *testing.T) {
 	spec := moveTemplate(t)
 	for i := 0; i < work.MaxTemplateNodes; i++ {
@@ -244,7 +280,7 @@ func TestChangingATemplateReportsWhatMoved(t *testing.T) {
 	tree := template.Root
 	tree.Children = tree.Children[:1]
 	changed, changes, err := template.Changed(
-		work.TemplatePatch{Name: &renamed, Root: &tree}, remindedAt)
+		work.TemplatePatch{Name: &renamed, Root: &tree}, text.Composing{}, remindedAt)
 	if err != nil {
 		t.Fatalf("the change was refused: %v", err)
 	}
@@ -262,7 +298,7 @@ func TestChangingATemplateReportsWhatMoved(t *testing.T) {
 
 	// A patch that says what is already stored moves nothing.
 	same := changed.Name
-	_, none, err := changed.Changed(work.TemplatePatch{Name: &same}, remindedAt)
+	_, none, err := changed.Changed(work.TemplatePatch{Name: &same}, text.Composing{}, remindedAt)
 	if err != nil {
 		t.Fatalf("the change was refused: %v", err)
 	}
@@ -287,7 +323,7 @@ func TestADeletedTemplateStaysDeleted(t *testing.T) {
 	}
 
 	renamed := "Move house again"
-	if _, _, err := removed.Changed(work.TemplatePatch{Name: &renamed}, remindedAt); err == nil {
+	if _, _, err := removed.Changed(work.TemplatePatch{Name: &renamed}, text.Composing{}, remindedAt); err == nil {
 		t.Fatal("a deleted template was edited")
 	}
 }

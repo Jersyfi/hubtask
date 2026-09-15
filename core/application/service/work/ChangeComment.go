@@ -209,7 +209,7 @@ func (w CommentWriter) applyChange(
 	current domain.Comment, cmd ChangeCommentCommand, want commentChange, now time.Time,
 ) (domain.Comment, error) {
 	if want == editing {
-		return current.Edited(cmd.Body, now)
+		return current.Edited(cmd.Body, w.Text, now)
 	}
 	return current.Removed(now), nil
 }

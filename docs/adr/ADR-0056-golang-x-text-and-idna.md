@@ -83,6 +83,25 @@ the system's ICU version, for four functions.
   as written.
 * A test in `test/architecture` enforces the four-package, two-adapter confinement.
 
+## Amendment — 2026-09-15, "nothing normalises anything" was wrong
+
+The context above says nothing normalised anything. It did: since I-W7 (`0.3.0`) the SQL of the
+inserts has applied `normalize(…, NFC)` to an entry's title, a container's, a bucket's, a label's,
+a template's and a saved view's name and a comment's body, and the query compiler has bound every
+text it compares — the search words, a filter's value — as `normalize($n, NFC)`. That was the
+first choice for the reason the `Work.sql` comment gave: it kept a Unicode library out of the
+domain. It was also incomplete in a way nobody had listed: an entry's *update* did not normalise
+its title, and the notes, the descriptions, a template's nodes, a custom field's options and
+values, display names, group names, reasons and file names were never touched.
+
+The decision stands, and M-07 implements it as written: the constructor of each text kind brings
+the text to the form behind `core/port/text.Normalizer`, so that what the domain answers, the
+change set records and the row holds are one string and the length limit counts the form a
+person sees. The SQL keeps its `normalize()` as the row's own second line for a writer that
+reaches it without a constructor; both produce the standard's form and cannot disagree. What
+changes for this ADR is only its premise: `unicode/norm` enters the tree to move the guarantee,
+not to create it.
+
 ## Notes
 
 Related: [ADR-0036](ADR-0036-oidc-token-verification.md) and [ADR-0042](ADR-0042-nats-client.md)

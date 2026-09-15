@@ -6,6 +6,8 @@ package identity
 import (
 	"sort"
 	"time"
+
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // Workspace is a tenant as the people inside it see it (F4-01).
@@ -58,12 +60,14 @@ type FieldChange struct {
 // A field set to the value it already holds is **not** a change: a client that sends the whole
 // form back would otherwise write an audit entry saying nothing happened, every time. An empty
 // change list is what the caller uses to skip the write altogether.
-func (w Workspace) With(change WorkspaceChange) (Workspace, []FieldChange, error) {
+//
+// The normaliser is for the display name, which is stored in normal form C (M-07).
+func (w Workspace) With(change WorkspaceChange, form text.Normalizer) (Workspace, []FieldChange, error) {
 	changed := w
 	moved := map[string]FieldChange{}
 
 	if change.DisplayName != nil {
-		name, err := ValidDisplayName(*change.DisplayName)
+		name, err := ValidDisplayName(*change.DisplayName, form)
 		if err != nil {
 			return Workspace{}, nil, err
 		}

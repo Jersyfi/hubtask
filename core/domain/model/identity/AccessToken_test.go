@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var now = time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)
@@ -136,6 +137,23 @@ func validMint() NewAccessTokenInput {
 		Scopes:    []string{"items:write", "items:read", "items:read", " "},
 		ExpiresAt: now.Add(30 * 24 * time.Hour),
 		Now:       now,
+	}
+}
+
+// The name is stored in normal form C (i18n-l10n.md §5, M-07), like every label a person types.
+func TestATokenNameIsStoredInNormalFormC(t *testing.T) {
+	in := validMint()
+	in.Name, in.Text = "der na\u0308chtliche Export", text.Composing{}
+	token, err := NewAccessToken(in)
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	if token.Name != "der n\u00e4chtliche Export" {
+		t.Errorf("name = %q, want the composed form", token.Name)
+	}
+	in.Text = nil
+	if _, err := NewAccessToken(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }
 

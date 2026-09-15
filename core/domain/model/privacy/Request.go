@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // Kind is the right that was exercised (data-protection.md §4).
@@ -198,6 +199,10 @@ type NewRequestInput struct {
 	TargetID         shared.ID
 	Notes            string
 	Now              time.Time
+
+	// Text brings the notes to normal form C before they are bounded and stored (i18n-l10n.md §5,
+	// M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewRequest opens a case, and refuses one nobody could answer.
@@ -223,7 +228,7 @@ func NewRequest(in NewRequestInput) (Request, error) {
 	if in.SubjectAccountID.IsZero() && email == "" {
 		return Request{}, invalid(CodeSubjectRequired, "/subject_account_id")
 	}
-	notes, err := bounded(in.Notes, maxNotes, CodeNotesTooLong, "/notes")
+	notes, err := bounded(in.Notes, maxNotes, CodeNotesTooLong, "/notes", in.Text)
 	if err != nil {
 		return Request{}, err
 	}
@@ -305,11 +310,13 @@ func (r Request) Complete(at time.Time, archive string) (Request, error) {
 }
 
 // Reject refuses the request, with the reason that makes it an answer.
-func (r Request) Reject(reason string, by shared.ID, at time.Time) (Request, error) {
+//
+// The normaliser is handed in for the reason NewRequest takes one (M-07).
+func (r Request) Reject(reason string, by shared.ID, form text.Normalizer, at time.Time) (Request, error) {
 	if !r.Status.CanMoveTo(StatusRejected) {
 		return Request{}, transitionRefused(r.Status, StatusRejected)
 	}
-	text, err := bounded(reason, maxReason, CodeReasonTooLong, "/rejection_reason")
+	text, err := bounded(reason, maxReason, CodeReasonTooLong, "/rejection_reason", form)
 	if err != nil {
 		return Request{}, err
 	}

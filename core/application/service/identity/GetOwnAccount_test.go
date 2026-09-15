@@ -78,7 +78,7 @@ func TestTheReadOpensNoWriteTransaction(t *testing.T) {
 // A service account has an account row like anybody else, and the honest answer is that row rather
 // than a refusal a caller has to special-case (the task's own question, answered out loud).
 func TestAServiceAccountGetsTheSameDocument(t *testing.T) {
-	machine, err := domain.NewServiceAccount(serviceID, tenant, "The nightly import")
+	machine, err := domain.NewServiceAccount(serviceID, tenant, "The nightly import", nil)
 	if err != nil {
 		t.Fatalf("preparing the service account: %v", err)
 	}
