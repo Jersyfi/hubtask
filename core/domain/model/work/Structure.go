@@ -34,7 +34,7 @@ type nameCodes struct{ empty, tooLong, malformed string }
 // are the two spellings of "Später" (i18n-l10n.md §5, M-07); a check that disagrees with a person
 // is a bug report waiting.
 func structureName(raw string, codes nameCodes, form text.Normalizer) (string, error) {
-	name, err := shared.NFC(raw, form)
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
 		return "", err
 	}

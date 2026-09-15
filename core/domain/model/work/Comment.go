@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // Comment is one contribution to the discussion beside an entry (domain-model.md §3.5).
@@ -57,11 +58,15 @@ type NewCommentInput struct {
 	Parent *Comment
 	Body   string
 	Now    time.Time
+
+	// Text brings the body to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewComment validates and builds a comment.
 func NewComment(input NewCommentInput) (Comment, error) {
-	body, err := validCommentBody(input.Body)
+	body, err := validCommentBody(input.Body, input.Text)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -118,13 +123,15 @@ func NewComment(input NewCommentInput) (Comment, error) {
 // (offline-sync.md §4.2), and the mechanism that files a displaced version belongs to §5 and to
 // milestone 0.8.5. Editing a deleted comment is refused - the text is gone, and an edit that
 // resurrected it would be an undelete nobody declared.
-func (c Comment) Edited(body string, at time.Time) (Comment, error) {
+//
+// The normaliser is handed in for the reason NewComment takes one (M-07).
+func (c Comment) Edited(body string, form text.Normalizer, at time.Time) (Comment, error) {
 	if c.DeletedAt != nil {
 		return Comment{}, shared.ErrConflict.
 			WithDetail("comments.comment_deleted").
 			WithFields(shared.FieldError{Path: "/body", Code: "comments.comment_deleted"})
 	}
-	valid, err := validCommentBody(body)
+	valid, err := validCommentBody(body, form)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -151,9 +158,14 @@ func (c Comment) Removed(at time.Time) Comment {
 
 // validCommentBody applies the two body rules: not empty once trimmed, and at most
 // MaxCommentBodyLength code points. Newlines are fine - a comment is prose, not a title - and the
-// text is stored as sent apart from Unicode NFC normalisation, which the adapter applies for the
-// reason container names get it: two spellings of the same word must compare equal.
-func validCommentBody(body string) (string, error) {
+// text is stored as sent apart from Unicode normal form C, which it is brought to here for the
+// reason a container's name is (i18n-l10n.md §5, M-07): two spellings of the same word must
+// compare equal, and the length is the length of what a person sees.
+func validCommentBody(raw string, form text.Normalizer) (string, error) {
+	body, err := shared.NFC(raw, form)
+	if err != nil {
+		return "", err
+	}
 	if strings.TrimSpace(body) == "" {
 		return "", shared.ErrValidation.
 			WithDetail("comments.body_required").

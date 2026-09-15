@@ -3,13 +3,11 @@
 
 package shared
 
-import (
-	"strings"
+import "github.com/Jersyfi/hubtask/core/port/text"
 
-	"github.com/Jersyfi/hubtask/core/port/text"
-)
-
-// NFC trims the input and brings it to normal form C through the port (i18n-l10n.md §5, M-07).
+// NFC brings the input to normal form C through the port (i18n-l10n.md §5, M-07), and does
+// nothing else: whether a text is trimmed is each kind's own rule - a title is, a comment is
+// prose and is stored as sent - and this is the one thing every kind shares.
 //
 // Every constructor that stores user text calls this before it bounds and checks the value, so
 // that the length is counted, the uniqueness index compares, and the search document indexes
@@ -23,16 +21,13 @@ import (
 // form than its own, so a caller that never sees anything else loses nothing. The refusal is an
 // internal error and not a validation one: nothing the client sent is wrong.
 func NFC(raw string, form text.Normalizer) (string, error) {
-	trimmed := strings.TrimSpace(raw)
 	if form == nil {
-		if !isASCII(trimmed) {
+		if !isASCII(raw) {
 			return "", ErrInternal.WithDetail("text.normalizer_missing")
 		}
-		return trimmed, nil
+		return raw, nil
 	}
-	// Trimmed again afterwards: composition can only shorten the text and never produces a
-	// space, so the second trim is a no-op today and stays correct if a form ever changed that.
-	return strings.TrimSpace(form.NFC(trimmed)), nil
+	return form.NFC(raw), nil
 }
 
 func isASCII(s string) bool {

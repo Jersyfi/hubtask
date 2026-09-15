@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -60,6 +61,8 @@ type CreateSavedView struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings the name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // CreateSavedViewCommand is the input, typed.
@@ -124,7 +127,7 @@ func (h CreateSavedView) Execute(
 			ScopeType: cmd.ScopeType, ScopeID: scopeID, OwnerID: actor.AccountID,
 			Name: cmd.Name, Layout: cmd.Layout, Query: cmd.Query, Grouping: cmd.Grouping,
 			VisibleFields: cmd.VisibleFields, Sharing: cmd.Sharing,
-			Now: now,
+			Now: now, Text: h.Text,
 		})
 		if err != nil {
 			return err

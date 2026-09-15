@@ -737,7 +737,7 @@ func run() error {
 	// two doors into the same service.
 	savedViewWriter := work.SavedViewWriter{
 		Views: savedViews, Containers: containers, Authorizer: authorizer, Permits: authorizer,
-		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 	}
 
 	// The three feed use cases share one dependency set, and it sits beside the views' because a
@@ -755,7 +755,7 @@ func run() error {
 	customFieldWriter := work.CustomFieldWriter{
 		Fields: customFields, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{},
+		Clock: clockadapter.System{}, Text: forms,
 	}
 
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
@@ -787,7 +787,7 @@ func run() error {
 		Profiles: profiles, Authorizer: authorizer, Moderation: authorizer,
 		Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// The reminder's three writes share one dependency set (work.ReminderWriter): the same reads,
@@ -833,7 +833,7 @@ func run() error {
 		Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
 		Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// The templates' three definition verbs share one dependency set (work.TemplateWriter): the
@@ -981,7 +981,7 @@ func run() error {
 		// four fields and `ConvertJumbleEntry` declares one of them, so without this a jumble
 		// suggestion was produced, stored, listed - and refused by every acceptance (J-16).
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	workspaceWriter := identity.WorkspaceWriter{
@@ -1470,7 +1470,7 @@ func run() error {
 		work.DefineCustomField{
 			Fields: customFields, Containers: containers, Profiles: profiles,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids,
+			Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,
@@ -1481,6 +1481,7 @@ func run() error {
 		work.CreateSavedView{
 			Views: savedViews, Containers: containers, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Text: forms,
 		}.Descriptor(),
 		work.ListSavedViews{
 			Views: savedViews, Containers: containers, Authorizer: authorizer,
@@ -1509,7 +1510,7 @@ func run() error {
 			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
 			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 		}.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 

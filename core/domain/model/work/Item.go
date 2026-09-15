@@ -298,7 +298,7 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		return WorkItem{}, err
 	}
 
-	notes, err := shared.NFC(in.Notes, in.Text)
+	notes, err := shared.NFC(strings.TrimSpace(in.Notes), in.Text)
 	if err != nil {
 		return WorkItem{}, err
 	}
@@ -406,7 +406,7 @@ func checkPlacement(id, parentID shared.ID, path string, depth int) error {
 // and the client renders the one spelling a person sees, not the one a keyboard happened to
 // produce.
 func itemTitle(raw string, form text.Normalizer) (string, error) {
-	title, err := shared.NFC(raw, form)
+	title, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
 		return "", err
 	}
@@ -573,7 +573,7 @@ func (i WorkItem) Updated(
 	}
 
 	if attributes.Notes != nil {
-		notes, err := shared.NFC(*attributes.Notes, form)
+		notes, err := shared.NFC(strings.TrimSpace(*attributes.Notes), form)
 		if err != nil {
 			return WorkItem{}, nil, err
 		}

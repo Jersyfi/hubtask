@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -66,6 +67,8 @@ type DefineCustomField struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // DefineCustomFieldCommand is the input, typed.
@@ -133,7 +136,7 @@ func (h DefineCustomField) Execute(
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID,
 			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options,
-			IsRequired: cmd.IsRequired, AppliesTo: appliesTo, Now: now,
+			IsRequired: cmd.IsRequired, AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
 		if err != nil {
 			return err

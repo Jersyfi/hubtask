@@ -11,13 +11,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-func TestNFCTrimsAndComposesThroughThePort(t *testing.T) {
-	got, err := shared.NFC("  Café  ", text.Composing{})
+func TestNFCComposesThroughThePortAndNothingElse(t *testing.T) {
+	got, err := shared.NFC("  Cafe\u0301  ", text.Composing{})
 	if err != nil {
 		t.Fatalf("normalising: %v", err)
 	}
-	if got != "Café" {
-		t.Errorf("got %q, want the composed form", got)
+	if got != "  Caf\u00e9  " {
+		t.Errorf("got %q, want the composed form with its spaces - trimming is each kind's own rule", got)
 	}
 }
 
@@ -25,12 +25,12 @@ func TestNFCTrimsAndComposesThroughThePort(t *testing.T) {
 // is refused rather than stored as it arrived, and as a defect of the installation rather than of
 // the input - the client typed a perfectly good title.
 func TestWithoutAPortOnlyASCIIPasses(t *testing.T) {
-	got, err := shared.NFC("  Buy milk ", nil)
+	got, err := shared.NFC("Buy milk", nil)
 	if err != nil || got != "Buy milk" {
 		t.Fatalf("ASCII without a port: %q, %v", got, err)
 	}
 
-	_, err = shared.NFC("Café", nil)
+	_, err = shared.NFC("Caf\u00e9", nil)
 	var domainErr *shared.Error
 	if !errors.As(err, &domainErr) || domainErr.Category != shared.CategoryInternal ||
 		domainErr.DetailCode != "text.normalizer_missing" {

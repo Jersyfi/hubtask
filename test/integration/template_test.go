@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -94,7 +95,7 @@ func TestATemplateRoundTripsAsTheTreeItIs(t *testing.T) {
 
 	// The whole document, under the lock.
 	renamed := "Move flat"
-	changed, _, err := stored.Changed(work.TemplatePatch{Name: &renamed}, created.Add(time.Hour))
+	changed, _, err := stored.Changed(work.TemplatePatch{Name: &renamed}, text.Composing{}, created.Add(time.Hour))
 	if err != nil {
 		t.Fatalf("the change was refused: %v", err)
 	}
@@ -275,7 +276,7 @@ func TestTemplatesAreInvisibleFromAnotherTenant(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		renamed := "Stolen"
 		changed, _, err := template.Changed(
-			work.TemplatePatch{Name: &renamed}, created.Add(time.Hour))
+			work.TemplatePatch{Name: &renamed}, text.Composing{}, created.Add(time.Hour))
 		if err != nil {
 			t.Fatal(err)
 		}

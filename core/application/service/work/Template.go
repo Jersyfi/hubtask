@@ -113,6 +113,7 @@ func (h CreateTemplate) Execute(
 			TenantID: actor.TenantID,
 			Spec:     cmd.Spec,
 			Now:      now,
+			Text:     w.Text,
 		})
 		if err != nil {
 			return err

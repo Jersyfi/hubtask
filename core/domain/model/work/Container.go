@@ -150,7 +150,7 @@ func NewContainer(in NewContainerInput) (Container, error) {
 	if err != nil {
 		return Container{}, err
 	}
-	description, err := shared.NFC(in.Description, in.Text)
+	description, err := shared.NFC(strings.TrimSpace(in.Description), in.Text)
 	if err != nil {
 		return Container{}, err
 	}
@@ -204,7 +204,7 @@ func checkParent(containerType ContainerType, parentID shared.ID) error {
 }
 
 func containerName(raw string, form text.Normalizer) (string, error) {
-	name, err := shared.NFC(raw, form)
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
 		return "", err
 	}
@@ -424,7 +424,7 @@ func (c Container) Renamed(
 		wanted := strings.TrimSpace(*field.want)
 		if field.text {
 			var err error
-			if wanted, err = shared.NFC(*field.want, form); err != nil {
+			if wanted, err = shared.NFC(wanted, form); err != nil {
 				return Container{}, nil, err
 			}
 		}

@@ -4,6 +4,7 @@
 package work
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -67,7 +68,7 @@ func NewLabel(in NewLabelInput) (Label, error) {
 	if err != nil {
 		return Label{}, err
 	}
-	description, err := shared.NFC(in.Description, in.Text)
+	description, err := shared.NFC(strings.TrimSpace(in.Description), in.Text)
 	if err != nil {
 		return Label{}, err
 	}
@@ -158,7 +159,7 @@ func (l Label) Updated(attributes LabelAttributes, form text.Normalizer) (Label,
 	}
 
 	if attributes.Description != nil {
-		description, err := shared.NFC(*attributes.Description, form)
+		description, err := shared.NFC(strings.TrimSpace(*attributes.Description), form)
 		if err != nil {
 			return Label{}, nil, err
 		}

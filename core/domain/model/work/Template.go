@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // Template is a tree somebody wrote down once so that it can be stamped out again
@@ -124,6 +125,11 @@ type NewTemplateInput struct {
 	TenantID shared.ID
 	Spec     TemplateSpec
 	Now      time.Time
+
+	// Text brings the name, the description and every node's title and notes to normal form C
+	// before they are bounded and stored (i18n-l10n.md §5, M-07); NewWorkItemInput says why it
+	// is handed in.
+	Text text.Normalizer
 }
 
 // TemplateSpec is what a caller says about a template.
@@ -143,7 +149,7 @@ type TemplateSpec struct {
 // same division D-04 makes with the recurrence library). Everything that is decidable from the
 // document alone is decided here.
 func NewTemplate(input NewTemplateInput) (Template, error) {
-	spec, err := validTemplateSpec(input.Spec)
+	spec, err := validTemplateSpec(input.Spec, input.Text)
 	if err != nil {
 		return Template{}, err
 	}
@@ -182,8 +188,10 @@ func (p TemplatePatch) IsEmpty() bool {
 // a template that changed scope would move out from under the people who could use it, and one
 // whose root type changed would produce a different kind of thing under the same name. Both are a
 // new template - which costs nothing, since defining one is a single call.
+//
+// The normaliser is handed in for the reason NewTemplate takes one (M-07).
 func (t Template) Changed(
-	patch TemplatePatch, at time.Time,
+	patch TemplatePatch, form text.Normalizer, at time.Time,
 ) (Template, []FieldChange, error) {
 	if t.DeletedAt != nil {
 		return Template{}, nil, shared.ErrConflict.
@@ -193,21 +201,21 @@ func (t Template) Changed(
 
 	target := t
 	if patch.Name != nil {
-		name, err := validTemplateName(*patch.Name)
+		name, err := validTemplateName(*patch.Name, form)
 		if err != nil {
 			return Template{}, nil, err
 		}
 		target.Name = name
 	}
 	if patch.Description != nil {
-		description, err := validTemplateDescription(*patch.Description)
+		description, err := validTemplateDescription(*patch.Description, form)
 		if err != nil {
 			return Template{}, nil, err
 		}
 		target.Description = description
 	}
 	if patch.Root != nil {
-		root, err := validTemplateTree(*patch.Root, ItemType(t.RootType))
+		root, err := validTemplateTree(*patch.Root, ItemType(t.RootType), form)
 		if err != nil {
 			return Template{}, nil, err
 		}
@@ -263,7 +271,7 @@ func (n TemplateNode) DueAt(anchor time.Time, zone string) (*DueDate, error) {
 }
 
 // validTemplateSpec is everything decidable without the hierarchy.
-func validTemplateSpec(spec TemplateSpec) (TemplateSpec, error) {
+func validTemplateSpec(spec TemplateSpec, form text.Normalizer) (TemplateSpec, error) {
 	scope := TemplateScope(strings.TrimSpace(spec.Scope))
 	if !scope.Valid() {
 		return spec, templateInvalid("templates.scope_unknown", "/scope_type",
@@ -276,11 +284,11 @@ func validTemplateSpec(spec TemplateSpec) (TemplateSpec, error) {
 		return spec, templateInvalid("templates.scope_id_not_allowed", "/scope_id", nil)
 	}
 
-	name, err := validTemplateName(spec.Name)
+	name, err := validTemplateName(spec.Name, form)
 	if err != nil {
 		return spec, err
 	}
-	description, err := validTemplateDescription(spec.Description)
+	description, err := validTemplateDescription(spec.Description, form)
 	if err != nil {
 		return spec, err
 	}
@@ -290,7 +298,7 @@ func validTemplateSpec(spec TemplateSpec) (TemplateSpec, error) {
 		return spec, templateInvalid("items.type_unknown", "/root_type",
 			map[string]string{"value": string(rootType)})
 	}
-	root, err := validTemplateTree(spec.Root, rootType)
+	root, err := validTemplateTree(spec.Root, rootType, form)
 	if err != nil {
 		return spec, err
 	}
@@ -306,7 +314,7 @@ func validTemplateSpec(spec TemplateSpec) (TemplateSpec, error) {
 // validTemplateTree checks the shape: the root is the type the template declares, every title is
 // one somebody could give an entry, every offset is a duration, and the whole thing stays inside
 // the bound.
-func validTemplateTree(root TemplateNode, rootType ItemType) (TemplateNode, error) {
+func validTemplateTree(root TemplateNode, rootType ItemType, form text.Normalizer) (TemplateNode, error) {
 	if root.Type == "" {
 		root.Type = rootType
 	}
@@ -322,18 +330,21 @@ func validTemplateTree(root TemplateNode, rootType ItemType) (TemplateNode, erro
 				"maximum": strconv.Itoa(MaxTemplateNodes), "count": strconv.Itoa(count),
 			})
 	}
-	return validTemplateNode(root, "/nodes/0")
+	return validTemplateNode(root, "/nodes/0", form)
 }
 
 // validTemplateNode checks one node and everything under it, carrying the path so that a refusal
 // points at the node that caused it rather than at the document.
-func validTemplateNode(node TemplateNode, path string) (TemplateNode, error) {
+func validTemplateNode(node TemplateNode, path string, form text.Normalizer) (TemplateNode, error) {
 	if !node.Type.Valid() {
 		return node, templateInvalid("items.type_unknown", path+"/type",
 			map[string]string{"value": string(node.Type)})
 	}
 
-	title := strings.TrimSpace(node.Title)
+	title, err := shared.NFC(strings.TrimSpace(node.Title), form)
+	if err != nil {
+		return node, err
+	}
 	switch {
 	case title == "":
 		return node, templateInvalid("items.title_empty", path+"/title", nil)
@@ -342,6 +353,11 @@ func validTemplateNode(node TemplateNode, path string) (TemplateNode, error) {
 			map[string]string{"maximum": strconv.Itoa(MaxItemTitleLength)})
 	}
 	node.Title = title
+	// The notes are prose and stored as sent, apart from the form - as an entry's are, since
+	// they become an entry's on instantiation.
+	if node.Notes, err = shared.NFC(node.Notes, form); err != nil {
+		return node, err
+	}
 
 	if node.DueOffset != nil {
 		if *node.DueOffset > MaxTemplateOffset || *node.DueOffset < -MaxTemplateOffset {
@@ -357,7 +373,7 @@ func validTemplateNode(node TemplateNode, path string) (TemplateNode, error) {
 	}
 
 	for index, child := range node.Children {
-		checked, err := validTemplateNode(child, path+"/children/"+strconv.Itoa(index))
+		checked, err := validTemplateNode(child, path+"/children/"+strconv.Itoa(index), form)
 		if err != nil {
 			return node, err
 		}
@@ -434,8 +450,11 @@ func ParseTemplateOffset(spec string) (time.Duration, error) {
 	return offset, nil
 }
 
-func validTemplateName(name string) (string, error) {
-	name = strings.TrimSpace(name)
+func validTemplateName(raw string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	switch {
 	case name == "":
 		return "", templateInvalid("templates.name_required", "/name", nil)
@@ -446,8 +465,11 @@ func validTemplateName(name string) (string, error) {
 	return name, nil
 }
 
-func validTemplateDescription(description string) (string, error) {
-	description = strings.TrimSpace(description)
+func validTemplateDescription(raw string, form text.Normalizer) (string, error) {
+	description, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	if utf8.RuneCountInString(description) > MaxTemplateDescriptionLength {
 		return "", templateInvalid("templates.description_too_long", "/description",
 			map[string]string{"maximum": strconv.Itoa(MaxTemplateDescriptionLength)})

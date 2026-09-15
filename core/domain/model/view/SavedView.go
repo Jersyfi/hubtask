@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // SavedView is a stored query with the layout it is drawn in (domain-model.md §3.5, D-07).
@@ -154,6 +155,10 @@ type NewSavedViewInput struct {
 	Sharing       Sharing
 
 	Now time.Time
+
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewSavedView builds a view and checks its invariants.
@@ -179,7 +184,7 @@ func NewSavedView(in NewSavedViewInput) (SavedView, error) {
 			WithFields(shared.FieldError{Path: "/scope_id", Code: "views.scope_id_required"})
 	}
 
-	name, err := viewName(in.Name)
+	name, err := viewName(in.Name, in.Text)
 	if err != nil {
 		return SavedView{}, err
 	}
@@ -252,11 +257,13 @@ func (a ViewAttributes) IsEmpty() bool {
 // Updated applies an update and reports whether anything moved. The caller writes nothing, spends
 // no version and records nothing for an update that changes nothing - the contract every writer
 // here keeps.
-func (v SavedView) Updated(attributes ViewAttributes) (SavedView, bool, error) {
+//
+// The normaliser is handed in for the reason NewSavedView takes one (M-07).
+func (v SavedView) Updated(attributes ViewAttributes, form text.Normalizer) (SavedView, bool, error) {
 	changed := false
 
 	if attributes.Name != nil {
-		name, err := viewName(*attributes.Name)
+		name, err := viewName(*attributes.Name, form)
 		if err != nil {
 			return SavedView{}, false, err
 		}
@@ -415,10 +422,13 @@ func scopeIdentifierError(key string) error {
 		})
 }
 
-// viewName trims and checks the name. One line, like a container's name and for the same reason:
-// it survives every layer and then breaks the one that renders it.
-func viewName(raw string) (string, error) {
-	name := strings.TrimSpace(raw)
+// viewName normalises, trims and checks the name. One line, like a container's name and for the
+// same reason: it survives every layer and then breaks the one that renders it.
+func viewName(raw string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	switch {
 	case name == "":
 		return "", shared.ErrValidation.
