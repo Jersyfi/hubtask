@@ -328,9 +328,10 @@ func (w BucketWriter) recordChanges(
 			Entity:   bucketTarget,
 			EntityID: bucket.ID,
 			Op:       changelog.Upsert,
-			// The visibility filter a pull applies: the hub above the collection, so that a device
-			// subscribed to the hub sees the change (offline-sync.md §3.1).
-			ContainerID: firstNonZero(collection.ParentID, bucket.CollectionID),
+			// The visibility filter a pull applies: the column's own collection, the choice every
+			// change to an entry makes - a grant on the collection alone is on the path of the
+			// collection and not of its hub (#623, offline-sync.md §3.1).
+			ContainerID: bucket.CollectionID,
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
 			Payload:     map[string]any{change.Field: clearedAsNull(change.To)},

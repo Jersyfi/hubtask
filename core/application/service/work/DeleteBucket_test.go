@@ -81,8 +81,8 @@ func TestDeletingAColumnMovesItsEntriesToTheLeftmostRemainingOne(t *testing.T) {
 		if change.Payload != nil {
 			t.Errorf("the deletion carries a payload: %+v", change.Payload)
 		}
-		if change.ContainerID != hubID {
-			t.Errorf("the change is filed under %s, want the hub", change.ContainerID)
+		if change.ContainerID != collectionID {
+			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
 		}
 	})
 

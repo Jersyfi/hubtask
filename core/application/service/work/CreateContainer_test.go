@@ -543,9 +543,10 @@ func TestCreatingACollectionUnderItsHub(t *testing.T) {
 	if container.OrderKey <= "a0" {
 		t.Errorf("order key %q does not sort after its sibling", container.OrderKey)
 	}
-	// A device subscribed to the hub has to see the new collection appear.
-	if change := h.changes.recorded[0]; change.ContainerID != hubID {
-		t.Errorf("the change filters on %s rather than on the hub", change.ContainerID)
+	// Filed under itself, like a hub: a reader wanting the hub's subtree resolves the parent, and
+	// a grant on the collection alone is on the path of the collection, not of the hub (#623).
+	if change := h.changes.recorded[0]; change.ContainerID != container.ID {
+		t.Errorf("the change filters on %s rather than on the collection itself", change.ContainerID)
 	}
 	// The permission is asked for along the path, so a role on the hub is enough.
 	if path := h.authorizer.requests[0].Path; len(path) != 2 || path[1].ID != hubID {

@@ -253,8 +253,8 @@ func TestAddingALabelWritesTheSetTheEventTheChangeAndTheEntry(t *testing.T) {
 		if change.HLC.IsZero() {
 			t.Error("the change carries no clock reading")
 		}
-		if change.ContainerID != hubID {
-			t.Errorf("the change is filed under %s, want the hub", change.ContainerID)
+		if change.ContainerID != collectionID {
+			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
 		}
 	})
 
