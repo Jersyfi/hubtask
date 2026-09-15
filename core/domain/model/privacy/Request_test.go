@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The case a data subject request becomes (E-10, data-protection.md §4). What is under test is the
@@ -26,6 +27,7 @@ var (
 func input(change func(*privacy.NewRequestInput)) privacy.NewRequestInput {
 	in := privacy.NewRequestInput{
 		ID: requestID, Kind: privacy.KindAccess, SubjectAccountID: subjectID, Now: now,
+		Text: text.Composing{},
 	}
 	change(&in)
 	return in
@@ -244,11 +246,11 @@ func TestACaseIsCompletedWithWhatItProduced(t *testing.T) {
 func TestARejectionNeedsItsReason(t *testing.T) {
 	request, _ := privacy.NewRequest(input(func(*privacy.NewRequestInput) {}))
 
-	if _, err := request.Reject("   ", handlerID, now); err == nil {
+	if _, err := request.Reject("   ", handlerID, nil, now); err == nil {
 		t.Fatal("a case was refused with no reason")
 	}
 
-	rejected, err := request.Reject("Identity could not be established", handlerID, now)
+	rejected, err := request.Reject("Identity could not be established", handlerID, nil, now)
 	if err != nil {
 		t.Fatalf("rejecting: %v", err)
 	}
@@ -266,7 +268,7 @@ func TestAClosedCaseDoesNotMoveAgain(t *testing.T) {
 	for _, step := range []func() error{
 		func() error { _, err := done.Start("", targetID, handlerID); return err },
 		func() error { _, err := done.Complete(now, ""); return err },
-		func() error { _, err := done.Reject("changed my mind", handlerID, now); return err },
+		func() error { _, err := done.Reject("changed my mind", handlerID, nil, now); return err },
 	} {
 		err := step()
 		if err == nil {
@@ -295,5 +297,29 @@ func TestACaseIsOverdueOnlyWhileItIsOpen(t *testing.T) {
 	done, _ := started.Complete(now, "")
 	if done.Overdue(late) {
 		t.Error("a case that was answered is still counted as late")
+	}
+}
+
+// The notes and a rejection's reason are stored in normal form C (i18n-l10n.md §5, M-07).
+func TestACasesTextIsStoredInNormalFormC(t *testing.T) {
+	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Notes = "Eingang u\u0308ber das Kontaktformular"
+	}))
+	if err != nil {
+		t.Fatalf("recording the case: %v", err)
+	}
+	if request.Notes != "Eingang \u00fcber das Kontaktformular" {
+		t.Errorf("notes = %q, want the composed form", request.Notes)
+	}
+	rejected, err := request.Reject("Identita\u0308t nicht nachgewiesen", handlerID, text.Composing{}, now)
+	if err != nil {
+		t.Fatalf("rejecting: %v", err)
+	}
+	if rejected.RejectionReason != "Identit\u00e4t nicht nachgewiesen" {
+		t.Errorf("reason = %q, want the composed form", rejected.RejectionReason)
+	}
+	_, err = privacy.NewRequest(input(func(in *privacy.NewRequestInput) { in.Notes, in.Text = "u\u0308ber", nil }))
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed notes were accepted: %v", err)
 	}
 }

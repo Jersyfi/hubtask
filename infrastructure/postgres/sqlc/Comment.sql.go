@@ -64,9 +64,9 @@ type InsertCommentParams struct {
 // The tenant is never a parameter here: it comes from the transaction's own context through
 // current_tenant_id(), which is the same value row level security compares against (ADR-0010).
 //
-// The body is stored Unicode NFC normalised, in the database rather than in the application, for
-// the reason container names are: two spellings of the same word are one text to a person, and
-// the domain may not import a Unicode library (ADR-0001, I-W7).
+// The body arrives in Unicode normal form C, for the reason a container's name does
+// (InsertContainer, M-07): the constructor brings it there, and normalize() stays on the insert
+// and the edit as the row's own guarantee for a writer that reaches it without the constructor.
 func (q *Queries) InsertComment(ctx context.Context, arg InsertCommentParams) error {
 	_, err := q.db.Exec(ctx, insertComment,
 		arg.ID,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -112,7 +113,7 @@ func holdInput(change func(*lifecycle.NewHoldInput)) lifecycle.NewHoldInput {
 	in := lifecycle.NewHoldInput{
 		ID: holdID, Scope: lifecycle.HoldContainer, ScopeID: hubID,
 		Reason: "Pending litigation, ref. 4 O 128/26", PlacedBy: accountID,
-		Now: placedAt,
+		Now: placedAt, Text: text.Composing{},
 	}
 	change(&in)
 	return in
@@ -214,7 +215,7 @@ func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
 	}
 
 	releasedAt := placedAt.Add(72 * time.Hour)
-	released, err := hold.Release(otherAccountID, "The proceedings ended", releasedAt)
+	released, err := hold.Release(otherAccountID, "The proceedings ended", nil, releasedAt)
 	if err != nil {
 		t.Fatalf("releasing: %v", err)
 	}
@@ -234,13 +235,38 @@ func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
 		t.Error("lifting overwrote who placed it")
 	}
 
-	if _, err := released.Release(accountID, "again", releasedAt); err == nil {
+	if _, err := released.Release(accountID, "again", nil, releasedAt); err == nil {
 		t.Fatal("a hold was lifted twice")
 	} else if code := holdCode(t, err); code != lifecycle.CodeHoldAlreadyReleased {
 		t.Fatalf("the second lifting was refused with %s", code)
 	}
 
-	if _, err := hold.Release(otherAccountID, "  ", releasedAt); err == nil {
+	if _, err := hold.Release(otherAccountID, "  ", nil, releasedAt); err == nil {
 		t.Fatal("a hold was lifted with no reason")
+	}
+}
+
+// The reason is stored in normal form C, when a hold is placed and when it is lifted
+// (i18n-l10n.md §5, M-07): it is read by an auditor, in one spelling.
+func TestAHoldsReasonIsStoredInNormalFormC(t *testing.T) {
+	hold, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
+		in.Reason = "Anha\u0308ngiges Verfahren"
+	}))
+	if err != nil {
+		t.Fatalf("placing: %v", err)
+	}
+	if hold.Reason != "Anh\u00e4ngiges Verfahren" {
+		t.Errorf("reason = %q, want the composed form", hold.Reason)
+	}
+	released, err := hold.Release(accountID, "Verfahren beendet, Akte geschlossen \u2013 Gru\u0308\u00dfe", text.Composing{}, placedAt.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("lifting: %v", err)
+	}
+	if released.ReleasedReason != "Verfahren beendet, Akte geschlossen \u2013 Gr\u00fc\u00dfe" {
+		t.Errorf("released reason = %q, want the composed form", released.ReleasedReason)
+	}
+	_, err = lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) { in.Reason, in.Text = "Anha\u0308ngig", nil }))
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed reason was accepted: %v", err)
 	}
 }

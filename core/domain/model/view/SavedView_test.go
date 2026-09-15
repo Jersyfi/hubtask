@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -32,6 +33,7 @@ func viewInput() NewSavedViewInput {
 			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
 		},
 		Sharing: SharingPrivate,
+		Text:    text.Composing{},
 		Now:     savedAt,
 	}
 }
@@ -206,7 +208,7 @@ func TestUpdatedMovesOnlyWhatWasSent(t *testing.T) {
 		t.Fatalf("the fixture was refused: %v", err)
 	}
 
-	renamed, changed, err := built.Updated(ViewAttributes{Name: viewText("Overdue")})
+	renamed, changed, err := built.Updated(ViewAttributes{Name: viewText("Overdue")}, text.Composing{})
 	if err != nil || !changed {
 		t.Fatalf("the rename answered %v, changed=%v", err, changed)
 	}
@@ -214,7 +216,7 @@ func TestUpdatedMovesOnlyWhatWasSent(t *testing.T) {
 		t.Errorf("the rename produced %+v", renamed)
 	}
 
-	same, changed, err := built.Updated(ViewAttributes{Name: viewText("Due this week")})
+	same, changed, err := built.Updated(ViewAttributes{Name: viewText("Due this week")}, text.Composing{})
 	if err != nil || changed {
 		t.Fatalf("an echo answered %v, changed=%v", err, changed)
 	}
@@ -222,17 +224,39 @@ func TestUpdatedMovesOnlyWhatWasSent(t *testing.T) {
 		t.Errorf("the echo moved the name to %q", same.Name)
 	}
 
-	if _, _, err := built.Updated(ViewAttributes{Layout: viewText("GANTT")}); shared.AsError(err) == nil {
+	if _, _, err := built.Updated(ViewAttributes{Layout: viewText("GANTT")}, text.Composing{}); shared.AsError(err) == nil {
 		t.Error("an unknown layout survived the update")
 	}
 	if _, _, err := built.Updated(ViewAttributes{
 		Query: map[string]any{"filter": map[string]any{"field": "nope", "op": "EQ", "value": 1}},
-	}); shared.AsError(err) == nil {
+	}, text.Composing{}); shared.AsError(err) == nil {
 		t.Error("a broken query survived the update")
 	}
 
-	if _, changed, err := built.Updated(ViewAttributes{}); err != nil || changed {
+	if _, changed, err := built.Updated(ViewAttributes{}, text.Composing{}); err != nil || changed {
 		t.Errorf("an empty update answered %v, changed=%v", err, changed)
+	}
+}
+
+// The name is stored in normal form C, on creation and on update (i18n-l10n.md §5, M-07).
+func TestAViewNameIsStoredInNormalFormC(t *testing.T) {
+	in := viewInput()
+	in.Name = "U\u0308berfa\u0308llig"
+	built, err := NewSavedView(in)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if built.Name != "\u00dcberf\u00e4llig" {
+		t.Errorf("name = %q, want it composed", built.Name)
+	}
+	renamed, _, err := built.Updated(ViewAttributes{Name: viewText("Fa\u0308llig")}, text.Composing{})
+	if err != nil || renamed.Name != "F\u00e4llig" {
+		t.Errorf("renamed to %q, %v; want the composed form", renamed.Name, err)
+	}
+
+	in.Text = nil
+	if _, err := NewSavedView(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }
 

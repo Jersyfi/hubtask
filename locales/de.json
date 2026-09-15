@@ -138,6 +138,7 @@
   "request.body_too_large": "Der Anfragetext darf höchstens {limit_bytes} Bytes haben.",
   "shared.id_malformed": "{value} ist keine gültige Kennung.",
   "shared.cursor_invalid": "Dieser Seitenlink ist nicht mehr verwendbar. Beginne die Liste bitte von vorn.",
+  "text.normalizer_missing": "Diese Installation ist falsch konfiguriert und konnte diesen Text nicht speichern.",
   "route.unknown": "Unter dieser Adresse gibt es nichts.",
   "route.operation_not_available": "Diese Installation bietet diese Operation noch nicht an.",
   "idempotency.key_malformed": "Der Idempotency-Key-Header muss eine UUID sein.",

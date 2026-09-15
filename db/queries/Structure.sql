@@ -48,10 +48,11 @@ ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
 -- name: InsertBucket :exec
--- The name is stored Unicode NFC normalised, in the database rather than in the application, for
--- the reason InsertContainer normalises it: "Prüfung" typed with a combining diaeresis and the same
--- word composed are one name to a person, and the unique index has to see them as one name too.
--- Doing it here also keeps the domain free of a Unicode library it may not import (ADR-0001).
+-- The name arrives in Unicode normal form C, for the reason a container's does (InsertContainer,
+-- M-07): the constructor brings it there, and normalize() stays on the insert and the update as
+-- the row's own guarantee for a writer that reaches it without the constructor. "Prüfung" typed
+-- with a combining diaeresis and the same word composed are one name to a person, and the unique
+-- index has to see them as one name too.
 INSERT INTO bucket (
   id, tenant_id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token, version
 ) VALUES (

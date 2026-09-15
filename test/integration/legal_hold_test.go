@@ -104,7 +104,7 @@ func TestAHoldIsLiftedOnce(t *testing.T) {
 		if err := holdRepo().Place(ctx, hold); err != nil {
 			return err
 		}
-		released, err := hold.Release(authorA, "The proceedings ended", created.Add(time.Hour))
+		released, err := hold.Release(authorA, "The proceedings ended", nil, created.Add(time.Hour))
 		if err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func TestTheListingShowsLiftedHoldsOnlyWhenAskedFor(t *testing.T) {
 		if err := holdRepo().Place(ctx, lifted); err != nil {
 			return err
 		}
-		released, err := lifted.Release(authorA, "Done", created.Add(time.Hour))
+		released, err := lifted.Release(authorA, "Done", nil, created.Add(time.Hour))
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func TestAHoldIsInvisibleAndInertFromAnotherTenant(t *testing.T) {
 		if listed, err = holdRepo().List(ctx, true); err != nil {
 			return err
 		}
-		released, err := theirs.Release(authorA, "Not mine to lift", created.Add(time.Hour))
+		released, err := theirs.Release(authorA, "Not mine to lift", nil, created.Add(time.Hour))
 		if err != nil {
 			return err
 		}

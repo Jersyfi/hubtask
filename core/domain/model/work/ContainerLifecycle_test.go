@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -35,8 +36,6 @@ func hub() work.Container {
 		UpdatedAt: created, Version: 1,
 	}
 }
-
-func text(value string) *string { return &value }
 
 // I-C3, both halves: a container is read-only when it carries the stamp, and when the hub above it
 // does. The two facts stay separate on the row, which is what lets a client be told which of them
@@ -98,28 +97,28 @@ func TestRenamedReportsOnlyWhatMoved(t *testing.T) {
 	}{
 		{
 			name:       "the name alone",
-			attributes: work.ContainerAttributes{Name: text("Groceries")},
+			attributes: work.ContainerAttributes{Name: pointerTo("Groceries")},
 			want:       map[string]string{"name": "Groceries"},
 		},
 		{
 			name:       "trimmed, and the trimmed form is what is compared",
-			attributes: work.ContainerAttributes{Name: text("  Shopping  ")},
+			attributes: work.ContainerAttributes{Name: pointerTo("  Shopping  ")},
 			want:       map[string]string{},
 		},
 		{
 			name:       "a description arrives",
-			attributes: work.ContainerAttributes{Description: text("Weekly")},
+			attributes: work.ContainerAttributes{Description: pointerTo("Weekly")},
 			want:       map[string]string{"description": "Weekly"},
 		},
 		{
 			name:       "sending what is already stored moves nothing",
-			attributes: work.ContainerAttributes{Name: text("Shopping"), Icon: text("")},
+			attributes: work.ContainerAttributes{Name: pointerTo("Shopping"), Icon: pointerTo("")},
 			want:       map[string]string{},
 		},
 		{
 			name: "three fields at once",
 			attributes: work.ContainerAttributes{
-				Name: text("Groceries"), Icon: text("basket"), ColorToken: text("green"),
+				Name: pointerTo("Groceries"), Icon: pointerTo("basket"), ColorToken: pointerTo("green"),
 			},
 			want: map[string]string{"name": "Groceries", "icon": "basket", "color_token": "green"},
 		},
@@ -127,7 +126,7 @@ func TestRenamedReportsOnlyWhatMoved(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			updated, changes, err := collection().Renamed(c.attributes, changed)
+			updated, changes, err := collection().Renamed(c.attributes, text.Composing{}, changed)
 			if err != nil {
 				t.Fatalf("refused: %v", err)
 			}
@@ -154,7 +153,7 @@ func TestRenamedClearsAFieldThatIsSentEmpty(t *testing.T) {
 	container := collection()
 	container.Description = "Weekly"
 
-	updated, changes, err := container.Renamed(work.ContainerAttributes{Description: text("")}, changed)
+	updated, changes, err := container.Renamed(work.ContainerAttributes{Description: pointerTo("")}, text.Composing{}, changed)
 	if err != nil {
 		t.Fatalf("clearing the description was refused: %v", err)
 	}
@@ -163,6 +162,27 @@ func TestRenamedClearsAFieldThatIsSentEmpty(t *testing.T) {
 	}
 	if len(changes) != 1 || changes[0].From != "Weekly" || changes[0].To != "" {
 		t.Errorf("the change does not describe the clearing: %+v", changes)
+	}
+}
+
+// A rename normalises what a creation does, and the change set records the composed form.
+func TestRenamedStoresItsTextInNormalFormC(t *testing.T) {
+	updated, changes, err := collection().Renamed(work.ContainerAttributes{
+		Name: pointerTo("Einka\u0308ufe"), Description: pointerTo("Wo\u0308chentlich"),
+	}, text.Composing{}, changed)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if updated.Name != "Eink\u00e4ufe" || updated.Description != "W\u00f6chentlich" {
+		t.Errorf("stored %q / %q, want both composed", updated.Name, updated.Description)
+	}
+	if len(changes) != 2 || changes[0].To != "Eink\u00e4ufe" || changes[1].To != "W\u00f6chentlich" {
+		t.Errorf("changes = %+v, want the composed forms", changes)
+	}
+
+	_, _, err = collection().Renamed(work.ContainerAttributes{Name: pointerTo("Einka\u0308ufe")}, nil, changed)
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }
 
@@ -175,29 +195,29 @@ func TestRenamedChecksEveryValueItStores(t *testing.T) {
 	}{
 		{
 			name:       "an empty name",
-			attributes: work.ContainerAttributes{Name: text("   ")},
+			attributes: work.ContainerAttributes{Name: pointerTo("   ")},
 			detailCode: "containers.name_empty", path: "/name",
 		},
 		{
 			name:       "a name over the limit",
-			attributes: work.ContainerAttributes{Name: text(strings.Repeat("a", 201))},
+			attributes: work.ContainerAttributes{Name: pointerTo(strings.Repeat("a", 201))},
 			detailCode: "containers.name_too_long", path: "/name",
 		},
 		{
 			name:       "a newline in the name",
-			attributes: work.ContainerAttributes{Name: text("Shop\nping")},
+			attributes: work.ContainerAttributes{Name: pointerTo("Shop\nping")},
 			detailCode: "containers.name_malformed", path: "/name",
 		},
 		{
 			name:       "a newline in the icon",
-			attributes: work.ContainerAttributes{Icon: text("bas\nket")},
+			attributes: work.ContainerAttributes{Icon: pointerTo("bas\nket")},
 			detailCode: "containers.field_malformed", path: "/icon",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, _, err := collection().Renamed(c.attributes, changed)
+			_, _, err := collection().Renamed(c.attributes, text.Composing{}, changed)
 			assertDetail(t, err, shared.ErrValidation, c.detailCode)
 			if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != c.path {
 				t.Errorf("the finding does not point at %s: %+v", c.path, fields)
@@ -234,7 +254,7 @@ func TestRenamedRefusesAReadOnlyContainer(t *testing.T) {
 			container := collection()
 			c.prepare(&container)
 
-			_, _, err := container.Renamed(work.ContainerAttributes{Name: text("Groceries")}, changed)
+			_, _, err := container.Renamed(work.ContainerAttributes{Name: pointerTo("Groceries")}, text.Composing{}, changed)
 			assertDetail(t, err, shared.ErrConflict, c.detailCode)
 		})
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -62,6 +63,8 @@ type AccessTokenWriter struct {
 	// Entropy is where the secret half comes from. A port, so that production draws from
 	// crypto/rand and a test can fix the credential it asserts on (rule 4).
 	Entropy clock.Entropy
+	// Text brings the token's name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 	// KnownScopes is every scope this build declares, which is the union of the descriptors'.
 	// It is passed in rather than read, because the catalogue is assembled from these very use
 	// cases and a package that imported it would close the circle (ADR-0001).
@@ -145,7 +148,7 @@ func (h CreateAccessToken) Execute(
 
 		token, err := domain.NewAccessToken(domain.NewAccessTokenInput{
 			ID: w.IDs.NewID(), TenantID: actor.TenantID, AccountID: owner,
-			Name: cmd.Name, Scopes: cmd.Scopes, ExpiresAt: cmd.ExpiresAt, Now: now,
+			Name: cmd.Name, Scopes: cmd.Scopes, ExpiresAt: cmd.ExpiresAt, Now: now, Text: w.Text,
 		})
 		if err != nil {
 			return err

@@ -26,6 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -77,6 +78,9 @@ type Cases struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings the notes and a rejection's reason to normal form C on the way in
+	// (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // CreateDataSubjectRequest records a right somebody has exercised.
@@ -128,7 +132,7 @@ func (h CreateDataSubjectRequest) Execute(
 		ID: h.Cases.IDs.NewID(), Kind: cmd.Kind, Scope: cmd.Scope,
 		SubjectAccountID: cmd.SubjectAccountID, SubjectEmail: cmd.SubjectEmail,
 		DueAt: cmd.DueAt, TargetID: cmd.TargetID, Notes: cmd.Notes,
-		Now: h.Cases.Clock.Now(),
+		Now: h.Cases.Clock.Now(), Text: h.Cases.Text,
 	})
 	if err != nil {
 		return domain.Request{}, err
@@ -384,7 +388,7 @@ func (h UpdateDataSubjectRequest) apply(
 		}
 		return started, changes, nil
 	case domain.StatusRejected:
-		rejected, err := moved.Reject(cmd.RejectionReason, actor.AccountID, now)
+		rejected, err := moved.Reject(cmd.RejectionReason, actor.AccountID, h.Cases.Text, now)
 		if err != nil {
 			return domain.Request{}, nil, err
 		}

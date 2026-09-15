@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // dueProfile is a task profile that carries the capability, which the default taskProfile()
@@ -326,7 +327,7 @@ func TestTheStartMovesThroughTheAttributeDiff(t *testing.T) {
 	item := updatable(t)
 
 	after, changes, err := item.Updated(ItemAttributes{StartAt: parseInstant("2026-08-30T08:00:00Z")},
-		taskProfile(), laterOn)
+		taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("the start was refused: %v", err)
 	}
@@ -340,7 +341,7 @@ func TestTheStartMovesThroughTheAttributeDiff(t *testing.T) {
 
 	// The same moment, written from another zone: not a change.
 	_, changes, err = after.Updated(ItemAttributes{StartAt: parseInstant("2026-08-30T10:00:00+02:00")},
-		taskProfile(), laterOn)
+		taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("the repeated start was refused: %v", err)
 	}
@@ -349,7 +350,7 @@ func TestTheStartMovesThroughTheAttributeDiff(t *testing.T) {
 	}
 
 	// The zero time clears, the way merge patch's null reaches the domain.
-	cleared, changes, err := after.Updated(ItemAttributes{StartAt: &time.Time{}}, taskProfile(), laterOn)
+	cleared, changes, err := after.Updated(ItemAttributes{StartAt: &time.Time{}}, taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("clearing the start was refused: %v", err)
 	}

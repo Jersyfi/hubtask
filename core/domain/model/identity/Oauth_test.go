@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 func validClientInput() NewOauthClientInput {
@@ -42,6 +43,23 @@ func TestNewOauthClientValidatesAndDeduplicates(t *testing.T) {
 		if client.AllowsRedirect(probe) {
 			t.Errorf("%q passed the exact match", probe)
 		}
+	}
+}
+
+// The name is stored in normal form C (i18n-l10n.md §5, M-07), like every label a person types.
+func TestAClientNameIsStoredInNormalFormC(t *testing.T) {
+	in := validClientInput()
+	in.Name, in.Text = "Bu\u0308ro-Automat", text.Composing{}
+	client, err := NewOauthClient(in)
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	if client.Name != "B\u00fcro-Automat" {
+		t.Errorf("name = %q, want the composed form", client.Name)
+	}
+	in.Text = nil
+	if _, err := NewOauthClient(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }
 

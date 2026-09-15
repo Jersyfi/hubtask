@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // maxGroupName and maxGroupDescription bound what a tenant can store. The same lengths as a
@@ -45,16 +46,20 @@ type NewGroupInput struct {
 	TenantID    shared.ID
 	Name        string
 	Description string
+
+	// Text brings the name and the description to normal form C before they are bounded and
+	// stored (i18n-l10n.md §5, M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewGroup checks the invariants in the constructor, so that no code path can produce a group that
 // does not satisfy them (project-structure.md §3).
 func NewGroup(in NewGroupInput) (Group, error) {
-	name, err := groupName(in.Name)
+	name, err := groupName(in.Name, in.Text)
 	if err != nil {
 		return Group{}, err
 	}
-	description, err := groupDescription(in.Description)
+	description, err := groupDescription(in.Description, in.Text)
 	if err != nil {
 		return Group{}, err
 	}
@@ -73,8 +78,8 @@ func NewGroup(in NewGroupInput) (Group, error) {
 
 // Rename returns the group under a new name. A value receiver returning a copy, not a mutation:
 // the caller writes the result or does not, and a half-applied change cannot exist.
-func (g Group) Rename(name string) (Group, error) {
-	checked, err := groupName(name)
+func (g Group) Rename(name string, form text.Normalizer) (Group, error) {
+	checked, err := groupName(name, form)
 	if err != nil {
 		return Group{}, err
 	}
@@ -83,8 +88,8 @@ func (g Group) Rename(name string) (Group, error) {
 }
 
 // Describe returns the group with a new description.
-func (g Group) Describe(description string) (Group, error) {
-	checked, err := groupDescription(description)
+func (g Group) Describe(description string, form text.Normalizer) (Group, error) {
+	checked, err := groupDescription(description, form)
 	if err != nil {
 		return Group{}, err
 	}
@@ -96,9 +101,13 @@ func (g Group) Describe(description string) (Group, error) {
 //
 // Normalisation before checking, so that a name that is only whitespace is refused as empty rather
 // than accepted as three spaces - and so that the uniqueness index, which compares lower case and
-// unaccented, compares what a person would call the same name.
-func groupName(raw string) (string, error) {
-	name := strings.TrimSpace(raw)
+// unaccented, compares what a person would call the same name. Normal form C for the same reason
+// (M-07): unaccent() knows the composed letter, and a combining mark on its own is not one.
+func groupName(raw string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	switch {
 	case name == "":
 		return "", shared.ErrValidation.WithDetail("groups.name_empty")
@@ -113,8 +122,11 @@ func groupName(raw string) (string, error) {
 	return name, nil
 }
 
-func groupDescription(raw string) (string, error) {
-	description := strings.TrimSpace(raw)
+func groupDescription(raw string, form text.Normalizer) (string, error) {
+	description, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	if utf8.RuneCountInString(description) > maxGroupDescription {
 		return "", shared.ErrValidation.
 			WithDetail("groups.description_too_long").

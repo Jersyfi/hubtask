@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -62,6 +63,8 @@ type UpdateWorkItem struct {
 	HLC        clock.HLCSource
 	// DueDates is the writer the patch dispatches the due trio into (D-01).
 	DueDates DueDateWriter
+	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // UpdateCommand is the input, typed.
@@ -139,7 +142,7 @@ func (h UpdateWorkItem) Execute(
 			}
 		}
 
-		wanted, changes, err := item.Updated(cmd.Attributes, profile, now)
+		wanted, changes, err := item.Updated(cmd.Attributes, profile, h.Text, now)
 		if err != nil {
 			return err
 		}

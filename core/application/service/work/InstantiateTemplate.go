@@ -289,6 +289,7 @@ func (h InstantiateTemplate) write(
 		OrderKey:        rank,
 		CreatedBy:       actor.AccountID,
 		Now:             now,
+		Text:            w.Text,
 	})
 	if err != nil {
 		return domain.WorkItem{}, err

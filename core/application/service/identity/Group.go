@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -49,6 +50,8 @@ type CreateGroup struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // Execute creates the group and returns it.
@@ -70,6 +73,7 @@ func (h CreateGroup) Execute(
 		TenantID:    actor.TenantID,
 		Name:        cmd.Name,
 		Description: cmd.Description,
+		Text:        h.Text,
 	})
 	if err != nil {
 		return domain.Group{}, err
@@ -212,6 +216,8 @@ type UpdateGroup struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // Execute applies the change and returns the group.
@@ -246,12 +252,12 @@ func (h UpdateGroup) Execute(
 
 		before := group
 		if cmd.Name != nil {
-			if group, err = group.Rename(*cmd.Name); err != nil {
+			if group, err = group.Rename(*cmd.Name, h.Text); err != nil {
 				return err
 			}
 		}
 		if cmd.Description != nil {
-			if group, err = group.Describe(*cmd.Description); err != nil {
+			if group, err = group.Describe(*cmd.Description, h.Text); err != nil {
 				return err
 			}
 		}

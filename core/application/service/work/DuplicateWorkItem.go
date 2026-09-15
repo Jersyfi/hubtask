@@ -24,6 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -83,6 +84,9 @@ type DuplicateWorkItem struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Text is what a copied TEXT value is checked with; a value written before the form was
+	// applied is composed by the copy, exactly as its next edit would compose it (M-07).
+	Text text.Normalizer
 }
 
 // DuplicateWorkItemCommand is the input, typed.
@@ -780,7 +784,7 @@ func (h DuplicateWorkItem) fieldsFor(
 				copied.ID, key, "fields.not_for_type"))
 			continue
 		}
-		accepted, err := definition.ValidateValue(value)
+		accepted, err := definition.ValidateValue(value, h.Text)
 		if err != nil {
 			made.dropped = append(made.dropped, domain.DroppedCustomField(
 				copied.ID, key, "fields.value_not_accepted"))

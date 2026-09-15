@@ -179,7 +179,7 @@ func TestAProviderNeedsItsClientAndItsWorkspace(t *testing.T) {
 func TestAProvisionedAccountIsActiveAndHasNoPassword(t *testing.T) {
 	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000d1")
 
-	account, err := ProvisionExternal(id, sessionTenant, "Ada@Example.org", "Ada Lovelace", nil)
+	account, err := ProvisionExternal(id, sessionTenant, "Ada@Example.org", "Ada Lovelace", nil, nil)
 	if err != nil {
 		t.Fatalf("provisioning: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestAProvisionedAccountIsActiveAndHasNoPassword(t *testing.T) {
 func TestAProvisionedAccountMayHaveNoAddress(t *testing.T) {
 	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000d2")
 
-	account, err := ProvisionExternal(id, sessionTenant, "", "Ada", nil)
+	account, err := ProvisionExternal(id, sessionTenant, "", "Ada", nil, nil)
 	if err != nil {
 		t.Fatalf("provisioning without an address: %v", err)
 	}
@@ -210,10 +210,10 @@ func TestAProvisionedAccountMayHaveNoAddress(t *testing.T) {
 		t.Errorf("an address was invented: %q", account.Email)
 	}
 
-	if _, err := ProvisionExternal(id, sessionTenant, "not-an-address", "Ada", nil); err == nil {
+	if _, err := ProvisionExternal(id, sessionTenant, "not-an-address", "Ada", nil, nil); err == nil {
 		t.Error("a malformed address was accepted")
 	}
-	if _, err := ProvisionExternal(shared.ID(""), sessionTenant, "", "Ada", nil); err == nil {
+	if _, err := ProvisionExternal(shared.ID(""), sessionTenant, "", "Ada", nil, nil); err == nil {
 		t.Error("an account without an identifier was provisioned")
 	}
 }

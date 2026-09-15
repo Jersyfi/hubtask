@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/recurrence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -104,6 +105,8 @@ type Writer struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings the name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // schedule works out a rule's next moment and puts it on the rule.
@@ -202,7 +205,7 @@ func (h CreateRule) Execute(
 		ID: w.IDs.NewID(), TenantID: actor.TenantID, Name: cmd.Name, Scope: cmd.Scope,
 		RunAs: cmd.RunAs, Trigger: cmd.Trigger, Conditions: cmd.Conditions,
 		Actions: cmd.Actions, Throttle: cmd.Throttle, OnError: cmd.OnError,
-		CreatedBy: actor.AccountID, Now: w.Clock.Now(),
+		CreatedBy: actor.AccountID, Now: w.Clock.Now(), Text: w.Text,
 	})
 	if err != nil {
 		return domain.Rule{}, err
@@ -323,7 +326,7 @@ func (h UpdateRule) Execute(
 		return domain.Rule{}, err
 	}
 
-	wanted, err := merged(current, cmd, w.Clock.Now())
+	wanted, err := merged(current, cmd, w.Text, w.Clock.Now())
 	if err != nil {
 		return domain.Rule{}, err
 	}
@@ -692,13 +695,15 @@ func (w Writer) record(
 // Whole rather than field by field, because the aggregate's rules are about combinations - a
 // trigger's fields belong to its kind, and an edit that changes the kind and leaves a field behind
 // is exactly the case a per-field check would miss.
-func merged(current domain.Rule, cmd UpdateRuleCommand, now time.Time) (domain.Rule, error) {
+func merged(
+	current domain.Rule, cmd UpdateRuleCommand, form text.Normalizer, now time.Time,
+) (domain.Rule, error) {
 	in := domain.NewRuleInput{
 		ID: current.ID, TenantID: current.TenantID,
 		Name: current.Name, Scope: current.Scope, RunAs: current.RunAs,
 		Trigger: current.Trigger, Conditions: current.Conditions, Actions: current.Actions,
 		Throttle: current.Throttle, OnError: current.OnError,
-		CreatedBy: current.CreatedBy, Now: current.CreatedAt,
+		CreatedBy: current.CreatedBy, Now: current.CreatedAt, Text: form,
 	}
 	if cmd.Name != nil {
 		in.Name = *cmd.Name

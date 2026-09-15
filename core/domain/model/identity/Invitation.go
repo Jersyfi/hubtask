@@ -31,8 +31,12 @@ const maxDisplayName = 200
 // mailbox and choosing a credential, and neither exists before the sign-in flow arrives in 0.6.0
 // (security.md §5). Issuing a token nobody can redeem would be a credential lying around for
 // months.
+//
+// The two ports are what the domain may not do itself: bring the address's domain to the form
+// the DNS holds (M-10) and the name to normal form C (M-07, i18n-l10n.md §5).
 func Invite(
-	id shared.ID, tenantID shared.ID, email string, displayName string, domains text.DomainEncoder,
+	id shared.ID, tenantID shared.ID, email string, displayName string,
+	domains text.DomainEncoder, form text.Normalizer,
 ) (Account, error) {
 	if id.IsZero() || tenantID.IsZero() {
 		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
@@ -42,7 +46,7 @@ func Invite(
 	if err != nil {
 		return Account{}, err
 	}
-	name, err := accountDisplayName(displayName, address)
+	name, err := accountDisplayName(displayName, address, form)
 	if err != nil {
 		return Account{}, err
 	}
@@ -66,12 +70,14 @@ func Invite(
 // exists. And the display name is required rather than derived: an invitation can fall back on
 // the local part of an address, and this has none, so a service account with no name would appear
 // nameless beside every action it takes in the audit trail.
-func NewServiceAccount(id shared.ID, tenantID shared.ID, displayName string) (Account, error) {
+func NewServiceAccount(
+	id shared.ID, tenantID shared.ID, displayName string, form text.Normalizer,
+) (Account, error) {
 	if id.IsZero() || tenantID.IsZero() {
 		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
 	}
 
-	name, err := accountDisplayName(displayName, "")
+	name, err := accountDisplayName(displayName, "", form)
 	if err != nil {
 		return Account{}, err
 	}
@@ -165,9 +171,13 @@ func isASCII(text string) bool {
 
 // accountDisplayName falls back to the local part of the address. An invitation that names nobody
 // still has to show something beside every action the account takes, and "j.winkel" is a better
-// answer than an empty cell (audit.md §2).
-func accountDisplayName(raw string, address string) (string, error) {
-	name := strings.TrimSpace(raw)
+// answer than an empty cell (audit.md §2). The name is stored in normal form C (M-07): it is
+// shown beside everything a person does, and shown in one spelling.
+func accountDisplayName(raw string, address string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
 	if name == "" {
 		local, _, _ := strings.Cut(address, "@")
 		name = local

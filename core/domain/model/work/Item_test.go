@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -55,6 +56,34 @@ func taskInput() NewWorkItemInput {
 		OrderKey:     "a0",
 		CreatedBy:    itemActor,
 		Now:          time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC),
+		Text:         text.Composing{},
+	}
+}
+
+// The two spellings of one visible character are stored as one (i18n-l10n.md §5, M-07): a title
+// and notes that arrive with combining marks leave the constructor composed, so that the unique
+// index, the search document and the length all see the spelling a person does. Without the
+// port, text that is not ASCII is refused rather than stored as it came.
+func TestTheTitleAndTheNotesAreStoredInNormalFormC(t *testing.T) {
+	in := taskInput()
+	in.Title = "Cafe\u0301 am Ma\u0308rkt "
+	in.Notes = " Bring the Bu\u0308cher\n"
+	in.Profile.Capabilities = append(in.Profile.Capabilities, CapabilityNotes)
+
+	item, err := NewWorkItem(in)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if item.Title != "Caf\u00e9 am M\u00e4rkt" {
+		t.Errorf("title = %q, want it composed and trimmed", item.Title)
+	}
+	if item.Notes != "Bring the B\u00fccher" {
+		t.Errorf("notes = %q, want them composed and trimmed", item.Notes)
+	}
+
+	in.Text = nil
+	if _, err := NewWorkItem(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed title was accepted: %v", err)
 	}
 }
 

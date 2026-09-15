@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The message codes of this context. Codes rather than sentences (ADR-0011): what a person reads
@@ -50,9 +51,13 @@ func transitionRefused(from, to Status) error {
 		WithFields(shared.FieldError{Path: "/status", Code: CodeTransitionRefused})
 }
 
-// bounded trims and refuses text longer than a column should carry.
-func bounded(value string, limit int, code, field string) (string, error) {
-	trimmed := strings.TrimSpace(value)
+// bounded trims, brings to normal form C (M-07), and refuses text longer than a column should
+// carry.
+func bounded(value string, limit int, code, field string, form text.Normalizer) (string, error) {
+	trimmed, err := shared.NFC(strings.TrimSpace(value), form)
+	if err != nil {
+		return "", err
+	}
 	if len([]rune(trimmed)) > limit {
 		return "", invalid(code, field)
 	}
