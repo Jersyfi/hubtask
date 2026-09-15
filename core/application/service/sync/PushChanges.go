@@ -14,7 +14,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/sync"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 // The push (N-04, offline-sync.md §3.2): a device's queue of mutations, applied one at a time
@@ -296,12 +295,13 @@ func (p PushChanges) bound(ctx context.Context, m Mutation) (Mutation, error) {
 		}
 		bounded, drift := domain.Bound(reading, now, skew)
 		if drift > 0 {
-			// The drift and the request, and no byte of the request: the device and the operation
-			// are request values, and a log line shaped by one is the injection T-06 names. The
-			// request identifier is the line's own, and the request log beside it names the
-			// route and the actor; the device is on the operation log's row.
+			// The drift and nothing of the request: the device, the operation and the request
+			// identifier are request values, and a log line shaped by one is the injection T-06
+			// names. The correlating handler adds the request identifier from the context, the
+			// request log beside it names the route and the actor, and the device is on the
+			// operation log's row.
 			slog.WarnContext(ctx, "a device's clock reading was bounded to server time",
-				"drift", drift.String(), "request_id", correlation.RequestIDFrom(ctx))
+				"drift", drift.String())
 		}
 		return bounded.String(), nil
 	}
