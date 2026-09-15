@@ -1299,6 +1299,17 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The entry in another language (M-11): a read through the entry's own read, then the
+		// budgeted provider - so a workspace without consent, without a provider or without
+		// budget is refused the way the search's meaning is, and nothing is stored.
+		work.AiTranslate{
+			Reader: work.GetWorkItem{
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork,
+			},
+			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

@@ -751,6 +751,7 @@
   "suggestions.due_date_unreadable": "The due date on that suggestion is not a date Hubtask can read, so it could not be applied.",
   "suggestions.acceptance_not_built": "Accepting a {kind} suggestion about a {target_type} is not something this version of Hubtask does yet.",
   "ai.unavailable": "AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.",
+  "ai.target_locale_required": "Say which language to read this entry in, or set one on your account.",
   "ai.not_configured": "This workspace has not chosen an AI provider.",
   "ai.prompt_unknown": "This installation does not carry the prompt {prompt}.",
   "ai.prompt_target_unknown": "This version of Hubtask does not ask {prompt} about a {target_type}.",
