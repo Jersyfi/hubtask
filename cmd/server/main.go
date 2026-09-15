@@ -2251,6 +2251,9 @@ func run() error {
 			// The devices that synchronise (N-03): silent past their period, their sign-in is
 			// revoked and the row goes.
 			Devices: postgres.NewDeviceRepository(),
+			// The synchronisation's records (N-09): the operation log and the tombstones past
+			// the offline window; the change log's months fall as partitions, the leader's duty.
+			SyncLog: postgres.NewSyncLogSweeper(),
 			// What AI proposed (J-05). Thirty days, the shortest default in the catalogue: a
 			// suggestion is about a state of an entry, and an entry's state does not stay still.
 			Proposals: postgres.NewSuggestionRepository(cursors),
@@ -2560,10 +2563,12 @@ func run() error {
 			AuditPartitions: auditPartitionsInBackground{
 				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
 			},
-			// The same duty for the three monthly streams (H-09).
+			// The same duty for the four monthly streams (H-09; the change log since N-09, with
+			// the offline window as the floor of its drop).
 			StreamPartitions: streamPartitionsInBackground{
 				Partitions: postgres.NewStreamPartitionRepository(), Work: backgroundWork,
 			},
+			OfflineWindow: cfg.Retention.TombstoneWindow,
 			StreamEvidence: streamEvidenceInBackground{
 				Journal: postgres.NewInstanceJournal(), IDs: ids, Work: backgroundWork,
 				Clock: clockadapter.System{},
