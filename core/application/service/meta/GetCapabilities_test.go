@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -591,6 +592,39 @@ func TestTheManifestSaysWhichCollationNamesSortUnder(t *testing.T) {
 				t.Errorf("natural_ordering = %v (present %v), want %v", got, present, tc.want)
 			}
 		})
+	}
+}
+
+// locales stands in for the renderer: the catalogues present, as rows (M-05).
+type locales []i18n.LocaleInfo
+
+func (l locales) SupportedLocales() []i18n.LocaleInfo { return l }
+
+// The locales are the catalogues present, in the renderer's order, and a build wired without
+// the seam answers the source language alone - what every installation before 0.8.0 was.
+func TestTheManifestListsTheCataloguesPresent(t *testing.T) {
+	handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	handler.Locales = locales{
+		{Tag: "en", Direction: "ltr", WeekStart: "SUNDAY", DecimalSeparator: "."},
+		{Tag: "ar", Direction: "rtl", WeekStart: "SATURDAY", DecimalSeparator: "."},
+		{Tag: "de", Direction: "ltr", WeekStart: "MONDAY", DecimalSeparator: ","},
+	}
+
+	capabilities, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if len(capabilities.SupportedLocales) != 3 || capabilities.SupportedLocales[1].Direction != "rtl" {
+		t.Errorf("supported locales = %+v", capabilities.SupportedLocales)
+	}
+
+	handler.Locales = nil
+	capabilities, err = handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if len(capabilities.SupportedLocales) != 1 || capabilities.SupportedLocales[0].Tag != "en" {
+		t.Errorf("without the seam the manifest answers %+v, want the source language alone", capabilities.SupportedLocales)
 	}
 }
 

@@ -924,6 +924,27 @@ func (e CapabilitiesSupportedLocalesDirection) Valid() bool {
 	}
 }
 
+// Defines values for CapabilitiesSupportedLocalesWeekStart.
+const (
+	CapabilitiesSupportedLocalesWeekStartMONDAY   CapabilitiesSupportedLocalesWeekStart = "MONDAY"
+	CapabilitiesSupportedLocalesWeekStartSATURDAY CapabilitiesSupportedLocalesWeekStart = "SATURDAY"
+	CapabilitiesSupportedLocalesWeekStartSUNDAY   CapabilitiesSupportedLocalesWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesSupportedLocalesWeekStart enum.
+func (e CapabilitiesSupportedLocalesWeekStart) Valid() bool {
+	switch e {
+	case CapabilitiesSupportedLocalesWeekStartMONDAY:
+		return true
+	case CapabilitiesSupportedLocalesWeekStartSATURDAY:
+		return true
+	case CapabilitiesSupportedLocalesWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesTenancyMode.
 const (
 	Multi  CapabilitiesTenancyMode = "multi"
@@ -4096,11 +4117,21 @@ type Capabilities struct {
 	RetentionDataKinds *[]RetentionDataKind `json:"retention_data_kinds,omitempty"`
 
 	// Roles The role matrix as this installation enforces it (domain-model.md §3.2). A client decides from this which actions to offer, rather than from a table compiled into it: two cells of the matrix are qualifiers no permission name can carry - a contributor writes only what is assigned to them, and a guest may comment on an entry without being able to change it - and a client that does not know them offers buttons the server refuses.
-	Roles            *[]RoleDescription `json:"roles,omitempty"`
+	Roles *[]RoleDescription `json:"roles,omitempty"`
+
+	// SupportedLocales The locales this installation has a catalogue for, in the order it serves them - the source language first - with the metadata a client needs before it has rendered anything (`i18n-l10n.md` §2, §6). Derived from the catalogue files present, the embedded ones and an operator's `HUBTASK_LOCALE_DIR`, so adding a language is a file and not a release. A locale is what the account's language picker offers and what `Accept-Language` is negotiated against; a language absent here still renders, in the source language, and is still an entry's `content_language`.
 	SupportedLocales *[]struct {
-		Direction *CapabilitiesSupportedLocalesDirection `json:"direction,omitempty"`
-		Locale    *string                                `json:"locale,omitempty"`
-		WeekStart *string                                `json:"week_start,omitempty"`
+		// DecimalSeparator The character between the integer and the fraction where the locale is spoken - `.` or `,`. What a client that formats before `Intl` is available, or a form that parses what somebody typed, reads; a client with `Intl` formats with it (§7).
+		DecimalSeparator string `json:"decimal_separator"`
+
+		// Direction The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's (§6).
+		Direction CapabilitiesSupportedLocalesDirection `json:"direction"`
+
+		// Locale BCP 47, as the file is named - `en`, `de`, `pt-BR`, `zh-Hans`.
+		Locale string `json:"locale"`
+
+		// WeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set (§4).
+		WeekStart CapabilitiesSupportedLocalesWeekStart `json:"week_start"`
 	} `json:"supported_locales,omitempty"`
 	TenancyMode *CapabilitiesTenancyMode `json:"tenancy_mode,omitempty"`
 
@@ -4113,8 +4144,11 @@ type Capabilities struct {
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 }
 
-// CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.
+// CapabilitiesSupportedLocalesDirection The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's (§6).
 type CapabilitiesSupportedLocalesDirection string
+
+// CapabilitiesSupportedLocalesWeekStart The first day of the week where the locale is spoken, per CLDR, in the same vocabulary as the account's own `week_start` so that a client compares the two without translating. The account's value overrides it where set (§4).
+type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
