@@ -83,7 +83,7 @@ func (p PullChanges) walk(
 		}
 		for _, row := range rows {
 			position.After = row.key
-			seen, err := p.Stream.mayRead(ctx, actor, row.containerID, resolved)
+			seen, err := p.Stream.mayRead(ctx, actor, row.entity, row.containerID, resolved)
 			if err != nil {
 				return Batch{}, err
 			}
