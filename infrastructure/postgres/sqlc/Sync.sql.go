@@ -350,6 +350,636 @@ func (q *Queries) RevokeSessionsOfStaleDevices(ctx context.Context, arg RevokeSe
 	return result.RowsAffected(), nil
 }
 
+const snapshotBuckets = `-- name: SnapshotBuckets :many
+SELECT
+  id, tenant_id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token,
+  deleted_at, version
+FROM bucket
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotBucketsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+func (q *Queries) SnapshotBuckets(ctx context.Context, arg SnapshotBucketsParams) ([]Bucket, error) {
+	rows, err := q.db.Query(ctx, snapshotBuckets, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Bucket{}
+	for rows.Next() {
+		var i Bucket
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Name,
+			&i.OrderKey,
+			&i.WipLimit,
+			&i.IsDoneBucket,
+			&i.ColorToken,
+			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotComments = `-- name: SnapshotComments :many
+SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
+       c.created_at, c.edited_at, c.deleted_at, c.version, wi.collection_id
+FROM comment c
+JOIN work_item wi ON wi.tenant_id = c.tenant_id AND wi.id = c.item_id
+WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND wi.deleted_at IS NULL
+  AND c.id > $1
+ORDER BY c.id
+LIMIT $2
+`
+
+type SnapshotCommentsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCommentsRow struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	AuthorID        pgtype.UUID
+	ParentCommentID pgtype.UUID
+	Body            string
+	CreatedAt       pgtype.Timestamptz
+	EditedAt        pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	Version         int32
+	CollectionID    pgtype.UUID
+}
+
+func (q *Queries) SnapshotComments(ctx context.Context, arg SnapshotCommentsParams) ([]SnapshotCommentsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotComments, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCommentsRow{}
+	for rows.Next() {
+		var i SnapshotCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.AuthorID,
+			&i.ParentCommentID,
+			&i.Body,
+			&i.CreatedAt,
+			&i.EditedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotContainers = `-- name: SnapshotContainers :many
+
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+FROM container c
+LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.id > $1
+ORDER BY c.id
+LIMIT $2
+`
+
+type SnapshotContainersParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotContainersRow struct {
+	ID                   pgtype.UUID
+	TenantID             pgtype.UUID
+	Type                 ContainerType
+	ParentID             pgtype.UUID
+	Name                 string
+	Description          *string
+	Icon                 *string
+	ColorToken           *string
+	OrderKey             string
+	CompletionPolicy     string
+	AutoAssignStrategy   *string
+	AutoAssignCandidates []byte
+	AutoAssignEnabled    *bool
+	ArchivedAt           pgtype.Timestamptz
+	ParentArchivedAt     pgtype.Timestamptz
+	DeletedAt            pgtype.Timestamptz
+	TrashBatchID         pgtype.UUID
+	CreatedBy            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Version              int32
+}
+
+// The initial synchronisation (N-02, offline-sync.md §3.1): the current state, one kind at a
+// time, in pages by identifier. Each statement is its kind's Find with the identifier as the page
+// key and the live rows only - the trash and the deleted are tombstones in the log, not state.
+// The column lists mirror the Find statements on purpose, so that the row mappers are shared and
+// a device starting from nothing reads exactly the shape a device that pulled the change would.
+func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainersParams) ([]SnapshotContainersRow, error) {
+	rows, err := q.db.Query(ctx, snapshotContainers, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotContainersRow{}
+	for rows.Next() {
+		var i SnapshotContainersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Type,
+			&i.ParentID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.ColorToken,
+			&i.OrderKey,
+			&i.CompletionPolicy,
+			&i.AutoAssignStrategy,
+			&i.AutoAssignCandidates,
+			&i.AutoAssignEnabled,
+			&i.ArchivedAt,
+			&i.ParentArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotLabels = `-- name: SnapshotLabels :many
+SELECT
+  id, tenant_id, collection_id, name, color_token, description, deleted_at, version
+FROM label
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotLabelsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+func (q *Queries) SnapshotLabels(ctx context.Context, arg SnapshotLabelsParams) ([]Label, error) {
+	rows, err := q.db.Query(ctx, snapshotLabels, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Label{}
+	for rows.Next() {
+		var i Label
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Name,
+			&i.ColorToken,
+			&i.Description,
+			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotRecurrenceRules = `-- name: SnapshotRecurrenceRules :many
+SELECT rr.id, rr.tenant_id, rr.source_item_id, rr.rrule, rr.time_zone, rr.mode, rr.horizon_days,
+       rr.ends_at, rr.max_count, rr.last_materialized_at, rr.created_at, rr.updated_at, rr.version,
+       wi.collection_id
+FROM recurrence_rule rr
+JOIN work_item wi ON wi.tenant_id = rr.tenant_id AND wi.id = rr.source_item_id
+WHERE rr.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND rr.id > $1
+ORDER BY rr.id
+LIMIT $2
+`
+
+type SnapshotRecurrenceRulesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotRecurrenceRulesRow struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	SourceItemID       pgtype.UUID
+	Rrule              string
+	TimeZone           string
+	Mode               string
+	HorizonDays        int32
+	EndsAt             pgtype.Timestamptz
+	MaxCount           *int32
+	LastMaterializedAt pgtype.Timestamptz
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	Version            int32
+	CollectionID       pgtype.UUID
+}
+
+func (q *Queries) SnapshotRecurrenceRules(ctx context.Context, arg SnapshotRecurrenceRulesParams) ([]SnapshotRecurrenceRulesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotRecurrenceRules, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotRecurrenceRulesRow{}
+	for rows.Next() {
+		var i SnapshotRecurrenceRulesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SourceItemID,
+			&i.Rrule,
+			&i.TimeZone,
+			&i.Mode,
+			&i.HorizonDays,
+			&i.EndsAt,
+			&i.MaxCount,
+			&i.LastMaterializedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotReminders = `-- name: SnapshotReminders :many
+SELECT r.id, r.tenant_id, r.item_id, r.offset_spec, r.channels, r.recipients, r.state, r.fire_at,
+       r.created_at, r.updated_at, r.version, wi.collection_id
+FROM reminder r
+JOIN work_item wi ON wi.tenant_id = r.tenant_id AND wi.id = r.item_id
+WHERE r.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND r.id > $1
+ORDER BY r.id
+LIMIT $2
+`
+
+type SnapshotRemindersParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotRemindersRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	OffsetSpec   string
+	Channels     []string
+	Recipients   []pgtype.UUID
+	State        string
+	FireAt       pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	CollectionID pgtype.UUID
+}
+
+func (q *Queries) SnapshotReminders(ctx context.Context, arg SnapshotRemindersParams) ([]SnapshotRemindersRow, error) {
+	rows, err := q.db.Query(ctx, snapshotReminders, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotRemindersRow{}
+	for rows.Next() {
+		var i SnapshotRemindersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.OffsetSpec,
+			&i.Channels,
+			&i.Recipients,
+			&i.State,
+			&i.FireAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotSetElements = `-- name: SnapshotSetElements :many
+SELECT se.item_id, se.set_name, se.element_id, se.add_tag, se.remove_tag, wi.collection_id
+FROM set_element se
+JOIN work_item wi ON wi.tenant_id = se.tenant_id AND wi.id = se.item_id
+WHERE se.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL
+  AND (se.item_id, se.set_name, se.element_id) >
+      ($1::uuid, $2::text, $3::uuid)
+ORDER BY se.item_id, se.set_name, se.element_id
+LIMIT $4
+`
+
+type SnapshotSetElementsParams struct {
+	AfterItemID    pgtype.UUID
+	AfterSetName   string
+	AfterElementID pgtype.UUID
+	Batch          int32
+}
+
+type SnapshotSetElementsRow struct {
+	ItemID       pgtype.UUID
+	SetName      string
+	ElementID    pgtype.UUID
+	AddTag       *string
+	RemoveTag    *string
+	CollectionID pgtype.UUID
+}
+
+// Every tag row of every live entry, keyed the way the table is. Both tags travel: a removed
+// element with its removal tag is what lets a device merge a later re-add correctly
+// (core/domain/model/work/SetElement.go).
+func (q *Queries) SnapshotSetElements(ctx context.Context, arg SnapshotSetElementsParams) ([]SnapshotSetElementsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotSetElements,
+		arg.AfterItemID,
+		arg.AfterSetName,
+		arg.AfterElementID,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotSetElementsRow{}
+	for rows.Next() {
+		var i SnapshotSetElementsRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.SetName,
+			&i.ElementID,
+			&i.AddTag,
+			&i.RemoveTag,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotTemplates = `-- name: SnapshotTemplates :many
+SELECT id, tenant_id, scope_type, scope_id, name, description, root_type, nodes,
+       created_at, updated_at, deleted_at, version
+FROM template
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotTemplatesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotTemplatesRow struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ScopeType   string
+	ScopeID     pgtype.UUID
+	Name        string
+	Description *string
+	RootType    ItemType
+	Nodes       []byte
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	DeletedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+func (q *Queries) SnapshotTemplates(ctx context.Context, arg SnapshotTemplatesParams) ([]SnapshotTemplatesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotTemplates, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotTemplatesRow{}
+	for rows.Next() {
+		var i SnapshotTemplatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Description,
+			&i.RootType,
+			&i.Nodes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotWorkItems = `-- name: SnapshotWorkItems :many
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > $1
+ORDER BY wi.id
+LIMIT $2
+`
+
+type SnapshotWorkItemsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotWorkItemsRow struct {
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	AssigneeID            pgtype.UUID
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	ContentLanguage       *string
+	RecurrenceRuleID      pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
+	OriginJumbleID        pgtype.UUID
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
+	RetentionBlockedBy    *string
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsParams) ([]SnapshotWorkItemsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotWorkItems, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotWorkItemsRow{}
+	for rows.Next() {
+		var i SnapshotWorkItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Type,
+			&i.ParentID,
+			&i.Path,
+			&i.Depth,
+			&i.Title,
+			&i.Notes,
+			&i.IsCompleted,
+			&i.CompletedAt,
+			&i.CompletedBy,
+			&i.BucketID,
+			&i.OrderKey,
+			&i.AssigneeID,
+			&i.StartAt,
+			&i.DueAt,
+			&i.DueDateOnly,
+			&i.DueTimeZone,
+			&i.CoverKind,
+			&i.CoverColorToken,
+			&i.CoverMediaID,
+			&i.CustomFields,
+			&i.ContentLanguage,
+			&i.RecurrenceRuleID,
+			&i.RecurrenceSourceID,
+			&i.OriginJumbleID,
+			&i.RetentionPendingUntil,
+			&i.RetentionRuleID,
+			&i.RetentionAction,
+			&i.RetentionBlockedBy,
+			&i.ArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const touchDevice = `-- name: TouchDevice :one
 
 INSERT INTO sync_device (

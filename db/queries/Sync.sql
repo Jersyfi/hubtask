@@ -120,3 +120,115 @@ SELECT count(*) FROM (
     AND coalesce(stale.last_seen_at, stale.created_at) < sqlc.arg('cutoff')
   LIMIT sqlc.arg('ceiling')
 ) AS due;
+-- The initial synchronisation (N-02, offline-sync.md §3.1): the current state, one kind at a
+-- time, in pages by identifier. Each statement is its kind's Find with the identifier as the page
+-- key and the live rows only - the trash and the deleted are tombstones in the log, not state.
+-- The column lists mirror the Find statements on purpose, so that the row mappers are shared and
+-- a device starting from nothing reads exactly the shape a device that pulled the change would.
+
+-- name: SnapshotContainers :many
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+FROM container c
+LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.id > sqlc.arg('after')
+ORDER BY c.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotBuckets :many
+SELECT
+  id, tenant_id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token,
+  deleted_at, version
+FROM bucket
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotLabels :many
+SELECT
+  id, tenant_id, collection_id, name, color_token, description, deleted_at, version
+FROM label
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotWorkItems :many
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > sqlc.arg('after')
+ORDER BY wi.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotSetElements :many
+-- Every tag row of every live entry, keyed the way the table is. Both tags travel: a removed
+-- element with its removal tag is what lets a device merge a later re-add correctly
+-- (core/domain/model/work/SetElement.go).
+SELECT se.item_id, se.set_name, se.element_id, se.add_tag, se.remove_tag, wi.collection_id
+FROM set_element se
+JOIN work_item wi ON wi.tenant_id = se.tenant_id AND wi.id = se.item_id
+WHERE se.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL
+  AND (se.item_id, se.set_name, se.element_id) >
+      (sqlc.arg('after_item_id')::uuid, sqlc.arg('after_set_name')::text, sqlc.arg('after_element_id')::uuid)
+ORDER BY se.item_id, se.set_name, se.element_id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotComments :many
+SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
+       c.created_at, c.edited_at, c.deleted_at, c.version, wi.collection_id
+FROM comment c
+JOIN work_item wi ON wi.tenant_id = c.tenant_id AND wi.id = c.item_id
+WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND wi.deleted_at IS NULL
+  AND c.id > sqlc.arg('after')
+ORDER BY c.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotReminders :many
+SELECT r.id, r.tenant_id, r.item_id, r.offset_spec, r.channels, r.recipients, r.state, r.fire_at,
+       r.created_at, r.updated_at, r.version, wi.collection_id
+FROM reminder r
+JOIN work_item wi ON wi.tenant_id = r.tenant_id AND wi.id = r.item_id
+WHERE r.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND r.id > sqlc.arg('after')
+ORDER BY r.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotRecurrenceRules :many
+SELECT rr.id, rr.tenant_id, rr.source_item_id, rr.rrule, rr.time_zone, rr.mode, rr.horizon_days,
+       rr.ends_at, rr.max_count, rr.last_materialized_at, rr.created_at, rr.updated_at, rr.version,
+       wi.collection_id
+FROM recurrence_rule rr
+JOIN work_item wi ON wi.tenant_id = rr.tenant_id AND wi.id = rr.source_item_id
+WHERE rr.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND rr.id > sqlc.arg('after')
+ORDER BY rr.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotTemplates :many
+SELECT id, tenant_id, scope_type, scope_id, name, description, root_type, nodes,
+       created_at, updated_at, deleted_at, version
+FROM template
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');

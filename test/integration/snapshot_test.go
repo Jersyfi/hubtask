@@ -7,179 +7,310 @@ package integration
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The REPEATABLE READ snapshot an export reads under (E-04, backup-restore.md §5). Without it a
-// run that reads containers, then items three minutes later, then comments after that produces an
-// archive in which an item belongs to a container that does not exist yet - which restores as a
-// foreign key violation on the worst possible day.
+// The initial synchronisation's reader (N-02): every kind the change log records, paged by
+// identifier across the whole workspace, live rows only - and a cross-tenant negative for every
+// method (gate SG-3). The database is shared across files, so every assertion is by identity:
+// the rows this test seeded are found in the walk, or they are not, whatever else is there.
 
-func snapshotUnitOfWork(ctx context.Context, t *testing.T) *postgres.UnitOfWork {
+func snapshotRepo() postgres.SnapshotRepository { return postgres.NewSnapshotRepository() }
+
+// snapshotFixture is one of everything, in tenant A.
+type snapshotFixture struct {
+	hub, collection, task shared.ID
+	bucket                work.Bucket
+	label                 work.Label
+	comment               work.Comment
+	reminder              work.Reminder
+	rule                  work.RecurrenceRule
+	template              work.Template
+	tag                   shared.HLC
+}
+
+func seedSnapshot(ctx context.Context, t *testing.T) snapshotFixture {
 	t.Helper()
-	return postgres.NewUnitOfWork(appPool(ctx, t))
-}
-
-// The acceptance criterion: a write concurrent with an export appears wholly or not at all.
-func TestAWriteDuringASnapshotIsInvisibleToIt(t *testing.T) {
-	ctx := context.Background()
 	seedContainerTenants(ctx, t)
 
-	before := freshID(t)
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, before, freshName(t), "ae"))
-	}); err != nil {
-		t.Fatalf("seeding the container that was already there: %v", err)
-	}
+	var f snapshotFixture
+	f.hub, f.collection = hubWithCollection(ctx, t, tenantA, authorA)
+	f.bucket = seedBucket(ctx, t, tenantA, f.collection, "a0")
+	f.label = seedLabel(ctx, t, tenantA, f.collection)
+	f.task = seedTask(ctx, t, tenantA, authorA, f.collection)
 
-	during := freshID(t)
-	var seenBefore, seenDuring error
-
-	err := snapshotUnitOfWork(ctx, t).WithinSnapshot(ctx, persistence.Scope{TenantID: tenantA},
-		func(snapshotCtx context.Context, _ time.Time) error {
-			// The snapshot is taken on the first read, so read once before anything else happens.
-			if _, err := containerRepo().Find(snapshotCtx, before); err != nil {
-				return err
-			}
-
-			// Now somebody commits, on another connection, while the snapshot is open. This is
-			// the ordinary case rather than a contrived one: a backup runs for minutes and the
-			// installation keeps working.
-			if err := write(ctx, t, tenantA, func(writeCtx context.Context) error {
-				return containerRepo().Insert(writeCtx, containerIn(tenantA, authorA, during, freshName(t), "af"))
-			}); err != nil {
-				return err
-			}
-
-			_, seenBefore = containerRepo().Find(snapshotCtx, before)
-			_, seenDuring = containerRepo().Find(snapshotCtx, during)
-			return nil
-		})
+	tag, err := shared.NewHLC(created, 1, "server")
 	if err != nil {
-		t.Fatalf("the snapshot: %v", err)
+		t.Fatalf("building the tag: %v", err)
 	}
-
-	if seenBefore != nil {
-		t.Fatalf("a row that was there before the snapshot went missing inside it: %v", seenBefore)
-	}
-	if !errors.Is(seenDuring, shared.ErrNotFound) {
-		t.Fatalf("a row committed during the snapshot was visible to it: %v", seenDuring)
-	}
-
-	// And it really was committed - the snapshot did not simply lose it.
-	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := containerRepo().Find(ctx, during)
-		return err
+	f.tag = tag
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemLabelRepo().Add(ctx, f.task, f.label.ID, tag)
 	}); err != nil {
-		t.Fatalf("the concurrent write did not land at all: %v", err)
+		t.Fatalf("adding the label: %v", err)
 	}
+
+	f.comment = seedComment(ctx, t, tenantA, f.task, authorA, "Looks right", created)
+	f.reminder = seedReminder(ctx, t, tenantA, f.task, "ABS:2026-09-01T08:00:00Z", nil)
+
+	due := created.Add(48 * time.Hour)
+	dueDate, err := work.NewDueDate(&due, false, "Europe/Berlin")
+	if err != nil {
+		t.Fatalf("the due date was refused: %v", err)
+	}
+	item := findWorkItem(ctx, t, tenantA, f.task)
+	item.Due = dueDate
+	item.UpdatedAt = due
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetDueDate(ctx, item, item.Version)
+	}); err != nil {
+		t.Fatalf("setting the due date: %v", err)
+	}
+	rule, err := work.NewRecurrenceRule(work.NewRecurrenceRuleInput{
+		ID: freshID(t), TenantID: tenantA, ItemID: f.task,
+		Spec: work.RecurrenceSpec{
+			RRULE: "FREQ=DAILY", TimeZone: "Europe/Berlin",
+			Mode: string(work.RecurrenceOnSchedule), HorizonDays: 7,
+		},
+		Due: dueDate, Now: due,
+	})
+	if err != nil {
+		t.Fatalf("the series was refused: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return recurrenceRepo().Insert(ctx, rule)
+	}); err != nil {
+		t.Fatalf("writing the series: %v", err)
+	}
+	f.rule = rule
+
+	f.template = templateFor(t, tenantA, f.collection, freshName(t))
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return templateRepo().Insert(ctx, f.template)
+	}); err != nil {
+		t.Fatalf("writing the template: %v", err)
+	}
+	return f
 }
 
-// The instant comes from the database rather than from the process, because it is the clock the
-// rows' own timestamps were written by. A process clock a second ahead would leave a hole in the
-// chain of incrementals that nothing would ever report.
-func TestTheSnapshotInstantComesFromTheDatabase(t *testing.T) {
-	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+// snapshotWalk pages one kind to its end from the given tenant and reports whether the identifier was
+// seen. A batch of two, so that the paging itself is exercised rather than a single read.
+func snapshotWalk[T any](
+	ctx context.Context, t *testing.T, tenant shared.ID,
+	page func(ctx context.Context, after shared.ID, batch int) ([]T, error),
+	idOf func(T) shared.ID, wanted shared.ID,
+) (found bool, rows []T) {
+	t.Helper()
 
-	var first, second time.Time
-	unitOfWork := snapshotUnitOfWork(ctx, t)
-
-	for _, at := range []*time.Time{&first, &second} {
-		if err := unitOfWork.WithinSnapshot(ctx, persistence.Scope{TenantID: tenantA},
-			func(_ context.Context, taken time.Time) error {
-				*at = taken
-				return nil
-			}); err != nil {
-			t.Fatalf("the snapshot: %v", err)
+	var after shared.ID
+	for {
+		var batch []T
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			batch, err = page(ctx, after, 2)
+			return err
+		}); err != nil {
+			t.Fatalf("paging: %v", err)
+		}
+		for _, row := range batch {
+			rows = append(rows, row)
+			if idOf(row) == wanted {
+				found = true
+			}
+			after = idOf(row)
+		}
+		if len(batch) < 2 {
+			return found, rows
 		}
 	}
-
-	switch {
-	case first.IsZero() || second.IsZero():
-		t.Fatal("a snapshot without an instant")
-	case first.Location() != time.UTC:
-		t.Fatalf("the instant is not UTC: %v", first)
-	case !second.After(first):
-		t.Fatalf("two snapshots, one instant: %v and %v", first, second)
-	case time.Since(second) > time.Minute:
-		t.Fatalf("the instant is nowhere near now: %v", second)
-	}
 }
 
-// A snapshot cannot join a running transaction: the isolation level is fixed when a transaction
-// begins, so joining would quietly hand back READ COMMITTED under a method that promises otherwise.
-func TestASnapshotRefusesToJoinARunningTransaction(t *testing.T) {
+func TestTheSnapshotPagesEveryKindByIdentifier(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
-	unitOfWork := snapshotUnitOfWork(ctx, t)
+	f := seedSnapshot(ctx, t)
+	repo := snapshotRepo()
 
-	err := unitOfWork.Within(ctx, persistence.Scope{TenantID: tenantA}, func(inner context.Context) error {
-		return unitOfWork.WithinSnapshot(inner, persistence.Scope{TenantID: tenantA},
-			func(context.Context, time.Time) error { return nil })
+	t.Run("containers", func(t *testing.T) {
+		found, rows := snapshotWalk(ctx, t, tenantA, repo.Containers,
+			func(c work.Container) shared.ID { return c.ID }, f.collection)
+		if !found {
+			t.Errorf("the collection is not in the walk")
+		}
+		for i := 1; i < len(rows); i++ {
+			if rows[i].ID.String() <= rows[i-1].ID.String() {
+				t.Fatalf("the walk is not by identifier: %s after %s", rows[i].ID, rows[i-1].ID)
+			}
+		}
 	})
-	if !errors.Is(err, shared.ErrInternal) {
-		t.Fatalf("a snapshot joined a running transaction: %v", err)
+	t.Run("buckets", func(t *testing.T) {
+		if found, _ := snapshotWalk(ctx, t, tenantA, repo.Buckets,
+			func(b work.Bucket) shared.ID { return b.ID }, f.bucket.ID); !found {
+			t.Errorf("the bucket is not in the walk")
+		}
+	})
+	t.Run("labels", func(t *testing.T) {
+		if found, _ := snapshotWalk(ctx, t, tenantA, repo.Labels,
+			func(l work.Label) shared.ID { return l.ID }, f.label.ID); !found {
+			t.Errorf("the label is not in the walk")
+		}
+	})
+	t.Run("items", func(t *testing.T) {
+		found, rows := snapshotWalk(ctx, t, tenantA, repo.Items,
+			func(i work.WorkItem) shared.ID { return i.ID }, f.task)
+		if !found {
+			t.Errorf("the entry is not in the walk")
+		}
+		for _, row := range rows {
+			if row.ID == f.task && row.Due == nil {
+				t.Errorf("the entry came back without its due date: the row mapper is not the find's")
+			}
+		}
+	})
+	t.Run("set elements", func(t *testing.T) {
+		var after repository.SetElementKey
+		found := false
+		for {
+			var batch []repository.ItemSetElement
+			if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+				var err error
+				batch, err = repo.SetElements(ctx, after, 2)
+				return err
+			}); err != nil {
+				t.Fatalf("paging: %v", err)
+			}
+			for _, row := range batch {
+				if row.ItemID == f.task && row.Set == work.SetLabels && row.Element.ElementID == f.label.ID {
+					found = true
+					if row.CollectionID != f.collection || row.Element.AddedAt.Compare(f.tag) != 0 {
+						t.Errorf("the element came back as %+v", row)
+					}
+				}
+				after = repository.SetElementKey{ItemID: row.ItemID, Set: row.Set, ElementID: row.Element.ElementID}
+			}
+			if len(batch) < 2 {
+				break
+			}
+		}
+		if !found {
+			t.Errorf("the label's tag is not in the walk")
+		}
+	})
+	t.Run("comments", func(t *testing.T) {
+		found, rows := snapshotWalk(ctx, t, tenantA, repo.Comments,
+			func(c repository.InCollection[work.Comment]) shared.ID { return c.Value.ID }, f.comment.ID)
+		if !found {
+			t.Errorf("the comment is not in the walk")
+		}
+		for _, row := range rows {
+			if row.Value.ID == f.comment.ID && row.CollectionID != f.collection {
+				t.Errorf("the comment names collection %s, want %s", row.CollectionID, f.collection)
+			}
+		}
+	})
+	t.Run("reminders", func(t *testing.T) {
+		found, rows := snapshotWalk(ctx, t, tenantA, repo.Reminders,
+			func(r repository.InCollection[work.Reminder]) shared.ID { return r.Value.ID }, f.reminder.ID)
+		if !found {
+			t.Errorf("the reminder is not in the walk")
+		}
+		for _, row := range rows {
+			if row.Value.ID == f.reminder.ID && row.CollectionID != f.collection {
+				t.Errorf("the reminder names collection %s, want %s", row.CollectionID, f.collection)
+			}
+		}
+	})
+	t.Run("recurrences", func(t *testing.T) {
+		found, rows := snapshotWalk(ctx, t, tenantA, repo.Recurrences,
+			func(r repository.InCollection[work.RecurrenceRule]) shared.ID { return r.Value.ID }, f.rule.ID)
+		if !found {
+			t.Errorf("the rule is not in the walk")
+		}
+		for _, row := range rows {
+			if row.Value.ID == f.rule.ID && row.CollectionID != f.collection {
+				t.Errorf("the rule names collection %s, want %s", row.CollectionID, f.collection)
+			}
+		}
+	})
+	t.Run("templates", func(t *testing.T) {
+		if found, _ := snapshotWalk(ctx, t, tenantA, repo.Templates,
+			func(tpl work.Template) shared.ID { return tpl.ID }, f.template.ID); !found {
+			t.Errorf("the template is not in the walk")
+		}
+	})
+}
+
+// A trashed entry is a tombstone in the log, not state: it is not in the walk, and neither is
+// what hangs off it.
+func TestTheSnapshotLeavesTheTrashOut(t *testing.T) {
+	ctx := context.Background()
+	f := seedSnapshot(ctx, t)
+	stampColumn(ctx, t, f.task, "deleted_at")
+
+	if found, _ := snapshotWalk(ctx, t, tenantA, snapshotRepo().Items,
+		func(i work.WorkItem) shared.ID { return i.ID }, f.task); found {
+		t.Errorf("a trashed entry is in the walk")
+	}
+	if found, _ := snapshotWalk(ctx, t, tenantA, snapshotRepo().Comments,
+		func(c repository.InCollection[work.Comment]) shared.ID { return c.Value.ID }, f.comment.ID); found {
+		t.Errorf("a trashed entry's comment is in the walk")
 	}
 }
 
-// Read-only is enforced by the database, so an export that tried to write would fail loudly rather
-// than quietly succeeding.
-func TestASnapshotCannotWrite(t *testing.T) {
+// Gate SG-3: one negative per port method. The walk from tenant B never meets tenant A's rows.
+func TestTheSnapshotIsInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	f := seedSnapshot(ctx, t)
+	repo := snapshotRepo()
 
-	err := snapshotUnitOfWork(ctx, t).WithinSnapshot(ctx, persistence.Scope{TenantID: tenantA},
-		func(snapshotCtx context.Context, _ time.Time) error {
-			return containerRepo().Insert(snapshotCtx, containerIn(tenantA, authorA, freshID(t), freshName(t), "ag"))
-		})
-	if err == nil {
-		t.Fatal("a write inside a snapshot succeeded")
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Containers,
+		func(c work.Container) shared.ID { return c.ID }, f.collection); found {
+		t.Errorf("containers: tenant B saw tenant A's collection")
 	}
-}
-
-// The tenant boundary holds under a snapshot exactly as it does under a transaction: the wrapper
-// sets the same context, and row level security does not care which isolation level asked.
-func TestASnapshotSeesOnlyItsOwnTenant(t *testing.T) {
-	ctx := context.Background()
-	seedContainerTenants(ctx, t)
-
-	inA := freshID(t)
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, inA, freshName(t), "ah"))
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Buckets,
+		func(b work.Bucket) shared.ID { return b.ID }, f.bucket.ID); found {
+		t.Errorf("buckets: tenant B saw tenant A's bucket")
+	}
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Labels,
+		func(l work.Label) shared.ID { return l.ID }, f.label.ID); found {
+		t.Errorf("labels: tenant B saw tenant A's label")
+	}
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Items,
+		func(i work.WorkItem) shared.ID { return i.ID }, f.task); found {
+		t.Errorf("items: tenant B saw tenant A's entry")
+	}
+	var elements []repository.ItemSetElement
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		elements, err = repo.SetElements(ctx, repository.SetElementKey{}, 1000)
+		return err
 	}); err != nil {
-		t.Fatalf("seeding: %v", err)
+		t.Fatalf("paging set elements: %v", err)
 	}
-
-	var seen error
-	if err := snapshotUnitOfWork(ctx, t).WithinSnapshot(ctx, persistence.Scope{TenantID: tenantB},
-		func(snapshotCtx context.Context, _ time.Time) error {
-			_, seen = containerRepo().Find(snapshotCtx, inA)
-			return nil
-		}); err != nil {
-		t.Fatalf("the snapshot: %v", err)
+	for _, element := range elements {
+		if element.ItemID == f.task {
+			t.Errorf("set elements: tenant B saw tenant A's tag")
+		}
 	}
-	if !errors.Is(seen, shared.ErrNotFound) {
-		t.Fatalf("tenant B read tenant A's container under a snapshot: %v", seen)
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Comments,
+		func(c repository.InCollection[work.Comment]) shared.ID { return c.Value.ID }, f.comment.ID); found {
+		t.Errorf("comments: tenant B saw tenant A's comment")
 	}
-}
-
-// A scope that cannot bound a transaction cannot bound a snapshot either. Failing closed is the
-// rule: without a tenant, row level security returns nothing and the caller reads that as "the
-// tenant is empty" - which, in a backup, is an empty archive nobody notices.
-func TestASnapshotWithoutAScopeIsRefused(t *testing.T) {
-	ctx := context.Background()
-	seedContainerTenants(ctx, t)
-
-	err := snapshotUnitOfWork(ctx, t).WithinSnapshot(ctx, persistence.Scope{},
-		func(context.Context, time.Time) error { return nil })
-	if !errors.Is(err, shared.ErrInternal) {
-		t.Fatalf("a snapshot without a scope: %v", err)
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Reminders,
+		func(r repository.InCollection[work.Reminder]) shared.ID { return r.Value.ID }, f.reminder.ID); found {
+		t.Errorf("reminders: tenant B saw tenant A's reminder")
+	}
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Recurrences,
+		func(r repository.InCollection[work.RecurrenceRule]) shared.ID { return r.Value.ID }, f.rule.ID); found {
+		t.Errorf("recurrences: tenant B saw tenant A's rule")
+	}
+	if found, _ := snapshotWalk(ctx, t, tenantB, repo.Templates,
+		func(tpl work.Template) shared.ID { return tpl.ID }, f.template.ID); found {
+		t.Errorf("templates: tenant B saw tenant A's template")
 	}
 }
