@@ -120,6 +120,16 @@ type MoveResult struct {
 func (h MoveWorkItem) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd MoveWorkItemCommand,
 ) (MoveResult, error) {
+	if cmd.OrderKey != "" && !cmd.BeforeItemID.IsZero() {
+		return MoveResult{}, shared.ErrValidation.
+			WithDetail("items.reorder_ambiguous").
+			WithFields(shared.FieldError{Path: "/order_key", Code: "items.reorder_ambiguous"})
+	}
+	if cmd.OrderKey != "" {
+		if err := service.ValidOrderKey(cmd.OrderKey); err != nil {
+			return MoveResult{}, err
+		}
+	}
 	if cmd.ItemID.IsZero() {
 		return MoveResult{}, itemIDRequired()
 	}
@@ -732,6 +742,12 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 				Description: "The sibling to land in front of at the destination. Omitted appends to the end.",
 			},
 			{
+				Name: "order_key", Kind: usecase.KindString,
+				Description: "The rank at the destination, computed by the caller between the " +
+					"neighbours it holds - what an offline device sends instead of naming a " +
+					"sibling. Contradicts before_item_id and is refused beside it.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt,
 				Description: "The version last read. Omitted means the caller read none and accepts whatever " +
 					"is there; a version that has moved on since is refused rather than overwritten.",
@@ -828,6 +844,7 @@ func (h MoveWorkItem) invoke(
 		ParentGiven:        in.Present("target_parent_id"),
 		TargetCollectionID: collectionID,
 		BeforeItemID:       beforeID,
+		OrderKey:           in.String("order_key"),
 		ExpectedVersion:    in.Int("expected_version"),
 	})
 	if err != nil {

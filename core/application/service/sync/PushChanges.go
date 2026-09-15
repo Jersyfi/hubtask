@@ -12,8 +12,10 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // The push (N-04, offline-sync.md §3.2): a device's queue of mutations, applied one at a time
@@ -103,6 +105,20 @@ type PushResponse struct {
 	ServerTime time.Time
 }
 
+// StepRecorder is the slice of the history the push writes through: one step, named by the entry
+// it is about (work.ActivityJournal.RecordStep).
+type StepRecorder interface {
+	RecordStep(ctx context.Context, actor appshared.ActorContext, tenantID, itemID, collectionID shared.ID,
+		verb activity.Verb, changeSet map[string]any, at time.Time) error
+}
+
+// DisplacedFiler files the version of a free-text field that lost a merge as a system comment
+// (work.AddComment.FileDisplaced).
+type DisplacedFiler interface {
+	FileDisplaced(ctx context.Context, actor appshared.ActorContext, itemID shared.ID, body string,
+		params map[string]string) (work.Comment, error)
+}
+
 // applier applies one mutation of a kind through the catalogue and answers the result, or an
 // error that ends the push - never a client's refusal, which is a result.
 type applier func(ctx context.Context, actor appshared.ActorContext, m Mutation) (Result, error)
@@ -116,6 +132,12 @@ type PushChanges struct {
 	// Clocks is the server's clock per field, which ITEM_PATCH decides against (N-05).
 	Clocks    repository.FieldClocks
 	Catalogue Catalogue
+	// Activity writes the two steps a merge owes the history - a change with meaning that lost,
+	// and a merge that displaced free text (N-06). Nil writes neither, a test's convenience.
+	Activity StepRecorder
+	// Displaced files the version of a free-text field that lost as a comment (§5). Nil files
+	// nothing, and the conflict still carries both values.
+	Displaced DisplacedFiler
 	// Skew is how far a device's clock may stand from the server's before its readings are
 	// replaced by server readings (offline-sync.md §4.1). Zero means the contract's five minutes.
 	Skew time.Duration
@@ -366,12 +388,13 @@ func (p PushChanges) judge(m Mutation) error {
 
 // appliers is the table of kinds this build applies. A table in code rather than a name on the
 // mutation, for the suggestion package's reason: a stored use case name would be a stored
-// capability. N-06 and N-07 add the kinds the contract names beyond these.
+// capability. N-07 adds the two set kinds the contract names beyond these.
 func (p PushChanges) appliers() map[domain.MutationKind]applier {
 	return map[domain.MutationKind]applier{
 		domain.ItemCreate: p.create,
 		domain.ItemPatch:  p.patch,
 		domain.ItemDelete: p.trash,
+		domain.Move:       p.move,
 		domain.CommentAdd: p.comment,
 	}
 }
