@@ -1737,6 +1737,8 @@ func run() error {
 				Stream: changeStream,
 				// Every pull registers or touches the device it comes from (N-03).
 				Devices: postgres.NewDeviceRepository(),
+				// The initial synchronisation reads the current state kind by kind (N-02).
+				Snapshot: postgres.NewSnapshotRepository(),
 			},
 			Signals: metrics,
 		}

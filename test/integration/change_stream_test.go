@@ -370,7 +370,9 @@ func streamFor(ctx context.Context, t *testing.T) syncservice.StreamChanges {
 type streamCursors struct{ codec security.StreamCursorCodec }
 
 func (c streamCursors) Encode(position syncservice.Position) string {
-	return c.codec.Encode(security.StreamPosition{Seq: position.Seq, IssuedAt: position.IssuedAt})
+	return c.codec.Encode(security.StreamPosition{
+		Seq: position.Seq, IssuedAt: position.IssuedAt, Kind: position.Kind, After: position.After,
+	})
 }
 
 func (c streamCursors) Decode(cursor string) (syncservice.Position, error) {
@@ -378,7 +380,9 @@ func (c streamCursors) Decode(cursor string) (syncservice.Position, error) {
 	if err != nil {
 		return syncservice.Position{}, err
 	}
-	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
+	return syncservice.Position{
+		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Kind: decoded.Kind, After: decoded.After,
+	}, nil
 }
 
 func streamActor(tenant, account shared.ID) appshared.ActorContext {
