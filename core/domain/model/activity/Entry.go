@@ -102,6 +102,16 @@ const (
 	// than about the rule: somebody said "not this time" (D-05). It is on the template's history,
 	// because the occurrence it refers to is the one that never existed.
 	ItemRecurrenceSkipped Verb = "item.recurrence_skipped"
+	// The merge pair (N-06, offline-sync.md §4.2, §5). ItemMerged marks a merge in which a
+	// free-text field lost and its displaced version was filed as a comment - the history is
+	// where a person finds out that two versions collided and where the loser went.
+	// ItemChangeLost is a change with meaning - a completion, a reopen - that a device made and
+	// a later change outvoted: never silently discarded, but a visible step saying somebody
+	// tried, with the device and the reading. Neither is a use case's verb: both are written by
+	// the push on top of the use case it performed, which is why the gate reports rather than
+	// refuses them.
+	ItemMerged     Verb = "item.merged"
+	ItemChangeLost Verb = "item.change_lost"
 )
 
 var verbs = [...]Verb{
@@ -111,6 +121,7 @@ var verbs = [...]Verb{
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,
+	ItemMerged, ItemChangeLost,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

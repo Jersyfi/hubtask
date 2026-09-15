@@ -50,6 +50,14 @@ type Change struct {
 	DeviceID shared.ID
 	// HLC orders the change against concurrent ones on other devices (offline-sync.md §4.1).
 	HLC shared.HLC
+	// Field names the one field this entry moves, for a scalar change - empty for a creation,
+	// a deletion or a set change, which are not about one field. A named field is what the
+	// server's clock per field is kept for (N-05, §4.2): the adapter stamps `field_clock` with
+	// this entry's reading in the same transaction, and a push compares its own reading against
+	// that row. When a push is applying, the reading is the device's rather than the writer's -
+	// carried in the context (appshared.ContextWithReadings), the way the device is, so that
+	// fifty-five writers need not know a push exists.
+	Field string
 	// Payload is the changed fields. Nil on a deletion - there is nothing left to describe, and a
 	// tombstone carries no content by design.
 	Payload map[string]any
@@ -162,4 +170,44 @@ type ItemSetElement struct {
 type InCollection[T any] struct {
 	Value        T
 	CollectionID shared.ID
+}
+
+// OpRecord is what a push did with one mutation, kept so that a repeated push takes effect
+// exactly once (offline-sync.md §3.2, §7): the answer is served from here, and nothing is applied
+// a second time.
+type OpRecord struct {
+	OpID     shared.ID
+	DeviceID shared.ID
+	Result   syncdomain.ResultKind
+	EntityID shared.ID
+	// Response is the result as it was answered, so that the repeat answers the same thing.
+	Response  map[string]any
+	AppliedAt time.Time
+}
+
+// OpLog remembers processed operations for the offline window (N-04). Rows age out with the
+// window: a device may be away for the whole of it and then push its queue.
+type OpLog interface {
+	// Find answers the record of an operation this workspace has already processed, and false
+	// when it has not.
+	Find(ctx context.Context, opID shared.ID) (OpRecord, bool, error)
+	// Record writes the record inside the caller's transaction - the one that applied the
+	// mutation, so that a push that dies halfway leaves neither the effect nor the record.
+	Record(ctx context.Context, record OpRecord) error
+}
+
+// Tombstones answers whether an entity has been purged (offline-sync.md §7): a mutation naming
+// one is refused rather than applied to nothing, and a creation under its identifier is refused
+// rather than bringing it back.
+type Tombstones interface {
+	Holds(ctx context.Context, entity string, id shared.ID) (bool, error)
+}
+
+// FieldClocks reads the server's clock per field (N-05, offline-sync.md §4.2): the reading of the
+// write that last landed on each field, which a push's reading is compared against. Written by the
+// change log adapter beside the entry that names a field, never directly.
+type FieldClocks interface {
+	// Of answers every field of the entity that has a reading. A field with none has never been
+	// written since the clocks exist, and loses to any reading.
+	Of(ctx context.Context, entity string, id shared.ID) (map[string]shared.HLC, error)
 }

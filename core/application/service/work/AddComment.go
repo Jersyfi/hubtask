@@ -70,7 +70,15 @@ type AddComment struct {
 
 // AddCommentCommand is the input, typed.
 type AddCommentCommand struct {
+	// ID is the identifier the client minted, or empty for one the server mints - a device
+	// commenting offline assigns its own (offline-sync.md §3.2), CreateWorkItemCommand's rule.
+	ID     shared.ID
 	ItemID shared.ID
+	// SystemCode and SystemParams make the comment one the server files on the author's behalf
+	// (N-06, offline-sync.md §5). Not declared as inputs: nobody asks for a system comment over a
+	// channel, and FileDisplaced is the one caller.
+	SystemCode   string
+	SystemParams map[string]string
 	// ParentCommentID is the comment being replied to, empty for a top-level comment.
 	ParentCommentID shared.ID
 	Body            string
@@ -145,15 +153,25 @@ func (h AddComment) Execute(
 			return err
 		}
 
+		id := cmd.ID
+		if id.IsZero() {
+			id = w.IDs.NewID()
+		} else if !id.IsUUIDv7() {
+			return shared.ErrValidation.
+				WithDetail("sync.id_not_uuidv7").
+				WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
+		}
 		comment, err := domain.NewComment(domain.NewCommentInput{
-			ID:       w.IDs.NewID(),
-			TenantID: actor.TenantID,
-			ItemID:   item.ID,
-			AuthorID: actor.AccountID,
-			Parent:   parent,
-			Body:     cmd.Body,
-			Now:      now,
-			Text:     w.Text,
+			ID:           id,
+			TenantID:     actor.TenantID,
+			ItemID:       item.ID,
+			AuthorID:     actor.AccountID,
+			Parent:       parent,
+			Body:         cmd.Body,
+			Now:          now,
+			Text:         w.Text,
+			SystemCode:   cmd.SystemCode,
+			SystemParams: cmd.SystemParams,
 		})
 		if err != nil {
 			return err
@@ -300,6 +318,10 @@ func (w CommentWriter) recordAudit(
 // (api/openapi.yaml, schema Comment) - and the event's payload, which is the same shape minus the
 // collection a comment event carries for its consumers' filtering.
 func commentOutput(comment domain.Comment) usecase.Output {
+	kind := comment.Kind
+	if kind == "" {
+		kind = domain.CommentByUser
+	}
 	out := usecase.Output{
 		"id":                comment.ID.String(),
 		"item_id":           comment.ItemID.String(),
@@ -310,6 +332,16 @@ func commentOutput(comment domain.Comment) usecase.Output {
 		"edited_at":         timeOrNil(comment.EditedAt),
 		"deleted_at":        timeOrNil(comment.DeletedAt),
 		"version":           comment.Version,
+		"kind":              string(kind),
+		"system_code":       textOrNull(comment.SystemCode),
+		"system_params":     nil,
+	}
+	if len(comment.SystemParams) > 0 {
+		params := make(map[string]any, len(comment.SystemParams))
+		for key, value := range comment.SystemParams {
+			params[key] = value
+		}
+		out["system_params"] = params
 	}
 	if !comment.ParentCommentID.IsZero() {
 		out["parent_comment_id"] = comment.ParentCommentID.String()
@@ -318,6 +350,21 @@ func commentOutput(comment domain.Comment) usecase.Output {
 		out["body"] = comment.Body
 	}
 	return out
+}
+
+// FileDisplaced files the version of a free-text field that lost a merge as a system comment on
+// the entry, in the merging person's name (N-06, offline-sync.md §5): the body is the text that
+// lost, the heading is `sync.displaced_version` with the field, the device and the reading. The
+// same write as any comment - the same permission, the same event, the same change log entry -
+// so a device that may not comment on the entry is told so, and the push answers the conflict
+// with both values and no comment.
+func (h AddComment) FileDisplaced(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, body string,
+	params map[string]string,
+) (domain.Comment, error) {
+	return h.Execute(ctx, actor, AddCommentCommand{
+		ItemID: itemID, Body: body, SystemCode: domain.DisplacedVersionCode, SystemParams: params,
+	})
 }
 
 // Descriptor is the catalogue entry. Registering it is what makes the use case reachable through
@@ -334,6 +381,11 @@ func (h AddComment) Descriptor() usecase.Descriptor {
 			"entry's history.",
 		TokenScope: commentsWrite,
 		Input: []usecase.Field{
+			{
+				Name: "id", Kind: usecase.KindID,
+				Description: "The identifier the caller minted, a UUIDv7; offline clients assign " +
+					"their own. Leave it out and the server mints one.",
+			},
 			{
 				Name: "item_id", Kind: usecase.KindID, Required: true,
 				Description: "The entry to comment on.",
@@ -362,6 +414,10 @@ func (h AddComment) Descriptor() usecase.Descriptor {
 func (h AddComment) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	itemID, err := in.ID("item_id")
 	if err != nil {
 		return nil, err
@@ -372,6 +428,7 @@ func (h AddComment) invoke(
 	}
 
 	comment, err := h.Execute(ctx, actor, AddCommentCommand{
+		ID:              id,
 		ItemID:          itemID,
 		ParentCommentID: parentID,
 		Body:            in.String("body"),

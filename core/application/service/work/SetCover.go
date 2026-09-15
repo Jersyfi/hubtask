@@ -383,6 +383,7 @@ func (w CoverWriter) recordChange(
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         w.HLC.Next(),
+		Field:       domain.FieldCover,
 		Payload:     map[string]any{domain.FieldCover: change.To},
 	})
 }

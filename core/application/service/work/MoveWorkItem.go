@@ -81,6 +81,10 @@ type MoveWorkItemCommand struct {
 	TargetCollectionID shared.ID
 	// BeforeItemID is the sibling to land in front of at the destination. Empty appends.
 	BeforeItemID shared.ID
+	// OrderKey is the rank a device computed itself, between the neighbours it holds, in place of
+	// naming one (offline-sync.md §4.2: the position is a key between neighbours, not an integer).
+	// Empty means the server computes the key from BeforeItemID. Both is a contradiction.
+	OrderKey string
 	// TargetBucketID is the column of the destination's board to land in, meaningful only together
 	// with BucketGiven: the zero value is both "no column" and "not asked for".
 	TargetBucketID  shared.ID
@@ -90,8 +94,10 @@ type MoveWorkItemCommand struct {
 
 // ReorderWorkItemCommand is the input, typed.
 type ReorderWorkItemCommand struct {
-	ItemID          shared.ID
-	BeforeItemID    shared.ID
+	ItemID       shared.ID
+	BeforeItemID shared.ID
+	// OrderKey is the rank the caller computed, MoveWorkItemCommand's field.
+	OrderKey        string
 	ExpectedVersion int
 }
 
@@ -114,6 +120,16 @@ type MoveResult struct {
 func (h MoveWorkItem) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd MoveWorkItemCommand,
 ) (MoveResult, error) {
+	if cmd.OrderKey != "" && !cmd.BeforeItemID.IsZero() {
+		return MoveResult{}, shared.ErrValidation.
+			WithDetail("items.reorder_ambiguous").
+			WithFields(shared.FieldError{Path: "/order_key", Code: "items.reorder_ambiguous"})
+	}
+	if cmd.OrderKey != "" {
+		if err := service.ValidOrderKey(cmd.OrderKey); err != nil {
+			return MoveResult{}, err
+		}
+	}
 	if cmd.ItemID.IsZero() {
 		return MoveResult{}, itemIDRequired()
 	}
@@ -138,9 +154,21 @@ func (h ReorderWorkItem) Execute(
 		return domain.WorkItem{}, itemIDRequired()
 	}
 
+	if cmd.OrderKey != "" && !cmd.BeforeItemID.IsZero() {
+		return domain.WorkItem{}, shared.ErrValidation.
+			WithDetail("items.reorder_ambiguous").
+			WithFields(shared.FieldError{Path: "/order_key", Code: "items.reorder_ambiguous"})
+	}
+	if cmd.OrderKey != "" {
+		if err := service.ValidOrderKey(cmd.OrderKey); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+
 	plan, err := h.Placement.plan(ctx, actor, MoveWorkItemCommand{
 		ItemID:          cmd.ItemID,
 		BeforeItemID:    cmd.BeforeItemID,
+		OrderKey:        cmd.OrderKey,
 		ExpectedVersion: cmd.ExpectedVersion,
 	})
 	if err != nil {
@@ -420,6 +448,13 @@ func (w PlacementWriter) profileFor(
 func (w PlacementWriter) rankAt(
 	ctx context.Context, plan placement, spot service.Placement,
 ) (string, error) {
+	if plan.command.OrderKey != "" {
+		// The device computed the rank between the neighbours it holds; validated at the door,
+		// taken as it is here. Two devices that computed the same key sort by identifier, which
+		// is the tie the scheme leaves to whoever reads the list (offline-sync.md §4.2).
+		return plan.command.OrderKey, nil
+	}
+
 	level := repository.Level{CollectionID: plan.destination.ID, ParentID: spot.ParentID}
 
 	previous, next, err := w.Items.Neighbours(ctx, level, plan.command.BeforeItemID, plan.item.ID)
@@ -510,7 +545,7 @@ func (w PlacementWriter) write(
 	if err := w.Events.Append(ctx, announcement); err != nil {
 		return MoveResult{}, err
 	}
-	if err := w.recordChange(ctx, after, actor, announcement.Payload); err != nil {
+	if err := w.recordChanges(ctx, before, after, actor); err != nil {
 		return MoveResult{}, err
 	}
 	if err := w.recordAudit(ctx, before, after, actor, now); err != nil {
@@ -525,26 +560,58 @@ func (w PlacementWriter) write(
 	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: dropped}, nil
 }
 
-// recordChange writes what an offline client has to be told (offline-sync.md §3.1).
+// recordChanges writes what an offline client has to be told: one entry per field that moved
+// (offline-sync.md §3.1, §4.2 and the paragraph on how "per field" is written down).
 //
-// `order_key` is a fractional index and merges by itself: two devices that inserted into the same list both
-// keep their position, which is the whole reason the rank is a key rather than a number. `parent_id`, `path`
-// and `depth` are the hierarchy, which is last writer wins with cycle detection on the server - a merge that
-// would make a cycle is rejected rather than merged (offline-sync.md §4.2). The payload carries the path the
-// item came from, so a client rewrites its own copy of the subtree from one entry.
-func (w PlacementWriter) recordChange(
-	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext, snapshot map[string]any,
+// `order_key` is a fractional index and merges by itself: two devices that inserted into the same
+// list both keep their position, which is the whole reason the rank is a key rather than a number.
+// `parent_id` is the hierarchy, which is last writer wins with cycle detection on the server - a
+// merge that would make a cycle is rejected rather than merged. `path` and `depth` are derived
+// from the parent and never merge on their own, so they travel *inside* the parent's entry, under
+// its clock: a client rewrites its own copy of the subtree from that one entry. One entry each,
+// each under its own reading, because a device that reordered an entry while another moved it
+// keeps both - which is precisely what one entry covering the move would destroy (N-06).
+func (w PlacementWriter) recordChanges(
+	ctx context.Context, before, after domain.WorkItem, actor appshared.ActorContext,
 ) error {
-	return w.Changes.Record(ctx, changelog.Change{
-		TenantID:    item.TenantID,
-		Entity:      itemTarget,
-		EntityID:    item.ID,
-		Op:          changelog.Upsert,
-		ContainerID: item.CollectionID,
-		ActorID:     actor.AccountID,
-		HLC:         w.HLC.Next(),
-		Payload:     snapshot,
-	})
+	payloads := []struct {
+		field    string
+		from, to string
+		payload  map[string]any
+	}{
+		{domain.FieldParentID, before.ParentID.String(), after.ParentID.String(), map[string]any{
+			domain.FieldParentID: idOrNil(after.ParentID), "path": after.Path, "depth": after.Depth,
+		}},
+		{domain.FieldCollectionID, before.CollectionID.String(), after.CollectionID.String(), map[string]any{
+			domain.FieldCollectionID: after.CollectionID.String(),
+		}},
+		{domain.FieldBucketID, before.BucketID.String(), after.BucketID.String(), map[string]any{
+			domain.FieldBucketID: idOrNil(after.BucketID),
+		}},
+		{domain.FieldOrderKey, before.OrderKey, after.OrderKey, map[string]any{
+			domain.FieldOrderKey: after.OrderKey,
+		}},
+	}
+	for _, moved := range payloads {
+		if moved.from == moved.to {
+			continue
+		}
+		err := w.Changes.Record(ctx, changelog.Change{
+			TenantID:    after.TenantID,
+			Entity:      itemTarget,
+			EntityID:    after.ID,
+			Op:          changelog.Upsert,
+			ContainerID: after.CollectionID,
+			ActorID:     actor.AccountID,
+			HLC:         w.HLC.Next(),
+			Field:       moved.field,
+			Payload:     moved.payload,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recordAudit writes the evidence. All of it is structure - identifiers and a rank - so all of it is OPEN in
@@ -675,6 +742,12 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 				Description: "The sibling to land in front of at the destination. Omitted appends to the end.",
 			},
 			{
+				Name: "order_key", Kind: usecase.KindString,
+				Description: "The rank at the destination, computed by the caller between the " +
+					"neighbours it holds - what an offline device sends instead of naming a " +
+					"sibling. Contradicts before_item_id and is refused beside it.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt,
 				Description: "The version last read. Omitted means the caller read none and accepts whatever " +
 					"is there; a version that has moved on since is refused rather than overwritten.",
@@ -711,6 +784,12 @@ func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 			{
 				Name: "before_item_id", Kind: usecase.KindID,
 				Description: "The sibling to place it before. Omitted moves it to the end of its level.",
+			},
+			{
+				Name: "order_key", Kind: usecase.KindString,
+				Description: "The rank itself, computed by the caller between the neighbours it " +
+					"holds - what an offline device sends instead of naming a sibling. " +
+					"Contradicts before_item_id and is refused beside it.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt,
@@ -765,6 +844,7 @@ func (h MoveWorkItem) invoke(
 		ParentGiven:        in.Present("target_parent_id"),
 		TargetCollectionID: collectionID,
 		BeforeItemID:       beforeID,
+		OrderKey:           in.String("order_key"),
 		ExpectedVersion:    in.Int("expected_version"),
 	})
 	if err != nil {
@@ -788,6 +868,7 @@ func (h ReorderWorkItem) invoke(
 	item, err := h.Execute(ctx, actor, ReorderWorkItemCommand{
 		ItemID:          itemID,
 		BeforeItemID:    beforeID,
+		OrderKey:        in.String("order_key"),
 		ExpectedVersion: in.Int("expected_version"),
 	})
 	if err != nil {

@@ -71,6 +71,7 @@ type Metrics struct {
 	streamRefused     metric.Int64Counter
 	streamRecords     metric.Int64Counter
 	pullRecords       metric.Int64Counter
+	pushResults       metric.Int64Counter
 	authFailures      metric.Int64Counter
 	poolConnections   metric.Int64Gauge
 	migrationVersion  metric.Int64Gauge
@@ -456,6 +457,12 @@ func (m *Metrics) streamInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("pull record counter: %w", err)
 	}
+	if m.pushResults, err = meter.Int64Counter(
+		namespace+"_sync_push_mutations_total",
+		metric.WithDescription("Mutations a sync push answered, by result."),
+	); err != nil {
+		return fmt.Errorf("push result counter: %w", err)
+	}
 	return nil
 }
 
@@ -479,6 +486,13 @@ func (m *Metrics) StreamRefused(ctx context.Context, reason string) {
 // says whether the streams are keeping up.
 func (m *Metrics) StreamRecords(ctx context.Context, count int) {
 	m.streamRecords.Add(ctx, int64(count))
+}
+
+// PushResult counts one mutation a push answered, by the contract's result - a closed set of
+// four (N-04). What a device pushed and how much of it the server took is the one number that
+// says whether offline work is landing.
+func (m *Metrics) PushResult(ctx context.Context, result string) {
+	m.pushResults.Add(ctx, 1, metric.WithAttributes(attribute.String("result", result)))
 }
 
 // PullRecords counts what a pull handed out (N-01). Beside the stream's counter rather than folded

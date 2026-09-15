@@ -923,7 +923,8 @@ func (pending) ForgetSyncDevice(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
-// SyncPull is overridden by RestController, for the reason given at CreateContainer (N-01).
+// SyncPull and SyncPush are overridden by RestController, for the reason given at CreateContainer
+// (N-01, N-04).
 func (pending) SyncPull(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

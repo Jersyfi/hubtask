@@ -13,7 +13,7 @@ import (
 
 const findComment = `-- name: FindComment :one
 SELECT id, tenant_id, item_id, author_id, parent_comment_id, body,
-       created_at, edited_at, deleted_at, version
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params
 FROM comment
 WHERE id = $1
 `
@@ -35,6 +35,9 @@ func (q *Queries) FindComment(ctx context.Context, id pgtype.UUID) (Comment, err
 		&i.EditedAt,
 		&i.DeletedAt,
 		&i.Version,
+		&i.Kind,
+		&i.SystemCode,
+		&i.SystemParams,
 	)
 	return i, err
 }
@@ -42,11 +45,13 @@ func (q *Queries) FindComment(ctx context.Context, id pgtype.UUID) (Comment, err
 const insertComment = `-- name: InsertComment :exec
 
 INSERT INTO comment (
-  id, tenant_id, item_id, author_id, parent_comment_id, body, created_at, version
+  id, tenant_id, item_id, author_id, parent_comment_id, body, created_at, version,
+  kind, system_code, system_params
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, normalize($5::text, NFC),
-  $6, 1
+  $6, 1,
+  $7, $8, $9
 )
 `
 
@@ -57,6 +62,9 @@ type InsertCommentParams struct {
 	ParentCommentID pgtype.UUID
 	Body            string
 	CreatedAt       pgtype.Timestamptz
+	Kind            string
+	SystemCode      *string
+	SystemParams    []byte
 }
 
 // The discussion beside the entries (C-03, domain-model.md §3.5).
@@ -75,13 +83,16 @@ func (q *Queries) InsertComment(ctx context.Context, arg InsertCommentParams) er
 		arg.ParentCommentID,
 		arg.Body,
 		arg.CreatedAt,
+		arg.Kind,
+		arg.SystemCode,
+		arg.SystemParams,
 	)
 	return err
 }
 
 const listComments = `-- name: ListComments :many
 SELECT id, tenant_id, item_id, author_id, parent_comment_id, body,
-       created_at, edited_at, deleted_at, version
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params
 FROM comment
 WHERE item_id = $1
   AND (
@@ -132,6 +143,9 @@ func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]C
 			&i.EditedAt,
 			&i.DeletedAt,
 			&i.Version,
+			&i.Kind,
+			&i.SystemCode,
+			&i.SystemParams,
 		); err != nil {
 			return nil, err
 		}

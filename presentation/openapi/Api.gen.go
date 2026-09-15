@@ -963,6 +963,24 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	}
 }
 
+// Defines values for CommentKind.
+const (
+	CommentKindSYSTEM CommentKind = "SYSTEM"
+	CommentKindUSER   CommentKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the CommentKind enum.
+func (e CommentKind) Valid() bool {
+	switch e {
+	case CommentKindSYSTEM:
+		return true
+	case CommentKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CompletionPolicy.
 const (
 	CompletionPolicyMANUAL CompletionPolicy = "MANUAL"
@@ -2846,6 +2864,7 @@ func (e SyncMutationKind) Valid() bool {
 
 // Defines values for SyncMutationSet.
 const (
+	SyncMutationSetAttachments SyncMutationSet = "attachments"
 	SyncMutationSetLabels      SyncMutationSet = "labels"
 	SyncMutationSetLessThannil SyncMutationSet = "<nil>"
 	SyncMutationSetMembers     SyncMutationSet = "members"
@@ -2855,6 +2874,8 @@ const (
 // Valid indicates whether the value is a known member of the SyncMutationSet enum.
 func (e SyncMutationSet) Valid() bool {
 	switch e {
+	case SyncMutationSetAttachments:
+		return true
 	case SyncMutationSetLabels:
 		return true
 	case SyncMutationSetLessThannil:
@@ -4158,15 +4179,35 @@ type Comment struct {
 	AuthorId openapi_types.UUID `json:"author_id"`
 
 	// Body Null exactly when deleted_at is set: a deleted comment still answers with its identifier, author and timestamps, so a reply does not dangle - but its text is gone, not hidden.
-	Body            *string             `json:"body"`
-	CreatedAt       time.Time           `json:"created_at"`
-	DeletedAt       *time.Time          `json:"deleted_at,omitempty"`
-	EditedAt        *time.Time          `json:"edited_at,omitempty"`
-	Id              openapi_types.UUID  `json:"id"`
-	ItemId          openapi_types.UUID  `json:"item_id"`
+	Body      *string            `json:"body"`
+	CreatedAt time.Time          `json:"created_at"`
+	DeletedAt *time.Time         `json:"deleted_at,omitempty"`
+	EditedAt  *time.Time         `json:"edited_at,omitempty"`
+	Id        openapi_types.UUID `json:"id"`
+	ItemId    openapi_types.UUID `json:"item_id"`
+
+	// Kind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
+	// displaced version of a free-text field that lost a merge (offline-sync.md §5), whose
+	// body is the text that lost and whose heading is `system_code` with `system_params` -
+	// a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
+	// author, never from a sentence the server wrote. A system comment cannot be edited.
+	Kind            *CommentKind        `json:"kind,omitempty"`
 	ParentCommentId *openapi_types.UUID `json:"parent_comment_id,omitempty"`
-	Version         int                 `json:"version"`
+
+	// SystemCode The message code of a system comment's heading, such as `sync.displaced_version`; null for what somebody wrote.
+	SystemCode *string `json:"system_code,omitempty"`
+
+	// SystemParams The parameters of the heading - for a displaced version, the field, the device and the reading.
+	SystemParams *map[string]string `json:"system_params,omitempty"`
+	Version      int                `json:"version"`
 }
+
+// CommentKind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
+// displaced version of a free-text field that lost a merge (offline-sync.md §5), whose
+// body is the text that lost and whose heading is `system_code` with `system_params` -
+// a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
+// author, never from a sentence the server wrote. A system comment cannot be edited.
+type CommentKind string
 
 // CommentPage defines model for CommentPage.
 type CommentPage struct {
@@ -6328,13 +6369,21 @@ type SyncMutation struct {
 	// OpId The idempotency key
 	OpId    openapi_types.UUID      `json:"op_id"`
 	Payload *map[string]interface{} `json:"payload,omitempty"`
-	Set     *SyncMutationSet        `json:"set,omitempty"`
+
+	// Set Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
+	// device that captured a file offline uploads it once online - the upload needs the
+	// store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+	// is answered `sync.set_unavailable` until a use case writes a watcher.
+	Set *SyncMutationSet `json:"set,omitempty"`
 }
 
 // SyncMutationKind defines model for SyncMutation.Kind.
 type SyncMutationKind string
 
-// SyncMutationSet defines model for SyncMutation.Set.
+// SyncMutationSet Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
+// device that captured a file offline uploads it once online - the upload needs the
+// store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+// is answered `sync.set_unavailable` until a use case writes a watcher.
 type SyncMutationSet string
 
 // SyncMutationResult defines model for SyncMutationResult.

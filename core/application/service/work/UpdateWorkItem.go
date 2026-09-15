@@ -283,6 +283,7 @@ func (h UpdateWorkItem) recordChanges(
 			ContainerID: item.CollectionID,
 			ActorID:     actor.AccountID,
 			HLC:         h.HLC.Next(),
+			Field:       change.Field,
 			Payload:     map[string]any{change.Field: change.To},
 		})
 		if err != nil {
