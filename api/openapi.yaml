@@ -2346,7 +2346,17 @@ paths:
       description: |
         Returns upserts, tombstones, and revocations in a stable order. The cursor is opaque.
         If it is older than the minimum tombstone period, the server answers
-        `sync.cursor_too_old`; the client must then resynchronise completely.
+        `sync.cursor_too_old`; the client must then resynchronise completely. A cursor this
+        installation did not mint is `sync.cursor_invalid`.
+
+        The same records the stream carries, in the same order and under the same cursor - the
+        stream is an accelerator over this, not a second source of truth (ADR-0021). Records are
+        filtered by what the caller may read, per record and at the moment of the read; `has_more`
+        says the page was full and the client comes straight back. A page may carry fewer records
+        than `limit` and still have more: the cursor advances past what the caller may not see.
+
+        A null cursor is an initial synchronisation: everything the caller may read, as `UPSERT`
+        records carrying whole objects, paged, and ending in a cursor a delta resumes from.
       requestBody:
         required: true
         content:
@@ -11364,11 +11374,24 @@ components:
         cursor: { type: [string, "null"], description: Opaque; NULL means an initial synchronisation. }
         scopes:
           type: array
+          description: |
+            What the device wants to hold. No scope means everything the caller may read; several
+            scopes are a union. A scope narrows the page *after* the permission check, never
+            instead of it (offline-sync.md §3.1, §6).
           items:
             type: object
             properties:
               container_id: { type: string, format: uuid }
-              depth: { type: string, enum: [SELF, CHILDREN, SUBTREE], default: SUBTREE }
+              depth:
+                type: string
+                enum: [SELF, CHILDREN, SUBTREE]
+                default: SUBTREE
+                description: |
+                  Counted in containers. `SELF` is the container and what it holds directly - its
+                  entries, labels and buckets; `CHILDREN` adds its child containers and what they
+                  hold; `SUBTREE` every level below. A change is filed under the container of the
+                  object it concerns, so an entry's change is in its collection's `SELF` and in its
+                  hub's `CHILDREN`.
         limit: { type: integer, default: 500, maximum: 2000 }
 
     SyncChange:
@@ -11380,10 +11403,25 @@ components:
         entity_id: { type: string, format: uuid }
         container_id: { type: [string, "null"], format: uuid }
         hlc: { type: string }
+        occurred_at:
+          type: string
+          format: date-time
+          description: |
+            When the change was recorded, for a client to render and an operator to line up
+            against a log. Not the cursor and not usable as one: the sequence orders the walk, and
+            a timestamp two transactions can share is not a total order (ADR-0021).
+        actor_id: { type: [string, "null"], format: uuid, description: Who made the change; absent for the installation's own. }
+        device_id: { type: [string, "null"], format: uuid, description: The device whose push caused it, so that device can skip its own echo; absent for a change made through the API. }
         payload:
           type: [object, "null"]
           additionalProperties: true
-          description: The complete object for UPSERT; NULL for DELETE and ACCESS_REVOKED.
+          description: |
+            What moved. On a creation, and on every record of an initial synchronisation, the whole
+            object; on a change, only the fields that changed - one record per field, each under its
+            own clock, because the merge rule is last writer wins *per field* and a record carrying
+            the whole object would let a stale value win a merge it should never have entered
+            (offline-sync.md §4.2). A set change carries `set`, `element_id` and `op`. Absent on
+            `DELETE` and `ACCESS_REVOKED`: a tombstone carries no content by design.
 
     SyncPullResponse:
       type: object

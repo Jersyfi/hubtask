@@ -6267,13 +6267,28 @@ type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
 type SyncChange struct {
+	// ActorId Who made the change; absent for the installation's own.
+	ActorId     *openapi_types.UUID `json:"actor_id,omitempty"`
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
-	Entity      string              `json:"entity"`
-	EntityId    openapi_types.UUID  `json:"entity_id"`
-	Hlc         *string             `json:"hlc,omitempty"`
-	Op          SyncChangeOp        `json:"op"`
 
-	// Payload The complete object for UPSERT; NULL for DELETE and ACCESS_REVOKED.
+	// DeviceId The device whose push caused it
+	DeviceId *openapi_types.UUID `json:"device_id,omitempty"`
+	Entity   string              `json:"entity"`
+	EntityId openapi_types.UUID  `json:"entity_id"`
+	Hlc      *string             `json:"hlc,omitempty"`
+
+	// OccurredAt When the change was recorded, for a client to render and an operator to line up
+	// against a log. Not the cursor and not usable as one: the sequence orders the walk, and
+	// a timestamp two transactions can share is not a total order (ADR-0021).
+	OccurredAt *time.Time   `json:"occurred_at,omitempty"`
+	Op         SyncChangeOp `json:"op"`
+
+	// Payload What moved. On a creation, and on every record of an initial synchronisation, the whole
+	// object; on a change, only the fields that changed - one record per field, each under its
+	// own clock, because the merge rule is last writer wins *per field* and a record carrying
+	// the whole object would let a stale value win a merge it should never have entered
+	// (offline-sync.md §4.2). A set change carries `set`, `element_id` and `op`. Absent on
+	// `DELETE` and `ACCESS_REVOKED`: a tombstone carries no content by design.
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 }
 
@@ -6346,13 +6361,27 @@ type SyncPullRequest struct {
 	Cursor   *string            `json:"cursor,omitempty"`
 	DeviceId openapi_types.UUID `json:"device_id"`
 	Limit    *int               `json:"limit,omitempty"`
-	Scopes   *[]struct {
-		ContainerId *openapi_types.UUID         `json:"container_id,omitempty"`
-		Depth       *SyncPullRequestScopesDepth `json:"depth,omitempty"`
+
+	// Scopes What the device wants to hold. No scope means everything the caller may read; several
+	// scopes are a union. A scope narrows the page *after* the permission check, never
+	// instead of it (offline-sync.md §3.1, §6).
+	Scopes *[]struct {
+		ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+
+		// Depth Counted in containers. `SELF` is the container and what it holds directly - its
+		// entries, labels and buckets; `CHILDREN` adds its child containers and what they
+		// hold; `SUBTREE` every level below. A change is filed under the container of the
+		// object it concerns, so an entry's change is in its collection's `SELF` and in its
+		// hub's `CHILDREN`.
+		Depth *SyncPullRequestScopesDepth `json:"depth,omitempty"`
 	} `json:"scopes,omitempty"`
 }
 
-// SyncPullRequestScopesDepth defines model for SyncPullRequest.Scopes.Depth.
+// SyncPullRequestScopesDepth Counted in containers. `SELF` is the container and what it holds directly - its
+// entries, labels and buckets; `CHILDREN` adds its child containers and what they
+// hold; `SUBTREE` every level below. A change is filed under the container of the
+// object it concerns, so an entry's change is in its collection's `SELF` and in its
+// hub's `CHILDREN`.
 type SyncPullRequestScopesDepth string
 
 // SyncPullResponse defines model for SyncPullResponse.

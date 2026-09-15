@@ -158,10 +158,25 @@ func (s StreamChanges) Resume(
 func (s StreamChanges) Next(
 	ctx context.Context, actor appshared.ActorContext, from Position,
 ) (Batch, error) {
+	return s.page(ctx, actor, from, s.Batch, nil)
+}
+
+// page is the one reader the stream and the pull share: a batch past the position, each record
+// judged by the caller's permission on the container it names, and the cursor advanced past the
+// whole of what was read.
+//
+// keep narrows the page further, by container, and runs *after* the permission check - a scope a
+// device names is what it wants to hold, never what it may see, and a filter that stood in for the
+// authorisation would be a second answer to a question the authorisation already answers
+// (offline-sync.md §3.1, §6). Nil keeps everything the caller may see.
+func (s StreamChanges) page(
+	ctx context.Context, actor appshared.ActorContext, from Position, batch int,
+	keep func(work.Container) bool,
+) (Batch, error) {
 	var entries []repository.Recorded
 	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		entries, err = s.Changes.After(ctx, from.Seq, s.Batch)
+		entries, err = s.Changes.After(ctx, from.Seq, batch)
 		return err
 	})
 	if err != nil {
@@ -175,14 +190,17 @@ func (s StreamChanges) Next(
 	// changes in one or two collections, and asking the same question ten times would be ten
 	// membership resolutions for one answer. The judgement is still per record: every record is
 	// checked, and what is cached is the answer to the question it asks.
-	permitted := map[shared.ID]bool{}
+	resolved := map[shared.ID]visibility{}
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
-		allowed, err := s.mayRead(ctx, actor, entry.ContainerID, permitted)
+		seen, err := s.mayRead(ctx, actor, entry.ContainerID, resolved)
 		if err != nil {
 			return Batch{}, err
 		}
-		if !allowed {
+		if !seen.allowed {
+			continue
+		}
+		if keep != nil && !keep(seen.container) {
 			continue
 		}
 		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq)})
@@ -194,24 +212,31 @@ func (s StreamChanges) Next(
 		// The cursor of the last entry *read*, not of the last one sent. A cursor that stalled on
 		// a container somebody lost access to would re-read it on every round forever.
 		Cursor: s.at(last),
-		More:   len(entries) == s.Batch,
+		More:   len(entries) == batch,
 	}, nil
+}
+
+// visibility is what one container lookup settles for the rest of a page: whether the actor may
+// see changes in it, and - when they may - the container itself, which a scope filter reads.
+type visibility struct {
+	allowed   bool
+	container work.Container
 }
 
 // mayRead answers whether the actor may see changes in a container, remembering the answer for the
 // rest of the batch.
 func (s StreamChanges) mayRead(
 	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
-	permitted map[shared.ID]bool,
-) (bool, error) {
+	resolved map[shared.ID]visibility,
+) (visibility, error) {
 	if containerID.IsZero() {
 		// A change that names no container is one whose visibility nothing here can decide.
 		// Withheld rather than sent: nothing writes such an entry today, and the day something
 		// does, the safe answer is the one that does not leak it.
-		return false, nil
+		return visibility{}, nil
 	}
-	if allowed, decided := permitted[containerID]; decided {
-		return allowed, nil
+	if seen, decided := resolved[containerID]; decided {
+		return seen, nil
 	}
 
 	var container work.Container
@@ -225,10 +250,10 @@ func (s StreamChanges) mayRead(
 		// The container is gone - purged, or in another tenant and therefore invisible. Its
 		// records go with it: a client cannot be told about a change in something it can no longer
 		// be shown.
-		permitted[containerID] = false
-		return false, nil
+		resolved[containerID] = visibility{}
+		return visibility{}, nil
 	case err != nil:
-		return false, err
+		return visibility{}, err
 	}
 
 	allowed, err := s.Authorizer.Permits(ctx, actor, access.Request{
@@ -238,10 +263,11 @@ func (s StreamChanges) mayRead(
 	if err != nil {
 		// Not "may not see": nobody was refused anything, the question could not be answered.
 		// Reporting it as a refusal would silently shorten the stream on a database blip.
-		return false, err
+		return visibility{}, err
 	}
-	permitted[containerID] = allowed
-	return allowed, nil
+	seen := visibility{allowed: allowed, container: container}
+	resolved[containerID] = seen
+	return seen, nil
 }
 
 func (s StreamChanges) at(seq int64) Position {
