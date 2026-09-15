@@ -277,7 +277,7 @@ func TestWhatIsNotAppliedIsAnsweredAndNotRecorded(t *testing.T) {
 			mutation: Mutation{OpID: opA, Kind: "ITEM_RENAME"}, code: "sync.kind_unknown",
 		},
 		"a kind this build does not apply yet": {
-			mutation: Mutation{OpID: opA, Kind: domain.ItemPatch, ItemID: itemX}, code: "sync.kind_unavailable",
+			mutation: Mutation{OpID: opA, Kind: domain.SetAdd, ItemID: itemX}, code: "sync.kind_unavailable",
 		},
 		"a malformed reading": {
 			mutation: Mutation{OpID: opA, Kind: domain.ItemCreate, ItemID: itemX, HLC: "x"}, code: "sync.hlc_malformed",

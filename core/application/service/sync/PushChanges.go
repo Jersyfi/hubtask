@@ -113,7 +113,9 @@ type PushChanges struct {
 	Devices    repository.Devices
 	Ops        repository.OpLog
 	Tombstones repository.Tombstones
-	Catalogue  Catalogue
+	// Clocks is the server's clock per field, which ITEM_PATCH decides against (N-05).
+	Clocks    repository.FieldClocks
+	Catalogue Catalogue
 	// Skew is how far a device's clock may stand from the server's before its readings are
 	// replaced by server readings (offline-sync.md §4.1). Zero means the contract's five minutes.
 	Skew time.Duration
@@ -234,6 +236,15 @@ func (p PushChanges) apply(
 			WithParams(map[string]string{"kind": string(m.Kind)})), nil
 	}
 
+	// Judged before anything is read or written: what the mutation names is either a refusal
+	// worth recording or a "not yet" the client keeps, and neither needs a transaction.
+	if err := p.judge(bounded); err != nil {
+		if !refusal(err) {
+			return rejected(m, err), nil
+		}
+		return p.record(ctx, actor, deviceID, rejected(m, err))
+	}
+
 	held, err := p.purged(ctx, actor, bounded)
 	if err != nil {
 		return Result{}, err
@@ -338,12 +349,28 @@ func (p PushChanges) purged(ctx context.Context, actor appshared.ActorContext, m
 	return held, err
 }
 
+// judge answers what can be said about a mutation from its shape alone - the field names of a
+// patch - before it is applied. A refusal is recorded like any other; an "unavailable" is not,
+// so that a later build applies what this one does not (patchable).
+func (p PushChanges) judge(m Mutation) error {
+	if m.Kind != domain.ItemPatch {
+		return nil
+	}
+	for field := range m.Fields {
+		if err := patchable(field); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // appliers is the table of kinds this build applies. A table in code rather than a name on the
 // mutation, for the suggestion package's reason: a stored use case name would be a stored
-// capability. N-05 to N-07 add the kinds the contract names beyond these three.
+// capability. N-06 and N-07 add the kinds the contract names beyond these.
 func (p PushChanges) appliers() map[domain.MutationKind]applier {
 	return map[domain.MutationKind]applier{
 		domain.ItemCreate: p.create,
+		domain.ItemPatch:  p.patch,
 		domain.ItemDelete: p.trash,
 		domain.CommentAdd: p.comment,
 	}

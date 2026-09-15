@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -132,5 +133,40 @@ func TestAContextWithoutAnActorSaysSo(t *testing.T) {
 	}
 	if actor.PersistenceScope().IsValid() {
 		t.Error("the fallback actor could open a transaction")
+	}
+}
+
+// The two facts a push adds to every writer without touching one (N-04, N-05): the device the
+// context is marked with, and the readings its fields were written under. Absent, both answer
+// nothing - which is what a write through the API is.
+func TestAContextCarriesTheDeviceAndTheReadingsAPushMarkedItWith(t *testing.T) {
+	ctx := context.Background()
+	if got := DeviceFrom(ctx); !got.IsZero() {
+		t.Errorf("an unmarked context names device %q", got)
+	}
+	if _, found := ReadingFrom(ctx, "title"); found {
+		t.Errorf("an unmarked context carries a reading")
+	}
+
+	device := domain.MustParseID("0192f000-0000-7000-8000-0000000000d1")
+	reading, err := domain.NewHLC(time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC), 1, "dev-a")
+	if err != nil {
+		t.Fatalf("building the reading: %v", err)
+	}
+	marked := ContextWithReadings(ContextWithDevice(ctx, device), map[string]domain.HLC{"title": reading})
+
+	if got := DeviceFrom(marked); got != device {
+		t.Errorf("the device is %q, want %s", got, device)
+	}
+	if got, found := ReadingFrom(marked, "title"); !found || got.Compare(reading) != 0 {
+		t.Errorf("the title's reading is %s (found=%v), want the device's", got, found)
+	}
+	// A field the push did not name keeps the writer's own reading.
+	if _, found := ReadingFrom(marked, "notes"); found {
+		t.Errorf("a field the push did not name carries a reading")
+	}
+	// And a zero reading is no reading: the writer's stays.
+	if _, found := ReadingFrom(ContextWithReadings(ctx, map[string]domain.HLC{"title": {}}), "title"); found {
+		t.Errorf("a zero reading counted as one")
 	}
 }

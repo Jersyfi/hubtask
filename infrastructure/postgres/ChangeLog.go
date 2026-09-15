@@ -20,8 +20,9 @@ type ChangeLog struct{}
 func NewChangeLog() ChangeLog { return ChangeLog{} }
 
 var (
-	_ changelog.ChangeLog = ChangeLog{}
-	_ changelog.Changes   = ChangeLog{}
+	_ changelog.ChangeLog   = ChangeLog{}
+	_ changelog.Changes     = ChangeLog{}
+	_ changelog.FieldClocks = ChangeLog{}
 )
 
 // Record writes one change inside the caller's transaction.
@@ -34,6 +35,14 @@ func (c ChangeLog) Record(ctx context.Context, change changelog.Change) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
+	}
+	// A push applying a field records it under the device's reading rather than the writer's:
+	// the clock a second device compares against has to be the clock that decided the merge
+	// (appshared.ContextWithReadings, N-05).
+	if change.Field != "" {
+		if reading, found := appshared.ReadingFrom(ctx, change.Field); found {
+			change.HLC = reading
+		}
 	}
 	if change.HLC.IsZero() {
 		// Without a clock reading the entry cannot be merged against a concurrent edit, and a
@@ -93,7 +102,48 @@ func (c ChangeLog) Record(ctx context.Context, change changelog.Change) error {
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the change log entry: %w", err))
 	}
+	if change.Field == "" || change.Op != changelog.Upsert {
+		return nil
+	}
+	// The server's clock for the field, in the same transaction as the entry: the reading of the
+	// write that landed, which a push compares its own against (N-05, offline-sync.md §4.2).
+	if err := queries.StampFieldClock(ctx, sqlc.StampFieldClockParams{
+		Entity: change.Entity, EntityID: entityID, Field: change.Field, Hlc: change.HLC.String(),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("stamping the field clock: %w", err))
+	}
 	return nil
+}
+
+// Of answers the server's clock per field of one entity (repository.FieldClocks).
+func (c ChangeLog) Of(ctx context.Context, entity string, id shared.ID) (map[string]shared.HLC, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	entityID, err := uuidOf(id)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.FieldClocksOf(ctx, sqlc.FieldClocksOfParams{Entity: entity, EntityID: entityID})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the field clocks: %w", err))
+	}
+	clocks := make(map[string]shared.HLC, len(rows))
+	for _, row := range rows {
+		reading, err := shared.ParseHLC(row.Hlc)
+		if err != nil {
+			return nil, shared.ErrInternal.
+				WithDetail("sync.clock_unreadable").
+				WithCause(fmt.Errorf("reading the clock of %s: %w", row.Field, err))
+		}
+		clocks[row.Field] = reading
+	}
+	return clocks, nil
 }
 
 // After returns up to batch entries past the cursor, oldest first.
