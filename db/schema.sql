@@ -97,6 +97,9 @@ CREATE OR REPLACE FUNCTION work_item_search_document() RETURNS trigger
 $$
 BEGIN
   NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.notes);
+  -- Which configuration built it (M-09): a row whose stored name differs from what
+  -- hubtask_text_config() answers today is stale, and the reindex rewrites exactly those.
+  NEW.search_configuration := hubtask_text_config(NEW.content_language)::text;
   RETURN NEW;
 END $$;
 
@@ -594,6 +597,7 @@ CREATE TABLE work_item (
   -- The language-dependent document the search reads, maintained by the trigger below and dropping
   -- the generated column above in a later migration (C-08, migration 0019, ADR-0034).
   search_document    tsvector,
+  search_configuration text,             -- the configuration that built the document (M-09)
   due_soon_announced_at timestamptz,
   overdue_announced_at  timestamptz,
   -- What a marked object carries between the two phases of a retention run (migration 0038,

@@ -10,19 +10,27 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const searchPath = "/search"
+const (
+	searchPath        = "/search"
+	searchReindexPath = "/search:reindex"
+)
 
 func searchGroup() group {
 	return group{
 		name:    "search",
 		summary: "find entries by the words in their titles and notes, best match first",
 		usage: "<words> [--container <id>] [--language <bcp47>] [--mode AUTO|LEXICAL]" +
-			" [--include-archived] [--include-trashed] [--size <n>] [--cursor <c>]",
+			" [--include-archived] [--include-trashed] [--size <n>] [--cursor <c>] | reindex",
 		run: searchRun,
 	}
 }
 
 func searchRun(ctx context.Context, cli *CLI, args []string) error {
+	// The one verb the group has beside searching (M-09). A person searching for the word
+	// itself adds any second word or a flag, and the word is words again.
+	if len(args) == 1 && args[0] == "reindex" {
+		return searchReindexRun(ctx, cli)
+	}
 	// The words come first, before any flag, for the reason an identifier does: the flag package
 	// stops at the first argument that is not a flag. Everything up to the first flag is the
 	// query, so `hubctl search buy milk --container X` asks for both words.
@@ -100,4 +108,21 @@ func searchRun(ctx context.Context, cli *CLI, args []string) error {
 	}
 	cli.reportMore(hits.Page)
 	return nil
+}
+
+// searchReindexRun asks for the workspace's search documents to be brought current, and prints
+// the job to watch and how many rows it will rewrite.
+func searchReindexRun(ctx context.Context, cli *CLI) error {
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var accepted openapi.SearchReindex
+	if err := client.Post(ctx, searchReindexPath, nil, &accepted); err != nil {
+		return err
+	}
+	return cli.Emit(accepted, Table{
+		Columns: []string{"JOB", "STALE"},
+		Rows:    [][]string{{accepted.JobId.String(), itoa64(accepted.Stale)}},
+	})
 }
