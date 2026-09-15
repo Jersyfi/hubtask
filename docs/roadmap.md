@@ -136,7 +136,7 @@ their own ADR rather than in passing — a third, an IMAP client, was declined b
 |---|---|
 | `0.7.0` | **Built.** The AI port and the provider that calls nothing; consent, per-workspace configuration and PG-8's refusal; the OpenAI-compatible and Ollama adapters, one breaker per endpoint; a suggestion as a record with provenance, retention and audit; the jumble's suggestions and a task proposing the work under it; semantic search on detected pgvector and the hybrid ranking that outranks a word match over a meaning match; MCP completed with resources, prompts, streaming and a signed session; the agent's guardrails, destructive off by default; the AI budget as an ordinary quota row; `hubctl ai`, `suggestion` and `mcp`. **Two of `ai-first.md` §2's seven use cases moved**: translation to `0.8.0`, because the surface that would show it is the i18n one, and template generation to `0.9.0` with the ecosystem work that gives it somewhere to come from. The milestone's own acceptance is QS-09, walked rather than assumed ([evidence](./evidence/QS-09-2026-09-09.md)). **Of the five rows it kept, three say more than what landed under them** — a fact discovered after the milestone closed and scoped as `0.7.5` rather than reopened, because the code that shipped is right and it is the table that was left behind |
 | `0.7.5` | **What §2 promised.** Not a planned milestone: `0.7.0` kept five of `ai-first.md` §2's seven rows and built less than three of them say, which nothing noticed because J-17's acceptance named `arc42.md`, this file and `observability-reliability.md` and not the document that *is* the AI vision. So the difference gets built in six tasks, `K-01`…`K-06`: the `subtasks` a prompt asks for and the allow list discards, with the test that ends that class of defect; the bucket, and the values of the custom fields a workspace declared — both chosen from a set the model was shown, neither of them a destination it invented, which is what keeps `Producing.go`'s filter on `collection_id` intact; near-duplicates from the embedding index J-10 already maintains, at no token cost and with J-10's own three degradations; and a comment thread and a collection summarised, where `0.7.0` summarised one entry's notes. **"Priority" is not built as a field** — the item model has never had one, and K-03 says the row means the fields a workspace declares. The one task that is not §2's is `K-06`, the authenticated `/api/v1/meta/health` [#507](https://github.com/Jersyfi/hubtask/issues/507) — a defect of `0.3.5` found by `0.7.0`'s QS-09 walk, blocking a component `F1` shipped |
-| `0.8.0` | i18n complete: catalogue maintenance, the Weblate connection, CLDR formats, RTL metadata, language-dependent search, localised emails; accessibility and localisation requirements for the frontend documented. It also carries the two `0.7.5` follow-ups that are not `0.7.5`'s, both found by the milestone that closed it: the answer keys a prompt keeps and the narrowing silently drops, with the gate that ends that class ([#529](https://github.com/Jersyfi/hubtask/issues/529)), and the duplicate threshold measured against a real corpus rather than argued for ([#532](https://github.com/Jersyfi/hubtask/issues/532)) |
+| `0.8.0` | **Built.** i18n complete on the server, proved rather than asserted: every `locales/*.json` embedded and an operator's directory laid over them, so a language is a file (M-01); one ICU subset on both renderers with a gate each, and the plural contradiction in `i18n-l10n.md` §3 resolved by teaching the Go side rather than scoping around it (M-02, M-03); one matcher over the catalogues present, and the account's own language standing before the browser's header (M-04); `supported_locales` answered with direction, week start and decimal separator, which is what `F1`'s language picker had been waiting on (M-05); `@start_of_week` where the account or its locale says (M-06); names sorted under one collation on every installation, managed databases included (M-08); the search remembering which configuration built each document, and the reindex that brings the stale rows current (M-09); an address with a Unicode domain being one address (M-10); the entry read in another language, display only (M-11, the row `0.7.0` moved here); the translation process written where a contributor looks, and no Weblate instance until there is a translator to serve (M-12, [ADR-0055](./adr/ADR-0055-translation-process.md)); the frontend's two requirement lists (M-13). What this row used to promise in the wrong place — *CLDR formats* from a server that renders no text, *language-dependent search* and *localised emails* that `0.3.0` built — is corrected rather than reinterpreted. **Not built, by decision:** NFC normalisation on input (M-07), which rewrites nothing stored and waits on the owner's word. The milestone's own acceptance is QS-08, walked with an operator's `ar.json` ([evidence](./evidence/QS-08-2026-09-15.md)), and the walk found one defect the tests could not: a notification to somebody who had not chosen a language ignored the workspace's default ([#603](https://github.com/Jersyfi/hubtask/issues/603)). It also carries the two `0.7.5` follow-ups that are not `0.7.5`'s: [#529](https://github.com/Jersyfi/hubtask/issues/529) closed, [#532](https://github.com/Jersyfi/hubtask/issues/532) open |
 | `0.8.5` | Offline synchronisation complete: `:pull`/`:push`, per-field merging, OR-sets, fractional indices, HLC bounding, device management, conflict preservation, the SSE stream, `hubctl sync-conformance` as the reference client check |
 | `0.9.0` | Ecosystem: an official n8n node and Zapier app (generated), client SDKs (TypeScript, Go, Python), CalDAV, import from Trello/Microsoft To Do/Google Tasks, public API documentation |
 
@@ -168,25 +168,27 @@ model has never had, and a summary of a comment thread nothing reads. The backlo
 (`docs/backlog/milestone-0.7.5.md`) builds the difference in six tasks and says in its own header
 that a row nobody built is a promise to whoever reads it next — which, for §2, is `F5`.
 
-**`0.8.0` is cut**, and its backlog is [`backlog/milestone-0.8.0.md`](./backlog/milestone-0.8.0.md)
+**`0.8.0` is built**, and its backlog is [`backlog/milestone-0.8.0.md`](./backlog/milestone-0.8.0.md)
 — fourteen tasks, `M-01`…`M-14` (L is skipped because `L-01 … [L]` collides with the marker in its
 own title). Cutting it read `i18n-l10n.md` line by line *before* the first task rather than after
-the last, which is the lesson of `0.7.5`, and found that the `0.8.0` row above promises three
-things in the wrong place: "CLDR formats" from a server that delivers no display text (§7 puts
-formatting in the client), "language-dependent search" that `0.3.0` built, and "localised emails"
-whose mechanism `0.3.0` built — while omitting the translation its own `0.7.0` row says moved here.
-What the milestone actually builds is the second catalogue and the directory an operator lays over
-it, one ICU subset on both renderers with a gate each, the matcher §2 names, the manifest's locale
-metadata that `F1`'s language picker has been waiting on, the week a person starts on, NFC on the
-way in, a collation that sorts names the same on every installation, the reindex that brings a
-search current after its configuration arrives, IDN addresses, the translation, and the
-frontend's two requirement lists. The row is rewritten by `M-14`, together with the milestone's
-own acceptance: arc42 **QS-08**, walked with an operator's `ar.json` and filed as evidence.
-Two decisions sit in their own ADRs — [ADR-0055](./adr/ADR-0055-translation-process.md), no
-Weblate instance until there is a translator to serve, and
-[ADR-0056](./adr/ADR-0056-golang-x-text-and-idna.md), `golang.org/x/text` and `x/net/idna`
-promoted from indirect to direct — and the `1.0` locale set is eleven: the ten most spoken
-languages by total speakers plus German, of which `0.8.0` ships `en` and `de`.
+the last, which is the lesson of `0.7.5`, and found that the `0.8.0` row promised three things in
+the wrong place: "CLDR formats" from a server that delivers no display text (§7 puts formatting in
+the client), "language-dependent search" that `0.3.0` built, and "localised emails" whose
+mechanism `0.3.0` built — while omitting the translation its own `0.7.0` row says moved here. The
+row above now says what was built. Three things the milestone settled that the row could not:
+**the reading of §2's chain**, on which the client and the server disagreed until M-04 — a
+language somebody set on their account beats the browser's header, and the table says so in two
+columns; **no Weblate instance** until there is a translator to serve
+([ADR-0055](./adr/ADR-0055-translation-process.md)), the repository being made Weblate-ready
+instead; and **the `1.0` locale set**, eleven — the ten most spoken languages by total speakers
+plus German — of which `0.8.0` ships `en` and `de`, every other one arriving as a file. The two
+supply chain decisions were confirmations rather than choices: `golang.org/x/text` and `x/net/idna`
+were already in the module graph ([ADR-0056](./adr/ADR-0056-golang-x-text-and-idna.md)). The
+walk that closed it ([QS-08](./evidence/QS-08-2026-09-15.md)) found the defect the tests could
+not — a recipient without a locale read English in an Arabic workspace (#603) — and says in its
+last section what the interface still owes `F5`: the client's own second catalogue, the switch,
+the RTL audit. M-07, NFC on the way in, is the one task not built: it rewrites nothing stored,
+and that decision is the owner's; it is open as #577 and belongs to this milestone still.
 
 ---
 
