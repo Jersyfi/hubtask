@@ -276,8 +276,13 @@ func TestWhatIsNotAppliedIsAnsweredAndNotRecorded(t *testing.T) {
 		"a kind the contract does not name": {
 			mutation: Mutation{OpID: opA, Kind: "ITEM_RENAME"}, code: "sync.kind_unknown",
 		},
-		"a kind this build does not apply yet": {
-			mutation: Mutation{OpID: opA, Kind: domain.SetAdd, ItemID: itemX}, code: "sync.kind_unavailable",
+		"a set no use case writes yet": {
+			mutation: Mutation{OpID: opA, Kind: domain.SetAdd, ItemID: itemX, Set: "watchers", Element: purged},
+			code:     "sync.set_unavailable",
+		},
+		"a set the contract does not name": {
+			mutation: Mutation{OpID: opA, Kind: domain.SetAdd, ItemID: itemX, Set: "stickers", Element: purged},
+			code:     "sync.set_unknown", recorded: true,
 		},
 		"a malformed reading": {
 			mutation: Mutation{OpID: opA, Kind: domain.ItemCreate, ItemID: itemX, HLC: "x"}, code: "sync.hlc_malformed",
