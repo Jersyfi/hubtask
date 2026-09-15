@@ -234,6 +234,37 @@ func TestARevocationIsNotNarrowedByAScope(t *testing.T) {
 	}
 }
 
+// A workspace-wide template (#626) reaches a device through the pull, and under a scope too: it
+// stands above every hub, so a device holding one hub still receives the templates it can apply.
+func TestAWorkspaceWideTemplateIsAnsweredWithAndWithoutAScope(t *testing.T) {
+	template := entry(1, "")
+	template.Entity = "template"
+	pull, f := pulling(t, template)
+	f.auth.workspace = true
+
+	unscoped, err := pull.Pull(t.Context(), actor(), request(f, 0, 10))
+	if err != nil {
+		t.Fatalf("pulling: %v", err)
+	}
+	scoped, err := pull.Pull(t.Context(), actor(),
+		request(f, 0, 10, Scope{ContainerID: hub, Depth: DepthSelf}))
+	if err != nil {
+		t.Fatalf("pulling scoped: %v", err)
+	}
+	if !sameSeqs(seqs(unscoped.Records), []int64{1}) || !sameSeqs(seqs(scoped.Records), []int64{1}) {
+		t.Errorf("unscoped %v, scoped %v, want the template in both", seqs(unscoped.Records), seqs(scoped.Records))
+	}
+
+	f.auth.workspace = false
+	page, err := pull.Pull(t.Context(), actor(), request(f, 0, 10))
+	if err != nil {
+		t.Fatalf("pulling as a stranger to the workspace: %v", err)
+	}
+	if len(page.Records) != 0 {
+		t.Errorf("the template was sent to somebody who may not read the workspace: %v", seqs(page.Records))
+	}
+}
+
 func TestAPullValidatesItsRequest(t *testing.T) {
 	cases := map[string]struct {
 		request PullRequest
