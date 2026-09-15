@@ -11513,7 +11513,14 @@ components:
             properties:
               value: {}
               hlc: { type: string }
-        set: { type: [string, "null"], enum: [labels, members, watchers, null] }
+        set:
+          type: [string, "null"]
+          enum: [labels, members, watchers, attachments, null]
+          description: |
+            Which set of the entry the element belongs to. `attachments` joined in `0.8.5`: a
+            device that captured a file offline uploads it once online - the upload needs the
+            store (offline-sync.md §1) - and then pushes the `SET_ADD` that attaches it. `watchers`
+            is answered `sync.set_unavailable` until a use case writes a watcher.
         element: { type: [string, "null"], format: uuid }
         hlc: { type: [string, "null"] }
         payload: { type: [object, "null"], additionalProperties: true }

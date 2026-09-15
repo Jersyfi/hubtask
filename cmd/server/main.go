@@ -1753,6 +1753,12 @@ func run() error {
 				// for a change that lost, and the comment that keeps displaced free text.
 				Activity:  journal,
 				Displaced: work.AddComment{Writer: commentWriter},
+				// Where each set's tags are read for the OR-set merge (N-07).
+				Sets: syncservice.Sets{
+					Labels:      postgres.NewItemLabelRepository(),
+					Members:     postgres.NewItemMemberRepository(),
+					Attachments: mediaObjects,
+				},
 			},
 			PushSignals: metrics,
 		}
