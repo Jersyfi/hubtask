@@ -685,3 +685,31 @@ func TestAMoveRecordsWhatChangedUnderTheMoveVerb(t *testing.T) {
 		t.Errorf("the change set holds %v, want the rank the destination gave it", step.ChangeSet)
 	}
 }
+
+// A device computes its rank itself, between the neighbours it holds, and the server takes it as
+// it is once the domain's own rule has judged it (offline-sync.md §4.2, N-05). Naming a sibling
+// as well is a contradiction, and a key the scheme does not produce is refused as input.
+func TestACallerComputedRankIsTakenAsItIsOnceJudged(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey, h.items.nextKey = "a0", "a1"
+
+	item, err := ReorderWorkItem{Placement: h.writer}.
+		Execute(t.Context(), placementActor(), ReorderWorkItemCommand{ItemID: leafID, OrderKey: "a0V"})
+	if err != nil {
+		t.Fatalf("reordering with a key: %v", err)
+	}
+	if item.OrderKey != "a0V" || len(h.items.ranks) != 1 || h.items.ranks[0].item.OrderKey != "a0V" {
+		t.Errorf("the rank written is %q, want the caller's a0V", item.OrderKey)
+	}
+
+	for name, cmd := range map[string]ReorderWorkItemCommand{
+		"a key beside a sibling":     {ItemID: leafID, OrderKey: "a0V", BeforeItemID: taskID},
+		"a key with a trailing zero": {ItemID: leafID, OrderKey: "a0V0"},
+		"a key outside the alphabet": {ItemID: leafID, OrderKey: "a0-"},
+	} {
+		_, err := ReorderWorkItem{Placement: h.writer}.Execute(t.Context(), placementActor(), cmd)
+		if err == nil || shared.AsError(err).Category != shared.CategoryValidation {
+			t.Errorf("%s was answered %v, want a validation refusal", name, err)
+		}
+	}
+}
