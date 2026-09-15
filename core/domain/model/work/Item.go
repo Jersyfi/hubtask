@@ -475,7 +475,10 @@ const (
 	FieldDueTimeZone = "due_time_zone"
 	// FieldCustomFields is the column. One *key* of it reaches a change log entry as
 	// `custom_fields.<key>`, which is what makes the merge per key (CustomFieldPath).
-	FieldCustomFields    = "custom_fields"
+	FieldCustomFields = "custom_fields"
+	// FieldCompletion is the done/open state as one field - `completion` in the contract, the
+	// object with is_completed, completed_at and completed_by - which merges as one (N-06).
+	FieldCompletion      = "completion"
 	FieldContentLanguage = "content_language"
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
