@@ -3574,6 +3574,43 @@ paths:
         "503":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:translate:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [suggestions]
+      operationId: aiTranslate
+      summary: Read this entry in another language
+      description: >
+        Asks the workspace's AI provider for the entry's title and notes in a language the caller
+        reads (`ai-first.md` §2's translation row, M-11). **Display only, and nothing is
+        stored**: user content is never translated in place (`i18n-l10n.md` §7), no suggestion
+        is recorded, and there is nothing to accept — a person reads the answer and it is gone.
+        Synchronous, the way the search's meaning is, and bounded the same way: the caller is
+        waiting, so the call has a short timeout and every way of not getting an answer — no
+        consent, no provider, a spent budget, an open breaker, a slow model — is `503` with
+        `ai.unavailable`. Reading the entry is the permission asked, because reading it is what
+        this does; the workspace's consent to send its content to a provider is asked after it
+        (ai-first.md §2). The audit records that a translation was asked for an entry and into
+        which language, never the text.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiTranslateRequest"
+      responses:
+        "200":
+          description: The entry, in the language asked for
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiTranslation"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:classify:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -7283,6 +7320,40 @@ components:
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    AiTranslateRequest:
+      type: object
+      description: Which language to read the entry in.
+      properties:
+        target_locale:
+          type: string
+          description: >
+            BCP 47 (`de`, `pt-BR`). Absent, the caller's own locale — the account's, else the
+            request's — which is the language they read anything in. A tag the installation has
+            no catalogue for is fine: the provider translates into languages the product does
+            not render.
+
+    AiTranslation:
+      type: object
+      description: >
+        The entry's title and notes as the provider rendered them in the target language, with the
+        provenance every AI output carries (`ai-first.md` §2). Not a record: it has no id, no
+        status and nothing to accept, because it is not stored anywhere.
+      required: [target_locale, title, notes, source, model, prompt_id, prompt_version, produced_at]
+      properties:
+        target_locale: { type: string }
+        source_language:
+          type: [string, "null"]
+          description: The entry's `content_language`, which is what the provider was told the source is; null where the entry states none.
+        title: { type: string }
+        notes:
+          type: string
+          description: Empty where the entry has no notes.
+        source: { type: string, enum: [AI] }
+        model: { type: string }
+        prompt_id: { type: string }
+        prompt_version: { type: string }
+        produced_at: { type: string, format: date-time }
 
     AiAsk:
       type: object

@@ -1014,6 +1014,10 @@ func (pending) AiClassify(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
+func (pending) AiTranslate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 // AiSummarizeThread and AiSummarizeContainer are overridden by RestController, for the reason
 // given at CreateContainer.
 func (pending) AiSummarizeThread(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
