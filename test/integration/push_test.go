@@ -534,3 +534,113 @@ func TestADoubleCompletionFromTwoDevicesProducesOneFollowUp(t *testing.T) {
 		t.Errorf("two completions produced %d follow-ups, want exactly one", len(occurrences))
 	}
 }
+
+// SY-3: concurrently adding and removing labels yields the OR-set result, with no loss. Device A
+// adds one label while device B removes another, both offline; both effects are present after
+// the two pushes, and a stale re-add of what B removed loses to B's later tag.
+func TestConcurrentLabelChangesFromTwoDevicesYieldTheOrSetResult(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	task := seedTask(ctx, t, tenantB, authorB, collection)
+	urgent, blocked := seedLabel(ctx, t, tenantB, collection), seedLabel(ctx, t, tenantB, collection)
+	wall := time.Now()
+
+	// The server holds `blocked`, added a moment ago.
+	held, _ := shared.NewHLC(wall.Add(-time.Minute), 1, "server")
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return itemLabelRepo().Add(ctx, task, blocked.ID, held)
+	}); err != nil {
+		t.Fatalf("holding the label: %v", err)
+	}
+
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	fixed := portclock.Fixed(created)
+	ids := clockadapter.NewUUIDv7(fixed)
+	hybrid, err := clockadapter.NewHybridClock(fixed, "server-integration")
+	if err != nil {
+		t.Fatalf("building the clock: %v", err)
+	}
+	sink := postgres.NewAuditSink(ids)
+	authorizer := access.Service{Memberships: postgres.NewMembershipRepository(), UnitOfWork: unitOfWork, Audit: sink, Clock: fixed}
+	labels := work.ItemLabelWriter{
+		Items: itemRepo(), ItemLabels: itemLabelRepo(), Labels: labelRepo(), Containers: containerRepo(),
+		Profiles: postgres.NewCapabilityProfileRepository(), Authorizer: authorizer,
+		Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(), Audit: sink,
+		Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
+		UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+	}
+	registry, err := usecase.NewRegistry(nil,
+		work.GetWorkItem{Items: itemRepo(), ItemLabels: itemLabelRepo(), Containers: containerRepo(),
+			Authorizer: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
+		work.AddLabel{Writer: labels}.Descriptor(),
+		work.RemoveLabel{Writer: labels}.Descriptor(),
+	)
+	if err != nil {
+		t.Fatalf("building the catalogue: %v", err)
+	}
+	push := pushFor(ctx, t, 5*time.Minute)
+	push.Catalogue = registry
+	push.Sets = syncservice.Sets{Labels: itemLabelRepo(), Members: itemMemberRepo(), Attachments: mediaRepo()}
+	actor := pushActor(tenantB, authorB)
+	deviceA, deviceB := freshID(t), freshID(t)
+	tagA, _ := shared.NewHLC(wall.Add(time.Minute), 1, deviceA.String())
+	tagB, _ := shared.NewHLC(wall.Add(2*time.Minute), 1, deviceB.String())
+
+	setMutation := func(kind syncdomain.MutationKind, label shared.ID, tag shared.HLC) syncservice.Mutation {
+		return syncservice.Mutation{OpID: freshID(t), Kind: kind, ItemID: task, Set: "labels", Element: label, HLC: tag.String()}
+	}
+	fromA, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceA,
+		Mutations: []syncservice.Mutation{setMutation(syncdomain.SetAdd, urgent.ID, tagA)}})
+	if err != nil {
+		t.Fatalf("device A: %v", err)
+	}
+	fromB, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceB,
+		Mutations: []syncservice.Mutation{setMutation(syncdomain.SetRemove, blocked.ID, tagB)}})
+	if err != nil {
+		t.Fatalf("device B: %v", err)
+	}
+	if fromA.Results[0].Result != syncdomain.Applied || fromB.Results[0].Result != syncdomain.Applied {
+		t.Errorf("A answered %s, B answered %s", fromA.Results[0].Result, fromB.Results[0].Result)
+	}
+
+	var carried []shared.ID
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		carried, err = itemLabelRepo().List(ctx, task)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the labels: %v", err)
+	}
+	if len(carried) != 1 || carried[0] != urgent.ID {
+		t.Errorf("the entry carries %v, want urgent alone: A's addition and B's removal both", carried)
+	}
+
+	// A stale re-add of `blocked` from device A - a tag before B's removal - loses, and the
+	// server's answer is the state the device adopts.
+	stale, _ := shared.NewHLC(wall.Add(90*time.Second), 1, deviceA.String())
+	late, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceA,
+		Mutations: []syncservice.Mutation{setMutation(syncdomain.SetAdd, blocked.ID, stale)}})
+	if err != nil {
+		t.Fatalf("device A again: %v", err)
+	}
+	if late.Results[0].Result != syncdomain.Merged {
+		t.Errorf("a stale re-add was answered %s, want MERGED", late.Results[0].Result)
+	}
+	var elements []workdomain.SetElement
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		elements, err = itemLabelRepo().Elements(ctx, task)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the tags: %v", err)
+	}
+	for _, element := range elements {
+		if element.ElementID == blocked.ID && element.IsPresent() {
+			t.Errorf("the stale re-add brought the removed label back")
+		}
+		if element.ElementID == urgent.ID && element.AddedAt.Compare(tagA) != 0 {
+			t.Errorf("urgent carries tag %s, want device A's", element.AddedAt)
+		}
+	}
+}

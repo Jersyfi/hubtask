@@ -176,8 +176,9 @@ func (w ItemLabelWriter) change(
 		now := w.Clock.Now()
 		// The tag is the clock reading the OR-set merges on. It is taken here rather than derived
 		// from `now`, because a merge orders changes against other devices' readings and a wall
-		// clock cannot do that (offline-sync.md §4.1).
-		tag := w.HLC.Next()
+		// clock cannot do that (offline-sync.md §4.1). A push supplies the device's own tag
+		// (N-07): the reading that decided the merge is the one the row has to carry.
+		tag := setTag(ctx, domain.SetLabels, w.HLC)
 
 		changed, err := w.apply(ctx, cmd, want, tag)
 		if err != nil {
@@ -502,4 +503,15 @@ func labelCommandOf(in usecase.Input) (LabelCommand, error) {
 		return LabelCommand{}, err
 	}
 	return LabelCommand{ItemID: itemID, LabelID: labelID}, nil
+}
+
+// setTag is the tag a set change is written under: the device's reading when a push applies it -
+// carried in the context under the set's name, the way a field's reading is (N-07,
+// appshared.ContextWithReadings) - and a fresh server reading otherwise. The reading that decided
+// a merge is the reading the row has to carry, or the next device compares against the wrong one.
+func setTag(ctx context.Context, set domain.SetName, source clock.HLCSource) shared.HLC {
+	if reading, found := appshared.ReadingFrom(ctx, string(set)); found {
+		return reading
+	}
+	return source.Next()
 }
