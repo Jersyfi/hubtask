@@ -119,7 +119,7 @@
               onclick={() => startEditing(label)}
             />
             <IconButton
-              icon="trash-2"
+              icon="trash"
               label={t('app.labels.delete', { name: label.name })}
               size="sm"
               onclick={() => remove(label)}
