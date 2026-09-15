@@ -186,8 +186,10 @@ func TestRenamingWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 		t.Error("the two entries share an HLC, so a merge would decide them together")
 	}
 	// The hub above it, so a device subscribed to the hub sees the change.
-	if h.changes.recorded[0].ContainerID != hubID {
-		t.Errorf("the change is filed under %s, want the hub", h.changes.recorded[0].ContainerID)
+	// Under itself, not under its hub: a grant on the collection alone is on the path of the
+	// collection and not of the hub (#623).
+	if h.changes.recorded[0].ContainerID != shoppingID {
+		t.Errorf("the change is filed under %s, want the collection itself", h.changes.recorded[0].ContainerID)
 	}
 	if len(h.audit.entries) != 1 || h.audit.entries[0].Action != ContainerRenamedAction {
 		t.Fatalf("unexpected audit entries: %+v", h.audit.entries)

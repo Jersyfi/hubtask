@@ -273,19 +273,14 @@ func (w ContainerWriter) recordTrashChanges(
 ) error {
 	covered := append([]shared.ID{container.ID}, cascade.Collections...)
 	for _, id := range covered {
-		// The visibility filter a pull applies. For a collection that is the hub above it; for the
-		// container itself, itself - which is what a device subscribed to the hub reads.
-		scope := id
-		if id == container.ID && !container.ParentID.IsZero() {
-			scope = container.ParentID
-		}
-
+		// The visibility filter a pull applies: each container itself, the root and every
+		// collection the cascade covered alike (#623, core/application/repository/sync/Port.go).
 		err := w.Changes.Record(ctx, changelog.Change{
 			TenantID:    container.TenantID,
 			Entity:      containerTarget,
 			EntityID:    id,
 			Op:          verb.op,
-			ContainerID: scope,
+			ContainerID: id,
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
 		})

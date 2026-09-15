@@ -194,9 +194,10 @@ func (h CreateLabel) recordChange(
 		Entity:   labelTarget,
 		EntityID: label.ID,
 		Op:       changelog.Upsert,
-		// The visibility filter a pull applies: the hub above the collection, so that a device
-		// subscribed to the hub sees the new label appear.
-		ContainerID: firstNonZero(collection.ParentID, label.CollectionID),
+		// The visibility filter a pull applies: the label's own collection, for the reason every
+		// change to an entry names the entry's - a grant on the collection alone must be on the path
+		// of the container the record names, or the stream withholds it (#623).
+		ContainerID: label.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         h.HLC.Next(),
 		Payload:     snapshot,

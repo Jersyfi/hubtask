@@ -324,9 +324,11 @@ func (w ContainerWriter) recordChanges(
 			Entity:   containerTarget,
 			EntityID: container.ID,
 			Op:       changelog.Upsert,
-			// The visibility filter a pull applies. For a collection that is the hub above it, so a
-			// device subscribed to the hub sees the change (offline-sync.md §3.1).
-			ContainerID: firstNonZero(container.ParentID, container.ID),
+			// The visibility filter a pull applies: the container itself. A reader that wants the hub's
+			// subtree resolves the parent from the container it loads for the permission check anyway,
+			// and a grant on a collection alone is on the path of the collection and not of its hub
+			// (#623, core/application/repository/sync/Port.go).
+			ContainerID: container.ID,
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
 			Payload:     map[string]any{change.Field: clearedAsNull(change.To)},
