@@ -76,14 +76,38 @@ type Resolution struct {
 	Now      time.Time
 	Location *time.Location
 	ActorID  shared.ID
+	// WeekStart is the first day of the week the anchors are computed for: the account's own
+	// preference, otherwise the locale's, resolved onto the actor by authentication
+	// (i18n-l10n.md §4, M-06). The zero value is Sunday, which is time.Weekday's zero - so a
+	// caller that says nothing is read as Monday below, ISO 8601's answer and what every query
+	// before 0.8.0 got.
+	WeekStart time.Weekday
+	// weekStartSet distinguishes "Sunday" from "nothing said".
+	weekStartSet bool
 }
 
-// weekStart is the first day of a week for the week anchors.
-//
-// Monday, per ISO 8601, for every locale. The capability manifest has a `week_start` per locale
-// and nothing answers it yet; when it does, this is the one line that reads it - which is the
-// reason the anchor is computed here rather than in three places.
-const weekStart = time.Monday
+// WithWeekStart answers the resolution with the week's first day set, from the actor's
+// vocabulary: `MONDAY`, `SUNDAY` or `SATURDAY`. An empty or unknown day leaves Monday.
+func (r Resolution) WithWeekStart(day string) Resolution {
+	if weekday, known := weekdays[day]; known {
+		r.WeekStart, r.weekStartSet = weekday, true
+	}
+	return r
+}
+
+// weekdays is the account's vocabulary for a week's first day (accounts.week_start_invalid names
+// the three), as time.Weekday.
+var weekdays = map[string]time.Weekday{
+	"MONDAY": time.Monday, "SUNDAY": time.Sunday, "SATURDAY": time.Saturday,
+}
+
+// weekStart is the first day of the week for the anchors: what the resolution says, or Monday.
+func (r Resolution) weekStart() time.Weekday {
+	if r.weekStartSet {
+		return r.WeekStart
+	}
+	return time.Monday
+}
 
 // parsePlaceholder reads `@anchor`, `@anchor+P3D` or `@anchor-P1W`, and refuses an anchor that
 // does not fit the field it was written on.
@@ -257,7 +281,7 @@ func (p Placeholder) Resolve(at Resolution, path string) (Value, error) {
 		// system's configuration would answer differently in two replicas of the same deployment.
 		location = time.UTC
 	}
-	moment, inclusiveEnd := p.anchor(at.Now.In(location), location)
+	moment, inclusiveEnd := p.anchor(at.Now.In(location), location, at.weekStart())
 	if !p.Offset.IsZero() {
 		moment = p.Offset.apply(moment)
 	}
@@ -278,7 +302,7 @@ func (p Placeholder) Resolve(at Resolution, path string) (Value, error) {
 // An end is reported as the beginning of the *next* period. `LTE @end_of_month` has to mean the
 // last instant of this one, so the caller steps one stored resolution back - and does it after any
 // offset, which is what the second return value is for.
-func (p Placeholder) anchor(now time.Time, location *time.Location) (time.Time, bool) {
+func (p Placeholder) anchor(now time.Time, location *time.Location, weekStart time.Weekday) (time.Time, bool) {
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, location)
 
@@ -288,9 +312,9 @@ func (p Placeholder) anchor(now time.Time, location *time.Location) (time.Time, 
 	case PlaceholderEndOfDay:
 		return startOfDay.AddDate(0, 0, 1), true
 	case PlaceholderStartOfWeek:
-		return startOfDay.AddDate(0, 0, -daysSinceWeekStart(startOfDay)), false
+		return startOfDay.AddDate(0, 0, -daysSinceWeekStart(startOfDay, weekStart)), false
 	case PlaceholderEndOfWeek:
-		return startOfDay.AddDate(0, 0, 7-daysSinceWeekStart(startOfDay)), true
+		return startOfDay.AddDate(0, 0, 7-daysSinceWeekStart(startOfDay, weekStart)), true
 	case PlaceholderStartOfMonth:
 		return startOfMonth, false
 	case PlaceholderEndOfMonth:
@@ -302,7 +326,7 @@ func (p Placeholder) anchor(now time.Time, location *time.Location) (time.Time, 
 // resolution is what one stored timestamp can distinguish: `timestamptz` keeps microseconds.
 const resolution = time.Microsecond
 
-func daysSinceWeekStart(day time.Time) int {
+func daysSinceWeekStart(day time.Time, weekStart time.Weekday) int {
 	return (int(day.Weekday()) - int(weekStart) + 7) % 7
 }
 

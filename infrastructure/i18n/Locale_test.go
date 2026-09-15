@@ -93,3 +93,28 @@ func TestSupportedLocalesIsOneRowPerCatalogue(t *testing.T) {
 		t.Errorf("the log names the wrong locales:\n%s", log.String())
 	}
 }
+
+// The locale's week, through the same matcher a message is rendered through: de-AT reads de's
+// row, pt-BR reads pt's, and a tag that lands nowhere starts on Monday (M-06).
+func TestWeekStartOfReadsTheRowTheTagLandsOn(t *testing.T) {
+	embedded := directory(t, map[string]string{
+		"en.json": `{"a.one": "One"}`,
+		"de.json": `{"a.one": "Eins"}`,
+		"ar.json": `{"a.one": "واحد"}`,
+		"pt.json": `{"a.one": "Um"}`,
+		"cy.json": `{"a.one": "Un"}`,
+	})
+	renderer, err := newRenderer(embedded, nil)
+	if err != nil {
+		t.Fatalf("building the renderer: %v", err)
+	}
+	for locale, want := range map[string]string{
+		"de": "MONDAY", "de-AT": "MONDAY", "ar": "SATURDAY", "ar-EG": "SATURDAY",
+		"pt-BR": "SUNDAY", "en": "SUNDAY", "en-GB": "SUNDAY",
+		"cy": "MONDAY", "fr": "MONDAY", "": "MONDAY", "nonsense tag": "MONDAY",
+	} {
+		if got := renderer.WeekStartOf(locale); got != want {
+			t.Errorf("%q starts on %s, want %s", locale, got, want)
+		}
+	}
+}

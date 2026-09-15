@@ -1737,6 +1737,8 @@ func run() error {
 			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
+			// The week's first day for an account that set none: the locale's row (M-06).
+			WeekStarts: renderer,
 			// The session half (H-01): the signature refuses forgeries before any lookup, the
 			// row answers whether the session is still alive. A session carries every declared
 			// scope except the control plane's, because it is the person rather than a bounded
