@@ -372,10 +372,19 @@ func TestTheMoveAnnouncesWhereItCameFrom(t *testing.T) {
 		t.Errorf("to_parent_id is %v", announcement.Payload["to_parent_id"])
 	}
 
-	// One change log entry and one audit entry, in the same transaction (test AT-5), and no title in the trail
-	// (rule 10).
-	if len(h.changes.recorded) != 1 || len(h.audit.entries) != 1 {
+	// One change log entry per field that moved - the parent, carrying the path and the depth
+	// derived from it, and the rank - and one audit entry, in the same transaction (test AT-5),
+	// and no title in the trail (rule 10).
+	if len(h.changes.recorded) != 2 || len(h.audit.entries) != 1 {
 		t.Errorf("%d change entries and %d audit entries", len(h.changes.recorded), len(h.audit.entries))
+	}
+	parentEntry := h.changes.recorded[0]
+	if parentEntry.Field != domain.FieldParentID || parentEntry.Payload["parent_id"] != targetTaskID.String() ||
+		parentEntry.Payload["path"] == nil || parentEntry.Payload["depth"] == nil {
+		t.Errorf("the parent's entry is %+v", parentEntry)
+	}
+	if rank := h.changes.recorded[1]; rank.Field != domain.FieldOrderKey || rank.Payload["order_key"] == nil {
+		t.Errorf("the rank's entry is %+v", rank)
 	}
 	if _, present := h.audit.entries[0].Changes["title"]; present {
 		t.Error("the audit entry carries the title")

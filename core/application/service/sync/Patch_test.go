@@ -251,10 +251,10 @@ func TestAPatchIsJudgedByItsFieldNames(t *testing.T) {
 		fields map[string]FieldChange
 		code   string
 	}{
-		"no fields":            {fields: map[string]FieldChange{}, code: "sync.fields_required"},
-		"a server-owned field": {fields: map[string]FieldChange{"version": {Value: 9, HLC: reading(0, "dev-a").String()}}, code: "sync.field_not_mergeable"},
-		"a field N-06 applies": {fields: map[string]FieldChange{"completion": {Value: true, HLC: reading(0, "dev-a").String()}}, code: "sync.field_unavailable"},
-		"a field nobody knows": {fields: map[string]FieldChange{"colour": {Value: "x", HLC: reading(0, "dev-a").String()}}, code: "sync.field_unknown"},
+		"no fields":                       {fields: map[string]FieldChange{}, code: "sync.fields_required"},
+		"a server-owned field":            {fields: map[string]FieldChange{"version": {Value: 9, HLC: reading(0, "dev-a").String()}}, code: "sync.field_not_mergeable"},
+		"the hierarchy travels as a MOVE": {fields: map[string]FieldChange{"parent_id": {Value: nil, HLC: reading(0, "dev-a").String()}}, code: "sync.field_unavailable"},
+		"a field nobody knows":            {fields: map[string]FieldChange{"colour": {Value: "x", HLC: reading(0, "dev-a").String()}}, code: "sync.field_unknown"},
 		"a cover that is not an object": {
 			fields: map[string]FieldChange{"cover": {Value: "blue", HLC: reading(0, "dev-a").String()}}, code: "sync.field_malformed",
 		},

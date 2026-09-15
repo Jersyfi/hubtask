@@ -195,6 +195,7 @@ func (SnapshotRepository) Comments(
 		comment, err := commentFrom(
 			row.ID, row.TenantID, row.ItemID, row.AuthorID, row.ParentCommentID,
 			row.Body, row.CreatedAt, row.EditedAt, row.DeletedAt, row.Version,
+			row.Kind, row.SystemCode, row.SystemParams,
 		)
 		if err != nil {
 			return nil, err

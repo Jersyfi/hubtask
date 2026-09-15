@@ -636,7 +636,10 @@ INSERT INTO comment (
   created_at,
   edited_at,
   deleted_at,
-  version
+  version,
+  kind,
+  system_code,
+  system_params
 )
 SELECT
   r.id,
@@ -648,7 +651,11 @@ SELECT
   r.created_at,
   r.edited_at,
   r.deleted_at,
-  r.version
+  r.version,
+  -- An archive written before migration 0084 carries no kind: what somebody wrote.
+  coalesce(r.kind, 'USER'),
+  r.system_code,
+  r.system_params
 FROM jsonb_populate_record(
   NULL::comment,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -662,7 +669,10 @@ ON CONFLICT (id) DO UPDATE SET
   created_at = EXCLUDED.created_at,
   edited_at = EXCLUDED.edited_at,
   deleted_at = EXCLUDED.deleted_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  kind = EXCLUDED.kind,
+  system_code = EXCLUDED.system_code,
+  system_params = EXCLUDED.system_params
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsComment :one
