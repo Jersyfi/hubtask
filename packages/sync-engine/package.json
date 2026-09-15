@@ -22,7 +22,7 @@
     "@hubtask/api-client": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.13.4",
     "typescript": "^6.0.3"
   }
 }
