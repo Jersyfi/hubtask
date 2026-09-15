@@ -245,3 +245,53 @@ func resolveValue(t *testing.T, field, placeholder string, at Resolution) Value 
 	}
 	return resolved.Values[0]
 }
+
+// The week starts where the account or its locale says (i18n-l10n.md §4, M-06): on the same
+// Wednesday, `@start_of_week` is the Monday before for one person, the Sunday before for
+// another, the Saturday before for a third - and Monday for a resolution that says nothing,
+// which is what every query before 0.8.0 got.
+func TestTheWeekStartsWhereTheResolutionSays(t *testing.T) {
+	location := berlin(t)
+	wednesday := time.Date(2026, 8, 19, 14, 30, 0, 0, location)
+
+	for _, tc := range []struct {
+		day       string
+		wantStart time.Time
+	}{
+		{"MONDAY", time.Date(2026, 8, 17, 0, 0, 0, 0, location)},
+		{"SUNDAY", time.Date(2026, 8, 16, 0, 0, 0, 0, location)},
+		{"SATURDAY", time.Date(2026, 8, 15, 0, 0, 0, 0, location)},
+		{"", time.Date(2026, 8, 17, 0, 0, 0, 0, location)},
+		{"FRIDAY", time.Date(2026, 8, 17, 0, 0, 0, 0, location)},
+	} {
+		t.Run("week starts "+tc.day, func(t *testing.T) {
+			at := Resolution{Now: wednesday, Location: location, ActorID: actor}.WithWeekStart(tc.day)
+			start := resolveValue(t, "created_at", "@start_of_week", at)
+			if !start.Time.Equal(tc.wantStart) {
+				t.Errorf("@start_of_week = %s, want %s", start.Time, tc.wantStart)
+			}
+			end := resolveValue(t, "created_at", "@end_of_week", at)
+			wantEnd := tc.wantStart.AddDate(0, 0, 7).Add(-time.Microsecond)
+			if !end.Time.Equal(wantEnd) {
+				t.Errorf("@end_of_week = %s, want %s", end.Time, wantEnd)
+			}
+		})
+	}
+
+	// On the day the week starts, the start is today - for every choice of day.
+	for _, tc := range []struct {
+		day string
+		now time.Time
+	}{
+		{"MONDAY", time.Date(2026, 8, 17, 9, 0, 0, 0, location)},
+		{"SUNDAY", time.Date(2026, 8, 16, 9, 0, 0, 0, location)},
+		{"SATURDAY", time.Date(2026, 8, 15, 9, 0, 0, 0, location)},
+	} {
+		at := Resolution{Now: tc.now, Location: location, ActorID: actor}.WithWeekStart(tc.day)
+		start := resolveValue(t, "created_at", "@start_of_week", at)
+		want := time.Date(tc.now.Year(), tc.now.Month(), tc.now.Day(), 0, 0, 0, 0, location)
+		if !start.Time.Equal(want) {
+			t.Errorf("%s on its own day: @start_of_week = %s, want %s", tc.day, start.Time, want)
+		}
+	}
+}

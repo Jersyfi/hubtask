@@ -68,3 +68,12 @@ type Negotiator interface {
 	// unreadable header answers "".
 	Negotiate(acceptLanguage string) string
 }
+
+// WeekStarts answers the day a week starts on where a locale is spoken (i18n-l10n.md §4: "from
+// CLDR per locale, overridable per account"). The account's own preference stands first; this is
+// what stands where it says nothing.
+type WeekStarts interface {
+	// WeekStartOf answers `MONDAY`, `SUNDAY` or `SATURDAY` for a BCP 47 tag, resolved the way a
+	// catalogue is - `de-AT` reads `de`'s row - and `MONDAY` for a locale nothing here knows.
+	WeekStartOf(locale string) string
+}
