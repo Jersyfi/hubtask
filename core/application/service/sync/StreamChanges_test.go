@@ -458,3 +458,25 @@ func TestWithholdingARecordWritesNoAuditEntry(t *testing.T) {
 		Permits(context.Context, appshared.ActorContext, access.Request) (bool, error)
 	} = f.stream.Authorizer
 }
+
+// An ACCESS_REVOKED record is addressed to a person and is the one record permission does not
+// filter (N-08): it reaches the account it names although that account may no longer read the
+// container - which is the point - and reaches nobody else, however well they may read it.
+func TestARevocationReachesTheAccountItNamesAndNobodyElse(t *testing.T) {
+	stranger := shared.ID("01936f2a-7c1e-7000-8000-0000000000a9")
+	mine, theirs := entry(1, hidden), entry(2, readable)
+	mine.Op, mine.ActorID = repository.AccessRevoked, account
+	theirs.Op, theirs.ActorID = repository.AccessRevoked, stranger
+	f := streaming(t, mine, theirs)
+
+	batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(batch.Records) != 1 || batch.Records[0].Seq != 1 {
+		t.Errorf("sent %+v, want the revocation addressed to the caller alone", batch.Records)
+	}
+	if f.auth.questions != 0 {
+		t.Error("a revocation was put to the authorizer, which would withhold the one record it exists to deliver")
+	}
+}

@@ -78,6 +78,17 @@ func (s *grantStore) ListAt(_ context.Context, scope domain.Scope, page reposito
 	return repository.GrantPage{Grants: grants}, nil
 }
 
+func (s *grantStore) OfGroup(_ context.Context, groupID shared.ID) ([]domain.Grant, error) {
+	var grants []domain.Grant
+	for _, grant := range s.byID {
+		if grant.GroupID == groupID {
+			grants = append(grants, grant)
+		}
+	}
+	slices.SortFunc(grants, func(a, b domain.Grant) int { return strings.Compare(string(a.ID), string(b.ID)) })
+	return grants, nil
+}
+
 var _ repository.MembershipGrants = (*grantStore)(nil)
 
 func grantHandler(grants *grantStore, accounts *accountStore, groups *groupStore, auth *authorizer, sink *auditSink) GrantMembership {

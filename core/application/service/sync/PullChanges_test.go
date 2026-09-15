@@ -216,6 +216,24 @@ func TestAScopeNarrowsAfterThePermissionCheckNotInsteadOfIt(t *testing.T) {
 	}
 }
 
+// A revocation at the hub reaches a device holding one of its collections: the device drops what
+// it holds under the root, and a scope does not stand in the way (N-08).
+func TestARevocationIsNotNarrowedByAScope(t *testing.T) {
+	revoked := entry(1, hub)
+	revoked.Op, revoked.ActorID = repository.AccessRevoked, account
+	pull, f := pulling(t, revoked)
+	f.auth.allowed[hub] = false
+
+	page, err := pull.Pull(t.Context(), actor(),
+		request(f, 0, 10, Scope{ContainerID: collectionA, Depth: DepthSelf}))
+	if err != nil {
+		t.Fatalf("pulling: %v", err)
+	}
+	if got := seqs(page.Records); !sameSeqs(got, []int64{1}) {
+		t.Errorf("page %v, want the revocation", got)
+	}
+}
+
 func TestAPullValidatesItsRequest(t *testing.T) {
 	cases := map[string]struct {
 		request PullRequest
