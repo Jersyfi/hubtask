@@ -535,7 +535,7 @@ func (w PlacementWriter) write(
 	if err := w.Events.Append(ctx, announcement); err != nil {
 		return MoveResult{}, err
 	}
-	if err := w.recordChange(ctx, after, actor, announcement.Payload); err != nil {
+	if err := w.recordChanges(ctx, before, after, actor); err != nil {
 		return MoveResult{}, err
 	}
 	if err := w.recordAudit(ctx, before, after, actor, now); err != nil {
@@ -550,26 +550,58 @@ func (w PlacementWriter) write(
 	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: dropped}, nil
 }
 
-// recordChange writes what an offline client has to be told (offline-sync.md §3.1).
+// recordChanges writes what an offline client has to be told: one entry per field that moved
+// (offline-sync.md §3.1, §4.2 and the paragraph on how "per field" is written down).
 //
-// `order_key` is a fractional index and merges by itself: two devices that inserted into the same list both
-// keep their position, which is the whole reason the rank is a key rather than a number. `parent_id`, `path`
-// and `depth` are the hierarchy, which is last writer wins with cycle detection on the server - a merge that
-// would make a cycle is rejected rather than merged (offline-sync.md §4.2). The payload carries the path the
-// item came from, so a client rewrites its own copy of the subtree from one entry.
-func (w PlacementWriter) recordChange(
-	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext, snapshot map[string]any,
+// `order_key` is a fractional index and merges by itself: two devices that inserted into the same
+// list both keep their position, which is the whole reason the rank is a key rather than a number.
+// `parent_id` is the hierarchy, which is last writer wins with cycle detection on the server - a
+// merge that would make a cycle is rejected rather than merged. `path` and `depth` are derived
+// from the parent and never merge on their own, so they travel *inside* the parent's entry, under
+// its clock: a client rewrites its own copy of the subtree from that one entry. One entry each,
+// each under its own reading, because a device that reordered an entry while another moved it
+// keeps both - which is precisely what one entry covering the move would destroy (N-06).
+func (w PlacementWriter) recordChanges(
+	ctx context.Context, before, after domain.WorkItem, actor appshared.ActorContext,
 ) error {
-	return w.Changes.Record(ctx, changelog.Change{
-		TenantID:    item.TenantID,
-		Entity:      itemTarget,
-		EntityID:    item.ID,
-		Op:          changelog.Upsert,
-		ContainerID: item.CollectionID,
-		ActorID:     actor.AccountID,
-		HLC:         w.HLC.Next(),
-		Payload:     snapshot,
-	})
+	payloads := []struct {
+		field    string
+		from, to string
+		payload  map[string]any
+	}{
+		{domain.FieldParentID, before.ParentID.String(), after.ParentID.String(), map[string]any{
+			domain.FieldParentID: idOrNil(after.ParentID), "path": after.Path, "depth": after.Depth,
+		}},
+		{domain.FieldCollectionID, before.CollectionID.String(), after.CollectionID.String(), map[string]any{
+			domain.FieldCollectionID: after.CollectionID.String(),
+		}},
+		{domain.FieldBucketID, before.BucketID.String(), after.BucketID.String(), map[string]any{
+			domain.FieldBucketID: idOrNil(after.BucketID),
+		}},
+		{domain.FieldOrderKey, before.OrderKey, after.OrderKey, map[string]any{
+			domain.FieldOrderKey: after.OrderKey,
+		}},
+	}
+	for _, moved := range payloads {
+		if moved.from == moved.to {
+			continue
+		}
+		err := w.Changes.Record(ctx, changelog.Change{
+			TenantID:    after.TenantID,
+			Entity:      itemTarget,
+			EntityID:    after.ID,
+			Op:          changelog.Upsert,
+			ContainerID: after.CollectionID,
+			ActorID:     actor.AccountID,
+			HLC:         w.HLC.Next(),
+			Field:       moved.field,
+			Payload:     moved.payload,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recordAudit writes the evidence. All of it is structure - identifiers and a rank - so all of it is OPEN in
