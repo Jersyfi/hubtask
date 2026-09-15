@@ -10,10 +10,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/text"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -163,5 +169,124 @@ func TestADeviceThreeHoursOutIsBoundedAndStillLands(t *testing.T) {
 	}
 	if recorded.Physical.After(created.Add(5 * time.Minute)) {
 		t.Errorf("the recorded reading %s is three hours out; the device's clock outvoted the server", hlc)
+	}
+}
+
+// patchCatalogueFor is the catalogue an ITEM_PATCH performs through: the read, the update and
+// the due trio, over the real adapters.
+func patchCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
+	t.Helper()
+
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	fixed := portclock.Fixed(created)
+	ids := clockadapter.NewUUIDv7(fixed)
+	hybrid, err := clockadapter.NewHybridClock(fixed, "server-integration")
+	if err != nil {
+		t.Fatalf("building the clock: %v", err)
+	}
+	sink := postgres.NewAuditSink(ids)
+	profiles := postgres.NewCapabilityProfileRepository()
+	journal := work.ActivityJournal{Entries: historyRepo(), IDs: ids}
+	outbox := postgres.NewOutbox(jobQueue(t))
+	changes := postgres.NewChangeLog()
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(), UnitOfWork: unitOfWork, Audit: sink, Clock: fixed,
+	}
+	dueDates := work.DueDateWriter{
+		Items: itemRepo(), Containers: containerRepo(), Profiles: profiles, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: sink, Activity: journal,
+		UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+	}
+
+	registry, err := usecase.NewRegistry(nil,
+		work.GetWorkItem{
+			Items: itemRepo(), ItemLabels: itemLabelRepo(), Containers: containerRepo(),
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.UpdateWorkItem{
+			Items: itemRepo(), Buckets: bucketRepo(), Containers: containerRepo(), Profiles: profiles,
+			Authorizer: authorizer, Events: outbox, Changes: changes, Audit: sink, Activity: journal,
+			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid, DueDates: dueDates,
+			Text: text.Composing{},
+		}.Descriptor(),
+	)
+	if err != nil {
+		t.Fatalf("building the catalogue: %v", err)
+	}
+	return registry
+}
+
+// SY-1: two devices change different fields of the same entry offline, and both changes survive.
+// Device A renames it, device B writes notes; each pushes its own field under its own reading, and
+// the entry ends with A's title and B's notes - with every winning field stamped under the reading
+// that decided it.
+func TestTwoDevicesChangingDifferentFieldsBothSurvive(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	task := seedTask(ctx, t, tenantB, authorB, collection)
+
+	push := pushFor(ctx, t, 5*time.Minute)
+	push.Catalogue = patchCatalogueFor(ctx, t)
+	push.Clocks = postgres.NewChangeLog()
+	actor := pushActor(tenantB, authorB)
+	// The readings stand near the server's own clock - the stream's is the system's - so that
+	// the skew leaves them alone; the fixture's `created` is a month back and would be bounded.
+	wall := time.Now()
+	deviceA, deviceB := freshID(t), freshID(t)
+	readingA, _ := shared.NewHLC(wall.Add(time.Minute), 1, deviceA.String())
+	readingB, _ := shared.NewHLC(wall.Add(2*time.Minute), 1, deviceB.String())
+
+	fromA, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceA, Mutations: []syncservice.Mutation{{
+		OpID: freshID(t), Kind: syncdomain.ItemPatch, ItemID: task,
+		Fields: map[string]syncservice.FieldChange{"title": {Value: "Renamed on the train", HLC: readingA.String()}},
+	}}})
+	if err != nil {
+		t.Fatalf("device A: %v", err)
+	}
+	fromB, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceB, Mutations: []syncservice.Mutation{{
+		OpID: freshID(t), Kind: syncdomain.ItemPatch, ItemID: task,
+		Fields: map[string]syncservice.FieldChange{"notes": {Value: "Written at the airport", HLC: readingB.String()}},
+	}}})
+	if err != nil {
+		t.Fatalf("device B: %v", err)
+	}
+	if fromA.Results[0].Result != syncdomain.Applied || fromB.Results[0].Result != syncdomain.Applied {
+		t.Errorf("A answered %s, B answered %s, want both APPLIED", fromA.Results[0].Result, fromB.Results[0].Result)
+	}
+
+	item := findWorkItem(ctx, t, tenantB, task)
+	if item.Title != "Renamed on the train" || item.Notes != "Written at the airport" {
+		t.Errorf("the entry ended as %q / %q; one device's change was lost", item.Title, item.Notes)
+	}
+	// The clocks are the devices' readings, not fresh server readings.
+	var clocks map[string]shared.HLC
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		clocks, err = postgres.NewChangeLog().Of(ctx, "item", task)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the clocks: %v", err)
+	}
+	if clocks["title"].Compare(readingA) != 0 || clocks["notes"].Compare(readingB) != 0 {
+		t.Errorf("the clocks are %v, want the devices' readings", clocks)
+	}
+
+	// SY-2's other half: a third device, its clock three hours ahead, is bounded to server time -
+	// which sorts before the reading device A wrote a minute ahead - and does not outvote A.
+	deviceC := freshID(t)
+	hoursAhead, _ := shared.NewHLC(wall.Add(3*time.Hour), 1, deviceC.String())
+	fromC, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceC, Mutations: []syncservice.Mutation{{
+		OpID: freshID(t), Kind: syncdomain.ItemPatch, ItemID: task,
+		Fields: map[string]syncservice.FieldChange{"title": {Value: "Outvoted", HLC: hoursAhead.String()}},
+	}}})
+	if err != nil {
+		t.Fatalf("device C: %v", err)
+	}
+	if fromC.Results[0].Result != syncdomain.Merged {
+		t.Errorf("a device three hours ahead was answered %s, want MERGED", fromC.Results[0].Result)
+	}
+	if findWorkItem(ctx, t, tenantB, task).Title != "Renamed on the train" {
+		t.Errorf("a device with a clock three hours ahead outvoted device A")
 	}
 }
