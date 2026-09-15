@@ -260,8 +260,8 @@ func TestATenantHeaderAgreeingWithTheTokenPassesThrough(t *testing.T) {
 	}
 }
 
-// The chain in full: what the client asked for reaches the use case, so it can win over the
-// account's and the tenant's preference (i18n-l10n.md §2).
+// The chain in full: what the client asked for reaches the use case, where it stands after the
+// account's own preference and before the workspace's default (i18n-l10n.md §2, M-04).
 func TestTheRequestedLocaleReachesTheUseCase(t *testing.T) {
 	auth := &authenticator{actor: authenticatedActor()}
 
@@ -273,7 +273,8 @@ func TestTheRequestedLocaleReachesTheUseCase(t *testing.T) {
 	routes.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
 
 	Localised{
-		Locale: env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+		Locale:     env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+		Negotiator: firstTag{},
 		Next: Authenticated{
 			Routes:        routes,
 			Authenticator: auth,
@@ -299,7 +300,8 @@ func TestNoAcceptLanguageMeansNoRequestPreference(t *testing.T) {
 	routes.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
 
 	Localised{
-		Locale: env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+		Locale:     env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+		Negotiator: firstTag{},
 		Next: Authenticated{
 			Routes:        routes,
 			Authenticator: auth,

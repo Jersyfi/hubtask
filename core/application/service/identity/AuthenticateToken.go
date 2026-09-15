@@ -54,7 +54,10 @@ type AuthenticateToken struct {
 // (i18n-l10n.md §2).
 type AuthenticateTokenCommand struct {
 	Credential string
-	// RequestedLocale is empty when the client expressed no preference.
+	// RequestedLocale is empty when the client expressed no preference. For a person it stands
+	// after the account's own preference and before the workspace's default (i18n-l10n.md §2):
+	// a preference somebody set on their account is not overridden by the browser they happen
+	// to be sitting at, and the client renders by the same rule (M-04).
 	RequestedLocale string
 	// FallbackLocale and FallbackTimeZone are the installation defaults, the last link of the
 	// chain.
@@ -132,7 +135,7 @@ func (a AuthenticateToken) Execute(
 			TokenID:            credential.Token.ID,
 			Scopes:             credential.Token.Scopes,
 			Locale: firstNonEmpty(
-				cmd.RequestedLocale, credential.Account.Locale,
+				credential.Account.Locale, cmd.RequestedLocale,
 				credential.TenantLocale, cmd.FallbackLocale),
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
@@ -217,7 +220,7 @@ func (a AuthenticateToken) executeSession(
 			APIClient: credential.ClientID,
 			Scopes:    scopes,
 			Locale: firstNonEmpty(
-				cmd.RequestedLocale, credential.Account.Locale,
+				credential.Account.Locale, cmd.RequestedLocale,
 				credential.TenantLocale, cmd.FallbackLocale),
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
