@@ -4,6 +4,8 @@
 package suggestion_test
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"errors"
 	"testing"
 	"time"
@@ -265,5 +267,19 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 	}
 	if domain.StatusProposed.Decided() {
 		t.Error("a proposal reports itself decided")
+	}
+}
+
+func TestTheDigestSeparatesItsPartsAndIsTheSameTwice(t *testing.T) {
+	// ("ab", "c") and ("a", "bc") are the same bytes in a row; the separator is what keeps them
+	// two different states, and the separator is the reason the hash lives in the domain.
+	if bytes.Equal(domain.Digest("ab", "c"), domain.Digest("a", "bc")) {
+		t.Fatal("the parts ran together: the separator does not separate")
+	}
+	if !bytes.Equal(domain.Digest("Buy milk", "notes"), domain.Digest("Buy milk", "notes")) {
+		t.Fatal("the same state produced two digests")
+	}
+	if got := len(domain.Digest("Buy milk")); got != sha256.Size {
+		t.Fatalf("the digest is %d bytes, want SHA-256's %d", got, sha256.Size)
 	}
 }

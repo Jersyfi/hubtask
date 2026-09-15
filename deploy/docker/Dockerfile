@@ -42,7 +42,7 @@ RUN pnpm --filter @hubtask/api-client build \
  && pnpm --filter @hubtask/design-system build \
  && pnpm --filter @hubtask/webapp build
 
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 ENV CGO_ENABLED=0
 # Dependencies first - their own layer, so that code changes do not discard the cache.
