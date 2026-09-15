@@ -58,6 +58,43 @@ func (q *Queries) DeleteStaleDevices(ctx context.Context, arg DeleteStaleDevices
 	return result.RowsAffected(), nil
 }
 
+const fieldClocksOf = `-- name: FieldClocksOf :many
+SELECT field, hlc
+FROM field_clock
+WHERE tenant_id = current_tenant_id() AND entity = $1 AND entity_id = $2
+`
+
+type FieldClocksOfParams struct {
+	Entity   string
+	EntityID pgtype.UUID
+}
+
+type FieldClocksOfRow struct {
+	Field string
+	Hlc   string
+}
+
+// Every field of one entity that has a reading, for the merge to compare against.
+func (q *Queries) FieldClocksOf(ctx context.Context, arg FieldClocksOfParams) ([]FieldClocksOfRow, error) {
+	rows, err := q.db.Query(ctx, fieldClocksOf, arg.Entity, arg.EntityID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FieldClocksOfRow{}
+	for rows.Next() {
+		var i FieldClocksOfRow
+		if err := rows.Scan(&i.Field, &i.Hlc); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findDevice = `-- name: FindDevice :one
 SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
        created_at, credential_id
@@ -1061,6 +1098,35 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const stampFieldClock = `-- name: StampFieldClock :exec
+
+INSERT INTO field_clock (tenant_id, entity, entity_id, field, hlc)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, entity, entity_id, field) DO UPDATE SET hlc = excluded.hlc
+`
+
+type StampFieldClockParams struct {
+	Entity   string
+	EntityID pgtype.UUID
+	Field    string
+	Hlc      string
+}
+
+// The clock per field (N-05, offline-sync.md §4.2): the reading of the write that landed, which a
+// push's reading is compared against per field.
+// The reading of the write that landed replaces what stood: the writer decided, and the row
+// records the decision. A guard that kept an older row would let a device outvote an edit made
+// after it by a clock that was merely ahead.
+func (q *Queries) StampFieldClock(ctx context.Context, arg StampFieldClockParams) error {
+	_, err := q.db.Exec(ctx, stampFieldClock,
+		arg.Entity,
+		arg.EntityID,
+		arg.Field,
+		arg.Hlc,
+	)
+	return err
 }
 
 const touchDevice = `-- name: TouchDevice :one

@@ -353,6 +353,7 @@ func (w AssignmentWriter) recordChange(
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         w.HLC.Next(),
+		Field:       domain.FieldAssigneeID,
 		Payload:     map[string]any{domain.FieldAssigneeID: assignee},
 	})
 }

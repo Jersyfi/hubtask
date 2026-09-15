@@ -161,3 +161,22 @@ func DeviceFrom(ctx context.Context) shared.ID {
 	deviceID, _ := ctx.Value(deviceKey{}).(shared.ID)
 	return deviceID
 }
+
+// readingsKey carries the clock readings a push applies its fields under (N-05).
+type readingsKey struct{}
+
+// ContextWithReadings marks the context with the readings a device wrote its fields under, by
+// field name. A use case a push performs records its change log entry as it always does, and the
+// change log adapter takes the device's reading for a field named here in place of the writer's
+// fresh one - so that the clock a second device later compares against is the clock that decided
+// the merge (offline-sync.md §4.2). Fields not named keep the writer's reading.
+func ContextWithReadings(ctx context.Context, readings map[string]shared.HLC) context.Context {
+	return context.WithValue(ctx, readingsKey{}, readings)
+}
+
+// ReadingFrom answers the device's reading for a field, and false when the context carries none.
+func ReadingFrom(ctx context.Context, field string) (shared.HLC, bool) {
+	readings, _ := ctx.Value(readingsKey{}).(map[string]shared.HLC)
+	reading, found := readings[field]
+	return reading, found && !reading.IsZero()
+}
