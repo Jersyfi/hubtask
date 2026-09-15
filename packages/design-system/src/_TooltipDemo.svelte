@@ -34,7 +34,7 @@
     <Inline gap="200" align="center">
       {#each sides as placement (placement.side)}
         <Tooltip text="Delete permanently" {placement}>
-          <IconButton icon="trash-2" label="Delete" tone="danger" />
+          <IconButton icon="trash" label="Delete" tone="danger" />
         </Tooltip>
       {/each}
     </Inline>
