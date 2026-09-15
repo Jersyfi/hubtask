@@ -8,6 +8,7 @@ import (
 	"time"
 
 	port "github.com/Jersyfi/hubtask/core/port/ai"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	health "github.com/Jersyfi/hubtask/core/port/health"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 )
@@ -36,13 +37,25 @@ import (
 // until the first call, which is a true statement about what it is doing rather than a guess about
 // what its workspaces have configured, and the degradation table's concern - "AI suggestions
 // disappear" - is about calls that fail rather than about calls nobody has made.
+//
+// And it reads the width pool for the same reason and in the same shape (#569): a model this
+// process has learned the index cannot hold is a search that is lexical for as long as it stays
+// configured - a degradation, not an outage, and one no breaker will ever open on, since the
+// provider answers perfectly well. Which model, and whose, is deliberately not in the answer.
 type Probe struct {
-	pool *BreakerPool
+	pool   *BreakerPool
+	widths *WidthPool
+	clock  clock.Clock
+	// width is the index's, held here so this package does not import the repository port for
+	// one number: the composition root hands it over from the same constant everything else reads.
+	width int
 }
 
-// NewProbe takes the pool of endpoint breakers. Nil is an installation with no AI surface running.
-func NewProbe(pool *BreakerPool) Probe {
-	return Probe{pool: pool}
+// NewProbe takes the pool of endpoint breakers, the pool of learned widths, and the width of the
+// index a learned width is measured against. A nil breaker pool is an installation with no AI
+// surface running; a nil width pool learns nothing and reports nothing.
+func NewProbe(pool *BreakerPool, widths *WidthPool, width int, clock clock.Clock) Probe {
+	return Probe{pool: pool, widths: widths, width: width, clock: clock}
 }
 
 var _ health.Probe = Probe{}
@@ -69,6 +82,15 @@ func (p Probe) Check(context.Context) health.Result {
 		return stateful.State() != resilience.BreakerClosed, stateful.Since()
 	})
 	if open == 0 {
+		if wider, since := p.widths.Wider(p.width, p.clock.Now()); wider > 0 {
+			// Every endpoint answers, and at least one configured model produces vectors the
+			// index cannot hold. Degraded rather than down: suggestions work, the search is
+			// lexical, and the fix is a configuration rather than a repair.
+			return health.Result{
+				Status: health.StatusDegraded, Since: since, CircuitState: "closed",
+				ErrorCode: "ai.embedding_too_wide", Impact: []string{port.FeatureSemanticSearch},
+			}
+		}
 		return health.Result{Status: health.StatusOK, CircuitState: "closed"}
 	}
 	return health.Result{

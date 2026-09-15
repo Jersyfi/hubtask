@@ -238,6 +238,17 @@ func (EmbeddingRepository) Store(
 	if err != nil {
 		return err
 	}
+	// The application layer refused this already; refused a second time here so a caller that
+	// bypassed it could not reach the column either (ADR-0054).
+	if len(embedding.Vector) > repository.EmbeddingWidth {
+		return repository.EmbeddingTooWide(embedding.Model, len(embedding.Vector))
+	}
+	// And an empty one, which the column used to refuse for us: padded, it would be a vector of
+	// zeros, whose cosine distance to everything is NaN - and NaN sorts first under `ORDER BY
+	// rank DESC`, so one such row would head every search it lexically matched.
+	if len(embedding.Vector) == 0 {
+		return repository.EmbeddingEmpty(embedding.Model)
+	}
 
 	if _, err := tx.Exec(ctx, storeEmbedding,
 		id, embedding.Model, vectorLiteral(embedding.Vector),
@@ -249,20 +260,36 @@ func (EmbeddingRepository) Store(
 	return nil
 }
 
-// vectorLiteral renders a vector the way pgvector's text input expects it.
+// vectorLiteral renders a vector the way pgvector's text input expects it, at the index's width.
 //
 // Built at run time and bound as a parameter, which is the distinction that matters: it is
 // assembled from float32s this process produced - never from anything that arrived in a request -
 // and it reaches the statement through `$3` rather than through the SQL text (rule 9, T-06).
+//
+// A vector narrower than the index is padded with zeros to its width (ADR-0054). Exact for cosine,
+// the only distance the product uses: the dot product and both norms are unchanged by trailing
+// zeros, so every distance the index is built on and every similarity a floor is compared against
+// is the number the model produced. Here rather than at either caller, because the stored vector
+// and the query vector both come through this function, and padding one side and not the other
+// would be a search comparing two geometries.
+//
+// A wider one is not truncated - that is exact only for models trained for it - and does not
+// reach this function: the store and the search both refuse it first.
 func vectorLiteral(values []float32) string {
 	var b strings.Builder
-	b.Grow(len(values)*12 + 2)
+	b.Grow(repository.EmbeddingWidth*12 + 2)
 	b.WriteByte('[')
 	for i, value := range values {
 		if i > 0 {
 			b.WriteByte(',')
 		}
 		b.WriteString(strconv.FormatFloat(float64(value), 'g', -1, 32))
+	}
+	for i := len(values); i < repository.EmbeddingWidth; i++ {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte('0')
 	}
 	b.WriteByte(']')
 	return b.String()

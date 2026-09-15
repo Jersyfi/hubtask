@@ -60,3 +60,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0051](./ADR-0051-mcp-resources-are-catalogue-reads.md) | An MCP resource is a catalogue read with a URI for an argument | proposed | Agent interface, MCP |
 | [0052](./ADR-0052-managed-postgresql-support.md) | Managed PostgreSQL is supported, and migration 0002 is corrected to allow it | accepted | Persistence, deployment, multi-tenancy |
 | [0053](./ADR-0053-totp-qr-code.md) | The TOTP QR code: a dependency, an encoder, or neither | accepted | Clients, security, supply chain |
+| [0054](./ADR-0054-embedding-width.md) | An embedding narrower than the index is padded, and a wider one is refused | proposed | AI, search, persistence |
+| [0055](./ADR-0055-translation-process.md) | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted | i18n, process, operations |
+| [0056](./ADR-0056-golang-x-text-and-idna.md) | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted | i18n, supply chain, ports |

@@ -170,6 +170,43 @@ Everything is in English: documentation, code, identifiers, code comments, commi
 commit bodies. Message codes and `locales/en.json` are the source for translations — the backend
 never contains display text.
 
+## Translating
+
+A translation is one file: `locales/<tag>.json`, named with a BCP 47 tag (`de`, `pt-BR`,
+`zh-Hans`), a flat JSON object mapping the message codes of `locales/en.json` to sentences. Nothing
+else — no code, no registration, no release step: the binary embeds every file in that directory,
+and `/meta/capabilities` lists a locale the moment its file exists
+([`i18n-l10n.md`](docs/architecture/i18n-l10n.md) §2). An operator can lay a file over an
+installation without waiting for a release, through `HUBTASK_LOCALE_DIR`; a pull request is how it
+reaches everybody.
+
+**A partial file is welcome.** Every code the file lacks renders in English, which is the fallback
+the product is built on rather than a defect: translate the families people meet first (`email.*`,
+`errors.*`, `seed.*`, `app.*`) and leave the rest for the next pull request. Two things hold a
+file to its source, and both run in `make gate-architecture`:
+
+* a key the source does not have **fails** — it is a translation of a message that was renamed or
+  removed — and so does a placeholder that differs from the source's: `{title}` in the source has
+  to be `{title}` in the translation, neither dropped nor renamed;
+* a missing key is **reported**, by family, and does not fail.
+
+```bash
+make locales                    # how complete each translation is, per family
+make gate-architecture          # what is wrong with it, by key
+```
+
+The sentences use the ICU subset both renderers implement — simple arguments, `plural` with
+`offset:` and `=n`, `selectordinal`, `select`, `#`, nesting, and ICU's apostrophe rule (`''` is
+one apostrophe; an apostrophe before `{`, `}` or `#` quotes) — and nothing else: a `{n, number}` or
+a `{d, date}` refuses the file. Write the source's register: second person singular, sentence
+case, no exclamation marks ([`voice-and-tone.md`](docs/design/voice-and-tone.md)); German is *du*.
+Where the source phrases around a plural, a translation may pluralise if its grammar needs to.
+
+A translation is a contribution like any other, so the [CLA](CLA.md) covers it. The layout is the
+one Weblate reads unchanged, and running an instance is a decision deferred until there is
+somebody to serve ([ADR-0055](docs/adr/ADR-0055-translation-process.md)); until then, a text
+editor and the two commands above are the whole toolchain.
+
 ## Licence and CLA
 
 Contributions are published under the project licence ([LICENSE](LICENSE), BSL 1.1, converting to

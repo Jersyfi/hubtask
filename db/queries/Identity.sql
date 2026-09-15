@@ -12,6 +12,7 @@ SELECT
   a.status   AS account_status,
   a.locale   AS account_locale,
   a.time_zone AS account_time_zone,
+  a.week_start AS account_week_start,
   n.default_locale,
   n.default_time_zone,
   n.slug         AS tenant_slug,
@@ -274,7 +275,10 @@ SELECT id, name, description, version
 FROM account_group
 WHERE (
     sqlc.narg('cursor_name')::text IS NULL
-    OR (lower(name), id) > (sqlc.narg('cursor_name')::text, sqlc.narg('cursor_id')::uuid)
+    OR (lower(name) COLLATE hubtask_name, id)
+       > (sqlc.narg('cursor_name')::text COLLATE hubtask_name, sqlc.narg('cursor_id')::uuid)
   )
-ORDER BY lower(name), id
+-- The keyset comparison and the order under one collation, or the page boundary and the page
+-- disagree about where a name sorts (migration 0080).
+ORDER BY lower(name) COLLATE hubtask_name, id
 LIMIT sqlc.arg('page_size');

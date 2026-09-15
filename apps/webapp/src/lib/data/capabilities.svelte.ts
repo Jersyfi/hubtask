@@ -48,14 +48,16 @@ class Manifest {
    */
   get supportedLocales(): SupportedLocale[] {
     const declared = this.value?.supported_locales ?? [];
+    // Tolerant of an older server that answered the entry without its metadata (the contract
+    // typed `week_start` and added `decimal_separator` in 0.8.0): a locale that states no
+    // direction is left to right, and the two other facts are simply absent.
     return declared
-      .filter((entry): entry is { locale: string; direction?: 'ltr' | 'rtl'; week_start?: string } =>
-        typeof entry?.locale === 'string',
-      )
+      .filter((entry): entry is (typeof declared)[number] => typeof entry?.locale === 'string')
       .map((entry) => ({
         locale: entry.locale,
         direction: entry.direction === 'rtl' ? 'rtl' : 'ltr',
         week_start: entry.week_start,
+        decimal_separator: entry.decimal_separator,
       }));
   }
 

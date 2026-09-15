@@ -290,7 +290,7 @@ func TestTheOrderingIsTheSortAndThenTheIdentifier(t *testing.T) {
 				map[string]any{"field": "is_completed"},
 				map[string]any{"field": "title", "dir": "DESC"},
 			},
-			` ORDER BY wi.is_completed ASC, wi.title DESC, wi.id LIMIT `,
+			` ORDER BY wi.is_completed ASC, wi.title COLLATE hubtask_name DESC, wi.id LIMIT `,
 		},
 	}
 
@@ -325,13 +325,13 @@ func TestTheKeysetContinuesTheWalk(t *testing.T) {
 			"two ascending keys stay a row comparison",
 			[]any{map[string]any{"field": "title"}, map[string]any{"field": "depth"}},
 			[]string{"vAlpha", "v2"},
-			`(wi.title, wi.depth, wi.id) > ($2::text, $3::bigint, $4::uuid)`,
+			`(wi.title COLLATE hubtask_name, wi.depth, wi.id) > ($2::text COLLATE hubtask_name, $3::bigint, $4::uuid)`,
 		},
 		{
 			"a descending sort expands",
 			[]any{map[string]any{"field": "title", "dir": "DESC"}},
 			[]string{"vAlpha"},
-			`(wi.title < $2::text OR (wi.title IS NOT DISTINCT FROM $3::text AND wi.id > $4::uuid))`,
+			`(wi.title COLLATE hubtask_name < $2::text COLLATE hubtask_name OR (wi.title IS NOT DISTINCT FROM $3::text AND wi.id > $4::uuid))`,
 		},
 		{
 			"a nullable key carries where its nulls were placed",
@@ -651,5 +651,38 @@ func textSearchOf(words string) repository.TextSearch {
 	return repository.TextSearch{
 		Anchor:  repository.Anchor{Kind: repository.AnchorTenant},
 		Request: view.Search{Words: words, Language: "en", Size: 50},
+	}
+}
+
+// The query vector is compared only with rows of the model that produced it, in both places the
+// statement reaches into item_embedding - the join and the neighbourhood - and the model's name
+// is bound, never written: it is configuration somebody typed (#568, rule 9).
+func TestASearchReadsOnlyTheRowsOfTheQueryVectorsModel(t *testing.T) {
+	search := textSearchOf("quarterly report")
+	search.MeaningModel = "embed'; DROP TABLE item_embedding; --"
+
+	statement, err := Search(search, "[0.1,0.2,0.3]", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if strings.Contains(statement.SQL, "DROP") {
+		t.Fatalf("the model name reached the statement's text:\n  %s", statement.SQL)
+	}
+	for _, want := range []string{
+		"AND e.item_id = wi.id AND e.model = $",
+		"FROM item_embedding WHERE model = $",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the statement is missing %q:\n  %s", want, statement.SQL)
+		}
+	}
+	bound := 0
+	for _, arg := range statement.Args {
+		if value, ok := arg.(string); ok && value == search.MeaningModel {
+			bound++
+		}
+	}
+	if bound != 2 {
+		t.Errorf("the model is bound %d times, want once for the join and once for the neighbourhood", bound)
 	}
 }

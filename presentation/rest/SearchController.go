@@ -12,7 +12,10 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const searchItemsUseCase = "SearchItems"
+const (
+	searchItemsUseCase   = "SearchItems"
+	reindexSearchUseCase = "ReindexSearch"
+)
 
 // SearchItems answers POST /search (C-08).
 //
@@ -79,4 +82,20 @@ func searchModeField(mode *openapi.SearchMode) any {
 		return nil
 	}
 	return string(*mode)
+}
+
+// ReindexSearch answers POST /search:reindex (M-09): the job to watch, and how many rows it
+// will rewrite.
+func (c *RestController) ReindexSearch(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), reindexSearchUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, out)
 }

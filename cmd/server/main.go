@@ -32,6 +32,7 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
@@ -89,6 +90,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
+	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
@@ -273,10 +275,12 @@ func run() error {
 	// roles decide is which loops run (ADR-0014).
 	mailSender := buildMailSender(cfg, registry, metrics)
 
-	renderer, err := i18n.NewRenderer()
+	renderer, err := i18n.NewRendererFromConfig(cfg.Locale)
 	if err != nil {
 		return fmt.Errorf("message catalogue: %w", err)
 	}
+	// A catalogue with no metadata row is answered with defaults and said so once here (M-05).
+	renderer.LogUnknownLocales(slog.Default())
 
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
 	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
@@ -393,7 +397,12 @@ func run() error {
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
 		security.NewAuthAttemptHasher(cfg.SecretKey))
+	// One encoder for every place an address is stored or looked up (M-10): two spellings of a
+	// mailbox are one row only if every door brings them to the same form.
+	domains := textadapter.Domains{}
+
 	sessionWriter := identity.SessionWriter{
+		Domains:  domains,
 		Accounts: signInStore,
 		Sessions: sessions,
 		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
@@ -879,6 +888,7 @@ func run() error {
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
 
 	oidcWriter := identity.OidcWriter{
+		Domains:     domains,
 		Session:     sessionWriter,
 		Providers:   postgres.NewIdentityProviderRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
@@ -921,12 +931,18 @@ func run() error {
 			},
 		})
 	}}
+	// What this process has learned about embedding models' widths, per endpoint and model, the
+	// way the breakers are per endpoint (#569): the embedding pass writes it, and the capability
+	// report and the health probe read it without a call.
+	// Three of the pass's hourly intervals: one missed pass does not clear a real degradation,
+	// and a workspace that switched models stops being reported within the afternoon.
+	aiWidths := &aiadapter.WidthPool{StaleAfter: 3 * time.Hour}
 	aiResolver := aiadapter.Resolver{
 		Providers: postgres.NewAiProviderRepository(), UnitOfWork: unitOfWork,
 		Encryptor: encryptor, Client: outboundClient, Clock: clockadapter.System{},
-		Meter: metrics, Breakers: aiBreakers,
+		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
 	}
-	registry.Register(aiadapter.NewProbe(aiBreakers))
+	registry.Register(aiadapter.NewProbe(aiBreakers, aiWidths, workrepo.EmbeddingWidth, clockadapter.System{}))
 	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside it
 	// (J-15). It is a quota like every other row of multi-tenancy.md §4 - resolved from the
 	// workspace's settings, reported on the same ratio metric, watched by the same alert - and a
@@ -983,7 +999,7 @@ func run() error {
 		observer.Registry(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 		}.Descriptor(),
 		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1292,6 +1308,17 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The entry in another language (M-11): a read through the entry's own read, then the
+		// budgeted provider - so a workspace without consent, without a provider or without
+		// budget is refused the way the search's meaning is, and nothing is stored.
+		work.AiTranslate{
+			Reader: work.GetWorkItem{
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork,
+			},
+			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1314,6 +1341,12 @@ func run() error {
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
 				UnitOfWork: unitOfWork,
 			},
+		}.Descriptor(),
+		// The index brought current at an administrator's request (M-09): what the row's
+		// recorded configuration says was built differently from how it would be built today.
+		work.ReindexSearch{
+			Index: postgres.NewSearchIndexRepository(), Jobs: jobs, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
@@ -1515,6 +1548,7 @@ func run() error {
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
 			Containers: containers, Buckets: buckets, Labels: labels,
 			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+			Domains:    domains,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
@@ -1674,7 +1708,9 @@ func run() error {
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:  profiles,
 			Languages: postgres.NewTextLanguageRepository(),
+			Locales:   renderer,
 			Semantic:  postgres.NewSemanticSearchRepository(),
+			Ordering:  postgres.NewNaturalOrderingRepository(),
 			// The same resolver every asking route reaches through, so the manifest cannot say
 			// the workspace has AI while the route refuses (issue 502). Budgeted, which is the
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
@@ -1720,6 +1756,8 @@ func run() error {
 			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
+			// The week's first day for an account that set none: the locale's row (M-06).
+			WeekStarts: renderer,
 			// The session half (H-01): the signature refuses forgeries before any lookup, the
 			// row answers whether the session is still alive. A session carries every declared
 			// scope except the control plane's, because it is the person rather than a bounded
@@ -1839,6 +1877,9 @@ func run() error {
 											cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
 										Next: rest.Localised{
 											Locale: cfg.Locale,
+											// The catalogues present decide what a header lands
+											// on (M-04); the renderer is the matcher.
+											Negotiator: renderer,
 											Next: rest.Authenticated{
 												Routes:        apiRoutes,
 												Authenticator: authenticate,
@@ -2018,6 +2059,9 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// The workspace's default language for a recipient who has not chosen one (#603),
+			// and the installation's after it - the chain authentication resolves too.
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
 			Signals: metrics,
 			// The invitation mail's link is the redemption token (H-01), minted at delivery so
@@ -2299,6 +2343,16 @@ func run() error {
 			// straight back while there is known work left. The retention sweep's two numbers, for
 			// the same reason it has two.
 			Interval: time.Hour, Continuation: 5 * time.Second,
+		},
+		// One workspace's search documents brought current, batch by batch, at an
+		// administrator's request (M-09, ADR-0034). Detached like the embedding pass, so that
+		// each batch commits on its own; unlike it, the walk finishes.
+		queueport.KindSearchReindex: worker.SearchReindex{
+			Rebuild: work.RebuildSearchIndex{
+				Index: postgres.NewSearchIndexRepository(), UnitOfWork: unitOfWork,
+			},
+			Progress:     jobs,
+			Continuation: 2 * time.Second,
 		},
 		queueport.KindNotificationDeliver: notificationDelivery,
 		queueport.KindWebhookDeliver:      webhookDelivery,

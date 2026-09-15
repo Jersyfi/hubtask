@@ -62,10 +62,11 @@ type SearchItems struct {
 // consented, and what to do when the provider is slow. All of that is decided in one place, and
 // what this use case receives is a vector or nothing.
 type QueryMeaning interface {
-	// Of embeds the query. An empty vector and a nil error is "search lexically", which is the
-	// answer for every reason a provider might not be reachable - a search must not fail because
-	// somebody else's machine is slow.
-	Of(ctx context.Context, actor appshared.ActorContext, words string) ([]float32, error)
+	// Of embeds the query and names the model that did. An empty vector and a nil error is
+	// "search lexically", which is the answer for every reason a provider might not be reachable
+	// - a search must not fail because somebody else's machine is slow. The model travels because
+	// the vector is compared only with rows of the same model (#568).
+	Of(ctx context.Context, actor appshared.ActorContext, words string) (vector []float32, model string, err error)
 }
 
 // SearchItemsQuery is the input, typed.
@@ -120,9 +121,12 @@ func (h SearchItems) Execute(
 	// is not a failure - it is the answer for a workspace with no provider, no consent, or a
 	// provider that did not answer in time - and the search then runs exactly the statement it ran
 	// before semantic search existed.
-	var meaning []float32
+	var (
+		meaning []float32
+		model   string
+	)
 	if h.Meaning != nil && request.Mode.Semantic() {
-		if meaning, err = h.Meaning.Of(ctx, actor, request.Words); err != nil {
+		if meaning, model, err = h.Meaning.Of(ctx, actor, request.Words); err != nil {
 			return repository.ItemHitPage{}, err
 		}
 	}
@@ -132,7 +136,7 @@ func (h SearchItems) Execute(
 		var err error
 		page, err = h.Items.Search(ctx, repository.TextSearch{
 			Anchor: reach.anchor, Request: request, RestrictTo: reach.restrictTo,
-			Meaning: meaning,
+			Meaning: meaning, MeaningModel: model,
 		})
 		return err
 	})

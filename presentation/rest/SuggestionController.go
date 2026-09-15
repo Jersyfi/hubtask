@@ -24,6 +24,7 @@ const (
 	suggestDuplicatesUseCase    = "SuggestDuplicates"
 	aiSummarizeThreadUseCase    = "AiSummarizeThread"
 	aiSummarizeContainerUseCase = "AiSummarizeContainer"
+	aiTranslateUseCase          = "AiTranslate"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -75,6 +76,37 @@ func (c *RestController) AiSummarizeContainer(
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// AiTranslate answers POST /items/{itemId}:translate (M-11): a read, answered now, stored nowhere.
+func (c *RestController) AiTranslate(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	// The body is optional, as askAi's is: no body means the caller's own language.
+	input := usecase.Input{"item_id": itemID.String()}
+	if r.ContentLength > 0 {
+		var body openapi.AiTranslateRequest
+		if err := decodeJSON(r, &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		if body.TargetLocale != nil {
+			input["target_locale"] = *body.TargetLocale
+		}
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), aiTranslateUseCase, actorOf(r), input)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, out)
 }
 
 // askAi is the four of them, which differ in the use case they name and in nothing else.
