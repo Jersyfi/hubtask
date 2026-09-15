@@ -11,6 +11,7 @@ import (
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -73,6 +74,13 @@ type DeliverNotification struct {
 	Renderer      i18n.Renderer
 	UnitOfWork    persistence.UnitOfWork
 	Clock         clock.Clock
+	// Workspaces answers the workspace's own default language, the second link of the chain a
+	// recipient's locale is resolved down (i18n-l10n.md §2) - an invited person has not chosen
+	// one yet, by definition, and the invitation is the first thing they read. Optional: nil
+	// skips to the installation's default (#603).
+	Workspaces WorkspaceReader
+	// FallbackLocale is the installation's default, the last link of the same chain.
+	FallbackLocale string
 	// BaseURL is where this installation lives, so an email can carry a link somebody can click. A
 	// relative path in an email is a dead link.
 	BaseURL string
@@ -182,7 +190,11 @@ func (d DeliverNotification) load(
 		if err != nil {
 			return err
 		}
-		loaded.recipient = identityAccount{locale: recipient.Locale, address: recipient.Email}
+		locale, err := d.recipientLocale(ctx, recipient.Locale)
+		if err != nil {
+			return err
+		}
+		loaded.recipient = identityAccount{locale: locale, address: recipient.Email}
 
 		preference, err := d.Preferences.Find(ctx, record.RecipientID, record.Category, record.Channel)
 		switch {
@@ -366,4 +378,33 @@ func (d DeliverNotification) write(
 		return nil
 	}
 	return err
+}
+
+// WorkspaceReader is the slice of the workspace repository a delivery needs: the row, for its
+// default language, and nothing that writes.
+type WorkspaceReader interface {
+	Find(ctx context.Context) (identity.Workspace, error)
+}
+
+// recipientLocale is §2's chain for a recipient: the account's own language, otherwise the
+// workspace's default, otherwise the installation's - read inside the delivery's own transaction,
+// which is bound to the workspace the record belongs to. An empty answer at the end is the
+// renderer's fallback to the source language, which is where it was for everybody until #603.
+func (d DeliverNotification) recipientLocale(ctx context.Context, own string) (string, error) {
+	if own != "" {
+		return own, nil
+	}
+	if d.Workspaces != nil {
+		workspace, err := d.Workspaces.Find(ctx)
+		switch {
+		case errors.Is(err, shared.ErrNotFound):
+			// A workspace row that is gone while its accounts are not is not this delivery's to
+			// explain; the message still goes, in the installation's language.
+		case err != nil:
+			return "", err
+		case workspace.DefaultLocale != "":
+			return workspace.DefaultLocale, nil
+		}
+	}
+	return d.FallbackLocale, nil
 }

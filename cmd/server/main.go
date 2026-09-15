@@ -2059,6 +2059,9 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// The workspace's default language for a recipient who has not chosen one (#603),
+			// and the installation's after it - the chain authentication resolves too.
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
 			Signals: metrics,
 			// The invitation mail's link is the redemption token (H-01), minted at delivery so
