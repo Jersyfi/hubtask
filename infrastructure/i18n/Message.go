@@ -6,6 +6,7 @@ package i18n
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -454,5 +455,47 @@ func category(tag language.Tag, value float64, ordinal bool) string {
 		return "many"
 	default:
 		return "other"
+	}
+}
+
+// Arguments answers the names a message takes as parameters, sorted and without repeats: every
+// simple argument, every plural's and select's operand, and the operand behind every `#`. What a
+// gate compares between a translation and its source - a translation naming an argument the source
+// does not is a placeholder nobody fills, and one missing an argument is a value that was lost.
+func Arguments(pattern string) ([]string, error) {
+	nodes, err := parseMessage(pattern)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	collectArguments(nodes, seen)
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func collectArguments(nodes []node, into map[string]bool) {
+	for _, n := range nodes {
+		switch n.kind {
+		case nodeText:
+		case nodeArgument, nodeNumber:
+			into[n.name] = true
+		case nodePlural:
+			into[n.name] = true
+			for _, body := range n.exact {
+				collectArguments(body, into)
+			}
+			for _, body := range n.categories {
+				collectArguments(body, into)
+			}
+		case nodeSelect:
+			into[n.name] = true
+			for _, body := range n.options {
+				collectArguments(body, into)
+			}
+		}
 	}
 }

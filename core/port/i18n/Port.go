@@ -51,3 +51,20 @@ type Locales interface {
 	// SupportedLocales answers one row per catalogue, the source language first.
 	SupportedLocales() []LocaleInfo
 }
+
+// Negotiator reads what a request asked for, against the catalogues this installation has
+// (i18n-l10n.md §2).
+//
+// A port for the reason Renderer is one: the matching is `golang.org/x/text/language`'s, which
+// ADR-0056 confines to the i18n adapter, and the REST middleware that has the header in hand may
+// not import it. What comes back is the client's own tag, not the catalogue's - `de-AT` when the
+// client said `de-AT` and the installation has `de` - because the tag travels on the actor into
+// places that want the region: an entry's content language, the week a person starts on.
+type Negotiator interface {
+	// Negotiate answers the tag from an Accept-Language header that this installation can serve
+	// best, as the client wrote it: `fr, de;q=0.8` on an installation with German and no French
+	// answers `de`. When nothing in the header is served, the client's first preference is
+	// answered as it stands, so that an unserved language still names itself. An absent or
+	// unreadable header answers "".
+	Negotiate(acceptLanguage string) string
+}
