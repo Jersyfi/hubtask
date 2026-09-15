@@ -1248,17 +1248,18 @@ type SetElement struct {
 }
 
 type SyncDevice struct {
-	ID          pgtype.UUID
-	TenantID    pgtype.UUID
-	AccountID   pgtype.UUID
-	Platform    *string
-	DisplayName *string
-	LastCursor  *int64
-	LastSeenAt  pgtype.Timestamptz
-	Scopes      []byte
-	PushToken   *string
-	Blocked     bool
-	CreatedAt   pgtype.Timestamptz
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Platform     *string
+	DisplayName  *string
+	LastCursor   *int64
+	LastSeenAt   pgtype.Timestamptz
+	Scopes       []byte
+	PushToken    *string
+	Blocked      bool
+	CreatedAt    pgtype.Timestamptz
+	CredentialID pgtype.UUID
 }
 
 type SyncOpLog struct {

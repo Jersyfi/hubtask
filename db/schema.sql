@@ -1825,10 +1825,14 @@ CREATE TABLE sync_device (
   push_token    text,
   blocked       boolean NOT NULL DEFAULT false,
   created_at    timestamptz NOT NULL DEFAULT now(),
+  -- The credential of the request that last touched the device (migration 0082, N-03): what
+  -- forgetting the device revokes. A token's identifier matches no session and revokes nothing.
+  credential_id uuid,
   CONSTRAINT sync_device_account_id_fkey
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX sync_device_account_idx ON sync_device (tenant_id, account_id);
+CREATE INDEX sync_device_last_seen_idx ON sync_device (tenant_id, last_seen_at);
 
 -- Idempotency of the push mutations (30 days).
 CREATE TABLE sync_op_log (

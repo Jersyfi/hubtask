@@ -915,7 +915,13 @@ func (pending) PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, _ 
 	notAvailable(w, r)
 }
 
+// ListSyncDevices and ForgetSyncDevice are overridden by RestController, for the reason given at
+// CreateContainer (N-03).
 func (pending) ListSyncDevices(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ForgetSyncDevice(w http.ResponseWriter, r *http.Request, _ openapi.DeviceId) {
+	notAvailable(w, r)
+}
 
 // SyncPull is overridden by RestController, for the reason given at CreateContainer (N-01).
 func (pending) SyncPull(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

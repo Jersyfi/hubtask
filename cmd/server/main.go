@@ -404,6 +404,12 @@ func run() error {
 	// mailbox are one row only if every door brings them to the same form.
 	domains := textadapter.Domains{}
 
+	// The devices that synchronise (N-03): the person's, like their sessions, and forgetting one
+	// ends the session it last synchronised under.
+	deviceWriter := syncservice.DeviceWriter{
+		Devices: postgres.NewDeviceRepository(), Sessions: sessions, Cursors: streamCursors,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	sessionWriter := identity.SessionWriter{
 		Domains:  domains,
 		Accounts: signInStore,
@@ -1057,6 +1063,8 @@ func run() error {
 		identity.ListSessions{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeSession{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeAllSessions{Writer: sessionWriter}.Descriptor(),
+		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
+		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
@@ -1725,7 +1733,11 @@ func run() error {
 		// The pull is the same reader served in pages (N-01): the same records, the same order,
 		// the same cursor, which is what makes the stream an accelerator over it.
 		controller.Sync = &rest.SyncController{
-			Pull:    syncservice.PullChanges{Stream: changeStream},
+			Pull: syncservice.PullChanges{
+				Stream: changeStream,
+				// Every pull registers or touches the device it comes from (N-03).
+				Devices: postgres.NewDeviceRepository(),
+			},
 			Signals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
@@ -2220,6 +2232,9 @@ func run() error {
 			// The SESSION kind (H-01): expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
+			// The devices that synchronise (N-03): silent past their period, their sign-in is
+			// revoked and the row goes.
+			Devices: postgres.NewDeviceRepository(),
 			// What AI proposed (J-05). Thirty days, the shortest default in the catalogue: a
 			// suggestion is about a state of an entry, and an entry's state does not stay still.
 			Proposals: postgres.NewSuggestionRepository(cursors),

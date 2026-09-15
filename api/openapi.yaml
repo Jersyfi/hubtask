@@ -2398,6 +2398,10 @@ paths:
       tags: [sync]
       operationId: listSyncDevices
       summary: List your own devices
+      description: |
+        The caller's own devices, most recently seen first - and never anybody else's, whatever the
+        role: a device is the person's, like a session. A forgotten device stays in the list as
+        `blocked` until the sweep removes it, so that a person can see what they ended.
       responses:
         "200":
           description: The devices
@@ -2406,6 +2410,25 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/SyncDevice" }
+
+  /sync/devices/{deviceId}:
+    parameters:
+      - $ref: "#/components/parameters/DeviceId"
+    delete:
+      tags: [sync]
+      operationId: forgetSyncDevice
+      summary: Forget one of your devices
+      description: |
+        Ends what the device holds: the session it last synchronised under is revoked, and every
+        push or pull from the identifier is refused with `sync.device_revoked` until the client
+        mints a new one (offline-sync.md §6). The row stays, marked `blocked`, until the retention
+        sweep removes it. Somebody else's device is not found rather than forbidden; forgetting
+        twice is not an error.
+      responses:
+        "204":
+          description: Forgotten
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /accounts:invite:
     post:
@@ -6603,6 +6626,12 @@ components:
 
     SessionId:
       name: sessionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    DeviceId:
+      name: deviceId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -11370,7 +11399,23 @@ components:
       type: object
       required: [device_id]
       properties:
-        device_id: { type: string, format: uuid }
+        device_id:
+          type: string
+          format: uuid
+          description: |
+            The device asking, minted by the client (UUIDv7) and kept in its own store. A device
+            registers by turning up: the first pull or push under an identifier the account has not
+            used writes its row, and every contact after that moves `last_seen_at` and the cursor.
+            An identifier another account already uses is `sync.device_foreign`; one this account
+            forgot is `sync.device_revoked` until the client mints a new one (offline-sync.md §6).
+        platform:
+          type: [string, "null"]
+          maxLength: 40
+          description: What the device is - `ios`, `android`, `desktop-macos`, `hubctl` - for the device list. Optional; the last value sent stands.
+        display_name:
+          type: [string, "null"]
+          maxLength: 120
+          description: How the device introduces itself in the list - "Anna's phone". Optional; the last value sent stands.
         cursor: { type: [string, "null"], description: Opaque; NULL means an initial synchronisation. }
         scopes:
           type: array
@@ -11460,7 +11505,9 @@ components:
       type: object
       required: [device_id, mutations]
       properties:
-        device_id: { type: string, format: uuid }
+        device_id: { type: string, format: uuid, description: The device pushing; registered the way a pull registers it. }
+        platform: { type: [string, "null"], maxLength: 40 }
+        display_name: { type: [string, "null"], maxLength: 120 }
         mutations:
           type: array
           maxItems: 500
@@ -11500,13 +11547,15 @@ components:
 
     SyncDevice:
       type: object
+      required: [id, blocked]
       properties:
         id: { type: string, format: uuid }
         platform: { type: [string, "null"] }
         display_name: { type: [string, "null"] }
         last_seen_at: { type: [string, "null"], format: date-time }
-        last_cursor: { type: [string, "null"] }
-        blocked: { type: boolean }
+        last_cursor: { type: [string, "null"], description: Where the device last stood in the log, as an opaque cursor it could resume from. }
+        blocked: { type: boolean, description: Forgotten; every contact from the identifier is refused. }
+        created_at: { type: string, format: date-time }
 
     JobStatus:
       type: string

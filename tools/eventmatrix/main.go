@@ -179,6 +179,7 @@ var areas = map[string]string{
 	"reminder":     "Recurrence and reminders",
 	"restore":      "Backup and restore",
 	"retention":    "Retention and legal hold",
+	"sync":         "Offline synchronisation",
 	"template":     "Templates",
 	"trash":        "Data: the trash",
 	"view":         "Views, exports and feeds",

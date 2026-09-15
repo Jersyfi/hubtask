@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 )
 
 // Operation is what happened to an entity from a synchronising client's point of view.
@@ -89,4 +90,21 @@ type Changes interface {
 	// Latest is where the log stands now, and where a client with no cursor starts. Zero for a
 	// workspace nothing has happened in.
 	Latest(ctx context.Context) (int64, error)
+}
+
+// Devices is what the server keeps about the devices that synchronise (offline-sync.md §6, §10,
+// N-03).
+type Devices interface {
+	// Touch registers a device on its first contact and records every contact after that: the
+	// last position, the last moment, the credential, and what the device said about itself. An
+	// identifier another account holds - in this workspace or any other - is refused with
+	// `sync.device_foreign`, and a forgotten one with `sync.device_revoked`; neither is written.
+	Touch(ctx context.Context, contact syncdomain.Contact) (syncdomain.Device, error)
+	// ForAccount lists one account's devices, most recently seen first, forgotten ones included.
+	ForAccount(ctx context.Context, accountID shared.ID) ([]syncdomain.Device, error)
+	// Forget marks the account's device blocked and answers it as it was; false when the device
+	// is not the account's or is already forgotten, which the caller tells apart by asking again.
+	Forget(ctx context.Context, id, accountID shared.ID, now time.Time) (syncdomain.Device, bool, error)
+	// Find answers one device of this workspace, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (syncdomain.Device, error)
 }

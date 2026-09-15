@@ -6297,12 +6297,16 @@ type SyncChangeOp string
 
 // SyncDevice defines model for SyncDevice.
 type SyncDevice struct {
-	Blocked     *bool               `json:"blocked,omitempty"`
-	DisplayName *string             `json:"display_name,omitempty"`
-	Id          *openapi_types.UUID `json:"id,omitempty"`
-	LastCursor  *string             `json:"last_cursor,omitempty"`
-	LastSeenAt  *time.Time          `json:"last_seen_at,omitempty"`
-	Platform    *string             `json:"platform,omitempty"`
+	// Blocked Forgotten; every contact from the identifier is refused.
+	Blocked     bool               `json:"blocked"`
+	CreatedAt   *time.Time         `json:"created_at,omitempty"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// LastCursor Where the device last stood in the log
+	LastCursor *string    `json:"last_cursor,omitempty"`
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+	Platform   *string    `json:"platform,omitempty"`
 }
 
 // SyncMutation defines model for SyncMutation.
@@ -6358,9 +6362,21 @@ type SyncMutationResultResult string
 // SyncPullRequest defines model for SyncPullRequest.
 type SyncPullRequest struct {
 	// Cursor Opaque; NULL means an initial synchronisation.
-	Cursor   *string            `json:"cursor,omitempty"`
+	Cursor *string `json:"cursor,omitempty"`
+
+	// DeviceId The device asking, minted by the client (UUIDv7) and kept in its own store. A device
+	// registers by turning up: the first pull or push under an identifier the account has not
+	// used writes its row, and every contact after that moves `last_seen_at` and the cursor.
+	// An identifier another account already uses is `sync.device_foreign`; one this account
+	// forgot is `sync.device_revoked` until the client mints a new one (offline-sync.md §6).
 	DeviceId openapi_types.UUID `json:"device_id"`
-	Limit    *int               `json:"limit,omitempty"`
+
+	// DisplayName How the device introduces itself in the list - "Anna's phone". Optional; the last value sent stands.
+	DisplayName *string `json:"display_name,omitempty"`
+	Limit       *int    `json:"limit,omitempty"`
+
+	// Platform What the device is - `ios`, `android`, `desktop-macos`, `hubctl` - for the device list. Optional; the last value sent stands.
+	Platform *string `json:"platform,omitempty"`
 
 	// Scopes What the device wants to hold. No scope means everything the caller may read; several
 	// scopes are a union. A scope narrows the page *after* the permission check, never
@@ -6397,8 +6413,11 @@ type SyncPullResponse struct {
 
 // SyncPushRequest defines model for SyncPushRequest.
 type SyncPushRequest struct {
-	DeviceId  openapi_types.UUID `json:"device_id"`
-	Mutations []SyncMutation     `json:"mutations"`
+	// DeviceId The device pushing; registered the way a pull registers it.
+	DeviceId    openapi_types.UUID `json:"device_id"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Mutations   []SyncMutation     `json:"mutations"`
+	Platform    *string            `json:"platform,omitempty"`
 }
 
 // SyncPushResponse defines model for SyncPushResponse.
@@ -6971,6 +6990,9 @@ type CustomFieldKey = string
 
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
+
+// DeviceId defines model for DeviceId.
+type DeviceId = openapi_types.UUID
 
 // EventType defines model for EventType.
 type EventType = string
@@ -8901,6 +8923,9 @@ type ServerInterface interface {
 	// ListSyncDevices List your own devices
 	// (GET /sync/devices)
 	ListSyncDevices(w http.ResponseWriter, r *http.Request)
+	// ForgetSyncDevice Forget one of your devices
+	// (DELETE /sync/devices/{deviceId})
+	ForgetSyncDevice(w http.ResponseWriter, r *http.Request, deviceId DeviceId)
 	// SyncPull Fetch the changes since the cursor
 	// (POST /sync:pull)
 	SyncPull(w http.ResponseWriter, r *http.Request)
@@ -16910,6 +16935,32 @@ func (siw *ServerInterfaceWrapper) ListSyncDevices(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ForgetSyncDevice operation middleware
+func (siw *ServerInterfaceWrapper) ForgetSyncDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "deviceId" -------------
+	var deviceId DeviceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "deviceId", r.PathValue("deviceId"), &deviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "deviceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForgetSyncDevice(w, r, deviceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SyncPull operation middleware
 func (siw *ServerInterfaceWrapper) SyncPull(w http.ResponseWriter, r *http.Request) {
 
@@ -17880,6 +17931,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:pull", wrapper.SyncPull)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:push", wrapper.SyncPush)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sync/devices/{deviceId}", wrapper.ForgetSyncDevice)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)

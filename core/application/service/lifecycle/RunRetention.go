@@ -55,8 +55,12 @@ type RunRetention struct {
 	// installation wired without it sweeps exactly what it did before, and the rows it would
 	// have removed are already unusable - the sweep forgets, revocation ends.
 	Sessions ExpiredSessions
-	Clock    clock.Clock
-	IDs      clock.IDGenerator
+	// Devices is the synchronising devices' remover (N-03). Optional for the session's reason,
+	// and with the same shape: a device silent past its period has its sign-in revoked and its
+	// row removed, and an installation wired without it sweeps exactly what it did before.
+	Devices ExpiredDevices
+	Clock   clock.Clock
+	IDs     clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -114,6 +118,13 @@ type DispatchedEvents interface {
 // ever removed, whatever the period says, because ending sign-ins is revocation's job and the
 // engine's job is forgetting.
 type ExpiredSessions interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// ExpiredDevices is the slice of the device repository this run removes through (N-03,
+// offline-sync.md §6): the session's two methods, and the same shape on purpose.
+type ExpiredDevices interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
@@ -228,6 +239,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	devices, err := h.sweepDevices(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	proposals, err := h.sweepProposals(ctx, started)
 	if err != nil {
 		return outcome, err
@@ -252,6 +268,8 @@ func (h RunRetention) Execute(
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed
+	outcome.Matched += devices.Matched
+	outcome.Removed += devices.Removed
 	// add rather than the two additions, the jumble's reasoning: a suggestion is somebody's work
 	// before anybody has filed it, so a tenant-wide hold reaches it and the blocked count has to
 	// reach the pass.
@@ -382,6 +400,56 @@ func (h RunRetention) sweepSessions(ctx context.Context, started time.Time) (Out
 	}
 
 	h.report(ctx, domain.KindSession, outcome, finished.Sub(started))
+	return outcome, nil
+}
+
+// sweepDevices removes one batch of synchronising devices silent past their period (N-03,
+// data-retention.md §3, offline-sync.md §6), revoking the session each last synchronised under
+// first - the adapter does both in one pass.
+//
+// No tombstone window, no legal hold and no audit entry, on sweepSessions' reasoning: a device
+// row is bookkeeping about a client, a hold is placed on tenants, containers and items, and the
+// security event - a person forgetting a device - was audited when it happened. What ages out here
+// is a client nobody has heard from.
+func (h RunRetention) sweepDevices(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Devices == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindDevice)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindDevice, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.Devices.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.Devices.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindDevice, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

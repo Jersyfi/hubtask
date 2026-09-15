@@ -15,6 +15,7 @@ import (
 
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -172,5 +173,50 @@ func TestAnInstallationWithoutThePullAnswersPending(t *testing.T) {
 	controller.Routes().ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusNotFound {
 		t.Errorf("status %d, want the pending 404", recorder.Code)
+	}
+}
+
+func TestTheDeviceListAndForgettingGoThroughTheCatalogue(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{{
+		"id": "0192f000-0000-7000-8000-0000000000d1", "platform": "ios", "display_name": nil,
+		"last_seen_at": streamNow, "last_cursor": "cursor-42", "blocked": false, "created_at": streamNow,
+	}}}}
+	controller := NewRestController()
+	controller.UseCases = registry
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, authenticated(
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/sync/devices", nil)))
+	if recorder.Code != http.StatusOK || registry.name != "ListSyncDevices" {
+		t.Fatalf("status %d via %q: %s", recorder.Code, registry.name, recorder.Body.String())
+	}
+	var devices []map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &devices); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(devices) != 1 || devices[0]["platform"] != "ios" || devices[0]["last_cursor"] != "cursor-42" ||
+		devices[0]["blocked"] != false || devices[0]["display_name"] != nil {
+		t.Errorf("the list is %v", devices)
+	}
+
+	registry.out = usecase.Output{}
+	recorder = httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, authenticated(httptest.NewRequestWithContext(
+		t.Context(), http.MethodDelete, APIBasePath+"/sync/devices/0192f000-0000-7000-8000-0000000000d1", nil)))
+	if recorder.Code != http.StatusNoContent || registry.name != "ForgetSyncDevice" ||
+		registry.in["device_id"] != "0192f000-0000-7000-8000-0000000000d1" {
+		t.Errorf("status %d via %q with %v", recorder.Code, registry.name, registry.in)
+	}
+}
+
+func TestAPullPassesWhatTheDeviceSaysAboutItself(t *testing.T) {
+	puller := &fakePuller{}
+	recorder, _ := pull(t, puller, `{"device_id": "0192f000-0000-7000-8000-0000000000d1", "cursor": "c",
+		"platform": "hubctl", "display_name": "Anna's laptop"}`, true)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if puller.request.Platform != "hubctl" || puller.request.DisplayName != "Anna's laptop" {
+		t.Errorf("the request reached the service as %+v", puller.request)
 	}
 }
