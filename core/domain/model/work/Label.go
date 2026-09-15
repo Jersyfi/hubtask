@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // labelNameCodes are the codes the label's name rule reports with.
@@ -51,6 +52,10 @@ type NewLabelInput struct {
 	Name         string
 	ColorToken   string
 	Description  string
+
+	// Text brings the name and the description to normal form C before they are bounded and
+	// stored (i18n-l10n.md §5, M-07); NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewLabel builds a label and checks its invariants.
@@ -59,7 +64,11 @@ type NewLabelInput struct {
 // reason given at NewBucket: a check followed by an insert is two statements with a gap between
 // them, and two requests arriving in that gap both pass the check.
 func NewLabel(in NewLabelInput) (Label, error) {
-	name, err := structureName(in.Name, labelNameCodes)
+	name, err := structureName(in.Name, labelNameCodes, in.Text)
+	if err != nil {
+		return Label{}, err
+	}
+	description, err := shared.NFC(strings.TrimSpace(in.Description), in.Text)
 	if err != nil {
 		return Label{}, err
 	}
@@ -79,7 +88,7 @@ func NewLabel(in NewLabelInput) (Label, error) {
 		CollectionID: in.CollectionID,
 		Name:         name,
 		ColorToken:   token,
-		Description:  strings.TrimSpace(in.Description),
+		Description:  description,
 		Version:      1,
 	}, nil
 }
@@ -119,7 +128,7 @@ func (a LabelAttributes) IsEmpty() bool {
 
 // Updated applies a change and reports which fields moved. Nothing that did not move is in the
 // result, and a request that changes nothing returns the label untouched.
-func (l Label) Updated(attributes LabelAttributes) (Label, []FieldChange, error) {
+func (l Label) Updated(attributes LabelAttributes, form text.Normalizer) (Label, []FieldChange, error) {
 	if err := l.EnsureEditable(); err != nil {
 		return Label{}, nil, err
 	}
@@ -127,7 +136,7 @@ func (l Label) Updated(attributes LabelAttributes) (Label, []FieldChange, error)
 	var changes []FieldChange
 
 	if attributes.Name != nil {
-		name, err := structureName(*attributes.Name, labelNameCodes)
+		name, err := structureName(*attributes.Name, labelNameCodes, form)
 		if err != nil {
 			return Label{}, nil, err
 		}
@@ -150,7 +159,10 @@ func (l Label) Updated(attributes LabelAttributes) (Label, []FieldChange, error)
 	}
 
 	if attributes.Description != nil {
-		description := strings.TrimSpace(*attributes.Description)
+		description, err := shared.NFC(strings.TrimSpace(*attributes.Description), form)
+		if err != nil {
+			return Label{}, nil, err
+		}
 		if description != l.Description {
 			if hasControlCharacter(description) {
 				return Label{}, nil, shared.ErrValidation.

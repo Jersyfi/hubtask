@@ -60,6 +60,8 @@ type OidcWriter struct {
 	Relying   provider.Port
 	// Domains brings a provisioned address's domain to its ASCII form (M-10).
 	Domains text.DomainEncoder
+	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 	// RedirectURL is where the provider sends the browser back, and it is this installation's
 	// own - computed by the composition root from the configured base URL. Never from a request:
 	// a redirect target a caller chooses is how authorization codes end up somewhere else.
@@ -269,7 +271,7 @@ func (w OidcWriter) settleAccount(
 		}
 
 		provisioned, err := domain.ProvisionExternal(
-			w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains)
+			w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
 		if err != nil {
 			return err
 		}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -17,7 +18,7 @@ var (
 
 	baseLabel = work.NewLabelInput{
 		ID: labelID, TenantID: tenant, CollectionID: collectionID,
-		Name: "Urgent", ColorToken: "accent.red",
+		Name: "Urgent", ColorToken: "accent.red", Text: text.Composing{},
 	}
 )
 
@@ -73,6 +74,32 @@ func TestNewLabelChecksTheName(t *testing.T) {
 // A label is rendered as a chip and nothing else. With no colour there is nothing to render it as,
 // and a client would have to invent one - which is how two clients come to render one label
 // differently. So the colour is required, unlike a bucket's.
+// A label's name and description are stored in normal form C, on creation and on update
+// (i18n-l10n.md §5, M-07), for the reason a column's name is.
+func TestALabelIsStoredInNormalFormC(t *testing.T) {
+	in := baseLabel
+	in.Name, in.Description = "Bu\u0308ro", "Alles fu\u0308rs Bu\u0308ro"
+	label := newLabel(t, in)
+	if label.Name != "B\u00fcro" || label.Description != "Alles f\u00fcrs B\u00fcro" {
+		t.Errorf("stored %q / %q, want both composed", label.Name, label.Description)
+	}
+
+	updated, changes, err := label.Updated(work.LabelAttributes{
+		Name: pointerTo("Ku\u0308che"), Description: pointerTo("Einka\u0308ufe"),
+	}, text.Composing{})
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if updated.Name != "K\u00fcche" || updated.Description != "Eink\u00e4ufe" || len(changes) != 2 {
+		t.Errorf("stored %q / %q with changes %+v, want the composed forms", updated.Name, updated.Description, changes)
+	}
+
+	in.Text = nil
+	if _, err := work.NewLabel(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
+	}
+}
+
 func TestNewLabelNeedsAColour(t *testing.T) {
 	for _, c := range []struct {
 		name       string
@@ -120,7 +147,7 @@ func TestLabelUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	t.Run("a change that changes nothing writes nothing", func(t *testing.T) {
 		_, changes, err := label.Updated(work.LabelAttributes{
 			Name: pointerTo("Urgent"), ColorToken: pointerTo("accent.red"),
-		})
+		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("an update to the stored values was refused: %v", err)
 		}
@@ -132,7 +159,7 @@ func TestLabelUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	t.Run("the fields that moved, and no others", func(t *testing.T) {
 		updated, changes, err := label.Updated(work.LabelAttributes{
 			ColorToken: pointerTo("accent.amber"),
-		})
+		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("the update was refused: %v", err)
 		}
@@ -146,7 +173,7 @@ func TestLabelUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	})
 
 	t.Run("clearing the description", func(t *testing.T) {
-		updated, changes, err := label.Updated(work.LabelAttributes{Description: pointerTo("")})
+		updated, changes, err := label.Updated(work.LabelAttributes{Description: pointerTo("")}, text.Composing{})
 		if err != nil {
 			t.Fatalf("clearing the description was refused: %v", err)
 		}
@@ -184,7 +211,7 @@ func TestLabelUpdatedChecksWhatItIsGiven(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			_, _, err := label.Updated(c.attributes)
+			_, _, err := label.Updated(c.attributes, text.Composing{})
 			assertDetail(t, err, shared.ErrValidation, c.detailCode)
 		})
 	}
@@ -229,6 +256,6 @@ func TestADeletedLabelRefusesEveryChange(t *testing.T) {
 		t.Fatalf("the deletion was refused: %v", err)
 	}
 
-	_, _, err = deleted.Updated(work.LabelAttributes{Name: pointerTo("Later")})
+	_, _, err = deleted.Updated(work.LabelAttributes{Name: pointerTo("Later")}, text.Composing{})
 	assertDetail(t, err, shared.ErrConflict, "labels.deleted")
 }

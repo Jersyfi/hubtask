@@ -10,9 +10,34 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-func text(value string) *string { return &value }
+func pointer(value string) *string { return &value }
+
+// An update normalises what a creation does, and the change set records the composed form -
+// so a client that sent combining marks reads back what was stored, not what it typed.
+func TestAnUpdateStoresTheTitleAndTheNotesInNormalFormC(t *testing.T) {
+	before := updatable(t)
+
+	after, changes, err := before.Updated(
+		ItemAttributes{Title: pointer("Cafe\u0301"), Notes: pointer("Ma\u0308rkte")},
+		taskProfile(), text.Composing{}, laterOn)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if after.Title != "Caf\u00e9" || after.Notes != "M\u00e4rkte" {
+		t.Errorf("stored %q / %q, want both composed", after.Title, after.Notes)
+	}
+	if len(changes) != 2 || changes[0].To != "Caf\u00e9" || changes[1].To != "M\u00e4rkte" {
+		t.Errorf("changes = %+v, want the composed forms", changes)
+	}
+
+	_, _, err = before.Updated(ItemAttributes{Title: pointer("Cafe\u0301")}, taskProfile(), nil, laterOn)
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed title was accepted: %v", err)
+	}
+}
 
 // updatable is a task as it comes out of NewWorkItem, which is the only state an update ever sees.
 func updatable(t *testing.T) WorkItem {
@@ -43,26 +68,26 @@ func TestUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	}{
 		{
 			name:       "the title alone",
-			attributes: ItemAttributes{Title: text("Buy oat milk")},
+			attributes: ItemAttributes{Title: pointer("Buy oat milk")},
 			wantFields: []string{FieldTitle},
 			wantTitle:  "Buy oat milk", wantNotes: "Semi-skimmed",
 		},
 		{
 			name:       "the notes alone",
-			attributes: ItemAttributes{Notes: text("Whole")},
+			attributes: ItemAttributes{Notes: pointer("Whole")},
 			wantFields: []string{FieldNotes},
 			wantTitle:  "Buy milk", wantNotes: "Whole",
 		},
 		{
 			name:       "both at once",
-			attributes: ItemAttributes{Title: text("Buy oat milk"), Notes: text("Whole")},
+			attributes: ItemAttributes{Title: pointer("Buy oat milk"), Notes: pointer("Whole")},
 			wantFields: []string{FieldTitle, FieldNotes},
 			wantTitle:  "Buy oat milk", wantNotes: "Whole",
 		},
 		{
 			// Merge patch spells "clear it" as null, which reaches the domain as the empty string.
 			name:       "clearing the notes",
-			attributes: ItemAttributes{Notes: text("")},
+			attributes: ItemAttributes{Notes: pointer("")},
 			wantFields: []string{FieldNotes},
 			wantTitle:  "Buy milk", wantNotes: "",
 		},
@@ -71,13 +96,13 @@ func TestUpdatedReportsOnlyWhatMoved(t *testing.T) {
 			// client that echoes the whole object back does not produce a change log entry per field
 			// for every device to merge.
 			name:       "a title equal to the one stored",
-			attributes: ItemAttributes{Title: text("Buy milk")},
+			attributes: ItemAttributes{Title: pointer("Buy milk")},
 			wantFields: nil,
 			wantTitle:  "Buy milk", wantNotes: "Semi-skimmed",
 		},
 		{
 			name:       "surrounding whitespace is not a change",
-			attributes: ItemAttributes{Title: text("  Buy milk  ")},
+			attributes: ItemAttributes{Title: pointer("  Buy milk  ")},
 			wantFields: nil,
 			wantTitle:  "Buy milk", wantNotes: "Semi-skimmed",
 		},
@@ -89,7 +114,7 @@ func TestUpdatedReportsOnlyWhatMoved(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			after, changes, err := before.Updated(test.attributes, taskProfile(), laterOn)
+			after, changes, err := before.Updated(test.attributes, taskProfile(), text.Composing{}, laterOn)
 			if err != nil {
 				t.Fatalf("the update was refused: %v", err)
 			}
@@ -122,7 +147,7 @@ func TestUpdatedReportsOnlyWhatMoved(t *testing.T) {
 func TestAChangeCarriesBothSides(t *testing.T) {
 	before := updatable(t)
 
-	_, changes, err := before.Updated(ItemAttributes{Title: text("Buy oat milk")}, taskProfile(), laterOn)
+	_, changes, err := before.Updated(ItemAttributes{Title: pointer("Buy oat milk")}, taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("the update was refused: %v", err)
 	}
@@ -140,7 +165,7 @@ func TestAChangeCarriesBothSides(t *testing.T) {
 func TestAnUpdateThatChangesNothingLeavesTheTimestampAlone(t *testing.T) {
 	before := updatable(t)
 
-	after, changes, err := before.Updated(ItemAttributes{Title: text("Buy milk")}, taskProfile(), laterOn)
+	after, changes, err := before.Updated(ItemAttributes{Title: pointer("Buy milk")}, taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("the update was refused: %v", err)
 	}
@@ -155,7 +180,7 @@ func TestAnUpdateThatChangesNothingLeavesTheTimestampAlone(t *testing.T) {
 func TestAnUpdateThatChangesSomethingMovesTheTimestamp(t *testing.T) {
 	before := updatable(t)
 
-	after, _, err := before.Updated(ItemAttributes{Title: text("Buy oat milk")}, taskProfile(), laterOn)
+	after, _, err := before.Updated(ItemAttributes{Title: pointer("Buy oat milk")}, taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("the update was refused: %v", err)
 	}
@@ -175,7 +200,7 @@ func TestNotesOnATypeWithoutTheCapabilityAreRefused(t *testing.T) {
 	activity := updatable(t)
 	activity.Type = ItemActivity
 
-	_, _, err := activity.Updated(ItemAttributes{Notes: text("Whole")}, activityProfile(), laterOn)
+	_, _, err := activity.Updated(ItemAttributes{Notes: pointer("Whole")}, activityProfile(), text.Composing{}, laterOn)
 	if !errors.Is(err, shared.ErrCapabilityNotSupported) {
 		t.Fatalf("notes on an activity answered %v", err)
 	}
@@ -199,7 +224,7 @@ func TestClearingNotesOnATypeWithoutTheCapabilityIsAllowed(t *testing.T) {
 	activity := updatable(t)
 	activity.Type = ItemActivity
 
-	after, changes, err := activity.Updated(ItemAttributes{Notes: text("")}, activityProfile(), laterOn)
+	after, changes, err := activity.Updated(ItemAttributes{Notes: pointer("")}, activityProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("clearing the notes of an activity was refused: %v", err)
 	}
@@ -219,7 +244,7 @@ func TestTheCapabilityIsAnsweredBeforeTheLifecycle(t *testing.T) {
 	at := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
 	archived.ArchivedAt = &at
 
-	_, _, err := archived.Updated(ItemAttributes{Notes: text("Whole")}, activityProfile(), laterOn)
+	_, _, err := archived.Updated(ItemAttributes{Notes: pointer("Whole")}, activityProfile(), text.Composing{}, laterOn)
 	if !errors.Is(err, shared.ErrCapabilityNotSupported) {
 		t.Errorf("an archived activity answered %v rather than naming the capability", err)
 	}
@@ -241,7 +266,7 @@ func TestALifecycleStateThatMakesTheItemReadOnly(t *testing.T) {
 			item := updatable(t)
 			test.mark(&item)
 
-			_, _, err := item.Updated(ItemAttributes{Title: text("Buy oat milk")}, taskProfile(), laterOn)
+			_, _, err := item.Updated(ItemAttributes{Title: pointer("Buy oat milk")}, taskProfile(), text.Composing{}, laterOn)
 			if !errors.Is(err, shared.ErrConflict) {
 				t.Fatalf("a %s item answered %v", test.name, err)
 			}
@@ -269,7 +294,7 @@ func TestTheTitleIsHeldToTheSameRulesAsAtCreation(t *testing.T) {
 		{name: "more than one line", title: "Buy\nmilk", detail: "items.title_malformed"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			_, _, err := before.Updated(ItemAttributes{Title: text(test.title)}, taskProfile(), laterOn)
+			_, _, err := before.Updated(ItemAttributes{Title: pointer(test.title)}, taskProfile(), text.Composing{}, laterOn)
 			if !errors.Is(err, shared.ErrValidation) {
 				t.Fatalf("a %s title answered %v", test.name, err)
 			}
@@ -286,7 +311,7 @@ func TestAnEmptyUpdateIsRecognisableAsOne(t *testing.T) {
 	if !(ItemAttributes{}).IsEmpty() {
 		t.Error("an update with no fields does not report itself as empty")
 	}
-	if (ItemAttributes{Notes: text("")}).IsEmpty() {
+	if (ItemAttributes{Notes: pointer("")}).IsEmpty() {
 		t.Error("clearing the notes reports itself as an empty update")
 	}
 }

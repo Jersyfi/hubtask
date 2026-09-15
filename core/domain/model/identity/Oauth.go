@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The OAuth2 provider's shapes (H-05, api-guidelines.md §7): authorization code + PKCE only,
@@ -76,6 +77,10 @@ type NewOauthClientInput struct {
 	RedirectURIs []string
 	CreatedBy    shared.ID
 	Now          time.Time
+
+	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewOauthClient validates the registration.
@@ -83,7 +88,10 @@ func NewOauthClient(in NewOauthClientInput) (OauthClient, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() {
 		return OauthClient{}, shared.ErrInternal.WithDetail("oauth.client_incomplete")
 	}
-	name := strings.TrimSpace(in.Name)
+	name, err := shared.NFC(strings.TrimSpace(in.Name), in.Text)
+	if err != nil {
+		return OauthClient{}, err
+	}
 	switch {
 	case name == "":
 		return OauthClient{}, fieldError("/name", "oauth.client_name_required")

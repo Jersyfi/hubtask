@@ -12,6 +12,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -74,7 +75,7 @@ func TestAWorkspaceReadsAndChangesItselfAndNothingNextDoor(t *testing.T) {
 		DisplayName:      settingOf("Workspace A GmbH"),
 		DefaultTimeZone:  settingOf("Europe/Berlin"),
 		RequireAdminTotp: settingOf(true),
-	})
+	}, text.Composing{})
 	if err != nil {
 		t.Fatalf("applying the change: %v", err)
 	}
@@ -153,7 +154,7 @@ func TestAWorkspaceReadsAndChangesItselfAndNothingNextDoor(t *testing.T) {
 
 		// The identifier is not a parameter anywhere, so B cannot even ask for A - what it can
 		// do is write, and what it writes has to land on its own row.
-		next, _, err := read.With(domain.WorkspaceChange{DisplayName: settingOf("B, renamed")})
+		next, _, err := read.With(domain.WorkspaceChange{DisplayName: settingOf("B, renamed")}, text.Composing{})
 		if err != nil {
 			t.Fatalf("applying B's change: %v", err)
 		}

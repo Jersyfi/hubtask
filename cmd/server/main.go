@@ -363,11 +363,14 @@ func run() error {
 	// would record a run at a moment nothing else agrees with (E-05).
 	backupRuns := postgres.NewBackupRunRepository()
 	backupSchedules := postgres.NewBackupScheduleRepository()
+	// One normaliser for every constructor that stores user text (M-07, i18n-l10n.md §5): two
+	// spellings of one character are one row only if every door brings them to the same form.
+	forms := textadapter.Forms{}
 	backupWriter := backupservice.Writer{
 		Targets: backupTargets, Schedules: backupSchedules,
 		Opener: backupAdapters, Encryptor: encryptor,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+		Clock: clockadapter.System{}, IDs: ids, Config: cfg, Text: forms,
 	}
 	backupRunner := backupservice.Runner{
 		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
@@ -469,13 +472,14 @@ func run() error {
 		Entropy:     clockadapter.CryptoRandom{},
 		KnownScopes: catalogue.Scopes(),
 		StepUp:      identity.StepUpVerifier{Writer: sessionWriter},
+		Text:        forms,
 	}
 
 	// The service accounts share theirs for the same reason: creating one and listing them are
 	// the same permission over the same store.
 	serviceAccounts := identity.ServiceAccounts{
 		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// The work management use cases share theirs the same way. The capability profiles in
@@ -523,7 +527,7 @@ func run() error {
 		Encryptor: encryptor,
 
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
@@ -624,7 +628,7 @@ func run() error {
 		Marking:    postgres.NewRetentionMarkingRepository(),
 		Holds:      lifecycleStore,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// The safeguard that outranks every rule above (E-08). One set for the three use cases, so
@@ -632,7 +636,7 @@ func run() error {
 	legalHolds := lifecycle.Holds{
 		Holds:      postgres.NewLegalHoldRepository(),
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// Every verb that moves an entry between the archive and the trash shares one dependency set.
@@ -652,7 +656,7 @@ func run() error {
 		Queue:      jobs,
 		Containers: containers, Policies: postgres.AutoAssignPolicyRepository{}, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// Every verb that changes an existing column shares one dependency set: they read the same
@@ -661,7 +665,7 @@ func run() error {
 	bucketWriter := work.BucketWriter{
 		Buckets: buckets, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// Both verbs that change an existing label share one dependency set, for the reason the bucket
@@ -669,7 +673,7 @@ func run() error {
 	labelWriter := work.LabelWriter{
 		Labels: labels, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// Both directions of an entry's labels share one dependency set. They are the same write in
@@ -734,7 +738,7 @@ func run() error {
 	// two doors into the same service.
 	savedViewWriter := work.SavedViewWriter{
 		Views: savedViews, Containers: containers, Authorizer: authorizer, Permits: authorizer,
-		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 	}
 
 	// The three feed use cases share one dependency set, and it sits beside the views' because a
@@ -752,7 +756,7 @@ func run() error {
 	customFieldWriter := work.CustomFieldWriter{
 		Fields: customFields, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{},
+		Clock: clockadapter.System{}, Text: forms,
 	}
 
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
@@ -784,7 +788,7 @@ func run() error {
 		Profiles: profiles, Authorizer: authorizer, Moderation: authorizer,
 		Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// The reminder's three writes share one dependency set (work.ReminderWriter): the same reads,
@@ -830,7 +834,7 @@ func run() error {
 		Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
 		Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// The templates' three definition verbs share one dependency set (work.TemplateWriter): the
@@ -839,6 +843,7 @@ func run() error {
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Text: forms,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
@@ -862,7 +867,7 @@ func run() error {
 	// The cases the privacy use cases share.
 	privacyCases := privacyservice.Cases{
 		Requests: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// The provider's shared dependencies (H-05).
@@ -872,6 +877,7 @@ func run() error {
 		Grants:     postgres.NewOauthGrantRepository(),
 		Codes:      postgres.NewOauthCodeRepository(security.NewOauthCodeHasher(cfg.SecretKey)),
 		Authorizer: authorizer, KnownScopes: catalogue.Scopes(),
+		Text: forms,
 	}
 
 	// The relying party (H-04). One object for the installation: the configuration travels per
@@ -889,6 +895,7 @@ func run() error {
 
 	oidcWriter := identity.OidcWriter{
 		Domains:     domains,
+		Text:        forms,
 		Session:     sessionWriter,
 		Providers:   postgres.NewIdentityProviderRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
@@ -977,7 +984,7 @@ func run() error {
 		// four fields and `ConvertJumbleEntry` declares one of them, so without this a jumble
 		// suggestion was produced, stored, listed - and refused by every acceptance (J-16).
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	workspaceWriter := identity.WorkspaceWriter{
@@ -986,6 +993,7 @@ func run() error {
 		Audit:      auditSink,
 		UnitOfWork: unitOfWork,
 		Clock:      clockadapter.System{},
+		Text:       forms,
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
@@ -1000,6 +1008,7 @@ func run() error {
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
+			Text: forms,
 		}.Descriptor(),
 		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1033,11 +1042,11 @@ func run() error {
 		identity.GetGroup{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		identity.UpdateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Authorizer: authorizer, Audit: auditSink,
@@ -1162,7 +1171,7 @@ func run() error {
 			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
 			Entries: items, Containers: containers,
 			Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		automationservice.ReplayRuleRun{
 			Runs:  postgres.NewAutomationRunRepository(cursors),
@@ -1205,6 +1214,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			Text:       forms,
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:      items,
@@ -1224,6 +1234,7 @@ func run() error {
 			HLC:        hybrid,
 			AutoAssign: autoAssign,
 			DueDates:   dueDateWriter,
+			Text:       forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -1240,6 +1251,7 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 			DueDates:   dueDateWriter,
+			Text:       forms,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
@@ -1260,6 +1272,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			Text:       forms,
 		}.Descriptor(),
 		work.ListBuckets{
 			Buckets: buckets, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1278,6 +1291,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			Text:       forms,
 		}.Descriptor(),
 		work.ListLabels{
 			Labels: labels, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1420,6 +1434,7 @@ func run() error {
 			Quota:   quotaGuard,
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+			Text: forms,
 		}.Descriptor(),
 		mediaservice.ConfirmMediaUpload{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
@@ -1461,7 +1476,7 @@ func run() error {
 		work.DefineCustomField{
 			Fields: customFields, Containers: containers, Profiles: profiles,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids,
+			Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,
@@ -1472,6 +1487,7 @@ func run() error {
 		work.CreateSavedView{
 			Views: savedViews, Containers: containers, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Text: forms,
 		}.Descriptor(),
 		work.ListSavedViews{
 			Views: savedViews, Containers: containers, Authorizer: authorizer,
@@ -1500,7 +1516,7 @@ func run() error {
 			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
 			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 		}.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
@@ -1548,7 +1564,7 @@ func run() error {
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
 			Containers: containers, Buckets: buckets, Labels: labels,
 			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
-			Domains:    domains,
+			Domains: domains, Text: forms,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
@@ -1681,6 +1697,7 @@ func run() error {
 				Media: mediaservice.IngestMedia{
 					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
 					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+					Text: forms,
 				},
 				Events: outbox, UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{}, IDs: ids,

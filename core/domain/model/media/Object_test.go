@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var stagedAt = time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC)
@@ -21,7 +22,7 @@ func staging() media.NewObjectInput {
 		FileName: "quarterly-report.pdf", ClaimedType: "application/pdf",
 		DeclaredSize: 4096, SizeLimit: 1 << 20,
 		Usage: media.UsageAttachment, CreatedBy: "0192f000-0000-7000-8000-00000000000d",
-		Now: stagedAt,
+		Now: stagedAt, Text: text.Composing{},
 	}
 }
 
@@ -126,5 +127,24 @@ func TestOnlyAReadyObjectOfTheRightUsageJoins(t *testing.T) {
 	marked.DeletedAt = &stagedAt
 	if err := marked.Attachable(media.UsageAttachment); shared.AsError(err).DetailCode != "media.not_found" {
 		t.Errorf("attaching a marked object was answered with %v", err)
+	}
+}
+
+// A file name is the text most likely to arrive decomposed at all - one file system writes names
+// that way and a browser hands them on as they are - and it is stored in normal form C
+// (i18n-l10n.md §5, M-07), so that "Gru\u0308\u00dfe.pdf" and "Gr\u00fc\u00dfe.pdf" are one name.
+func TestAFileNameIsStoredInNormalFormC(t *testing.T) {
+	in := staging()
+	in.FileName = "Jahresu\u0308bersicht.pdf"
+	object, err := media.NewPendingObject(in)
+	if err != nil {
+		t.Fatalf("staging: %v", err)
+	}
+	if object.FileName != "Jahres\u00fcbersicht.pdf" {
+		t.Errorf("file name = %q, want the composed form", object.FileName)
+	}
+	in.Text = nil
+	if _, err := media.NewPendingObject(in); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }

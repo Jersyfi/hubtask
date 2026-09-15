@@ -23,6 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -64,6 +65,8 @@ type ContainerWriter struct {
 	// Queue is where a deletion asks for the tenant's cleanup to be scheduled. Only TrashContainer
 	// uses it; the reasoning is at LifecycleWriter.Queue.
 	Queue queue.Queue
+	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // RenameContainer changes a hub or a collection's own descriptive fields.
@@ -110,7 +113,7 @@ func (h RenameContainer) Execute(
 		action:          ContainerRenamedAction,
 		expectedVersion: cmd.ExpectedVersion,
 		apply: func(container domain.Container, now time.Time) (domain.Container, []domain.FieldChange, error) {
-			return container.Renamed(cmd.Attributes, now)
+			return container.Renamed(cmd.Attributes, h.Writer.Text, now)
 		},
 		store: repository.Containers.SetAttributes,
 		announce: func(id shared.ID, container domain.Container, changes []domain.FieldChange,

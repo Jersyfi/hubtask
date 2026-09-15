@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -87,7 +88,7 @@ func (h UpdateRetentionPolicy) Execute(
 		if err != nil {
 			return err
 		}
-		after, err := cmd.applyTo(before, ceiling, now)
+		after, err := cmd.applyTo(before, ceiling, r.Text, now)
 		if err != nil {
 			return err
 		}
@@ -127,7 +128,7 @@ func (h UpdateRetentionPolicy) Execute(
 // creating one would have refused - a period beyond the bound with the justification quietly kept
 // from the version before, for instance.
 func (cmd UpdateRetentionPolicyCommand) applyTo(
-	before domain.Rule, ceiling int, now time.Time,
+	before domain.Rule, ceiling int, form text.Normalizer, now time.Time,
 ) (domain.Rule, error) {
 	in := domain.NewRuleInput{
 		ID: before.ID, TenantID: before.TenantID, Scope: before.Scope,
@@ -137,7 +138,7 @@ func (cmd UpdateRetentionPolicyCommand) applyTo(
 		GraceDays: &before.GraceDays, Notify: &before.Notify,
 		Justification: before.Justification, Enabled: &before.Enabled,
 		ExportTargetID: before.ExportTargetID, CreatedBy: before.CreatedBy,
-		Now: now, Ceiling: ceiling,
+		Now: now, Ceiling: ceiling, Text: form,
 	}
 	if cmd.Condition != nil {
 		in.Condition = *cmd.Condition

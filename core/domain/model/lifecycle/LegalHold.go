@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // HoldScope says what a legal hold covers.
@@ -79,6 +80,10 @@ type NewHoldInput struct {
 	Reason   string
 	PlacedBy shared.ID
 	Now      time.Time
+
+	// Text brings the reason to normal form C before it is bounded and stored (i18n-l10n.md §5,
+	// M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewLegalHold builds a hold and refuses what cannot be honoured.
@@ -87,7 +92,10 @@ type NewHoldInput struct {
 // than a hold that was refused, because somebody believes it is in force - so a scope this build
 // does not act on is a refusal here rather than a row nothing reads.
 func NewLegalHold(in NewHoldInput) (LegalHold, error) {
-	reason := strings.TrimSpace(in.Reason)
+	reason, err := shared.NFC(strings.TrimSpace(in.Reason), in.Text)
+	if err != nil {
+		return LegalHold{}, err
+	}
 	switch {
 	case in.ID.IsZero() || in.PlacedBy.IsZero():
 		return LegalHold{}, invalidHold(CodeHoldIncomplete, "/reason")
@@ -122,8 +130,13 @@ func NewLegalHold(in NewHoldInput) (LegalHold, error) {
 // A second lifting would overwrite who lifted it and when, which is the one pair of values the
 // record exists to keep - and the caller asking for it is working from a stale reading rather than
 // asking for something new.
-func (h LegalHold) Release(by shared.ID, reason string, at time.Time) (LegalHold, error) {
-	trimmed := strings.TrimSpace(reason)
+//
+// The normaliser is handed in for the reason NewLegalHold takes one (M-07).
+func (h LegalHold) Release(by shared.ID, reason string, form text.Normalizer, at time.Time) (LegalHold, error) {
+	trimmed, err := shared.NFC(strings.TrimSpace(reason), form)
+	if err != nil {
+		return LegalHold{}, err
+	}
 	switch {
 	case h.Released():
 		return LegalHold{}, shared.ErrConflict.WithDetail(CodeHoldAlreadyReleased).

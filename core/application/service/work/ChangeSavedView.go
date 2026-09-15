@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 const (
@@ -45,6 +46,8 @@ type SavedViewWriter struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Text brings the name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // UpdateSavedView changes a view's own fields: its name, its layout, its query, its hints.
@@ -78,7 +81,7 @@ func (h UpdateSavedView) Execute(
 ) (view.SavedView, error) {
 	updated, err := h.Writer.change(ctx, actor, cmd, ViewUpdatedAction,
 		func(ctx context.Context, saved view.SavedView, expected int, now time.Time) (view.SavedView, error) {
-			wanted, changed, err := saved.Updated(attributes)
+			wanted, changed, err := saved.Updated(attributes, h.Writer.Text)
 			if err != nil {
 				return view.SavedView{}, err
 			}

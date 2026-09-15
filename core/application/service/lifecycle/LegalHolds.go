@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -44,6 +45,8 @@ type Holds struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text brings a reason to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // PlaceLegalHold stops anything under it being deleted.
@@ -84,7 +87,7 @@ func (h PlaceLegalHold) Execute(
 
 	hold, err := domain.NewLegalHold(domain.NewHoldInput{
 		ID: h.Holds.IDs.NewID(), Scope: cmd.Scope, ScopeID: cmd.ScopeID,
-		Reason: cmd.Reason, PlacedBy: actor.AccountID, Now: h.Holds.Clock.Now(),
+		Reason: cmd.Reason, PlacedBy: actor.AccountID, Now: h.Holds.Clock.Now(), Text: h.Holds.Text,
 	})
 	if err != nil {
 		return domain.LegalHold{}, err
@@ -136,7 +139,7 @@ func (h ReleaseLegalHold) Execute(
 		if err != nil {
 			return err
 		}
-		released, err = hold.Release(actor.AccountID, reason, now)
+		released, err = hold.Release(actor.AccountID, reason, h.Holds.Text, now)
 		if err != nil {
 			return err
 		}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 func workspace(t *testing.T) identity.Workspace {
@@ -26,8 +27,8 @@ func workspace(t *testing.T) identity.Workspace {
 	}
 }
 
-func text(value string) *string { return &value }
-func flag(value bool) *bool     { return &value }
+func setting(value string) *string { return &value }
+func flag(value bool) *bool        { return &value }
 
 // The patch is a merge-patch: an absent key moves nothing, a present one moves its field, and a
 // present one carrying the value already held moves nothing either - which is what keeps a client
@@ -41,12 +42,12 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 		{"an empty patch changes nothing", identity.WorkspaceChange{}, nil},
 		{
 			"the name moves",
-			identity.WorkspaceChange{DisplayName: text("Acme GmbH")},
+			identity.WorkspaceChange{DisplayName: setting("Acme GmbH")},
 			[]identity.FieldChange{{Field: "display_name", From: "Acme", To: "Acme GmbH"}},
 		},
 		{
 			"the same name, spaced, does not",
-			identity.WorkspaceChange{DisplayName: text("  Acme  ")},
+			identity.WorkspaceChange{DisplayName: setting("  Acme  ")},
 			nil,
 		},
 		{
@@ -62,8 +63,8 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 		{
 			"three at once come back in a stable order",
 			identity.WorkspaceChange{
-				DisplayName: text("Acme GmbH"), DefaultTimeZone: text("Europe/Berlin"),
-				DefaultLocale: text("de"),
+				DisplayName: setting("Acme GmbH"), DefaultTimeZone: setting("Europe/Berlin"),
+				DefaultLocale: setting("de"),
 			},
 			[]identity.FieldChange{
 				{Field: "default_locale", From: "en", To: "de"},
@@ -75,7 +76,7 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			changed, moved, err := workspace(t).With(c.change)
+			changed, moved, err := workspace(t).With(c.change, text.Composing{})
 			if err != nil {
 				t.Fatalf("refused: %v", err)
 			}
@@ -114,6 +115,23 @@ func TestWithAppliesOnlyWhatMoved(t *testing.T) {
 
 // A value the workspace cannot hold is refused as a field error, by the same rule provisioning
 // uses - which is the reason the three validators are shared rather than written twice.
+// The workspace's display name is stored in normal form C (i18n-l10n.md §5, M-07), and the
+// audit's field change records the composed form.
+func TestWithStoresTheDisplayNameInNormalFormC(t *testing.T) {
+	changed, moved, err := workspace(t).With(identity.WorkspaceChange{DisplayName: setting("Mu\u0308ller & So\u0308hne")}, text.Composing{})
+	if err != nil {
+		t.Fatalf("applying the change: %v", err)
+	}
+	if changed.DisplayName != "M\u00fcller & S\u00f6hne" || len(moved) != 1 || moved[0].To != changed.DisplayName {
+		t.Errorf("stored %q with %+v, want the composed form in both", changed.DisplayName, moved)
+	}
+
+	_, _, err = workspace(t).With(identity.WorkspaceChange{DisplayName: setting("Mu\u0308ller")}, nil)
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
+	}
+}
+
 func TestWithRefusesWhatTheWorkspaceCannotHold(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -121,23 +139,23 @@ func TestWithRefusesWhatTheWorkspaceCannotHold(t *testing.T) {
 		wantCode string
 		wantPath string
 	}{
-		{"an empty name", identity.WorkspaceChange{DisplayName: text("   ")},
+		{"an empty name", identity.WorkspaceChange{DisplayName: setting("   ")},
 			"admin.display_name_invalid", "/display_name"},
-		{"a control character in the name", identity.WorkspaceChange{DisplayName: text("Acme\u0007")},
+		{"a control character in the name", identity.WorkspaceChange{DisplayName: setting("Acme\u0007")},
 			"admin.display_name_invalid", "/display_name"},
-		{"a locale that is not a tag", identity.WorkspaceChange{DefaultLocale: text("not a tag")},
+		{"a locale that is not a tag", identity.WorkspaceChange{DefaultLocale: setting("not a tag")},
 			"admin.locale_invalid", "/default_locale"},
-		{"an empty locale, which has no default here", identity.WorkspaceChange{DefaultLocale: text("")},
+		{"an empty locale, which has no default here", identity.WorkspaceChange{DefaultLocale: setting("")},
 			"admin.locale_invalid", "/default_locale"},
-		{"a zone nothing can load", identity.WorkspaceChange{DefaultTimeZone: text("Mars/Olympus")},
+		{"a zone nothing can load", identity.WorkspaceChange{DefaultTimeZone: setting("Mars/Olympus")},
 			"admin.time_zone_invalid", "/default_time_zone"},
-		{"an empty zone, which has no default here", identity.WorkspaceChange{DefaultTimeZone: text("")},
+		{"an empty zone, which has no default here", identity.WorkspaceChange{DefaultTimeZone: setting("")},
 			"admin.time_zone_invalid", "/default_time_zone"},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, _, err := workspace(t).With(c.change)
+			_, _, err := workspace(t).With(c.change, text.Composing{})
 			var domainErr *shared.Error
 			if !errors.As(err, &domainErr) {
 				t.Fatalf("error %v is not a domain error", err)

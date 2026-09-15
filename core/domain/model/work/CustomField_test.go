@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -25,7 +26,7 @@ func definition(t *testing.T, kind work.CustomFieldKind, options ...string) work
 	built, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
 		ID: fieldID, TenantID: fieldTenant, CollectionID: fieldColl,
 		Key: "priority", Kind: kind, Options: options,
-		AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow,
+		AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
 	})
 	if err != nil {
 		t.Fatalf("building a %s definition: %v", kind, err)
@@ -71,6 +72,37 @@ func TestAKeyIsAnIdentifierAndNothingElse(t *testing.T) {
 				t.Fatalf("detail %q, want %s", detail, c.detail)
 			}
 		})
+	}
+}
+
+// Options and TEXT values are stored in normal form C, and a choice is brought to the form the
+// options were stored in before it is looked for among them (i18n-l10n.md §5, M-07): a person
+// who defined "Ku\u0308che" and one who picks it with a combining diaeresis mean the same option.
+func TestOptionsChoicesAndTextValuesAreInNormalFormC(t *testing.T) {
+	field := definition(t, work.CustomFieldSelect, "Ku\u0308che", "Bu\u0308ro")
+	if field.Options[0] != "K\u00fcche" || field.Options[1] != "B\u00fcro" {
+		t.Errorf("options = %q, want them composed", field.Options)
+	}
+	got, err := field.ValidateValue("Ku\u0308che", text.Composing{})
+	if err != nil || got != "K\u00fcche" {
+		t.Errorf("a decomposed choice answered %v, %v; want the composed option", got, err)
+	}
+
+	multi := definition(t, work.CustomFieldMultiSelect, "Ku\u0308che", "Bu\u0308ro")
+	chosen, err := multi.ValidateValue([]any{"Ku\u0308che", "Bu\u0308ro"}, text.Composing{})
+	if err != nil {
+		t.Fatalf("a decomposed selection was refused: %v", err)
+	}
+	if list, _ := chosen.([]any); len(list) != 2 || list[0] != "K\u00fcche" || list[1] != "B\u00fcro" {
+		t.Errorf("selection = %v, want the composed options", chosen)
+	}
+
+	free := definition(t, work.CustomFieldText)
+	if got, err := free.ValidateValue(" Gru\u0308\u00dfe ", text.Composing{}); err != nil || got != "Gr\u00fc\u00dfe" {
+		t.Errorf("a TEXT value answered %v, %v; want it composed and trimmed", got, err)
+	}
+	if _, err := free.ValidateValue("Gru\u0308\u00dfe", nil); shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed value was accepted: %v", err)
 	}
 }
 
@@ -194,7 +226,7 @@ func TestEachKindAcceptsItsOwnShapeAndNothingElse(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			field := definition(t, c.kind, c.options...)
 
-			got, err := field.ValidateValue(c.value)
+			got, err := field.ValidateValue(c.value, text.Composing{})
 			if c.detail != "" {
 				if detail := shared.AsError(err).DetailCode; detail != c.detail {
 					t.Fatalf("detail %q, want %s", detail, c.detail)
@@ -220,12 +252,12 @@ func TestEachKindAcceptsItsOwnShapeAndNothingElse(t *testing.T) {
 func TestClearingIsNullAndAnEmptyStringIsNeither(t *testing.T) {
 	field := definition(t, work.CustomFieldText)
 
-	got, err := field.ValidateValue(nil)
+	got, err := field.ValidateValue(nil, text.Composing{})
 	if err != nil || got != nil {
 		t.Fatalf("clearing answered %#v (%v)", got, err)
 	}
 
-	if _, err := field.ValidateValue("   "); shared.AsError(err).DetailCode != "fields.value_empty" {
+	if _, err := field.ValidateValue("   ", text.Composing{}); shared.AsError(err).DetailCode != "fields.value_empty" {
 		t.Errorf("an empty text answered %v", err)
 	}
 }
@@ -234,7 +266,7 @@ func TestARequiredFieldRefusesToBeCleared(t *testing.T) {
 	field := definition(t, work.CustomFieldText)
 	field.IsRequired = true
 
-	if _, err := field.ValidateValue(nil); shared.AsError(err).DetailCode != "fields.value_required" {
+	if _, err := field.ValidateValue(nil, text.Composing{}); shared.AsError(err).DetailCode != "fields.value_required" {
 		t.Fatalf("clearing a required field answered %v", err)
 	}
 }
@@ -246,7 +278,7 @@ func TestAnUpdateReportsWhatMovedAndNothingElse(t *testing.T) {
 
 	updated, changes, err := field.Updated(work.CustomFieldAttributes{
 		Options: &options, IsRequired: &required,
-	}, fieldNow.Add(time.Hour))
+	}, text.Composing{}, fieldNow.Add(time.Hour))
 	if err != nil {
 		t.Fatalf("the update failed: %v", err)
 	}
@@ -263,7 +295,7 @@ func TestAnUpdateReportsWhatMovedAndNothingElse(t *testing.T) {
 	// The same values again move nothing, so no version is spent and nothing is announced.
 	_, none, err := updated.Updated(work.CustomFieldAttributes{
 		Options: &options, IsRequired: &required,
-	}, fieldNow.Add(2*time.Hour))
+	}, text.Composing{}, fieldNow.Add(2*time.Hour))
 	if err != nil || len(none) != 0 {
 		t.Errorf("a repeat reported %+v (%v)", none, err)
 	}
@@ -276,11 +308,11 @@ func TestNarrowingTheOptionsBindsTheNextWriteOnly(t *testing.T) {
 	field := definition(t, work.CustomFieldSelect, "high", "low")
 	narrowed := []string{"high"}
 
-	updated, _, err := field.Updated(work.CustomFieldAttributes{Options: &narrowed}, fieldNow)
+	updated, _, err := field.Updated(work.CustomFieldAttributes{Options: &narrowed}, text.Composing{}, fieldNow)
 	if err != nil {
 		t.Fatalf("narrowing failed: %v", err)
 	}
-	if _, err := updated.ValidateValue("low"); !errors.Is(err, shared.ErrValidation) {
+	if _, err := updated.ValidateValue("low", text.Composing{}); !errors.Is(err, shared.ErrValidation) {
 		t.Errorf("a value that is no longer offered was accepted: %v", err)
 	}
 }
@@ -304,7 +336,7 @@ func TestADeletedDefinitionIsOutOfUseAndTheDeletionIsIdempotent(t *testing.T) {
 	// nothing about the request is wrong - the definition is.
 	required := true
 	if _, _, err := deleted.Updated(
-		work.CustomFieldAttributes{IsRequired: &required}, fieldNow,
+		work.CustomFieldAttributes{IsRequired: &required}, text.Composing{}, fieldNow,
 	); !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("editing a deleted definition answered %v", err)
 	}

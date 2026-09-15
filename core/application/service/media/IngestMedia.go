@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // IngestMedia is the pipeline's other end (G-11): the three steps, run by this server, for bytes
@@ -50,6 +51,8 @@ type IngestMedia struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Config     env.Config
+	// Text brings the file name to normal form C on the way in (i18n-l10n.md §5, M-07).
+	Text text.Normalizer
 }
 
 // Enqueuer is the half of the queue an ingest needs: it asks for work and never claims any.
@@ -128,6 +131,7 @@ func (h IngestMedia) one(
 		// would be an author this system invented (G-10's reasoning for the entry's own actor).
 		CreatedBy: "",
 		Now:       now,
+		Text:      h.Text,
 	})
 	if err != nil {
 		return "", err
