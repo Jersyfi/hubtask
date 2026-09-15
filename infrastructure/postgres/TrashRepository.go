@@ -367,6 +367,10 @@ func (r TrashRepository) SubtreeIDs(ctx context.Context, prefix string) ([]share
 // PurgeItems removes items for good, by identifier.
 func (r TrashRepository) PurgeItems(ctx context.Context, ids []shared.ID) (int, error) {
 	return purge(ctx, ids, func(queries *sqlc.Queries, keys []pgtype.UUID) (int64, error) {
+		// The clocks first, then the rows: the merge's bookkeeping goes with what it is about.
+		if err := queries.PurgeFieldClocks(ctx, keys); err != nil {
+			return 0, err
+		}
 		return queries.PurgeWorkItems(ctx, keys)
 	})
 }
@@ -376,6 +380,9 @@ func (r TrashRepository) PurgeItems(ctx context.Context, ids []shared.ID) (int, 
 // still there refuses to go.
 func (r TrashRepository) PurgeContainers(ctx context.Context, ids []shared.ID) (int, error) {
 	return purge(ctx, ids, func(queries *sqlc.Queries, keys []pgtype.UUID) (int64, error) {
+		if err := queries.PurgeFieldClocks(ctx, keys); err != nil {
+			return 0, err
+		}
 		return queries.PurgeContainers(ctx, keys)
 	})
 }

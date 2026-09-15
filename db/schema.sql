@@ -1813,6 +1813,20 @@ CREATE TABLE tombstone (
 );
 CREATE INDEX tombstone_purge_idx ON tombstone (purge_after);
 
+-- The server's clock per field (migration 0083, N-05, offline-sync.md §4.2, §10): the reading of
+-- the write that landed, which a push's reading is compared against per field. Not backfilled -
+-- a field written before the migration has no row and loses to the first device that writes it.
+-- Keyed by entity rather than tied to one table, because the rule applies to more than entries;
+-- an entry's rows go when the entry is purged (the purge removes them beside the entry).
+CREATE TABLE field_clock (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entity     text NOT NULL,
+  entity_id  uuid NOT NULL,
+  field      text NOT NULL,
+  hlc        text NOT NULL,                        -- physical:counter:device, sorts as a clock
+  PRIMARY KEY (tenant_id, entity, entity_id, field)
+);
+
 CREATE TABLE sync_device (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1964,7 +1978,7 @@ BEGIN
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',
-    'legal_hold','tombstone','sync_device','sync_op_log','set_element'
+    'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
