@@ -20,7 +20,7 @@
     {
       id: 'delete',
       label: 'Delete permanently',
-      icon: 'trash-2',
+      icon: 'trash',
       isDestructive: true,
       disabledReason: 'Deleting needs the workspace owner’s permission.',
     },

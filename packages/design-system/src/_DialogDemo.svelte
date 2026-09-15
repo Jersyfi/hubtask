@@ -40,7 +40,7 @@
   </Stack>
 {:else}
   <Stack gap="200">
-    <Button tone="danger" icon="trash-2" onclick={() => (confirming = true)}>Delete permanently</Button>
+    <Button tone="danger" icon="trash" onclick={() => (confirming = true)}>Delete permanently</Button>
     <Dialog title="Delete this collection?" bind:isOpen={confirming} dismissLabel="Close">
       {#snippet actions()}
         <Button onclick={() => (confirming = false)}>Keep it</Button>

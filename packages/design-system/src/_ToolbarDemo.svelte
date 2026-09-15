@@ -21,7 +21,7 @@
       <IconButton icon="tag" label="Add a label" size="sm" />
       <IconButton icon="archive" label="Archive" size="sm" />
       <IconButton
-        icon="trash-2"
+        icon="trash"
         label="Delete"
         size="sm"
         disabledReason="Deleting needs the workspace owner’s permission."
