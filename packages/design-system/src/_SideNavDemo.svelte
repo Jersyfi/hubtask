@@ -34,7 +34,7 @@
   const flat: NavNode[] = [
     { id: 'jumble', label: 'Jumble', icon: 'jumble', href: '/jumble' },
     { id: 'today', label: 'Today', icon: 'calendar', href: '/today' },
-    { id: 'trash', label: 'Trash', icon: 'trash-2', href: '/trash' },
+    { id: 'trash', label: 'Trash', icon: 'trash', href: '/trash' },
   ];
 
   const long: NavNode[] = [
