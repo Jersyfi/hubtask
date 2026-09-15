@@ -190,6 +190,8 @@ type root struct {
 	entityID    shared.ID
 	containerID shared.ID
 	path        []identity.Scope
+	// hub says the root is one, and has collections below it a person may read on their own.
+	hub bool
 }
 
 func (r Revocations) rootsOf(ctx context.Context, scope identity.Scope) ([]root, error) {
@@ -244,7 +246,7 @@ func (r Revocations) hubs(ctx context.Context) ([]root, error) {
 func containerRoot(container work.Container) root {
 	return root{
 		entity: entityContainer, entityID: container.ID, containerID: container.ID,
-		path: service.ContainerScopes(container),
+		path: service.ContainerScopes(container), hub: container.Type == work.ContainerHub,
 	}
 }
 
@@ -258,15 +260,74 @@ func gone(err error) error {
 }
 
 func (r Revocations) announceTo(ctx context.Context, tenantID, account shared.ID, at root) error {
-	still, err := r.Permits.Permits(ctx, appshared.ActorContext{
-		TenantID: tenantID, AccountID: account, Kind: shared.ActorUser,
-	}, Request{Permission: service.PermissionRead, Path: at.path})
-	if err != nil {
+	still, err := r.reads(ctx, tenantID, account, at)
+	if err != nil || still {
 		return err
 	}
-	if still {
-		return nil
+	if at.hub {
+		// A hub lost is announced at the hub - unless the person still reads a collection in it
+		// through a grant of its own, because a device applies a revocation to the whole subtree
+		// under the root, and would drop the one collection they may keep. Then it is the
+		// collections they lost that are announced, one by one, and the hub's own row stays where
+		// the walk would have left it: a person who reads a collection and not its hub holds
+		// exactly that.
+		kept, lost, err := r.collectionsOf(ctx, tenantID, account, at.entityID)
+		if err != nil {
+			return err
+		}
+		if kept {
+			for _, collection := range lost {
+				if err := r.record(ctx, tenantID, account, collection); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 	}
+	return r.record(ctx, tenantID, account, at)
+}
+
+// reads answers whether the account may still read the root, as the account.
+func (r Revocations) reads(ctx context.Context, tenantID, account shared.ID, at root) (bool, error) {
+	return r.Permits.Permits(ctx, appshared.ActorContext{
+		TenantID: tenantID, AccountID: account, Kind: shared.ActorUser,
+	}, Request{Permission: service.PermissionRead, Path: at.path})
+}
+
+// collectionsOf sorts a hub's collections into whether the account still reads any, and the ones
+// it does not.
+func (r Revocations) collectionsOf(
+	ctx context.Context, tenantID, account, hub shared.ID,
+) (kept bool, lost []root, err error) {
+	query := workrepo.ContainerQuery{
+		ParentID: hub, Type: work.ContainerCollection, IncludeArchived: true,
+		Page: workrepo.Page{Size: holdersPage},
+	}
+	for {
+		page, err := r.Containers.List(ctx, query)
+		if err != nil {
+			return false, nil, err
+		}
+		for _, collection := range page.Containers {
+			at := containerRoot(collection)
+			still, err := r.reads(ctx, tenantID, account, at)
+			if err != nil {
+				return false, nil, err
+			}
+			if still {
+				kept = true
+			} else {
+				lost = append(lost, at)
+			}
+		}
+		if !page.Info.HasMore {
+			return kept, lost, nil
+		}
+		query.Page.Cursor = page.Info.NextCursor
+	}
+}
+
+func (r Revocations) record(ctx context.Context, tenantID, account shared.ID, at root) error {
 	return r.Changes.Record(ctx, changelog.Change{
 		TenantID:    tenantID,
 		Entity:      at.entity,

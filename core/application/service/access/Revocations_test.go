@@ -5,6 +5,8 @@ package access
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +27,7 @@ var (
 	hubA          = shared.ID("01936f2a-7c1e-7000-8000-0000000000e5")
 	hubB          = shared.ID("01936f2a-7c1e-7000-8000-0000000000e6")
 	collectionA   = shared.ID("01936f2a-7c1e-7000-8000-0000000000e7")
+	collectionB   = shared.ID("01936f2a-7c1e-7000-8000-0000000000ea")
 	itemA         = shared.ID("01936f2a-7c1e-7000-8000-0000000000e8")
 )
 
@@ -73,13 +76,14 @@ func (c containerReader) Find(_ context.Context, id shared.ID) (work.Container, 
 }
 
 func (c containerReader) List(_ context.Context, query workrepo.ContainerQuery) (workrepo.ContainerPage, error) {
-	var hubs []work.Container
+	var found []work.Container
 	for _, container := range c.containers {
-		if container.Type == query.Type && container.ParentID.IsZero() {
-			hubs = append(hubs, container)
+		if container.Type == query.Type && container.ParentID == query.ParentID {
+			found = append(found, container)
 		}
 	}
-	return workrepo.ContainerPage{Containers: hubs}, nil
+	slices.SortFunc(found, func(a, b work.Container) int { return strings.Compare(string(a.ID), string(b.ID)) })
+	return workrepo.ContainerPage{Containers: found}, nil
 }
 
 type itemReader struct{ items map[shared.ID]work.WorkItem }
@@ -143,6 +147,7 @@ func revoking(t *testing.T, kept ...string) revocationFixture {
 				hubA:        {ID: hubA, Type: work.ContainerHub},
 				hubB:        {ID: hubB, Type: work.ContainerHub},
 				collectionA: {ID: collectionA, Type: work.ContainerCollection, ParentID: hubA},
+				collectionB: {ID: collectionB, Type: work.ContainerCollection, ParentID: hubA},
 			}},
 			Items:   itemReader{items: map[shared.ID]work.WorkItem{itemA: {ID: itemA, CollectionID: collectionA}}},
 			Changes: changes,
@@ -223,6 +228,19 @@ func TestARevokedGrantIsAnnouncedWhereTheAccessEnds(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A hub lost by somebody who still reads one of its collections on their own is announced as the
+// collections they lost, one by one - a revocation at the hub would take the kept one with it.
+func TestAHubLostIsNarrowedToTheCollectionsLostWhenOneIsKept(t *testing.T) {
+	f := revoking(t, key(anna, collectionA))
+	loss := Loss{Accounts: []shared.ID{anna}, Scope: identity.HubScope(hubA)}
+	if err := f.revocations.Announce(t.Context(), revokedTenant, loss); err != nil {
+		t.Fatalf("announcing: %v", err)
+	}
+	if got := f.announced(); !same(got, []string{key(anna, collectionB)}) {
+		t.Errorf("announced %v, want the collection lost alone", got)
 	}
 }
 
