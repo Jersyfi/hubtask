@@ -37,6 +37,7 @@ import (
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
+	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 )
@@ -188,6 +189,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.ListSessions{}.Descriptor(),
 		identity.RevokeSession{}.Descriptor(),
 		identity.RevokeAllSessions{}.Descriptor(),
+		syncservice.ListSyncDevices{}.Descriptor(),
+		syncservice.ForgetSyncDevice{}.Descriptor(),
 		identity.RedeemInvitation{}.Descriptor(),
 		identity.CompleteSignIn{}.Descriptor(),
 		identity.EnrollTotp{}.Descriptor(),

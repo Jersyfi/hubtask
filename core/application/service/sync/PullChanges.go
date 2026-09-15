@@ -8,8 +8,10 @@ import (
 	"strconv"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -61,6 +63,9 @@ func (s Scope) covers(container work.Container) bool {
 // to hold, and how much it can take at once.
 type PullRequest struct {
 	DeviceID shared.ID
+	// Platform and DisplayName are what the device says about itself, both optional (N-03).
+	Platform    string
+	DisplayName string
 	// Cursor is empty for an initial synchronisation.
 	Cursor string
 	Scopes []Scope
@@ -99,6 +104,9 @@ const (
 // truth: the same records, the same order, the same cursor.
 type PullChanges struct {
 	Stream StreamChanges
+	// Devices registers the device on its first contact and records every one after (N-03).
+	// Nil registers nothing, which is a test's convenience and not an installation's.
+	Devices repository.Devices
 }
 
 // Pull answers one page.
@@ -129,6 +137,9 @@ func (p PullChanges) Pull(
 	if err != nil {
 		return Page{}, err
 	}
+	if err := p.touch(ctx, actor, request, from); err != nil {
+		return Page{}, err
+	}
 
 	batch, err := p.Stream.page(ctx, actor, from, limit, keep)
 	if err != nil {
@@ -141,6 +152,30 @@ func (p PullChanges) Pull(
 		ServerTime: p.Stream.Clock.Now(),
 		Window:     p.Stream.Window,
 	}, nil
+}
+
+// touch registers the device or records its contact, before anything is read: a device the
+// account may not use gets no page. The position recorded is the one the request stands at -
+// where the device last got to - and the credential is the request's own, so that forgetting the
+// device later ends the sign-in it synchronised under (offline-sync.md §6).
+func (p PullChanges) touch(
+	ctx context.Context, actor appshared.ActorContext, request PullRequest, from Position,
+) error {
+	if p.Devices == nil {
+		return nil
+	}
+	contact, err := domain.Contact{
+		DeviceID: request.DeviceID, AccountID: actor.AccountID, CredentialID: actor.TokenID,
+		Platform: request.Platform, DisplayName: request.DisplayName,
+		LastSeq: from.Seq, Now: p.Stream.Clock.Now(),
+	}.Validate()
+	if err != nil {
+		return err
+	}
+	return p.Stream.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		_, err := p.Devices.Touch(ctx, contact)
+		return err
+	})
 }
 
 // pullLimit settles the page size against the contract's bounds.

@@ -209,7 +209,7 @@ func TestAnUnknownItemTypeIsCaughtByTheSchema(t *testing.T) {
 // fetchProblem goes through the observability wrapper rather than straight to the router,
 // because the request ID a problem document carries is put there by that wrapper. A test that
 // skipped it would assert on a field production sets and the test never did.
-func fetchProblem(t *testing.T, path string) (int, []byte) {
+func fetchProblem(t *testing.T, method, path string) (int, []byte) {
 	t.Helper()
 	routes := rest.NewRestController().Routes()
 
@@ -219,7 +219,7 @@ func fetchProblem(t *testing.T, path string) (int, []byte) {
 		Tracer: noop.NewTracerProvider().Tracer("contract"),
 		Role:   "api",
 	}.ServeHTTP(response, httptest.NewRequestWithContext(
-		context.Background(), http.MethodGet, path, nil))
+		context.Background(), method, path, nil))
 	return response.Code, response.Body.Bytes()
 }
 
@@ -229,19 +229,21 @@ func TestEveryErrorMatchesTheProblemSchema(t *testing.T) {
 	spec := contractSpec(t)
 
 	cases := map[string]struct {
+		method     string
 		path       string
 		wantStatus int
 	}{
-		"an unknown route": {rest.APIBasePath + "/nothing-here", http.StatusNotFound},
-		// The example moves as the milestone does: it has to be an operation that genuinely
-		// has no use case yet. /backup-targets was it until E-03 served it.
-		"a pending operation":   {rest.APIBasePath + "/sync/devices", http.StatusNotFound},
-		"outside the base path": {"/nothing-here", http.StatusNotFound},
+		"an unknown route": {http.MethodGet, rest.APIBasePath + "/nothing-here", http.StatusNotFound},
+		// The example used to move as the milestone did - /backup-targets until E-03, the device
+		// list until N-03. The pull is served by a controller field rather than the catalogue,
+		// and a bare controller leaves it to the pending set, so this one no longer has to move.
+		"a pending operation":   {http.MethodPost, rest.APIBasePath + "/sync:pull", http.StatusNotFound},
+		"outside the base path": {http.MethodGet, "/nothing-here", http.StatusNotFound},
 	}
 
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			status, body := fetchProblem(t, c.path)
+			status, body := fetchProblem(t, c.method, c.path)
 			if status != c.wantStatus {
 				t.Fatalf("status %d, want %d: %s", status, c.wantStatus, body)
 			}

@@ -12,6 +12,7 @@ import (
 
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -74,6 +75,12 @@ func (c SyncController) SyncPull(w http.ResponseWriter, r *http.Request) {
 // same way.
 func pullRequest(body openapi.SyncPullRequest) syncservice.PullRequest {
 	request := syncservice.PullRequest{DeviceID: shared.ID(body.DeviceId.String())}
+	if body.Platform != nil {
+		request.Platform = *body.Platform
+	}
+	if body.DisplayName != nil {
+		request.DisplayName = *body.DisplayName
+	}
 	if body.Cursor != nil {
 		request.Cursor = *body.Cursor
 	}
@@ -147,4 +154,57 @@ func syncChange(record syncservice.Record) openapi.SyncChange {
 func uuidPointer(id shared.ID) *openapi_types.UUID {
 	value := uuidValue(id.String())
 	return &value
+}
+
+const (
+	listSyncDevicesUseCase  = "ListSyncDevices"
+	forgetSyncDeviceUseCase = "ForgetSyncDevice"
+)
+
+// ListSyncDevices answers GET /sync/devices (N-03). Written out rather than through the identity
+// helper, for the reason ListSessions is.
+func (c *RestController) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), listSyncDevicesUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	devices := make([]openapi.SyncDevice, 0, len(rows))
+	for _, row := range rows {
+		devices = append(devices, deviceResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, devices)
+}
+
+// ForgetSyncDevice answers DELETE /sync/devices/{deviceId}.
+func (c *RestController) ForgetSyncDevice(w http.ResponseWriter, r *http.Request, deviceID openapi.DeviceId) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), forgetSyncDeviceUseCase, actor, usecase.Input{
+			"device_id": deviceID.String(),
+		})
+	}, func(usecase.Output) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+func deviceResponse(row usecase.Output) openapi.SyncDevice {
+	blocked, _ := row["blocked"].(bool)
+	created := timeValue(row["created_at"])
+	return openapi.SyncDevice{
+		Id:          uuidValue(row.String("id")),
+		Platform:    optionalTextField(row["platform"]),
+		DisplayName: optionalTextField(row["display_name"]),
+		LastSeenAt:  optionalTimeField(row["last_seen_at"]),
+		LastCursor:  optionalTextField(row["last_cursor"]),
+		Blocked:     blocked,
+		CreatedAt:   &created,
+	}
 }
