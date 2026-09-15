@@ -9,6 +9,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
 )
@@ -83,5 +84,41 @@ func TestADecomposedTitleIsStoredComposedAndFoundByAComposedSearch(t *testing.T)
 	}
 	if !reachable {
 		t.Error("the legacy row is not indexed under its decomposed bytes, so the miss above proves nothing")
+	}
+}
+
+// The query language compares in the form the columns hold (query/Builder.go, text): a filter
+// value typed with combining marks meets a title stored composed. Held by the compiler since the
+// query language landed, and pinned here against the database rather than against the SQL text.
+func TestAFilterValueMeetsATitleInTheFormItIsStored(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+
+	suffix := shortSuffix(t)
+	composed := "Gr\u00fc\u00dfe " + suffix
+	decomposed := "Gru\u0308\u00dfe " + suffix
+	if decomposed == composed {
+		t.Fatal("the fixture is not decomposed, so it proves nothing")
+	}
+
+	id := freshID(t)
+	item, err := work.NewWorkItem(work.NewWorkItemInput{
+		ID: id, TenantID: tenantA, CollectionID: collection, Type: work.ItemTask,
+		Title: composed, Profile: writableProfile(), Path: work.RootPath(id), Depth: 1,
+		OrderKey: "a0", CreatedBy: authorA, Now: created, Text: textadapter.Forms{},
+	})
+	if err != nil {
+		t.Fatalf("building the entry: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().Insert(ctx, item)
+	}); err != nil {
+		t.Fatalf("writing the entry: %v", err)
+	}
+
+	result := queried(ctx, t, tenantA, searchIn(t, collection,
+		map[string]any{"field": "title", "op": "EQ", "value": decomposed}, view.Spec{}))
+	if titles := titlesOf(result.Items); len(titles) != 1 || titles[0] != composed {
+		t.Errorf("EQ with a decomposed value found %q, want the composed entry", titles)
 	}
 }
