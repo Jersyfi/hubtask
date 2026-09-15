@@ -90,8 +90,8 @@ func TestUpdatingABucketWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 		if len(payload) != 1 || payload[domain.FieldName] != "In progress" {
 			t.Errorf("the payload carries more than the field that moved: %+v", payload)
 		}
-		if h.changes.recorded[0].ContainerID != hubID {
-			t.Errorf("the change is filed under %s, want the hub", h.changes.recorded[0].ContainerID)
+		if h.changes.recorded[0].ContainerID != collectionID {
+			t.Errorf("the change is filed under %s, want the collection (#623)", h.changes.recorded[0].ContainerID)
 		}
 	})
 

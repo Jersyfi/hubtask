@@ -341,9 +341,11 @@ func (w ItemAttachmentWriter) recordChange(
 		Entity:   itemTarget,
 		EntityID: item.ID,
 		Op:       changelog.Upsert,
-		// The visibility filter a pull applies: the hub above the collection, so that a device
-		// subscribed to the hub sees the change (offline-sync.md §3.1).
-		ContainerID: firstNonZero(collection.ParentID, item.CollectionID),
+		// The visibility filter a pull applies: the entry's own collection, like every other change
+		// to an entry. A member whose grant is on the collection alone is told about it that way;
+		// filed under the hub, the record would name a container that grant is not on the path
+		// of, and the stream's per-record check would withhold it (#623, offline-sync.md §3.1).
+		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         tag,
 		Payload: map[string]any{

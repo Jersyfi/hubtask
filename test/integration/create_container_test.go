@@ -293,16 +293,18 @@ func TestCollectionsAreRankedAfterTheirSiblings(t *testing.T) {
 		}
 	}
 
-	// And the change log entry of a collection filters on its hub, so a device subscribed to the
-	// hub sees it appear.
+	// And the change log entry of a collection is filed under the collection itself: a grant on
+	// the collection alone is on the path of the collection, not of its hub, and a reader that
+	// wants the hub's subtree resolves the parent (#623).
+	collection := mustLastCollection(ctx, t, hub.String("id"))
 	var containerID string
 	if err := adminPool(ctx, t).QueryRow(ctx,
 		`SELECT container_id::text FROM change_log WHERE entity_id = $1`,
-		mustLastCollection(ctx, t, hub.String("id"))).Scan(&containerID); err != nil {
+		collection).Scan(&containerID); err != nil {
 		t.Fatalf("reading the change log: %v", err)
 	}
-	if containerID != hub.String("id") {
-		t.Errorf("the change filters on %s rather than on the hub", containerID)
+	if containerID != collection {
+		t.Errorf("the change filters on %s rather than on the collection itself", containerID)
 	}
 }
 

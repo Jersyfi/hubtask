@@ -205,8 +205,8 @@ func TestCreatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 		if change.Entity != "label" || change.EntityID != label.ID {
 			t.Errorf("the change describes something else: %+v", change)
 		}
-		if change.ContainerID != hubID {
-			t.Errorf("the change is filed under %s, want the hub", change.ContainerID)
+		if change.ContainerID != collectionID {
+			t.Errorf("the change is filed under %s, want the collection (#623)", change.ContainerID)
 		}
 	})
 

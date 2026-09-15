@@ -940,10 +940,9 @@ func (h DuplicateWorkItem) recordElement(
 		Entity:   itemTarget,
 		EntityID: copied.ID,
 		Op:       changelog.Upsert,
-		// The hub above the collection, so that a device subscribed to the hub sees it - the
-		// visibility filter a pull applies to a set element (offline-sync.md §3.1), and the same
-		// choice AddLabel, AddMember and AttachMedia make.
-		ContainerID: firstNonZero(plan.destination.ParentID, copied.CollectionID),
+		// The visibility filter a pull applies: the copy's own collection, the same choice
+		// AddLabel, AddMember and AttachMedia make (#623, offline-sync.md §3.1).
+		ContainerID: copied.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         tag,
 		Payload: map[string]any{
