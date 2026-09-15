@@ -9,11 +9,13 @@
 
 -- name: InsertComment :exec
 INSERT INTO comment (
-  id, tenant_id, item_id, author_id, parent_comment_id, body, created_at, version
+  id, tenant_id, item_id, author_id, parent_comment_id, body, created_at, version,
+  kind, system_code, system_params
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('item_id'), sqlc.arg('author_id'),
   sqlc.narg('parent_comment_id'), normalize(sqlc.arg('body')::text, NFC),
-  sqlc.arg('created_at'), 1
+  sqlc.arg('created_at'), 1,
+  sqlc.arg('kind'), sqlc.narg('system_code'), sqlc.narg('system_params')
 );
 
 -- name: FindComment :one
@@ -21,7 +23,7 @@ INSERT INTO comment (
 -- the domain's question, and a query that hid one would turn "it was deleted" into "it never
 -- existed" - which is not what a thread full of replies to it says.
 SELECT id, tenant_id, item_id, author_id, parent_comment_id, body,
-       created_at, edited_at, deleted_at, version
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params
 FROM comment
 WHERE id = $1;
 
@@ -35,7 +37,7 @@ WHERE id = $1;
 -- timestamp, and a cursor on the time alone would skip the second or return the first forever.
 -- Served by comment_item_idx, whose leading columns are this ORDER BY.
 SELECT id, tenant_id, item_id, author_id, parent_comment_id, body,
-       created_at, edited_at, deleted_at, version
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params
 FROM comment
 WHERE item_id = sqlc.arg('item_id')
   AND (

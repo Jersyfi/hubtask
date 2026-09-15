@@ -743,6 +743,8 @@
   "sync.field_unavailable": "This installation does not merge {field} yet. Keep the change and push again after an upgrade.",
   "sync.field_unknown": "{field} is not a field of an entry.",
   "sync.field_malformed": "{field} is not in the shape the contract gives it.",
+  "sync.displaced_version": "Diverging version from {author}, written on {device} at {at}. This is the text that lost the merge; the entry carries the other one.",
+  "comments.system_comment_immutable": "A comment the server filed cannot be edited. It can be deleted.",
   "sync.gone": "This entry was deleted for good. Discard the change; the local copy is yours to keep elsewhere.",
   "sync.hlc_malformed": "{value} is not a valid change timestamp.",
   "sync.hlc_incomplete": "This installation could not stamp that change.",

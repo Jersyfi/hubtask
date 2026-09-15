@@ -198,7 +198,8 @@ LIMIT sqlc.arg('batch');
 
 -- name: SnapshotComments :many
 SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
-       c.created_at, c.edited_at, c.deleted_at, c.version, wi.collection_id
+       c.created_at, c.edited_at, c.deleted_at, c.version, c.kind, c.system_code, c.system_params,
+       wi.collection_id
 FROM comment c
 JOIN work_item wi ON wi.tenant_id = c.tenant_id AND wi.id = c.item_id
 WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND wi.deleted_at IS NULL

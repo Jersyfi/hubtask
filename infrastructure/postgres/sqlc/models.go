@@ -718,6 +718,9 @@ type Comment struct {
 	EditedAt        pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	Version         int32
+	Kind            string
+	SystemCode      *string
+	SystemParams    []byte
 }
 
 type ConsentRecord struct {

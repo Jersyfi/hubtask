@@ -311,6 +311,10 @@ func (w CommentWriter) recordAudit(
 // (api/openapi.yaml, schema Comment) - and the event's payload, which is the same shape minus the
 // collection a comment event carries for its consumers' filtering.
 func commentOutput(comment domain.Comment) usecase.Output {
+	kind := comment.Kind
+	if kind == "" {
+		kind = domain.CommentByUser
+	}
 	out := usecase.Output{
 		"id":                comment.ID.String(),
 		"item_id":           comment.ItemID.String(),
@@ -321,6 +325,16 @@ func commentOutput(comment domain.Comment) usecase.Output {
 		"edited_at":         timeOrNil(comment.EditedAt),
 		"deleted_at":        timeOrNil(comment.DeletedAt),
 		"version":           comment.Version,
+		"kind":              string(kind),
+		"system_code":       textOrNull(comment.SystemCode),
+		"system_params":     nil,
+	}
+	if len(comment.SystemParams) > 0 {
+		params := make(map[string]any, len(comment.SystemParams))
+		for key, value := range comment.SystemParams {
+			params[key] = value
+		}
+		out["system_params"] = params
 	}
 	if !comment.ParentCommentID.IsZero() {
 		out["parent_comment_id"] = comment.ParentCommentID.String()
