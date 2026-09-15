@@ -1746,6 +1746,8 @@ func run() error {
 			Push: syncservice.PushChanges{
 				Stream: changeStream, Devices: postgres.NewDeviceRepository(),
 				Ops: postgres.NewSyncOpLog(), Tombstones: postgres.NewTombstoneRepository(),
+				// The server's clock per field, kept by the change log (N-05).
+				Clocks:    changes,
 				Catalogue: useCases, Skew: cfg.Sync.ClockSkew,
 			},
 			PushSignals: metrics,
