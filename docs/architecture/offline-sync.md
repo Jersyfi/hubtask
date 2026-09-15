@@ -130,7 +130,9 @@ would give the pair a single HLC, and the merge would then decide them together 
 discarding whichever field a second device had written concurrently, which is the exact failure
 this row exists to prevent. Fields the caller did not touch are not in the log at all: a payload
 repeating them would let a stale value win a merge it should never have entered. `version` and
-`updated_at` are derived and never merged.
+`updated_at` are derived and never merged, and so are the search's two columns, `search_document` and
+`search_configuration`: the trigger builds them from the fields that did merge, and a device never
+sends either.
 
 That is also why the write side distinguishes an absent field from an empty one all the way down
 from the merge patch that expressed it (`api-guidelines.md` §"Partial updates"): "leave the notes
