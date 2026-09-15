@@ -4569,7 +4569,7 @@ type FilterNode struct {
 	Nodes *[]FilterNode `json:"nodes,omitempty"`
 	Op    FilterNodeOp  `json:"op"`
 
-	// Value On a leaf, what to compare against - a scalar for most operators, an array for `IN`, `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end is the last instant of its period, so `LTE @end_of_month` means what it says.
+	// Value On a leaf, what to compare against - a scalar for most operators, an array for `IN`, `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end is the last instant of its period, so `LTE @end_of_month` means what it says. The week starts where the caller's account says, or where their locale does (`supported_locales[].week_start`) - Monday, Sunday or Saturday - so two colleagues reading one saved view may see two weeks, and each sees their own.
 	Value interface{} `json:"value,omitempty"`
 }
 

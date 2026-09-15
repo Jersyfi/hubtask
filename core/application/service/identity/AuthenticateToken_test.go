@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -435,5 +436,46 @@ func TestTheActorCarriesTheWorkspaceSlug(t *testing.T) {
 	}
 	if actor.TenantSlug != "acme" {
 		t.Errorf("slug %q, want acme", actor.TenantSlug)
+	}
+}
+
+// weekByLocale stands in for the renderer's table (M-06).
+type weekByLocale map[string]string
+
+func (w weekByLocale) WeekStartOf(locale string) string { return w[locale] }
+
+// §4's rule for the week: the account's own preference, then the locale's day, then Monday -
+// the last being what a build without the port answers, and what every query before 0.8.0 got.
+func TestTheWeekStartsWhereTheAccountOrItsLocaleSays(t *testing.T) {
+	raw, credential := mintCredential(t)
+
+	for _, tc := range []struct {
+		name       string
+		preference string
+		locale     string
+		table      i18n.WeekStarts
+		want       string
+	}{
+		{"the account's own preference", "SATURDAY", "en", weekByLocale{"en": "SUNDAY"}, "SATURDAY"},
+		{"then the locale's day", "", "en", weekByLocale{"en": "SUNDAY"}, "SUNDAY"},
+		{"a locale the table does not know", "", "cy", weekByLocale{"en": "SUNDAY"}, "MONDAY"},
+		{"no port wired", "", "en", nil, "MONDAY"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			credential.Account.WeekStart = tc.preference
+			credential.Account.Locale = tc.locale
+			handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
+			handler.WeekStarts = tc.table
+
+			actor, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
+				Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC",
+			})
+			if err != nil {
+				t.Fatalf("authentication failed: %v", err)
+			}
+			if actor.WeekStart != tc.want {
+				t.Errorf("week starts %q, want %q", actor.WeekStart, tc.want)
+			}
+		})
 	}
 }
