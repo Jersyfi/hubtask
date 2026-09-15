@@ -923,3 +923,35 @@ func TestASuspendedTenantRefusesSignInAfterThePassword(t *testing.T) {
 		t.Errorf("a wrong password leaked the suspension: %v", err)
 	}
 }
+
+// punycode stands in for the idna adapter: the one domain these tests use, in both spellings.
+type punycode struct{}
+
+func (punycode) ToASCII(domain string) (string, error) {
+	if domain == "müller.de" {
+		return "xn--mller-kva.de", nil
+	}
+	return domain, nil
+}
+
+// The row holds the ASCII form; the person types the Unicode one; the two are one mailbox (M-10,
+// i18n-l10n.md §7). The attempt ledger is keyed the same way, so the two spellings share a lock.
+func TestASignInFindsTheAccountUnderTheAddressAsTheDNSHoldsIt(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.writer.Domains = punycode{}
+	fixture.withAccount("anna@xn--mller-kva.de", "correct horse battery")
+
+	result, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+		Email: "Anna@Müller.de", Password: secret.New("correct horse battery"),
+		UserAgent: "hubctl/1.0", RemoteAddr: "203.0.113.7:51234",
+	})
+	if err != nil {
+		t.Fatalf("the Unicode spelling did not find the row: %v", err)
+	}
+	if result.Pair == nil {
+		t.Fatal("no session was opened")
+	}
+	if len(fixture.sessions.inserted) != 1 || fixture.sessions.inserted[0].AccountID != account {
+		t.Errorf("the session opened is %+v", fixture.sessions.inserted)
+	}
+}

@@ -90,6 +90,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
+	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
@@ -396,7 +397,12 @@ func run() error {
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
 		security.NewAuthAttemptHasher(cfg.SecretKey))
+	// One encoder for every place an address is stored or looked up (M-10): two spellings of a
+	// mailbox are one row only if every door brings them to the same form.
+	domains := textadapter.Domains{}
+
 	sessionWriter := identity.SessionWriter{
+		Domains:  domains,
 		Accounts: signInStore,
 		Sessions: sessions,
 		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
@@ -882,6 +888,7 @@ func run() error {
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
 
 	oidcWriter := identity.OidcWriter{
+		Domains:     domains,
 		Session:     sessionWriter,
 		Providers:   postgres.NewIdentityProviderRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
@@ -992,7 +999,7 @@ func run() error {
 		observer.Registry(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 		}.Descriptor(),
 		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1530,6 +1537,7 @@ func run() error {
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
 			Containers: containers, Buckets: buckets, Labels: labels,
 			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+			Domains:    domains,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
