@@ -111,19 +111,41 @@ DELETE FROM webhook_subscription WHERE id = sqlc.arg('id');
 
 -- name: InsertWebhookDelivery :exec
 INSERT INTO webhook_delivery (
-  id, tenant_id, subscription_id, event_id, attempt, status, next_attempt_at, created_at
+  id, tenant_id, subscription_id, event_id, attempt, status, next_attempt_at, created_at,
+  push_id, subject, event_type
 )
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('subscription_id'), sqlc.arg('event_id'),
-  sqlc.arg('attempt'), sqlc.arg('status'), sqlc.narg('next_attempt_at'), sqlc.arg('created_at')
+  sqlc.arg('attempt'), sqlc.arg('status'), sqlc.narg('next_attempt_at'), sqlc.arg('created_at'),
+  sqlc.narg('push_id'), sqlc.narg('subject'), sqlc.narg('event_type')
 );
+
+-- name: FindPendingDeliveryOfPush :one
+-- The delivery of one push the fan-out collapses onto (N-10, offline-sync.md §8): the same
+-- subscription, push, subject and type, still pending. FOR UPDATE, because two events of the push
+-- dispatched in one round both ask, and both must land on the one row.
+SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
+       next_attempt_at, created_at, push_id, subject, event_type
+FROM webhook_delivery
+WHERE subscription_id = sqlc.arg('subscription_id') AND push_id = sqlc.arg('push_id')
+  AND subject = sqlc.arg('subject') AND event_type = sqlc.arg('event_type')
+  AND status = 'PENDING'
+ORDER BY id DESC
+LIMIT 1
+FOR UPDATE;
+
+-- name: RepointWebhookDelivery :execrows
+-- The collapse: the pending delivery now stands for the newer event, whose payload is the one the
+-- target receives. Only while it is pending - an attempt already made was made with what it had.
+UPDATE webhook_delivery SET event_id = sqlc.arg('event_id')
+WHERE id = sqlc.arg('id') AND status = 'PENDING';
 
 -- name: FindWebhookDelivery :one
 -- The tenant is selected rather than left to row level security to imply, because the aggregate
 -- carries it: a retry and a replay both build the next attempt from the row that was read, and a
 -- delivery read back without its tenant is one neither of them can construct (F4-15).
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
-       next_attempt_at, created_at
+       next_attempt_at, created_at, push_id, subject, event_type
 FROM webhook_delivery
 WHERE id = sqlc.arg('id');
 
@@ -131,7 +153,7 @@ WHERE id = sqlc.arg('id');
 -- One subscription's attempts, newest first, optionally narrowed to one outcome - DEAD_LETTER is
 -- the one an operator usually wants. The cursor is the identifier, which is time-ordered.
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
-       next_attempt_at, created_at
+       next_attempt_at, created_at, push_id, subject, event_type
 FROM webhook_delivery
 WHERE subscription_id = sqlc.arg('subscription_id')
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)

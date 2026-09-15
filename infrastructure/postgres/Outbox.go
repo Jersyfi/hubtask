@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
@@ -56,6 +58,18 @@ func (o Outbox) Append(ctx context.Context, envelope event.Envelope) error {
 		return err
 	}
 
+	// An event a push raised carries the device's moment and the server's, and names the push
+	// (offline-sync.md §8). Read from the context the change log's way, so that no writer has
+	// to know a push exists; the envelope decides what the two clocks mean.
+	if push, pushed := appshared.PushFrom(ctx); pushed {
+		envelope = envelope.Pushed(push.ID, push.OccurredAt)
+	}
+	if envelope.ReceivedAt.IsZero() {
+		// An envelope built by hand rather than by NewEnvelope: received when it occurred, which
+		// is what every event raised online is.
+		envelope.ReceivedAt = envelope.OccurredAt
+	}
+
 	id, err := uuidOf(envelope.ID)
 	if err != nil {
 		return err
@@ -69,6 +83,10 @@ func (o Outbox) Append(ctx context.Context, envelope event.Envelope) error {
 		return err
 	}
 	causationID, err := optionalUUID(envelope.CausationID)
+	if err != nil {
+		return err
+	}
+	pushID, err := optionalUUID(envelope.PushID)
 	if err != nil {
 		return err
 	}
@@ -96,6 +114,8 @@ func (o Outbox) Append(ctx context.Context, envelope event.Envelope) error {
 		CausationDepth: int32(envelope.CausationDepth),
 		OccurredAt:     timestampOf(envelope.OccurredAt),
 		Replay:         envelope.Replay,
+		ReceivedAt:     timestampOf(envelope.ReceivedAt),
+		PushID:         pushID,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
@@ -298,6 +318,10 @@ func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {
 	if err != nil {
 		return event.Envelope{}, err
 	}
+	pushID, err := optionalID(row.PushID)
+	if err != nil {
+		return event.Envelope{}, err
+	}
 	causationID, err := optionalID(row.CausationID)
 	if err != nil {
 		return event.Envelope{}, err
@@ -322,6 +346,8 @@ func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {
 			ID:   actorID,
 		},
 		OccurredAt:     timeFrom(row.OccurredAt),
+		ReceivedAt:     timeFrom(row.ReceivedAt),
+		PushID:         pushID,
 		CorrelationID:  correlationID,
 		CausationID:    causationID,
 		CausationDepth: int(row.CausationDepth),
