@@ -331,6 +331,7 @@ func (w ContainerWriter) recordChanges(
 			ContainerID: container.ID,
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
+			Field:       change.Field,
 			Payload:     map[string]any{change.Field: clearedAsNull(change.To)},
 		})
 		if err != nil {

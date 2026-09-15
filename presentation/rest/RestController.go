@@ -110,6 +110,15 @@ func (c *RestController) SyncPull(w http.ResponseWriter, r *http.Request) {
 	c.Sync.SyncPull(w, r)
 }
 
+// SyncPush applies a device's queue (N-04), delegated for the same reason.
+func (c *RestController) SyncPush(w http.ResponseWriter, r *http.Request) {
+	if c.Sync == nil || c.Sync.Push == nil {
+		c.pending.SyncPush(w, r)
+		return
+	}
+	c.Sync.SyncPush(w, r)
+}
+
 // StreamChanges opens the change stream. Delegated rather than embedded, so that the field being
 // nil is an answer rather than a panic.
 func (c *RestController) StreamChanges(

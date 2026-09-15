@@ -140,3 +140,43 @@ func ActorFrom(ctx context.Context) (ActorContext, bool) {
 	actor, ok := ctx.Value(actorKey).(ActorContext)
 	return actor, ok
 }
+
+// deviceKey carries the device a push comes from (N-04).
+type deviceKey struct{}
+
+// ContextWithDevice marks everything done under the context as one device's act, so that the
+// change log entries a push produces name the device - which is what lets that device skip its
+// own echo (offline-sync.md §10, `change_log.device_id`).
+//
+// A context value rather than a field on every writer: fifty-five use cases record changes, and
+// what a push adds to each of them is exactly one fact about the caller, which is what a context
+// is for. The change log adapter reads it when a change names no device of its own.
+func ContextWithDevice(ctx context.Context, deviceID shared.ID) context.Context {
+	return context.WithValue(ctx, deviceKey{}, deviceID)
+}
+
+// DeviceFrom answers the device the context was marked with, or the empty identifier for a
+// change made through the API rather than through a push.
+func DeviceFrom(ctx context.Context) shared.ID {
+	deviceID, _ := ctx.Value(deviceKey{}).(shared.ID)
+	return deviceID
+}
+
+// readingsKey carries the clock readings a push applies its fields under (N-05).
+type readingsKey struct{}
+
+// ContextWithReadings marks the context with the readings a device wrote its fields under, by
+// field name. A use case a push performs records its change log entry as it always does, and the
+// change log adapter takes the device's reading for a field named here in place of the writer's
+// fresh one - so that the clock a second device later compares against is the clock that decided
+// the merge (offline-sync.md §4.2). Fields not named keep the writer's reading.
+func ContextWithReadings(ctx context.Context, readings map[string]shared.HLC) context.Context {
+	return context.WithValue(ctx, readingsKey{}, readings)
+}
+
+// ReadingFrom answers the device's reading for a field, and false when the context carries none.
+func ReadingFrom(ctx context.Context, field string) (shared.HLC, bool) {
+	readings, _ := ctx.Value(readingsKey{}).(map[string]shared.HLC)
+	reading, found := readings[field]
+	return reading, found && !reading.IsZero()
+}

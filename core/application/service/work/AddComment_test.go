@@ -357,3 +357,26 @@ func TestListingCommentsSpeaksTheContractTombstonesIncluded(t *testing.T) {
 		}
 	}
 }
+
+// A client that minted the identifier keeps it, CreateWorkItem's rule (offline-sync.md §3.2).
+func TestAClientMintedCommentIdentifierIsKeptAndHasToBeAUUIDv7(t *testing.T) {
+	h := newCommentHarness(t)
+	h.withItem(domain.ItemTask)
+	minted := shared.MustParseID("0192f000-0000-7000-8000-00000000c0e1")
+
+	cmd := addCmd("Looks good.")
+	cmd.ID = minted
+	comment, err := AddComment{Writer: h.writer}.Execute(t.Context(), actor(), cmd)
+	if err != nil {
+		t.Fatalf("commenting with a minted identifier: %v", err)
+	}
+	if comment.ID != minted {
+		t.Errorf("the comment was created as %s, want the minted %s", comment.ID, minted)
+	}
+
+	cmd.ID = shared.MustParseID("0192f000-0000-4000-8000-00000000c0e1")
+	if _, err := (AddComment{Writer: h.writer}).Execute(t.Context(), actor(), cmd); err == nil ||
+		shared.AsError(err).DetailCode != "sync.id_not_uuidv7" {
+		t.Errorf("a v4 identifier was answered %v", err)
+	}
+}

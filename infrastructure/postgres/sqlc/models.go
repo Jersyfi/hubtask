@@ -803,6 +803,14 @@ type EventConsumption struct {
 	ConsumedAt pgtype.Timestamptz
 }
 
+type FieldClock struct {
+	TenantID pgtype.UUID
+	Entity   string
+	EntityID pgtype.UUID
+	Field    string
+	Hlc      string
+}
+
 type IdempotencyKey struct {
 	TenantID     pgtype.UUID
 	Key          string

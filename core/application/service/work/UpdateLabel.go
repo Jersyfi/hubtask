@@ -287,6 +287,7 @@ func (w LabelWriter) recordChanges(
 			TenantID: label.TenantID, Entity: labelTarget, EntityID: label.ID,
 			Op: changelog.Upsert, ContainerID: containerID,
 			ActorID: actor.AccountID, HLC: w.HLC.Next(),
+			Field:   moved.Field,
 			Payload: map[string]any{moved.Field: clearedAsNull(moved.To)},
 		})
 		if err != nil {

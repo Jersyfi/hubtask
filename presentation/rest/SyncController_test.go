@@ -220,3 +220,109 @@ func TestAPullPassesWhatTheDeviceSaysAboutItself(t *testing.T) {
 		t.Errorf("the request reached the service as %+v", puller.request)
 	}
 }
+
+type fakePusher struct {
+	request  syncservice.PushRequest
+	response syncservice.PushResponse
+	err      error
+}
+
+func (f *fakePusher) Push(_ context.Context, _ appshared.ActorContext, request syncservice.PushRequest) (
+	syncservice.PushResponse, error,
+) {
+	f.request = request
+	return f.response, f.err
+}
+
+func (f *fakePusher) Encode(position syncservice.Position) string {
+	return "cursor-" + strconv.FormatInt(position.Seq, 10)
+}
+
+type pushSignals struct{ results []string }
+
+func (s *pushSignals) PushResult(_ context.Context, result string) {
+	s.results = append(s.results, result)
+}
+
+func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
+	itemID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")
+	pusher := &fakePusher{response: syncservice.PushResponse{
+		Results: []syncservice.Result{
+			{OpID: shared.MustParseID("0192f000-0000-7000-8000-000000000f01"), Result: "APPLIED",
+				EntityID: itemID, ServerState: map[string]any{"title": "Fix the tap"}},
+			{OpID: shared.MustParseID("0192f000-0000-7000-8000-000000000f02"), Result: "REJECTED",
+				Error: &syncservice.ResultError{Code: "gone", MessageCode: "sync.gone"}},
+		},
+		Cursor: syncservice.Position{Seq: 9, IssuedAt: streamNow}, ServerTime: streamNow,
+	}}
+	signals := &pushSignals{}
+	controller := NewRestController()
+	controller.Sync = &SyncController{Push: pusher, PushSignals: signals}
+
+	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/sync:push", strings.NewReader(`{
+			"device_id": "0192f000-0000-7000-8000-0000000000d1",
+			"platform": "hubctl",
+			"mutations": [
+				{"op_id": "0192f000-0000-7000-8000-000000000f01", "kind": "ITEM_CREATE",
+				 "item_id": "0192f000-0000-7000-8000-0000000000e1", "hlc": "1757937600000:00001:dev-a",
+				 "payload": {"type": "TASK", "title": "Fix the tap"}},
+				{"op_id": "0192f000-0000-7000-8000-000000000f02", "kind": "ITEM_PATCH",
+				 "item_id": "0192f000-0000-7000-8000-0000000000e1", "base_version": 3,
+				 "fields": {"title": {"value": "x", "hlc": "1757937600000:00002:dev-a"}}}
+			]}`)))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	// The queue, mapped field for field.
+	if pusher.request.DeviceID != "0192f000-0000-7000-8000-0000000000d1" || pusher.request.Platform != "hubctl" ||
+		len(pusher.request.Mutations) != 2 {
+		t.Fatalf("the request reached the service as %+v", pusher.request)
+	}
+	first, second := pusher.request.Mutations[0], pusher.request.Mutations[1]
+	if first.Kind != "ITEM_CREATE" || first.ItemID != itemID || first.HLC != "1757937600000:00001:dev-a" ||
+		first.Payload["title"] != "Fix the tap" {
+		t.Errorf("the first mutation is %+v", first)
+	}
+	if second.Kind != "ITEM_PATCH" || second.BaseVersion == nil || *second.BaseVersion != 3 ||
+		second.Fields["title"].Value != "x" || second.Fields["title"].HLC != "1757937600000:00002:dev-a" {
+		t.Errorf("the second mutation is %+v", second)
+	}
+
+	var body struct {
+		Results []map[string]any `json:"results"`
+		Cursor  string           `json:"cursor"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if body.Cursor != "cursor-9" || len(body.Results) != 2 {
+		t.Fatalf("the answer is %s", recorder.Body.String())
+	}
+	if body.Results[0]["result"] != "APPLIED" || body.Results[0]["entity_id"] != itemID.String() ||
+		body.Results[0]["server_state"].(map[string]any)["title"] != "Fix the tap" {
+		t.Errorf("the first result is %v", body.Results[0])
+	}
+	if failure, ok := body.Results[1]["error"].(map[string]any); !ok || failure["message_code"] != "sync.gone" {
+		t.Errorf("the second result is %v", body.Results[1])
+	}
+	if len(signals.results) != 2 || signals.results[1] != "REJECTED" {
+		t.Errorf("counted %v", signals.results)
+	}
+}
+
+func TestAnInstallationWithoutThePushAnswersPending(t *testing.T) {
+	controller := NewRestController()
+	controller.Sync = &SyncController{Pull: &fakePuller{}}
+	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/sync:push", strings.NewReader(`{}`)))
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Errorf("status %d, want the pending 404", recorder.Code)
+	}
+}

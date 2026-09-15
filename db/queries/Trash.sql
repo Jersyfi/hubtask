@@ -229,6 +229,12 @@ FROM work_item
 WHERE path LIKE sqlc.arg('prefix')::text || '%'
 ORDER BY path;
 
+-- name: PurgeFieldClocks :exec
+-- The merge's bookkeeping goes with the entity it is about (N-05): a purged entry's clocks would
+-- otherwise decide a merge over an identifier that a tombstone refuses anyway.
+DELETE FROM field_clock
+WHERE tenant_id = current_tenant_id() AND entity_id = ANY(sqlc.arg('ids')::uuid[]);
+
 -- name: PurgeWorkItems :execrows
 -- The hard delete, by identifier.
 --
