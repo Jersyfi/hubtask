@@ -190,6 +190,23 @@ last section what the interface still owes `F5`: the client's own second catalog
 the RTL audit. M-07, NFC on the way in, landed last, once the owner had confirmed the decision
 it waited on: nothing written before it is rewritten (#577).
 
+**`0.8.5` is cut**, and its backlog is [`backlog/milestone-0.8.5.md`](./backlog/milestone-0.8.5.md)
+— fourteen tasks, `N-01`…`N-14`. Cutting it read `offline-sync.md` §1–§12 against the code
+*before* the first task and found the milestone smaller than its row suggests and larger than the
+routes suggest: the recording half of the protocol has been built since `0.3.0` — one change log
+entry per field, OR-set tags on every set, tombstones from the trash, a stream with the caller's
+permission checked per record — and what is missing is everything a device would *do* with it:
+`:pull` including the initial synchronisation, `:push` and every merge rule §4.2 states, devices,
+`ACCESS_REVOKED` (which nothing has ever produced), the retention of the four sync tables, B-5,
+`hubctl sync` and the conformance runner §9 promises. Five things it settled that the row could
+not: pull and push are **not catalogue use cases** and push **performs** catalogue use cases as
+the pushing person, on J-05's precedent; the server's per-field clock is a **table**, with no
+backfill of what was written before it; the initial synchronisation is a **page sequence** with
+the log position taken first, and SY-C stays `0.9.0`; the operation log lives **the offline
+window**, not the thirty days §3.2 said; and B-5 closes with an **epoch** on the tenant rather
+than a change log entry per restored row. The milestone's own acceptance is QS-24…QS-27 walked
+with two `hubctl` profiles, and `N-14` rewrites the row.
+
 ---
 
 ## Requirements that arrive late
