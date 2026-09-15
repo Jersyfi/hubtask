@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 const (
@@ -47,6 +48,8 @@ type TestRule struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Text is what a dry run's definition is built with, as a write would build it (M-07).
+	Text text.Normalizer
 }
 
 // TestCommand names what to test and what to test it against: exactly one of RuleID and Rule, and
@@ -168,7 +171,7 @@ func (h TestRule) resolve(
 		Scope: definition.Scope, RunAs: definition.RunAs, Trigger: definition.Trigger,
 		Conditions: definition.Conditions, Actions: definition.Actions,
 		Throttle: definition.Throttle, OnError: definition.OnError,
-		CreatedBy: actor.AccountID, Now: h.Clock.Now(),
+		CreatedBy: actor.AccountID, Now: h.Clock.Now(), Text: h.Text,
 	})
 	if err != nil {
 		return domain.Rule{}, err

@@ -1171,7 +1171,7 @@ func run() error {
 			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
 			Entries: items, Containers: containers,
 			Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		automationservice.ReplayRuleRun{
 			Runs:  postgres.NewAutomationRunRepository(cursors),
