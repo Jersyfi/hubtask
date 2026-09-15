@@ -222,12 +222,23 @@ func (v Values) container(ctx context.Context, id shared.ID) (any, bool, error) 
 // never the payload's own fields. A condition that wanted those names `item`, which is the entry as
 // it stands rather than as it was when the event was written - and the difference matters, because
 // a run happens after the fact.
+//
+// Two clocks (offline-sync.md §8): `occurred_at` is the person's moment, which for a change a
+// device made offline is days before the server heard of it; `received_at` is the server's. A
+// time condition is written against `now` - the run's own instant, the server's - and never
+// against `occurred_at`, so that a completion three days old does not fire a deadline rule about
+// the day it happened; `received_at` is there for a condition that wants to say so.
 func eventDocument(envelope event.Envelope) map[string]any {
+	received := envelope.ReceivedAt
+	if received.IsZero() {
+		received = envelope.OccurredAt
+	}
 	return map[string]any{
 		"id":              envelope.ID.String(),
 		"type":            envelope.Type.String(),
 		"subject":         envelope.Subject,
 		"occurred_at":     envelope.OccurredAt.UTC(),
+		"received_at":     received.UTC(),
 		"causation_depth": envelope.CausationDepth,
 		"replay":          envelope.Replay,
 	}

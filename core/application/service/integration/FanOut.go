@@ -40,7 +40,16 @@ type FanOut struct {
 	Jobs          Queue
 	Clock         clock.Clock
 	IDs           clock.IDGenerator
+	// CollapseGrace is how long a pushed event's delivery waits before its first attempt, so
+	// that the events of one push, dispatched across a few rounds, fold onto one delivery
+	// rather than racing the worker to the target (offline-sync.md §8). Zero means the default.
+	CollapseGrace time.Duration
 }
+
+// DefaultCollapseGrace is a few dispatch rounds: long enough for a push of five hundred
+// mutations to land in the outbox and be dispatched, short enough that a subscriber still sees
+// an offline batch arrive as one thing rather than as a delay.
+const DefaultCollapseGrace = 30 * time.Second
 
 // Name identifies the consumer in the deduplication.
 func (FanOut) Name() string { return FanOutName }
@@ -58,6 +67,16 @@ func (FanOut) Wants(event.Type) bool { return true }
 // Everything happens in the dispatcher's transaction: the delivery rows, the jobs and the mark
 // that this event was consumed commit together or not at all. A job that committed without its row
 // would be a delivery nothing could record the outcome of.
+//
+// # One delivery per push
+//
+// The events of one push that name the same subscription, subject and type owe one delivery for
+// the push rather than one per event, with the last event's payload (offline-sync.md §8): a
+// device that synchronises four hundred offline changes to forty entries does not send a
+// subscriber four hundred webhooks. The pending delivery of the push is repointed at the newer
+// event; one already attempted stands for what it sent, and a new one is recorded. The outbox
+// stays complete and a consumer on the bus sees every event - the collapse is the webhook's,
+// and an event with no push in its cause collapses with nothing.
 func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 	wanting, err := f.Subscriptions.WantingEvent(ctx, envelope.Type)
 	if err != nil {
@@ -65,6 +84,7 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 	}
 
 	now := f.Clock.Now()
+	key := domain.CollapseKey{PushID: envelope.PushID, Subject: envelope.Subject, EventType: envelope.Type.String()}
 	for _, stored := range wanting {
 		subscription := stored.Subscription
 		// Asked again here, and not because the query might be wrong: the query answers what the
@@ -75,26 +95,61 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 			continue
 		}
 
+		if key.Collapses() {
+			folded, err := f.collapse(ctx, subscription.ID, key, envelope.ID)
+			if err != nil {
+				return err
+			}
+			if folded {
+				continue
+			}
+		}
+
 		delivery, err := domain.NewWebhookDelivery(
 			f.IDs.NewID(), envelope.TenantID, subscription.ID, envelope.ID, 1, now)
 		if err != nil {
 			return err
 		}
+		runAt := delivery.CreatedAt
+		if key.Collapses() {
+			delivery = delivery.Collapsed(key)
+			runAt = runAt.Add(f.grace())
+		}
 		if err := f.Deliveries.Insert(ctx, delivery); err != nil {
 			return err
 		}
-		if err := f.enqueue(ctx, envelope.TenantID, subscription.ID, delivery); err != nil {
+		if err := f.enqueue(ctx, envelope.TenantID, subscription.ID, delivery, runAt); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// collapse folds the event onto the push's pending delivery under the subscription, and reports
+// whether it did. A delivery attempted in the meantime is not repointed: the attempt was made
+// with the event it had, and this one gets a delivery of its own.
+func (f FanOut) collapse(
+	ctx context.Context, subscriptionID shared.ID, key domain.CollapseKey, eventID shared.ID,
+) (bool, error) {
+	pending, found, err := f.Deliveries.FindPendingOfPush(ctx, subscriptionID, key)
+	if err != nil || !found {
+		return false, err
+	}
+	return f.Deliveries.Repoint(ctx, pending.ID, eventID)
+}
+
+func (f FanOut) grace() time.Duration {
+	if f.CollapseGrace > 0 {
+		return f.CollapseGrace
+	}
+	return DefaultCollapseGrace
+}
+
 func (f FanOut) enqueue(
-	ctx context.Context, tenantID, subscriptionID shared.ID, delivery domain.WebhookDelivery,
+	ctx context.Context, tenantID, subscriptionID shared.ID, delivery domain.WebhookDelivery, runAt time.Time,
 ) error {
 	_, err := f.Jobs.Enqueue(ctx, queue.Request{
-		Kind: queue.KindWebhookDeliver, TenantID: tenantID, RunAt: delivery.CreatedAt,
+		Kind: queue.KindWebhookDeliver, TenantID: tenantID, RunAt: runAt,
 		Payload: map[string]any{
 			"subscription_id": subscriptionID.String(),
 			"delivery_id":     delivery.ID.String(),
