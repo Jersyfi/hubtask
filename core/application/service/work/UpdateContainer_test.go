@@ -100,6 +100,7 @@ type containerHarness struct {
 	authorizer *authorizer
 	uow        *unitOfWork
 	jobs       *jobs
+	revoker    *moveRevoker
 }
 
 func newContainerHarness() *containerHarness {
