@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
 type capabilities struct {
@@ -374,5 +375,40 @@ func TestTheManifestPublishesTheNotificationCategories(t *testing.T) {
 				t.Errorf("%d categories published, want %d", len(*body.Categories), test.want)
 			}
 		})
+	}
+}
+
+// The language picker in the account preferences is this list (F1-08 draws it, M-05 fills it):
+// one entry per catalogue present, with the three facts a client needs before it has rendered
+// anything, in the schema's own vocabulary.
+func TestTheManifestPublishesTheSupportedLocales(t *testing.T) {
+	answer := manifest()
+	answer.SupportedLocales = []i18n.LocaleInfo{
+		{Tag: "en", Direction: "ltr", WeekStart: "SUNDAY", DecimalSeparator: "."},
+		{Tag: "ar", Direction: "rtl", WeekStart: "SATURDAY", DecimalSeparator: "."},
+	}
+
+	response := serveCapabilities(t, &capabilities{result: answer})
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+	}
+
+	var body struct {
+		SupportedLocales []struct {
+			Locale           string `json:"locale"`
+			Direction        string `json:"direction"`
+			WeekStart        string `json:"week_start"`
+			DecimalSeparator string `json:"decimal_separator"`
+		} `json:"supported_locales"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("the manifest is not JSON: %v", err)
+	}
+	if len(body.SupportedLocales) != 2 {
+		t.Fatalf("%d locales published, want 2: %s", len(body.SupportedLocales), response.Body.String())
+	}
+	arabic := body.SupportedLocales[1]
+	if arabic.Locale != "ar" || arabic.Direction != "rtl" || arabic.WeekStart != "SATURDAY" || arabic.DecimalSeparator != "." {
+		t.Errorf("the Arabic row is %+v", arabic)
 	}
 }
