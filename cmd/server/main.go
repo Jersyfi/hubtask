@@ -278,6 +278,8 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("message catalogue: %w", err)
 	}
+	// A catalogue with no metadata row is answered with defaults and said so once here (M-05).
+	renderer.LogUnknownLocales(slog.Default())
 
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
 	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
@@ -1687,6 +1689,7 @@ func run() error {
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:  profiles,
 			Languages: postgres.NewTextLanguageRepository(),
+			Locales:   renderer,
 			Semantic:  postgres.NewSemanticSearchRepository(),
 			Ordering:  postgres.NewNaturalOrderingRepository(),
 			// The same resolver every asking route reaches through, so the manifest cannot say
