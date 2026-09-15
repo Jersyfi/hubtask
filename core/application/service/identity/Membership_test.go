@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -185,9 +186,38 @@ func TestAGrantWithoutExactlyOneSubjectIsRefusedBeforeAnyPermissionIsChecked(t *
 	}
 }
 
+// revoker notes what the use cases say was lost, and what they had announced; the deciding is
+// access.Revocations' and is tested there.
+type revoker struct {
+	grants    []domain.Grant
+	groupLoss map[shared.ID][]shared.ID
+	announced []access.Loss
+}
+
+func (r *revoker) AfterGrantRevoked(_ context.Context, grant domain.Grant) (access.Loss, error) {
+	r.grants = append(r.grants, grant)
+	return access.Loss{Accounts: []shared.ID{grant.AccountID}, Scope: grant.Scope}, nil
+}
+
+func (r *revoker) AfterGroupLoss(_ context.Context, groupID shared.ID, accounts []shared.ID) ([]access.Loss, error) {
+	if r.groupLoss == nil {
+		r.groupLoss = map[shared.ID][]shared.ID{}
+	}
+	r.groupLoss[groupID] = append(r.groupLoss[groupID], accounts...)
+	if len(accounts) == 0 {
+		return nil, nil
+	}
+	return []access.Loss{{Accounts: accounts, Scope: domain.HubScope(hubID)}}, nil
+}
+
+func (r *revoker) Announce(_ context.Context, _ shared.ID, losses ...access.Loss) error {
+	r.announced = append(r.announced, losses...)
+	return nil
+}
+
 func revokeHandler(grants *grantStore, auth *authorizer, sink *auditSink) RevokeMembership {
 	return RevokeMembership{
-		Grants: grants, Authorizer: auth, Audit: sink,
+		Grants: grants, Authorizer: auth, Revocations: &revoker{}, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }
@@ -219,6 +249,23 @@ func TestARevocationRemovesTheMembershipAndRecordsIt(t *testing.T) {
 	// The same fields as the grant, so that the pair of one access review reads as a pair.
 	if entry.Changes["role"] == nil || entry.Changes["scope_type"] == nil {
 		t.Errorf("the entry records %v, want what was taken away", entry.Changes)
+	}
+}
+
+// The devices of whoever held the role are told what they lost (N-08), once the row is gone.
+func TestARevocationIsAnnouncedToWhoeverHeldTheRole(t *testing.T) {
+	grants, told := newGrants(existingGrant(t)), &revoker{}
+	handler := revokeHandler(grants, &authorizer{}, &auditSink{})
+	handler.Revocations = told
+
+	if err := handler.Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: membershipID}); err != nil {
+		t.Fatalf("revoking: %v", err)
+	}
+	if len(told.grants) != 1 || told.grants[0].ID != membershipID {
+		t.Errorf("the loss described %v, want the grant revoked", told.grants)
+	}
+	if len(told.announced) != 1 || told.announced[0].Accounts[0] != invitedID || told.announced[0].Scope != domain.HubScope(hubID) {
+		t.Errorf("announced %v, want the account at the hub", told.announced)
 	}
 }
 

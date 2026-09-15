@@ -213,9 +213,11 @@ type UpdateGroup struct {
 	Groups     repository.Groups
 	Accounts   repository.Accounts
 	Authorizer Authorizer
-	Audit      audit.Sink
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
+	// Revocations tells the devices of a member taken out of the group what they lost (N-08).
+	Revocations Revoker
+	Audit       audit.Sink
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
 	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5, M-07).
 	Text text.Normalizer
 }
@@ -273,7 +275,7 @@ func (h UpdateGroup) Execute(
 		}
 
 		if cmd.ReplaceMembers {
-			if err := h.replaceMembers(ctx, group.ID, cmd.Members); err != nil {
+			if err := h.replaceMembers(ctx, group, cmd.Members); err != nil {
 				return err
 			}
 		}
@@ -290,8 +292,9 @@ func (h UpdateGroup) Execute(
 
 // replaceMembers makes the group's membership exactly the list given. Additions are checked, and
 // the removals are whatever is no longer named - which is what "the complete membership" means.
-func (h UpdateGroup) replaceMembers(ctx context.Context, groupID shared.ID, members []shared.ID) error {
-	current, err := h.Groups.Members(ctx, groupID)
+// Whoever is removed is told what the group held for them, once the removal is made (N-08).
+func (h UpdateGroup) replaceMembers(ctx context.Context, group domain.Group, members []shared.ID) error {
+	current, err := h.Groups.Members(ctx, group.ID)
 	if err != nil {
 		return err
 	}
@@ -303,14 +306,25 @@ func (h UpdateGroup) replaceMembers(ctx context.Context, groupID shared.ID, memb
 		}
 	}
 
+	var removed []shared.ID
 	for _, accountID := range current {
 		if !wanted[accountID] {
-			if err := h.Groups.RemoveMember(ctx, groupID, accountID); err != nil {
-				return err
-			}
+			removed = append(removed, accountID)
 		}
 	}
-	return addMembers(ctx, h.Groups, h.Accounts, groupID, members)
+	for _, accountID := range removed {
+		if err := h.Groups.RemoveMember(ctx, group.ID, accountID); err != nil {
+			return err
+		}
+	}
+	losses, err := h.Revocations.AfterGroupLoss(ctx, group.ID, removed)
+	if err != nil {
+		return err
+	}
+	if err := h.Revocations.Announce(ctx, group.TenantID, losses...); err != nil {
+		return err
+	}
+	return addMembers(ctx, h.Groups, h.Accounts, group.ID, members)
 }
 
 func (h UpdateGroup) recordAudit(
@@ -405,9 +419,11 @@ type DeleteGroupCommand struct {
 type DeleteGroup struct {
 	Groups     repository.Groups
 	Authorizer Authorizer
-	Audit      audit.Sink
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
+	// Revocations tells every member's devices what the group held for them (N-08).
+	Revocations Revoker
+	Audit       audit.Sink
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
 }
 
 // Execute deletes the group.
@@ -438,7 +454,19 @@ func (h DeleteGroup) Execute(
 			}
 			return err
 		}
+		// What the members lose is read before the group goes: its grants go with it.
+		members, err := h.Groups.Members(ctx, group.ID)
+		if err != nil {
+			return err
+		}
+		losses, err := h.Revocations.AfterGroupLoss(ctx, group.ID, members)
+		if err != nil {
+			return err
+		}
 		if err := h.Groups.Delete(ctx, group.ID); err != nil {
+			return err
+		}
+		if err := h.Revocations.Announce(ctx, group.TenantID, losses...); err != nil {
 			return err
 		}
 

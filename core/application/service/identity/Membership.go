@@ -291,18 +291,32 @@ type RevokeMembershipCommand struct {
 	StepUpToken string
 }
 
+// Revoker tells the devices of whoever lost access that they did (N-08): the loss a removal is,
+// and the ACCESS_REVOKED record for each account that may no longer read what it named. The
+// implementation is access.Revocations; the use case only says what was removed.
+type Revoker interface {
+	AfterGrantRevoked(ctx context.Context, grant domain.Grant) (access.Loss, error)
+	AfterGroupLoss(ctx context.Context, groupID shared.ID, accounts []shared.ID) ([]access.Loss, error)
+	Announce(ctx context.Context, tenantID shared.ID, losses ...access.Loss) error
+}
+
 // RevokeMembership takes a role away.
 //
 // It takes effect on the next request, because the resolution reads the table rather than a cache
 // (ADR-0005) - there is nothing to invalidate and no window in which a revoked role still works.
 // What it does not touch is what the account holds through a group: that is the group's membership,
 // and revoking it there would take it from everybody.
+//
+// The devices of whoever held the role are told (N-08): a phone holding the hub offline would
+// otherwise keep it, and the record that says otherwise is written here, after the removal and in
+// its transaction, for each account that may no longer read what the grant named.
 type RevokeMembership struct {
-	Grants     repository.MembershipGrants
-	Authorizer Authorizer
-	Audit      audit.Sink
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
+	Grants      repository.MembershipGrants
+	Authorizer  Authorizer
+	Revocations Revoker
+	Audit       audit.Sink
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
 	// StepUp judges the fresh proof revoking an OWNER membership demands (H-03).
 	StepUp stepup.Verifier
 }
@@ -352,6 +366,12 @@ func (h RevokeMembership) Execute(
 	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Who held the role is read before the row goes: a group's members are the group's, and
+		// the grant that named the group is about to be gone.
+		loss, err := h.Revocations.AfterGrantRevoked(ctx, grant)
+		if err != nil {
+			return err
+		}
 		removed, err := h.Grants.Revoke(ctx, grant.ID)
 		if err != nil {
 			return err
@@ -362,6 +382,9 @@ func (h RevokeMembership) Execute(
 			return shared.ErrNotFound.
 				WithDetail("memberships.not_found").
 				WithParams(map[string]string{"membership_id": grant.ID.String()})
+		}
+		if err := h.Revocations.Announce(ctx, grant.TenantID, loss); err != nil {
+			return err
 		}
 		return h.recordAudit(ctx, grant, actor)
 	})
