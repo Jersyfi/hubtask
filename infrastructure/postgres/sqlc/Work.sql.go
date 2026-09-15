@@ -499,10 +499,12 @@ type InsertContainerParams struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
-// The name is stored Unicode NFC normalised, in the database rather than in the application:
-// "Übersicht" typed with a combining diaeresis and the same word composed are one name to a
-// person, and the unique index has to see them as one name too. Doing it here also keeps the
-// domain free of a Unicode library it is not allowed to import (ADR-0001).
+// The name arrives in Unicode normal form C - the constructor brings it there, behind the
+// Normalizer port, and the description with it (i18n-l10n.md §5, M-07): "Übersicht" typed with
+// a combining diaeresis and the same word composed are one name to a person, and the unique
+// index has to see them as one name too. normalize() stays here and on the update as the row's
+// own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
+// two cannot disagree. From I-W7 to M-07 it was the only place the form was applied.
 func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) error {
 	_, err := q.db.Exec(ctx, insertContainer,
 		arg.ID,

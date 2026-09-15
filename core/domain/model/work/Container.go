@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // ContainerType is the level of a container: a hub holds collections, a collection holds work
@@ -125,6 +126,10 @@ type NewContainerInput struct {
 	OrderKey  string
 	CreatedBy shared.ID
 	Now       time.Time
+
+	// Text brings the name and the description to normal form C before they are bounded and
+	// stored (i18n-l10n.md §5, M-07); NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // NewContainer builds a container and checks its invariants (project-structure.md §3:
@@ -141,7 +146,11 @@ func NewContainer(in NewContainerInput) (Container, error) {
 			WithFields(shared.FieldError{Path: "/type", Code: "containers.type_unknown"})
 	}
 
-	name, err := containerName(in.Name)
+	name, err := containerName(in.Name, in.Text)
+	if err != nil {
+		return Container{}, err
+	}
+	description, err := shared.NFC(in.Description, in.Text)
 	if err != nil {
 		return Container{}, err
 	}
@@ -162,7 +171,7 @@ func NewContainer(in NewContainerInput) (Container, error) {
 		Type:        in.Type,
 		ParentID:    in.ParentID,
 		Name:        name,
-		Description: strings.TrimSpace(in.Description),
+		Description: description,
 		Icon:        strings.TrimSpace(in.Icon),
 		ColorToken:  strings.TrimSpace(in.ColorToken),
 		OrderKey:    in.OrderKey,
@@ -194,8 +203,11 @@ func checkParent(containerType ContainerType, parentID shared.ID) error {
 	return nil
 }
 
-func containerName(raw string) (string, error) {
-	name := strings.TrimSpace(raw)
+func containerName(raw string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(raw, form)
+	if err != nil {
+		return "", err
+	}
 
 	switch {
 	case name == "":
@@ -369,7 +381,11 @@ func (a ContainerAttributes) IsEmpty() bool {
 // container untouched with no changes at all. That is what makes a repeat harmless rather than
 // merely accepted: the caller writes nothing, spends no version and announces nothing - the same
 // contract WorkItem.Updated keeps, for the same reason.
-func (c Container) Renamed(attributes ContainerAttributes, at time.Time) (Container, []FieldChange, error) {
+//
+// The normaliser is handed in for the reason NewContainer takes one (M-07).
+func (c Container) Renamed(
+	attributes ContainerAttributes, form text.Normalizer, at time.Time,
+) (Container, []FieldChange, error) {
 	if err := c.EnsureEditable(); err != nil {
 		return Container{}, nil, err
 	}
@@ -377,7 +393,7 @@ func (c Container) Renamed(attributes ContainerAttributes, at time.Time) (Contai
 	var changes []FieldChange
 
 	if attributes.Name != nil {
-		name, err := containerName(*attributes.Name)
+		name, err := containerName(*attributes.Name, form)
 		if err != nil {
 			return Container{}, nil, err
 		}
@@ -389,20 +405,29 @@ func (c Container) Renamed(attributes ContainerAttributes, at time.Time) (Contai
 
 	// The three optional fields, each trimmed and each free to become empty. Empty is "not set"
 	// rather than a value here, which is what lets `null` and `""` in a merge patch mean the one
-	// thing a person would expect them to mean: the field is gone.
+	// thing a person would expect them to mean: the field is gone. The description is text a
+	// person wrote and takes the normal form; the icon and the colour are tokens of the client's
+	// palette, and a token is compared byte for byte.
 	for _, field := range []struct {
 		name  string
 		want  *string
 		value *string
+		text  bool
 	}{
-		{FieldDescription, attributes.Description, &c.Description},
-		{FieldIcon, attributes.Icon, &c.Icon},
-		{FieldColorToken, attributes.ColorToken, &c.ColorToken},
+		{FieldDescription, attributes.Description, &c.Description, true},
+		{FieldIcon, attributes.Icon, &c.Icon, false},
+		{FieldColorToken, attributes.ColorToken, &c.ColorToken, false},
 	} {
 		if field.want == nil {
 			continue
 		}
 		wanted := strings.TrimSpace(*field.want)
+		if field.text {
+			var err error
+			if wanted, err = shared.NFC(*field.want, form); err != nil {
+				return Container{}, nil, err
+			}
+		}
 		if wanted == *field.value {
 			continue
 		}

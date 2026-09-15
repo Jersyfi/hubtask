@@ -655,7 +655,7 @@ func run() error {
 		Queue:      jobs,
 		Containers: containers, Policies: postgres.AutoAssignPolicyRepository{}, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// Every verb that changes an existing column shares one dependency set: they read the same
@@ -664,7 +664,7 @@ func run() error {
 	bucketWriter := work.BucketWriter{
 		Buckets: buckets, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// Both verbs that change an existing label share one dependency set, for the reason the bucket
@@ -672,7 +672,7 @@ func run() error {
 	labelWriter := work.LabelWriter{
 		Labels: labels, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
 
 	// Both directions of an entry's labels share one dependency set. They are the same write in
@@ -1209,6 +1209,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			Text:       forms,
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:      items,
@@ -1266,6 +1267,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			Text:       forms,
 		}.Descriptor(),
 		work.ListBuckets{
 			Buckets: buckets, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1284,6 +1286,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			Text:       forms,
 		}.Descriptor(),
 		work.ListLabels{
 			Labels: labels, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1554,7 +1557,7 @@ func run() error {
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
 			Containers: containers, Buckets: buckets, Labels: labels,
 			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
-			Domains:    domains,
+			Domains: domains, Text: forms,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
