@@ -11,6 +11,138 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countStaleDevices = `-- name: CountStaleDevices :one
+SELECT count(*) FROM (
+  SELECT 1 FROM sync_device AS stale
+  WHERE stale.tenant_id = current_tenant_id()
+    AND coalesce(stale.last_seen_at, stale.created_at) < $1
+  LIMIT $2
+) AS due
+`
+
+type CountStaleDevicesParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountStaleDevices(ctx context.Context, arg CountStaleDevicesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countStaleDevices, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteStaleDevices = `-- name: DeleteStaleDevices :execrows
+DELETE FROM sync_device
+WHERE id IN (
+  SELECT id FROM sync_device AS stale
+  WHERE stale.tenant_id = current_tenant_id()
+    AND coalesce(stale.last_seen_at, stale.created_at) < $1
+  ORDER BY coalesce(stale.last_seen_at, stale.created_at)
+  LIMIT $2
+)
+`
+
+type DeleteStaleDevicesParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The DEVICE data kind's sweep (data-retention.md §3: anchor `last_seen_at`). Batched through a
+// subquery, oldest first, DeleteExpiredSessions' shape.
+func (q *Queries) DeleteStaleDevices(ctx context.Context, arg DeleteStaleDevicesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteStaleDevices, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const findDevice = `-- name: FindDevice :one
+SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+       created_at, credential_id
+FROM sync_device
+WHERE tenant_id = current_tenant_id() AND id = $1
+`
+
+type FindDeviceRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Platform     *string
+	DisplayName  *string
+	LastCursor   *int64
+	LastSeenAt   pgtype.Timestamptz
+	Blocked      bool
+	CreatedAt    pgtype.Timestamptz
+	CredentialID pgtype.UUID
+}
+
+func (q *Queries) FindDevice(ctx context.Context, id pgtype.UUID) (FindDeviceRow, error) {
+	row := q.db.QueryRow(ctx, findDevice, id)
+	var i FindDeviceRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.Platform,
+		&i.DisplayName,
+		&i.LastCursor,
+		&i.LastSeenAt,
+		&i.Blocked,
+		&i.CreatedAt,
+		&i.CredentialID,
+	)
+	return i, err
+}
+
+const forgetDevice = `-- name: ForgetDevice :one
+UPDATE sync_device
+SET blocked = true, last_seen_at = $1
+WHERE tenant_id = current_tenant_id() AND id = $2
+  AND account_id = $3 AND NOT blocked
+RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+          created_at, credential_id
+`
+
+type ForgetDeviceParams struct {
+	Now       pgtype.Timestamptz
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+type ForgetDeviceRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Platform     *string
+	DisplayName  *string
+	LastCursor   *int64
+	LastSeenAt   pgtype.Timestamptz
+	Blocked      bool
+	CreatedAt    pgtype.Timestamptz
+	CredentialID pgtype.UUID
+}
+
+// The mark, and the row as it was: what the caller revokes is the credential the row held.
+func (q *Queries) ForgetDevice(ctx context.Context, arg ForgetDeviceParams) (ForgetDeviceRow, error) {
+	row := q.db.QueryRow(ctx, forgetDevice, arg.Now, arg.ID, arg.AccountID)
+	var i ForgetDeviceRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.Platform,
+		&i.DisplayName,
+		&i.LastCursor,
+		&i.LastSeenAt,
+		&i.Blocked,
+		&i.CreatedAt,
+		&i.CredentialID,
+	)
+	return i, err
+}
+
 const latestChangeSeq = `-- name: LatestChangeSeq :one
 SELECT coalesce(max(seq), 0)::bigint FROM change_log WHERE tenant_id = current_tenant_id()
 `
@@ -25,6 +157,58 @@ func (q *Queries) LatestChangeSeq(ctx context.Context) (int64, error) {
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const listDevicesOfAccount = `-- name: ListDevicesOfAccount :many
+SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+       created_at, credential_id
+FROM sync_device
+WHERE tenant_id = current_tenant_id() AND account_id = $1
+ORDER BY last_seen_at DESC NULLS LAST, created_at DESC
+`
+
+type ListDevicesOfAccountRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Platform     *string
+	DisplayName  *string
+	LastCursor   *int64
+	LastSeenAt   pgtype.Timestamptz
+	Blocked      bool
+	CreatedAt    pgtype.Timestamptz
+	CredentialID pgtype.UUID
+}
+
+func (q *Queries) ListDevicesOfAccount(ctx context.Context, accountID pgtype.UUID) ([]ListDevicesOfAccountRow, error) {
+	rows, err := q.db.Query(ctx, listDevicesOfAccount, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDevicesOfAccountRow{}
+	for rows.Next() {
+		var i ListDevicesOfAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.AccountID,
+			&i.Platform,
+			&i.DisplayName,
+			&i.LastCursor,
+			&i.LastSeenAt,
+			&i.Blocked,
+			&i.CreatedAt,
+			&i.CredentialID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const readChangesAfter = `-- name: ReadChangesAfter :many
@@ -133,4 +317,112 @@ func (q *Queries) RecordChange(ctx context.Context, arg RecordChangeParams) erro
 		arg.Payload,
 	)
 	return err
+}
+
+const revokeSessionsOfStaleDevices = `-- name: RevokeSessionsOfStaleDevices :execrows
+UPDATE session
+SET revoked_at = $1
+WHERE tenant_id = current_tenant_id() AND revoked_at IS NULL
+  AND id IN (
+    SELECT credential_id FROM sync_device AS stale
+    WHERE stale.tenant_id = current_tenant_id()
+      AND coalesce(stale.last_seen_at, stale.created_at) < $2
+      AND stale.credential_id IS NOT NULL
+    ORDER BY coalesce(stale.last_seen_at, stale.created_at)
+    LIMIT $3
+  )
+`
+
+type RevokeSessionsOfStaleDevicesParams struct {
+	Now    pgtype.Timestamptz
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// §6's other half: a device silent past the period loses its sign-in. The session the device
+// last synchronised under is revoked before the row goes, in the same pass; a credential that
+// is not a session matches nothing here and revokes nothing.
+func (q *Queries) RevokeSessionsOfStaleDevices(ctx context.Context, arg RevokeSessionsOfStaleDevicesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeSessionsOfStaleDevices, arg.Now, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const touchDevice = `-- name: TouchDevice :one
+
+INSERT INTO sync_device (
+  id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, credential_id,
+  created_at
+) VALUES (
+  $1, current_tenant_id(), $2,
+  $3, $4, $5,
+  $6, $7, $6
+)
+ON CONFLICT (id) DO UPDATE SET
+  platform      = coalesce(excluded.platform, sync_device.platform),
+  display_name  = coalesce(excluded.display_name, sync_device.display_name),
+  last_cursor   = greatest(excluded.last_cursor, sync_device.last_cursor),
+  last_seen_at  = excluded.last_seen_at,
+  credential_id = coalesce(excluded.credential_id, sync_device.credential_id)
+WHERE sync_device.tenant_id = current_tenant_id()
+  AND sync_device.account_id = excluded.account_id
+  AND NOT sync_device.blocked
+RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+          created_at, credential_id
+`
+
+type TouchDeviceParams struct {
+	ID           pgtype.UUID
+	AccountID    pgtype.UUID
+	Platform     *string
+	DisplayName  *string
+	LastCursor   *int64
+	Now          pgtype.Timestamptz
+	CredentialID pgtype.UUID
+}
+
+type TouchDeviceRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Platform     *string
+	DisplayName  *string
+	LastCursor   *int64
+	LastSeenAt   pgtype.Timestamptz
+	Blocked      bool
+	CreatedAt    pgtype.Timestamptz
+	CredentialID pgtype.UUID
+}
+
+// The devices (N-03, offline-sync.md §6, §10).
+// Registration and every contact after it in one statement. The insert is the registration; the
+// update is the contact, and it is refused - no row comes back - when the identifier belongs to
+// another account or the device was forgotten, which the adapter then tells apart. What the
+// device said about itself replaces what stood; what it left out leaves it alone.
+func (q *Queries) TouchDevice(ctx context.Context, arg TouchDeviceParams) (TouchDeviceRow, error) {
+	row := q.db.QueryRow(ctx, touchDevice,
+		arg.ID,
+		arg.AccountID,
+		arg.Platform,
+		arg.DisplayName,
+		arg.LastCursor,
+		arg.Now,
+		arg.CredentialID,
+	)
+	var i TouchDeviceRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.Platform,
+		&i.DisplayName,
+		&i.LastCursor,
+		&i.LastSeenAt,
+		&i.Blocked,
+		&i.CreatedAt,
+		&i.CredentialID,
+	)
+	return i, err
 }
