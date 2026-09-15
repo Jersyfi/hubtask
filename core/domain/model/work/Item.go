@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // itemTypes is the closed set, in the order of the constants in CapabilityProfile.go.
@@ -256,6 +257,12 @@ type NewWorkItemInput struct {
 	// way an assignee does.
 	StartAt *time.Time
 
+	// Text brings the title and the notes to normal form C before they are bounded and stored
+	// (i18n-l10n.md §5, M-07). Handed in like the profile is, because the domain may not import
+	// the library that knows the form (rule 1, ADR-0056); without it, a title that is not ASCII
+	// is refused rather than stored in whatever form it arrived (shared.NFC).
+	Text text.Normalizer
+
 	// Profile is the capability profile in force for this type, which is data rather than code
 	// (ADR-0006) and therefore has to be handed in. It decides which of the optional fields above
 	// this item may carry at all.
@@ -286,12 +293,15 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		return WorkItem{}, shared.ErrInternal.WithDetail("items.profile_mismatched")
 	}
 
-	title, err := itemTitle(in.Title)
+	title, err := itemTitle(in.Title, in.Text)
 	if err != nil {
 		return WorkItem{}, err
 	}
 
-	notes := strings.TrimSpace(in.Notes)
+	notes, err := shared.NFC(in.Notes, in.Text)
+	if err != nil {
+		return WorkItem{}, err
+	}
 	if notes != "" {
 		if err := in.Profile.Require(CapabilityNotes, "/notes"); err != nil {
 			return WorkItem{}, err
@@ -388,11 +398,18 @@ func checkPlacement(id, parentID shared.ID, path string, depth int) error {
 	return nil
 }
 
-// itemTitle trims and checks the title. One line, like a container's name and for the same
-// reason: it survives every layer and then breaks the one that renders it - an export, a log
-// line, a calendar summary. Anything with newlines in it belongs in the notes.
-func itemTitle(raw string) (string, error) {
-	title := strings.TrimSpace(raw)
+// itemTitle normalises, trims and checks the title. One line, like a container's name and for
+// the same reason: it survives every layer and then breaks the one that renders it - an export,
+// a log line, a calendar summary. Anything with newlines in it belongs in the notes.
+//
+// Normal form C first (i18n-l10n.md §5): the length is counted, the search document is built
+// and the client renders the one spelling a person sees, not the one a keyboard happened to
+// produce.
+func itemTitle(raw string, form text.Normalizer) (string, error) {
+	title, err := shared.NFC(raw, form)
+	if err != nil {
+		return "", err
+	}
 
 	switch {
 	case title == "":
@@ -517,8 +534,11 @@ type FieldChange struct {
 // reason: "an activity has no notes" is true of the type whatever state one particular activity is
 // in, and answering with the state first would send a client off to unarchive an item whose notes
 // would still be refused afterwards.
+//
+// The normaliser is handed in for the reason NewWorkItem takes one: the title and the notes are
+// stored in normal form C, and the domain cannot produce that form itself (M-07).
 func (i WorkItem) Updated(
-	attributes ItemAttributes, profile CapabilityProfile, at time.Time,
+	attributes ItemAttributes, profile CapabilityProfile, form text.Normalizer, at time.Time,
 ) (WorkItem, []FieldChange, error) {
 	// Only a non-empty value needs the capability, which is the rule NewWorkItem already applies at
 	// creation. An activity has no notes to begin with, so clearing them asks for the state it is
@@ -542,7 +562,7 @@ func (i WorkItem) Updated(
 	var changes []FieldChange
 
 	if attributes.Title != nil {
-		title, err := itemTitle(*attributes.Title)
+		title, err := itemTitle(*attributes.Title, form)
 		if err != nil {
 			return WorkItem{}, nil, err
 		}
@@ -553,7 +573,10 @@ func (i WorkItem) Updated(
 	}
 
 	if attributes.Notes != nil {
-		notes := strings.TrimSpace(*attributes.Notes)
+		notes, err := shared.NFC(*attributes.Notes, form)
+		if err != nil {
+			return WorkItem{}, nil, err
+		}
 		if notes != i.Notes {
 			changes = append(changes, FieldChange{Field: FieldNotes, From: i.Notes, To: notes})
 			i.Notes = notes

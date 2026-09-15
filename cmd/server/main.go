@@ -400,6 +400,9 @@ func run() error {
 	// One encoder for every place an address is stored or looked up (M-10): two spellings of a
 	// mailbox are one row only if every door brings them to the same form.
 	domains := textadapter.Domains{}
+	// One normaliser for every constructor that stores user text (M-07, i18n-l10n.md §5): two
+	// spellings of one character are one row only if every door brings them to the same form.
+	forms := textadapter.Forms{}
 
 	sessionWriter := identity.SessionWriter{
 		Domains:  domains,
@@ -839,6 +842,7 @@ func run() error {
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Text: forms,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
@@ -1224,6 +1228,7 @@ func run() error {
 			HLC:        hybrid,
 			AutoAssign: autoAssign,
 			DueDates:   dueDateWriter,
+			Text:       forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -1240,6 +1245,7 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 			DueDates:   dueDateWriter,
+			Text:       forms,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),

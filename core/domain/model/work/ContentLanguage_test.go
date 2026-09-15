@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The language an entry is written in (C-08). What it decides is the text search configuration the
@@ -79,7 +80,7 @@ func TestChangingTheLanguageIsReportedAsAFieldThatMoved(t *testing.T) {
 	before.ContentLanguage = "en"
 
 	after, changes, err := before.Updated(
-		ItemAttributes{ContentLanguage: text("de")}, taskProfile(), laterOn)
+		ItemAttributes{ContentLanguage: pointer("de")}, taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("updating: %v", err)
 	}
@@ -101,13 +102,13 @@ func TestTheLanguageFollowsTheSamePresenceRuleAsTheNotes(t *testing.T) {
 	before.ContentLanguage = "en"
 
 	if _, changes, err := before.Updated(
-		ItemAttributes{ContentLanguage: text("en")}, taskProfile(), laterOn,
+		ItemAttributes{ContentLanguage: pointer("en")}, taskProfile(), text.Composing{}, laterOn,
 	); err != nil || len(changes) != 0 {
 		t.Errorf("writing the same language again reported %+v (%v)", changes, err)
 	}
 
 	cleared, changes, err := before.Updated(
-		ItemAttributes{ContentLanguage: text("")}, taskProfile(), laterOn)
+		ItemAttributes{ContentLanguage: pointer("")}, taskProfile(), text.Composing{}, laterOn)
 	if err != nil {
 		t.Fatalf("clearing: %v", err)
 	}
@@ -115,14 +116,14 @@ func TestTheLanguageFollowsTheSamePresenceRuleAsTheNotes(t *testing.T) {
 		t.Errorf("clearing left %q and reported %+v", cleared.ContentLanguage, changes)
 	}
 
-	if (ItemAttributes{ContentLanguage: text("")}).IsEmpty() {
+	if (ItemAttributes{ContentLanguage: pointer("")}).IsEmpty() {
 		t.Error("clearing the language reports itself as an empty update")
 	}
 }
 
 func TestAMalformedLanguageIsRefusedOnAnUpdateToo(t *testing.T) {
 	_, _, err := updatable(t).Updated(
-		ItemAttributes{ContentLanguage: text("de_AT")}, taskProfile(), laterOn)
+		ItemAttributes{ContentLanguage: pointer("de_AT")}, taskProfile(), text.Composing{}, laterOn)
 
 	var domainErr *shared.Error
 	if !errors.As(err, &domainErr) || domainErr.DetailCode != "items.content_language_invalid" {

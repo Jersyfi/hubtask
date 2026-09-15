@@ -286,10 +286,12 @@ ORDER BY order_key DESC
 LIMIT 1;
 
 -- name: InsertWorkItem :exec
--- The title is stored Unicode NFC normalised, in the database rather than in the application, for
--- the reason the container's name is: two spellings of the same word have to be one value to
--- every query that compares or searches them, and doing it here keeps a Unicode library out of
--- the domain (ADR-0001, I-W7).
+-- The title arrives in Unicode normal form C: the constructor brings it there, behind the
+-- Normalizer port, so that what the domain answers, the change set records and the row holds are
+-- one string (i18n-l10n.md §5, M-07). normalize() stays on the insert as the row's own guarantee
+-- for a writer that reaches it without the constructor - a restore, a copy of a row written
+-- before the form was applied - and as what it was from I-W7 to M-07: the only place the form
+-- was applied. It is idempotent, so the two cannot disagree.
 --
 -- The fields this use case does not own are absent rather than defaulted: labels, members,
 -- assignee, due date, cover, custom fields and the recurrence rule are written by the use cases
