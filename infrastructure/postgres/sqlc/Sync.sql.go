@@ -58,6 +58,43 @@ func (q *Queries) DeleteStaleDevices(ctx context.Context, arg DeleteStaleDevices
 	return result.RowsAffected(), nil
 }
 
+const fieldClocksOf = `-- name: FieldClocksOf :many
+SELECT field, hlc
+FROM field_clock
+WHERE tenant_id = current_tenant_id() AND entity = $1 AND entity_id = $2
+`
+
+type FieldClocksOfParams struct {
+	Entity   string
+	EntityID pgtype.UUID
+}
+
+type FieldClocksOfRow struct {
+	Field string
+	Hlc   string
+}
+
+// Every field of one entity that has a reading, for the merge to compare against.
+func (q *Queries) FieldClocksOf(ctx context.Context, arg FieldClocksOfParams) ([]FieldClocksOfRow, error) {
+	rows, err := q.db.Query(ctx, fieldClocksOf, arg.Entity, arg.EntityID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FieldClocksOfRow{}
+	for rows.Next() {
+		var i FieldClocksOfRow
+		if err := rows.Scan(&i.Field, &i.Hlc); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findDevice = `-- name: FindDevice :one
 SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
        created_at, credential_id
@@ -92,6 +129,38 @@ func (q *Queries) FindDevice(ctx context.Context, id pgtype.UUID) (FindDeviceRow
 		&i.Blocked,
 		&i.CreatedAt,
 		&i.CredentialID,
+	)
+	return i, err
+}
+
+const findSyncOp = `-- name: FindSyncOp :one
+
+SELECT op_id, device_id, result, entity_id, applied_at, response
+FROM sync_op_log
+WHERE tenant_id = current_tenant_id() AND op_id = $1
+`
+
+type FindSyncOpRow struct {
+	OpID      pgtype.UUID
+	DeviceID  pgtype.UUID
+	Result    string
+	EntityID  pgtype.UUID
+	AppliedAt pgtype.Timestamptz
+	Response  []byte
+}
+
+// The operation log (N-04, offline-sync.md §3.2): what a push did with each op_id, kept for the
+// offline window so that a repeated push takes effect exactly once.
+func (q *Queries) FindSyncOp(ctx context.Context, opID pgtype.UUID) (FindSyncOpRow, error) {
+	row := q.db.QueryRow(ctx, findSyncOp, opID)
+	var i FindSyncOpRow
+	err := row.Scan(
+		&i.OpID,
+		&i.DeviceID,
+		&i.Result,
+		&i.EntityID,
+		&i.AppliedAt,
+		&i.Response,
 	)
 	return i, err
 }
@@ -141,6 +210,27 @@ func (q *Queries) ForgetDevice(ctx context.Context, arg ForgetDeviceParams) (For
 		&i.CredentialID,
 	)
 	return i, err
+}
+
+const holdsTombstone = `-- name: HoldsTombstone :one
+SELECT EXISTS (
+  SELECT 1 FROM tombstone
+  WHERE tenant_id = current_tenant_id() AND entity = $1 AND entity_id = $2
+)::boolean AS held
+`
+
+type HoldsTombstoneParams struct {
+	Entity   string
+	EntityID pgtype.UUID
+}
+
+// Whether an entity has been purged (offline-sync.md §7). The trash is not a tombstone: a trashed
+// entry can still be restored, and the use case that receives a mutation about it says so itself.
+func (q *Queries) HoldsTombstone(ctx context.Context, arg HoldsTombstoneParams) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTombstone, arg.Entity, arg.EntityID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
 }
 
 const latestChangeSeq = `-- name: LatestChangeSeq :one
@@ -319,6 +409,36 @@ func (q *Queries) RecordChange(ctx context.Context, arg RecordChangeParams) erro
 	return err
 }
 
+const recordSyncOp = `-- name: RecordSyncOp :exec
+INSERT INTO sync_op_log (tenant_id, op_id, device_id, result, entity_id, applied_at, response)
+VALUES (current_tenant_id(), $1, $2, $3,
+        $4, $5, $6)
+ON CONFLICT (tenant_id, op_id) DO NOTHING
+`
+
+type RecordSyncOpParams struct {
+	OpID      pgtype.UUID
+	DeviceID  pgtype.UUID
+	Result    string
+	EntityID  pgtype.UUID
+	AppliedAt pgtype.Timestamptz
+	Response  []byte
+}
+
+// Written in the transaction that applied the mutation. A conflict is a repeat that raced this
+// one and is left standing: the first answer is the answer.
+func (q *Queries) RecordSyncOp(ctx context.Context, arg RecordSyncOpParams) error {
+	_, err := q.db.Exec(ctx, recordSyncOp,
+		arg.OpID,
+		arg.DeviceID,
+		arg.Result,
+		arg.EntityID,
+		arg.AppliedAt,
+		arg.Response,
+	)
+	return err
+}
+
 const revokeSessionsOfStaleDevices = `-- name: RevokeSessionsOfStaleDevices :execrows
 UPDATE session
 SET revoked_at = $1
@@ -398,7 +518,8 @@ func (q *Queries) SnapshotBuckets(ctx context.Context, arg SnapshotBucketsParams
 
 const snapshotComments = `-- name: SnapshotComments :many
 SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
-       c.created_at, c.edited_at, c.deleted_at, c.version, wi.collection_id
+       c.created_at, c.edited_at, c.deleted_at, c.version, c.kind, c.system_code, c.system_params,
+       wi.collection_id
 FROM comment c
 JOIN work_item wi ON wi.tenant_id = c.tenant_id AND wi.id = c.item_id
 WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND wi.deleted_at IS NULL
@@ -423,6 +544,9 @@ type SnapshotCommentsRow struct {
 	EditedAt        pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	Version         int32
+	Kind            string
+	SystemCode      *string
+	SystemParams    []byte
 	CollectionID    pgtype.UUID
 }
 
@@ -446,6 +570,9 @@ func (q *Queries) SnapshotComments(ctx context.Context, arg SnapshotCommentsPara
 			&i.EditedAt,
 			&i.DeletedAt,
 			&i.Version,
+			&i.Kind,
+			&i.SystemCode,
+			&i.SystemParams,
 			&i.CollectionID,
 		); err != nil {
 			return nil, err
@@ -978,6 +1105,35 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const stampFieldClock = `-- name: StampFieldClock :exec
+
+INSERT INTO field_clock (tenant_id, entity, entity_id, field, hlc)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, entity, entity_id, field) DO UPDATE SET hlc = excluded.hlc
+`
+
+type StampFieldClockParams struct {
+	Entity   string
+	EntityID pgtype.UUID
+	Field    string
+	Hlc      string
+}
+
+// The clock per field (N-05, offline-sync.md §4.2): the reading of the write that landed, which a
+// push's reading is compared against per field.
+// The reading of the write that landed replaces what stood: the writer decided, and the row
+// records the decision. A guard that kept an older row would let a device outvote an edit made
+// after it by a clock that was merely ahead.
+func (q *Queries) StampFieldClock(ctx context.Context, arg StampFieldClockParams) error {
+	_, err := q.db.Exec(ctx, stampFieldClock,
+		arg.Entity,
+		arg.EntityID,
+		arg.Field,
+		arg.Hlc,
+	)
+	return err
 }
 
 const touchDevice = `-- name: TouchDevice :one

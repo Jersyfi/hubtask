@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -51,6 +52,18 @@ func (r CommentRepository) Insert(ctx context.Context, comment work.Comment) err
 		return err
 	}
 
+	kind := comment.Kind
+	if kind == "" {
+		kind = work.CommentByUser
+	}
+	var systemParams []byte
+	if len(comment.SystemParams) > 0 {
+		if systemParams, err = json.Marshal(comment.SystemParams); err != nil {
+			return shared.ErrInternal.
+				WithDetail("postgres.row_incoherent").
+				WithCause(fmt.Errorf("serialising a system comment's parameters: %w", err))
+		}
+	}
 	err = queries.InsertComment(ctx, sqlc.InsertCommentParams{
 		ID:              id,
 		ItemID:          itemID,
@@ -58,6 +71,9 @@ func (r CommentRepository) Insert(ctx context.Context, comment work.Comment) err
 		ParentCommentID: parentID,
 		Body:            comment.Body,
 		CreatedAt:       timestampOf(comment.CreatedAt),
+		Kind:            string(kind),
+		SystemCode:      optionalText(comment.SystemCode),
+		SystemParams:    systemParams,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
@@ -90,6 +106,7 @@ func (r CommentRepository) Find(ctx context.Context, id shared.ID) (work.Comment
 	return commentFrom(
 		row.ID, row.TenantID, row.ItemID, row.AuthorID, row.ParentCommentID,
 		row.Body, row.CreatedAt, row.EditedAt, row.DeletedAt, row.Version,
+		row.Kind, row.SystemCode, row.SystemParams,
 	)
 }
 
@@ -127,6 +144,7 @@ func (r CommentRepository) List(
 		comment, err := commentFrom(
 			row.ID, row.TenantID, row.ItemID, row.AuthorID, row.ParentCommentID,
 			row.Body, row.CreatedAt, row.EditedAt, row.DeletedAt, row.Version,
+			row.Kind, row.SystemCode, row.SystemParams,
 		)
 		if err != nil {
 			return repository.CommentPage{}, err
@@ -255,6 +273,7 @@ func commentCursor(cursors security.CursorCodec, cursor string) (commentBoundary
 func commentFrom(
 	id, tenantID, itemID, authorID, parentID pgtype.UUID, body string,
 	createdAt, editedAt, deletedAt pgtype.Timestamptz, version int32,
+	kind string, systemCode *string, systemParams []byte,
 ) (work.Comment, error) {
 	commentID, err := idFrom(id)
 	if err != nil {
@@ -280,7 +299,7 @@ func commentFrom(
 		return work.Comment{}, shared.ErrInternal.WithDetail("postgres.row_incoherent")
 	}
 
-	return work.Comment{
+	comment := work.Comment{
 		ID:              commentID,
 		TenantID:        tenant,
 		ItemID:          item,
@@ -291,5 +310,15 @@ func commentFrom(
 		EditedAt:        optionalTime(editedAt),
 		DeletedAt:       optionalTime(deletedAt),
 		Version:         int(version),
-	}, nil
+		Kind:            work.CommentKind(kind),
+		SystemCode:      stringFrom(systemCode),
+	}
+	if len(systemParams) > 0 {
+		if err := json.Unmarshal(systemParams, &comment.SystemParams); err != nil {
+			return work.Comment{}, shared.ErrInternal.
+				WithDetail("postgres.row_incoherent").
+				WithCause(fmt.Errorf("reading a system comment's parameters: %w", err))
+		}
+	}
+	return comment, nil
 }

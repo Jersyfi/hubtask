@@ -139,11 +139,24 @@ func (c *RestController) DeleteComment(
 // (project-structure.md §3).
 func commentResponse(out usecase.Output) openapi.Comment {
 	comment := openapi.Comment{
-		Id:        uuidValue(out.String("id")),
-		ItemId:    uuidValue(out.String("item_id")),
-		AuthorId:  uuidValue(out.String("author_id")),
-		CreatedAt: timeValue(out["created_at"]),
-		Version:   out.Int("version"),
+		Id:         uuidValue(out.String("id")),
+		ItemId:     uuidValue(out.String("item_id")),
+		AuthorId:   uuidValue(out.String("author_id")),
+		CreatedAt:  timeValue(out["created_at"]),
+		Version:    out.Int("version"),
+		SystemCode: optionalTextField(out["system_code"]),
+	}
+	if kind := out.String("kind"); kind != "" {
+		kind := openapi.CommentKind(kind)
+		comment.Kind = &kind
+	}
+	if params, ok := out["system_params"].(map[string]any); ok {
+		strings := make(map[string]string, len(params))
+		for key, value := range params {
+			text, _ := value.(string)
+			strings[key] = text
+		}
+		comment.SystemParams = &strings
 	}
 	// The body is null exactly when the comment is deleted - the tombstone's shape, straight from
 	// the contract's Comment schema.

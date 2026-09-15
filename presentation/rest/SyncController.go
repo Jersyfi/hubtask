@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -40,6 +41,9 @@ type SyncSignals interface {
 type SyncController struct {
 	Pull    Puller
 	Signals SyncSignals
+	// Push serves `POST /sync:push` (N-04). Nil leaves the route answering the pending 404.
+	Push        Pusher
+	PushSignals PushSignals
 }
 
 // SyncPull answers one page of the delta.
@@ -207,4 +211,143 @@ func deviceResponse(row usecase.Output) openapi.SyncDevice {
 		Blocked:     blocked,
 		CreatedAt:   &created,
 	}
+}
+
+// Pusher is the slice of the push service this controller drives.
+type Pusher interface {
+	Push(ctx context.Context, actor appshared.ActorContext, request syncservice.PushRequest) (
+		syncservice.PushResponse, error)
+	Encode(position syncservice.Position) string
+}
+
+// PushSignals counts what a push did, by result: the closed set the contract names, never an
+// identifier.
+type PushSignals interface {
+	PushResult(ctx context.Context, result string)
+}
+
+// SyncPush applies a device's queue (N-04).
+func (c SyncController) SyncPush(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	actor, _ := appshared.ActorFrom(r.Context())
+	if !actor.IsAuthenticated() {
+		WriteProblem(w, shared.ErrUnauthenticated.WithDetail("access.credential_required"), requestID)
+		return
+	}
+	if c.Push == nil {
+		WriteProblem(w, shared.ErrNotFound.WithDetail("route.operation_not_available"), requestID)
+		return
+	}
+
+	var body openapi.SyncPushRequest
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	response, err := c.Push.Push(r.Context(), actor, pushRequest(body))
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if c.PushSignals != nil {
+		for _, result := range response.Results {
+			c.PushSignals.PushResult(r.Context(), string(result.Result))
+		}
+	}
+
+	writeJSON(w, r, http.StatusOK, pushResponse(response, c.Push.Encode(response.Cursor)))
+}
+
+// pushRequest maps the body onto the service's request, field for field and defaulting nothing.
+func pushRequest(body openapi.SyncPushRequest) syncservice.PushRequest {
+	request := syncservice.PushRequest{
+		DeviceID:  shared.ID(body.DeviceId.String()),
+		Mutations: make([]syncservice.Mutation, 0, len(body.Mutations)),
+	}
+	if body.Platform != nil {
+		request.Platform = *body.Platform
+	}
+	if body.DisplayName != nil {
+		request.DisplayName = *body.DisplayName
+	}
+	for _, m := range body.Mutations {
+		mutation := syncservice.Mutation{
+			OpID:        shared.ID(m.OpId.String()),
+			Kind:        syncdomain.MutationKind(m.Kind),
+			BaseVersion: m.BaseVersion,
+		}
+		if m.ItemId != nil {
+			mutation.ItemID = shared.ID(m.ItemId.String())
+		}
+		if m.Hlc != nil {
+			mutation.HLC = *m.Hlc
+		}
+		if m.Set != nil {
+			mutation.Set = string(*m.Set)
+		}
+		if m.Element != nil {
+			mutation.Element = shared.ID(m.Element.String())
+		}
+		if m.Payload != nil {
+			mutation.Payload = *m.Payload
+		}
+		if m.Fields != nil {
+			mutation.Fields = make(map[string]syncservice.FieldChange, len(*m.Fields))
+			for name, field := range *m.Fields {
+				change := syncservice.FieldChange{Value: field.Value}
+				if field.Hlc != nil {
+					change.HLC = *field.Hlc
+				}
+				mutation.Fields[name] = change
+			}
+		}
+		request.Mutations = append(request.Mutations, mutation)
+	}
+	return request
+}
+
+// pushResponse is the wire shape: the contract's `SyncPushResponse`.
+func pushResponse(response syncservice.PushResponse, cursor string) openapi.SyncPushResponse {
+	results := make([]openapi.SyncMutationResult, 0, len(response.Results))
+	for _, result := range response.Results {
+		results = append(results, mutationResult(result))
+	}
+	serverTime := response.ServerTime.UTC()
+	return openapi.SyncPushResponse{Results: results, Cursor: &cursor, ServerTime: &serverTime}
+}
+
+func mutationResult(result syncservice.Result) openapi.SyncMutationResult {
+	out := openapi.SyncMutationResult{
+		OpId:   uuidValue(result.OpID.String()),
+		Result: openapi.SyncMutationResultResult(result.Result),
+	}
+	if !result.EntityID.IsZero() {
+		out.EntityId = uuidPointer(result.EntityID)
+	}
+	if result.ServerState != nil {
+		state := result.ServerState
+		out.ServerState = &state
+	}
+	if result.Conflict != nil {
+		field := result.Conflict.Field
+		out.Conflict = &struct {
+			Field              *string             `json:"field,omitempty"`
+			Mine               interface{}         `json:"mine,omitempty"`
+			PreservedCommentId *openapi_types.UUID `json:"preserved_comment_id,omitempty"` //nolint:revive // the generated type's own spelling, which the literal has to match
+			Theirs             interface{}         `json:"theirs,omitempty"`
+		}{Field: &field, Mine: result.Conflict.Mine, Theirs: result.Conflict.Theirs}
+		if !result.Conflict.PreservedCommentID.IsZero() {
+			out.Conflict.PreservedCommentId = uuidPointer(result.Conflict.PreservedCommentID)
+		}
+	}
+	if result.Error != nil {
+		code, message := result.Error.Code, result.Error.MessageCode
+		out.Error = &struct {
+			Code        *string `json:"code,omitempty"`
+			MessageCode *string `json:"message_code,omitempty"`
+		}{Code: &code, MessageCode: &message}
+	}
+	return out
 }

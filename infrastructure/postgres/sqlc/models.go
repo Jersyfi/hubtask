@@ -718,6 +718,9 @@ type Comment struct {
 	EditedAt        pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	Version         int32
+	Kind            string
+	SystemCode      *string
+	SystemParams    []byte
 }
 
 type ConsentRecord struct {
@@ -801,6 +804,14 @@ type EventConsumption struct {
 	Consumer   string
 	EventID    pgtype.UUID
 	ConsumedAt pgtype.Timestamptz
+}
+
+type FieldClock struct {
+	TenantID pgtype.UUID
+	Entity   string
+	EntityID pgtype.UUID
+	Field    string
+	Hlc      string
 }
 
 type IdempotencyKey struct {

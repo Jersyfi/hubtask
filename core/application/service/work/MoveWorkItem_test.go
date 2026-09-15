@@ -372,10 +372,19 @@ func TestTheMoveAnnouncesWhereItCameFrom(t *testing.T) {
 		t.Errorf("to_parent_id is %v", announcement.Payload["to_parent_id"])
 	}
 
-	// One change log entry and one audit entry, in the same transaction (test AT-5), and no title in the trail
-	// (rule 10).
-	if len(h.changes.recorded) != 1 || len(h.audit.entries) != 1 {
+	// One change log entry per field that moved - the parent, carrying the path and the depth
+	// derived from it, and the rank - and one audit entry, in the same transaction (test AT-5),
+	// and no title in the trail (rule 10).
+	if len(h.changes.recorded) != 2 || len(h.audit.entries) != 1 {
 		t.Errorf("%d change entries and %d audit entries", len(h.changes.recorded), len(h.audit.entries))
+	}
+	parentEntry := h.changes.recorded[0]
+	if parentEntry.Field != domain.FieldParentID || parentEntry.Payload["parent_id"] != targetTaskID.String() ||
+		parentEntry.Payload["path"] == nil || parentEntry.Payload["depth"] == nil {
+		t.Errorf("the parent's entry is %+v", parentEntry)
+	}
+	if rank := h.changes.recorded[1]; rank.Field != domain.FieldOrderKey || rank.Payload["order_key"] == nil {
+		t.Errorf("the rank's entry is %+v", rank)
 	}
 	if _, present := h.audit.entries[0].Changes["title"]; present {
 		t.Error("the audit entry carries the title")
@@ -683,5 +692,33 @@ func TestAMoveRecordsWhatChangedUnderTheMoveVerb(t *testing.T) {
 	// The entry sits under a new parent, so its rank was worked out again at the destination.
 	if step.ChangeSet[domain.FieldOrderKey] == nil {
 		t.Errorf("the change set holds %v, want the rank the destination gave it", step.ChangeSet)
+	}
+}
+
+// A device computes its rank itself, between the neighbours it holds, and the server takes it as
+// it is once the domain's own rule has judged it (offline-sync.md §4.2, N-05). Naming a sibling
+// as well is a contradiction, and a key the scheme does not produce is refused as input.
+func TestACallerComputedRankIsTakenAsItIsOnceJudged(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey, h.items.nextKey = "a0", "a1"
+
+	item, err := ReorderWorkItem{Placement: h.writer}.
+		Execute(t.Context(), placementActor(), ReorderWorkItemCommand{ItemID: leafID, OrderKey: "a0V"})
+	if err != nil {
+		t.Fatalf("reordering with a key: %v", err)
+	}
+	if item.OrderKey != "a0V" || len(h.items.ranks) != 1 || h.items.ranks[0].item.OrderKey != "a0V" {
+		t.Errorf("the rank written is %q, want the caller's a0V", item.OrderKey)
+	}
+
+	for name, cmd := range map[string]ReorderWorkItemCommand{
+		"a key beside a sibling":     {ItemID: leafID, OrderKey: "a0V", BeforeItemID: taskID},
+		"a key with a trailing zero": {ItemID: leafID, OrderKey: "a0V0"},
+		"a key outside the alphabet": {ItemID: leafID, OrderKey: "a0-"},
+	} {
+		_, err := ReorderWorkItem{Placement: h.writer}.Execute(t.Context(), placementActor(), cmd)
+		if err == nil || shared.AsError(err).Category != shared.CategoryValidation {
+			t.Errorf("%s was answered %v, want a validation refusal", name, err)
+		}
 	}
 }

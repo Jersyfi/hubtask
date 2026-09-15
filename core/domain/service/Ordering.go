@@ -75,6 +75,19 @@ func OrderKeyBetween(previous, next string) (string, error) {
 	return keyBetween(previous, next)
 }
 
+// ValidOrderKey judges a key a client computed itself - a device placing an entry between two
+// neighbours it holds (offline-sync.md §4.2). The same rule the generator holds its own keys to,
+// answered as input rather than as a defect: a device's key is something somebody sent.
+func ValidOrderKey(key string) error {
+	if key == "" || validateOrderKey(key) != nil {
+		return shared.ErrValidation.
+			WithDetail("sync.order_key_malformed").
+			WithParams(map[string]string{"key": key}).
+			WithFields(shared.FieldError{Path: "/order_key", Code: "sync.order_key_malformed"})
+	}
+	return nil
+}
+
 // OrderKeyAfter returns a key that sorts after previous. It is what appending to a list needs: an
 // empty previous is an empty list.
 func OrderKeyAfter(previous string) (string, error) { return OrderKeyBetween(previous, "") }

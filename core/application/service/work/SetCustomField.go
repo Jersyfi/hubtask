@@ -338,6 +338,7 @@ func (h SetCustomField) recordChange(
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         h.HLC.Next(),
+		Field:       domain.CustomFieldPath(key),
 		Payload:     map[string]any{domain.CustomFieldPath(key): value},
 	})
 }

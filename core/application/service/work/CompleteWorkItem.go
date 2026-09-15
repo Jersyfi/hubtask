@@ -389,6 +389,11 @@ func (w CompletionWriter) announce(
 func (w CompletionWriter) recordChange(
 	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext, snapshot map[string]any,
 ) error {
+	// The one field that moved and nothing else (offline-sync.md §4.2, the paragraph on how "per
+	// field" is written down): the event carries the whole entry for its subscribers, but an
+	// entry in the log repeating the untouched fields would let a stale title win a merge it was
+	// never part of. `completion` is the field, under its own clock, and it is what a device's
+	// `completed` merges against (N-06).
 	return w.Changes.Record(ctx, changelog.Change{
 		TenantID:    item.TenantID,
 		Entity:      itemTarget,
@@ -397,7 +402,8 @@ func (w CompletionWriter) recordChange(
 		ContainerID: item.CollectionID,
 		ActorID:     actor.AccountID,
 		HLC:         w.HLC.Next(),
-		Payload:     snapshot,
+		Field:       domain.FieldCompletion,
+		Payload:     map[string]any{domain.FieldCompletion: snapshot[domain.FieldCompletion]},
 	})
 }
 

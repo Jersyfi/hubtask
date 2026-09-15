@@ -1741,6 +1741,20 @@ func run() error {
 				Snapshot: postgres.NewSnapshotRepository(),
 			},
 			Signals: metrics,
+			// The push applies a device's queue through the catalogue as the pushing person
+			// (N-04): nothing here writes by any other path.
+			Push: syncservice.PushChanges{
+				Stream: changeStream, Devices: postgres.NewDeviceRepository(),
+				Ops: postgres.NewSyncOpLog(), Tombstones: postgres.NewTombstoneRepository(),
+				// The server's clock per field, kept by the change log (N-05).
+				Clocks:    changes,
+				Catalogue: useCases, Skew: cfg.Sync.ClockSkew,
+				// What a merge owes beside the use case it performed (N-06): the history's step
+				// for a change that lost, and the comment that keeps displaced free text.
+				Activity:  journal,
+				Displaced: work.AddComment{Writer: commentWriter},
+			},
+			PushSignals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{

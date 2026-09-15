@@ -198,7 +198,8 @@ LIMIT sqlc.arg('batch');
 
 -- name: SnapshotComments :many
 SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
-       c.created_at, c.edited_at, c.deleted_at, c.version, wi.collection_id
+       c.created_at, c.edited_at, c.deleted_at, c.version, c.kind, c.system_code, c.system_params,
+       wi.collection_id
 FROM comment c
 JOIN work_item wi ON wi.tenant_id = c.tenant_id AND wi.id = c.item_id
 WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND wi.deleted_at IS NULL
@@ -232,3 +233,44 @@ FROM template
 WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- The operation log (N-04, offline-sync.md §3.2): what a push did with each op_id, kept for the
+-- offline window so that a repeated push takes effect exactly once.
+
+-- name: FindSyncOp :one
+SELECT op_id, device_id, result, entity_id, applied_at, response
+FROM sync_op_log
+WHERE tenant_id = current_tenant_id() AND op_id = sqlc.arg('op_id');
+
+-- name: RecordSyncOp :exec
+-- Written in the transaction that applied the mutation. A conflict is a repeat that raced this
+-- one and is left standing: the first answer is the answer.
+INSERT INTO sync_op_log (tenant_id, op_id, device_id, result, entity_id, applied_at, response)
+VALUES (current_tenant_id(), sqlc.arg('op_id'), sqlc.narg('device_id'), sqlc.arg('result'),
+        sqlc.narg('entity_id'), sqlc.arg('applied_at'), sqlc.narg('response'))
+ON CONFLICT (tenant_id, op_id) DO NOTHING;
+
+-- name: HoldsTombstone :one
+-- Whether an entity has been purged (offline-sync.md §7). The trash is not a tombstone: a trashed
+-- entry can still be restored, and the use case that receives a mutation about it says so itself.
+SELECT EXISTS (
+  SELECT 1 FROM tombstone
+  WHERE tenant_id = current_tenant_id() AND entity = sqlc.arg('entity') AND entity_id = sqlc.arg('entity_id')
+)::boolean AS held;
+
+-- The clock per field (N-05, offline-sync.md §4.2): the reading of the write that landed, which a
+-- push's reading is compared against per field.
+
+-- name: StampFieldClock :exec
+-- The reading of the write that landed replaces what stood: the writer decided, and the row
+-- records the decision. A guard that kept an older row would let a device outvote an edit made
+-- after it by a clock that was merely ahead.
+INSERT INTO field_clock (tenant_id, entity, entity_id, field, hlc)
+VALUES (current_tenant_id(), sqlc.arg('entity'), sqlc.arg('entity_id'), sqlc.arg('field'), sqlc.arg('hlc'))
+ON CONFLICT (tenant_id, entity, entity_id, field) DO UPDATE SET hlc = excluded.hlc;
+
+-- name: FieldClocksOf :many
+-- Every field of one entity that has a reading, for the merge to compare against.
+SELECT field, hlc
+FROM field_clock
+WHERE tenant_id = current_tenant_id() AND entity = sqlc.arg('entity') AND entity_id = sqlc.arg('entity_id');

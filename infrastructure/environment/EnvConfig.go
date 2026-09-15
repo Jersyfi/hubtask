@@ -155,6 +155,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			BatchSize:       getInt("HUBTASK_RETENTION_BATCH_SIZE", 1000),
 			Interval:        getDuration("HUBTASK_RETENTION_INTERVAL", time.Hour),
 		},
+		Sync: env.SyncConfig{
+			// Five minutes: offline-sync.md §4.1's default for the permitted clock deviation.
+			ClockSkew: getDuration("HUBTASK_HLC_SKEW", 5*time.Minute),
+		},
 		Media: env.MediaConfig{
 			// A day for an abandoned staging: long enough that no upload over any line anybody
 			// still uses is mistaken for one, short enough that a bucket does not fill with them.
