@@ -363,11 +363,14 @@ func run() error {
 	// would record a run at a moment nothing else agrees with (E-05).
 	backupRuns := postgres.NewBackupRunRepository()
 	backupSchedules := postgres.NewBackupScheduleRepository()
+	// One normaliser for every constructor that stores user text (M-07, i18n-l10n.md §5): two
+	// spellings of one character are one row only if every door brings them to the same form.
+	forms := textadapter.Forms{}
 	backupWriter := backupservice.Writer{
 		Targets: backupTargets, Schedules: backupSchedules,
 		Opener: backupAdapters, Encryptor: encryptor,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+		Clock: clockadapter.System{}, IDs: ids, Config: cfg, Text: forms,
 	}
 	backupRunner := backupservice.Runner{
 		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
@@ -400,9 +403,6 @@ func run() error {
 	// One encoder for every place an address is stored or looked up (M-10): two spellings of a
 	// mailbox are one row only if every door brings them to the same form.
 	domains := textadapter.Domains{}
-	// One normaliser for every constructor that stores user text (M-07, i18n-l10n.md §5): two
-	// spellings of one character are one row only if every door brings them to the same form.
-	forms := textadapter.Forms{}
 
 	sessionWriter := identity.SessionWriter{
 		Domains:  domains,
@@ -527,7 +527,7 @@ func run() error {
 		Encryptor: encryptor,
 
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
@@ -628,7 +628,7 @@ func run() error {
 		Marking:    postgres.NewRetentionMarkingRepository(),
 		Holds:      lifecycleStore,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// The safeguard that outranks every rule above (E-08). One set for the three use cases, so
@@ -636,7 +636,7 @@ func run() error {
 	legalHolds := lifecycle.Holds{
 		Holds:      postgres.NewLegalHoldRepository(),
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// Every verb that moves an entry between the archive and the trash shares one dependency set.
@@ -867,7 +867,7 @@ func run() error {
 	// The cases the privacy use cases share.
 	privacyCases := privacyservice.Cases{
 		Requests: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
 	// The provider's shared dependencies (H-05).
@@ -1434,6 +1434,7 @@ func run() error {
 			Quota:   quotaGuard,
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+			Text: forms,
 		}.Descriptor(),
 		mediaservice.ConfirmMediaUpload{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
@@ -1696,6 +1697,7 @@ func run() error {
 				Media: mediaservice.IngestMedia{
 					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
 					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+					Text: forms,
 				},
 				Events: outbox, UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{}, IDs: ids,

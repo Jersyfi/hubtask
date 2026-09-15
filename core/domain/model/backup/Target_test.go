@@ -12,6 +12,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 var (
@@ -24,7 +25,7 @@ func input(mutate ...func(*domain.NewTargetInput)) domain.NewTargetInput {
 	in := domain.NewTargetInput{
 		ID: targetID, Name: "Off-site bucket", Kind: domain.KindS3,
 		Config:    domain.TargetConfig{"bucket": "hubtask-backups", "region": "eu-central-1"},
-		CreatedBy: operator, Now: now,
+		CreatedBy: operator, Now: now, Text: text.Composing{},
 	}
 	for _, m := range mutate {
 		m(&in)
@@ -297,5 +298,22 @@ func TestAPlaintextEndpointMakesAPlaintextTargetWhateverTheKindIsCalled(t *testi
 				t.Fatalf("a secure target was refused: %v", err)
 			}
 		})
+	}
+}
+
+// The name and the region note are stored in normal form C (i18n-l10n.md §5, M-07).
+func TestATargetsNameAndNoteAreStoredInNormalFormC(t *testing.T) {
+	target, err := domain.NewTarget(input(func(in *domain.NewTargetInput) {
+		in.Name, in.RegionNote = "Bu\u0308ro-Backup", "Steht in Ko\u0308ln"
+	}))
+	if err != nil {
+		t.Fatalf("building: %v", err)
+	}
+	if target.Name != "B\u00fcro-Backup" || target.RegionNote != "Steht in K\u00f6ln" {
+		t.Errorf("stored %q / %q, want both composed", target.Name, target.RegionNote)
+	}
+	_, err = domain.NewTarget(input(func(in *domain.NewTargetInput) { in.Name, in.Text = "Bu\u0308ro", nil }))
+	if shared.AsError(err).DetailCode != "text.normalizer_missing" {
+		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }

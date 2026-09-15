@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // TargetKind is the protocol a target speaks. The set is the contract's enum, whole: the column
@@ -191,6 +192,10 @@ type NewTargetInput struct {
 	InsecureAcknowledged bool
 	CreatedBy            shared.ID
 	Now                  time.Time
+
+	// Text brings the name and the region note to normal form C before they are bounded and
+	// stored (i18n-l10n.md §5, M-07); work.NewWorkItemInput says why it is handed in.
+	Text text.Normalizer
 }
 
 // maxNameLength is what a name may be. A target's name is what an operator picks it out by in a
@@ -201,7 +206,14 @@ const maxNameLength = 200
 func NewTarget(in NewTargetInput) (Target, error) {
 	var fields []shared.FieldError
 
-	name := strings.TrimSpace(in.Name)
+	name, err := shared.NFC(strings.TrimSpace(in.Name), in.Text)
+	if err != nil {
+		return Target{}, err
+	}
+	regionNote, err := shared.NFC(strings.TrimSpace(in.RegionNote), in.Text)
+	if err != nil {
+		return Target{}, err
+	}
 	switch {
 	case name == "":
 		fields = append(fields, field("/name", "backup.name_required"))
@@ -239,7 +251,7 @@ func NewTarget(in NewTargetInput) (Target, error) {
 
 	target := Target{
 		ID: in.ID, TenantID: in.TenantID, Name: name, Kind: in.Kind, Config: config,
-		EncryptionMode: mode, RegionNote: strings.TrimSpace(in.RegionNote),
+		EncryptionMode: mode, RegionNote: regionNote,
 		Enabled: true, CreatedAt: in.Now, CreatedBy: in.CreatedBy, Version: 1,
 	}
 
