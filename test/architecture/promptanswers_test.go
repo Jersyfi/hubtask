@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/infrastructure/ai"
 )
 
@@ -29,7 +30,12 @@ func TestEveryPromptAsksForExactlyWhatTheCodeKeeps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the prompt store does not build: %v", err)
 	}
+	// Two readers of the store: the suggestion service, and the translation (M-11), which is a
+	// read rather than a proposal and keeps its own two keys.
 	allowed := suggestion.AnswerKeys()
+	for id, keys := range work.TranslationAnswerKeys() {
+		allowed[id] = keys
+	}
 
 	for _, id := range store.IDs() {
 		prompt, err := store.Get(id)
@@ -48,9 +54,10 @@ func TestEveryPromptAsksForExactlyWhatTheCodeKeeps(t *testing.T) {
 			continue
 		}
 		if !asked {
-			t.Errorf("%s is a completion prompt no code can ask: promptFields in "+
-				"core/application/service/suggestion/Producing.go does not name it, and "+
-				"Produce.Execute refuses a prompt it does not know", id)
+			t.Errorf("%s is a completion prompt no code can ask: neither promptFields in "+
+				"core/application/service/suggestion/Producing.go nor TranslationAnswerKeys in "+
+				"core/application/service/work/Translate.go names it, and each reader refuses "+
+				"a prompt it does not know", id)
 			continue
 		}
 
