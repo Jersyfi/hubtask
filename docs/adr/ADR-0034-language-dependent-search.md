@@ -116,6 +116,15 @@ characters — so for those scripts the trigram index is not an optimisation of 
   content_language` is a write, so the trigger fires; nothing else has to be remembered.
 * Adding a language is a row in the resolver's mapping and a migration to rebuild the documents of the items
   that carry the tag. Neither is a code path, and both are reviewable as a table.
+* **Amended by M-09 (`0.8.0`):** the other way a configuration arrives — an installation upgrades its
+  PostgreSQL, or an operator installs one, after the entries were written — left every entry indexed as
+  `simple` for lack of it stale until it happened to be edited. Since migration `0081` a row records which
+  configuration built its document (`search_configuration`, filled by the same trigger), so the stale rows
+  can be found: `ReindexSearch` counts the rows whose recorded configuration differs from what the resolver
+  answers today, queues one job per workspace that rewrites exactly those in batches of five hundred, each
+  in its own transaction, and answers the count. A workspace administrator's operation
+  (`POST /search:reindex`, `hubctl search reindex`), because nothing may enumerate tenants; a mapping row
+  still comes with its migration, which now has the column to be selective by.
 * `/meta/capabilities` answers which languages this installation can index, read from `pg_ts_config` through
   a port rather than from a constant. A client's language picker is then data — and an installation that lost
   a configuration says so instead of silently indexing everything as `simple`.

@@ -4953,6 +4953,32 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /search:reindex:
+    post:
+      tags: [items]
+      operationId: reindexSearch
+      summary: Bring the workspace's search documents current
+      description: |
+        Counts the entries whose search document was built under a text search configuration this
+        installation has since replaced or gained — an installation that upgraded its PostgreSQL,
+        or an operator who installed a configuration, after the entries were written — queues the
+        job that rewrites exactly those in batches, and answers the count (M-09, ADR-0034). Until
+        it runs, such entries are searched word by word rather than by stem; nothing is lost and
+        nothing is wrong, only shorter.
+
+        Requires `STRUCTURE` at the workspace and the `workspace:manage` scope: the index is the
+        workspace's, and an administrator decides when it is rebuilt. One job per workspace at a
+        time — asking again while it runs answers the same job. The job's `progress` is the rows
+        rewritten over the rows that were stale when asked; a second call after it finishes
+        answers `stale: 0`, which is the report. Auditable, with the count and never a title.
+      responses:
+        "202":
+          description: The rebuild was accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchReindex" }
+        "403": { $ref: "#/components/responses/Problem" }
+
   /items/{itemId}:complete:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -11452,6 +11478,21 @@ components:
         the whole of what a caller can act on, and the dead letter is an operator's word for
         where the row went.
       enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+
+    SearchReindex:
+      type: object
+      description: What a reindex answers - the job to watch, and how many rows it will rewrite.
+      required: [job_id, stale]
+      properties:
+        job_id: { type: string, format: uuid }
+        stale:
+          type: integer
+          format: int64
+          description: >
+            How many entries were indexed under a configuration that is not what the installation
+            would use for them today - including the ones written before the configuration was
+            recorded at all. Zero means the index is current, and the job finishes without
+            rewriting anything.
 
     JobRef:
       type: object

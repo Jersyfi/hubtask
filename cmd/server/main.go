@@ -1342,6 +1342,12 @@ func run() error {
 				UnitOfWork: unitOfWork,
 			},
 		}.Descriptor(),
+		// The index brought current at an administrator's request (M-09): what the row's
+		// recorded configuration says was built differently from how it would be built today.
+		work.ReindexSearch{
+			Index: postgres.NewSearchIndexRepository(), Jobs: jobs, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -2334,6 +2340,16 @@ func run() error {
 			// straight back while there is known work left. The retention sweep's two numbers, for
 			// the same reason it has two.
 			Interval: time.Hour, Continuation: 5 * time.Second,
+		},
+		// One workspace's search documents brought current, batch by batch, at an
+		// administrator's request (M-09, ADR-0034). Detached like the embedding pass, so that
+		// each batch commits on its own; unlike it, the walk finishes.
+		queueport.KindSearchReindex: worker.SearchReindex{
+			Rebuild: work.RebuildSearchIndex{
+				Index: postgres.NewSearchIndexRepository(), UnitOfWork: unitOfWork,
+			},
+			Progress:     jobs,
+			Continuation: 2 * time.Second,
 		},
 		queueport.KindNotificationDeliver: notificationDelivery,
 		queueport.KindWebhookDeliver:      webhookDelivery,

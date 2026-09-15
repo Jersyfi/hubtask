@@ -1395,4 +1395,5 @@ type WorkItem struct {
 	DeletedByType         *string
 	DeletedByID           pgtype.UUID
 	RecurrenceSourceID    pgtype.UUID
+	SearchConfiguration   *string
 }
