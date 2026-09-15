@@ -34,9 +34,11 @@ const (
 )
 
 // The audit codes. Forgetting a device ends a way into the workspace's data, the class of event
-// a review looks for; listing is read-only and records nothing.
+// a review looks for; the read declares one all the same, because a refused read is recorded
+// against the action that was refused (audit.md §4).
 const (
 	DeviceForgottenAction audit.Action = "sync.device_forgotten"
+	DeviceReadAction      audit.Action = "sync.device_read"
 )
 
 // SessionRevoker is the slice of the session repository forgetting a device needs: end the one
@@ -91,7 +93,11 @@ func (h ListSyncDevices) Descriptor() usecase.Descriptor {
 		SideEffects: "None. Reads only.",
 		TokenScope:  devicesReadScope,
 		ReadOnly:    true,
-		Handler:     usecase.HandlerFunc(h.invoke),
+		Audit: usecase.AuditDeclaration{
+			Action: DeviceReadAction, TargetType: deviceTarget,
+			Severity: audit.SeverityInfo, Required: false,
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }
 
