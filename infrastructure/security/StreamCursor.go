@@ -21,8 +21,12 @@ import (
 // separation one would be accepted where the other belongs.
 const streamCursorInfo = "hubtask/stream-cursor/v1"
 
-// streamCursorParts is how many fields the payload has: the position and the moment it was minted.
-const streamCursorParts = 2
+// streamCursorParts is how many fields a delta cursor's payload has: the position and the moment
+// it was minted. A walk cursor carries two more: the kind being walked and the key it resumes after.
+const (
+	streamCursorParts = 2
+	walkCursorParts   = 4
+)
 
 // streamCursorFieldSeparator ends the position inside the payload. A full stop, because both fields
 // are decimal digits and neither can contain one.
@@ -38,6 +42,12 @@ const streamCursorFieldSeparator = "."
 type StreamPosition struct {
 	Seq      int64
 	IssuedAt time.Time
+	// Kind and After are set while an initial synchronisation is under way (N-02): the kind being
+	// walked and the key of the last row handed out. Both empty is a delta position - the only
+	// kind a stream resumes from. They are inside the signed payload for the same reason the
+	// moment is: a client that could edit them could skip a kind and believe itself complete.
+	Kind  string
+	After string
 }
 
 // StreamCursorCodec turns a position in the change log into an opaque cursor and back.
@@ -65,9 +75,13 @@ func NewStreamCursorCodec(installationSecret secret.Secret) StreamCursorCodec {
 // Seconds rather than nanoseconds: the question it answers is measured in days, and a shorter value
 // is a shorter header on every one of a stream's events.
 func (c StreamCursorCodec) Encode(position StreamPosition) string {
-	payload := []byte(strconv.FormatInt(position.Seq, 10) +
+	text := strconv.FormatInt(position.Seq, 10) +
 		streamCursorFieldSeparator +
-		strconv.FormatInt(position.IssuedAt.Unix(), 10))
+		strconv.FormatInt(position.IssuedAt.Unix(), 10)
+	if position.Kind != "" {
+		text += streamCursorFieldSeparator + position.Kind + streamCursorFieldSeparator + position.After
+	}
+	payload := []byte(text)
 
 	// The tag first, so that decoding can cut it off without knowing either half's length.
 	return base64.RawURLEncoding.EncodeToString(append(c.tag(payload), payload...))
@@ -93,7 +107,7 @@ func (c StreamCursorCodec) Decode(cursor string) (StreamPosition, error) {
 	}
 
 	fields := strings.Split(string(payload), streamCursorFieldSeparator)
-	if len(fields) != streamCursorParts {
+	if len(fields) != streamCursorParts && len(fields) != walkCursorParts {
 		return StreamPosition{}, errStreamCursorInvalid
 	}
 	seq, err := strconv.ParseInt(fields[0], 10, 64)
@@ -104,7 +118,14 @@ func (c StreamCursorCodec) Decode(cursor string) (StreamPosition, error) {
 	if err != nil {
 		return StreamPosition{}, errStreamCursorInvalid
 	}
-	return StreamPosition{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC()}, nil
+	position := StreamPosition{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC()}
+	if len(fields) == walkCursorParts {
+		if fields[2] == "" {
+			return StreamPosition{}, errStreamCursorInvalid
+		}
+		position.Kind, position.After = fields[2], fields[3]
+	}
+	return position, nil
 }
 
 func (c StreamCursorCodec) tag(payload []byte) []byte {
