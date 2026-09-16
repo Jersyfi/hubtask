@@ -1,0 +1,50 @@
+{{/*
+The signature at the door (CI-3, P-15). A Kyverno ClusterPolicy that refuses a pod whose image is
+not the one the release workflow signed: keyless, so what is checked is the identity the workflow
+ran under - GitHub's OIDC issuer and the workflow's own subject - rather than a key somebody has
+to keep. Off by default, because the kind does not exist without Kyverno and a policy is cluster
+scope: it applies to every namespace the selector names, and installing it is a decision the
+cluster's owner makes rather than a side effect of installing a chart.
+
+`failurePolicy: Fail` on purpose. A policy that lets a pod through when the webhook is down is a
+policy that protects against nothing on the day it matters (ADR-0046).
+*/}}
+{{- if .Values.imagePolicy.enabled }}
+{{- if not .Values.imagePolicy.subjects }}
+{{- fail "imagePolicy.enabled needs at least one imagePolicy.subjects entry: the identity the image is signed under" }}
+{{- end }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ include "hubtask.fullname" . }}-image-signature
+  labels: {{- include "hubtask.labels" (dict "root" .) | nindent 4 }}
+spec:
+  validationFailureAction: Enforce
+  failurePolicy: Fail
+  webhookTimeoutSeconds: {{ .Values.imagePolicy.webhookTimeoutSeconds }}
+  background: false
+  rules:
+    - name: hubtask-image-is-signed
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: {{ .Values.imagePolicy.namespaces | default (list .Release.Namespace) | toJson }}
+      verifyImages:
+        - imageReferences:
+            - "{{ .Values.imagePolicy.imageReference }}*"
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          failureAction: Enforce
+          attestors:
+            - count: 1
+              entries:
+                {{- range .Values.imagePolicy.subjects }}
+                - keyless:
+                    issuer: {{ $.Values.imagePolicy.issuer | quote }}
+                    subject: {{ . | quote }}
+                    rekor:
+                      url: {{ $.Values.imagePolicy.rekorURL | quote }}
+                {{- end }}
+{{- end }}
