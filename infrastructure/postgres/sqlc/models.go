@@ -416,6 +416,14 @@ type AiProvider struct {
 	Version           int32
 }
 
+type AiRequest struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AskedBy   pgtype.UUID
+	Text      string
+	CreatedAt pgtype.Timestamptz
+}
+
 type AiSuggestion struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID

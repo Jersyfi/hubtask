@@ -64,3 +64,24 @@ type Expiring interface {
 	// CountExpired reports how many are due, counted no higher than ceiling.
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
+
+// Request is what a person asked a template to be drafted from (P-11): the one question a
+// provider is asked whose material exists nowhere the workspace already holds.
+type Request struct {
+	ID        shared.ID
+	AskedBy   shared.ID
+	Text      string
+	CreatedAt time.Time
+}
+
+// Requests holds a request for the minutes between the asking and the answer.
+//
+// Three methods and no listing: the row is a job's material, read once by the job that names it
+// and deleted when that job ends. A request an abandoned job left behind goes with the
+// suggestions' own retention sweep, which is why the store is the same adapter.
+type Requests interface {
+	Put(ctx context.Context, request Request) error
+	// Get answers one request, or an error wrapping shared.ErrNotFound.
+	Get(ctx context.Context, id shared.ID) (Request, error)
+	Delete(ctx context.Context, id shared.ID) error
+}
