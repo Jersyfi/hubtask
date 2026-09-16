@@ -1356,6 +1356,7 @@ func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
 		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
 		createWorkItemName: true, moveWorkItemName: true,
 		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
+		createTemplateName: true,
 	}
 	for key, how := range acceptance {
 		switch {

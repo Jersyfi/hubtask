@@ -77,13 +77,24 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		Kind: appshared.ActorUser, TenantID: job.TenantID, AccountID: askedBy,
 	}
 
-	err = h.Produce.Execute(ctx, actor, suggestion.Request{
+	request := suggestion.Request{
 		TargetType: targetType, TargetID: targetID, Kind: kind,
 		// Empty takes the kind's default, which is what a job written by the release before this
 		// one carries (core/port/queue: the payload outlives the process that wrote it).
 		PromptID: payloadString(job, "prompt"),
 		Apply:    payloadBool(job, "apply"),
-	})
+	}
+	// The words the question was asked with, where the payload names them (P-11): a reference
+	// to a row the workspace holds, never the words themselves.
+	if _, named := job.Payload["request_id"]; named {
+		requestID, err := payloadID(job, "request_id")
+		if err != nil {
+			return queue.Result{}, err
+		}
+		request.RequestID = requestID
+	}
+
+	outcome, err := h.Produce.Ask(ctx, actor, request)
 	if suggestion.IsUnavailable(err) {
 		// The workspace switched AI off, withdrew consent, or its provider is out of reach
 		// between the asking and the running. Finished rather than retried: a retry ladder
@@ -93,6 +104,11 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 	}
 	if err != nil {
 		return queue.Result{}, err
+	}
+	// What the narrowing dropped is the job's result: a node the profile refused is absent from
+	// the payload, and this is where the fact is written down.
+	if outcome.Dropped > 0 {
+		return queue.Result{Counts: map[string]int{"nodes_dropped": outcome.Dropped}}, nil
 	}
 	return queue.Result{}, nil
 }

@@ -25,6 +25,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -216,6 +217,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 			if err != nil {
 				return err
 			}
+			logCounts(txCtx, job, result)
 			if result.Repeat {
 				// A poller: the same row goes back to the queue for its next round rather than
 				// finishing, so the deduplication of a pending job keeps it a single row.
@@ -247,6 +249,7 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 	if err != nil {
 		return err
 	}
+	logCounts(ctx, job, result)
 
 	return r.UnitOfWork.Within(ctx, scopeOf(job), func(txCtx context.Context) error {
 		if result.Repeat {
@@ -316,6 +319,27 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
 			slog.String("job_id", job.ID.String()),
 			slog.String("error", shared.AsError(err).Code))
 	}
+}
+
+// logCounts writes down what a handler counted about a job that succeeded, in the job's own
+// terms and nothing else: the kind, the identifier, and the numbers by name. Only where there is
+// something to say - a job that counted nothing logs nothing.
+func logCounts(ctx context.Context, job queue.Job, result queue.Result) {
+	if len(result.Counts) == 0 {
+		return
+	}
+	attributes := make([]any, 0, 2+len(result.Counts))
+	attributes = append(attributes,
+		slog.String("job_kind", job.Kind.String()), slog.String("job_id", job.ID.String()))
+	names := make([]string, 0, len(result.Counts))
+	for name := range result.Counts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		attributes = append(attributes, slog.Int(name, result.Counts[name]))
+	}
+	slog.InfoContext(ctx, "job counted", attributes...)
 }
 
 // observe applies the injected span wrapper, or runs fn plainly when there is none.

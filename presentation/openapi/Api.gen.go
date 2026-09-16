@@ -2804,6 +2804,7 @@ const (
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
 	FIELDS        SuggestionKind = "FIELDS"
+	TEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionKind enum.
@@ -2814,6 +2815,8 @@ func (e SuggestionKind) Valid() bool {
 	case DUPLICATES:
 		return true
 	case FIELDS:
+		return true
+	case TEMPLATE:
 		return true
 	default:
 		return false
@@ -6350,13 +6353,14 @@ type Suggestion struct {
 	Id        openapi_types.UUID  `json:"id"`
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -6390,6 +6394,7 @@ type SuggestionAcceptance struct {
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 // `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -6597,6 +6602,15 @@ type Template struct {
 	ScopeType TemplateScope `json:"scope_type"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
+}
+
+// TemplateGeneration What to ask for, and where the template would belong.
+type TemplateGeneration struct {
+	// CollectionId The collection the template is drafted for and would be defined in. The draft's scope is `COLLECTION` and this container; a model names no destination.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Description What the template should produce, in the caller's own words — "onboarding a new colleague, with the accounts to create and the introductions in the first week". It travels to the provider as content, never as instruction.
+	Description string `json:"description"`
 }
 
 // TemplateInput defines model for TemplateInput.
@@ -8062,6 +8076,12 @@ type InstantiateTemplateParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// AiGenerateTemplateParams defines parameters for AiGenerateTemplate.
+type AiGenerateTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // UpdateWorkspaceParams defines parameters for UpdateWorkspace.
 type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -8415,6 +8435,9 @@ type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation
+
+// AiGenerateTemplateJSONRequestBody defines body for AiGenerateTemplate for application/json ContentType.
+type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
@@ -9117,6 +9140,9 @@ type ServerInterface interface {
 
 	// (POST /templates/{templateId}:instantiate)
 	InstantiateTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params InstantiateTemplateParams)
+	// AiGenerateTemplate Ask AI to draft a template from a description
+	// (POST /templates:generate)
+	AiGenerateTemplate(w http.ResponseWriter, r *http.Request, params AiGenerateTemplateParams)
 	// ReadWorkspace The workspace the caller is in, and how it is set up
 	// (GET /tenant)
 	ReadWorkspace(w http.ResponseWriter, r *http.Request)
@@ -17499,6 +17525,47 @@ func (siw *ServerInterfaceWrapper) InstantiateTemplate(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// AiGenerateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) AiGenerateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AiGenerateTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiGenerateTemplate(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadWorkspace operation middleware
 func (siw *ServerInterfaceWrapper) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
 
@@ -18086,6 +18153,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates/{templateId}", wrapper.GetTemplate)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/templates/{templateId}", wrapper.UpdateTemplate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates/{templateId}:instantiate", wrapper.InstantiateTemplate)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates:generate", wrapper.AiGenerateTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views", wrapper.ListSavedViews)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views", wrapper.CreateSavedView)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/views/{viewId}", wrapper.DeleteSavedView)
