@@ -49,6 +49,11 @@
       "type": "string",
       "format": "date-time"
     },
+    "receivedat": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the server learned of the event. The same instant as `time` for an event raised online; for a change a device made offline and pushed later, `time` is the device's bounded moment and this is the push's (offline-sync.md §8). A rule with a time condition evaluates this one."
+    },
     "datacontenttype": {
       "type": "string",
       "enum": [
@@ -88,6 +93,11 @@
       "type": "string",
       "format": "uuid",
       "description": "The event that caused this one. Absent for an action a person took."
+    },
+    "pushid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The push a device brought the change in with, and absent for a change made online (offline-sync.md §8). Deliveries of one push about one subject and of one type are collapsed to one, with the last event's payload."
     },
     "causationdepth": {
       "type": "integer",

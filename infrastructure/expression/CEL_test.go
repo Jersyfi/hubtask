@@ -95,6 +95,41 @@ func TestAConditionAnswersTrueOrFalse(t *testing.T) {
 	}
 }
 
+// A time condition evaluates the server's time (N-10, offline-sync.md §8): `now` is the run's
+// own instant, and a completion a device made three days ago - and three hours before office
+// hours - does not fire a deadline rule about the day it happened. The table is the device
+// three days behind, and the condition reads the same either way.
+func TestATimeConditionEvaluatesTheServersTimeNotTheDevices(t *testing.T) {
+	server := time.Date(2026, 8, 28, 9, 0, 0, 0, time.UTC)
+	device := server.Add(-72*time.Hour - 3*time.Hour)
+	cases := []struct {
+		name     string
+		occurred time.Time
+		expr     string
+		want     bool
+	}{
+		{"online, in office hours", server, `now.getHours() >= 8 && now.getHours() < 18`, true},
+		{"pushed three days late, in office hours by the server's clock", device, `now.getHours() >= 8 && now.getHours() < 18`, true},
+		{"pushed three days late, received today", device, `event.received_at.getDayOfMonth() == now.getDayOfMonth()`, true},
+		{"pushed three days late, the person's moment is three days back", device, `event.occurred_at.getDayOfMonth() == now.getDayOfMonth()`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := map[string]any{
+				"event": map[string]any{"type": "de.hubtask.work.item.completed.v1", "occurred_at": tc.occurred, "received_at": server},
+				"now":   server,
+			}
+			out, err := compile(t, tc.expr).Evaluate(context.Background(), newValues(rows))
+			if err != nil {
+				t.Fatalf("evaluating: %v", err)
+			}
+			if out.Bool != tc.want {
+				t.Errorf("answered %v, want %v", out.Bool, tc.want)
+			}
+		})
+	}
+}
+
 // The check that makes automation.md §1.2's list a contract rather than a suggestion.
 func TestAnExpressionNamingSomethingUndeclaredIsRefusedAtCompileTime(t *testing.T) {
 	for _, text := range []string{

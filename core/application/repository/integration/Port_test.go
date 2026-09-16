@@ -85,6 +85,10 @@ func (deliveries) List(context.Context, DeliveryQuery) ([]domain.WebhookDelivery
 	return nil, nil
 }
 func (deliveries) RecordOutcome(context.Context, DeliveryOutcome) error { return nil }
+func (deliveries) FindPendingOfPush(context.Context, shared.ID, domain.CollapseKey) (domain.WebhookDelivery, bool, error) {
+	return domain.WebhookDelivery{}, false, nil
+}
+func (deliveries) Repoint(context.Context, shared.ID, shared.ID) (bool, error) { return false, nil }
 
 var (
 	_ WebhookSubscriptions = subscriptions{}

@@ -57,6 +57,12 @@ func (s *stores) List(context.Context, repository.DeliveryQuery) ([]domain.Webho
 	return nil, nil
 }
 
+func (s *stores) FindPendingOfPush(context.Context, shared.ID, domain.CollapseKey) (domain.WebhookDelivery, bool, error) {
+	return domain.WebhookDelivery{}, false, nil
+}
+
+func (s *stores) Repoint(context.Context, shared.ID, shared.ID) (bool, error) { return false, nil }
+
 func (s *stores) RecordOutcome(_ context.Context, outcome repository.DeliveryOutcome) error {
 	s.outcomes = append(s.outcomes, outcome)
 	delivery := s.deliveries[outcome.ID]

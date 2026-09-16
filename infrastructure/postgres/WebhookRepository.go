@@ -312,6 +312,10 @@ func (WebhookDeliveryRepository) Insert(ctx context.Context, delivery domain.Web
 	if err != nil {
 		return err
 	}
+	pushID, err := optionalUUID(delivery.Collapse.PushID)
+	if err != nil {
+		return err
+	}
 
 	if err := queries.InsertWebhookDelivery(ctx, sqlc.InsertWebhookDeliveryParams{
 		ID:             id,
@@ -321,6 +325,9 @@ func (WebhookDeliveryRepository) Insert(ctx context.Context, delivery domain.Web
 		Status:         string(delivery.Status),
 		NextAttemptAt:  instantOrNull(delivery.NextAttemptAt),
 		CreatedAt:      timestampOf(delivery.CreatedAt),
+		PushID:         pushID,
+		Subject:        optionalText(delivery.Collapse.Subject),
+		EventType:      optionalText(delivery.Collapse.EventType),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -401,6 +408,63 @@ func (WebhookDeliveryRepository) List(
 	return deliveries, nil
 }
 
+func (WebhookDeliveryRepository) FindPendingOfPush(
+	ctx context.Context, subscriptionID shared.ID, key domain.CollapseKey,
+) (domain.WebhookDelivery, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.WebhookDelivery{}, false, err
+	}
+	subscription, err := uuidOf(subscriptionID)
+	if err != nil {
+		return domain.WebhookDelivery{}, false, err
+	}
+	pushID, err := uuidOf(key.PushID)
+	if err != nil {
+		return domain.WebhookDelivery{}, false, err
+	}
+
+	row, err := queries.FindPendingDeliveryOfPush(ctx, sqlc.FindPendingDeliveryOfPushParams{
+		SubscriptionID: subscription, PushID: pushID,
+		Subject: optionalText(key.Subject), EventType: optionalText(key.EventType),
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			return domain.WebhookDelivery{}, false, nil
+		}
+		return domain.WebhookDelivery{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("finding the push's delivery: %w", err))
+	}
+	delivery, err := deliveryFrom(row)
+	if err != nil {
+		return domain.WebhookDelivery{}, false, err
+	}
+	return delivery, true, nil
+}
+
+func (WebhookDeliveryRepository) Repoint(ctx context.Context, deliveryID, eventID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(deliveryID)
+	if err != nil {
+		return false, err
+	}
+	event, err := uuidOf(eventID)
+	if err != nil {
+		return false, err
+	}
+	affected, err := queries.RepointWebhookDelivery(ctx, sqlc.RepointWebhookDeliveryParams{ID: id, EventID: event})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("repointing the delivery: %w", err))
+	}
+	return affected > 0, nil
+}
+
 func (WebhookDeliveryRepository) RecordOutcome(
 	ctx context.Context, outcome repository.DeliveryOutcome,
 ) error {
@@ -466,6 +530,13 @@ func deliveryFrom(row sqlc.WebhookDelivery) (domain.WebhookDelivery, error) {
 	}
 	if row.ResponseStatus != nil {
 		delivery.ResponseStatus = int(*row.ResponseStatus)
+	}
+	pushID, err := optionalID(row.PushID)
+	if err != nil {
+		return domain.WebhookDelivery{}, err
+	}
+	delivery.Collapse = domain.CollapseKey{
+		PushID: pushID, Subject: stringFrom(row.Subject), EventType: stringFrom(row.EventType),
 	}
 	return delivery, nil
 }

@@ -38,9 +38,22 @@ type Envelope struct {
 	TenantID shared.ID
 	// Subject is what the event is about, `<entity>/<id>` - the CloudEvents subject, which lets a
 	// consumer filter without parsing the payload.
-	Subject    string
-	Actor      Actor
+	Subject string
+	Actor   Actor
+	// OccurredAt is when the change was made: the writer's clock for a change made online, and
+	// for one made offline the device's bounded reading (offline-sync.md §4.1, §8) - the moment
+	// the person acted, as far as the server can honour it.
 	OccurredAt time.Time
+	// ReceivedAt is when the server learned of it. The same instant as OccurredAt for every event
+	// raised online, and the push's server time for one a device brought in later (§8): a rule
+	// with a time condition evaluates this, so that a completion three days old does not fire a
+	// deadline rule about the day it happened. Additive - a consumer that never read it sees the
+	// event it always saw.
+	ReceivedAt time.Time
+	// PushID names the push a change arrived in, and is empty for a change made online (§8). The
+	// fan-out collapses the deliveries of one push on it: four hundred changes to forty entries
+	// under one subscription owe forty deliveries rather than four hundred.
+	PushID shared.ID
 	// CorrelationID ties everything that came out of one original action together. A root event
 	// is its own correlation, so the field is never empty and a consumer never has to special-case
 	// the first event of a chain.
@@ -74,6 +87,10 @@ type Cause struct {
 	// own so that it cannot be lost between two events of one chain: an event caused by a
 	// replayed event is a replayed event, and CausedBy carries it without anybody remembering to.
 	Replay bool
+	// PushID is the push the change arrived in, when a device brought it (offline-sync.md §8).
+	// Unlike the replay flag it does not travel down the chain: an event a rule raised in
+	// reaction to a pushed change was not itself pushed, and collapses with nothing.
+	PushID shared.ID
 }
 
 // NewEnvelope builds an event and checks what a consumer relies on.
@@ -111,6 +128,8 @@ func NewEnvelope(id shared.ID, eventType Type, tenantID shared.ID, subject strin
 		Subject:        subject,
 		Actor:          actor,
 		OccurredAt:     occurredAt.UTC(),
+		ReceivedAt:     occurredAt.UTC(),
+		PushID:         cause.PushID,
 		CorrelationID:  correlationID,
 		CausationID:    cause.CausationID,
 		CausationDepth: cause.CausationDepth,
@@ -118,6 +137,19 @@ func NewEnvelope(id shared.ID, eventType Type, tenantID shared.ID, subject strin
 		// Copied, so that the caller cannot change a payload that has already been recorded.
 		Payload: maps.Clone(payload),
 	}, nil
+}
+
+// Pushed is the event as a device's push brought it in (offline-sync.md §8): the moment the
+// change was made becomes the device's bounded reading, the writer's own clock - which was the
+// server's time - becomes when it was received, and the push is named. A zero reading leaves the
+// moment as it is: the server's time is the honest answer for a mutation that carried none.
+func (e Envelope) Pushed(pushID shared.ID, occurredAt time.Time) Envelope {
+	e.ReceivedAt = e.OccurredAt
+	if !occurredAt.IsZero() {
+		e.OccurredAt = occurredAt.UTC()
+	}
+	e.PushID = pushID
+	return e
 }
 
 // CausedBy is the cause of an event triggered by this one: the same chain, one level deeper.

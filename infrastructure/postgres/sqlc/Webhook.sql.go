@@ -25,9 +25,57 @@ func (q *Queries) DeleteWebhookSubscription(ctx context.Context, id pgtype.UUID)
 	return result.RowsAffected(), nil
 }
 
+const findPendingDeliveryOfPush = `-- name: FindPendingDeliveryOfPush :one
+SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
+       next_attempt_at, created_at, push_id, subject, event_type
+FROM webhook_delivery
+WHERE subscription_id = $1 AND push_id = $2
+  AND subject = $3 AND event_type = $4
+  AND status = 'PENDING'
+ORDER BY id DESC
+LIMIT 1
+FOR UPDATE
+`
+
+type FindPendingDeliveryOfPushParams struct {
+	SubscriptionID pgtype.UUID
+	PushID         pgtype.UUID
+	Subject        *string
+	EventType      *string
+}
+
+// The delivery of one push the fan-out collapses onto (N-10, offline-sync.md §8): the same
+// subscription, push, subject and type, still pending. FOR UPDATE, because two events of the push
+// dispatched in one round both ask, and both must land on the one row.
+func (q *Queries) FindPendingDeliveryOfPush(ctx context.Context, arg FindPendingDeliveryOfPushParams) (WebhookDelivery, error) {
+	row := q.db.QueryRow(ctx, findPendingDeliveryOfPush,
+		arg.SubscriptionID,
+		arg.PushID,
+		arg.Subject,
+		arg.EventType,
+	)
+	var i WebhookDelivery
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SubscriptionID,
+		&i.EventID,
+		&i.Attempt,
+		&i.Status,
+		&i.ResponseStatus,
+		&i.ErrorCode,
+		&i.NextAttemptAt,
+		&i.CreatedAt,
+		&i.PushID,
+		&i.Subject,
+		&i.EventType,
+	)
+	return i, err
+}
+
 const findWebhookDelivery = `-- name: FindWebhookDelivery :one
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
-       next_attempt_at, created_at
+       next_attempt_at, created_at, push_id, subject, event_type
 FROM webhook_delivery
 WHERE id = $1
 `
@@ -49,6 +97,9 @@ func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (Webh
 		&i.ErrorCode,
 		&i.NextAttemptAt,
 		&i.CreatedAt,
+		&i.PushID,
+		&i.Subject,
+		&i.EventType,
 	)
 	return i, err
 }
@@ -112,11 +163,13 @@ func (q *Queries) FindWebhookSubscription(ctx context.Context, id pgtype.UUID) (
 const insertWebhookDelivery = `-- name: InsertWebhookDelivery :exec
 
 INSERT INTO webhook_delivery (
-  id, tenant_id, subscription_id, event_id, attempt, status, next_attempt_at, created_at
+  id, tenant_id, subscription_id, event_id, attempt, status, next_attempt_at, created_at,
+  push_id, subject, event_type
 )
 VALUES (
   $1, current_tenant_id(), $2, $3,
-  $4, $5, $6, $7
+  $4, $5, $6, $7,
+  $8, $9, $10
 )
 `
 
@@ -128,6 +181,9 @@ type InsertWebhookDeliveryParams struct {
 	Status         string
 	NextAttemptAt  pgtype.Timestamptz
 	CreatedAt      pgtype.Timestamptz
+	PushID         pgtype.UUID
+	Subject        *string
+	EventType      *string
 }
 
 // ============================== Deliveries ==============================
@@ -140,6 +196,9 @@ func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDe
 		arg.Status,
 		arg.NextAttemptAt,
 		arg.CreatedAt,
+		arg.PushID,
+		arg.Subject,
+		arg.EventType,
 	)
 	return err
 }
@@ -289,6 +348,26 @@ func (q *Queries) RecordWebhookDeliveryOutcome(ctx context.Context, arg RecordWe
 		arg.NextAttemptAt,
 		arg.ID,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const repointWebhookDelivery = `-- name: RepointWebhookDelivery :execrows
+UPDATE webhook_delivery SET event_id = $1
+WHERE id = $2 AND status = 'PENDING'
+`
+
+type RepointWebhookDeliveryParams struct {
+	EventID pgtype.UUID
+	ID      pgtype.UUID
+}
+
+// The collapse: the pending delivery now stands for the newer event, whose payload is the one the
+// target receives. Only while it is pending - an attempt already made was made with what it had.
+func (q *Queries) RepointWebhookDelivery(ctx context.Context, arg RepointWebhookDeliveryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, repointWebhookDelivery, arg.EventID, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -486,7 +565,7 @@ func (q *Queries) UpdateWebhookSubscription(ctx context.Context, arg UpdateWebho
 
 const webhookDeliveries = `-- name: WebhookDeliveries :many
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
-       next_attempt_at, created_at
+       next_attempt_at, created_at, push_id, subject, event_type
 FROM webhook_delivery
 WHERE subscription_id = $1
   AND ($2::text IS NULL OR status = $2::text)
@@ -529,6 +608,9 @@ func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesPa
 			&i.ErrorCode,
 			&i.NextAttemptAt,
 			&i.CreatedAt,
+			&i.PushID,
+			&i.Subject,
+			&i.EventType,
 		); err != nil {
 			return nil, err
 		}

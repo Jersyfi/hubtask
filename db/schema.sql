@@ -1179,10 +1179,16 @@ CREATE TABLE webhook_delivery (
   error_code      text,
   next_attempt_at timestamptz,
   created_at      timestamptz NOT NULL DEFAULT now(),
+  push_id         uuid,
+  subject         text,
+  event_type      text,
   CONSTRAINT webhook_delivery_subscription_id_fkey
     FOREIGN KEY (tenant_id, subscription_id) REFERENCES webhook_subscription (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX delivery_retry_idx ON webhook_delivery (tenant_id, status, next_attempt_at);
+CREATE INDEX webhook_delivery_collapse_idx
+  ON webhook_delivery (tenant_id, subscription_id, push_id, subject, event_type)
+  WHERE status = 'PENDING' AND push_id IS NOT NULL;
 CREATE INDEX webhook_delivery_subscription_idx ON webhook_delivery (tenant_id, subscription_id, created_at DESC, id DESC);
 
 CREATE TABLE calendar_feed (
@@ -1274,7 +1280,10 @@ CREATE TABLE outbox_event_history (
   -- A change a restore wrote rather than one somebody made (backup-restore.md §8.4, migration
   -- 0033). Outward-facing subscribers are not given these: a restore would otherwise report last
   -- month's states to every webhook and every rule.
-  replay          boolean NOT NULL DEFAULT false
+  replay          boolean NOT NULL DEFAULT false,
+  -- The two clocks of an event a device brought in, and the push it arrived with (0086, N-10).
+  received_at     timestamptz,
+  push_id         uuid
 );
 CREATE INDEX outbox_pending_idx ON outbox_event_history (occurred_at)
   WHERE dispatched_at IS NULL;
@@ -1299,6 +1308,8 @@ CREATE TABLE outbox_event (
   attempts        integer NOT NULL DEFAULT 0,
   locked_until    timestamptz,
   replay          boolean NOT NULL DEFAULT false,
+  received_at     timestamptz,
+  push_id         uuid,
   PRIMARY KEY (tenant_id, occurred_at, id)
 ) PARTITION BY RANGE (occurred_at);
 CREATE INDEX outbox_event_pending_idx ON outbox_event (occurred_at)

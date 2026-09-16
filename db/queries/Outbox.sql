@@ -8,12 +8,13 @@
 -- name: AppendOutboxEvent :exec
 INSERT INTO outbox_event (
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay,
+  received_at, push_id
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('event_type'), sqlc.narg('subject'),
   sqlc.arg('payload'), sqlc.arg('actor_type'), sqlc.narg('actor_id'),
   sqlc.narg('correlation_id'), sqlc.narg('causation_id'), sqlc.arg('causation_depth'),
-  sqlc.arg('occurred_at'), sqlc.arg('replay')
+  sqlc.arg('occurred_at'), sqlc.arg('replay'), sqlc.arg('received_at'), sqlc.narg('push_id')
 );
 
 -- The dispatcher's claim. The rows are locked for the length of the transaction and rows another
@@ -22,7 +23,8 @@ INSERT INTO outbox_event (
 -- name: ClaimPendingEvents :many
 SELECT
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay,
+  coalesce(received_at, occurred_at)::timestamptz AS received_at, push_id
 FROM outbox_event
 WHERE dispatched_at IS NULL
 ORDER BY occurred_at, id
@@ -103,7 +105,8 @@ WHERE (tenant_id, consumer, event_id) IN (
 -- a copy in the job payload, so a retry two days later sends what the first attempt would have -
 -- and a job row does not become a second place a workspace's content lives.
 SELECT id, tenant_id, event_type, subject, payload, actor_type, actor_id,
-       correlation_id, causation_id, causation_depth, occurred_at, replay
+       correlation_id, causation_id, causation_depth, occurred_at, replay,
+  coalesce(received_at, occurred_at)::timestamptz AS received_at, push_id
 FROM outbox_event
 WHERE id = sqlc.arg('id');
 
@@ -134,7 +137,8 @@ WHERE id = sqlc.arg('id');
 -- the pull half is a second transport, not a second delivery.
 SELECT
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay,
+  coalesce(received_at, occurred_at)::timestamptz AS received_at, push_id
 FROM outbox_event
 WHERE event_type = sqlc.arg('event_type')
   AND replay = false
