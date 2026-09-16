@@ -31,6 +31,7 @@ var dialableExceptions = map[string]string{
 	"presentation/rest/Problem.go":             "the documentation address in a problem document: rendered into a response, never dialled",
 	"cmd/server/main.go":                       "the process's own health probe against 127.0.0.1, which is how a container asks itself whether it is ready",
 	"cmd/hubctl/Calendar.go":                   "a prefix check on an address the person typed",
+	"cmd/hubctl/Import.go":                     "the two Graph requests a person makes with their own sign-in, printed as instructions and never dialled (P-10)",
 	"infrastructure/httpclient/Guard.go":       "the cloud metadata address, in a comment, as the thing the guard refuses",
 	"core/domain/model/automation/Outbound.go": "the scheme prefixes an HTTP_REQUEST's address is checked against: a shape rule, never a destination",
 }

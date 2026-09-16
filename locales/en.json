@@ -1115,6 +1115,7 @@
   "imports.run_not_running": "That import is already over.",
   "imports.row_unreadable": "This row could not be read.",
   "imports.row_date_invalid": "This row's date could not be read.",
+  "imports.row_zone_unknown": "This row names a time zone the import does not know.",
   "imports.row_title_missing": "This row has no title.",
   "imports.row_parent_unknown": "This row names a parent that comes later or not at all.",
   "imports.mapping_unknown": "The mapping names a field or a column the file does not have.",
