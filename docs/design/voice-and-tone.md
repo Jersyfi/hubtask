@@ -203,7 +203,38 @@ is a better starting position than most.
 
 ---
 
-## 7. Where this binds
+## 7. A proposal
+
+A suggestion the server made — a title, a tree of work, the labels an entry belongs under, a
+summary, a translation, a template drafted from a description — is rendered through one
+component, `AISuggestion`, and its words follow four rules that the rest of this page does not
+need. Written for `F5-01`; `ai-first.md` §3 is where the guardrails behind them live.
+
+**7.1 Offered, never asserted.** The heading names the kind and says that it is a proposal:
+`Suggested title`, `Suggested breakdown`, `Suggested labels`, `Summary suggested` — and never
+`Title`, which is what the entry's own field is called. A proposal that reads like the entry has
+already been accepted by the reader's eye before the reader decided anything.
+
+**7.2 It names its model where the reader can find it, and nowhere the eye lands first.** The
+provenance — model, when, prompt version — is one line, collapsed by default, opened by a
+control that says `Where this came from`. Not a badge in the heading, not a logo, not a colour
+alone: the treatment is the surface and the border, and the words say what the treatment means.
+
+**7.3 Accepted in one gesture and dismissed in one.** Two buttons, §2's verbs: `Apply` (or the
+verb of what accepting does — `Create work packages`, `Add labels`) and `Dismiss`. No
+confirmation dialog for either: accepting is a field changed, and a field can be changed back;
+dismissing is a proposal gone, and the server can be asked again. A `stale` proposal — the entry
+moved since it was made — says so in the heading's line, `This entry changed since — ask again`,
+and offers the ask and the dismissal, not the apply.
+
+**7.4 It never counts, nudges or celebrates.** No "3 suggestions waiting", no "you have not
+looked at this yet", and no celebration when one is accepted: §7 of `design-system.md` marks
+what the person did, and a field the model proposed is not the person's work. A proposal that
+is still being made says `Suggesting…` in the present participle of 2.4 and nothing more.
+
+---
+
+## 8. Where this binds
 
 * **`locales/en.json`** — every entry, at the moment it is added.
 * **`packages/design-system/src/`** — components carry no sentences at all; a component that needs

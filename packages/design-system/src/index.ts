@@ -41,6 +41,7 @@ export { default as OneTimeSecret } from './OneTimeSecret.svelte';
 export { default as RunStatusBadge, type RunStatus } from './RunStatusBadge.svelte';
 export { default as AutomationRuleCard, type RuleFact } from './AutomationRuleCard.svelte';
 export { default as JumbleInboxItem, type JumbleStatus } from './JumbleInboxItem.svelte';
+export { default as AISuggestion, type SuggestionState } from './AISuggestion.svelte';
 export { canCopy, mask, mayDismiss } from './secret.ts';
 export { default as QrCode } from './QrCode.svelte';
 export { encode as encodeQr, type Matrix as QrMatrix } from './qr.ts';
