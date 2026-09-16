@@ -167,6 +167,10 @@ const (
 	// Deduplicated on the export rather than on the tenant: two jobs for one export are the same
 	// work, and two exports of different periods in one tenant are two legitimate questions.
 	KindAuditExport Kind = "audit.export"
+	// KindImport applies a file somebody exported elsewhere as collections under a hub (P-08):
+	// converted into archive records and landed through the restore's applier. One per import,
+	// deduplicated by the import's identifier.
+	KindImport Kind = "import.run"
 
 	// KindPrivacyRequest carries out a data subject request that has been started: the archive an
 	// access or portability case produces, or the erasure an erasure case is (E-10,

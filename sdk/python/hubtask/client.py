@@ -391,6 +391,14 @@ class Client:
         """Stop a piece of background work"""
         return self._call("POST", "/jobs/{jobId}:cancel", {"jobId": job_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
+    def import_entries(self, body: "ImportRequest", *, idempotency_key: str | None = None) -> "JobRef":
+        """Import entries from another system into a hub"""
+        return self._call("POST", "/imports", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def get_import(self, import_id: str) -> "ImportRun":
+        """An import and its report"""
+        return self._call("GET", "/imports/{importId}", {"importId": import_id}, None, {}, None, "none", None, "json")
+
     def list_trash(self, *, query: dict[str, Any] | None = None) -> "TrashPage":
         """What is in the trash"""
         return self._call("GET", "/trash", {}, query, {}, None, "none", None, "json")

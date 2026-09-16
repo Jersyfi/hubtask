@@ -31,6 +31,7 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	importrepo "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -40,6 +41,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
@@ -56,6 +58,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
@@ -82,6 +85,7 @@ import (
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
+	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	oidcadapter "github.com/Jersyfi/hubtask/infrastructure/oidc"
@@ -573,6 +577,15 @@ func run() error {
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
 	// keeping the two apart is what keeps every byte operation outside a transaction (C-06).
 	mediaObjects := postgres.NewMediaRepository(cursors)
+	// The imports (P-08): the run's row, and the converters this build serves, one per kind.
+	importRuns := postgres.NewImportRunRepository()
+	importConverters := map[importdomain.Kind]importrepo.Converter{
+		importdomain.KindCSV: importadapter.CSV{},
+	}
+	importKinds := make([]importdomain.Kind, 0, len(importConverters))
+	for kind := range importConverters {
+		importKinds = append(importKinds, kind)
+	}
 	// The notification records and the preferences. Two repositories rather than one type with two
 	// interfaces, because both need a Find and a Save (C-09).
 	notifications := postgres.NewNotificationRepository()
@@ -1446,6 +1459,14 @@ func run() error {
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		// The imports (P-08): the request, and the read of its report. The kinds this build
+		// converts are the converters wired below; a kind the contract declares and no converter
+		// serves is refused by name at the request.
+		importservice.ImportEntries{
+			Runs: importRuns, Objects: mediaObjects, Containers: containers, Authorizer: authorizer,
+			Jobs: jobs, Kinds: importKinds, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		importservice.GetImport{Runs: importRuns, Authorizer: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
@@ -2491,6 +2512,14 @@ func run() error {
 			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindImport: worker.Import{
+			Runner: importservice.Runner{
+				Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,
+				Applier: backupApplier, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
+			},
+			Progress: jobs,
+		},
 		// The grace job the deletion request seeded (H-06). Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
 		// The workspace export the control plane seeds (H-07). Detached for the audit
