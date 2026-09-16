@@ -765,6 +765,53 @@ func (q *Queries) MembershipsAlongPath(ctx context.Context, arg MembershipsAlong
 	return items, nil
 }
 
+const membershipsOfGroup = `-- name: MembershipsOfGroup :many
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
+FROM membership WHERE group_id = $1
+ORDER BY id
+`
+
+type MembershipsOfGroupRow struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+// Every grant a group holds, for the revocation that has to know what its members are about to
+// lose (N-08). Unpaged: a group holds a handful of roles, and the caller reads them before the
+// group's rows are gone. The tenant boundary is the transaction's (ADR-0010).
+func (q *Queries) MembershipsOfGroup(ctx context.Context, groupID pgtype.UUID) ([]MembershipsOfGroupRow, error) {
+	rows, err := q.db.Query(ctx, membershipsOfGroup, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MembershipsOfGroupRow{}
+	for rows.Next() {
+		var i MembershipsOfGroupRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.AccountID,
+			&i.GroupID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeGroupMember = `-- name: RemoveGroupMember :exec
 DELETE FROM account_group_member
 WHERE group_id = $1 AND account_id = $2

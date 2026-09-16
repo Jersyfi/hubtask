@@ -204,8 +204,8 @@ func (w ItemAttachmentWriter) change(
 
 		// The tag is the clock reading the OR-set merges on. It is taken here rather than derived
 		// from `now`, because a merge orders changes against other devices' readings and a wall
-		// clock cannot do that (offline-sync.md §4.1).
-		tag := w.HLC.Next()
+		// clock cannot do that (offline-sync.md §4.1). A push supplies the device's own tag (N-07).
+		tag := setTag(ctx, domain.SetAttachments, w.HLC)
 
 		moved, err := w.apply(ctx, cmd, want, tag)
 		if err != nil {

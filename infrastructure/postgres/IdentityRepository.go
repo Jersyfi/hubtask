@@ -624,6 +624,33 @@ func (r MembershipGrantRepository) ListAt(
 	}, nil
 }
 
+func (r MembershipGrantRepository) OfGroup(ctx context.Context, groupID shared.ID) ([]identity.Grant, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.MembershipsOfGroup(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the memberships of group %s: %w", groupID, err))
+	}
+	grants := make([]identity.Grant, 0, len(rows))
+	for _, row := range rows {
+		grant, err := grantFrom(sqlc.FindMembershipRow(row))
+		if err != nil {
+			return nil, err
+		}
+		grants = append(grants, grant)
+	}
+	return grants, nil
+}
+
 func (r MembershipGrantRepository) boundary(cursor string) (pgtype.UUID, error) {
 	if cursor == "" {
 		return pgtype.UUID{}, nil

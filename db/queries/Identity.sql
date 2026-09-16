@@ -193,6 +193,14 @@ FROM membership WHERE id = sqlc.arg('id');
 -- name: RevokeMembership :execrows
 DELETE FROM membership WHERE id = sqlc.arg('id');
 
+-- name: MembershipsOfGroup :many
+-- Every grant a group holds, for the revocation that has to know what its members are about to
+-- lose (N-08). Unpaged: a group holds a handful of roles, and the caller reads them before the
+-- group's rows are gone. The tenant boundary is the transaction's (ADR-0010).
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
+FROM membership WHERE group_id = sqlc.arg('group_id')
+ORDER BY id;
+
 -- name: RestrictedAccounts :many
 -- Which of the accounts named may not be processed automatically (Art. 18, data-protection.md §4).
 --

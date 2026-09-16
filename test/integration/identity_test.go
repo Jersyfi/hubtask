@@ -428,15 +428,17 @@ func TestRevokingAMembershipRemovesItAndRecordsIt(t *testing.T) {
 	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
 	fixed := portclock.Fixed(created)
 	sink := postgres.NewAuditSink(clockadapter.NewUUIDv7(fixed))
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  unitOfWork,
+		Audit:       sink,
+		Clock:       fixed,
+	}
 	revoke := identityservice.RevokeMembership{
-		Grants: postgres.NewMembershipGrantRepository(pageCursors()),
-		Authorizer: access.Service{
-			Memberships: postgres.NewMembershipRepository(),
-			UnitOfWork:  unitOfWork,
-			Audit:       sink,
-			Clock:       fixed,
-		},
-		Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,
+		Grants:      postgres.NewMembershipGrantRepository(pageCursors()),
+		Authorizer:  authorizer,
+		Revocations: revocationsFor(t, authorizer),
+		Audit:       sink, UnitOfWork: unitOfWork, Clock: fixed,
 	}
 
 	if err := revoke.Execute(ctx, memberAdministrator(tenantA, authorA),

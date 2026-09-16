@@ -490,6 +490,73 @@ func TestTheStreamCarriesOnlyWhatTheCallerMayRead(t *testing.T) {
 	}
 }
 
+// A workspace-wide template is filed under no container (#626). Its change reaches whoever may
+// read at the tenant scope - a member of the workspace - through the stream and through the pull,
+// and not somebody who holds a role on one hub only; a record of a kind nobody can place stays
+// withheld.
+func TestAWorkspaceWideChangeReachesWhoMayReadTheWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	member := seedAccount(ctx, t, tenantA)
+	hubWithRole(ctx, t, tenantA, member, "MEMBER")
+	workspaceMember := seedAccount(ctx, t, tenantA)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		 VALUES ($1, $2, $3, 'TENANT', 'MEMBER')`,
+		freshID(t).String(), tenantA.String(), workspaceMember.String()); err != nil {
+		t.Fatalf("granting the workspace role: %v", err)
+	}
+	stream := streamFor(ctx, t)
+	admin, hubOnly := streamActor(tenantA, workspaceMember), streamActor(tenantA, member)
+
+	adminFrom, err := stream.Resume(ctx, admin, "")
+	if err != nil {
+		t.Fatalf("resuming as the workspace member: %v", err)
+	}
+	memberFrom, err := stream.Resume(ctx, hubOnly, "")
+	if err != nil {
+		t.Fatalf("resuming as the member: %v", err)
+	}
+
+	template := recordChange(ctx, t, tenantA, workspaceMember, "", "template")
+	unplaceable := recordChange(ctx, t, tenantA, workspaceMember, "", "calendar_feed")
+
+	seenBy := func(actor appshared.ActorContext, from syncservice.Position) map[shared.ID]bool {
+		batch, err := stream.Next(ctx, actor, from)
+		if err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		seen := map[shared.ID]bool{}
+		for _, record := range batch.Records {
+			seen[record.EntityID] = true
+		}
+		return seen
+	}
+	if seen := seenBy(admin, adminFrom); !seen[template] || seen[unplaceable] {
+		t.Errorf("the workspace member saw template=%t unplaceable=%t, want the template alone", seen[template], seen[unplaceable])
+	}
+	if seen := seenBy(hubOnly, memberFrom); seen[template] {
+		t.Error("a member of one hub was sent a workspace-wide change")
+	}
+
+	// The same reader answers the pull's delta.
+	pull := pullFor(ctx, t)
+	page, err := pull.Pull(ctx, admin, syncservice.PullRequest{
+		DeviceID: freshID(t), Cursor: pull.Encode(adminFrom), Limit: 100,
+	})
+	if err != nil {
+		t.Fatalf("pulling: %v", err)
+	}
+	found := false
+	for _, record := range page.Records {
+		found = found || record.EntityID == template
+	}
+	if !found {
+		t.Error("the workspace-wide template is not on the workspace member's pull")
+	}
+}
+
 // `Last-Event-ID` resumes with no gap and no duplicate — the criterion, through the real cursor.
 func TestLastEventIDResumesWithNoGapAndNoDuplicate(t *testing.T) {
 	ctx := context.Background()

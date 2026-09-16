@@ -48,8 +48,14 @@ type Scope struct {
 	Depth       Depth
 }
 
-// covers reports whether a change filed under the container is inside this scope.
+// covers reports whether a change filed under the container is inside this scope. A change filed
+// under none is workspace-wide - a template defined at the workspace (#626) - and stands above
+// every scope, so every scope holds it: a device holding one hub still needs the templates it
+// can apply there.
 func (s Scope) covers(container work.Container) bool {
+	if container.ID.IsZero() {
+		return true
+	}
 	if container.ID == s.ContainerID {
 		return true
 	}
