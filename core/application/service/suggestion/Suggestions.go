@@ -396,9 +396,19 @@ func (c Cases) apply(
 	}
 	in[targetKey] = proposal.TargetID.String()
 
-	out, err := c.Catalogue.Invoke(ctx, name, actor, in)
-	if err != nil {
-		return err
+	// An applier that would be handed nothing but the target is not called (#696). Every key a
+	// classification proposes about a work item is grown - the labels, the column, the custom
+	// fields are each their own use case - so `UpdateWorkItem` would be asked to update nothing
+	// and would refuse, and a refusal there would be the acceptance failing for a proposal that
+	// is whole. The jumble's applier is a conversion rather than an update and always runs: the
+	// overrides carry its destination, so its input is never the target alone.
+	out := usecase.Output{}
+	if len(in) > 1 || proposal.TargetType != domain.TargetWorkItem {
+		var err error
+		out, err = c.Catalogue.Invoke(ctx, name, actor, in)
+		if err != nil {
+			return err
+		}
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
 	//
