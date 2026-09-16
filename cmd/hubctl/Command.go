@@ -126,7 +126,7 @@ func groups() []group {
 	return []group{
 		loginGroup(), authGroup(), sessionGroup(), mfaGroup(), stepUpGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
-		trashGroup(), searchGroup(), watchGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
+		trashGroup(), searchGroup(), watchGroup(), syncGroup(), conformanceGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
 		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(), oauthGroup(), quotaGroup(), adminGroup(),
 		aiGroup(), suggestionGroup(), mcpGroup(),
 	}

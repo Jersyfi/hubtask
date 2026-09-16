@@ -475,6 +475,84 @@ stamped="$(hubctl --json item ls --collection "$COLLECTION_ID" --parent "$ROOT_I
 expect_contains "the instantiated children" "$stamped" "Pack the kitchen"
 expect_contains "the resolved due date" "$stamped" '2026-12-04'
 
+echo "--- the offline synchronisation, as a device ---"
+# hubctl is the reference client (N-12): it synchronises as one device, minted on the first
+# `sync` and kept in the profile, and stamps its readings from a hybrid clock of its own. The
+# identifiers a client assigns are UUIDv7 (offline-sync.md §9), spelled here from the clock and
+# /dev/urandom - a version nibble of 7 and a variant of 8..b are all the server checks.
+uuid7() {
+	local ms hex rand
+	ms=$(( $(date +%s) * 1000 + RANDOM % 1000 ))
+	hex="$(printf '%012x' "$ms")"
+	rand="$(od -An -N10 -tx1 /dev/urandom | tr -d ' \n')"
+	printf '%s-%s-7%s-%x%s-%s\n' "${hex:0:8}" "${hex:8:4}" "${rand:0:3}" $(( 8 + RANDOM % 4 )) "${rand:3:3}" "${rand:6:12}"
+}
+# The initial synchronisation: from nothing, everything the account may read, the cursor last.
+initial="$(hubctl sync pull --all)"
+expect_contains "sync pull walks the collection" "$initial" "$COLLECTION_ID"
+expect_contains "sync pull walks the template" "$initial" "$TEMPLATE_ID"
+SYNC_CURSOR="$(printf '%s\n' "$initial" | tail -n 1 | sed -n 's/.*"cursor":"\([^"]*\)".*/\1/p')"
+[ -n "$SYNC_CURSOR" ] || { echo "FAILED: the pull ended without a cursor"; exit 1; }
+if ! grep -q '"has_more":false' <<< "$(printf '%s\n' "$initial" | tail -n 1)"; then
+	fail "sync pull --all stopped with more to come"
+fi
+
+# A queue of three kinds, written the way a client writes it: a creation, a patch of the entry
+# just created, and a comment on it - each with its own op_id, none with a reading, so that the
+# readings are hubctl's own, three hours out.
+SYNC_ITEM="$(uuid7)"; OP_CREATE="$(uuid7)"; OP_PATCH="$(uuid7)"; OP_COMMENT="$(uuid7)"
+cat > "$WORK_DIR/mutations.jsonl" <<MUTATIONS
+{"op_id":"$OP_CREATE","kind":"ITEM_CREATE","item_id":"$SYNC_ITEM","payload":{"type":"TASK","collection_id":"$COLLECTION_ID","title":"Written on the train"}}
+{"op_id":"$OP_PATCH","kind":"ITEM_PATCH","item_id":"$SYNC_ITEM","fields":{"title":{"value":"Written on the train, edited"}}}
+{"op_id":"$OP_COMMENT","kind":"COMMENT_ADD","item_id":"$SYNC_ITEM","payload":{"body":"Typed in the tunnel"}}
+MUTATIONS
+pushed="$(hubctl sync push --file "$WORK_DIR/mutations.jsonl" --clock-offset 3h)"
+expect_contains "the creation was applied" "$pushed" "\"op_id\":\"$OP_CREATE\",\"result\":\"APPLIED\""
+expect_contains "the patch was applied" "$pushed" "\"op_id\":\"$OP_PATCH\",\"result\":\"APPLIED\""
+expect_contains "the comment was added" "$pushed" "\"op_id\":\"$OP_COMMENT\",\"result\":\"APPLIED\""
+if [ "$(printf '%s\n' "$pushed" | wc -l | tr -d ' ')" -ne 3 ]; then
+	fail "sync push printed $(printf '%s\n' "$pushed" | wc -l | tr -d ' ') lines for three mutations"
+fi
+# The same file again answers the same results: the operation log, not a second application.
+again="$(hubctl sync push --file "$WORK_DIR/mutations.jsonl" --clock-offset 3h)"
+if [ "$again" != "$pushed" ]; then
+	fail "a second push of the same file answered differently:"
+	printf '%s\n' "$again"
+fi
+expect_contains "the entry pushed exists once, edited" \
+	"$(hubctl item ls --collection "$COLLECTION_ID")" "Written on the train, edited"
+# The clock offset is visible in the change the push recorded: the delta since the cursor carries
+# the device's reading, three hours ahead of the server - bounded by the server to its own time,
+# which is §4.1's rule, and named under the device that made it either way.
+delta="$(hubctl sync pull --cursor "$SYNC_CURSOR" --all)"
+expect_contains "the delta carries the pushed entry" "$delta" "$SYNC_ITEM"
+device_line="$(printf '%s\n' "$delta" | grep -F "$SYNC_ITEM" | head -n 1)"
+expect_contains "the change names hubctl's device" "$device_line" '"device_id"'
+# The device is listed, and forgotten.
+DEVICE_ID="$(hubctl sync devices ls | first_id)"
+[ -n "$DEVICE_ID" ] || { echo "FAILED: sync devices ls lists no device"; exit 1; }
+expect_contains "the device says what it is" "$(hubctl sync devices ls)" "hubctl"
+# Forgotten is blocked, not erased: the row stays, marked, so that a push from the device is
+# refused as sync.device_revoked until the client mints a new one (offline-sync.md §6), and the
+# retention sweep takes the row after its period.
+hubctl sync devices forget "$DEVICE_ID" 2>/dev/null
+expect_contains "the device is blocked" "$(hubctl sync devices ls | grep -F "$DEVICE_ID")" "true"
+
+echo "--- the client requirements of offline-sync.md §9, checked ---"
+# The conformance runner (N-13): the server driven through the protocol as two devices, each of
+# §9's eight requirements answered by its number. What it cannot test from outside it says so
+# about - the sixth is a client's alone - and a broken server fails exactly the check it breaks,
+# which cmd/hubctl/Conformance_test.go proves against a stub with one switch per requirement,
+# because a running instance has no switch to flip.
+conformance="$(hubctl sync-conformance --report "$WORK_DIR/conformance.md")"
+expect_contains "the conformance report" "$conformance" "| Checks | 8, 0 failed"
+expect_contains "requirement 3" "$conformance" "| 3 | After ACCESS_REVOKED or sync.gone, local data is deleted | **pass** |"
+expect_contains "requirement 6 is a client's alone" "$conformance" "| 6 | Local storage is encrypted and discarded on sign-out | **not-tested** |"
+expect_missing "no check failed" "$conformance" "**fail**"
+if [ ! -s "$WORK_DIR/conformance.md" ]; then
+	fail "sync-conformance wrote no report"
+fi
+
 echo "--- a saved view, and the file it becomes ---"
 cat > "$WORK_DIR/query.json" <<QUERY
 {"scope_container_id":"$COLLECTION_ID",
