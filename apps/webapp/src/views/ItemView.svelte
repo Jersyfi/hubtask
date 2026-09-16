@@ -24,6 +24,7 @@
     Button,
     EmptyState,
     ErrorState,
+    focusFirst,
     Inline,
     Input,
     LoadMore,
@@ -373,7 +374,8 @@
 {:else}
   <Stack gap="300">
     {#if isEditing}
-      <Stack gap="150">
+      <!-- The form takes the place of the control that opened it, so it takes the focus too (2.4.3). -->
+      <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="entry-edit"]' })}>
         <Input
           label={t('app.entries.new_title')}
           bind:value={draftTitle}
@@ -420,7 +422,14 @@
         <div>
           <!-- Offered with its reason rather than hidden when the entry is archived, which is what
                every other refused control in this application does. -->
-          <Button size="sm" tone="secondary" icon="pencil" disabledReason={frozenReason} onclick={startEditing}>
+          <Button
+            size="sm"
+            tone="secondary"
+            icon="pencil"
+            disabledReason={frozenReason}
+            data-opener="entry-edit"
+            onclick={startEditing}
+          >
             {t('app.entries.edit')}
           </Button>
         </div>

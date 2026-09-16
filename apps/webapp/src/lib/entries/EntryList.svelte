@@ -21,6 +21,8 @@
     Dialog,
     EmptyState,
     ErrorState,
+    focusFirst,
+    Icon,
     IconButton,
     Inline,
     Input,
@@ -28,13 +30,12 @@
     LabelPicker,
     Menu,
     Popover,
+    rankIntent,
+    rankTarget,
     Select,
-    Icon,
     Skeleton,
     Stack,
     TaskRow,
-    rankIntent,
-    rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
   import type { BulkResult, DroppedReference, WorkItem } from '@hubtask/sync-engine';
@@ -796,7 +797,7 @@
         <EmptyState kind="unused" title={t('app.entries.none')} icon="task">
           {#snippet action()}
             {#if !isReadOnly && rootTypes().length > 0}
-              <Button onclick={() => startAdding('root')}>{t('app.entries.add')}</Button>
+              <Button data-opener="add-entry" onclick={() => startAdding('root')}>{t('app.entries.add')}</Button>
             {/if}
           {/snippet}
         </EmptyState>
@@ -979,7 +980,7 @@
           {@render addForm()}
         {:else}
           <div>
-            <Button tone="secondary" icon="plus" onclick={() => startAdding('root')}>
+            <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root')}>
               {t('app.entries.add')}
             </Button>
           </div>
@@ -1008,7 +1009,9 @@
 {/if}
 
 {#snippet addForm()}
-  <Stack gap="150">
+  <!-- Opened by a button that stays where it is; the focus still moves in, because the next Tab
+       from the button would otherwise skip the form the reader just asked for (2.4.3). -->
+  <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="add-entry"]' })}>
     <!-- The chooser appears only when there is a choice: at most installations a work package takes
          activities and nothing else, and a select with one option is a decision nobody has. -->
     {#if offeredTypes.length > 1}

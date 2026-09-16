@@ -23,6 +23,7 @@
     Button,
     CapabilityGate,
     Dialog,
+    focusFirst,
     Inline,
     RecurrenceEditor,
     Skeleton,
@@ -175,7 +176,7 @@
     {:else if hasNone && !isEditing}
       <p class="quiet">{t('app.recurrence.none')}</p>
       <div>
-        <Button size="sm" tone="secondary" onclick={() => (isEditing = true)}>
+        <Button size="sm" tone="secondary" data-opener="recurrence" onclick={() => (isEditing = true)}>
           {t('app.recurrence.set')}
         </Button>
       </div>
@@ -183,7 +184,7 @@
       {#if rule && !isEditing}
         <p class="rule">{rule.rrule}</p>
         <Inline gap="100">
-          <Button size="sm" tone="secondary" onclick={() => (isEditing = true)}>
+          <Button size="sm" tone="secondary" data-opener="recurrence" onclick={() => (isEditing = true)}>
             {t('app.entries.edit')}
           </Button>
           <Button size="sm" tone="secondary" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={skip}>
@@ -196,6 +197,8 @@
       {/if}
 
       {#if isEditing}
+        <!-- The editor appears under the control that opened it; the focus goes in with it (2.4.3). -->
+        <div class="opened" {@attach focusFirst({ returnTo: '[data-opener="recurrence"]' })}>
         <RecurrenceEditor
           label={t('app.recurrence.editor')}
           rule={draft}
@@ -236,6 +239,7 @@
           onModeChange={(next) => (mode = next)}
           onHorizonChange={(next) => (horizon = next)}
         />
+        </div>
 
         <!-- A rule the server cannot read comes back as a field error on `/rrule`, which is the
              raw field: the reader typed it, so that is where it belongs. -->
@@ -276,6 +280,9 @@
 </Dialog>
 
 <style>
+  /* A focus scope and nothing else: the editor keeps the layout it had. */
+  .opened { display: contents; }
+
   .rule { margin: 0; font-family: var(--font-mono); }
 
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }

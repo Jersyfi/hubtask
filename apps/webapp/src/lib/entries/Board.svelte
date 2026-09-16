@@ -111,6 +111,27 @@
   const groups = $derived(items.boardGroups(collectionId));
 
   /**
+   * The card whose menu should hold focus again once the board has been read back. A card that
+   * changed column is a card destroyed in one column and made anew in another, and the browser
+   * drops focus to `body` in between; the F5-11 walk found the reader at the top of the page
+   * after every move by keyboard. Set by `moveTo`, spent by the effect below the moment the board
+   * that arrives holds the card - and only where nothing else took focus meanwhile.
+   */
+  let refocusId = $state<string | undefined>(undefined);
+
+  $effect(() => {
+    const wanted = refocusId;
+    void groups;
+    if (!wanted) return;
+    queueMicrotask(() => {
+      const trigger = document.querySelector<HTMLElement>(`[data-card-menu="${wanted}"]`);
+      if (!trigger) return;
+      if (document.activeElement === document.body) trigger.focus();
+      refocusId = undefined;
+    });
+  });
+
+  /**
    * Whether this board is the bucket board.
    *
    * It is, unless the reader has grouped by something else — and then the columns are the values
@@ -244,6 +265,7 @@
           name: target?.name ?? t('app.board.unbucketed'),
         }),
       );
+      refocusId = item.id;
       // The card as it now stands, version included. A drag ranks it straight afterwards, and a
       // version guessed rather than read is a precondition that fails for no reason the reader
       // can act on — the completion above may have bumped it a second time.
@@ -614,7 +636,13 @@
                           onselect={(id) => chose(card, cards, id)}
                         >
                           {#snippet trigger(props)}
-                            <IconButton icon="ellipsis" label={t('app.board.card_actions', { title: card.title })} size="sm" {...props} />
+                            <IconButton
+                              icon="ellipsis"
+                              label={t('app.board.card_actions', { title: card.title })}
+                              size="sm"
+                              data-card-menu={card.id}
+                              {...props}
+                            />
                           {/snippet}
                         </Menu>
                       {/if}
