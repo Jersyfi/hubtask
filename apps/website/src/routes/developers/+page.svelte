@@ -23,7 +23,8 @@
       endpoints and no shortcuts of its own.
     </p>
     <p class="cta-row">
-      <a class="cta" href="https://github.com/Jersyfi/hubtask/blob/main/api/openapi.yaml">The OpenAPI contract</a>
+      <a class="cta" href="/developers/api/">The API reference</a>
+      <a class="cta-quiet" href="https://github.com/Jersyfi/hubtask/blob/main/api/openapi.yaml">The OpenAPI contract</a>
       <a class="cta-quiet" href="{docs}/architecture/api-guidelines.md">API guidelines</a>
     </p>
   </div>

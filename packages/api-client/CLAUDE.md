@@ -15,6 +15,9 @@ specification is the source and the code is the result
   and arrives with that work package, not here as a side effect of other work.
 * **No committed output.** `dist/` is ignored: it is reproducible from the specification and the
   lockfile, and a committed copy would be a second description of the contract to keep in step.
+  Beside the types, `dist/` carries the document itself — `openapi.json`, copied from the
+  `api/openapi.json` that `make generate` writes, and `events.json`, the CloudEvents schemas
+  gathered by type — for the website's reference (P-01) and, from `0.9.0`, the generators.
 * **No dependency on anything under `apps/`.** A package that knows about an application is not a
   shared package.
 

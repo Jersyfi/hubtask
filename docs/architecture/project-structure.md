@@ -120,6 +120,7 @@ hubtask/
 │
 ├── api/
 │   ├── openapi.yaml                # the single source of truth for the REST API
+│   ├── openapi.json                # the same document as JSON, generated and committed (§6)
 │   ├── events/                     # JSON schemas of the CloudEvents (v1)
 │   └── mcp/manifest.json           # the generated MCP tool manifest
 │
@@ -159,7 +160,8 @@ hubtask/
 │   ├── resilience/                 # RT-1…RT-12 (dependency failure, process death, overload, chaos)
 │   └── fixtures/
 ├── docs/                           # arc42, ADRs, roadmap (this repository)
-├── tools/                          # checkdocs/ (make gate-docs), licenses.md.tpl (make licenses)
+├── tools/                          # checkdocs/ (make gate-docs), openapijson/ (make generate),
+│                                   # licenses.md.tpl (make licenses)
 ├── .github/workflows/              # CI/CD (ADR-0022, docs/architecture/ci-cd.md)
 ├── go.mod                          # module github.com/Jersyfi/hubtask
 ├── Makefile
@@ -194,7 +196,7 @@ towards what is shared:
 
 ```
 apps/webapp  → packages/design-system, packages/sync-engine
-apps/website → packages/design-system
+apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
 ```
@@ -202,7 +204,11 @@ packages/*   → other packages/* only, acyclically (ADR-0033)
 `apps/webapp` reaches the contract *through* the engine rather than beside it: `sync-engine`
 re-exports the types it needs, and a component that imported `@hubtask/api-client` directly would
 be a component that could reach past the seam ADR-0033 §2 puts there. The engine is the only edge
-between the two packages, and the only one the map has gained.
+between the two packages. `apps/website` has the other edge to `api-client`, and it is a different
+kind: the site reads the **document** — `dist/openapi.json` and `dist/events.json`, which
+`make api-client` copies from `api/` — at build time, to prerender the API reference (P-01), and
+never a type and never a call. A brochure that called the API would be the application; one that
+renders the contract is documentation.
 
 Forbidden:
 
@@ -304,16 +310,17 @@ The template is a starting point, not a constraint. What was changed when this p
 
 ## 6. Generated files that are committed
 
-Generated output is not committed. Exactly two files break that rule, both deliberately, and each
-for a reason that is about somebody who has not installed Node.js:
+Generated output is not committed. Exactly three files break that rule, all deliberately, and each
+for a reason that is about a build that lacks one half of the toolchain:
 
 | File | Produced by | Why it is committed |
 |---|---|---|
 | `presentation/webui/dist/index.html` | a placeholder, replaced by the container build | `//go:embed all:dist` refuses to compile against a directory that does not exist, so without it `go build ./...` would need a frontend build ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
 | `core/domain/model/shared/LabelTokens.go` | `make tokens`, from `packages/design-system/tokens/tokens.json` | the domain validates a `colorToken` against it, and committing it keeps `go build ./...` working without Node — and turns a drift between the design system and the domain into a diff ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
+| `api/openapi.json` | `make generate`, through `tools/openapijson`, from `api/openapi.yaml` | the mirror image: the website's reference and the SDK generators read the contract as JSON and ship no YAML parser, and the Node lanes that build them have no Go — so the document is committed in the encoding they read, and `make generate`'s no-diff check keeps it the same document (P-01) |
 
-**Neither may be edited by hand.** `LabelTokens.go` carries the `// Code generated … DO NOT EDIT.`
-line, and CI regenerates it and fails on any difference. It holds the *names* of the ten label
+**None of them may be edited by hand.** `LabelTokens.go` carries the `// Code generated … DO NOT EDIT.`
+line, and CI regenerates it and `api/openapi.json` and fails on any difference. It holds the *names* of the ten label
 colours and never a colour value: the core stays colour-blind while sharing one vocabulary with
 the frontend, which is what `domain-model.md` §4 asks for when it stores a token instead of a hex.
 

@@ -51,6 +51,7 @@ html:has(#mode-dark:checked) body[data-theme] {
   --text-inverse: inherit;
   --text-success: inherit;
   --text-warning: inherit;
+  --text-brand: inherit;
   --border-subtle: inherit;
   --border-default: inherit;
   --accent-primary: inherit;
@@ -96,6 +97,7 @@ html:has(#mode-dark:checked) body[data-theme] {
     --text-inverse: inherit;
     --text-success: inherit;
     --text-warning: inherit;
+  --text-brand: inherit;
     --border-subtle: inherit;
     --border-default: inherit;
     --accent-primary: inherit;
@@ -1250,3 +1252,102 @@ em {
   font-size: var(--fs-100);
   max-width: 84ch;
 }
+
+/* ── The API reference (P-01) ──────────────────────────────────────────────────────────────
+
+   Rendered from the contract, made of wave 4's components. Everything here is prefixed
+   `site-api-` because the page renders `ApiEndpointCard`, `ParameterTable`, `CodeBlock` and
+   `Callout`, and build/check-classes.test.js refuses a class those components also carry. */
+
+.site-api-tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28ch, 1fr));
+  gap: var(--sp-300);
+}
+
+.site-api-tags h3 { margin: 0; font-size: var(--fs-300); }
+.site-api-tags h3 a { color: inherit; text-decoration: none; }
+.site-api-tags h3 a:hover { text-decoration: underline; }
+
+.site-api-taglist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-050);
+  font-size: var(--fs-075);
+}
+
+.site-api-taglist a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.site-api-taglist a:hover { color: var(--text-primary); text-decoration: underline; }
+.site-api-taglist code:first-child { color: var(--text-brand); font-weight: var(--fw-medium); }
+
+.site-api-toc {
+  margin-block-start: var(--sp-300);
+  padding: var(--sp-200) var(--sp-300);
+  border: var(--bw-hairline) solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface-sunken);
+}
+.site-api-toc ul { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: var(--sp-400); }
+.site-api-toc li { break-inside: avoid; padding-block: var(--sp-025); font-size: var(--fs-075); }
+.site-api-toc a { color: var(--text-secondary); text-decoration: none; overflow-wrap: anywhere; }
+.site-api-toc a:hover { color: var(--text-primary); text-decoration: underline; }
+.site-api-toc code:first-child { color: var(--text-brand); font-weight: var(--fw-medium); }
+
+.site-api-operations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-500);
+}
+
+.site-api-schema {
+  scroll-margin-block-start: var(--sp-800);
+}
+.site-api-schema h2 {
+  font-size: var(--fs-300);
+  margin-block-end: var(--sp-150);
+  overflow-wrap: anywhere;
+}
+.site-api-schema h2 a { color: inherit; text-decoration: none; }
+.site-api-schema h2 a:hover { text-decoration: underline; }
+.site-api-schema > * + * { margin-block-start: var(--sp-200); }
+.site-api-type { font-family: var(--font-mono); font-size: var(--fs-075); font-weight: var(--fw-regular); color: var(--text-subtle); }
+
+.site-api-body { display: flex; flex-direction: column; gap: var(--sp-100); }
+.site-api-subhead {
+  margin: 0;
+  font-size: var(--fs-075);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+.site-api-subhead code { text-transform: none; }
+
+.site-api-responses, .site-api-codes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-050);
+  font-size: var(--fs-100);
+}
+.site-api-responses li { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: baseline; }
+.site-api-status { font-family: var(--font-mono); font-weight: var(--fw-medium); color: var(--text-primary); }
+.site-api-codes { flex-direction: row; flex-wrap: wrap; gap: var(--sp-100); }
+
+.site-api-prose p { margin: 0; max-width: 80ch; }
+.site-api-prose p + p, .site-api-prose ul + p, .site-api-prose p + ul { margin-block-start: var(--sp-150); }
+.site-api-prose ul { margin: 0; padding-inline-start: var(--sp-300); max-width: 80ch; }
+.site-api-prose li + li { margin-block-start: var(--sp-050); }
+.site-api-prose code { font-family: var(--font-mono); font-size: var(--fs-075); }
+.site-api-prose .site-shell { margin-block-start: var(--sp-150); }

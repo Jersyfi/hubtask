@@ -477,8 +477,10 @@ jobs:
             run: ${{ needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: webapp
             run: ${{ needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
+          # The website renders the API reference from the api-client's copy of the document
+          # (P-01), so a contract change is a website change.
           - package: website
-            run: ${{ needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.ci == 'true' }}
+            run: ${{ needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
     steps:
       - if: ${{ !matrix.run }}
         run: echo "nothing under this package or its dependencies changed"
