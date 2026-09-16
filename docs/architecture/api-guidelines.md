@@ -173,6 +173,7 @@ is what separates it from `429`),
 | Service account token | Automation, AI agents | Its own actor type in the audit |
 | OAuth2 authorization code + PKCE | Third-party apps (from milestone 0.6) | Required for the Zapier marketplace |
 | Signed feed token | ICS calendar | Read-only on one view, revocable |
+| Personal access token as an HTTP Basic password | CalDAV clients (`/caldav/`, P-06) | The one place Basic is taken, because a calendar client can send nothing else; the user name is read and discarded, the password is the token, and the tree is outside the OpenAPI document because WebDAV's methods are not the contract's |
 
 Scopes, as of `0.7.5`: `accounts:read`, `accounts:write`, `admin:tenants`, `agent:destructive`,
 `ai:manage`, `audit:export`, `audit:read`, `automation:manage`, `backup:manage`, `backup:read`,

@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/presentation/calendar"
 )
 
 const (
@@ -56,9 +58,12 @@ func serveAuthenticated(
 ) (*httptest.ResponseRecorder, appshared.ActorContext, bool) {
 	t.Helper()
 
-	routes := NewMux()
-	routes.HandleFunc(http.MethodGet+" "+APIBasePath+"/meta/capabilities", func(http.ResponseWriter, *http.Request) {})
-	routes.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
+	mux := NewMux()
+	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/meta/capabilities", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
+	// The CalDAV tree beside the routes, as main.go mounts it: the one place Basic is taken.
+	routes := Mounted{Router: mux, Path: calendar.Prefix, Prefix: true,
+		Mount: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}
 
 	var seen appshared.ActorContext
 	reached := false
@@ -381,5 +386,45 @@ func TestTenantLabelReadsExactlyOneSubdomain(t *testing.T) {
 		if got := tenantLabel(c.host, c.base); got != c.want {
 			t.Errorf("tenantLabel(%q, %q) = %q, want %q", c.host, c.base, got, c.want)
 		}
+	}
+}
+
+// The CalDAV tree takes HTTP Basic with the token as the password (P-06): a calendar client can
+// send nothing else. Everywhere else Basic stays refused, and the challenge on the tree is the
+// Basic one, because a client prompts on that and shows an error on a Bearer one.
+func TestBasicIsTakenOnTheCalDavTreeAndNowhereElse(t *testing.T) {
+	auth := &authenticator{actor: authenticatedActor()}
+	tree := httptest.NewRequestWithContext(t.Context(), "PROPFIND", calendar.Prefix+"calendars/x/", nil)
+	tree.SetBasicAuth("anna@example.org", credential)
+	response, _, reached := serveAuthenticated(t, auth, tree)
+	if !reached || response.Code != http.StatusOK {
+		t.Fatalf("Basic on the tree should authenticate: %d %s", response.Code, response.Body)
+	}
+	if auth.command.Credential != credential {
+		t.Errorf("the password is the credential; the use case saw %q", auth.command.Credential)
+	}
+
+	auth = &authenticator{actor: authenticatedActor()}
+	api := request(t, "/containers")
+	api.SetBasicAuth("anna@example.org", credential)
+	response, _, reached = serveAuthenticated(t, auth, api)
+	if reached || response.Code != http.StatusUnauthorized || auth.calls != 0 {
+		t.Errorf("Basic on an API route stays refused before any lookup: %d, %d calls", response.Code, auth.calls)
+	}
+
+	bare := httptest.NewRequestWithContext(t.Context(), "PROPFIND", calendar.Prefix, nil)
+	response, _, reached = serveAuthenticated(t, &authenticator{}, bare)
+	if reached || response.Code != http.StatusUnauthorized {
+		t.Fatalf("no credential on the tree is 401, got %d", response.Code)
+	}
+	if challenge := response.Header().Get("WWW-Authenticate"); !strings.HasPrefix(challenge, "Basic ") {
+		t.Errorf("the tree challenges with Basic, got %q", challenge)
+	}
+
+	wrong := httptest.NewRequestWithContext(t.Context(), "PROPFIND", calendar.Prefix, nil)
+	wrong.SetBasicAuth("anna@example.org", "hbt_pat_wrong")
+	response, _, _ = serveAuthenticated(t, &authenticator{err: shared.ErrUnauthenticated.WithDetail("access.token_unknown")}, wrong)
+	if response.Code != http.StatusUnauthorized || !strings.HasPrefix(response.Header().Get("WWW-Authenticate"), "Basic ") {
+		t.Errorf("a refused token on the tree is a Basic challenge again: %d %q", response.Code, response.Header().Get("WWW-Authenticate"))
 	}
 }

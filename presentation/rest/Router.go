@@ -202,25 +202,36 @@ func extensionSegment(path string) string {
 type Mounted struct {
 	// Router is the specification's routes.
 	Router Router
-	// Path is the mounted path, matched exactly.
+	// Path is the mounted path, matched exactly - or, with Prefix set, everything beneath it.
 	Path string
+	// Prefix mounts a whole tree rather than one path: the CalDAV tree (P-06) is a WebDAV
+	// hierarchy under one root, and every address in it is answered by one handler and counted
+	// under one route label, because a metric label per calendar would be one per feed.
+	Prefix bool
 	// Mount answers it.
 	Mount http.Handler
 }
 
 var _ Router = Mounted{}
 
+func (m Mounted) matches(r *http.Request) bool {
+	if m.Prefix {
+		return strings.HasPrefix(r.URL.Path, m.Path)
+	}
+	return r.URL.Path == m.Path
+}
+
 // Handler resolves the request, returning the mounted path as its own route template so that a
 // metric label and a span name exist for it too (observability-reliability.md §3.2).
 func (m Mounted) Handler(r *http.Request) (http.Handler, string) {
-	if r.URL.Path == m.Path {
+	if m.matches(r) {
 		return m.Mount, m.Path
 	}
 	return m.Router.Handler(r)
 }
 
 func (m Mounted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == m.Path {
+	if m.matches(r) {
 		m.Mount.ServeHTTP(w, r)
 		return
 	}
