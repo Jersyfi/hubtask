@@ -42,6 +42,7 @@ type trailStore struct {
 	asked   []repository.Filter
 	walked  []repository.Period
 	anchor  repository.Anchor
+	anchors []repository.Anchor
 	info    repository.PageInfo
 	err     error
 }
@@ -68,6 +69,34 @@ func (t *trailStore) Walk(
 
 func (t *trailStore) LatestAnchor(context.Context) (repository.Anchor, error) {
 	return t.anchor, nil
+}
+
+func (t *trailStore) ChainEnd(context.Context) (repository.ChainEnd, error) {
+	if len(t.records) == 0 {
+		return repository.ChainEnd{}, nil
+	}
+	last := t.records[len(t.records)-1]
+	return repository.ChainEnd{LastSeq: last.Seq, Hash: last.Hash}, nil
+}
+
+func (t *trailStore) HashAt(_ context.Context, seq int64) ([]byte, error) {
+	for _, record := range t.records {
+		if record.Seq == seq {
+			return record.Hash, nil
+		}
+	}
+	return nil, shared.ErrNotFound.WithDetail("audit.entry_not_found")
+}
+
+// Record keeps the anchors the job wrote, newest last; LatestAnchor answers the last of them
+// where the test set none by hand.
+func (t *trailStore) Record(_ context.Context, anchor repository.Anchor) error {
+	if t.anchor.LastSeq == anchor.LastSeq && !t.anchor.IsZero() {
+		return shared.ErrConflict.WithDetail("audit.anchor_exists")
+	}
+	t.anchor = anchor
+	t.anchors = append(t.anchors, anchor)
+	return nil
 }
 
 // authorizerDouble answers both halves of the port and records what it was asked, so that a test
