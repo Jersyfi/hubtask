@@ -40,6 +40,7 @@
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people, type Path, type Scope } from '../data/people.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -80,11 +81,14 @@
     if (isOpen) people.openScope(scope);
   });
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWriting = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     }
@@ -97,7 +101,7 @@
       await people.grant({ accountId: chosenAccount }, chosenRole as MembershipRole, scope);
       chosenAccount = '';
       chosenRole = '';
-    });
+    }, t('app.people.granted_announced'));
   }
 </script>
 
@@ -128,7 +132,7 @@
               size="sm"
               tone="secondary"
               disabledReason={holder.isHere ? undefined : t('app.people.granted_elsewhere')}
-              onclick={() => void attempt(() => people.revoke(holder.membershipId, scope))}
+              onclick={() => void attempt(() => people.revoke(holder.membershipId, scope), t('app.people.revoked_announced'))}
             >
               {t('app.people.revoke')}
             </Button>

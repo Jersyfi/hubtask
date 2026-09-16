@@ -22,6 +22,7 @@
   import { dueInputFor, dueOf } from '../data/due.ts';
   import { items } from '../data/items.svelte.ts';
   import { formatDue } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { dateIn, timeIn } from '../i18n/zone.ts';
   import { renderProblem } from '../problem.ts';
@@ -67,10 +68,13 @@
     draftStartTime = startTime;
   });
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     }
@@ -88,7 +92,7 @@
       // instant would be a 422 about a field nobody typed.
       if (!input) return;
       await items.setDue(item.id, input, item.version);
-    });
+    }, next === null ? t('app.due.cleared_announced') : t('app.due.set_announced'));
   }
 
   function saveStart() {
@@ -102,7 +106,7 @@
       const at = `${draftStartDate}T${draftStartTime === '' ? '00:00' : draftStartTime}`;
       const instant = new Date(at).toISOString();
       await items.update(item.id, { start_at: instant }, item.version);
-    });
+    }, draftStartDate === '' ? t('app.due.start_cleared_announced') : t('app.due.start_set_announced'));
   }
 </script>
 

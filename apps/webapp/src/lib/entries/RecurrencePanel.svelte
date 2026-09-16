@@ -36,6 +36,7 @@
   import { supports } from '../data/capability.svelte.ts';
   import { series } from '../data/reminders.svelte.ts';
   import { belongsToSeries, occurrenceSourceOf, splitEnd, withEnd } from '../data/reminders.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { weekStartKeyOf } from '../i18n/week.ts';
   import { renderProblem } from '../problem.ts';
@@ -113,12 +114,15 @@
 
   const weekStart = $derived(weekStartKeyOf(actor.weekStart, messages.locale, manifest.supportedLocales));
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     isSaving = true;
     failure = undefined;
     notice = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -137,7 +141,7 @@
         rule?.version,
       );
       isEditing = false;
-    });
+    }, t('app.recurrence.saved_announced'));
   }
 
   function remove() {
@@ -145,14 +149,14 @@
     void attempt(async () => {
       await series.remove(item.id, rule.version);
       isRemoving = false;
-    });
+    }, t('app.recurrence.removed_announced'));
   }
 
   function skip() {
     void attempt(async () => {
       await series.skip(item.id, crypto.randomUUID());
       notice = t('app.recurrence.skipped');
-    });
+    }, t('app.recurrence.skipped'));
   }
 </script>
 

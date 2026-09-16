@@ -25,6 +25,7 @@
   import { items } from '../data/items.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { byName } from '../i18n/collation.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -49,10 +50,13 @@
   let isAutoAssigning = $state(false);
 
   /** One place where a write becomes a sentence, so no branch below reads a code itself. */
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       // The same cast every write in this application makes: the engine promises a
       // `TransportError` and a `catch` binding is `unknown` whatever it promises.
@@ -62,10 +66,12 @@
 
   function setAssignee(ids: readonly string[]) {
     const next = ids[0];
-    void attempt(() =>
-      next === undefined
-        ? items.unassign(item.id, item.version, crypto.randomUUID())
-        : items.assign(item.id, next, item.version, crypto.randomUUID()),
+    void attempt(
+      () =>
+        next === undefined
+          ? items.unassign(item.id, item.version, crypto.randomUUID())
+          : items.assign(item.id, next, item.version, crypto.randomUUID()),
+      next === undefined ? t('app.people.unassigned_announced') : t('app.people.assigned_announced'),
     );
   }
 
@@ -74,8 +80,8 @@
     // is names exactly one account, and sending the whole list would be a replacement.
     const added = ids.find((id) => !memberIds.includes(id));
     const removed = memberIds.find((id) => !ids.includes(id));
-    if (added) void attempt(() => items.addMember(item.id, added, crypto.randomUUID()));
-    else if (removed) void attempt(() => items.removeMember(item.id, removed));
+    if (added) void attempt(() => items.addMember(item.id, added, crypto.randomUUID()), t('app.people.member_added_announced'));
+    else if (removed) void attempt(() => items.removeMember(item.id, removed), t('app.people.member_removed_announced'));
   }
 
   async function runAutoAssign() {

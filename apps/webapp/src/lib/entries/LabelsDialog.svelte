@@ -23,6 +23,7 @@
   import { Button, Dialog, IconButton, Inline, Input, LabelChip, Stack } from '@hubtask/design-system/components';
 
   import { labels } from '../data/labels.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -84,6 +85,7 @@
           crypto.randomUUID(),
         );
       }
+      announcer.say(t('app.labels.saved_announced'));
       reset();
     } catch (error) {
       failure = renderProblem(error as never, messages);
@@ -96,6 +98,7 @@
     failure = undefined;
     try {
       await labels.remove(collectionId, label.id, label.version);
+      announcer.say(t('app.labels.removed_announced'));
       if (editing?.id === label.id) reset();
     } catch (error) {
       failure = renderProblem(error as never, messages);

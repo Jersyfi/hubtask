@@ -169,6 +169,7 @@
         removed: pass.removed,
         blocked: (pass.blocked ?? {}) as Record<string, number>,
       };
+      announcer.say(t('app.trash.summary', { removed: pass.removed, matched: pass.matched }));
       isEmptying = false;
     } catch (error) {
       failure = renderProblem(error as never, messages);

@@ -46,6 +46,7 @@
     type SubscriptionWithSecret,
   } from '../lib/data/webhooks.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -103,11 +104,14 @@
           ? 'warning'
           : 'neutral';
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -131,7 +135,7 @@
       });
       draftUrl = '';
       draftTypes = [];
-    });
+    }, t('app.webhooks.subscribed_announced'));
   }
 
   async function openDeliveries(webhookId: string): Promise<void> {
@@ -233,7 +237,7 @@
                   busyLabel={t('app.webhooks.saving')}
                   onclick={() =>
                     void attempt(() =>
-                      webhooks.update(subscription.id, { state: 'PAUSED' }, subscription.version),
+                      webhooks.update(subscription.id, { state: 'PAUSED' }, subscription.version), t('app.webhooks.paused_announced')
                     )}
                 >
                   {t('app.webhooks.pause')}
@@ -246,7 +250,7 @@
                   busyLabel={t('app.webhooks.saving')}
                   onclick={() =>
                     void attempt(() =>
-                      webhooks.update(subscription.id, { state: 'ACTIVE' }, subscription.version),
+                      webhooks.update(subscription.id, { state: 'ACTIVE' }, subscription.version), t('app.webhooks.resumed_announced')
                     )}
                 >
                   {t('app.webhooks.resume')}
@@ -302,7 +306,7 @@
                             Number.parseInt(grace, 10),
                           );
                           rotating = '';
-                        })}
+                        }, t('app.webhooks.rotated_announced'))}
                     >
                       {t('app.webhooks.rotate_confirm')}
                     </Button>
@@ -330,7 +334,7 @@
                         void attempt(async () => {
                           await webhooks.unsubscribe(subscription.id);
                           removing = '';
-                        })}
+                        }, t('app.webhooks.unsubscribed_announced'))}
                     >
                       {t('app.webhooks.unsubscribe_confirm')}
                     </Button>
@@ -418,7 +422,7 @@
                                         subscription.id,
                                         outcome || undefined,
                                       );
-                                    })}
+                                    }, t('app.webhooks.replayed_announced'))}
                                 >
                                   {t('app.webhooks.replay')}
                                 </Button>

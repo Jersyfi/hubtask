@@ -116,10 +116,13 @@
    */
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
-  async function toggleComplete(id: string, isCompleted: boolean) {
+  async function toggleComplete(id: string, title: string, isCompleted: boolean) {
     writeFailure = undefined;
     try {
       await items.setCompleted(id, !isCompleted, crypto.randomUUID());
+      announcer.say(
+        t(isCompleted ? 'app.entries.reopened_announced' : 'app.entries.completed_announced', { title }),
+      );
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
@@ -219,7 +222,7 @@
           completeLabel={t(isCompleted ? 'app.entries.reopen' : 'app.entries.complete', {
             title: hit.title,
           })}
-          onToggleComplete={() => toggleComplete(hit.id, isCompleted)}
+          onToggleComplete={() => toggleComplete(hit.id, hit.title, isCompleted)}
         >
           {#snippet trailing()}
             {#if search.languageOf(hit.id)}

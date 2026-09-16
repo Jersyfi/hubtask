@@ -19,6 +19,7 @@
   import { Badge, Banner, Button, Checkbox, Input, OneTimeSecret, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { apps, type RegisteredApp } from '../lib/data/apps.svelte.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -44,11 +45,14 @@
   const readUris = (written: string) =>
     written.split('\n').map((one) => one.trim()).filter((one) => one !== '');
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     } finally {
@@ -65,7 +69,7 @@
       name = '';
       uris = '';
       confidential = false;
-    });
+    }, t('app.apps.registered_announced'));
   }
 </script>
 
@@ -129,7 +133,7 @@
                     void attempt(async () => {
                       await apps.remove(app.id);
                       removing = undefined;
-                    })}
+                    }, t('app.apps.removed_announced'))}
                 >
                   {t('app.apps.remove_now')}
                 </Button>

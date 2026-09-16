@@ -25,6 +25,7 @@
   import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -84,11 +85,14 @@
   const alreadyDone = (run: Run) =>
     run.action_results.filter((result) => result.status === 'SUCCEEDED');
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -141,7 +145,7 @@
             tone="secondary"
             isBusy={isWorking}
             busyLabel={t('app.runs.triggering')}
-            onclick={() => void attempt(() => runs.trigger(testing))}
+            onclick={() => void attempt(() => runs.trigger(testing), t('app.runs.triggered_announced'))}
           >
             {t('app.runs.trigger')}
           </Button>
@@ -308,7 +312,7 @@
                       tone="primary"
                       isBusy={isWorking}
                       busyLabel={t('app.runs.replaying')}
-                      onclick={() => void attempt(() => runs.replay(detail.id))}
+                      onclick={() => void attempt(() => runs.replay(detail.id), t('app.runs.replayed_announced'))}
                     >
                       {t('app.runs.replay')}
                     </Button>

@@ -265,6 +265,28 @@
           crypto.randomUUID(),
         );
       }
+      // Said out loud, as an entry's rank change is: the control kept focus and its name, and
+      // the list quietly rearranged itself (4.1.3).
+      announcer.say(
+        t('app.rank.announced', { title: container.name, position: target + 1, count: siblings.length }),
+      );
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+    }
+  }
+
+  /** Archives or reactivates, and says so: the button keeps focus and only its label changes. */
+  async function toggleArchived() {
+    if (!container) return;
+    failure = undefined;
+    const archiving = archival === 'active';
+    try {
+      await containers.setArchived(container.id, archiving, crypto.randomUUID());
+      announcer.say(
+        t(archiving ? 'app.workspace.archived_announced' : 'app.workspace.unarchived_announced', {
+          name: container.name,
+        }),
+      );
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
     }
@@ -399,6 +421,7 @@
       // The version the reader had when they started typing. A rename that lost a race is refused
       // rather than winning by being second (ADR-0025), and `version_conflict` is what says so.
       await containers.update(container.id, { name: draft }, container.version);
+      announcer.say(t('app.workspace.renamed_announced', { name: draft }));
       isRenaming = false;
     } catch (error) {
       const problem = error as TransportError;
@@ -492,7 +515,7 @@
             <Button
               size="sm"
               tone="secondary"
-              onclick={() => containers.setArchived(container.id, archival === 'active', crypto.randomUUID())}
+              onclick={() => void toggleArchived()}
             >
               {archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive')}
             </Button>

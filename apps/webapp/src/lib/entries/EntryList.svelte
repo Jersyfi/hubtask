@@ -176,6 +176,7 @@
     try {
       const isOn = (item.label_ids ?? []).includes(labelId);
       await labels.setOnItem(item.id, labelId, !isOn, crypto.randomUUID());
+      announcer.say(t('app.labels.toggled_announced'));
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
@@ -326,6 +327,7 @@
       if (addingUnder !== 'root' && !expanded.includes(addingUnder)) {
         expanded = [...expanded, addingUnder];
       }
+      announcer.say(t('app.entries.created_announced', { title: draftTitle.trim() }));
       addingUnder = null;
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
@@ -740,6 +742,13 @@
       // Re-read rather than predicted: with `completionPolicy = ROLLUP` a parent completes when its
       // children do (I-W5), and that is a change this client learns by asking.
       await items.setCompleted(item.id, !item.completion?.is_completed, crypto.randomUUID());
+      // The checkbox that changed keeps focus, but its name did not change and a screen reader
+      // hears nothing else (4.1.3).
+      announcer.say(
+        t(item.completion?.is_completed ? 'app.entries.reopened_announced' : 'app.entries.completed_announced', {
+          title: item.title,
+        }),
+      );
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }

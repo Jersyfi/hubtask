@@ -228,6 +228,7 @@
     writeFailure = undefined;
     try {
       await buckets.remove(collectionId, deleting.id, deleting.version);
+      announcer.say(t('app.buckets.removed_announced'));
       isDeletingColumn = false;
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);

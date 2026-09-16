@@ -27,6 +27,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -86,11 +87,14 @@
     return accountId ? accounts.statusOf(accountId) : undefined;
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWriting = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       // The server's own sentence — including the step-up refusal, which is not a failure but a
       // question the prompt has already asked and the reader declined.
@@ -115,7 +119,7 @@
     await attempt(async () => {
       await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
       invited = address;
-    });
+    }, t('app.people.invited_announced'));
     // Out of the form whatever happened. A second press with the same address in it would be a
     // second invitation the reader did not mean to send.
     inviteEmail = '';
@@ -126,7 +130,7 @@
   async function grant(): Promise<void> {
     if (!chosenSubject || !chosenRole) return;
     await attempt(() =>
-      people.grant({ accountId: chosenSubject }, chosenRole as MembershipRole, TENANT),
+      people.grant({ accountId: chosenSubject }, chosenRole as MembershipRole, TENANT), t('app.people.granted_announced')
     );
     chosenSubject = '';
     chosenRole = '';
@@ -180,7 +184,7 @@
                 tone="subtle"
                 isBusy={isWriting}
                 busyLabel={t('app.people.working')}
-                onclick={() => void attempt(() => people.revoke(holder.membershipId, TENANT))}
+                onclick={() => void attempt(() => people.revoke(holder.membershipId, TENANT), t('app.people.revoked_announced'))}
               >
                 {t('app.people.revoke')}
               </Button>
