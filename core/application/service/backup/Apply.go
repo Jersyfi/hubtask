@@ -192,6 +192,9 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 	plan := plan{
 		restore: ready.restore, chain: chain, key: key,
 		reader: reader, scope: ready.into, asker: in.TenantID, report: in.Report,
+		progress: func(ctx context.Context, report domain.Report, decided map[string]int) error {
+			return a.Restores.RecordProgress(ctx, ready.restore.ID, report, decided)
+		},
 		// NEW_TENANT copies a workspace whose rows still live in this installation, and every
 		// identity in the schema is a global one - so the copy derives a new identity for every
 		// row and follows the references, the way DUPLICATE does for a collision. Without this the
@@ -216,6 +219,58 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 		}
 	}
 	return a.apply(ctx, plan)
+}
+
+// IngestInput is what an importer hands the applier (P-08, backup-restore.md §9).
+type IngestInput struct {
+	// TenantID is the workspace the records land in - the importer's own, always.
+	TenantID shared.ID
+	// RunID salts the derived identities and names the row Progress writes to.
+	RunID shared.ID
+	// Store holds the archive the converter wrote, in memory; Prefix is its name there.
+	Store  backupstorage.Store
+	Prefix string
+	// Progress and Report are the import run's, the way a restore's are the restore run's.
+	Progress func(ctx context.Context, report domain.Report, decided map[string]int) error
+	Resume   domain.Restore
+	Report   func(float64)
+}
+
+// Ingest applies an archive somebody built rather than backed up: the importer's records, in
+// MERGE mode with skip, into the tenant that asked (P-08).
+//
+// The same apply as a restore's - the same decisions per record, the same batches, the same
+// journal check - with the procedure around it absent, because nothing is being brought back:
+// no target to open, no chain to verify, no safety copy. Identities are the converter's, derived
+// from the source, and skip is what makes the same file twice a no-op. The rows land without
+// change log entries exactly as a restore's do, which is why the caller advances the epoch when
+// the import succeeds (AdvanceEpoch), as a MERGE restore does: a device learns the imported rows
+// on its next full synchronisation rather than never (backup-restore.md §12 B-5).
+func (a Applier) Ingest(ctx context.Context, in IngestInput) (domain.Report, error) {
+	reader := archive.NewReader(in.Store, a.Cipher)
+	description, err := reader.Describe(ctx, in.Prefix)
+	if err != nil {
+		return domain.Report{}, err
+	}
+	restore := in.Resume
+	restore.ID = in.RunID
+	restore.Mode = domain.RestoreMerge
+	restore.ConflictRule = domain.ConflictSkip
+	restore.TenantID = in.TenantID
+	p := plan{
+		restore: restore, chain: []archive.Description{description},
+		reader: reader, scope: persistence.Scope{TenantID: in.TenantID}, asker: in.TenantID,
+		report: in.Report, progress: in.Progress,
+	}
+	return a.apply(ctx, p)
+}
+
+// AdvanceEpoch is the epoch half of a successful import, for the caller's own transaction: the
+// rows an import wrote are in no change log entry, so every cursor minted before is refused and
+// the devices resynchronise, as after a MERGE restore (backup-restore.md §12 B-5).
+func (a Applier) AdvanceEpoch(ctx context.Context) error {
+	_, err := a.Epochs.Advance(ctx)
+	return err
 }
 
 // precheck is §8.3 step 1: is this archive this tenant's, can this build read it, and is the chain
@@ -446,6 +501,10 @@ type plan struct {
 	remapAll bool
 	dry      bool
 	report   func(float64)
+	// progress records how far a batch got and the report so far, in the batch's transaction:
+	// the restore run's row for a restore, the import run's for an import (P-08). Nil for a
+	// caller that keeps no row.
+	progress func(ctx context.Context, report domain.Report, decided map[string]int) error
 }
 
 // newest is the archive the restore represents: the one that was asked for.
@@ -867,17 +926,17 @@ func (s *state) flush(ctx context.Context) error {
 		// when the batch is landing there too - the comparison is against the asker, not against
 		// the row's target tenant, which for NEW_TENANT is the same minted identity the batch
 		// lands in and exactly the scope the row is invisible from.
-		if s.plan.scope.TenantID == s.plan.asker {
-			return s.applier.Restores.RecordProgress(ctx, s.plan.restore.ID, s.report, s.decided)
+		if s.plan.scope.TenantID == s.plan.asker && s.plan.progress != nil {
+			return s.plan.progress(ctx, s.report, s.decided)
 		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	if !s.plan.dry && s.plan.scope.TenantID != s.plan.asker {
+	if !s.plan.dry && s.plan.scope.TenantID != s.plan.asker && s.plan.progress != nil {
 		err = s.applier.UnitOfWork.Within(ctx, s.plan.asking(), func(ctx context.Context) error {
-			return s.applier.Restores.RecordProgress(ctx, s.plan.restore.ID, s.report, s.decided)
+			return s.plan.progress(ctx, s.report, s.decided)
 		})
 		if err != nil {
 			return err

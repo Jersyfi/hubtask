@@ -579,6 +579,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"backup_schedule": "the backup system's own bookkeeping",
 	"backup_run":      "the backup system's own bookkeeping",
 	"restore_run":     "the backup system's own bookkeeping",
+	"import_run":      "the import's own bookkeeping (P-08): what was asked and reported, never what landed - that is in the rows",
 	"retention_run":   "the retention engine's own bookkeeping (E-07)",
 	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
 	// deliberately not restored - "an egress channel and a sealed credential; a restore must not
