@@ -1080,6 +1080,8 @@
   "backup.target_busy": "A backup to that target is already running.",
   "backup.chain_incomplete": "The chain of archives this backup would continue is no longer complete, so the next one has to be a full backup.",
   "backup.run_failed": "That backup run did not finish.",
+  "backup.trial_restore_failed": "The archive this run wrote could not be read back, so the run failed: it is not a backup.",
+  "backup.trial_restore_unavailable": "This build cannot read an archive back, so it cannot run a trial restore.",
   "backup.run_abandoned": "That backup run was given up on after repeated failures, and its target is free again. The dead letter has the attempt that failed.",
   "backup.restore_abandoned": "That restore was given up on after repeated failures, and restores are possible here again. The dead letter has the attempt that failed.",
   "backup.schedule_pass_without_tenant": "A backup schedule pass reached a worker without a tenant.",
