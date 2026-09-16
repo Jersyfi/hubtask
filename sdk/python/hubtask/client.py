@@ -127,6 +127,10 @@ class Client:
         """POST /templates/{templateId}:instantiate"""
         return self._call("POST", "/templates/{templateId}:instantiate", {"templateId": template_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def ai_generate_template(self, body: "TemplateGeneration", *, idempotency_key: str | None = None) -> None:
+        """Ask AI to draft a template from a description"""
+        return self._call("POST", "/templates:generate", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "void")
+
     def list_saved_views(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
         """GET /views"""
         return self._call("GET", "/views", {}, query, {}, None, "none", None, "json")

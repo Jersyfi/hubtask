@@ -1047,3 +1047,9 @@ func (pending) SuggestDecomposition(
 ) {
 	notAvailable(w, r)
 }
+
+func (pending) AiGenerateTemplate(
+	w http.ResponseWriter, r *http.Request, _ openapi.AiGenerateTemplateParams,
+) {
+	notAvailable(w, r)
+}
