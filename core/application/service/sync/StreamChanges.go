@@ -225,6 +225,17 @@ func (s StreamChanges) page(
 	resolved := map[shared.ID]visibility{}
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
+		if entry.Op == repository.AccessRevoked {
+			// Addressed to a person, and the one record permission does not filter (N-08): every
+			// other record reaches a device because its account may read the container, and a
+			// revocation reaches it precisely because the account no longer may. Nor does a scope
+			// narrow it - the device drops whatever it holds under the root, and a device holding
+			// nothing there drops nothing.
+			if entry.ActorID == actor.AccountID {
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq)})
+			}
+			continue
+		}
 		seen, err := s.mayRead(ctx, actor, entry.ContainerID, resolved)
 		if err != nil {
 			return Batch{}, err

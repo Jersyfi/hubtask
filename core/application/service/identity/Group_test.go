@@ -156,7 +156,7 @@ func TestAMemberThatIsNotHereIsRefused(t *testing.T) {
 
 func updateHandler(groups *groupStore, accounts *accountStore, auth *authorizer, sink *auditSink) UpdateGroup {
 	return UpdateGroup{
-		Groups: groups, Accounts: accounts, Authorizer: auth, Audit: sink,
+		Groups: groups, Accounts: accounts, Authorizer: auth, Revocations: &revoker{}, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }
@@ -193,6 +193,43 @@ func TestTheMemberListReplacesRatherThanAdds(t *testing.T) {
 	members := groups.members[groupID]
 	if len(members) != 1 || members[0] != second {
 		t.Errorf("members %v, want exactly the list that was sent", members)
+	}
+}
+
+// Whoever the list no longer names is told what the group held for them (N-08); whoever it adds
+// or keeps is not.
+func TestAMemberTakenOutOfTheGroupIsToldWhatTheyLost(t *testing.T) {
+	second := shared.ID("01936f2a-7c1e-7000-8000-0000000000a3")
+	other, err := domain.Invite(second, tenant, "cara@example.org", "Cara", nil, nil)
+	if err != nil {
+		t.Fatalf("preparing: %v", err)
+	}
+	groups, told := newGroups(settledGroup(t)), &revoker{}
+	groups.members[groupID] = []shared.ID{invitedID, second}
+	handler := updateHandler(groups, newAccounts(invitedAccount(t), other), &authorizer{}, &auditSink{})
+	handler.Revocations = told
+
+	if _, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{second}, ReplaceMembers: true,
+	}); err != nil {
+		t.Fatalf("updating: %v", err)
+	}
+	if lost := told.groupLoss[groupID]; len(lost) != 1 || lost[0] != invitedID {
+		t.Errorf("the loss named %v, want the member taken out alone", lost)
+	}
+	if len(told.announced) != 1 {
+		t.Errorf("announced %v, want the one loss", told.announced)
+	}
+
+	// A list that takes nobody out announces nothing.
+	told.announced = nil
+	if _, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{second, invitedID}, ReplaceMembers: true,
+	}); err != nil {
+		t.Fatalf("updating again: %v", err)
+	}
+	if len(told.announced) != 0 {
+		t.Errorf("announced %v for a list that took nobody out", told.announced)
 	}
 }
 
@@ -239,7 +276,7 @@ func TestAStaleVersionIsRefused(t *testing.T) {
 
 func deleteHandler(groups *groupStore, auth *authorizer, sink *auditSink) DeleteGroup {
 	return DeleteGroup{
-		Groups: groups, Authorizer: auth, Audit: sink,
+		Groups: groups, Authorizer: auth, Revocations: &revoker{}, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }
@@ -259,6 +296,25 @@ func TestDeletingAGroupIsRecordedAsAnAccessChange(t *testing.T) {
 	if sink.entries[0].Severity != audit.SeverityNotice {
 		t.Errorf("severity %q, want NOTICE - somebody may have to explain this later",
 			sink.entries[0].Severity)
+	}
+}
+
+// Every member of a deleted group is told what it held for them (N-08), read before the group -
+// and its grants with it - is gone.
+func TestDeletingAGroupTellsEveryMemberWhatTheyLost(t *testing.T) {
+	groups, told := newGroups(settledGroup(t)), &revoker{}
+	groups.members[groupID] = []shared.ID{invitedID}
+	handler := deleteHandler(groups, &authorizer{}, &auditSink{})
+	handler.Revocations = told
+
+	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID}); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+	if lost := told.groupLoss[groupID]; len(lost) != 1 || lost[0] != invitedID {
+		t.Errorf("the loss named %v, want every member", lost)
+	}
+	if len(told.announced) != 1 {
+		t.Errorf("announced %v, want the one loss", told.announced)
 	}
 }
 

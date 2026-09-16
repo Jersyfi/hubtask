@@ -38,6 +38,16 @@ const (
 // collection rather than a path through the hubs.
 type MoveContainer struct {
 	Writer ContainerWriter
+	// Revocations tells the devices of whoever read the collection through the hub it left, and
+	// cannot read it where it now sits, that they lost it (N-08).
+	Revocations MoveRevoker
+}
+
+// MoveRevoker is the slice of access.Revocations a move needs: who may have lost the collection,
+// and the ACCESS_REVOKED record for each of them who did.
+type MoveRevoker interface {
+	AfterContainerMoved(ctx context.Context, from, to domain.Container) (access.Loss, error)
+	Announce(ctx context.Context, tenantID shared.ID, losses ...access.Loss) error
 }
 
 // MoveContainerCommand is the input, typed.
@@ -159,6 +169,16 @@ func (h MoveContainer) write(
 	// wins; `order_key` is a fractional index and merges by itself, which is the whole reason the
 	// rank is a key rather than a number (offline-sync.md §4.2).
 	if err := h.Writer.recordChanges(ctx, after, actor, changes); err != nil {
+		return domain.Container{}, err
+	}
+	// Whoever read the collection through the hub it left is asked whether they still read it
+	// here, and told when they do not (N-08). After the placement is written, so that the question
+	// is put to the tree as it now stands.
+	loss, err := h.Revocations.AfterContainerMoved(ctx, before, after)
+	if err != nil {
+		return domain.Container{}, err
+	}
+	if err := h.Revocations.Announce(ctx, after.TenantID, loss); err != nil {
 		return domain.Container{}, err
 	}
 	// All of it is structure - two identifiers and a rank - so all of it is OPEN in the data

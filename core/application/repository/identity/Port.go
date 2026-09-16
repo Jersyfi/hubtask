@@ -235,4 +235,9 @@ type MembershipGrants interface {
 	// the audit entry names the scope and the role, and a trail that only records an identifier
 	// is unreadable a year later (audit.md §2).
 	Find(ctx context.Context, membershipID shared.ID) (identity.Grant, error)
+
+	// OfGroup returns every grant the group holds, for the revocation that has to know what a
+	// member taken out of the group - or every member of a group deleted - is about to lose
+	// (N-08). Unpaged: a group holds a handful of roles.
+	OfGroup(ctx context.Context, groupID shared.ID) ([]identity.Grant, error)
 }
