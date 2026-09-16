@@ -74,7 +74,7 @@
 
 <!-- A `section` with an accessible name is a region: a landmark a screen reader can jump to and
      leave, named by its own heading - a proposal is something a reader chooses to look at. -->
-<section class="proposal" data-state={state} aria-labelledby={headingId} aria-busy={state === 'pending' ? 'true' : undefined}>
+<section class="proposal" data-ai data-state={state} aria-labelledby={headingId} aria-busy={state === 'pending' ? 'true' : undefined}>
   <div class="head">
     <span class="mark" aria-hidden="true"><Icon name="sparkles" size="sm" /></span>
     <p class="heading" id={headingId}>{heading}</p>

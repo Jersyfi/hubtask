@@ -179,6 +179,15 @@ export type RetentionPolicy = components['schemas']['RetentionPolicy'];
  * token exchange. A screen that reached for it on the read would find nothing, by design.
  */
 export type IdentityProvider = components['schemas']['IdentityProvider'];
+/**
+ * The workspace's AI provider as `GET /ai-provider` answers it: never the key, only whether one is
+ * held (`has_api_key`), and `processing_allowed` - the consent `ai-first.md` §2 makes a switch of
+ * its own, false until somebody says otherwise.
+ */
+export type AiProvider = components['schemas']['AiProvider'];
+export type AiProviderConfiguration = components['schemas']['AiProviderConfiguration'];
+export type AiProviderKind = components['schemas']['AiProviderKind'];
+export type AiJurisdiction = components['schemas']['AiJurisdiction'];
 
 /**
  * A minted credential as it is listed afterwards. The token itself is not a member of it: it

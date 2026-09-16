@@ -110,7 +110,7 @@
   }
 </script>
 
-<div class="proposal">
+<div class="proposal" data-ai>
   {#if asking?.outcome === 'following'}
     <AISuggestion heading={t('app.jumble.suggested')} state="pending" pendingLabel={t('app.suggestions.pending')} />
   {:else if asking?.outcome === 'gave_up'}
