@@ -186,6 +186,10 @@ generate:
 	$(TOOLS_DIR)/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
 	$(call require_tool,sqlc)
 	$(TOOLS_DIR)/sqlc -f db/sqlc.yaml generate
+	@# The same document as JSON, for the renderers and generators that ship no YAML parser
+	@# (P-01): the website's reference and the SDK generators read it, and it is committed so
+	@# that a Node lane without Go can build against it (project-structure.md §6).
+	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
 
 ## tokens: Regenerate the design tokens (CSS, TypeScript, and the Go label token names)
 # Separate from `make generate` on purpose: that target must keep working without Node.js, and a
