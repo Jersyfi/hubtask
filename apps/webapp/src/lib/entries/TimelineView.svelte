@@ -28,7 +28,8 @@
   import { addDays, monthOf, shift, weekOf, type Window } from '../data/due.ts';
   import { items, type ItemsQuery } from '../data/items.svelte.ts';
   import { bothOf, windowFilter } from '../data/query.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { firstWeekdayOf } from '../i18n/week.ts';
   import { dateIn, todayIn } from '../i18n/zone.ts';
 
   interface Props {
@@ -42,6 +43,8 @@
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
+  // The account's day, else the manifest's for the locale, else the locale's own (F5-09).
+  const weekStart = $derived(firstWeekdayOf(actor.weekStart, messages.locale, manifest.supportedLocales));
 
   let span = $state<'week' | 'month'>('month');
   /** The window drawn. Seeded from today, and moved from there. `shown`, because `window` is
@@ -49,7 +52,7 @@
   let shown = $state<Window | undefined>(undefined);
 
   const current = $derived(
-    shown ?? (span === 'week' ? weekOf(today, actor.weekStart) : monthOf(today)),
+    shown ?? (span === 'week' ? weekOf(today, weekStart) : monthOf(today)),
   );
 
   /** The window as instants, which is what a `BETWEEN` on a timestamp field compares against. */
@@ -98,7 +101,7 @@
   }
 
   function backToToday() {
-    shown = span === 'week' ? weekOf(today, actor.weekStart) : monthOf(today);
+    shown = span === 'week' ? weekOf(today, weekStart) : monthOf(today);
     announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
   }
 

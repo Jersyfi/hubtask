@@ -26,6 +26,7 @@
  * it would disagree with the contract, and offers two — the third carries the server's own reason.
  */
 
+import { truncateGraphemes } from '../i18n/text.ts';
 import type { ItemsQuery } from './items.svelte.ts';
 
 /** The three the contract's enum declares. */
@@ -121,9 +122,11 @@ export function exportFileName(name: string, format: ExportFormat): string {
     .replace(/\s+/g, '-')
     // A run of separators is one separator: "Q3 / planning" is `Q3-planning`, not `Q3---planning`.
     .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80);
-  return `${safe === '' ? 'view' : safe}.${EXTENSIONS[format]}`;
+    .replace(/^-|-$/g, '');
+  // Eighty graphemes, never a partial one: a name that ends in a flag is not cut in the middle of
+  // it (i18n-l10n.md §6 line 8, F5-09).
+  const cut = truncateGraphemes(safe, 80);
+  return `${cut === '' ? 'view' : cut}.${EXTENSIONS[format]}`;
 }
 
 /**
