@@ -1606,6 +1606,9 @@ CREATE TABLE backup_schedule (
   next_run_at   timestamptz,
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1,
+  -- Whether a FULL run is followed by an INSPECT restore of its own archive (B-4, migration
+  -- 0091). On for a new schedule; the migration left the schedules that existed off.
+  trial_restore boolean NOT NULL DEFAULT true,
   CHECK ((scope_kind = 'INSTANCE') = (tenant_id IS NULL))
 );
 CREATE INDEX backup_schedule_due_idx ON backup_schedule (next_run_at) WHERE enabled;
@@ -1637,7 +1640,11 @@ CREATE TABLE backup_run (
   error_code    text,
   expires_at    timestamptz,                          -- from the retention plan
   verified_at   timestamptz,
-  verify_ok     boolean
+  verify_ok     boolean,
+  -- What the trial restore found, and when (B-4, migration 0091): the INSPECT report of the
+  -- archive this run wrote, read back in the same job.
+  trial_report  jsonb,
+  trial_at      timestamptz
 );
 CREATE INDEX backup_run_target_idx ON backup_run (target_id, started_at DESC);
 CREATE INDEX backup_run_expiry_idx ON backup_run (expires_at) WHERE status = 'SUCCEEDED';
