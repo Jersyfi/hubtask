@@ -241,7 +241,7 @@ structural, not reviewed.
 | `QrCode` | The TOTP provisioning URI as a picture an authenticator scans, beside the same secret written out (ADR-0053, option B). Built: an encoder in `qr.ts` — byte mode, level M, versions 1 to 13, held to the standard's published vectors and to a real decoder — and an SVG of one path. **Dark on light in both modes**, because a camera is not a reader of the theme and not every authenticator reads an inverted code; the payload is drawn and never written into the DOM as text, so a screen reader is not read the secret and a copy-all does not take it |
 | `SyncStatus` + `ConflictResolver` | Offline operation, "concurrent changes are never lost" |
 | `HealthBanner` | Controlled degradation instead of a crash, fed from `/meta/health` |
-| `AISuggestion` | Must be visually separable — AI is switchable off, and then this component disappears without residue |
+| `AISuggestion` | Must be visually separable — AI is switchable off, and then this component disappears without residue. Built (F5-01): the separation is the `ai.*` tokens — a surface at the neutrals' luminance that differs by hue, and the border that carries the boundary because rule 3 says a hue never stands alone — and this component is their only consumer, so switching AI off leaves no value behind. One component for every kind: the heading names the kind and says it is a proposal, the payload is the caller's slot rendered with the editor the product has for its shape, accept and dismiss are the caller's buttons, and the provenance is one line collapsed by default (`voice-and-tone.md` §7). `pending` is the job still running and `stale` the target having moved — set by the caller so the strip says so before the server refuses. It arrives as the `attach` role, in opacity alone |
 
 ### Wave 4 — documentation and website
 CodeBlock · ApiEndpointCard · ParameterTable · Callout · VersionSelector ·
@@ -447,9 +447,15 @@ teaches the screenshots.
   because `comfortable` is right in the absence of a choice where neither light nor dark is. No
   step in either mode puts a target below 24 px: WCAG 2.2 SC 2.5.8 is a floor rather than a taste,
   and the token test fails below it.
-- **The AI surface treatment** — §4 asks one component, `AISuggestion`, to make AI "visually
-  separable" and to disappear "without residue" when AI is switched off. That is a foundation with
-  its own colour, elevation, motion and tone, not a row in a component table.
+- ~~**The AI surface treatment**~~ — closed by F5-01. §4 asks one component, `AISuggestion`, to
+  make AI "visually separable" and to disappear "without residue" when AI is switched off, and
+  that turned out to be a foundation before it was a component: five `ai.*` tokens per mode
+  (`surface`, `surface-strong`, `border`, `text`, `accent`), measured in both directions by the
+  contrast check — the proposal's text, border and fill against every surface, and every text on
+  the proposal's surfaces — with the surfaces at the neutrals' luminance so that the whole table
+  stays where it is and the border carries the boundary (rule 3); no elevation, because a proposal
+  is a child of the entry it sits in (rule 1); no new motion, because arriving beside what it is
+  about is the `attach` role; and the tone in `voice-and-tone.md` §7 — offered, never asserted.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
 list: the wordmark in `F1`, because the website needs it; platform adaptation in `F6`, with the mobile shell that raises the question.
