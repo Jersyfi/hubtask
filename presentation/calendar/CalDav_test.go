@@ -353,3 +353,16 @@ func TestOptionsAndUnsupportedMethodsAndMalformedXML(t *testing.T) {
 		t.Errorf("broken XML should be 400, got %d", w.Code)
 	}
 }
+
+// The discovery address redirects into the tree whatever the method and whoever asks (RFC 6764
+// §5): a client is configured with a host and nothing else, and finds the tree from here.
+func TestDiscoveryRedirectsIntoTheTree(t *testing.T) {
+	for _, method := range []string{http.MethodGet, "PROPFIND"} {
+		request := httptest.NewRequestWithContext(t.Context(), method, WellKnown, nil)
+		response := httptest.NewRecorder()
+		Discovery().ServeHTTP(response, request)
+		if response.Code != http.StatusMovedPermanently || response.Header().Get("Location") != Prefix {
+			t.Errorf("%s %s: %d %q, want 301 to %s", method, WellKnown, response.Code, response.Header().Get("Location"), Prefix)
+		}
+	}
+}
