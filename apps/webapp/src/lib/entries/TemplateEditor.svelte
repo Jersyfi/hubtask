@@ -254,7 +254,7 @@
 <style>
   .tree { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-150); }
 
-  .tree li { padding-left: calc(var(--depth) * var(--sp-300)); }
+  .tree li { padding-inline-start: calc(var(--depth) * var(--sp-300)); }
 
   .node {
     display: flex;
