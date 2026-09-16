@@ -219,12 +219,14 @@ func credentialOf(r *http.Request, basicAllowed bool) (string, error) {
 
 	scheme, value, found := strings.Cut(header, " ")
 	if found && basicAllowed && strings.EqualFold(scheme, basicScheme) {
-		// The standard library's parser, on a copy of the request so the header is read once.
-		_, password, ok := r.BasicAuth()
-		if !ok || strings.TrimSpace(password) == "" {
+		// The standard library's parser. What arrives in the password field is a token - a
+		// personal access token, hashed at rest under its own purpose label like every other
+		// credential - and never an account password, which the tree does not take.
+		_, token, ok := r.BasicAuth()
+		if !ok || strings.TrimSpace(token) == "" {
 			return "", shared.ErrUnauthenticated.WithDetail("access.token_malformed")
 		}
-		return password, nil
+		return token, nil
 	}
 	if !found || !strings.EqualFold(scheme, bearerScheme) {
 		return "", shared.ErrUnauthenticated.WithDetail("access.scheme_unsupported")
