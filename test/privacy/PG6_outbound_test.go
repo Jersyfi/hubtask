@@ -72,6 +72,9 @@ func isIdentifierURL(value string) bool {
 	for _, identifier := range []string{
 		"json-schema.org", "www.w3.org", "schema.org", "spdx.org", "opensource.org",
 		"docs.hubtask.dev", "hubtask.eu", "example.org", "example.com",
+		// The CalendarServer namespace of `getctag` (P-06): a WebDAV property name every CalDAV
+		// client asks by, written into an XML document and never fetched.
+		"calendarserver.org/ns",
 	} {
 		if strings.Contains(value, identifier) {
 			return true
