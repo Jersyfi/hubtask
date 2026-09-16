@@ -31,11 +31,12 @@ import { mount } from 'svelte';
 import App from './App.svelte';
 import { manifest } from './lib/data/capabilities.svelte.ts';
 import { startLocale } from './lib/i18n/i18n.svelte.ts';
-import { followSystemTheme } from './lib/theme.ts';
+import { device } from './lib/device.svelte.ts';
 
 // Before the first paint: the stylesheet deliberately renders nothing sensible without
-// `data-theme` (ADR-0029), and this is the call that sets it.
-followSystemTheme();
+// `data-theme` (ADR-0029), and this is the call that sets it - from what this device kept, else
+// the system's preference (ADR-0043) - and `data-motion` beside it (F5-12).
+device.start();
 
 // …and the document has to say what language it is in and which way it runs. At boot the browser's
 // own preference is all the client knows; the account's (F1-08) and the installation's supported
