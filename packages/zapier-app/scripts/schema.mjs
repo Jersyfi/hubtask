@@ -35,6 +35,10 @@ function checkEntry(entry, path, kind, problems) {
   expect(typeof operation.perform === 'function', `${path}.operation.perform`, 'not a function', problems);
   checkFields(operation.inputFields ?? [], `${path}.operation.inputFields`, problems);
   if (kind === 'trigger') {
+    // The platform's D021: a trigger's description begins "Triggers when ". A publishing task
+    // rather than a push error, so it would surface at the owner's `zapier validate` and not
+    // before; held here so that it surfaces at `pnpm test` (issue 722).
+    expect(typeof entry.display?.description === 'string' && entry.display.description.startsWith('Triggers when '), `${path}.display.description`, 'does not begin "Triggers when " (D021)', problems);
     expect(operation.type === 'hook' || operation.type === 'polling', `${path}.operation.type`, 'neither hook nor polling', problems);
     if (operation.type === 'hook') {
       for (const name of ['performSubscribe', 'performUnsubscribe', 'performList']) {
@@ -76,7 +80,7 @@ export function selftest() {
     version: '0.1.0',
     platformVersion: '17.0.0',
     authentication: { type: 'oauth2', oauth2Config: { authorizeUrl: {}, getAccessToken: {}, refreshAccessToken: {}, enablePkce: true }, test: {} },
-    triggers: { newItem: { key: 'newItem', noun: 'Item', display: { label: 'New Item', description: 'd' }, operation: { type: 'hook', perform: () => {}, performSubscribe: () => {}, performUnsubscribe: () => {}, performList: () => {}, inputFields: [], sample: { id: 'x' } } } },
+    triggers: { newItem: { key: 'newItem', noun: 'Item', display: { label: 'New Item', description: 'Triggers when an item is new.' }, operation: { type: 'hook', perform: () => {}, performSubscribe: () => {}, performUnsubscribe: () => {}, performList: () => {}, inputFields: [], sample: { id: 'x' } } } },
     creates: { createItem: { key: 'createItem', noun: 'Item', display: { label: 'Create Item', description: 'd' }, operation: { perform: () => {}, inputFields: [{ key: 'title', label: 'Title', type: 'string', required: true }], sample: { id: 'x' } } } },
     searches: {},
   };
@@ -88,6 +92,7 @@ export function selftest() {
     (a) => { delete a.triggers.newItem.operation.performUnsubscribe; },
     (a) => { a.creates.createItem.key = 'other'; },
     (a) => { a.creates.createItem.operation.inputFields[0].type = 'colour'; },
+    (a) => { a.triggers.newItem.display = { ...a.triggers.newItem.display, description: 'Fires on a new item.' }; },
   ];
   return broken.every((mutate) => {
     const copy = { ...good, authentication: structuredClone(good.authentication), triggers: { newItem: { ...good.triggers.newItem, operation: { ...good.triggers.newItem.operation } } }, creates: { createItem: { ...good.creates.createItem, operation: { ...good.creates.createItem.operation, inputFields: [...good.creates.createItem.operation.inputFields.map((f) => ({ ...f }))] } } }, searches: {} };

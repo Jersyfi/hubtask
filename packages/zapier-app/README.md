@@ -10,6 +10,10 @@ The Zapier app for [Hubtask](https://hubtask.eu), generated from the OpenAPI con
   collection; each input is a field of the contract's own body, and every create sends an
   `Idempotency-Key` so that a Zapier retry never creates twice.
 * **Searches** — find entries by text (`POST /search`) and by filter (`POST /items:query`).
+* **Dropdowns** — an identifier field is a list to choose from, fed by a hidden trigger over the
+  contract's own listing (hubs, collections, a collection's entries and buckets, an entry's
+  comments); an entry field also takes a search step. An assignee has no list, by design: the
+  contract lists memberships by identifier and no accounts.
 * **Authentication** — OAuth2 authorization code with PKCE against the installation's own
   provider; the person connecting names their installation's address, and the app's client is
   registered there with `POST /oauth/clients`.
@@ -18,9 +22,12 @@ The Zapier app for [Hubtask](https://hubtask.eu), generated from the OpenAPI con
 own `package.json` names `zapier-platform-core` as the CLI requires, and the workspace's
 manifest names none, so this repository's lockfile carries no platform library.
 `pnpm typecheck` generates into a temporary directory, loads the app and validates it against a
-schema of the platform's definition format; `pnpm test` proves every event type is a trigger,
-every create and search exists with a sample, and the request helper does what the contract
-expects.
+schema of the platform's definition format, the platform's own D021 rule included; `pnpm test`
+proves every event type is a trigger, every create and search exists with a sample, and the
+request helper does what the contract expects. `zapier validate` on `dist/` (with
+`zapier-platform-core` installed beside it) passes with no publishing task; what remains are the
+platform's warnings for the identifier fields no listing can feed, and its reminder to validate
+the address field, which the connection test does.
 
 **Not published.** The marketplace is an account, a client registration and a review the owner
 runs; until then the package is `private`.
