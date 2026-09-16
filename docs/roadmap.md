@@ -215,6 +215,26 @@ changes were never delivered (#626, fixed in #633), and a 10 MB `hubctl` binary 
 at the repository root since B-13 (#640, open). What the row calls open is open: SY-B and SY-C in
 `offline-sync.md` §12, and the client's half of the protocol, which is `F5`'s.
 
+**`0.9.0` is cut**, and its backlog is [`backlog/milestone-0.9.0.md`](./backlog/milestone-0.9.0.md)
+— seventeen tasks, `P-01`…`P-17` (O is skipped, because `O-2` is one of the milestone's own
+tasks and `O-02` beside it would be a title somebody misreads). Cutting it read every row that
+names `0.9.0` against the code and found the milestone in three states at once: built and
+waiting (OAuth2 with PKCE for the marketplace, the REST hooks pattern, an `audit_anchor` table
+nothing writes), half-built (a `CalDavController.go` the structure document has named since
+phase 0, an api-client package that is the TypeScript SDK in every respect but a call), and
+unbuilt (no importer, no connector, no reference rendered from the document, no `sdk/`). Five
+things it settled that the row could not: the reference is rendered from the document on the
+website, one page per tag, with the document travelling through the generated package; the
+three SDKs come from two generators and bring no dependency, and their licence is put to the
+owner in [ADR-0057](./adr/ADR-0057-sdk-licence-and-extraction.md) rather than decided; the two
+connector packages are generated and name their platform library as a peer this repository
+never installs ([ADR-0058](./adr/ADR-0058-connector-packages.md)); CalDAV is one `VTODO`
+calendar per calendar feed under HTTP Basic with a personal access token; and the importers
+write archive records the restore applies, which is what `backup-restore.md` §9 decided in
+phase 0 and what the `0.5.0` backlog's line about the jumble's path got wrong. The seven points
+earlier milestones parked with `0.9.0` on them — template generation, SY-C, A-2, B-4, O-2, CI-3
+and D-3 — each close in one task, and `P-17` walks the result and rewrites the row.
+
 ---
 
 ## Requirements that arrive late
@@ -410,6 +430,20 @@ area's seventeen screens in a browser, signed in with a password and a second fa
 eight issues, one of them a missing surface. One product question it records without answering:
 nothing in this contract disables or removes an account, so a workspace has no offboarding beyond
 revoking every membership.
+
+**F5 is cut**, and its backlog is [`backlog/milestone-F5.md`](./backlog/milestone-F5.md) —
+fourteen tasks, F5-01…F5-14, building the surface for `0.7.0`, `0.7.5` and `0.8.0`. Cutting it
+found **no core task**, the first client milestone that did not, and the backlog records why:
+every route it needs was read against the contract, and the one thing the interface wants that
+the contract does not carry — a reduced-motion preference — is ADR-0043's rule applied rather
+than a gap, because motion, like the theme, belongs to the device. Four things it settled: AI is
+a *treatment* before it is a component — `ai.*` tokens measured for contrast in both directions,
+a voice-and-tone rule for a proposal, and then `AISuggestion` on top of them — and its absence is
+absence rather than a gate; a proposal is rendered once, in one strip, whatever asked for it; the
+second catalogue is loaded lazily from `locales/*.json` through the one module that reads the
+directory, and German is written whole, by hand, as the pull request ADR-0055 describes; and the
+two accessibility walks are two tasks that fix in place, because a `margin-left` is not a product
+question. QS-08 is completed for the interface by F5-14, as `0.8.0`'s backlog said it would be.
 
 ### The website: a pre-release site from the `0.4.0` window
 
