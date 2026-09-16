@@ -2972,19 +2972,40 @@ func (e SyncMutationResultResult) Valid() bool {
 
 // Defines values for SyncPullRequestScopesDepth.
 const (
-	CHILDREN SyncPullRequestScopesDepth = "CHILDREN"
-	SELF     SyncPullRequestScopesDepth = "SELF"
-	SUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
+	SyncPullRequestScopesDepthCHILDREN SyncPullRequestScopesDepth = "CHILDREN"
+	SyncPullRequestScopesDepthSELF     SyncPullRequestScopesDepth = "SELF"
+	SyncPullRequestScopesDepthSUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
 )
 
 // Valid indicates whether the value is a known member of the SyncPullRequestScopesDepth enum.
 func (e SyncPullRequestScopesDepth) Valid() bool {
 	switch e {
-	case CHILDREN:
+	case SyncPullRequestScopesDepthCHILDREN:
 		return true
-	case SELF:
+	case SyncPullRequestScopesDepthSELF:
 		return true
-	case SUBTREE:
+	case SyncPullRequestScopesDepthSUBTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncSnapshotRequestScopesDepth.
+const (
+	SyncSnapshotRequestScopesDepthCHILDREN SyncSnapshotRequestScopesDepth = "CHILDREN"
+	SyncSnapshotRequestScopesDepthSELF     SyncSnapshotRequestScopesDepth = "SELF"
+	SyncSnapshotRequestScopesDepthSUBTREE  SyncSnapshotRequestScopesDepth = "SUBTREE"
+)
+
+// Valid indicates whether the value is a known member of the SyncSnapshotRequestScopesDepth enum.
+func (e SyncSnapshotRequestScopesDepth) Valid() bool {
+	switch e {
+	case SyncSnapshotRequestScopesDepthCHILDREN:
+		return true
+	case SyncSnapshotRequestScopesDepthSELF:
+		return true
+	case SyncSnapshotRequestScopesDepthSUBTREE:
 		return true
 	default:
 		return false
@@ -6623,6 +6644,23 @@ type SyncPushResponse struct {
 	ServerTime *time.Time           `json:"server_time,omitempty"`
 }
 
+// SyncSnapshotRequest What `:pull` takes for an initial synchronisation, without a cursor or a page size.
+type SyncSnapshotRequest struct {
+	// DeviceId The device asking, as on `:pull`; it registers by turning up.
+	DeviceId    openapi_types.UUID `json:"device_id"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Platform    *string            `json:"platform,omitempty"`
+
+	// Scopes What the device wants to hold, as on `:pull`; no scope means everything the caller may read.
+	Scopes *[]struct {
+		ContainerId *openapi_types.UUID             `json:"container_id,omitempty"`
+		Depth       *SyncSnapshotRequestScopesDepth `json:"depth,omitempty"`
+	} `json:"scopes,omitempty"`
+}
+
+// SyncSnapshotRequestScopesDepth defines model for SyncSnapshotRequest.Scopes.Depth.
+type SyncSnapshotRequestScopesDepth string
+
 // Template defines model for Template.
 type Template struct {
 	CreatedAt   time.Time          `json:"created_at"`
@@ -8473,6 +8511,9 @@ type SyncPullJSONRequestBody = SyncPullRequest
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
 
+// SyncSnapshotJSONRequestBody defines body for SyncSnapshot for application/json ContentType.
+type SyncSnapshotJSONRequestBody = SyncSnapshotRequest
+
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = TemplateInput
 
@@ -9171,6 +9212,9 @@ type ServerInterface interface {
 	// SyncPush Transmit local mutations
 	// (POST /sync:push)
 	SyncPush(w http.ResponseWriter, r *http.Request)
+	// SyncSnapshot The initial synchronisation as one stream
+	// (POST /sync:snapshot)
+	SyncSnapshot(w http.ResponseWriter, r *http.Request)
 
 	// (GET /templates)
 	ListTemplates(w http.ResponseWriter, r *http.Request, params ListTemplatesParams)
@@ -17312,6 +17356,20 @@ func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// SyncSnapshot operation middleware
+func (siw *ServerInterfaceWrapper) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncSnapshot(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -18297,6 +18355,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:retain", wrapper.RetainItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:pull", wrapper.SyncPull)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:snapshot", wrapper.SyncSnapshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:push", wrapper.SyncPush)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sync/devices/{deviceId}", wrapper.ForgetSyncDevice)
