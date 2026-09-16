@@ -113,6 +113,12 @@ importers:
         specifier: ^8.3.0
         version: 8.3.0(@types/node@24.13.4)
 
+  packages/n8n-nodes-hubtask:
+    devDependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+
   packages/sync-engine:
     dependencies:
       '@hubtask/api-client':
