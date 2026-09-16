@@ -146,6 +146,9 @@ hubtask/
 ├── package.json                    # workspace root: private, scripts and packageManager only
 ├── .nvmrc
 │
+├── sdk/                            # the client SDKs, generated from api/openapi.yaml (ADR-0057)
+│   └── go/hubtask/                 # client.gen.go (make generate, sdk/go/oapi-codegen.yaml) and
+│                                   # hubtask.go, the few hand-written lines beside it
 ├── locales/                        # en.json (source), de.json, … (ICU MessageFormat)
 ├── test/
 │   ├── integration/                # Testcontainers PostgreSQL

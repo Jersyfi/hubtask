@@ -89,6 +89,19 @@ a fork in the road.
   document, which is the one place the two licences meet and the reason the client is generated
   as a self-contained file rather than importing the package's types.
 
+## Amendment — 2026-09-16, what P-02 found building the Go client
+
+Two things the cut could not know. The contract names schemas `SyncPullResponse` and
+`SyncPushResponse`, and `oapi-codegen` names an operation's decoded answer
+`<OperationId>Response` — `syncPull`'s answer collided with its own body. The generated answer
+types therefore carry the suffix `Result` (`CreateWorkItemResult`), set in
+`sdk/go/oapi-codegen.yaml`, which no schema of the contract uses; a consumer reads
+`res.JSON201`, `res.StatusCode()` and `res.Body` on them exactly as before. And the hand-written
+half is one file, `hubtask.go`, under sixty lines including its comments: a bearer editor, an
+idempotency editor, an `If-Match` editor, and `Check`, which turns a transport error or a non-2xx
+answer into a `*ProblemError` carrying the decoded problem document. That is the whole of what
+an extraction would carry beside the generated file, which is the size this ADR hoped for.
+
 ## Notes
 
 Related: [ADR-0027](./ADR-0027-monorepo-structure.md) (the deferral), [ADR-0013](./ADR-0013-licensing.md)
