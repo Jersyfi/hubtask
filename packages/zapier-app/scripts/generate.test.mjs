@@ -164,3 +164,15 @@ test('an identifier field is a dropdown fed by a hidden choices trigger, and a s
   assert.equal(two.calls[0].url, 'https://hubtask.example/api/v1/items/i1');
   assert.equal(two.calls[1].url, 'https://hubtask.example/api/v1/containers/c9/buckets');
 });
+
+test('the connection test holds the installation address to an https origin before asking it', async () => {
+  const z = fakeZ({ status: 200, data: { id: 'a1', display_name: 'Anna' } });
+  const me = await app.authentication.test(z, bundle());
+  assert.equal(me.display_name, 'Anna');
+  assert.equal(z.calls[0].url, 'https://hubtask.example/api/v1/accounts/me');
+  for (const wrong of ['hubtask.example', 'http://hubtask.example', 'https://hubtask.example/api/v1', 'https://hubtask.example/?x=1', 'https://a:b@hubtask.example']) {
+    const untouched = fakeZ({ status: 200, data: {} });
+    await assert.rejects(app.authentication.test(untouched, { ...bundle(), authData: { base_url: wrong } }), /installation address/);
+    assert.equal(untouched.calls.length, 0, `${wrong} was sent`);
+  }
+});

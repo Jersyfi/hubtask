@@ -10,9 +10,30 @@
 // connecting fills in, because Hubtask is self-hosted and has no host of its own.
 'use strict';
 
-const { API_VERSION } = require('./hubtask');
+const { API_VERSION, request } = require('./hubtask');
 
 const root = '{{bundle.authData.base_url}}/api/' + API_VERSION;
+
+/**
+ * The address a person typed, held to a shape before anything is sent to it: an https origin
+ * with no path, query or fragment - the app appends `/api/v1` itself. Checked here rather than
+ * left to the platform (its D026), because a value that is not an origin would otherwise make
+ * every later request fail somewhere less legible than the connection test.
+ */
+function installationAddress(bundle) {
+  const raw = String((bundle.authData && bundle.authData.base_url) || '').trim();
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`The installation address has to be a URL such as https://hubtask.example, not "${raw}".`);
+  }
+  const bare = url.pathname === '' || url.pathname === '/';
+  if (url.protocol !== 'https:' || !bare || url.search !== '' || url.hash !== '' || url.username !== '' || url.password !== '') {
+    throw new Error('The installation address has to be an https origin such as https://hubtask.example, without a path.');
+  }
+  return url.origin;
+}
 
 module.exports = {
   type: 'oauth2',
@@ -67,6 +88,9 @@ module.exports = {
     autoRefresh: true,
     scope: 'items:read items:write containers:read containers:write automation:manage',
   },
-  test: { url: `${root}/accounts/me` },
+  test: async (z, bundle) => {
+    installationAddress(bundle);
+    return request(z, bundle, 'GET', '/accounts/me');
+  },
   connectionLabel: '{{display_name}} at {{bundle.authData.base_url}}',
 };
