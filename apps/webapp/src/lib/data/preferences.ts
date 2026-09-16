@@ -26,29 +26,27 @@ export const WEEK_STARTS = ['MONDAY', 'SUNDAY', 'SATURDAY'] as const;
 /**
  * What a `PATCH` sends for a field somebody cleared: **the empty string**.
  *
- * Not `null`, and the difference is not cosmetic. `usecase.Input.Present()` reports a
- * present-but-nil entry as *absent*, so an explicit JSON null reaches the use case looking exactly
- * like a field nobody sent — and the value stays. Walked against a running server:
- * `{"locale": null}` left the locale as it was; `{"locale": ""}` cleared it.
+ * Not `null`, and the difference is not cosmetic. A server before 0.9.0 read an explicit JSON
+ * null as a field nobody sent — `usecase.Input.Present()` reports a present-but-nil entry as
+ * absent — and the value stayed (issue 709). The empty string is what every version clears on.
  */
 export function clearedOr(value: string): string {
   return value.trim();
 }
 
 /**
- * Whether a field can be put back to the workspace's default at all.
+ * The workspace's own value as a choice of its own, in front of the others.
  *
- * `week_start` cannot, on this server. `""` is refused — `usecase.field_not_in_enum` at
- * `/week_start`, because the descriptor's enum lists the three days and nothing else — and `null`
- * is read as "not sent" like every other null. So once somebody has chosen a first day, this
- * version has no way to un-choose it, and the control says so rather than offering a choice that
- * quietly does nothing.
- *
- * The contract disagrees: `AccountPreferences.week_start` declares `enum: [MONDAY, SUNDAY,
- * SATURDAY, null]`. Reported rather than worked around.
+ * A choice, not a placeholder: `Select`'s placeholder is unselectable, which is right for a field
+ * that starts empty and wrong for one somebody wants to put back — a person who once chose a first
+ * day of the week could never un-choose it (the F5-09 walk). The empty value is what `clearedOr`
+ * sends, and what the server clears on.
  */
-export function canBeCleared(field: 'locale' | 'time_zone' | 'week_start'): boolean {
-  return field !== 'week_start';
+export function withWorkspaceChoice(
+  options: readonly { value: string; label: string }[],
+  label: string,
+): readonly { value: string; label: string }[] {
+  return [{ value: '', label }, ...options];
 }
 
 /**
