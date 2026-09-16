@@ -7,7 +7,9 @@
   "license": "BUSL-1.1",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./dist/schema.d.ts"
+    "./schema": "./dist/schema.d.ts",
+    "./openapi.json": "./dist/openapi.json",
+    "./events.json": "./dist/events.json"
   },
   "files": [
     "dist",
