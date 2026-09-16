@@ -332,7 +332,7 @@ export function arrivedSince(suggestions: readonly Pick<Suggestion, 'created_at'
 }
 
 /** What a suggestion is about, as the listing filters it. */
-export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY';
+export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY' | 'CONTAINER';
 
 /** Where one target's standing proposals are listed. One path, so two readers share one read. */
 export const suggestionsPath = (targetId: string, target: Target = 'WORK_ITEM') =>

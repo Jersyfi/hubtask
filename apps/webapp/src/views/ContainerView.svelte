@@ -29,6 +29,7 @@
   import { untrack } from 'svelte';
 
   import Board from '../lib/entries/Board.svelte';
+  import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
@@ -43,6 +44,7 @@
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
@@ -194,6 +196,7 @@
       : undefined,
   );
   const archival = $derived(container ? archivalOf(container) : 'active');
+  const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
   const isReadOnly = $derived(archival !== 'active');
 
   // Built from the route rather than from a remembered click, which is what makes a deep link land
@@ -575,6 +578,12 @@
           </Button>
         </Toolbar>
       </Stack>
+    {/if}
+
+    <!-- The collection's status, summarised where the manifest says AI is configured here (K-05,
+         F5-04), and absent - not gated - where it is not (milestone-F5.md decision 4). -->
+    {#if container.type === 'COLLECTION' && hasAi}
+      <CollectionSummary containerId={container.id} />
     {/if}
 
     {#if container.type === 'HUB'}
