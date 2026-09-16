@@ -191,12 +191,21 @@ generate:
 	@# that a Node lane without Go can build against it (project-structure.md §6).
 	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
 	@$(MAKE) --no-print-directory sdk-go
+	@$(MAKE) --no-print-directory sdk
 
 ## sdk-go: Regenerate the Go SDK from api/openapi.yaml (P-02, ADR-0057)
 .PHONY: sdk-go
 sdk-go:
 	$(call require_tool,oapi-codegen)
 	$(TOOLS_DIR)/oapi-codegen --config sdk/go/oapi-codegen.yaml api/openapi.yaml
+
+## sdk: Regenerate the TypeScript and the Python SDK from api/openapi.yaml (P-03, ADR-0057)
+# Both committed: the TypeScript client into packages/api-client/src as a generated file, the
+# Python package under sdk/python. Neither needs Node or Python to be generated, which is what
+# keeps `make generate` a Go-only step (project-structure.md §2.1).
+.PHONY: sdk
+sdk:
+	$(GO) run ./tools/sdkgen api/openapi.yaml packages/api-client/src/client.gen.ts sdk/python/hubtask
 
 ## tokens: Regenerate the design tokens (CSS, TypeScript, and the Go label token names)
 # Separate from `make generate` on purpose: that target must keep working without Node.js, and a
