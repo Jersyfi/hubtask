@@ -656,6 +656,21 @@ case "$IMPORTED_JSON" in
 	*) echo "FAILED: the same file a third time created something: $IMPORTED_JSON"; exit 1 ;;
 esac
 
+echo "--- a Trello board, imported under the hub (P-09) ---"
+cat > "$WORK_DIR/board.json" <<'BOARD'
+{"id":"e2e0000000000000000000b1","name":"Imported board","desc":"","lists":[{"id":"l1","name":"To do","pos":1},{"id":"l2","name":"Done","pos":2}],
+ "labels":[{"id":"lb1","name":"Urgent","color":"red"}],"members":[{"id":"m1","fullName":"Alex Example"}],
+ "cards":[{"id":"c1","name":"Imported card","desc":"From Trello.","idList":"l1","pos":1,"due":"2026-09-20T09:00:00.000Z","dueComplete":false,"idLabels":["lb1"],"idMembers":["m1"],"attachments":[]},
+          {"id":"c2","name":"Imported done card","desc":"","idList":"l2","pos":1,"due":"2026-09-01T09:00:00.000Z","dueComplete":true,"idLabels":[],"idMembers":[],"attachments":[]}],
+ "checklists":[{"id":"k1","name":"Steps","idCard":"c1","pos":1,"checkItems":[{"id":"i1","name":"First","state":"complete","pos":1},{"id":"i2","name":"Second","state":"incomplete","pos":2}]}],
+ "actions":[{"type":"commentCard","date":"2026-09-02T10:00:00.000Z","memberCreator":{"fullName":"Alex Example","username":"alex"},"data":{"text":"Nearly there.","card":{"id":"c1"}}}]}
+BOARD
+board_imported="$(hubctl --json import trello "$WORK_DIR/board.json" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import trello" "$board_imported" "SUCCEEDED"
+expect_contains "import trello" "$board_imported" "TRELLO"
+# The member's assignment has no place here and is counted rather than lost silently.
+expect_contains "import trello counts the unmapped members" "$board_imported" '"unmapped_members": 1'
+
 echo "--- a custom field, defined and written ---"
 defined="$(hubctl field define --key urgency --kind SELECT --collection "$COLLECTION_ID" --options low,high)"
 expect_contains "field define" "$defined" "urgency"
