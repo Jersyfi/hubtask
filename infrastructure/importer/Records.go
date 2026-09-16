@@ -228,6 +228,28 @@ func (b *builder) link(item, label shared.ID) {
 	})
 }
 
+// comment adds a comment by the importing person, with the source's author named in the text:
+// a Trello member is not an account here, and a comment's author must be one.
+func (b *builder) comment(key string, item shared.ID, author, body string, at *time.Time) {
+	id := b.id("comments", key)
+	text := clip(strings.TrimSpace(body), 20000)
+	if text == "" {
+		return
+	}
+	if author != "" {
+		text = clip(author+": "+text, 20000)
+	}
+	created := b.source.Now
+	if at != nil {
+		created = *at
+	}
+	b.add("comments", id, map[string]any{
+		"id": id.String(), "item_id": item.String(), "author_id": b.source.Actor.String(),
+		"parent_comment_id": nil, "body": text, "created_at": stamp(created), "edited_at": nil,
+		"deleted_at": nil, "version": 1, "kind": "USER", "system_code": nil, "system_params": nil,
+	})
+}
+
 func (b *builder) result(refused []refusal) service.Result {
 	out := service.Result{Records: b.records}
 	for _, r := range refused {
@@ -267,4 +289,32 @@ func tokenFor(name string) string {
 		sum = (sum*31 + int(r)) % len(tokens)
 	}
 	return string(tokens[sum])
+}
+
+// tokenNamed maps a colour word another system uses onto the nearest of the ten tokens, and
+// falls back to the hash where the word is unknown.
+func tokenNamed(colour, name string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(colour, "_")[0])) {
+	case "green":
+		return "green"
+	case "yellow", "lime":
+		return "lime"
+	case "orange":
+		return "orange"
+	case "red":
+		return "red"
+	case "purple", "violet":
+		return "violet"
+	case "blue", "sky":
+		return "blue"
+	case "pink", "magenta":
+		return "magenta"
+	case "black", "gray", "grey", "slate":
+		return "slate"
+	case "teal", "cyan":
+		return "teal"
+	case "amber", "gold":
+		return "amber"
+	}
+	return tokenFor(name)
 }
