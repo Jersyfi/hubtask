@@ -79,7 +79,12 @@ Argo CD the same Job is a `Sync`-phase hook in a sync wave after the database, s
 which also renders its CloudNativePG `Cluster` ([§3.2](#32-where-production-runs)) migrates a
 database that exists; the migrator itself waits for the database to accept connections
 (`migration.connectWait`) rather than trusting the wave to have waited for it, because whether Argo
-CD knows what a healthy `Cluster` looks like is the platform's, not ours to assume.
+CD knows what a healthy `Cluster` looks like is the platform's, not ours to assume. And it applies
+a migration whose number is lower than one the database already holds: numbers are taken when a
+branch is cut and branches merge in the order review finishes them, so `0090` arriving after
+`0091` is the ordinary outcome of two pull requests — it is how the integration environment
+stopped deploying on 2026-09-16 — and every migration is expand-only and assumes nothing but the
+schema it names (ADR-0003), which is what makes applying it late safe.
 
 ---
 
@@ -347,5 +352,5 @@ signature, or without approval — and no path on which this repository deploys 
 |---|---|---|
 | D-1 | ~~Decide the target environment for `production`~~ — a **namespace on a platform-operated Kubernetes cluster** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10), described in [§3.2](#32-where-production-runs). Not a second node of our own: that was the plan until the offer existed, and it answers no question this does not while adding a bill and a bootstrap. The cost is control over the cluster, the alert routing and the bucket policy, which is a trade made knowingly | Closed (H-10) |
 | D-2 | ~~Database: own container, operator, or managed service~~ — **PostgreSQL through the platform's CloudNativePG operator** (ADR-0046, H-10). The operator is theirs; the `Cluster` resource is ours, in our namespace, with its backup stanza pointed at the object storage they provide. So it is neither a container we hand-roll nor a service whose recovery we cannot reach: PITR is ours to configure and theirs to host, which is exactly what the restore drill needs in order to be ours to run | Closed (H-10) |
-| D-3 | Evaluate moving to GitOps once there is more than one cluster or more than one operator — **answered for production by the platform** (ADR-0046, amended 2026-09-07): Argo CD pulls the chart at a pinned tag, and there is no push path to that cluster. Open only for our own environments, where `integration` stays push-based until a second cluster or operator appears | `0.9.0` (integration) |
+| D-3 | ~~Evaluate moving to GitOps once there is more than one cluster or more than one operator~~ — **answered for production by the platform** (ADR-0046, amended 2026-09-07): Argo CD pulls the chart at a pinned tag, and there is no push path to that cluster. **Closed for the integration environment in P-15** (`0.9.0`) with its own sentence: one cluster, one operator, push stays. What the push path gained instead is the signature at the door (CI-3): the deploy signs the image it built and verifies it before `helm upgrade`, and the chart can render the Kyverno policy that makes the cluster refuse anything else | Closed (P-15) |
 | ~~D-4~~ | ~~Domain, TLS approach, and ingress controller~~ — decided in [§3.1](#31-where-integration-runs): `<service>.<environment>.hubtask.eu`, cert-manager with Let's Encrypt, and Traefik | `0.2.0` |

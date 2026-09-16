@@ -186,6 +186,26 @@ generate:
 	$(TOOLS_DIR)/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
 	$(call require_tool,sqlc)
 	$(TOOLS_DIR)/sqlc -f db/sqlc.yaml generate
+	@# The same document as JSON, for the renderers and generators that ship no YAML parser
+	@# (P-01): the website's reference and the SDK generators read it, and it is committed so
+	@# that a Node lane without Go can build against it (project-structure.md §6).
+	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
+	@$(MAKE) --no-print-directory sdk-go
+	@$(MAKE) --no-print-directory sdk
+
+## sdk-go: Regenerate the Go SDK from api/openapi.yaml (P-02, ADR-0057)
+.PHONY: sdk-go
+sdk-go:
+	$(call require_tool,oapi-codegen)
+	$(TOOLS_DIR)/oapi-codegen --config sdk/go/oapi-codegen.yaml api/openapi.yaml
+
+## sdk: Regenerate the TypeScript and the Python SDK from api/openapi.yaml (P-03, ADR-0057)
+# Both committed: the TypeScript client into packages/api-client/src as a generated file, the
+# Python package under sdk/python. Neither needs Node or Python to be generated, which is what
+# keeps `make generate` a Go-only step (project-structure.md §2.1).
+.PHONY: sdk
+sdk:
+	$(GO) run ./tools/sdkgen api/openapi.yaml packages/api-client/src/client.gen.ts sdk/python/hubtask
 
 ## tokens: Regenerate the design tokens (CSS, TypeScript, and the Go label token names)
 # Separate from `make generate` on purpose: that target must keep working without Node.js, and a
@@ -510,6 +530,7 @@ gate-chart:
 		--set roles.api.autoscaling.enabled=true \
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
+		--set imagePolicy.enabled=true \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
 	@# Every host the operator names has to reach the API and be on the certificate. A name in the
 	@# rules and not in the `tls` block is a route a browser refuses before the application sees it.
@@ -576,6 +597,28 @@ gate-chart:
 		--set database.backup.enabled=false > /dev/null 2>&1; then \
 		echo "chart: a database rendered without the application role's secret - it must refuse"; exit 1; fi
 	@echo "chart: the database renders, and refuses a backup or an application role without its secret"
+	@# The signature at the door (CI-3): on, the policy names the issuer and every subject the
+	@# image may be signed under; off, nothing of the kind renders; on without a subject, the
+	@# chart refuses rather than rendering a policy that verifies against nobody.
+	@policy="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set imagePolicy.enabled=true \
+		--show-only templates/imagepolicy.yaml)"; \
+		printf '%s' "$$policy" | grep -q 'kind: ClusterPolicy' || \
+			{ echo "chart: imagePolicy.enabled rendered no ClusterPolicy"; exit 1; }; \
+		printf '%s' "$$policy" | grep -q 'issuer: "https://token.actions.githubusercontent.com"' || \
+			{ echo "chart: the image policy names no issuer"; exit 1; }; \
+		printf '%s' "$$policy" | grep -q 'workflows/release.yml@refs/tags/' || \
+			{ echo "chart: the image policy does not name the release workflow's identity"; exit 1; }; \
+		printf '%s' "$$policy" | grep -q 'failurePolicy: Fail' || \
+			{ echo "chart: the image policy would let a pod through when the webhook is down"; exit 1; }
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets | grep -q 'kind: ClusterPolicy'; then \
+		echo "chart: a ClusterPolicy rendered with imagePolicy off"; exit 1; fi
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set imagePolicy.enabled=true \
+		--set imagePolicy.subjects=null > /dev/null 2>&1; then \
+		echo "chart: an image policy without a subject rendered - it must refuse"; exit 1; fi
+	@echo "chart: the image policy renders with its identity, only when asked, and never without a subject"
 	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
 	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
 	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have

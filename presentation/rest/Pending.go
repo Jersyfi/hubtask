@@ -404,6 +404,8 @@ func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openap
 }
 
 // VerifyAuditChain is overridden by RestController, for the reason ListAuditEntries is.
+func (pending) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // ExportAuditTrail is overridden by RestController, for the reason ListAuditEntries is.
@@ -929,6 +931,8 @@ func (pending) SyncPull(w http.ResponseWriter, r *http.Request) { notAvailable(w
 
 func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) SyncSnapshot(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.StreamChangesParams) {
 	notAvailable(w, r)
 }
@@ -1045,5 +1049,20 @@ func (pending) SuggestDecomposition(
 	w http.ResponseWriter, r *http.Request, _ openapi.ItemId,
 	_ openapi.SuggestDecompositionParams,
 ) {
+	notAvailable(w, r)
+}
+
+func (pending) AiGenerateTemplate(
+	w http.ResponseWriter, r *http.Request, _ openapi.AiGenerateTemplateParams,
+) {
+	notAvailable(w, r)
+}
+
+// The imports (P-08) are overridden by RestController, for the reason given at CreateContainer.
+func (pending) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.ImportEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetImport(w http.ResponseWriter, r *http.Request, _ openapi.ImportId) {
 	notAvailable(w, r)
 }

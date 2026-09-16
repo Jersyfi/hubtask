@@ -122,15 +122,30 @@ LIMIT sqlc.arg('batch_size');
 -- name: LastAuditAnchor :one
 -- The last chain end this tenant exported to an append-only target outside the database.
 --
--- Nothing writes this table yet, and that is the point of reading it: `:verify` proves the chain is
--- intact *inside* the database, and only an anchor proves anything against somebody who can rewrite
--- the whole of it. `sealed_until` is therefore null on every installation until external anchoring
--- exists (audit.md §3, open point A-2) - null being the honest answer rather than a date that would
--- claim more than the system does.
-SELECT anchored_at, last_seq, chain_hash
+-- Written by the anchoring job since P-13 (audit.md §3, A-2): `:verify` proves the chain is intact
+-- *inside* the database, and only an anchor proves anything against somebody who can rewrite the
+-- whole of it. `sealed_until` is null where a workspace has never anchored - null being the honest
+-- answer rather than a date that would claim more than the system does.
+SELECT anchored_at, last_seq, chain_hash, destination, receipt
 FROM audit_anchor
 WHERE tenant_id = current_tenant_id()
 ORDER BY last_seq DESC
+LIMIT 1;
+
+-- name: RecordAuditAnchor :exec
+-- One anchor: the chain end, where the copy went and the digest it was written with (P-13). The
+-- primary key refuses a second anchor of the same sequence number, which is how a day on which the
+-- chain did not move writes nothing rather than a duplicate.
+INSERT INTO audit_anchor (tenant_id, anchored_at, last_seq, chain_hash, destination, receipt)
+VALUES (current_tenant_id(), sqlc.arg('anchored_at'), sqlc.arg('last_seq'), sqlc.arg('chain_hash'),
+        sqlc.arg('destination'), sqlc.arg('receipt'));
+
+-- name: AuditHashAt :one
+-- The stored hash at one sequence number, for an anchor outside the walked period to be compared
+-- against (P-13). `audit_seq_idx` keeps it a lookup.
+SELECT hash
+FROM audit_log
+WHERE tenant_id = current_tenant_id() AND seq = sqlc.arg('seq')
 LIMIT 1;
 
 -- name: EnsureAuditPartition :one

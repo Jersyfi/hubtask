@@ -34,8 +34,10 @@ COPY packages packages
 # too - and both are inputs to this stage rather than to the Go one, so the webapp build resolves
 # `../../../../../locales/en.json` here exactly as it does in a checkout. Nothing else of the Go
 # tree is needed, and copying less is what keeps this stage from rebuilding when the backend
-# changes.
-COPY api/openapi.yaml api/openapi.yaml
+# changes. The JSON document and the event schemas travel with the YAML since P-01: the api-client
+# build ships them in its dist/ for the website's reference, and refuses to build without them.
+COPY api/openapi.yaml api/openapi.json api/
+COPY api/events api/events
 COPY locales/en.json locales/en.json
 # In dependency order, because each one consumes the one before it.
 RUN pnpm --filter @hubtask/api-client build \

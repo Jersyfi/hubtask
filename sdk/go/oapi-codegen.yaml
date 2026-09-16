@@ -1,0 +1,20 @@
+# The Go SDK, generated from api/openapi.yaml (P-02, ADR-0057).
+#
+# Client mode of the same tool that generates the server's types: the specification is the
+# source, this file says what is made of it, and `make generate` runs it beside the server's
+# generation so that a contract change regenerates the client in the same pull request. The
+# models are generated a second time here, into this package, so that the SDK is self-contained -
+# a consumer imports sdk/go/hubtask and nothing of the server.
+package: hubtask
+output: sdk/go/hubtask/client.gen.go
+
+generate:
+  models: true
+  client: true
+
+output-options:
+  skip-prune: false
+  # The contract names schemas `SyncPullResponse` and `SyncPushResponse`, and the generator names
+  # an operation's answer `<OperationId>Response` - `syncPull` would collide with its own body.
+  # So the generated answer types carry a suffix that no schema in the contract uses.
+  response-type-suffix: Result

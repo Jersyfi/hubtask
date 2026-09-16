@@ -87,21 +87,39 @@ type RecordPage struct {
 // there - a verification of "everything there has ever been" is a legitimate question.
 type Period struct{ From, To time.Time }
 
-// Anchor is the last chain end this tenant exported to an append-only target outside the database
-// (audit.md §3).
+// Anchor is one chain end this tenant exported to an append-only target outside the database
+// (audit.md §3, A-2): the sequence number and the hash at it, when, where the copy went, and the
+// digest it was written with.
 //
-// Nothing writes one yet, and the zero value is what every installation therefore reads. It is
-// asked for all the same, because `:verify` proves the chain intact *inside* the database and only
-// an anchor says anything against somebody who can rewrite the whole of it - so the answer has to
-// be able to say "nothing is sealed" rather than leave the question unasked.
+// The zero value is what a workspace that never anchored reads. It is asked for all the same,
+// because `:verify` proves the chain intact *inside* the database and only an anchor says anything
+// against somebody who can rewrite the whole of it - so the answer has to be able to say "nothing
+// is sealed" rather than leave the question unasked.
 type Anchor struct {
 	AnchoredAt time.Time
 	LastSeq    int64
 	ChainHash  []byte
+	// Destination is the backup target the copy was written to, by identifier; Receipt is the
+	// digest of the object as written, which is what a read-back is checked against (P-13).
+	Destination string
+	Receipt     string
 }
 
 // IsZero reports whether this tenant has never anchored anything.
 func (a Anchor) IsZero() bool { return a.AnchoredAt.IsZero() }
+
+// ChainEnd is where a tenant's chain stands: the highest sequence number and its hash, or zero
+// for a trail with nothing in it yet.
+type ChainEnd struct {
+	LastSeq int64
+	Hash    []byte
+}
+
+// Anchors writes the one row the trail's package writes beside the trail: what was exported and
+// where (P-13). Its own port rather than a method on Trail, whose contract is that it reads.
+type Anchors interface {
+	Record(ctx context.Context, anchor Anchor) error
+}
 
 // Partitions is the duty `0001_init` wrote down and left to whoever came next: a partition of
 // `audit_log` created later has to carry its own row level security policy and its own revoked
@@ -143,4 +161,12 @@ type Trail interface {
 
 	// LatestAnchor answers the last anchored chain end, or the zero anchor.
 	LatestAnchor(ctx context.Context) (Anchor, error)
+
+	// ChainEnd answers where the chain stands now: the tail the next entry chains to, which is
+	// what an anchor exports (P-13).
+	ChainEnd(ctx context.Context) (ChainEnd, error)
+
+	// HashAt answers the stored hash at one sequence number, or an error wrapping ErrNotFound.
+	// For an anchor outside a walked period to be compared against.
+	HashAt(ctx context.Context, seq int64) ([]byte, error)
 }

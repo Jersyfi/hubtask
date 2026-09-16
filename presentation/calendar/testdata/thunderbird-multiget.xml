@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data/>
+  </D:prop>
+  <D:href>/caldav/calendars/0192f000-0000-7000-8000-00000000000d/0192f000-0000-7000-8000-0000000000f1/0192f000-0000-7000-8000-00000000000e.ics</D:href>
+  <D:href>/caldav/calendars/0192f000-0000-7000-8000-00000000000d/0192f000-0000-7000-8000-0000000000f1/0192f000-0000-7000-8000-0000000000ff.ics</D:href>
+</C:calendar-multiget>

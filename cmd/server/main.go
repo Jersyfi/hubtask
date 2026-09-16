@@ -31,6 +31,7 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	importrepo "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -40,6 +41,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
@@ -56,6 +58,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
@@ -82,6 +85,7 @@ import (
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
+	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	oidcadapter "github.com/Jersyfi/hubtask/infrastructure/oidc"
@@ -92,6 +96,7 @@ import (
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
+	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
@@ -545,6 +550,17 @@ func run() error {
 	// that writes holds the sink, and a sink that could also read would put the whole trail one
 	// call away from code that has no business reading it (E-09).
 	auditTrail := postgres.NewAuditTrailRepository(cursors)
+	// External anchoring (A-2, P-13): the chain's end written daily to a target the workspace
+	// named, and read back by a verification that asks for it.
+	auditAnchoring := auditservice.Anchoring{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Targets: backupTargets,
+		Trail: auditTrail, Anchors: auditTrail,
+		Stores: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor, UnitOfWork: unitOfWork,
+		},
+		Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, ProductVersion: version,
+	}
 	// Data subject rights (E-10). One repository over four ports - the cases, the consents, the
 	// account states an erasure and a restriction write, and the pseudonyms the audit trail reads
 	// at the boundary - because they are one table group and one transaction's worth of work.
@@ -572,6 +588,18 @@ func run() error {
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
 	// keeping the two apart is what keeps every byte operation outside a transaction (C-06).
 	mediaObjects := postgres.NewMediaRepository(cursors)
+	// The imports (P-08): the run's row, and the converters this build serves, one per kind.
+	importRuns := postgres.NewImportRunRepository()
+	importConverters := map[importdomain.Kind]importrepo.Converter{
+		importdomain.KindCSV:           importadapter.CSV{},
+		importdomain.KindTrello:        importadapter.Trello{},
+		importdomain.KindGoogleTasks:   importadapter.GoogleTasks{},
+		importdomain.KindMicrosoftTodo: importadapter.MicrosoftTodo{},
+	}
+	importKinds := make([]importdomain.Kind, 0, len(importConverters))
+	for kind := range importConverters {
+		importKinds = append(importKinds, kind)
+	}
 	// The notification records and the preferences. Two repositories rather than one type with two
 	// interfaces, because both need a Find and a Save (C-09).
 	notifications := postgres.NewNotificationRepository()
@@ -869,11 +897,14 @@ func run() error {
 	// the validation, the event and the entry's own history are the ones a person's own write
 	// would have produced, because it *is* a person's own write.
 	suggestionCatalogue := &deferredCatalogue{}
+	suggestionStore := postgres.NewSuggestionRepository(cursors)
 	suggestionCases := suggestionservice.Cases{
-		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Suggestions: suggestionStore,
 		Targets:     suggestionservice.EntryTargets{Catalogue: suggestionCatalogue},
 		Authorizer:  authorizer, Catalogue: suggestionCatalogue, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		// The words a template is drafted from, held for the job (P-11).
+		Requests: suggestionStore, IDs: ids,
 	}
 
 	// The cases the privacy use cases share.
@@ -988,8 +1019,8 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions},
-		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
 		// And a proposal is narrowed to what that use case can take: `suggest-fields` proposes
@@ -1125,6 +1156,11 @@ func run() error {
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiSummarizeContainer{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AiGenerateTemplate{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
@@ -1345,7 +1381,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -1420,8 +1456,9 @@ func run() error {
 		}.Descriptor(),
 		auditservice.VerifyAuditChain{
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Anchoring: &auditAnchoring,
 		}.Descriptor(),
+		auditservice.ConfigureAuditAnchoring{Anchoring: auditAnchoring}.Descriptor(),
 		privacyservice.CreateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
@@ -1437,6 +1474,14 @@ func run() error {
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		// The imports (P-08): the request, and the read of its report. The kinds this build
+		// converts are the converters wired below; a kind the contract declares and no converter
+		// serves is refused by name at the request.
+		importservice.ImportEntries{
+			Runs: importRuns, Objects: mediaObjects, Containers: containers, Authorizer: authorizer,
+			Jobs: jobs, Kinds: importKinds, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		importservice.GetImport{Runs: importRuns, Authorizer: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
@@ -1770,6 +1815,9 @@ func run() error {
 				},
 			},
 			PushSignals: metrics,
+			// The snapshot is the walk as one response (SY-C), admitted and counted with the
+			// streams because it is a connection held open like one.
+			Registry: streams, StreamSignals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{
@@ -1797,8 +1845,38 @@ func run() error {
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
 		// it still travels through the whole middleware chain, which is what makes an agent's call
 		// authenticated, rate limited and observed exactly like a person's (ai-first.md §1.1).
+		// The CalDAV tree (P-06) is mounted the same way, as a prefix: WebDAV rather than REST,
+		// outside the contract, inside the middleware chain - authenticated by the same token
+		// path, through HTTP Basic because a calendar client can send nothing else. The discovery
+		// address of RFC 6764 redirects into it.
+		caldav := rest.Mounted{
+			Router: rest.Mounted{
+				Router: controller.Routes(),
+				Path:   calendar.WellKnown,
+				Mount:  http.RedirectHandler(calendar.Prefix, http.StatusMovedPermanently),
+			},
+			Path:   calendar.Prefix,
+			Prefix: true,
+			Mount: &calendar.Controller{
+				Feeds: work.ListCalendarFeeds{Writer: calendarFeedWriter},
+				Views: work.ExportView{
+					Views: savedViews, Containers: containers, Permits: authorizer,
+					Query: work.QueryItems{
+						Items: items, ItemLabels: itemLabels, Containers: containers,
+						Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+					},
+					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+					Clock: clockadapter.System{},
+				},
+				BaseURL: cfg.BaseURL,
+				Now:     clockadapter.System{}.Now,
+				// The writes (P-07): a completion, a date, a name, a deletion, each the
+				// ordinary use case performed as the token's account through the registry.
+				UseCases: useCases,
+			},
+		}
 		apiRoutes := rest.Mounted{
-			Router: controller.Routes(),
+			Router: caldav,
 			Path:   mcp.Path,
 			Mount: mcp.Server{
 				Catalogue: useCases,
@@ -1906,7 +1984,7 @@ func run() error {
 			Handler: rest.Observed{
 				Router: rest.Fallback{
 					API:      apiRoutes,
-					Reserved: []string{rest.APIBasePath + "/", mcp.Path},
+					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
 					UI:       ui,
 					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Shedding{
 						Routes: apiRoutes, Admit: admit, Signals: metrics,
@@ -2252,6 +2330,10 @@ func run() error {
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
+	// The trial restore (B-4): the run that wrote a FULL archive reads it back through the
+	// applier, in the same job. The applier's own safety copy keeps the performer as it was
+	// before this line - a copy taken before a restore has no archive to read back yet.
+	backupPerformer.Trial = backupApplier
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
@@ -2452,6 +2534,15 @@ func run() error {
 			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindImport: worker.Import{
+			Runner: importservice.Runner{
+				Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,
+				Applier: backupApplier, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
+			},
+			Progress: jobs,
+		},
+		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
 		// The grace job the deletion request seeded (H-06). Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
 		// The workspace export the control plane seeds (H-07). Detached for the audit

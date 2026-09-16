@@ -42,3 +42,24 @@ const banner = `/**
 `;
 fs.writeFileSync(output, banner + fs.readFileSync(output, 'utf8'));
 console.log(`api-client: ${path.relative(process.cwd(), output)}`);
+
+// The document itself, and the event schemas beside it (P-01). `api/openapi.json` is what
+// `make generate` writes from the YAML (project-structure.md §6); it travels through this
+// package because the website may reach the contract only through a workspace member, never by
+// climbing out of its own directory (§2.1). The events are gathered into one object keyed by
+// their type, which is the file name the schema carries.
+const document = path.resolve(packageRoot, '..', '..', 'api', 'openapi.json');
+if (!fs.existsSync(document)) {
+  throw new Error(`${document} is missing - run make generate first (project-structure.md §6)`);
+}
+fs.copyFileSync(document, path.join(packageRoot, 'dist', 'openapi.json'));
+console.log('api-client: dist/openapi.json');
+
+const eventsDir = path.resolve(packageRoot, '..', '..', 'api', 'events');
+const events = {};
+for (const entry of fs.readdirSync(eventsDir).sort()) {
+  if (!entry.endsWith('.json')) continue;
+  events[entry.slice(0, -'.json'.length)] = JSON.parse(fs.readFileSync(path.join(eventsDir, entry), 'utf8'));
+}
+fs.writeFileSync(path.join(packageRoot, 'dist', 'events.json'), JSON.stringify(events, null, 2) + '\n');
+console.log(`api-client: dist/events.json (${Object.keys(events).length} event schemas)`);

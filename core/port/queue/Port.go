@@ -158,6 +158,12 @@ const (
 	// leader's duty instead - see the scheduler.
 	KindBackupSchedule Kind = "backup.schedule"
 
+	// KindAuditAnchor is one tenant's daily anchoring (A-2, P-13, audit.md §3): the chain's
+	// end written to the backup target the workspace named. One job per tenant, seeded by the
+	// configuration's write and rescheduling itself to the next day, for the backup schedule's
+	// reason: nothing in this system may enumerate tenants.
+	KindAuditAnchor Kind = "audit.anchor"
+
 	// KindAuditExport writes a period of the audit trail to a backup target as a signed archive
 	// (E-09, audit.md §5).
 	//
@@ -167,6 +173,10 @@ const (
 	// Deduplicated on the export rather than on the tenant: two jobs for one export are the same
 	// work, and two exports of different periods in one tenant are two legitimate questions.
 	KindAuditExport Kind = "audit.export"
+	// KindImport applies a file somebody exported elsewhere as collections under a hub (P-08):
+	// converted into archive records and landed through the restore's applier. One per import,
+	// deduplicated by the import's identifier.
+	KindImport Kind = "import.run"
 
 	// KindPrivacyRequest carries out a data subject request that has been started: the archive an
 	// access or portability case produces, or the erasure an erasure case is (E-10,
@@ -332,6 +342,10 @@ type Result struct {
 	// one would swallow anyway.
 	Repeat      bool
 	RepeatAfter time.Duration
+	// Counts is what a handler wants written down about a job that succeeded, by name: how much
+	// of a provider's answer the narrowing dropped, say. The runner logs them with the job's kind
+	// and identifier and nothing else; a handler puts no content here (rule 10).
+	Counts map[string]int
 }
 
 // Handler runs one kind of job.

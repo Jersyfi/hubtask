@@ -108,7 +108,7 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_stream_refused_total` | Counter | `reason` | Which cap refused a connection: credential, tenant, process, or a drain |
 | `hubtask_stream_records_total` | Counter | — | Change records delivered; against the log's growth, whether the streams keep up. The change stream alone: an agent is told *that* its resource list moved and re-reads what it needs, so there are no records to count |
 | `hubtask_sync_push_mutations_total` | Counter | `result` | Mutations `POST /sync:push` answered, by result - `APPLIED`, `MERGED`, `REJECTED`, `CONFLICT` (N-04). Whether offline work is landing, and how much of it the server turned away |
-| `hubtask_sync_pull_records_total` | Counter | — | Change records handed out by `POST /sync:pull` (N-01). Beside the stream's counter rather than folded into it: the two together say whether devices keep up with the log, and apart, by which door |
+| `hubtask_sync_pull_records_total` | Counter | — | Change records handed out by `POST /sync:pull` (N-01) and by `POST /sync:snapshot` (P-12), which is the same walk as one response and is counted as a stream connection while it runs. Beside the stream's counter rather than folded into it: the two together say whether devices keep up with the log, and apart, by which door |
 | `hubtask_rule_runs_total` | Counter | `result`, `trigger_type` | SLO-7 |
 | `hubtask_rule_disabled_total` | Counter | `reason` | Makes self-protection visible |
 | `hubtask_webhook_deliveries_total` | Counter | `result` (`ok`/`retry`/`dead`), `status_class` | SLO-6 |
@@ -459,6 +459,58 @@ operators with a runbook each, and these two are this cluster watching itself. `
 application saying a dependency is down; a target that stopped answering is nobody saying
 anything, which is the failure that hides every other one.
 
+### 13.2 Capacity
+
+What one installation costs per size, written from the runs that exist and from nothing else
+(O-2, P-16). The rule of this table is the rule of the runs it reads: **a number names the run
+that produced it, and a number no run produced is written as *not measured* rather than
+estimated.** The section is internal, like the runs — no figure here is published until the
+release tier has been run on named hardware and the figures are stable (H-11, the owner's
+decision of 2026-08-21).
+
+Three sources exist today. **RT-6's overload run** ([RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md)),
+on a development machine, over 5 000 items in 10 tenants, one process serving every role. **The
+nightly baseline** ([`test/load/baselines/steady-state.json`](../../test/load/baselines/steady-state.json)),
+the same machine and dataset at a held 200 req/s. And **the release tier's procedure**
+([`test/load/README.md`](../../test/load/README.md)), which is the run that would fill the empty
+cells — two million items over two hundred tenants on the integration server — and has not been
+run yet. The backlog names a third evidence file, `O-1-2026-09-01.md`, as "O-1's ramp"; that file
+is the alerting rehearsal (§13.1) and carries no load figure, so nothing here cites it.
+
+| Resource | Measured | Provenance | What a provider sets |
+|---|---|---|---|
+| Request rate at which shedding engaged | The process answered **873 req/s** in the overload stage against an offered 3 000 req/s, refusing 26 224 deferrable calls and no interactive one, at an inflight threshold of **8** and a pool of **10**; **62.4 req/s per vCPU** over 14 vCPU at a held interactive P95 of 94 ms | RT-6, 2026-09-02 | `HUBTASK_LOAD_SHED_INFLIGHT` (image default 64; the run used 8 to make the mechanism engage on a laptop), the chart's `roles.api.loadShedInflight`, `HUBTASK_LOAD_SHED_RETRY_AFTER` (5 s) |
+| Interactive P95 at steady state | **16 ms** at 200 req/s, P50 4 ms, observed between 6 and 16 ms across runs of unchanged code | the nightly baseline, 2026-09-02 | the HPA's target: `roles.api.autoscaling.targetCPUUtilizationPercentage: 70`, from `minReplicas: 2` to `maxReplicas: 10` — a target, not a measured knee |
+| Resident memory per `api` process | *not measured* — RT-6 holds the process to `GOMEMLIMIT=768 MiB` (the chart's 1 Gi limit rounded down) and asserts the ceiling only where `/proc` can be read, which the run's machine could not; the nightly runs on Linux and reads it, and no run has been written up with the figure | RT-6, 2026-09-02 (the ceiling, not the reading) | `roles.api.resources`: requests 250m / 512 Mi, limit 1 Gi |
+| Resident memory per `worker` process | *not measured* — no run has exercised the worker role on its own | — | `roles.worker.resources`: requests 250m / 512 Mi, limit 1 Gi; the scheduler 100m / 256 Mi, limit 512 Mi |
+| Database connections | **10 per process** is what the run was configured with, and the run's own reading of the overload stage — 64 client requests in flight waiting on ten connections — is the one connection figure that exists: the wait is what shedding turned into a `503` rather than a queue; how many connections a size *needs* is *not measured* | RT-6, 2026-09-02 (the setting) | `HUBTASK_DB_MAX_CONNS` (default 10) and `HUBTASK_DB_MIN_CONNS` (2) per process, times the replicas per role; the chart's CloudNativePG `Cluster` at `database.instances: 1` — a provider sizes `max_connections` to the sum |
+| Storage per item, without media | *not measured* — the seeded datasets exist in two sizes (5 000 and 40 000 items) and neither run recorded the tables' size | — | `database.storage.size` (8 Gi) |
+| Storage per item, with media | *not measured* — no load dataset carries attachments | — | the object store the operator brings (`storage.*`) |
+| Items per tenant at which any of the above knees | *not measured* — the decay with items per tenant is exactly the release tier's question, and it has one dataset per tier rather than a series | — | the audit partition horizon: the scheduler ensures the current and the next month's partitions on every tick (`presentation/worker/Scheduler.go`), which is not a knob and needs none |
+
+What the table says, read whole: **one figure is a capacity figure in kind** — the per-vCPU
+throughput at a held P95, measured in the stage where the offered load is past what the process
+can serve — and it is a laptop's, over a toy dataset. Every other cell is either a setting the run
+was started with or *not measured*. That is not a gap in the runs; it is the state of the
+evidence, and the model is honest about it so that the day the release tier runs there are named
+cells to fill rather than estimates to correct.
+
+**The chart's sizing, checked against the table.** The backlog asks for the chart's `values-*.yaml`
+size presets to be checked; there are none — the chart ships one `values.yaml` and no per-size
+overlay — so what was checked is that file. Its defaults agree with everything the table measured:
+the 1 Gi memory limit is the ceiling RT-6 holds the process under; the pool of 10 is the image's
+default and the run's; the shedder's threshold is left to the image, which is 64 rather than the
+run's 8, and that is right — the run lowered it to make a laptop engage the mechanism, and 64 is
+the value the interactive path is protected at on a machine with a real pool behind it. Nothing
+was corrected because nothing disagreed; a preset per size would be a table row per size, and the
+rows do not exist yet.
+
+**How a cell gets filled.** The release tier, once per release on the integration server:
+`scripts/seed-load-dataset.sh --items 2000000 --tenants 200`, then `make gate-load` with
+`HUBTASK_LOAD_HARDWARE=integration`, written up under `docs/evidence/` with its JSON. The nightly
+already reads the process's resident size on Linux; writing one nightly's figure into this table,
+with its run named, is the smallest next step and needs no new tooling.
+
 ---
 
 ## 14. Open points
@@ -466,6 +518,6 @@ anything, which is the failure that hides every other one.
 | # | Point | Needed by |
 |---|---|---|
 | O-1 | ~~Choose the alerting backend for our own operation~~ — answered in H-12 and written into §13.1: Prometheus and Alertmanager in the cluster, the rules built from the files the gate tests, delivery by SMTP into a catcher a maintaining session reads. Wired rather than described — [`deploy/integration/monitoring.yaml`](../../deploy/integration/monitoring.yaml) is applied by the environment's own bootstrap, and a watchdog alert proves the path continuously instead of once | Closed (H-12) |
-| O-2 | A capacity model (items per tenant → resources) from real load data | `0.9.0` |
+| O-2 | ~~A capacity model (items per tenant → resources) from real load data~~ — written as §13.2 in P-16 (`0.9.0`), from the runs that exist: one measured figure (RT-6's per-vCPU throughput at a held P95, on a laptop over five thousand items), the settings the runs were started with, and *not measured* everywhere else — memory per process, connections a size needs, storage per item, the knee with items per tenant. The release tier on named hardware is what fills the cells, and the section says how. The chart's one `values.yaml` agrees with what was measured; the per-size presets the backlog names do not exist and are not invented | Closed (P-16), the cells owed to the release tier |
 | O-3 | Derive a public status page from `/meta/health` | After `1.0.0` |
 | O-4 | ~~Decide: chaos tests permanently in CI, or nightly only~~ — answered in G-12 and written into [`ci-cd.md`](./ci-cd.md) §3.2 with the measurement behind it: the chaos-shaped RT tests stay a pull request gate, because they cost four and a half minutes beside jobs that take eight and therefore no wall clock at all, and because a defect they find has to reach the run that reviews the diff that caused it. RT-6, RT-8 and RT-11 stay nightly, because an hour of sustained load is not something a shared runner has | Closed (G-12) |

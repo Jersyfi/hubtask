@@ -1606,6 +1606,9 @@ CREATE TABLE backup_schedule (
   next_run_at   timestamptz,
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1,
+  -- Whether a FULL run is followed by an INSPECT restore of its own archive (B-4, migration
+  -- 0091). On for a new schedule; the migration left the schedules that existed off.
+  trial_restore boolean NOT NULL DEFAULT true,
   CHECK ((scope_kind = 'INSTANCE') = (tenant_id IS NULL))
 );
 CREATE INDEX backup_schedule_due_idx ON backup_schedule (next_run_at) WHERE enabled;
@@ -1637,7 +1640,11 @@ CREATE TABLE backup_run (
   error_code    text,
   expires_at    timestamptz,                          -- from the retention plan
   verified_at   timestamptz,
-  verify_ok     boolean
+  verify_ok     boolean,
+  -- What the trial restore found, and when (B-4, migration 0091): the INSPECT report of the
+  -- archive this run wrote, read back in the same job.
+  trial_report  jsonb,
+  trial_at      timestamptz
 );
 CREATE INDEX backup_run_target_idx ON backup_run (target_id, started_at DESC);
 CREATE INDEX backup_run_expiry_idx ON backup_run (expires_at) WHERE status = 'SUCCEEDED';
@@ -1847,6 +1854,33 @@ CREATE TABLE field_clock (
   PRIMARY KEY (tenant_id, entity, entity_id, field)
 );
 
+-- An import from another system (P-08, backup-restore.md §9): what was asked, where it stands,
+-- and the report the applier wrote in the restore's shape. Not a restore_run, which names a
+-- target and an archive at it; an import's file is a media object deleted when the job ends.
+CREATE TABLE import_run (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  requested_by  uuid NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('CSV','TRELLO','GOOGLE_TASKS','MICROSOFT_TODO')),
+  media_id      uuid NOT NULL,
+  hub_id        uuid NOT NULL,
+  mapping       jsonb,
+  -- The requester's zone and language at the request, for a source that writes dates without a
+  -- zone and entries without a language: what the rows are read in.
+  time_zone     text,
+  language      text,
+  status        text NOT NULL DEFAULT 'PENDING'
+                  CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED')),
+  report        jsonb,
+  refused       jsonb,
+  progress      jsonb,
+  error_code    text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  started_at    timestamptz,
+  finished_at   timestamptz
+);
+CREATE INDEX import_run_tenant_idx ON import_run (tenant_id, created_at DESC);
+
 CREATE TABLE sync_device (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1905,7 +1939,7 @@ CREATE TABLE ai_suggestion (
   -- be one. The application checks the target, which it must do anyway to authorise the read.
   target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY', 'CONTAINER')),
   target_id     uuid NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES')),
+  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES', 'TEMPLATE')),
   status        text NOT NULL DEFAULT 'PROPOSED'
                   CHECK (status IN ('PROPOSED', 'ACCEPTED', 'DISMISSED')),
   payload       jsonb NOT NULL,
@@ -1929,6 +1963,19 @@ CREATE TABLE ai_suggestion (
 CREATE INDEX ai_suggestion_target_idx
   ON ai_suggestion (tenant_id, target_type, target_id, status, created_at DESC, id DESC);
 CREATE INDEX ai_suggestion_age_idx ON ai_suggestion (tenant_id, created_at);
+
+-- The words a person asked a template to be drafted from (P-11, migration 0089). Held under row
+-- level security for the minutes between the asking and the answer, because every other question
+-- reads its material from a row the workspace already holds and the queue's payloads carry
+-- identifiers only; the job that reads it deletes it when it ends.
+CREATE TABLE ai_request (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  asked_by    uuid NOT NULL,
+  text        text NOT NULL CHECK (length(text) BETWEEN 1 AND 2000),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ai_request_age_idx ON ai_request (tenant_id, created_at);
 
 -- Semantic search's store (J-09, ADR-0050), where the database can carry it.
 --
@@ -1987,7 +2034,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'identity_provider','oidc_flow','ai_provider','ai_suggestion','item_embedding',
+    'identity_provider','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
@@ -1998,7 +2045,8 @@ BEGIN
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',
-    'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock'
+    'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
+    'import_run'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
@@ -2113,6 +2161,12 @@ GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 -- erasure that could be undone (E-10, audit.md §6).
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_pseudonym FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_pseudonym TO hubtask_app;
+
+-- And the anchors (migration 0090, A-2): the chain's end exported outside the database is the one
+-- thing that says anything against somebody who can rewrite the trail, and the row that says where
+-- it went must not be one the application can rewrite or remove.
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_anchor FROM hubtask_app;
+GRANT  SELECT, INSERT ON audit_anchor TO hubtask_app;
 
 -- The same for the partitions: a partition addressed directly is a table of its own.
 DO $audit_partitions$

@@ -97,4 +97,5 @@ itself a fork of Feather (MIT), and its LICENSE carries both notices.
 | [google.golang.org/genproto/googleapis/rpc/status](https://pkg.go.dev/google.golang.org/genproto/googleapis/rpc/status?tab=licenses) | Apache-2.0 |
 | [google.golang.org/grpc](https://pkg.go.dev/google.golang.org/grpc?tab=licenses) | Apache-2.0 |
 | [google.golang.org/protobuf](https://pkg.go.dev/google.golang.org/protobuf?tab=licenses) | BSD-3-Clause |
+| [gopkg.in/yaml.v3](https://pkg.go.dev/gopkg.in/yaml.v3?tab=licenses) | MIT |
 

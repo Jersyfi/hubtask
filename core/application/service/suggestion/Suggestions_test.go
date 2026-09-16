@@ -431,6 +431,11 @@ func (w *world) Invoke(
 	if name == "MoveWorkItem" && w.moveFails != nil {
 		return nil, w.moveFails
 	}
+	// What the real use case does with nothing to update (`items.update_empty`), so that an
+	// acceptance built from grown keys alone meets the refusal here rather than in production.
+	if name == "UpdateWorkItem" && len(in) == 1 {
+		return nil, shared.ErrValidation.WithDetail("items.update_empty")
+	}
 	if name == "AddLabel" && w.labelFails != nil {
 		return nil, w.labelFails
 	}
@@ -948,13 +953,19 @@ func TestAcceptingAClassificationMovesTheEntryThroughTheOrdinaryUseCase(t *testi
 		t.Fatalf("accepting: %v", err)
 	}
 
-	var moved, updated usecase.Input
+	var moved usecase.Input
+	var labelled []usecase.Input
 	for _, call := range world.performed {
 		switch call.name {
 		case "MoveWorkItem":
 			moved = call.in
+		case "AddLabel":
+			labelled = append(labelled, call.in)
 		case "UpdateWorkItem":
-			updated = call.in
+			// Every key a classification proposes is grown - the labels, the column and the
+			// fields are each their own use case - so the applier would be asked to update
+			// nothing, and the real one refuses that (#696). It is not called.
+			t.Errorf("the applier was asked to update nothing: %v", call.in)
 		}
 	}
 	if moved == nil {
@@ -963,16 +974,39 @@ func TestAcceptingAClassificationMovesTheEntryThroughTheOrdinaryUseCase(t *testi
 	if moved["target_bucket_id"] != doingColumn || moved["item_id"] != targetID.String() {
 		t.Errorf("the move is %v", moved)
 	}
-	// `UpdateWorkItem` declares bucket_id and would have written it. The labels are its business
-	// and the column is not.
-	if updated == nil {
-		t.Fatal("the labels were not applied")
-	}
-	if _, held := updated[bucketKey]; held {
-		t.Errorf("the column was written by the applier as well: %v", updated)
+	if len(labelled) != 2 {
+		t.Fatalf("%d labels added, want the two the classification chose", len(labelled))
 	}
 	if world.performed[len(world.performed)-1].name != "MoveWorkItem" {
 		t.Error("the move did not happen after the rest of the payload")
+	}
+}
+
+// The defect #696 records, as the walk found it: a classification that chose labels and nothing
+// else - the collection had no columns - was refused as an empty update, because the applier was
+// called with nothing but the target. The double refuses an empty update the way UpdateWorkItem
+// does, so the test fails on the code it was written against.
+func TestAcceptingLabelsAloneMakesNoEmptyUpdate(t *testing.T) {
+	cases, world := newWorld()
+	stored := proposal()
+	stored.Payload = map[string]any{labelsKey: []any{movingLabel, homeLabel}}
+	world.store.proposals[proposalID] = stored
+
+	if _, err := (AcceptSuggestion{Cases: cases}).
+		Execute(context.Background(), person(), proposalID, nil); err != nil {
+		t.Fatalf("accepting labels alone: %v", err)
+	}
+	var labelled int
+	for _, call := range world.performed {
+		if call.name == "AddLabel" {
+			labelled++
+		}
+	}
+	if labelled != 2 {
+		t.Errorf("%d labels added, want 2", labelled)
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusAccepted {
+		t.Error("the acceptance was not recorded")
 	}
 }
 
@@ -1356,6 +1390,7 @@ func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
 		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
 		createWorkItemName: true, moveWorkItemName: true,
 		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
+		createTemplateName: true,
 	}
 	for key, how := range acceptance {
 		switch {

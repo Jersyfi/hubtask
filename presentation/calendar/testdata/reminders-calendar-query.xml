@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<B:calendar-query xmlns:A="DAV:" xmlns:B="urn:ietf:params:xml:ns:caldav">
+  <A:prop>
+    <A:getetag/>
+    <B:calendar-data/>
+  </A:prop>
+  <B:filter>
+    <B:comp-filter name="VCALENDAR">
+      <B:comp-filter name="VTODO">
+        <B:time-range start="20260901T000000Z" end="20261001T000000Z"/>
+      </B:comp-filter>
+    </B:comp-filter>
+  </B:filter>
+</B:calendar-query>

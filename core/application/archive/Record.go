@@ -534,6 +534,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// proposal about text that no longer says what it said - and it ages out in thirty days in the
 	// live system for that same reason.
 	"ai_suggestion": "a proposal about a state of an entry, which a restore has already replaced; the entry's own history carries what was accepted",
+	// The material of one job, held for minutes (P-11): the job that reads it deletes it, and a
+	// restore that brought one back would revive a question nobody is waiting on the answer to.
+	"ai_request": "a job's material with minutes of life, deleted by the job that reads it; a restored one would be a question nobody asked twice",
 	// Derived, and derived from something the archive does carry (J-09). An embedding is a
 	// function of an entry's title and notes under one model; restoring vectors would restore
 	// them under whatever model produced them, into an installation that may run another - and
@@ -579,6 +582,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"backup_schedule": "the backup system's own bookkeeping",
 	"backup_run":      "the backup system's own bookkeeping",
 	"restore_run":     "the backup system's own bookkeeping",
+	"import_run":      "the import's own bookkeeping (P-08): what was asked and reported, never what landed - that is in the rows",
 	"retention_run":   "the retention engine's own bookkeeping (E-07)",
 	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
 	// deliberately not restored - "an egress channel and a sealed credential; a restore must not

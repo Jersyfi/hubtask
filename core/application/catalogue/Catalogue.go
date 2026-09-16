@@ -27,6 +27,7 @@ import (
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
 	"github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
@@ -158,7 +159,10 @@ func Descriptors() []usecase.Descriptor {
 		lifecycle.ListLegalHolds{}.Descriptor(),
 		auditservice.ListAuditEntries{}.Descriptor(),
 		auditservice.VerifyAuditChain{}.Descriptor(),
+		auditservice.ConfigureAuditAnchoring{}.Descriptor(),
 		auditservice.ExportAuditTrail{}.Descriptor(),
+		importservice.ImportEntries{}.Descriptor(),
+		importservice.GetImport{}.Descriptor(),
 		privacyservice.CreateDataSubjectRequest{}.Descriptor(),
 		privacyservice.ListDataSubjectRequests{}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{}.Descriptor(),
@@ -223,6 +227,7 @@ func Descriptors() []usecase.Descriptor {
 		suggestionservice.SuggestDuplicates{}.Descriptor(),
 		suggestionservice.AiSummarizeThread{}.Descriptor(),
 		suggestionservice.AiSummarizeContainer{}.Descriptor(),
+		suggestionservice.AiGenerateTemplate{}.Descriptor(),
 		work.AiTranslate{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),

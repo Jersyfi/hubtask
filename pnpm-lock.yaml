@@ -41,6 +41,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@hubtask/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -110,6 +113,12 @@ importers:
         specifier: ^8.3.0
         version: 8.3.0(@types/node@24.13.4)
 
+  packages/n8n-nodes-hubtask:
+    devDependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+
   packages/sync-engine:
     dependencies:
       '@hubtask/api-client':
@@ -122,6 +131,12 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+
+  packages/zapier-app:
+    devDependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../api-client
 
 packages:
 

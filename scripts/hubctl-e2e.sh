@@ -122,8 +122,11 @@ run_hubctl() {
 
 # first_id reads the identifier out of a hubctl table: a header, then one row per entry, the
 # identifier in the first column. That layout is a contract of the CLI, so reading it here is a
-# check of it as much as a convenience.
-first_id() { awk 'NR==2 {print $1}'; }
+# check of it as much as a convenience. The client's own diagnostics - "waiting 1s" while the
+# installation limits the credential - go to standard error and are captured beside the table
+# where a call is captured whole, so they are skipped: a session that has spent its budget would
+# otherwise read the header as the identifier.
+first_id() { grep -v '^hubctl: ' | awk 'NR==2 {print $1}'; }
 
 # Drawn rather than written down, as in compose-smoke.sh: a literal here would be a credential in
 # the repository even though it protects nothing, and the secret scanner is right not to know the
@@ -496,6 +499,14 @@ SYNC_CURSOR="$(printf '%s\n' "$initial" | tail -n 1 | sed -n 's/.*"cursor":"\([^
 if ! grep -q '"has_more":false' <<< "$(printf '%s\n' "$initial" | tail -n 1)"; then
 	fail "sync pull --all stopped with more to come"
 fi
+# The same walk as one stream (SY-C, P-12): the same records, the cursor last, kept in the
+# profile for the delta.
+hubctl sync snapshot --out "$WORK_DIR/snapshot.ndjson" --apply 2>/dev/null
+snapshot_records="$(grep -c '"entity"' "$WORK_DIR/snapshot.ndjson")"
+paged_records="$(printf '%s\n' "$initial" | grep -c '"entity"')"
+[ "$snapshot_records" = "$paged_records" ] || { echo "FAILED: the snapshot streamed $snapshot_records records, the pages $paged_records"; exit 1; }
+expect_contains "the snapshot ends on its cursor" "$(tail -n 1 "$WORK_DIR/snapshot.ndjson")" '"cursor"'
+expect_contains "the delta continues from the snapshot's cursor" "$(hubctl sync pull --continue)" '"cursor"'
 
 # A queue of three kinds, written the way a client writes it: a creation, a patch of the entry
 # just created, and a comment on it - each with its own op_id, none with a reading, so that the
@@ -632,6 +643,61 @@ MEDIA_ID="$(printf '%s\n' "$uploaded" | first_id)"
 [ -n "$MEDIA_ID" ] || { echo "FAILED: the upload produced no identifier"; exit 1; }
 attached="$(hubctl media attach "$TASK_ID" --media "$MEDIA_ID")"
 expect_contains "media attach" "$attached" "$MEDIA_ID"
+
+echo "--- a CSV, imported under the hub (P-08) ---"
+printf 'title,due,labels,bucket\nImported one,2026-09-20,rot;blau,Doing\nImported two,2026-09-21 10:00,rot,Done\nBroken,nope,,\n' > "$WORK_DIR/tasks.csv"
+imported="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import csv" "$imported" "SUCCEEDED"
+# The import's own table: two rows landed beside the collection, its buckets and its labels; one
+# row was refused by its date and the rest of the file landed anyway.
+expect_contains "import csv" "$imported" "CSV"
+imported_again="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import csv, again" "$imported_again" "SUCCEEDED"
+IMPORTED_JSON="$(hubctl --json import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+case "$IMPORTED_JSON" in
+	*'"new": 0'*) ;;
+	*) echo "FAILED: the same file a third time created something: $IMPORTED_JSON"; exit 1 ;;
+esac
+
+echo "--- a Trello board, imported under the hub (P-09) ---"
+cat > "$WORK_DIR/board.json" <<'BOARD'
+{"id":"e2e0000000000000000000b1","name":"Imported board","desc":"","lists":[{"id":"l1","name":"To do","pos":1},{"id":"l2","name":"Done","pos":2}],
+ "labels":[{"id":"lb1","name":"Urgent","color":"red"}],"members":[{"id":"m1","fullName":"Alex Example"}],
+ "cards":[{"id":"c1","name":"Imported card","desc":"From Trello.","idList":"l1","pos":1,"due":"2026-09-20T09:00:00.000Z","dueComplete":false,"idLabels":["lb1"],"idMembers":["m1"],"attachments":[]},
+          {"id":"c2","name":"Imported done card","desc":"","idList":"l2","pos":1,"due":"2026-09-01T09:00:00.000Z","dueComplete":true,"idLabels":[],"idMembers":[],"attachments":[]}],
+ "checklists":[{"id":"k1","name":"Steps","idCard":"c1","pos":1,"checkItems":[{"id":"i1","name":"First","state":"complete","pos":1},{"id":"i2","name":"Second","state":"incomplete","pos":2}]}],
+ "actions":[{"type":"commentCard","date":"2026-09-02T10:00:00.000Z","memberCreator":{"fullName":"Alex Example","username":"alex"},"data":{"text":"Nearly there.","card":{"id":"c1"}}}]}
+BOARD
+board_imported="$(hubctl --json import trello "$WORK_DIR/board.json" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import trello" "$board_imported" "SUCCEEDED"
+expect_contains "import trello" "$board_imported" "TRELLO"
+# The member's assignment has no place here and is counted rather than lost silently.
+expect_contains "import trello counts the unmapped members" "$board_imported" '"unmapped_members": 1'
+
+echo "--- a Google Tasks Takeout and a Microsoft To Do dump, imported (P-10) ---"
+cat > "$WORK_DIR/Tasks.json" <<'TAKEOUT'
+{"kind":"tasks#taskLists","items":[{"kind":"tasks#taskList","id":"e2elist1","title":"Imported list","items":[
+ {"kind":"tasks#task","id":"e2etask1","title":"Imported Google task","status":"needsAction","due":"2026-09-25T00:00:00.000Z","position":"0"},
+ {"kind":"tasks#task","id":"e2etask2","title":"Its child","status":"completed","completed":"2026-09-02T10:00:00.000Z","parent":"e2etask1","position":"0"}]}]}
+TAKEOUT
+takeout_imported="$(hubctl --json import google-tasks "$WORK_DIR/Tasks.json" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import google-tasks" "$takeout_imported" "SUCCEEDED"
+expect_contains "import google-tasks" "$takeout_imported" "GOOGLE_TASKS"
+cat > "$WORK_DIR/todo.json" <<'GRAPH'
+{"value":[{"id":"e2egraph1","displayName":"Imported To Do","wellknownListName":"defaultList","tasks":{"value":[
+ {"id":"e2egraphtask1","title":"Imported Graph task","status":"notStarted","importance":"high","isReminderOn":true,
+  "body":{"content":"From Graph.","contentType":"text"},
+  "dueDateTime":{"dateTime":"2026-09-26T00:00:00.0000000","timeZone":"Pacific Standard Time"},
+  "reminderDateTime":{"dateTime":"2036-09-25T09:00:00.0000000","timeZone":"Pacific Standard Time"},
+  "checklistItems":[{"id":"e2echk1","displayName":"A step","isChecked":false}],"linkedResources":[]}]}}]}
+GRAPH
+graph_imported="$(hubctl --json import microsoft-todo "$WORK_DIR/todo.json" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import microsoft-todo" "$graph_imported" "SUCCEEDED"
+expect_contains "import microsoft-todo" "$graph_imported" "MICROSOFT_TODO"
+# The reminder landed beside the task: one record of its kind in the report.
+expect_contains "import microsoft-todo lands the reminder" "$graph_imported" '"reminders": 1'
+# The file is what two Graph requests answer; the verb without a file says which.
+expect_contains "import microsoft-todo explains itself" "$(hubctl import microsoft-todo)" "/me/todo/lists"
 
 echo "--- a custom field, defined and written ---"
 defined="$(hubctl field define --key urgency --kind SELECT --collection "$COLLECTION_ID" --options low,high)"

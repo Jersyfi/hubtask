@@ -57,3 +57,7 @@ coverage.*
 
 # Local Claude Code tooling (launch configurations); session-specific, not project content.
 .claude/
+
+# Python bytecode from running the SDK example or its test
+__pycache__/
+*.pyc

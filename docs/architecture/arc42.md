@@ -198,7 +198,7 @@ graph LR
 | Identity provider | Outbound | OIDC discovery, authorization code + PKCE; local users as a fallback |
 | Object storage | Outbound | The S3 API (presigned URLs); self-hosting fallback: a local volume |
 | Email | Inbound and outbound | SMTP for sending; intake **webhook-only** — a bridge, an MTA or a provider's push posts the message to a token-protected URL per tenant ([ADR-0040](../adr/ADR-0040-no-imap-intake.md) closed AM-1: no IMAP). The parser stays transport-independent, so a later transport — JMAP, when one is wanted — is a producer of bytes rather than a second intake |
-| Calendar | Outbound | An ICS feed per view/user, CalDAV later |
+| Calendar | Bidirectional | An ICS feed per view/user; CalDAV since `0.9.0` (P-06, P-07): one `VTODO` calendar per calendar feed under HTTP Basic with a personal access token, read by any client and written back through the use cases — a completion, a due date, a title |
 | LLM provider | Outbound | The `core/port/ai` port; adapters for OpenAI-compatible APIs and local Ollama; disabled by default |
 
 ### 3.2 Technical context
@@ -766,6 +766,8 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0054 | An embedding narrower than the index is padded, and a wider one is refused | proposed |
 | 0055 | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted |
 | 0056 | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted |
+| 0057 | The SDKs: which packages, under which licence, extracted or not | proposed |
+| 0058 | The connector packages: generated, dependency-free here, typed there | proposed |
 
 ---
 
