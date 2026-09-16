@@ -53,6 +53,7 @@
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { session } from '../lib/session.svelte.ts';
 
@@ -213,7 +214,7 @@
           hint={t('app.profile.language_hint')}
           bind:value={locale}
           options={withWorkspaceChoice(
-            locales.map((each) => ({ value: each.locale, label: each.locale })),
+            locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
             t('app.profile.use_workspace'),
           )}
         />
