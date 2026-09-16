@@ -23,14 +23,14 @@
 import type { Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { followArrival, suggestionsPath, type Operation } from './suggestions.ts';
+import { followArrival, suggestionsPath, type Operation, type Target } from './suggestions.ts';
 
 export { suggestionsPath } from './suggestions.ts';
 export type { SuggestionPage };
 
 /** What the strip shows while an ask is being followed, or after it stopped. */
 export interface Asking {
-  readonly operation: Operation;
+  readonly operation: Operation | 'jumble';
   readonly askedAt: string;
   /** `following` while the listing is re-read; the other three are how it ended. */
   readonly outcome: 'following' | 'arrived' | 'gave_up' | 'nothing_near';
@@ -39,7 +39,7 @@ export interface Asking {
 /** How long an ask may take to be accepted. It queues and returns; it does not wait for the model. */
 const ASK_TIMEOUT_MS = 15_000;
 
-const touches = (itemId: string) => [suggestionsPath(itemId)];
+const touches = (targetId: string, target: Target = 'WORK_ITEM') => [suggestionsPath(targetId, target)];
 
 class Suggestions {
   #asking = $state<Record<string, Asking>>({});
@@ -93,10 +93,41 @@ class Suggestions {
   }
 
   /**
+   * Asks what a jumble entry should become (J-06), and follows the listing the same way.
+   *
+   * One operation rather than six: an arrival has no fields yet, so the one question is what it
+   * would be as work - a title, notes, a date, and the subtasks the material implies (K-01).
+   */
+  async askJumble(entryId: string): Promise<void> {
+    const askedAt = new Date().toISOString();
+    this.#put(entryId, { operation: 'jumble', askedAt, outcome: 'following' });
+    await engine.mutate<void>('POST', `/jumble/entries/${entryId}:suggest`, undefined, {
+      idempotencyKey: crypto.randomUUID(),
+      timeoutMs: ASK_TIMEOUT_MS,
+      invalidates: [],
+    });
+    const token = Symbol('jumble');
+    this.#follows.set(entryId, token);
+    const outcome = await followArrival(
+      engine,
+      entryId,
+      askedAt,
+      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      () => this.#follows.get(entryId) === token,
+      'JUMBLE_ENTRY',
+    );
+    if (outcome === 'left') return;
+    this.#follows.delete(entryId);
+    this.#put(entryId, { operation: 'jumble', askedAt, outcome });
+  }
+
+  /**
    * Accepts, as the person's own write. The overrides are what they changed before accepting,
-   * laid over the proposal by the server (`SuggestionAcceptance`).
+   * laid over the proposal by the server (`SuggestionAcceptance`) - for a jumble entry the
+   * destination collection, which a model never chooses.
    */
   async accept(suggestion: Suggestion, overrides?: Readonly<Record<string, unknown>>): Promise<Suggestion> {
+    const target = suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : 'WORK_ITEM';
     return engine.mutate<Suggestion>(
       'POST',
       `/suggestions/${suggestion.id}:accept`,
@@ -104,17 +135,22 @@ class Suggestions {
       {
         idempotencyKey: crypto.randomUUID(),
         // The entry changed - its fields, or the children under it - so every read of it is stale,
-        // and the engine matches by prefix: `/items/{id}`, its activity, its children.
-        invalidates: [...touches(suggestion.target_id), '/items'],
+        // and the engine matches by prefix: `/items/{id}`, its activity, its children. A jumble
+        // acceptance is a conversion, so the inbox and the containers a board reads are stale too.
+        invalidates:
+          target === 'JUMBLE_ENTRY'
+            ? [...touches(suggestion.target_id, target), '/jumble/entries', '/items', '/containers']
+            : [...touches(suggestion.target_id), '/items'],
       },
     );
   }
 
   /** Dismisses. A state, not a deletion; the listing narrows to what still stands. */
   async dismiss(suggestion: Suggestion): Promise<Suggestion> {
+    const target = suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : 'WORK_ITEM';
     return engine.mutate<Suggestion>('POST', `/suggestions/${suggestion.id}:dismiss`, {}, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: touches(suggestion.target_id),
+      invalidates: touches(suggestion.target_id, target),
     });
   }
 
