@@ -1704,6 +1704,14 @@ paths:
               properties:
                 from: { type: string, format: date-time }
                 to: { type: string, format: date-time }
+                anchors:
+                  type: boolean
+                  default: false
+                  description: >
+                    Also read the last anchor back from the workspace's anchoring target and
+                    compare the chain end it holds with the chain at that sequence (A-2, P-13).
+                    A read of somebody else's machine, so it is asked for rather than always
+                    done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
       responses:
         "200":
           description: The verification result
@@ -1733,11 +1741,70 @@ paths:
                     format: date-time
                     description: >
                       When this tenant's chain was last anchored outside the database, and null
-                      when it never was - which is every installation until external anchoring
-                      exists (audit.md §3). The check proves the chain intact *inside* the
-                      database; only an anchor says anything against somebody who can rewrite all
-                      of it.
+                      when it never was (audit.md §3). The check proves the chain intact
+                      *inside* the database; only an anchor says anything against somebody who
+                      can rewrite all of it.
+                  anchoring_configured:
+                    type: boolean
+                    description: Whether the workspace names an anchoring target at all (P-13).
+                  anchored_until:
+                    type: [string, "null"]
+                    format: date-time
+                    description: >
+                      With `anchors: true`: the moment of the last anchor whose external copy was
+                      read back, and null where there is none or it could not be read.
+                  anchor_seq:
+                    type: [integer, "null"]
+                    description: The sequence number the last anchor sealed, asked with anchors.
+                  anchor_agrees:
+                    type: [boolean, "null"]
+                    description: >
+                      With `anchors: true`: whether the chain end the external copy holds is the
+                      chain end this database computes at that sequence - recomputed along the
+                      walk where the period covers it, so that a chain rewritten below the anchor
+                      is reported at the anchor as well as at the break. Null where there is no
+                      anchor, or the copy could not be read.
+                  anchor_error_code:
+                    type: [string, "null"]
+                    description: >
+                      Why the external copy could not be read or compared, with `anchors: true` -
+                      `audit.anchor_unreadable` when the target did not answer or the object is
+                      gone, `audit.anchor_receipt_mismatch` when the object read back is not the
+                      one written. Null otherwise.
         "403": { $ref: "#/components/responses/Problem" }
+
+  /audit/anchoring:
+    put:
+      tags: [audit]
+      operationId: configureAuditAnchoring
+      summary: Name where the audit chain's end is anchored, or switch anchoring off
+      description: >
+        External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end
+        - the last sequence number and its hash - and writes it as
+        `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the
+        row `audit_anchor` with the target as its destination and the object's digest as its
+        receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A
+        `null` target switches anchoring off; the anchors already written stay.
+
+        Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the
+        target before and after. The target is one of the workspace's own backup targets, so what
+        is recommended for a tenant's target (object lock, a retention no shorter than the audit
+        period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditAnchoringConfiguration"
+      responses:
+        "200":
+          description: Configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditAnchoring"
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /audit:export:
     post:
@@ -10892,6 +10959,28 @@ components:
         is what a second system reads. CSV flattens it for a spreadsheet, and what does not fit a
         column travels as JSON inside one.
       enum: [JSONL, CSV]
+
+    AuditAnchoringConfiguration:
+      type: object
+      required: [target_id]
+      properties:
+        target_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The workspace's backup target the daily anchor is written to; null switches
+            anchoring off.
+
+    AuditAnchoring:
+      type: object
+      required: [configured_at]
+      properties:
+        target_id:
+          type: [string, "null"]
+          format: uuid
+          description: The target anchoring writes to, or null where it is off.
+        configured_at: { type: string, format: date-time }
+        configured_by: { type: [string, "null"], format: uuid }
 
     AuditExport:
       type: object
