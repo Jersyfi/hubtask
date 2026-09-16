@@ -495,9 +495,10 @@ of writes and an untested archive rather than a matter of degree.
 
 ## 9. Import and export of existing systems
 
-Separate from backup, but technically related: the importer for Trello, Microsoft To Do, Google
-Tasks, and CSV (roadmap `0.9.0`) produces the same internal intermediate form as an archive. That
-gives one ingestion path, not two.
+Separate from backup, but technically related: the importers for CSV, Trello, Google Tasks and
+Microsoft To Do (built in `0.9.0`, P-08…P-10) produce the same internal intermediate form as an
+archive. That gives one ingestion path, not two — and it is *this* path, not the jumble's, which
+the `0.5.0` backlog once said and P-17 corrected there.
 
 **Built in P-08, with CSV as the first kind.** `POST /imports` names a file uploaded through the
 media flow with `usage: IMPORT` and the hub the collections land under; a converter per kind
