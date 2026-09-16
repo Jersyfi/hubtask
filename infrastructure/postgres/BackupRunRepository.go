@@ -128,6 +128,8 @@ func (r BackupRunRepository) Finish(ctx context.Context, outcome domain.Outcome)
 		SnapshotAt:  optionalTimestamp(timeOrNil(outcome.SnapshotAt)),
 		FinishedAt:  timestampOf(outcome.FinishedAt),
 		ErrorCode:   optionalText(outcome.ErrorCode),
+		TrialReport: outcome.TrialReport,
+		TrialAt:     optionalTimestamp(timeOrNil(outcome.TrialAt)),
 		ID:          id,
 	})
 	if err != nil {
@@ -285,6 +287,8 @@ type runRow struct {
 	ExpiresAt   pgtype.Timestamptz
 	VerifiedAt  pgtype.Timestamptz
 	VerifyOk    *bool
+	TrialReport []byte
+	TrialAt     pgtype.Timestamptz
 }
 
 func runOf(row runRow) (domain.Run, error) {
@@ -313,7 +317,7 @@ func runOf(row runRow) (domain.Run, error) {
 		ID: id, ScheduleID: scheduleID, TargetID: targetID, TenantID: tenantID,
 		ParentRunID: parentID, Trigger: domain.Trigger(row.Trigger), Mode: domain.Mode(row.Mode),
 		Status: domain.RunStatus(row.Status), StartedAt: row.StartedAt.Time.UTC(),
-		VerifyOK: row.VerifyOk,
+		VerifyOK: row.VerifyOk, TrialReport: row.TrialReport,
 	}
 	if row.ArchivePath != nil {
 		run.ArchivePath = *row.ArchivePath
@@ -333,12 +337,18 @@ func runOf(row runRow) (domain.Run, error) {
 	if row.ErrorCode != nil {
 		run.ErrorCode = *row.ErrorCode
 	}
-	for at, into := range map[pgtype.Timestamptz]*time.Time{
-		row.SnapshotAt: &run.SnapshotAt, row.FinishedAt: &run.FinishedAt,
-		row.ExpiresAt: &run.ExpiresAt, row.VerifiedAt: &run.VerifiedAt,
+	// A list rather than a map keyed by the value: two columns holding the same instant - the
+	// trial's moment is the run's finishing moment - would collapse into one key and leave the
+	// other field zero.
+	for _, moment := range []struct {
+		at   pgtype.Timestamptz
+		into *time.Time
+	}{
+		{row.SnapshotAt, &run.SnapshotAt}, {row.FinishedAt, &run.FinishedAt},
+		{row.ExpiresAt, &run.ExpiresAt}, {row.VerifiedAt, &run.VerifiedAt}, {row.TrialAt, &run.TrialAt},
 	} {
-		if at.Valid {
-			*into = at.Time.UTC()
+		if moment.at.Valid {
+			*moment.into = moment.at.Time.UTC()
 		}
 	}
 	return run, nil

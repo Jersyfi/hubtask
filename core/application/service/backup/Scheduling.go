@@ -71,6 +71,7 @@ type CreateBackupScheduleCommand struct {
 	FullRRULE    string
 	IncludeMedia bool
 	IncludeAudit bool
+	TrialRestore bool
 	Retention    domain.Retention
 	NotifyOn     []domain.Notification
 }
@@ -107,7 +108,7 @@ func (h CreateBackupSchedule) Execute(
 		ID: h.Scheduling.IDs.NewID(), TargetID: cmd.TargetID, TenantID: actor.TenantID,
 		Scope: scope, ScopeID: cmd.ScopeID, RRULE: cmd.RRULE, TimeZone: cmd.TimeZone,
 		Mode: cmd.Mode, FullRRULE: cmd.FullRRULE,
-		IncludeMedia: cmd.IncludeMedia, IncludeAudit: cmd.IncludeAudit,
+		IncludeMedia: cmd.IncludeMedia, IncludeAudit: cmd.IncludeAudit, TrialRestore: cmd.TrialRestore,
 		Retention: retention, NotifyOn: cmd.NotifyOn, Now: now,
 	})
 	if err != nil {
@@ -268,6 +269,12 @@ func (h CreateBackupSchedule) Descriptor() usecase.Descriptor {
 			{Name: "include_media", Kind: usecase.KindBool, Description: "Whether attachments travel with it."},
 			{Name: "include_audit", Kind: usecase.KindBool, Description: "Whether the audit trail travels with it."},
 			{
+				Name: "trial_restore", Kind: usecase.KindBool,
+				Description: "Follow every FULL run with an INSPECT restore of the archive it " +
+					"wrote, in the same job, and fail the run when the archive cannot be read " +
+					"back. On unless said otherwise (B-4).",
+			},
+			{
 				Name: "retention", Kind: usecase.KindObject,
 				Description: "The generation plan: keep_last, keep_daily, keep_weekly, " +
 					"keep_monthly, keep_yearly, and min_keep as a floor no rule may breach.",
@@ -300,6 +307,8 @@ func (h CreateBackupSchedule) invoke(
 		// the backup anybody meant.
 		IncludeMedia: !in.Present("include_media") || in.Bool("include_media"),
 		IncludeAudit: !in.Present("include_audit") || in.Bool("include_audit"),
+		// And the trial, for B-4's reason: an archive nobody ever read back is a hope.
+		TrialRestore: !in.Present("trial_restore") || in.Bool("trial_restore"),
 		Retention:    domain.DefaultRetention(),
 	}
 	if zone := in.OptionalString("timezone"); zone != nil && *zone != "" {
@@ -376,6 +385,7 @@ func scheduleOutput(schedule domain.Schedule) usecase.Output {
 		"mode":          schedule.Mode.String(),
 		"include_media": schedule.IncludeMedia,
 		"include_audit": schedule.IncludeAudit,
+		"trial_restore": schedule.TrialRestore,
 		"retention": map[string]any{
 			"keep_last": schedule.Retention.KeepLast, "keep_daily": schedule.Retention.KeepDaily,
 			"keep_weekly": schedule.Retention.KeepWeekly, "keep_monthly": schedule.Retention.KeepMonthly,

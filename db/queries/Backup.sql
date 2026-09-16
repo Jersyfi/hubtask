@@ -91,25 +91,28 @@ WHERE enabled;
 -- name: InsertBackupSchedule :exec
 INSERT INTO backup_schedule (
   id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-  include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+  include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+  trial_restore
 )
 VALUES (
   sqlc.arg('id'), sqlc.arg('target_id'), sqlc.narg('tenant_id'), sqlc.arg('scope_kind'),
   sqlc.narg('scope_id'), sqlc.arg('rrule'), sqlc.arg('time_zone'), sqlc.arg('mode'),
   sqlc.narg('full_rrule'), sqlc.arg('include_media'), sqlc.arg('include_audit'),
   sqlc.arg('retention'), sqlc.arg('notify_on')::text[], true, sqlc.narg('next_run_at'),
-  sqlc.arg('created_at'), 1
+  sqlc.arg('created_at'), 1, sqlc.arg('trial_restore')
 );
 
 -- name: ListBackupSchedules :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 ORDER BY created_at;
 
 -- name: FindBackupSchedule :one
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 WHERE id = sqlc.arg('id');
 
@@ -121,7 +124,8 @@ WHERE id = sqlc.arg('id');
 -- shape D-03's reminders use.
 -- name: DueBackupSchedules :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 WHERE enabled AND next_run_at IS NOT NULL AND next_run_at <= sqlc.arg('now')::timestamptz
 ORDER BY next_run_at
@@ -168,7 +172,7 @@ ON CONFLICT (id) DO NOTHING;
 -- name: FindBackupRun :one
 SELECT id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status, archive_path,
        size_bytes, item_count, media_count, checksum, snapshot_at, started_at, finished_at,
-       error_code, expires_at, verified_at, verify_ok
+       error_code, expires_at, verified_at, verify_ok, trial_report, trial_at
 FROM backup_run
 WHERE id = sqlc.arg('id');
 
@@ -185,7 +189,9 @@ UPDATE backup_run SET
   checksum     = sqlc.narg('checksum'),
   snapshot_at  = COALESCE(sqlc.narg('snapshot_at'), snapshot_at),
   finished_at  = sqlc.arg('finished_at'),
-  error_code   = sqlc.narg('error_code')
+  error_code   = sqlc.narg('error_code'),
+  trial_report = sqlc.narg('trial_report'),
+  trial_at     = sqlc.narg('trial_at')
 WHERE id = sqlc.arg('id') AND status = 'RUNNING';
 
 -- The archive an incremental continues: the newest run at this target that finished and left
@@ -193,7 +199,7 @@ WHERE id = sqlc.arg('id') AND status = 'RUNNING';
 -- name: LatestSuccessfulBackupRun :one
 SELECT id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status, archive_path,
        size_bytes, item_count, media_count, checksum, snapshot_at, started_at, finished_at,
-       error_code, expires_at, verified_at, verify_ok
+       error_code, expires_at, verified_at, verify_ok, trial_report, trial_at
 FROM backup_run
 WHERE target_id = sqlc.arg('target_id') AND status = 'SUCCEEDED' AND archive_path IS NOT NULL
 ORDER BY snapshot_at DESC NULLS LAST, started_at DESC
@@ -237,6 +243,7 @@ SET rrule = sqlc.arg('rrule'),
     full_rrule = sqlc.narg('full_rrule'),
     include_media = sqlc.arg('include_media'),
     include_audit = sqlc.arg('include_audit'),
+    trial_restore = sqlc.arg('trial_restore'),
     retention = sqlc.arg('retention'),
     notify_on = sqlc.arg('notify_on'),
     enabled = sqlc.arg('enabled'),
@@ -256,7 +263,8 @@ SELECT count(*) FROM backup_schedule WHERE target_id = sqlc.arg('target_id');
 -- The schedules the refusal names, so that an operator is told what to switch off rather than
 -- being told no.
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 WHERE target_id = sqlc.arg('target_id')
 ORDER BY created_at;

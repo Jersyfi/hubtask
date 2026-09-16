@@ -80,6 +80,7 @@ type UpdateBackupScheduleCommand struct {
 	FullRRULE       *string
 	IncludeMedia    *bool
 	IncludeAudit    *bool
+	TrialRestore    *bool
 	Retention       *domain.Retention
 	NotifyOn        []domain.Notification
 	Enabled         *bool
@@ -174,7 +175,7 @@ func (cmd UpdateBackupScheduleCommand) applyTo(before domain.Schedule) (domain.S
 		Scope: before.Scope, ScopeID: before.ScopeID,
 		RRULE: before.RRULE, TimeZone: before.TimeZone, Mode: before.Mode,
 		FullRRULE: before.FullRRULE, IncludeMedia: before.IncludeMedia,
-		IncludeAudit: before.IncludeAudit, Retention: before.Retention,
+		IncludeAudit: before.IncludeAudit, TrialRestore: before.TrialRestore, Retention: before.Retention,
 		NotifyOn: before.NotifyOn, Now: before.CreatedAt,
 	}
 	if cmd.RRULE != nil {
@@ -194,6 +195,9 @@ func (cmd UpdateBackupScheduleCommand) applyTo(before domain.Schedule) (domain.S
 	}
 	if cmd.IncludeAudit != nil {
 		in.IncludeAudit = *cmd.IncludeAudit
+	}
+	if cmd.TrialRestore != nil {
+		in.TrialRestore = *cmd.TrialRestore
 	}
 	if cmd.Retention != nil {
 		in.Retention = *cmd.Retention
@@ -280,6 +284,7 @@ func (s Scheduling) recordChange(
 	add("enabled", boolText(before.Enabled), boolText(after.Enabled))
 	add("include_media", boolText(before.IncludeMedia), boolText(after.IncludeMedia))
 	add("include_audit", boolText(before.IncludeAudit), boolText(after.IncludeAudit))
+	add("trial_restore", boolText(before.TrialRestore), boolText(after.TrialRestore))
 
 	return s.Audit.Append(ctx, audit.Entry{
 		TenantID: actor.TenantID, OccurredAt: now,
@@ -352,6 +357,8 @@ func (h UpdateBackupSchedule) Descriptor() usecase.Descriptor {
 				Description: "Which of the rule's occurrences are full ones. It adds no run of its own."},
 			{Name: "include_media", Kind: usecase.KindBool},
 			{Name: "include_audit", Kind: usecase.KindBool},
+			{Name: "trial_restore", Kind: usecase.KindBool,
+				Description: "Follow every FULL run with an INSPECT restore of its archive (B-4)."},
 			{Name: "retention", Kind: usecase.KindObject,
 				Description: "The generation plan, whole. What it leaves out keeps the stored value."},
 			{Name: "notify_on", Kind: usecase.KindList,
@@ -391,6 +398,10 @@ func (h UpdateBackupSchedule) invoke(
 	if in.Present("include_audit") {
 		wanted := in.Bool("include_audit")
 		cmd.IncludeAudit = &wanted
+	}
+	if in.Present("trial_restore") {
+		wanted := in.Bool("trial_restore")
+		cmd.TrialRestore = &wanted
 	}
 	if in.Present("enabled") {
 		wanted := in.Bool("enabled")

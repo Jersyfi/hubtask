@@ -155,9 +155,27 @@ Schedules are RRULE-based — the same mechanism as recurring tasks, not a secon
   "encryption": { "mode": "AES256_GCM", "key_id": "bk_2026_a" },
   "include_media": true,
   "include_audit": true,
+  "trial_restore": true,
   "notify_on": ["FAILURE", "FIRST_SUCCESS_AFTER_FAILURE"]
 }
 ```
+
+**`trial_restore`** (B-4, P-14) is the schedule reading its own work back. When it is on, the run
+that wrote a `FULL` archive is followed, in the same job, by an `INSPECT` restore of that archive:
+every member read from the target, every checksum verified, every encrypted member decrypted with
+the key the schedule names, and the difference report against the workspace produced and kept on
+the run (`BackupRun.trial_restore`, with `inspected_at` and the report in §8.2's shape); the run is
+also marked verified, since a trial is the verification `:verify` would have done. A trial that
+fails **fails the run** — `backup.trial_restore_failed`, with the reader's code and the member it
+stopped at kept on the run — because an archive the product cannot read back is not a backup, and
+`notify_on` covers it as it covers any failure. An incremental run is not tried on its own: it is
+read back with its chain when the next full one is. The flag is on for a new schedule; the
+schedules that existed before the field (migration 0091) kept it off, because a change in what a
+nightly job does belongs to the person who owns it, through the ordinary update. `hubctl backup
+schedule ls` shows it in the `trial` column and `set --trial` / `--no-trial` moves it. The chart's
+restore-drill job stays what it is: the quarterly `NEW_TENANT` drill, which is the one a trial
+cannot replace, because a trial proves the archive can be *read* and the drill proves a workspace
+can be *stood up* from it.
 
 Execution is an ordinary job (the `worker` role) with progress, the ability to cancel, resumption
 after process death, and a lock against parallel runs per target. A running backup job must not slow
@@ -566,6 +584,7 @@ encryption, target, manifest, listing, restore.
 | BK-8 | Retention deletes according to the generation plan, `min_keep` is never undercut, and other files at the target stay untouched |
 | BK-9 | A target configuration pointing at an internal address is blocked by `GuardedClient` unless explicitly released |
 | BK-10 | Cross-tenant: tenant A cannot list, verify, or restore an archive belonging to B |
+| BK-11 | The trial restore (P-14): a scheduled `FULL` run with `trial_restore` on reads its own archive back and the run carries the report; an archive damaged between the write and the trial fails the run with `backup.trial_restore_failed` and the member; a schedule made before the field keeps it off |
 
 ---
 
@@ -576,5 +595,5 @@ encryption, target, manifest, listing, restore.
 | B-1 | Whether `rclone` goes into the image (size, and its GPL-3.0 licence — check distribution alongside BSL) | `0.5.0` |
 | B-2 | ~~Whether system backups (PITR) are orchestrated by Hubtask or left to the operator~~ — **left to the operator** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10). An application cannot back up the database it has to be running to reach, and it is least able to precisely when it is most needed. In production that operator is CloudNativePG: continuous WAL archiving from the `Cluster` resource the chart renders ([`k8s/templates/cnpg-cluster.yaml`](../../k8s/templates/cnpg-cluster.yaml), `database.enabled`), with the platform's volume snapshots as a second net for what is not a database. So the `INSTANCE` restore scope stays refused — which is what the code has been doing all along — and Hubtask keeps the tenant-scoped archive backups this document describes, because those are a different promise to a different party | Closed (H-10) |
 | B-3 | ~~Retention protection against ransomware (recommend object lock as mandatory?)~~ — **required** for the system backup target, **recommended** for a tenant's own (ADR-0046, H-10), with the two conditions without which it is theatre. The credential that writes backups must not be able to delete them or shorten their retention: a lock a compromised writer can lift protects against accidents only, which is not what the threat is. And the lock retention **equals** P-5's 35 days: longer and the generation plan's own cleanup fails against the lock, shorter and the promise in [data-protection.md](./data-protection.md) §12 is not kept by the storage that has to keep it. A tenant enabling it on its own target owes itself the same arithmetic, which is why the recommendation carries the numbers rather than the word | Closed (H-10) |
-| B-4 | The scope of the trial restore in the default schedule | `0.9.0` |
+| B-4 | ~~The scope of the trial restore in the default schedule~~ — settled in P-14 (`0.9.0`): an `INSPECT` restore of every `FULL` archive, in the run's own job, with the report kept on the run and a failure failing the run (§5). Not a `NEW_TENANT` stand-up per run — that is the quarterly drill's, and a nightly copy of every workspace would be a cost nobody asked for — and not an incremental's own chain, which its next full covers | Closed (P-14) |
 | B-5 | ~~What a restore owes connected devices. It writes rows without change log entries, so a device that was offline through one keeps a cursor that is still valid and will never be told what changed (E-06, [offline-sync.md](./offline-sync.md) §8).~~ — **the per-tenant marker** (N-11): the workspace carries `sync_epoch`, every cursor the stream and the pull mint carries the epoch it was minted under inside its signed payload, and a restore into an existing workspace — `REPLACE_TENANT`, `MERGE` and `SELECTIVE` alike — advances the epoch as it succeeds, in the transaction that records the success. A cursor from an older epoch answers `sync.cursor_too_old`, the same answer as a cursor past the offline window because it is the same situation, and the device resynchronises from scratch through the initial synchronisation ([offline-sync.md](./offline-sync.md) §3.1), which hands it the restored rows. A dry run advances nothing, and neither does a restore into a new workspace: no device holds its cursor yet. A change log entry per restored row was the other candidate and is not needed: a restore is rare, and a walk is what a device that missed one has to do anyway | Closed (N-11) |
