@@ -235,6 +235,26 @@ phase 0 and what the `0.5.0` backlog's line about the jumble's path got wrong. T
 earlier milestones parked with `0.9.0` on them — template generation, SY-C, A-2, B-4, O-2, CI-3
 and D-3 — each close in one task, and `P-17` walks the result and rewrites the row.
 
+**`0.9.0` is built** (2026-09-16, P-01…P-17 in one session, a pull request each, merged one at a
+time): the row above is what it built, and the walk is
+[`evidence/ECO-2026-09-16.md`](./evidence/ECO-2026-09-16.md). What building it found, in the
+shape the milestones before it found theirs. Two defects only a real run could show: the export
+ordered a child before its parent and a restore refused the row ([#693](https://github.com/Jersyfi/hubtask/issues/693),
+fixed in #694), and a Google subtask arrived typed as a task, which the model refuses to hold
+under a parent (found by P-10's own e2e run, fixed on its branch). One thing no task could have
+seen: two pull requests merged in the other order than they were numbered, `0091` before `0090`,
+and the integration environment stopped deploying for four merges until the migrator learned to
+apply a lower number late ([#717](https://github.com/Jersyfi/hubtask/issues/717), #718). And the
+walk found what a walk finds — five issues, none fixed in it: CalDAV's discovery address answers
+401 to the one credential a client can send ([#719](https://github.com/Jersyfi/hubtask/issues/719)),
+a PUT to an entry outside the calendar's view is a 500 ([#720](https://github.com/Jersyfi/hubtask/issues/720)),
+a todo made in a client needs a UUIDv7 that Apple's clients do not mint ([#721](https://github.com/Jersyfi/hubtask/issues/721)),
+the Zapier app passes the platform's validator structurally and owes 46 trigger descriptions
+before the App Directory ([#722](https://github.com/Jersyfi/hubtask/issues/722)), and the n8n
+trigger fires and acts on an empty item because n8n does not parse `cloudevents+json`
+([#723](https://github.com/Jersyfi/hubtask/issues/723)). What the row calls open is open: ADR-0057's
+licence question and the connectors' publication, both the owner's.
+
 ---
 
 ## Requirements that arrive late
