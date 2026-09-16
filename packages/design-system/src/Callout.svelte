@@ -26,7 +26,7 @@
   const { tone = 'info', title, icon, children }: Props = $props();
 </script>
 
-<aside class="callout" data-tone={tone} role="note">
+<aside class="note" data-tone={tone} role="note">
   <span class="mark"><Icon name={icon ?? STATUS_ICON[tone]} size="sm" /></span>
   <div class="body">
     {#if title}<p class="title">{title}</p>{/if}
@@ -35,7 +35,7 @@
 </aside>
 
 <style>
-  .callout {
+  .note {
     display: flex;
     align-items: start;
     gap: var(--sp-150);
@@ -50,14 +50,14 @@
 
   /* Rule 3: the mark and the rule carry the tone; the prose stays the reading colour. */
   .mark { display: inline-flex; margin-block-start: var(--sp-025); }
-  .callout[data-tone='info'] .mark { color: var(--text-brand); }
-  .callout[data-tone='success'] .mark { color: var(--text-success); }
-  .callout[data-tone='warning'] .mark { color: var(--text-warning); }
-  .callout[data-tone='danger'] .mark { color: var(--text-danger); }
-  .callout[data-tone='info'] { border-inline-start-color: var(--text-brand); }
-  .callout[data-tone='success'] { border-inline-start-color: var(--text-success); }
-  .callout[data-tone='warning'] { border-inline-start-color: var(--text-warning); }
-  .callout[data-tone='danger'] { border-inline-start-color: var(--text-danger); }
+  .note[data-tone='info'] .mark { color: var(--text-brand); }
+  .note[data-tone='success'] .mark { color: var(--text-success); }
+  .note[data-tone='warning'] .mark { color: var(--text-warning); }
+  .note[data-tone='danger'] .mark { color: var(--text-danger); }
+  .note[data-tone='info'] { border-inline-start-color: var(--text-brand); }
+  .note[data-tone='success'] { border-inline-start-color: var(--text-success); }
+  .note[data-tone='warning'] { border-inline-start-color: var(--text-warning); }
+  .note[data-tone='danger'] { border-inline-start-color: var(--text-danger); }
 
   .body { display: flex; flex-direction: column; gap: var(--sp-050); flex: 1; min-width: 0; }
   .title { margin: 0; font-weight: var(--fw-medium); overflow-wrap: anywhere; }
