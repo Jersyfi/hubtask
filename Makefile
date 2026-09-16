@@ -530,6 +530,7 @@ gate-chart:
 		--set roles.api.autoscaling.enabled=true \
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
+		--set imagePolicy.enabled=true \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
 	@# Every host the operator names has to reach the API and be on the certificate. A name in the
 	@# rules and not in the `tls` block is a route a browser refuses before the application sees it.
@@ -596,6 +597,28 @@ gate-chart:
 		--set database.backup.enabled=false > /dev/null 2>&1; then \
 		echo "chart: a database rendered without the application role's secret - it must refuse"; exit 1; fi
 	@echo "chart: the database renders, and refuses a backup or an application role without its secret"
+	@# The signature at the door (CI-3): on, the policy names the issuer and every subject the
+	@# image may be signed under; off, nothing of the kind renders; on without a subject, the
+	@# chart refuses rather than rendering a policy that verifies against nobody.
+	@policy="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set imagePolicy.enabled=true \
+		--show-only templates/imagepolicy.yaml)"; \
+		printf '%s' "$$policy" | grep -q 'kind: ClusterPolicy' || \
+			{ echo "chart: imagePolicy.enabled rendered no ClusterPolicy"; exit 1; }; \
+		printf '%s' "$$policy" | grep -q 'issuer: "https://token.actions.githubusercontent.com"' || \
+			{ echo "chart: the image policy names no issuer"; exit 1; }; \
+		printf '%s' "$$policy" | grep -q 'workflows/release.yml@refs/tags/' || \
+			{ echo "chart: the image policy does not name the release workflow's identity"; exit 1; }; \
+		printf '%s' "$$policy" | grep -q 'failurePolicy: Fail' || \
+			{ echo "chart: the image policy would let a pod through when the webhook is down"; exit 1; }
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets | grep -q 'kind: ClusterPolicy'; then \
+		echo "chart: a ClusterPolicy rendered with imagePolicy off"; exit 1; fi
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set imagePolicy.enabled=true \
+		--set imagePolicy.subjects=null > /dev/null 2>&1; then \
+		echo "chart: an image policy without a subject rendered - it must refuse"; exit 1; fi
+	@echo "chart: the image policy renders with its identity, only when asked, and never without a subject"
 	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
 	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
 	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have

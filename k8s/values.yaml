@@ -277,6 +277,27 @@ networkPolicy:
   # credentials an SSRF would go looking for.
   allowedEgressCIDRs: []
 
+# The signature at the door (CI-3, P-15): a Kyverno ClusterPolicy that refuses any pod whose
+# image was not signed under the identities below. Off by default - the kind needs Kyverno, and
+# a ClusterPolicy is the cluster owner's to install. When it is on, an image the release workflow
+# did not sign is refused, whatever tag it carries.
+imagePolicy:
+  enabled: false
+  # What the policy applies to: the release's own namespace unless a list is given.
+  namespaces: []
+  # The repository the policy covers. A prefix: every tag and digest under it.
+  imageReference: ghcr.io/jersyfi/hubtask
+  # Keyless: the identity is GitHub's OIDC issuer and the workflow that signed. One entry per
+  # workflow that may sign - the release workflow for published versions, and the deploy
+  # workflow for the per-commit image an environment runs from main.
+  issuer: https://token.actions.githubusercontent.com
+  subjects:
+    - https://github.com/Jersyfi/hubtask/.github/workflows/release.yml@refs/tags/v*
+    - https://github.com/Jersyfi/hubtask/.github/workflows/deploy.yml@refs/heads/main
+  rekorURL: https://rekor.sigstore.dev
+  # How long the admission webhook may take to reach the transparency log before it refuses.
+  webhookTimeoutSeconds: 30
+
 serviceMonitor:
   enabled: false     # for prometheus-operator
   interval: 30s
