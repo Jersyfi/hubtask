@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -190,9 +189,9 @@ func syncSnapshot(ctx context.Context, cli *CLI, args []string) error {
 		request["scopes"] = scopes.request()
 	}
 
-	var sink io.Writer = cli.Out
+	sink := cli.Out
 	if *out != "" {
-		file, err := os.Create(*out) //nolint:gosec // G304: the path is the person's own choice for their own file
+		file, err := os.Create(*out)
 		if err != nil {
 			return fmt.Errorf("opening %s: %w", *out, err)
 		}
