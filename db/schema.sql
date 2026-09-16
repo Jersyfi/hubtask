@@ -2142,6 +2142,12 @@ GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_pseudonym FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_pseudonym TO hubtask_app;
 
+-- And the anchors (migration 0090, A-2): the chain's end exported outside the database is the one
+-- thing that says anything against somebody who can rewrite the trail, and the row that says where
+-- it went must not be one the application can rewrite or remove.
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_anchor FROM hubtask_app;
+GRANT  SELECT, INSERT ON audit_anchor TO hubtask_app;
+
 -- The same for the partitions: a partition addressed directly is a table of its own.
 DO $audit_partitions$
 DECLARE p record;

@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const auditHashAt = `-- name: AuditHashAt :one
+SELECT hash
+FROM audit_log
+WHERE tenant_id = current_tenant_id() AND seq = $1
+LIMIT 1
+`
+
+// The stored hash at one sequence number, for an anchor outside the walked period to be compared
+// against (P-13). `audit_seq_idx` keeps it a lookup.
+func (q *Queries) AuditHashAt(ctx context.Context, seq int64) ([]byte, error) {
+	row := q.db.QueryRow(ctx, auditHashAt, seq)
+	var hash []byte
+	err := row.Scan(&hash)
+	return hash, err
+}
+
 const ensureAuditPartition = `-- name: EnsureAuditPartition :one
 SELECT COALESCE(ensure_audit_partition($1::date), '')::text AS partition_name
 `
@@ -92,7 +108,7 @@ func (q *Queries) InsertAuditEntry(ctx context.Context, arg InsertAuditEntryPara
 }
 
 const lastAuditAnchor = `-- name: LastAuditAnchor :one
-SELECT anchored_at, last_seq, chain_hash
+SELECT anchored_at, last_seq, chain_hash, destination, receipt
 FROM audit_anchor
 WHERE tenant_id = current_tenant_id()
 ORDER BY last_seq DESC
@@ -100,22 +116,29 @@ LIMIT 1
 `
 
 type LastAuditAnchorRow struct {
-	AnchoredAt pgtype.Timestamptz
-	LastSeq    int64
-	ChainHash  []byte
+	AnchoredAt  pgtype.Timestamptz
+	LastSeq     int64
+	ChainHash   []byte
+	Destination *string
+	Receipt     *string
 }
 
 // The last chain end this tenant exported to an append-only target outside the database.
 //
-// Nothing writes this table yet, and that is the point of reading it: `:verify` proves the chain is
-// intact *inside* the database, and only an anchor proves anything against somebody who can rewrite
-// the whole of it. `sealed_until` is therefore null on every installation until external anchoring
-// exists (audit.md §3, open point A-2) - null being the honest answer rather than a date that would
-// claim more than the system does.
+// Written by the anchoring job since P-13 (audit.md §3, A-2): `:verify` proves the chain is intact
+// *inside* the database, and only an anchor proves anything against somebody who can rewrite the
+// whole of it. `sealed_until` is null where a workspace has never anchored - null being the honest
+// answer rather than a date that would claim more than the system does.
 func (q *Queries) LastAuditAnchor(ctx context.Context) (LastAuditAnchorRow, error) {
 	row := q.db.QueryRow(ctx, lastAuditAnchor)
 	var i LastAuditAnchorRow
-	err := row.Scan(&i.AnchoredAt, &i.LastSeq, &i.ChainHash)
+	err := row.Scan(
+		&i.AnchoredAt,
+		&i.LastSeq,
+		&i.ChainHash,
+		&i.Destination,
+		&i.Receipt,
+	)
 	return i, err
 }
 
@@ -276,6 +299,34 @@ SELECT pg_advisory_xact_lock(hashtext('audit_log:' || current_tenant_id()::text)
 // does not serialise the whole installation.
 func (q *Queries) LockAuditChain(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockAuditChain)
+	return err
+}
+
+const recordAuditAnchor = `-- name: RecordAuditAnchor :exec
+INSERT INTO audit_anchor (tenant_id, anchored_at, last_seq, chain_hash, destination, receipt)
+VALUES (current_tenant_id(), $1, $2, $3,
+        $4, $5)
+`
+
+type RecordAuditAnchorParams struct {
+	AnchoredAt  pgtype.Timestamptz
+	LastSeq     int64
+	ChainHash   []byte
+	Destination *string
+	Receipt     *string
+}
+
+// One anchor: the chain end, where the copy went and the digest it was written with (P-13). The
+// primary key refuses a second anchor of the same sequence number, which is how a day on which the
+// chain did not move writes nothing rather than a duplicate.
+func (q *Queries) RecordAuditAnchor(ctx context.Context, arg RecordAuditAnchorParams) error {
+	_, err := q.db.Exec(ctx, recordAuditAnchor,
+		arg.AnchoredAt,
+		arg.LastSeq,
+		arg.ChainHash,
+		arg.Destination,
+		arg.Receipt,
+	)
 	return err
 }
 
