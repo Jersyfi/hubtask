@@ -28,6 +28,7 @@ helm install hubtask oci://ghcr.io/jersyfi/charts/hubtask --version 0.1.0 \
 | `Job` | release | when `restoreDrill.enabled`: RT-9 as a `post-install,post-upgrade` hook (`PostSync` under Argo CD) — a point-in-time restore between two writes, checked and torn down |
 | `CronJob` | release | with `restoreDrill.schedule`: the same drill between releases |
 | `ServiceAccount`, `Role`, `RoleBinding` | release | for the drill alone — the one pod that talks to the Kubernetes API; `restoreDrill.rbac.create` off where the deploy identity may not create RBAC |
+| `ClusterPolicy` (Kyverno) | cluster | when `imagePolicy.enabled`: the signature at the door (CI-3) — see below |
 
 ## The one thing that is mandatory
 
@@ -100,6 +101,28 @@ Results live in [`docs/evidence/`](../docs/evidence/), dated, one file per run.
 The three things that make it pass are in the chart already: `maxUnavailable: 0` with a readiness
 gate, a `PodDisruptionBudget`, and a grace period longer than the longest job. What it proves is
 that the migration of that release really was expand/contract-safe (deployment.md §5).
+
+## The signature at the door (CI-3)
+
+`imagePolicy.enabled` renders a Kyverno `ClusterPolicy` that refuses any pod in the release's
+namespace (or the `imagePolicy.namespaces` named) whose image under `ghcr.io/jersyfi/hubtask` was
+not signed under one of the identities in `imagePolicy.subjects`: keyless, so what is checked is
+GitHub's OIDC issuer and the workflow that signed — the release workflow for published versions,
+the integration deploy for the per-commit image an environment runs from `main`. Both are the
+defaults, and a fork that signs under its own repository replaces them.
+
+What it needs: **Kyverno installed** on the cluster, and **cluster scope** — a `ClusterPolicy` is
+not a namespaced object, so installing it is the cluster owner's decision rather than a side
+effect of installing this chart, which is why it is off by default. What it refuses when it is
+on: an unsigned image, an image signed under any other identity, and — with
+`failurePolicy: Fail` — every pod while the admission webhook or the transparency log is out of
+reach. That last one is deliberate: a policy that lets a pod through when it cannot check is a
+policy that protects against nothing on the day it matters. Set `imagePolicy.webhookTimeoutSeconds`
+with the log's reach in mind.
+
+The same verification runs in `.github/workflows/deploy.yml` before `helm upgrade`, with `cosign
+verify` under the deploy workflow's identity, so the integration environment is protected whether
+or not its cluster runs Kyverno.
 
 ## Checking a change
 
