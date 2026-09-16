@@ -31,6 +31,7 @@
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
   import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -115,11 +116,14 @@
       ? t(`app.jumble.channel_${channel.toLowerCase()}`)
       : channel;
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     } finally {
@@ -135,7 +139,9 @@
         title: title.trim() || undefined,
       });
       converting = undefined;
-      destination = '';
+      // The destination is kept, not cleared: the next arrival goes to the same collection more
+      // often than not, and asking for it again would be asking for what was just given (3.3.7).
+      // The title is the arrival's own and is not kept.
       title = '';
       // Straight to what it produced. The link is the point of the provenance pair, and a reader
       // who has just converted something wants to see it rather than find it.
@@ -150,7 +156,7 @@
       await jumble.capture(capturedSubject.trim(), capturedBody.trim());
       capturedSubject = '';
       capturedBody = '';
-    });
+    }, t('app.jumble.captured_announced'));
   }
 </script>
 
@@ -185,7 +191,7 @@
           >
             {#snippet suggestion()}
               {#if hasAi && entry.status === 'NEW'}
-                <JumbleProposal {entry} {destinations} onaccepted={(id) => void accepted(id)} />
+                <JumbleProposal {entry} {destinations} chosen={destination} onaccepted={(id) => void accepted(id)} />
               {/if}
             {/snippet}
             {#snippet actions()}
@@ -223,7 +229,6 @@
                     tone="primary"
                     onclick={() => {
                       converting = entry.id;
-                      destination = '';
                       title = subjectOf(entry);
                     }}
                   >
@@ -233,7 +238,7 @@
                     tone="subtle"
                     isBusy={isWorking}
                     busyLabel={t('app.jumble.working')}
-                    onclick={() => void attempt(() => jumble.dismiss(entry.id))}
+                    onclick={() => void attempt(() => jumble.dismiss(entry.id), t('app.jumble.dismissed_announced'))}
                   >
                     {t('app.jumble.dismiss')}
                   </Button>
@@ -313,7 +318,7 @@
               void attempt(async () => {
                 minted = await jumble.rotateIntake();
                 rotating = false;
-              })}
+              }, t('app.jumble.rotated_announced'))}
           >
             {t('app.jumble.rotate_now')}
           </Button>
