@@ -1,0 +1,65 @@
+{
+  "kind": "tasks#taskLists",
+  "items": [
+    {
+      "kind": "tasks#taskList",
+      "id": "MDEyMzQ1Njc4OTAxMjM0NTY3ODk6MDow",
+      "title": "My Tasks",
+      "updated": "2026-09-10T08:00:00.000Z",
+      "items": [
+        {
+          "kind": "tasks#task",
+          "id": "dGFzazAwMDAwMDAwMDAwMDAwMDE",
+          "title": "Renew the passport",
+          "updated": "2026-09-01T09:15:00.000Z",
+          "position": "00000000000000000000",
+          "notes": "Photos first.",
+          "status": "needsAction",
+          "due": "2026-10-15T00:00:00.000Z",
+          "links": [
+            { "type": "email", "description": "Appointment confirmation", "link": "https://mail.google.com/mail/#all/18f0" }
+          ]
+        },
+        {
+          "kind": "tasks#task",
+          "id": "dGFzazAwMDAwMDAwMDAwMDAwMDM",
+          "title": "Book the slot",
+          "updated": "2026-09-02T09:15:00.000Z",
+          "position": "00000000000000000001",
+          "parent": "dGFzazAwMDAwMDAwMDAwMDAwMDE",
+          "status": "completed",
+          "completed": "2026-09-03T10:00:00.000Z",
+          "hidden": true
+        },
+        {
+          "kind": "tasks#task",
+          "id": "dGFzazAwMDAwMDAwMDAwMDAwMDI",
+          "title": "Take the photos",
+          "updated": "2026-09-02T09:15:00.000Z",
+          "position": "00000000000000000000",
+          "parent": "dGFzazAwMDAwMDAwMDAwMDAwMDE",
+          "status": "needsAction"
+        },
+        {
+          "kind": "tasks#task",
+          "id": "dGFzazAwMDAwMDAwMDAwMDAwMDQ",
+          "title": "Old and gone",
+          "updated": "2026-01-02T09:15:00.000Z",
+          "position": "00000000000000000002",
+          "status": "needsAction",
+          "deleted": true
+        }
+      ]
+    },
+    {
+      "kind": "tasks#taskList",
+      "id": "MDEyMzQ1Njc4OTAxMjM0NTY3ODk6MTow",
+      "title": "Groceries",
+      "updated": "2026-09-12T08:00:00.000Z",
+      "items": [
+        { "kind": "tasks#task", "id": "dGFzazAwMDAwMDAwMDAwMDAwMDU", "title": "Oat milk", "updated": "2026-09-12T08:00:00.000Z", "position": "00000000000000000000", "status": "needsAction" },
+        { "kind": "tasks#task", "id": "dGFzazAwMDAwMDAwMDAwMDAwMDY", "title": "", "updated": "2026-09-12T08:00:00.000Z", "position": "00000000000000000001", "status": "needsAction" }
+      ]
+    }
+  ]
+}

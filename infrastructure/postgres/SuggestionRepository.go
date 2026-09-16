@@ -31,6 +31,7 @@ func NewSuggestionRepository(cursors security.CursorCodec) SuggestionRepository 
 var (
 	_ repository.Suggestions = SuggestionRepository{}
 	_ repository.Expiring    = SuggestionRepository{}
+	_ repository.Requests    = SuggestionRepository{}
 )
 
 func (r SuggestionRepository) Record(ctx context.Context, proposal domain.Suggestion) error {
@@ -190,7 +191,87 @@ func (r SuggestionRepository) DeleteExpired(
 		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("removing expired suggestions: %w", err))
 	}
+	// The requests a job left behind go with the same sweep (P-11): the job that reads one
+	// deletes it when it ends, and this is the net under a job that never did. Not counted - the
+	// number is the suggestions', and a request is not a proposal.
+	if _, err := queries.DeleteExpiredAiRequests(ctx, sqlc.DeleteExpiredAiRequestsParams{
+		//nolint:gosec // G115: the same bounded batch size
+		Cutoff: timestampOf(cutoff), Batch: int32(batch),
+	}); err != nil {
+		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing expired requests: %w", err))
+	}
 	return int(removed), nil
+}
+
+// Put holds what a person asked a template to be drafted from (P-11), for the job that will read it.
+func (r SuggestionRepository) Put(ctx context.Context, request repository.Request) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(request.ID)
+	if err != nil {
+		return err
+	}
+	askedBy, err := uuidOf(request.AskedBy)
+	if err != nil {
+		return err
+	}
+	if err := queries.PutAiRequest(ctx, sqlc.PutAiRequestParams{
+		ID: id, AskedBy: askedBy, Text: request.Text, CreatedAt: timestampOf(request.CreatedAt),
+	}); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("holding a request: %w", err))
+	}
+	return nil
+}
+
+// Get answers one request, or an error wrapping shared.ErrNotFound.
+func (r SuggestionRepository) Get(ctx context.Context, id shared.ID) (repository.Request, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.Request{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return repository.Request{}, err
+	}
+	row, err := queries.FindAiRequest(ctx, key)
+	if err != nil {
+		if IsNoRows(err) {
+			return repository.Request{}, shared.ErrNotFound.WithDetail("suggestions.request_not_found")
+		}
+		return repository.Request{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a request: %w", err))
+	}
+	requestID, err := idFrom(row.ID)
+	if err != nil {
+		return repository.Request{}, err
+	}
+	askedBy, err := idFrom(row.AskedBy)
+	if err != nil {
+		return repository.Request{}, err
+	}
+	return repository.Request{ID: requestID, AskedBy: askedBy, Text: row.Text, CreatedAt: timeFrom(row.CreatedAt)}, nil
+}
+
+// Delete removes a request the job has read. A request already gone is not an error: the job
+// that reads it may run twice.
+func (r SuggestionRepository) Delete(ctx context.Context, id shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.DeleteAiRequest(ctx, key); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing a request: %w", err))
+	}
+	return nil
 }
 
 func (r SuggestionRepository) CountExpired(

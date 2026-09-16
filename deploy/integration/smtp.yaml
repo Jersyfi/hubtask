@@ -1,0 +1,192 @@
+# The mail server the application sends through, for the integration environment (#310).
+#
+# This is the second mail catcher on the node and it is not the first one's twin: `mailpit` in
+# `monitoring` is where Alertmanager tells the operator what fires, and this one is where Hubtask
+# mails its users - invitations, reminders, the notifications C-09 built. The two paths have
+# nothing in common but the protocol, and one catcher for both would put a reminder into the
+# mailbox the daily alert check reads. So: two catchers, two namespaces, two mailboxes.
+#
+# Why a catcher and not the relay production uses: the workspaces here are provisioned with
+# addresses at example.org, and a relay would carry those out onto the internet as bounces. A
+# catcher accepts on the port and forwards to nobody, which is what makes fake recipients safe.
+#
+# Why STARTTLS behind a certificate authority of the cluster's own: the point of this environment
+# is that the application takes the same path here it takes in production, and production's relay
+# speaks STARTTLS (deploy/production/values.reference.yaml). The adapter refuses to send in the
+# clear where STARTTLS was configured (infrastructure/mail/SMTP.go), so a catcher without a
+# certificate would not exercise the path - it would exercise the refusal. cert-manager is on the
+# cluster already for the ingress; a self-signed authority is three objects more, and the
+# application trusts it the way a self-hoster trusts an internal relay's authority - through
+# SSL_CERT_DIR (k8s/values.yaml, extraVolumes).
+#
+# The authority lives ten years and the server certificate ninety days, renewed from the same
+# authority: the process loads its trust store once at startup, so the certificate that rotates
+# is the one it does not have to trust directly.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: hubtask
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: smtp-ca
+  namespace: hubtask
+spec:
+  isCA: true
+  commonName: hubtask integration mail authority
+  secretName: smtp-ca
+  duration: 87600h
+  renewBefore: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: smtp-ca
+  namespace: hubtask
+spec:
+  ca:
+    secretName: smtp-ca
+---
+# The name the application connects by is the first one: HUBTASK_SMTP_HOST is what the adapter
+# verifies the certificate against, so the two have to agree (deploy/integration/values.yaml).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: smtp-tls
+  namespace: hubtask
+spec:
+  dnsNames:
+    - smtp.hubtask.svc
+    - smtp.hubtask.svc.cluster.local
+  secretName: smtp-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: smtp-ca
+    kind: Issuer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: smtp-data
+  namespace: hubtask
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+# What the application sent, kept where a session can read it: GET /api/v1/messages lists what
+# arrived, and RB-A08's question - did the reminder go out - has an answer here rather than in a
+# queue metric alone. The web port has no Ingress; the way in is a port-forward, as for the
+# monitoring namespace.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smtp
+  namespace: hubtask
+  labels:
+    app.kubernetes.io/name: smtp
+    app.kubernetes.io/part-of: hubtask
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: smtp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: smtp
+        app.kubernetes.io/part-of: hubtask
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.31.0
+          env:
+            - name: MP_DATABASE
+              value: /data/mailpit.db
+            # A ceiling rather than a cleanup job: the last thousand messages, and the rest
+            # forgotten by the catcher itself.
+            - name: MP_MAX_MESSAGES
+              value: "1000"
+            - name: MP_SMTP_TLS_CERT
+              value: /certs/tls.crt
+            - name: MP_SMTP_TLS_KEY
+              value: /certs/tls.key
+            # A relay that accepts a message in the clear is not the relay production has. The
+            # adapter never tries, but a catcher that would have let it is a catcher that could
+            # not have said so.
+            - name: MP_SMTP_REQUIRE_STARTTLS
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 8025
+            - name: smtp
+              containerPort: 1025
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: smtp-data
+        - name: certs
+          secret:
+            secretName: smtp-tls
+---
+# Port 587 on the service, so that the application's configuration is production's with the host
+# swapped: the container listens on 1025 because it runs unprivileged, and the service is where
+# that stops mattering.
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp
+  namespace: hubtask
+  labels:
+    app.kubernetes.io/name: smtp
+    app.kubernetes.io/part-of: hubtask
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8025
+      targetPort: http
+    - name: smtp
+      port: 587
+      targetPort: smtp
+  selector:
+    app.kubernetes.io/name: smtp
