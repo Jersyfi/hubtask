@@ -1424,6 +1424,14 @@ class AuditEntry(TypedDict, total=False):
 
 AuditExportFormat = Literal["JSONL", "CSV"]
 
+class AuditAnchoringConfiguration(TypedDict, total=False):
+    target_id: Required[str | None]
+
+class AuditAnchoring(TypedDict, total=False):
+    target_id: str | None
+    configured_at: Required[str]
+    configured_by: str | None
+
 AuditExport = TypedDict("AuditExport", {
     "from": Required[str],
     "to": Required[str],

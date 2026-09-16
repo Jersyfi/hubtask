@@ -319,6 +319,10 @@ class Client:
         """Verify the integrity of the audit chain"""
         return self._call("POST", "/audit:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def configure_audit_anchoring(self, body: "AuditAnchoringConfiguration") -> "AuditAnchoring":
+        """Name where the audit chain's end is anchored, or switch anchoring off"""
+        return self._call("PUT", "/audit/anchoring", {}, None, {}, body, "json", "application/json", "json")
+
     def export_audit_trail(self, body: "AuditExport") -> "JobRef":
         """Export the audit trail over a period"""
         return self._call("POST", "/audit:export", {}, None, {}, body, "json", "application/json", "json")

@@ -3598,6 +3598,21 @@ type AuditActor struct {
 // AuditActorType defines model for AuditActor.Type.
 type AuditActorType string
 
+// AuditAnchoring defines model for AuditAnchoring.
+type AuditAnchoring struct {
+	ConfiguredAt time.Time           `json:"configured_at"`
+	ConfiguredBy *openapi_types.UUID `json:"configured_by,omitempty"`
+
+	// TargetId The target anchoring writes to, or null where it is off.
+	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
+}
+
+// AuditAnchoringConfiguration defines model for AuditAnchoringConfiguration.
+type AuditAnchoringConfiguration struct {
+	// TargetId The workspace's backup target the daily anchor is written to; null switches anchoring off.
+	TargetId *openapi_types.UUID `json:"target_id"`
+}
+
 // AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
@@ -7266,8 +7281,10 @@ type ListAuditEntriesParamsOutcome string
 
 // VerifyAuditChainJSONBody defines parameters for VerifyAuditChain.
 type VerifyAuditChainJSONBody struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
+	Anchors *bool     `json:"anchors,omitempty"`
+	From    time.Time `json:"from"`
+	To      time.Time `json:"to"`
 }
 
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
@@ -8149,6 +8166,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
+// ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
+type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
+
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
 
@@ -8823,6 +8843,26 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /audit (the `ListAuditEntries` operationId).
 	ListAuditEntries(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureAuditAnchoringWithBody Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoringWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoring(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExportAuditTrailWithBody Export the audit trail over a period
 	//
@@ -12139,6 +12179,46 @@ func (c *Client) ConfigureAiProvider(ctx context.Context, body ConfigureAiProvid
 // Corresponds with GET /audit (the `ListAuditEntries` operationId).
 func (c *Client) ListAuditEntries(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAuditEntriesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureAuditAnchoringWithBody Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *Client) ConfigureAuditAnchoringWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureAuditAnchoringRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *Client) ConfigureAuditAnchoring(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureAuditAnchoringRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -18912,6 +18992,46 @@ func NewListAuditEntriesRequest(server string, params *ListAuditEntriesParams) (
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewConfigureAuditAnchoringRequest calls the generic ConfigureAuditAnchoring builder with application/json body
+func NewConfigureAuditAnchoringRequest(server string, body ConfigureAuditAnchoringJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureAuditAnchoringRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConfigureAuditAnchoringRequestWithBody constructs an http.Request for the ConfigureAuditAnchoring method, with any body, and a specified content type
+func NewConfigureAuditAnchoringRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/audit/anchoring")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -30088,6 +30208,26 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /audit (the `ListAuditEntries` operationId).
 	ListAuditEntriesWithResponse(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*ListAuditEntriesResult, error)
 
+	// ConfigureAuditAnchoringWithBodyWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoringWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error)
+
+	// ConfigureAuditAnchoringWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoringWithResponse(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error)
+
 	// ExportAuditTrailWithBodyWithResponse Export the audit trail over a period
 	//
 	// Requires the `audit:export` scope and the right to the whole trail. The archive is
@@ -34072,6 +34212,54 @@ func (r ListAuditEntriesResult) ContentType() string {
 	return ""
 }
 
+type ConfigureAuditAnchoringResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AuditAnchoring
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfigureAuditAnchoringResult) GetJSON200() *AuditAnchoring {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfigureAuditAnchoringResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfigureAuditAnchoringResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfigureAuditAnchoringResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfigureAuditAnchoringResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfigureAuditAnchoringResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ExportAuditTrailResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -34139,7 +34327,21 @@ type VerifyAuditChainResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
-		Checked *int `json:"checked,omitempty"`
+		// AnchorAgrees With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.
+		AnchorAgrees *bool `json:"anchor_agrees,omitempty"`
+
+		// AnchorErrorCode Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.
+		AnchorErrorCode *string `json:"anchor_error_code,omitempty"`
+
+		// AnchorSeq The sequence number the last anchor sealed, asked with anchors.
+		AnchorSeq *int `json:"anchor_seq,omitempty"`
+
+		// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
+		AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
+
+		// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+		AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
+		Checked             *int  `json:"checked,omitempty"`
 
 		// FirstBrokenSeq Where the first entry that does not hold sits. The first rather than all of them, because that is where an investigation starts.
 		FirstBrokenSeq *int `json:"first_broken_seq,omitempty"`
@@ -34150,7 +34352,7 @@ type VerifyAuditChainResult struct {
 		// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 		Gaps *[]int `json:"gaps,omitempty"`
 
-		// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+		// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 		SealedUntil *time.Time `json:"sealed_until,omitempty"`
 		Valid       *bool      `json:"valid,omitempty"`
 	}
@@ -34160,7 +34362,21 @@ type VerifyAuditChainResult struct {
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r VerifyAuditChainResult) GetJSON200() *struct {
-	Checked *int `json:"checked,omitempty"`
+	// AnchorAgrees With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.
+	AnchorAgrees *bool `json:"anchor_agrees,omitempty"`
+
+	// AnchorErrorCode Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.
+	AnchorErrorCode *string `json:"anchor_error_code,omitempty"`
+
+	// AnchorSeq The sequence number the last anchor sealed, asked with anchors.
+	AnchorSeq *int `json:"anchor_seq,omitempty"`
+
+	// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
+	AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
+
+	// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+	AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
+	Checked             *int  `json:"checked,omitempty"`
 
 	// FirstBrokenSeq Where the first entry that does not hold sits. The first rather than all of them, because that is where an investigation starts.
 	FirstBrokenSeq *int `json:"first_broken_seq,omitempty"`
@@ -34171,7 +34387,7 @@ func (r VerifyAuditChainResult) GetJSON200() *struct {
 	// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 	Gaps *[]int `json:"gaps,omitempty"`
 
-	// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+	// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 	SealedUntil *time.Time `json:"sealed_until,omitempty"`
 	Valid       *bool      `json:"valid,omitempty"`
 } {
@@ -45455,6 +45671,38 @@ func (c *ClientWithResponses) ListAuditEntriesWithResponse(ctx context.Context, 
 	return ParseListAuditEntriesResult(rsp)
 }
 
+// ConfigureAuditAnchoringWithBodyWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *ClientWithResponses) ConfigureAuditAnchoringWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error) {
+	rsp, err := c.ConfigureAuditAnchoringWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureAuditAnchoringResult(rsp)
+}
+
+// ConfigureAuditAnchoringWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *ClientWithResponses) ConfigureAuditAnchoringWithResponse(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error) {
+	rsp, err := c.ConfigureAuditAnchoring(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureAuditAnchoringResult(rsp)
+}
+
 // ExportAuditTrailWithBodyWithResponse Export the audit trail over a period
 //
 // Requires the `audit:export` scope and the right to the whole trail. The archive is
@@ -51028,6 +51276,39 @@ func ParseListAuditEntriesResult(rsp *http.Response) (*ListAuditEntriesResult, e
 	return response, nil
 }
 
+// ParseConfigureAuditAnchoringResult parses an HTTP response from a ConfigureAuditAnchoringWithResponse call
+func ParseConfigureAuditAnchoringResult(rsp *http.Response) (*ConfigureAuditAnchoringResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfigureAuditAnchoringResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuditAnchoring
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseExportAuditTrailResult parses an HTTP response from a ExportAuditTrailWithResponse call
 func ParseExportAuditTrailResult(rsp *http.Response) (*ExportAuditTrailResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -51091,7 +51372,21 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
-			Checked *int `json:"checked,omitempty"`
+			// AnchorAgrees With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.
+			AnchorAgrees *bool `json:"anchor_agrees,omitempty"`
+
+			// AnchorErrorCode Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.
+			AnchorErrorCode *string `json:"anchor_error_code,omitempty"`
+
+			// AnchorSeq The sequence number the last anchor sealed, asked with anchors.
+			AnchorSeq *int `json:"anchor_seq,omitempty"`
+
+			// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
+			AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
+
+			// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+			AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
+			Checked             *int  `json:"checked,omitempty"`
 
 			// FirstBrokenSeq Where the first entry that does not hold sits. The first rather than all of them, because that is where an investigation starts.
 			FirstBrokenSeq *int `json:"first_broken_seq,omitempty"`
@@ -51102,7 +51397,7 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 			Gaps *[]int `json:"gaps,omitempty"`
 
-			// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+			// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 			SealedUntil *time.Time `json:"sealed_until,omitempty"`
 			Valid       *bool      `json:"valid,omitempty"`
 		}

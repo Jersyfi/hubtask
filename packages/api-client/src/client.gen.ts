@@ -386,6 +386,11 @@ export class HubtaskClient {
     return this.call("POST", "/audit:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Name where the audit chain's end is anchored, or switch anchoring off */
+  configureAuditAnchoring(body: NonNullable<operations["configureAuditAnchoring"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureAuditAnchoring"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/audit/anchoring", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Export the audit trail over a period */
   exportAuditTrail(body: NonNullable<operations["exportAuditTrail"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportAuditTrail"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/audit:export", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
