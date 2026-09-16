@@ -10,6 +10,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -19,9 +20,10 @@ import (
 // would be an adapter deciding a permission (ADR-0005).
 
 const (
-	listAuditEntriesUseCase = "ListAuditEntries"
-	verifyAuditChainUseCase = "VerifyAuditChain"
-	exportAuditTrailUseCase = "ExportAuditTrail"
+	listAuditEntriesUseCase        = "ListAuditEntries"
+	verifyAuditChainUseCase        = "VerifyAuditChain"
+	configureAuditAnchoringUseCase = "ConfigureAuditAnchoring"
+	exportAuditTrailUseCase        = "ExportAuditTrail"
 )
 
 // ListAuditEntries answers GET /audit.
@@ -72,10 +74,14 @@ func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	out, ok := c.read(w, r, verifyAuditChainUseCase, usecase.Input{
+	in := usecase.Input{
 		"from": body.From.UTC().Format(time.RFC3339Nano),
 		"to":   body.To.UTC().Format(time.RFC3339Nano),
-	})
+	}
+	if body.Anchors != nil {
+		in["anchors"] = *body.Anchors
+	}
+	out, ok := c.read(w, r, verifyAuditChainUseCase, in)
 	if !ok {
 		return
 	}
@@ -94,6 +100,53 @@ func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request
 	}
 	if sealed, ok := out["sealed_until"].(time.Time); ok {
 		answer.SealedUntil = &sealed
+	}
+	answer.AnchoringConfigured = boolAt(out, "anchoring_configured")
+	if at, ok := out["anchored_until"].(time.Time); ok {
+		answer.AnchoredUntil = &at
+	}
+	if seq, ok := out["anchor_seq"].(int64); ok {
+		answer.AnchorSeq = &seq
+	}
+	if agrees, ok := out["anchor_agrees"].(bool); ok {
+		answer.AnchorAgrees = &agrees
+	}
+	if code, ok := out["anchor_error_code"].(string); ok && code != "" {
+		answer.AnchorErrorCode = &code
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// ConfigureAuditAnchoring answers PUT /audit/anchoring (P-13).
+func (c *RestController) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.AuditAnchoringConfiguration
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{}
+	if body.TargetId != nil {
+		in["target_id"] = body.TargetId.String()
+	}
+	out, err := c.UseCases.Invoke(r.Context(), configureAuditAnchoringUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	answer := openapi.AuditAnchoring{}
+	if at, ok := out["configured_at"].(time.Time); ok {
+		answer.ConfiguredAt = at
+	}
+	if id := out.String("target_id"); id != "" {
+		answer.TargetId = uuidPointer(shared.ID(id))
+	}
+	if id := out.String("configured_by"); id != "" {
+		answer.ConfiguredBy = uuidPointer(shared.ID(id))
 	}
 	writeJSON(w, r, http.StatusOK, answer)
 }
@@ -139,6 +192,12 @@ type auditVerification struct {
 	Gaps           []int64    `json:"gaps"`
 	GapCount       int        `json:"gap_count"`
 	SealedUntil    *time.Time `json:"sealed_until"`
+	// The anchor half (P-13): explicit nulls, for the same reason `sealed_until` is one.
+	AnchoringConfigured bool       `json:"anchoring_configured"`
+	AnchoredUntil       *time.Time `json:"anchored_until"`
+	AnchorSeq           *int64     `json:"anchor_seq"`
+	AnchorAgrees        *bool      `json:"anchor_agrees"`
+	AnchorErrorCode     *string    `json:"anchor_error_code"`
 }
 
 // auditPage is the response of GET /audit, which the contract declares inline rather than as a

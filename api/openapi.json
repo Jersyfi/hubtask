@@ -334,6 +334,42 @@
         }
       }
     },
+    "/templates:generate": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "operationId": "aiGenerateTemplate",
+        "summary": "Ask AI to draft a template from a description",
+        "description": "Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.\nAsynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateGeneration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The provider will be asked; the draft appears under /suggestions"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/views": {
       "get": {
         "tags": [
@@ -2247,6 +2283,11 @@
                   "to": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "anchors": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.\n"
                   }
                 }
               }
@@ -2291,7 +2332,40 @@
                         "null"
                       ],
                       "format": "date-time",
-                      "description": "When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.\n"
+                      "description": "When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.\n"
+                    },
+                    "anchoring_configured": {
+                      "type": "boolean",
+                      "description": "Whether the workspace names an anchoring target at all (P-13)."
+                    },
+                    "anchored_until": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "description": "With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.\n"
+                    },
+                    "anchor_seq": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "description": "The sequence number the last anchor sealed, asked with anchors."
+                    },
+                    "anchor_agrees": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ],
+                      "description": "With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.\n"
+                    },
+                    "anchor_error_code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.\n"
                     }
                   }
                 }
@@ -2299,6 +2373,41 @@
             }
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/audit/anchoring": {
+      "put": {
+        "tags": [
+          "audit"
+        ],
+        "operationId": "configureAuditAnchoring",
+        "summary": "Name where the audit chain's end is anchored, or switch anchoring off",
+        "description": "External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.\nNeeds `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditAnchoringConfiguration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditAnchoring"
+                }
+              }
+            }
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -3476,6 +3585,45 @@
             }
           },
           "409": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sync:snapshot": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "operationId": "syncSnapshot",
+        "summary": "The initial synchronisation as one stream",
+        "description": "What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):\nthe records of the initial synchronisation in the walk's order, one per line of\n`application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are\nread so that the first byte arrives before the last row is counted, and the delta cursor\nas the last line in a record of its own - `{\"cursor\": \"…\"}` - minted from the log position\nread before the first row, exactly as a page sequence's is. Permission is checked per\nrecord, a scope narrows the walk, and the device is registered by turning up.\n\nThe response is bounded the way the stream is: a deadline, a byte budget per connection,\nand the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`\nand a `Retry-After` where a pod, a workspace or a credential holds its complement. A\ndevice that lost the connection before the last line has no cursor and starts again,\nwhich is what a page sequence offers it too; the difference is one request rather than a\nthousand. A connection that ends before the cursor line never learns the cursor - which is\nthe point: a snapshot a device did not read whole is not one it may resume from.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncSnapshotRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The records, one per line, and the cursor last",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string",
+                  "description": "One `SyncChange` per line, then one line `{\"cursor\": \"…\"}`. A line is complete\nJSON; a response whose last line is not the cursor was cut short.\n"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -10402,7 +10550,7 @@
           "payload": {
             "type": "object",
             "additionalProperties": true,
-            "description": "What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. It is data, never an instruction, and nothing acts on it until somebody accepts.\n"
+            "description": "What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.\n"
           },
           "source": {
             "type": "string",
@@ -10575,9 +10723,10 @@
         "enum": [
           "FIELDS",
           "DECOMPOSITION",
-          "DUPLICATES"
+          "DUPLICATES",
+          "TEMPLATE"
         ],
-        "description": "What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.\n`DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.\n"
+        "description": "What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.\n`TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.\n`DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.\n"
       },
       "SuggestionStatus": {
         "type": "string",
@@ -15612,6 +15761,27 @@
           }
         }
       },
+      "TemplateGeneration": {
+        "type": "object",
+        "description": "What to ask for, and where the template would belong.",
+        "required": [
+          "collection_id",
+          "description"
+        ],
+        "properties": {
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The collection the template is drafted for and would be defined in. The draft's scope is `COLLECTION` and this container; a model names no destination.\n"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "What the template should produce, in the caller's own words — \"onboarding a new colleague, with the accounts to create and the introductions in the first week\". It travels to the provider as content, never as instruction.\n"
+          }
+        }
+      },
       "TemplateUpdate": {
         "type": "object",
         "description": "A merge patch. An absent member is not touched; the node tree travels whole.",
@@ -16363,6 +16533,49 @@
           "CSV"
         ]
       },
+      "AuditAnchoringConfiguration": {
+        "type": "object",
+        "required": [
+          "target_id"
+        ],
+        "properties": {
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The workspace's backup target the daily anchor is written to; null switches anchoring off.\n"
+          }
+        }
+      },
+      "AuditAnchoring": {
+        "type": "object",
+        "required": [
+          "configured_at"
+        ],
+        "properties": {
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The target anchoring writes to, or null where it is off."
+          },
+          "configured_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "configured_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "AuditExport": {
         "type": "object",
         "required": [
@@ -16829,6 +17042,62 @@
               "boolean",
               "null"
             ]
+          },
+          "trial_restore": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BackupRunTrial"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore - every member read, every checksum verified, every encrypted member decrypted with the key the schedule names - and records the difference report against the workspace here. Null where no trial ran. A trial that fails fails the run, with `backup.trial_restore_failed` as its `error_code` and the failure recorded here.\n"
+          }
+        }
+      },
+      "BackupRunTrial": {
+        "type": "object",
+        "required": [
+          "inspected_at"
+        ],
+        "properties": {
+          "inspected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "report": {
+            "$ref": "#/components/schemas/RestoreReport"
+          },
+          "failure": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BackupRunTrialFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What could not be read back, on a run that failed its trial."
+          }
+        }
+      },
+      "BackupRunTrialFailure": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The reader's message code."
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The member at the target where it stopped."
           }
         }
       },
@@ -16901,6 +17170,11 @@
             "type": "boolean",
             "default": true
           },
+          "trial_restore": {
+            "type": "boolean",
+            "default": true,
+            "description": "Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same job, and store the difference report on the run (B-4, P-14). A trial that fails fails the run - an archive the product cannot read back is not a backup - and `notify_on` covers it as it covers any failure. On for a new schedule; schedules made before this field existed keep it off, and say so.\n"
+          },
           "retention": {
             "$ref": "#/components/schemas/BackupRetention"
           },
@@ -16957,6 +17231,9 @@
             "type": "boolean"
           },
           "include_audit": {
+            "type": "boolean"
+          },
+          "trial_restore": {
             "type": "boolean"
           },
           "retention": {
@@ -17356,7 +17633,7 @@
             "additionalProperties": {
               "type": "integer"
             },
-            "description": "What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`. An object rather than a total, so that a client can say why.\n"
+            "description": "What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`, `media_missing`, `orphaned` (a row whose parent is in neither the archive nor the target) - and, for an import, what the source carried that the product has no place for - `unmapped_members`. An object rather than a total, so that a client can say why.\n"
           },
           "media": {
             "type": "integer",
@@ -18085,6 +18362,56 @@
             "type": "integer",
             "default": 500,
             "maximum": 2000
+          }
+        }
+      },
+      "SyncSnapshotRequest": {
+        "type": "object",
+        "description": "What `:pull` takes for an initial synchronisation, without a cursor or a page size.",
+        "required": [
+          "device_id"
+        ],
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The device asking, as on `:pull`; it registers by turning up."
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "scopes": {
+            "type": "array",
+            "description": "What the device wants to hold, as on `:pull`; no scope means everything the caller may read.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "container_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "depth": {
+                  "type": "string",
+                  "enum": [
+                    "SELF",
+                    "CHILDREN",
+                    "SUBTREE"
+                  ],
+                  "default": "SUBTREE"
+                }
+              }
+            }
           }
         }
       },

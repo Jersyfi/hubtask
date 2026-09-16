@@ -44,6 +44,7 @@ jobs:
       api_client: ${{ github.event_name != 'pull_request' || steps.filter.outputs.api_client == 'true' }}
       sync_engine: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sync_engine == 'true' }}
       n8n_node: ${{ github.event_name != 'pull_request' || steps.filter.outputs.n8n_node == 'true' }}
+      zapier_app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.zapier_app == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
       ci: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' }}
     steps:
@@ -106,6 +107,9 @@ jobs:
               - *workspace-manifests
             n8n_node:
               - 'packages/n8n-nodes-hubtask/**'
+              - *workspace-manifests
+            zapier_app:
+              - 'packages/zapier-app/**'
               - *workspace-manifests
             sync_engine:
               - 'packages/sync-engine/**'
@@ -456,7 +460,7 @@ jobs:
     # confined to `packages/sync-engine/**` skipped the whole lane, so the package's own
     # tests never ran. It went unnoticed because that package had never changed alone -
     # every previous change to it came with `api/openapi.yaml`, which set `openapi`.
-    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.n8n_node == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
+    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.n8n_node == 'true' || needs.changes.outputs.zapier_app == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
     strategy:
       # One package per job, and one failure does not hide the others: a red typecheck in the
@@ -483,6 +487,8 @@ jobs:
           # (ADR-0058), so a contract change is a change to each of them.
           - package: n8n-nodes-hubtask
             run: ${{ needs.changes.outputs.n8n_node == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
+          - package: zapier-app
+            run: ${{ needs.changes.outputs.zapier_app == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: webapp
             run: ${{ needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           # The website renders the API reference from the api-client's copy of the document

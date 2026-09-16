@@ -5,6 +5,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -465,5 +466,100 @@ func TestAFullBatchOfWithheldRowsDoesNotEndTheKind(t *testing.T) {
 	}
 	if containers != 3 {
 		t.Errorf("%d containers delivered, want the fixture's three behind the withheld run", containers)
+	}
+}
+
+// The snapshot is the page sequence with the pages joined (SY-C, P-12): the same records in the
+// same order, and the same cursor at the end.
+func TestTheSnapshotAnswersWhatThePageSequenceAnswers(t *testing.T) {
+	pull, _, _ := walking(t, entry(1, collectionA), entry(2, collectionA))
+
+	paged, pagedCursor := wholeWalk(t, pull, 4)
+	var streamed []Record
+	cursor, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{DeviceID: device}, func(record Record) error {
+		streamed = append(streamed, record)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("the snapshot: %v", err)
+	}
+	if !slices.Equal(entities(streamed), entities(paged)) {
+		t.Errorf("the snapshot delivered %v, the pages %v", entities(streamed), entities(paged))
+	}
+	for i := range streamed {
+		if streamed[i].EntityID != paged[i].EntityID || streamed[i].Entity != paged[i].Entity {
+			t.Errorf("record %d: the snapshot has %s %s, the pages %s %s", i,
+				streamed[i].Entity, streamed[i].EntityID, paged[i].Entity, paged[i].EntityID)
+		}
+	}
+	if cursor.Walking() || cursor.Seq != pagedCursor.Seq || !cursor.IssuedAt.Equal(pagedCursor.IssuedAt) {
+		t.Errorf("the snapshot ended on %+v, the pages on %+v", cursor, pagedCursor)
+	}
+}
+
+// A member with partial access gets exactly what they may read, from the snapshot as from the
+// pages; and a scope narrows the snapshot too.
+func TestTheSnapshotIsNarrowedByPermissionAndByScope(t *testing.T) {
+	pull, f, _ := walking(t)
+	f.auth.allowed[collectionB] = false
+
+	var records []Record
+	if _, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{DeviceID: device}, func(record Record) error {
+		records = append(records, record)
+		return nil
+	}); err != nil {
+		t.Fatalf("the snapshot: %v", err)
+	}
+	for _, record := range records {
+		if record.ContainerID == collectionB {
+			t.Errorf("a record under the hidden collection was streamed: %+v", record)
+		}
+	}
+	paged, _ := wholeWalk(t, pull, 100)
+	if len(records) != len(paged) {
+		t.Errorf("the snapshot streamed %d records, the pages %d", len(records), len(paged))
+	}
+
+	var scoped []Record
+	if _, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{
+		DeviceID: device, Scopes: []Scope{{ContainerID: collectionA, Depth: DepthSelf}},
+	}, func(record Record) error {
+		scoped = append(scoped, record)
+		return nil
+	}); err != nil {
+		t.Fatalf("the scoped snapshot: %v", err)
+	}
+	pagedScoped, _ := wholeWalk(t, pull, 100, Scope{ContainerID: collectionA, Depth: DepthSelf})
+	if len(scoped) != len(pagedScoped) || len(scoped) >= len(records) {
+		t.Errorf("the scoped snapshot streamed %d records, the pages %d, everything %d", len(scoped), len(pagedScoped), len(records))
+	}
+}
+
+// A sink that fails ends the walk and no cursor is answered: a snapshot nobody read whole is not
+// one to resume from.
+func TestASnapshotThatDiesMidWalkAnswersNoCursor(t *testing.T) {
+	pull, _, _ := walking(t)
+
+	seen := 0
+	cursor, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{DeviceID: device}, func(Record) error {
+		seen++
+		if seen == 2 {
+			return errors.New("the connection went")
+		}
+		return nil
+	})
+	if err == nil || cursor != (Position{}) {
+		t.Errorf("the snapshot answered %+v, %v after the sink died", cursor, err)
+	}
+}
+
+func TestASnapshotNeedsADeviceAndASnapshotReader(t *testing.T) {
+	pull, _, _ := walking(t)
+	if _, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{}, func(Record) error { return nil }); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("no device: %v", err)
+	}
+	pull.Snapshot = nil
+	if _, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{DeviceID: device}, func(Record) error { return nil }); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("no reader: %v", err)
 	}
 }

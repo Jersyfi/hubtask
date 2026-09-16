@@ -79,7 +79,12 @@ Argo CD the same Job is a `Sync`-phase hook in a sync wave after the database, s
 which also renders its CloudNativePG `Cluster` ([§3.2](#32-where-production-runs)) migrates a
 database that exists; the migrator itself waits for the database to accept connections
 (`migration.connectWait`) rather than trusting the wave to have waited for it, because whether Argo
-CD knows what a healthy `Cluster` looks like is the platform's, not ours to assume.
+CD knows what a healthy `Cluster` looks like is the platform's, not ours to assume. And it applies
+a migration whose number is lower than one the database already holds: numbers are taken when a
+branch is cut and branches merge in the order review finishes them, so `0090` arriving after
+`0091` is the ordinary outcome of two pull requests — it is how the integration environment
+stopped deploying on 2026-09-16 — and every migration is expand-only and assumes nothing but the
+schema it names (ADR-0003), which is what makes applying it late safe.
 
 ---
 

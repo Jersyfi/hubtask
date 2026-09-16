@@ -141,6 +141,11 @@ export class HubtaskClient {
     return this.call("POST", "/templates/{templateId}:instantiate", { "templateId": templateId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Ask AI to draft a template from a description */
+  aiGenerateTemplate(body: NonNullable<operations["aiGenerateTemplate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<void> {
+    return this.call("POST", "/templates:generate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "void", options.signal);
+  }
+
   /** GET /views */
   listSavedViews(options: CallOptions & { readonly query?: NonNullable<operations["listSavedViews"]['parameters']['query']> } = {}): Promise<operations["listSavedViews"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/views", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -386,6 +391,11 @@ export class HubtaskClient {
     return this.call("POST", "/audit:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Name where the audit chain's end is anchored, or switch anchoring off */
+  configureAuditAnchoring(body: NonNullable<operations["configureAuditAnchoring"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureAuditAnchoring"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/audit/anchoring", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Export the audit trail over a period */
   exportAuditTrail(body: NonNullable<operations["exportAuditTrail"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportAuditTrail"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/audit:export", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
@@ -539,6 +549,11 @@ export class HubtaskClient {
   /** Fetch the changes since the cursor */
   syncPull(body: NonNullable<operations["syncPull"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["syncPull"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/sync:pull", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The initial synchronisation as one stream */
+  syncSnapshot(body: NonNullable<operations["syncSnapshot"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<Response> {
+    return this.call("POST", "/sync:snapshot", {  }, undefined, {  }, body, "json", "application/json", "raw", options.signal);
   }
 
   /** Transmit local mutations */

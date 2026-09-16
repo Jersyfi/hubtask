@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -45,6 +46,10 @@ type Material struct {
 	// (K-03). Empty for a workspace that declared none, which is every workspace until somebody
 	// declares one.
 	Declared []Declared
+	// Hierarchy is the shape a template may take in this installation (P-11): read for the one
+	// prompt that asks for a tree to be defined rather than created, so that what the material
+	// tells a model and what the narrowing checks the answer against are the same profiles.
+	Hierarchy *service.Hierarchy
 	// Choices are the closed sets this answer may pick from, already narrowed to what the person
 	// asking may see (K-02).
 	//
@@ -138,6 +143,18 @@ type Produce struct {
 	// Text brings a model's answer for a declared field to the form the definition stores it in
 	// (i18n-l10n.md §5, M-07): what is proposed is what would be written.
 	Text porttext.Normalizer
+	// Requests answers the words a question was asked with, where the job names a row (P-11),
+	// and is where they are deleted once the job is over. Nil in a build that asks no such
+	// question, and a job naming a row then fails by name.
+	Requests repository.Requests
+}
+
+// Outcome is what one question came to: whether a proposal was recorded, and how much of the
+// answer the narrowing dropped - a template node the profile refuses is absent from the payload,
+// and this is where the fact lives.
+type Outcome struct {
+	Recorded bool
+	Dropped  int
 }
 
 // The prompts this build can ask with, and what a node of each answer may carry.
@@ -185,6 +202,10 @@ var promptFields = map[string]map[string]bool{
 	// A decomposition's answer is one key at its own level and a tree underneath it, and what a
 	// *node* may carry is `keptTree`'s business rather than this map's.
 	"decompose": {"children": true},
+	// A template's answer is its input for CreateTemplate, less the scope - which is the
+	// target's and is written by the producer, never read from a model (P-11). What a *node* may
+	// carry is `keptTemplateNode`'s business.
+	templatePrompt: {"name": true, "description": true, "nodes": true},
 }
 
 // choiceSets names, per prompt, which of its answer keys are chosen from a closed set (K-02).
@@ -214,6 +235,7 @@ var promptTargets = map[string]map[domain.TargetType]domain.Kind{
 	"summarize-collection": {domain.TargetContainer: domain.KindFields},
 	"classify":             {domain.TargetWorkItem: domain.KindFields},
 	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
+	templatePrompt:         {domain.TargetContainer: domain.KindTemplate},
 }
 
 // PromptTargets is the map above, for the gate that reads it beside the registry.
@@ -345,6 +367,7 @@ var grown = map[applierKey]map[string]bool{
 var defaultPrompts = map[domain.Kind]string{
 	domain.KindFields:        "suggest-fields",
 	domain.KindDecomposition: "decompose",
+	domain.KindTemplate:      templatePrompt,
 }
 
 // Execute asks, and records what came back.
@@ -356,12 +379,46 @@ var defaultPrompts = map[domain.Kind]string{
 func (h Produce) Execute(
 	ctx context.Context, actor appshared.ActorContext, request Request,
 ) error {
+	_, err := h.Ask(ctx, actor, request)
+	return err
+}
+
+// Ask is Execute with its outcome, for the job that reports it.
+func (h Produce) Ask(
+	ctx context.Context, actor appshared.ActorContext, request Request,
+) (Outcome, error) {
+	outcome, err := h.ask(ctx, actor, request)
+	if err == nil || IsUnavailable(err) {
+		// The job is over either way - answered, answered nothing, or finished because the
+		// workspace switched AI off - so the words it was asked with are done with. A failure
+		// that retries keeps them, because the retry reads them again.
+		if discarded := h.discard(ctx, actor, request.RequestID); discarded != nil && err == nil {
+			return outcome, discarded
+		}
+	}
+	return outcome, err
+}
+
+// discard deletes the request a job read, as the person who asked, so that the row lives exactly
+// as long as the question.
+func (h Produce) discard(ctx context.Context, actor appshared.ActorContext, requestID shared.ID) error {
+	if requestID.IsZero() || h.Requests == nil {
+		return nil
+	}
+	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return h.Requests.Delete(ctx, requestID)
+	})
+}
+
+func (h Produce) ask(
+	ctx context.Context, actor appshared.ActorContext, request Request,
+) (Outcome, error) {
 	promptID := request.PromptID
 	if promptID == "" {
 		promptID = defaultPrompts[request.Kind]
 	}
 	if _, known := promptFields[promptID]; !known {
-		return shared.ErrInternal.WithDetail("ai.prompt_unknown").
+		return Outcome{}, shared.ErrInternal.WithDetail("ai.prompt_unknown").
 			WithParams(map[string]string{"prompt": promptID})
 	}
 	promptID, asked := AsksAbout(promptID, request.TargetType, request.Kind)
@@ -369,14 +426,14 @@ func (h Produce) Execute(
 		// A pair nothing declares is a question this build does not ask. Refused rather than
 		// asked anyway: the allow list belongs to the prompt and the narrowing to the target, so
 		// an undeclared pair is a proposal narrowed by rules nobody compared.
-		return shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
+		return Outcome{}, shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
 			WithParams(map[string]string{
 				"prompt": promptID, "target_type": string(request.TargetType),
 			})
 	}
 	prompt, err := h.Prompts.Get(promptID)
 	if err != nil {
-		return err
+		return Outcome{}, err
 	}
 	targetType, targetID, kind := request.TargetType, request.TargetID, request.Kind
 
@@ -387,17 +444,17 @@ func (h Produce) Execute(
 	// a person, which is not a difference anybody could explain.
 	actor, err = h.located(ctx, actor)
 	if err != nil {
-		return err
+		return Outcome{}, err
 	}
 
 	provider, err := h.Providers.For(ctx, actor)
 	if err != nil {
-		return err
+		return Outcome{}, err
 	}
 	if !provider.Capabilities().Completion {
 		// The workspace switched AI off, or withdrew consent, between the asking and the running.
 		// The same refusal the asking would have given, which is what makes the two consistent.
-		return aiprovider.ErrUnavailable
+		return Outcome{}, aiprovider.ErrUnavailable
 	}
 
 	// The material is read inside a transaction and the provider is called outside one: an AI call
@@ -407,15 +464,31 @@ func (h Produce) Execute(
 	if err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
 			read, err := h.Sources.Material(ctx, actor, targetType, targetID, promptID)
+			if err != nil {
+				return err
+			}
+			// The words the question was asked with, where it has any (P-11): read in the same
+			// transaction as the rest of the material and appended as content, after it, so
+			// that a model reads the shape it is held to before the request it is answering.
+			if !request.RequestID.IsZero() {
+				if h.Requests == nil {
+					return shared.ErrInternal.WithDetail("suggestions.requests_not_wired")
+				}
+				asked, err := h.Requests.Get(ctx, request.RequestID)
+				if err != nil {
+					return err
+				}
+				read.Content += "\n\nWhat the template should be for, in the person's words:\n" + asked.Text
+			}
 			material = read
-			return err
+			return nil
 		}); err != nil {
-		return err
+		return Outcome{}, err
 	}
 	if strings.TrimSpace(material.Content) == "" {
 		// Nothing to describe. Not an error and not a suggestion: an empty entry produces an
 		// empty proposal, and recording one would be recording noise.
-		return nil
+		return Outcome{}, nil
 	}
 
 	// Prompt.Ask is the only place the instruction and the content are put together, and it puts
@@ -423,14 +496,23 @@ func (h Produce) Execute(
 	// rule somebody remembers: this code cannot merge them if it tries.
 	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material, h.today(actor, promptID))))
 	if err != nil {
-		return err
+		return Outcome{}, err
 	}
 
-	payload, ok := payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
+	var (
+		payload map[string]any
+		dropped int
+		ok      bool
+	)
+	if kind == domain.KindTemplate {
+		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, targetID)
+	} else {
+		payload, ok = payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
+	}
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
-		return nil
+		return Outcome{Dropped: dropped}, nil
 	}
 
 	proposal, err := domain.New(domain.NewInput{
@@ -445,16 +527,17 @@ func (h Produce) Execute(
 		Now:         h.Clock.Now(),
 	})
 	if err != nil {
-		return err
+		return Outcome{}, err
 	}
 
 	if err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return h.Suggestions.Record(ctx, proposal)
 	}); err != nil {
-		return err
+		return Outcome{}, err
 	}
+	outcome := Outcome{Recorded: true, Dropped: dropped}
 	if !request.Apply {
-		return nil
+		return outcome, nil
 	}
 
 	// Accepted through the use case, not around it. A rule that applies an answer directly is a
@@ -464,7 +547,7 @@ func (h Produce) Execute(
 	_, err = h.Catalogue.Invoke(ctx, "AcceptSuggestion", actor, usecase.Input{
 		"suggestion_id": proposal.ID.String(),
 	})
-	return err
+	return outcome, err
 }
 
 // The allow list is the security half of parsing an answer, and `promptFields` is where it lives.
@@ -492,6 +575,9 @@ type Request struct {
 	// applied answer is therefore not a shortcut past any of it - it is the same path with nobody
 	// pausing in the middle.
 	Apply bool
+	// RequestID names the words the question was asked with, where it has any (P-11). Zero for
+	// every question that reads its material from the target.
+	RequestID shared.ID
 }
 
 // The two ordinary reads that answer where the person who asked lives.
