@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -33,6 +34,9 @@ type WorkspaceSettings struct {
 	// RequireAdminTotp demands a second factor of the OWNER and ADMIN role holders
 	// (security.md §5, H-02). The sign-in path has read it since 0.6.0.
 	RequireAdminTotp bool
+	// AuditAnchorTargetID names the workspace's backup target the audit chain's end is
+	// exported to once a day (audit.md §3, A-2, P-13). Zero is anchoring switched off.
+	AuditAnchorTargetID shared.ID
 }
 
 // WorkspaceChange is a merge-patch, typed: a nil pointer is a key the caller did not send, and
