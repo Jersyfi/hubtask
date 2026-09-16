@@ -576,7 +576,12 @@ export class SyncEngine {
   }
 
   async #load<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
-    this.#publish(entry, { status: 'loading' });
+    // A screen that holds data keeps it while the next answer is on its way (F5-11). Publishing
+    // `loading` over a `ready` state tore every list down to its skeleton after every write - and
+    // took the keyboard's focus to `body` with it, so a reorder by menu cost the reader the whole
+    // tab order back to the row. Only the first read, and a retry after a failure, show `loading`;
+    // a reload is invisible until it lands, and lands as `ready` like the first.
+    if (entry.state.status !== 'ready') this.#publish(entry, { status: 'loading' });
     try {
       const options = this.#options(request);
       // A document makes it a `POST`, and nothing else about it changes. It still reads: no cache
