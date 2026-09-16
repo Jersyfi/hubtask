@@ -176,6 +176,7 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 		filepath.Clean("../../test/dbtest"),
 		filepath.Clean("../../test/integration"),
 		filepath.Clean("../../test/retention"),
+		filepath.Clean("../../test/sync"),
 	}
 
 	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../test"},
