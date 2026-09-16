@@ -29,6 +29,7 @@
     LoadMore,
     Skeleton,
     Stack,
+    TaskRow,
     Textarea,
     type ActivityStep,
   } from '@hubtask/design-system/components';
@@ -45,6 +46,8 @@
     namesMedia,
     namesPeople,
   } from '../lib/data/activity.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { childTypes } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
@@ -53,6 +56,7 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
+  import SuggestionStrip from '../lib/entries/SuggestionStrip.svelte';
   import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
@@ -271,6 +275,33 @@
   // is about to be given.
   const frozenReason = $derived(item?.archived_at ? t('app.entries.archived') : undefined);
 
+  // The strip exists exactly when the manifest says AI is configured for this workspace, and not
+  // otherwise - not disabled with a reason, not rendered empty. An installation with AI switched
+  // off has a product that never mentioned it (milestone-F5.md decision 4), and the tokens the
+  // strip is the only consumer of leave with it.
+  const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+
+  // What sits under this entry, for the kinds that hold anything (F5-02): an accepted breakdown
+  // creates children, and a screen that showed the proposal but not what it made would leave
+  // the reader to find them in the collection. The level is the same read the list expands, so
+  // the acceptance's invalidation of `/items` brings them here without being asked.
+  const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
+  $effect(() => {
+    if (!takesChildren) return;
+    return untrack(() => items.openChildren(id));
+  });
+  const children = $derived(takesChildren ? items.childrenOf(id) : []);
+  let childFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+
+  async function toggleChild(child: WorkItem) {
+    childFailure = undefined;
+    try {
+      await items.setCompleted(child.id, !child.completion?.is_completed, crypto.randomUUID());
+    } catch (error) {
+      childFailure = renderProblem(error as never, messages);
+    }
+  }
+
   function startEditing() {
     if (!item) return;
     draftTitle = item.title;
@@ -364,6 +395,40 @@
             {t('app.entries.edit')}
           </Button>
         </div>
+      </Stack>
+    {/if}
+
+    {#if hasAi}
+      <Stack gap="150">
+        <h2 class="section">{t('app.suggestions.title')}</h2>
+        <SuggestionStrip {item} />
+      </Stack>
+    {/if}
+
+    {#if takesChildren}
+      <Stack gap="150">
+        <h2 class="section">{t('app.item.children')}</h2>
+        {#if children.length === 0}
+          <p class="quiet">{t('app.item.no_children')}</p>
+        {:else}
+          <div class="children">
+            {#each children as child (child.id)}
+              <TaskRow
+                type={child.type}
+                title={child.title}
+                href={`/items/${child.id}`}
+                isCompleted={child.completion?.is_completed ?? false}
+                expansion="leaf"
+                completeLabel={t(child.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: child.title })}
+                completeDisabledReason={frozenReason}
+                onToggleComplete={() => toggleChild(child)}
+              />
+            {/each}
+          </div>
+        {/if}
+        {#if childFailure}
+          <p class="failure">{childFailure.message}</p>
+        {/if}
       </Stack>
     {/if}
 
@@ -477,5 +542,7 @@
   .marks { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
   .notes { margin: 0; max-width: 64ch; color: var(--text-secondary); white-space: pre-wrap; }
+  .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .children { display: flex; flex-direction: column; }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>

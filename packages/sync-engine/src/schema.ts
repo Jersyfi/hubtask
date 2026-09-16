@@ -123,6 +123,17 @@ export type Bucket = components['schemas']['Bucket'];
 export type Comment = components['schemas']['Comment'];
 export type CommentPage = components['schemas']['CommentPage'];
 /**
+ * One thing AI proposed about one entry, with its provenance (J-05). A record, and nothing more:
+ * it becomes a change only when somebody accepts it as their own write. `payload` is data in the
+ * shape the kind fixes and never an instruction - the client renders it and acts on none of it.
+ */
+export type Suggestion = components['schemas']['Suggestion'];
+export type SuggestionPage = components['schemas']['SuggestionPage'];
+export type SuggestionKind = components['schemas']['SuggestionKind'];
+export type SuggestionStatus = components['schemas']['SuggestionStatus'];
+export type SuggestionTargetType = components['schemas']['SuggestionTargetType'];
+export type SuggestionAcceptance = components['schemas']['SuggestionAcceptance'];
+/**
  * What a move answered: the entry where it landed, and what the destination could not carry.
  *
  * The second half is the point of the type. Invariant I-W6 is that an unresolvable reference is
