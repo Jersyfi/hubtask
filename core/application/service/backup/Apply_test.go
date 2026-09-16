@@ -33,6 +33,9 @@ type restoreStore struct {
 	outcomes []domain.RestoreOutcome
 	safety   map[shared.ID]shared.ID
 	running  bool
+	// progress keeps every recording, oldest first, for a test that asks what a resumed
+	// attempt would have trusted at each step.
+	progress []map[string]int
 }
 
 func newRestores() *restoreStore {
@@ -85,6 +88,7 @@ func (r *restoreStore) RecordProgress(
 	restore := r.stored[id]
 	restore.Report, restore.Progress = report, maps.Clone(progress)
 	r.stored[id] = restore
+	r.progress = append(r.progress, maps.Clone(progress))
 	return nil
 }
 
@@ -145,6 +149,15 @@ func (i *importStore) Write(
 	key := keyOf(table, data)
 	if _, held := i.tables[table][key]; held && !overwrite {
 		return false, nil
+	}
+	// The one foreign key the database would enforce immediately and this map otherwise would
+	// not: a work item's parent must be there (#693).
+	if table == "work_item" {
+		if parent, named := data["parent_id"].(string); named && parent != "" {
+			if _, held := i.tables[table][parent]; !held {
+				return false, errors.New("work_item_parent_id_fkey: the parent is not there")
+			}
+		}
 	}
 	i.tables[table][key] = maps.Clone(data)
 	i.writes++
@@ -833,8 +846,10 @@ func TestARestoreResumesWhereTheWorkerDied(t *testing.T) {
 	h := newApplyHarness(t, containerRows)
 	in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
 
-	// The first attempt gets two rows in and stops.
-	h.imports.failAfter = 2
+	// The first attempt gets the container in and dies on the work items' batch. The store
+	// double is not transactional, so the death is placed where a batch begins: what the database
+	// would roll back is here never written.
+	h.imports.failAfter = 1
 	if _, err := h.applier().Apply(context.Background(), in); err == nil {
 		t.Fatal("the first attempt did not fail")
 	}
@@ -910,6 +925,87 @@ func TestARestoredReminderWhoseMomentHasGoneIsMarkedLapsed(t *testing.T) {
 	if state := reminders["sent"]["state"]; state != "SENT" {
 		t.Errorf("a reminder that had fired came back as %v", state)
 	}
+}
+
+// A child exported before its parent lands after it (#693): the export orders rows by when they
+// changed, a parent edited after its child comes second, and a NEW_TENANT copy - which writes
+// every row - failed on the foreign key. The store above enforces that key; the applier defers.
+func childBeforeParentRows(export *rows) {
+	export.byTable["container"] = []repository.Row{
+		{ID: "c1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{"id": "c1", "name_length": 4, "parent_id": nil}},
+	}
+	export.byTable["work_item"] = []repository.Row{
+		// The grandchild first, then the child, then the parent - the worst order.
+		{ID: "w3", ChangedAt: now.Add(-3 * time.Hour), Data: map[string]any{"id": "w3", "collection_id": "c1", "parent_id": "w2", "state": "OPEN"}},
+		{ID: "w2", ChangedAt: now.Add(-2 * time.Hour), Data: map[string]any{"id": "w2", "collection_id": "c1", "parent_id": "w1", "state": "OPEN"}},
+		{ID: "w1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{"id": "w1", "collection_id": "c1", "state": "OPEN"}},
+		{ID: "w4", ChangedAt: now, Data: map[string]any{"id": "w4", "collection_id": "c1", "parent_id": "w9", "state": "OPEN"}},
+	}
+}
+
+func TestAChildExportedBeforeItsParentLandsAfterIt(t *testing.T) {
+	h := newApplyHarness(t, childBeforeParentRows)
+	in := h.accept(t, func(r *domain.Restore) { r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant })
+
+	report, err := h.applier().Apply(context.Background(), in)
+	if err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+	items := h.imports.tables["work_item"]
+	if len(items) != 3 {
+		t.Fatalf("%d work items landed, want the three whose parents exist: %v", len(items), keysOfTables(items))
+	}
+	for _, row := range items {
+		if parent, named := row["parent_id"].(string); named && parent != "" {
+			if _, held := items[parent]; !held {
+				t.Errorf("a row landed pointing at a parent that did not: %v", row)
+			}
+		}
+	}
+	// The one whose parent is in neither the archive nor the target is withheld and said so.
+	if report.Withheld[domain.WithheldOrphaned] != 1 {
+		t.Errorf("the orphan was not withheld: %+v", report.Withheld)
+	}
+	if report.New != 4 {
+		t.Errorf("the report counts %d new, want the container and three items", report.New)
+	}
+}
+
+// The progress a resumed attempt trusts stops before a deferred child, so that a crash between
+// the deferral and the settling re-reads it rather than skipping it.
+func TestProgressStopsBeforeADeferredChild(t *testing.T) {
+	h := newApplyHarness(t, childBeforeParentRows)
+	in := h.accept(t, func(r *domain.Restore) { r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant })
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+	// Somewhere along the way the recorded progress for work_items must have been below the
+	// count staged; at the end it is the whole entity.
+	var lowest, last int
+	lowest = 1 << 30
+	for _, progress := range h.restores.progress {
+		if p, held := progress["work_items"]; held {
+			if p < lowest {
+				lowest = p
+			}
+			last = p
+		}
+	}
+	if lowest > 0 && lowest >= 3 {
+		t.Errorf("the progress never stopped before the deferred children: lowest %d", lowest)
+	}
+	if last != 4 {
+		t.Errorf("the final progress is %d, want every position", last)
+	}
+}
+
+func keysOfTables(rows map[string]map[string]any) []string {
+	out := make([]string, 0, len(rows))
+	for key := range rows {
+		out = append(out, key)
+	}
+	return out
 }
 
 // The trial's reader (B-4, P-14): an archive just written is read back whole and compared with
