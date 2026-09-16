@@ -445,6 +445,33 @@ directory, and German is written whole, by hand, as the pull request ADR-0055 de
 two accessibility walks are two tasks that fix in place, because a `margin-left` is not a product
 question. QS-08 is completed for the interface by F5-14, as `0.8.0`'s backlog said it would be.
 
+**F5 is done**, and its backlog is [`backlog/milestone-F5.md`](./backlog/milestone-F5.md) —
+fourteen tasks, F5-01…F5-14, the first client milestone that cut **no core task** (the paragraph
+above says why). **Building** it found what cutting could not, in three kinds. Two premises of
+the backlog were wrong the way M-07's was: the six AI asks answer `202` with *no body* — there is
+no job to follow, and the client re-reads the suggestions on a schedule (F5-02's `followArrival`)
+— and a `FIELDS` proposal is accepted whole, its `overrides` laid over the payload, not field by
+field. Two core defects only a finished screen driven against a real server could find: a
+classification accepted as labels alone met `items.update_empty` (#696 → #697), and `AiTranslate`
+wrote its audit entry outside a transaction and 500'd on every call (#703 → #704). And the two
+walks that fix in place found, in the shape the backlog predicted, things no story had shown:
+`:dir(rtl)` does not match what Chromium renders after the root's `dir` is set, the switch's knob
+travelled off its track and every mirrored icon needed `[dir='rtl']` instead (F5-10); every write
+from a list dropped the keyboard's focus to `body`, because the engine published `loading` over a
+`ready` state and the list drew its skeleton for the length of every reload (F5-11, fixed in the
+engine for every screen at once); eleven stops from the top of the frame to any content, which is
+the skip link; and eighty writes that changed the screen in silence for a reader who cannot see
+it (F5-12). Three findings became issues rather than fixes — a merge-patch `null` read as absent
+(#709), six lifts painted with a token nobody defined (#711), a language select that shows tags
+(#715). The screen-reader pass was **not run**: the session that made it was unattended and no
+reader was heard, and [A11Y-2026-09-16.md](./evidence/A11Y-2026-09-16.md) says so for each of the
+four rather than claiming one — the accessibility tree of every route was read instead, and the
+website's statement carries the status as that leaves it, dated. QS-08 is now true of the
+interface ([QS-08-2026-09-15.md](./evidence/QS-08-2026-09-15.md), the interface section): a
+language is a file on both sides. The maturity stage stays `preview`; `stable` is convergence's,
+when criterion 16's walks are repeated for a release and the statement is published rather than
+dated.
+
 ### The website: a pre-release site from the `0.4.0` window
 
 > **`hubtask.eu` carries a pre-release site from the `0.4.0` window onwards.** It shows what the
