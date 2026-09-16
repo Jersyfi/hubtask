@@ -13,7 +13,9 @@
  * read says only when it was last rotated. Rotating retires the previous one, which is what makes
  * it worth a sentence at the call site.
  *
- * **No AI.** `:suggest` exists and this client does not call it (decision 11).
+ * **AI is asked through `suggestions.svelte.ts`**, not here: `:suggest` records a proposal about the
+ * entry, and accepting it is the suggestion's own operation, which converts the entry with the
+ * proposed fields (F5-03). This store keeps the conversion a person makes by hand.
  */
 
 import type { ResourceState } from '@hubtask/sync-engine';
@@ -132,6 +134,17 @@ class Jumble {
       ...(into.title ? { title: into.title } : {}),
       ...(into.type ? { type: into.type } : {}),
     }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES });
+  }
+
+  /**
+   * What one arrival became, read from the processed listing - there is no single-entry read in
+   * the contract. What a screen asks after an acceptance converted an entry, so that it can go
+   * to what was made rather than leave the reader to find it.
+   */
+  async whatBecameOf(entryId: string): Promise<JumbleEntry | undefined> {
+    const page = await engine.refresh<EntryPage>({ path: entriesPath('PROCESSED') });
+    if (page.status !== 'ready') return undefined;
+    return (page.data.data ?? []).find((entry) => entry.id === entryId);
   }
 
   /** Decides against one. It stays readable and ages out by retention rule. */

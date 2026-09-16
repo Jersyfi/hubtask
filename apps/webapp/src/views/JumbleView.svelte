@@ -16,14 +16,20 @@
   // The control is offered and the server refuses it where the reader lacks `AUTOMATION`; a screen
   // that hid it would be a screen guessing at a permission, and this client does not do that.
   //
-  // **No AI** (decision 11): `:suggest` exists and nothing here calls it.
+  // **AI, where the manifest says there is one** (F5-03): a control on each undecided card asks
+  // `:suggest`, and the proposal renders in the card's slot as an `AISuggestion` whose acceptance
+  // converts the entry with the proposed fields into the collection the person chooses. With AI
+  // off the card is the F4 card - the control and the slot are not rendered.
 
   import { untrack } from 'svelte';
 
   import { Banner, Button, Input, JumbleInboxItem, OneTimeSecret, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { jumble, type IntakeToken, type JumbleEntry } from '../lib/data/jumble.svelte.ts';
+  import { suggestions } from '../lib/data/suggestions.svelte.ts';
+  import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -57,6 +63,25 @@
 
   const reading = $derived(jumble.stateOf(filter));
   const entries = $derived(jumble.of(filter));
+
+  // Absent when AI is off - not disabled with a reason (milestone-F5.md decision 4).
+  const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+  let askFailure = $state<string | undefined>(undefined);
+
+  /** Straight to what the acceptance made, the way a conversion by hand goes. */
+  async function accepted(entryId: string): Promise<void> {
+    const became = await jumble.whatBecameOf(entryId);
+    if (became?.target_item_id) onnavigate(`/items/${became.target_item_id}`);
+  }
+
+  async function ask(entry: JumbleEntry): Promise<void> {
+    askFailure = undefined;
+    try {
+      await suggestions.askJumble(entry.id);
+    } catch (error) {
+      askFailure = renderProblem(error as never, messages).message;
+    }
+  }
 
   /** Every collection under every hub: where an arrival may become work. */
   const destinations = $derived(
@@ -135,6 +160,7 @@
     <p class="quiet">{t('app.jumble.intro')}</p>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+    {#if askFailure}<Banner tone="danger">{askFailure}</Banner>{/if}
 
     <Select label={t('app.jumble.showing')} bind:value={filter} options={filters} />
 
@@ -157,6 +183,11 @@
             targetLabel={entry.target_item_id ? t('app.jumble.see_what_it_became') : undefined}
             dismissedNote={entry.status === 'DISMISSED' ? t('app.jumble.dismissed_note') : undefined}
           >
+            {#snippet suggestion()}
+              {#if hasAi && entry.status === 'NEW'}
+                <JumbleProposal {entry} {destinations} onaccepted={(id) => void accepted(id)} />
+              {/if}
+            {/snippet}
             {#snippet actions()}
               {#if entry.status === 'NEW'}
                 {#if converting === entry.id}
@@ -206,6 +237,16 @@
                   >
                     {t('app.jumble.dismiss')}
                   </Button>
+                  {#if hasAi}
+                    <Button
+                      tone="secondary"
+                      icon="sparkles"
+                      disabledReason={suggestions.askingOf(entry.id)?.outcome === 'following' ? t('app.suggestions.pending') : undefined}
+                      onclick={() => void ask(entry)}
+                    >
+                      {t('app.jumble.ask')}
+                    </Button>
+                  {/if}
                 {/if}
               {/if}
             {/snippet}

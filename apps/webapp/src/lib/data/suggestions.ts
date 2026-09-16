@@ -127,7 +127,12 @@ export interface Neighbour {
  * proposal are one kind with three payloads (`SuggestionKind`'s own words).
  */
 export type Shape =
-  | { readonly shape: 'fields'; readonly proposals: readonly FieldProposal[] }
+  | {
+      readonly shape: 'fields';
+      readonly proposals: readonly FieldProposal[];
+      /** The titles the material implied, about a jumble entry (K-01): accepting creates them under the converted entry. */
+      readonly subtasks: readonly string[];
+    }
   | {
       readonly shape: 'classification';
       readonly labelIds: readonly string[];
@@ -170,7 +175,11 @@ function flatten(children: unknown, depth: number, out: ProposedNode[]): void {
 }
 
 /** What the entry holds under a field the proposal names, as the strip shows it beside the proposal. */
-function currentOf(item: Pick<WorkItem, 'title' | 'notes' | 'due_at'>, field: FieldProposal['field']): string | undefined {
+function currentOf(
+  item: Pick<WorkItem, 'title' | 'notes' | 'due_at'> | undefined,
+  field: FieldProposal['field'],
+): string | undefined {
+  if (!item) return undefined;
   switch (field) {
     case 'title':
       return item.title;
@@ -191,7 +200,10 @@ function currentOf(item: Pick<WorkItem, 'title' | 'notes' | 'due_at'>, field: Fi
  * met is `unknown`, and the strip says so rather than drawing braces - the same tolerance every
  * other reader of the contract has.
  */
-export function shapeOf(suggestion: Pick<Suggestion, 'kind' | 'payload'>, item: Pick<WorkItem, 'title' | 'notes' | 'due_at'>): Shape {
+export function shapeOf(
+  suggestion: Pick<Suggestion, 'kind' | 'payload'>,
+  item: Pick<WorkItem, 'title' | 'notes' | 'due_at'> | undefined,
+): Shape {
   const payload: Record<string, unknown> = isRecord(suggestion.payload) ? suggestion.payload : {};
 
   switch (suggestion.kind) {
@@ -223,7 +235,7 @@ export function shapeOf(suggestion: Pick<Suggestion, 'kind' | 'payload'>, item: 
         if (proposed === undefined) continue;
         proposals.push({ field, proposed, current: currentOf(item, field) });
       }
-      return { shape: 'fields', proposals };
+      return { shape: 'fields', proposals, subtasks: strings(payload.subtasks) };
     }
     default:
       return { shape: 'unknown' };
@@ -319,8 +331,12 @@ export function arrivedSince(suggestions: readonly Pick<Suggestion, 'created_at'
   );
 }
 
-/** Where one entry's standing proposals are listed. One path, so two readers share one read. */
-export const suggestionsPath = (itemId: string) => `/suggestions?target_type=WORK_ITEM&target_id=${itemId}`;
+/** What a suggestion is about, as the listing filters it. */
+export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY';
+
+/** Where one target's standing proposals are listed. One path, so two readers share one read. */
+export const suggestionsPath = (targetId: string, target: Target = 'WORK_ITEM') =>
+  `/suggestions?target_type=${target}&target_id=${targetId}`;
 
 /** How many times the listing is re-read after an ask before the strip stops waiting. */
 export const FOLLOW_ATTEMPTS = 10;
@@ -343,15 +359,16 @@ export interface ListingReader {
  */
 export async function followArrival(
   reader: ListingReader,
-  itemId: string,
+  targetId: string,
   askedAt: string,
   wait: (ms: number) => Promise<void>,
   isLive: () => boolean = () => true,
+  target: Target = 'WORK_ITEM',
 ): Promise<'arrived' | 'gave_up' | 'left'> {
   for (let attempt = 0; attempt < FOLLOW_ATTEMPTS; attempt++) {
     await wait(pollDelay(attempt));
     if (!isLive()) return 'left';
-    const read = await reader.refresh<SuggestionPage>({ path: suggestionsPath(itemId), timeoutMs: FOLLOW_READ_TIMEOUT_MS });
+    const read = await reader.refresh<SuggestionPage>({ path: suggestionsPath(targetId, target), timeoutMs: FOLLOW_READ_TIMEOUT_MS });
     if (!isLive()) return 'left';
     if (read.status === 'ready' && arrivedSince((read as { data: SuggestionPage }).data.items ?? [], askedAt)) {
       return 'arrived';
