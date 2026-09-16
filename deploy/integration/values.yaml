@@ -28,6 +28,14 @@ config:
   baseUrl: https://api.integration.hubtask.eu
   logFormat: json
   logLevel: info
+  # The hosts the application may call out to over HTTP - webhooks, HTTP actions, backup
+  # targets, an identity provider. Mandatory in provider operation (T-07), and an empty list
+  # means "anywhere public", which is the posture production must not run with. The one name
+  # here is the target the e2e walk subscribes to (scripts/hubctl-e2e.sh): it never resolves,
+  # by RFC 2606, and that is the truth of this environment - nothing leaves it. The day a walk
+  # needs a receiver that answers, its host goes on this list, which is what the list is for.
+  egressAllowedHosts:
+    - webhook.invalid
   extraEnv:
     # The application's mail path (smtp.yaml): a catcher in this namespace, reached by the name
     # its certificate carries, on production's port, with the default - STARTTLS - security.
@@ -97,7 +105,8 @@ networkPolicy:
   # namespace: the second consumer, the metrics scraper, does not exist here yet, and a rule
   # written for one of two callers is a rule that breaks when the other arrives.
   ingressFrom: []
-  # Also the default. There is no webhook target and no backup target in this environment yet, so
-  # an allowlist would be a list of nothing that reads like a decision. Link-local stays excluded
-  # either way — that exclusion is in the template, not in this list.
+  # Also the default, and the same as production's reference: egress is bounded by name in
+  # config.egressAllowedHosts above, not by address here, and a list of ranges written for a
+  # cluster whose addresses nobody chose is a list that breaks on the next rebuild. Link-local
+  # stays excluded either way — that exclusion is in the template, not in this list.
   allowedEgressCIDRs: []

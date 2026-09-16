@@ -160,6 +160,16 @@ kill %1
   chart, the migration hook and the rollout — none of which needs a second node.
 * **No production hardening of PostgreSQL.** It is a container with a local volume and
   `sslmode=disable` inside the cluster. Production is D-1 and D-2, and both are open on purpose.
+* **No egress.** The application's allowlist names one host, the e2e walk's webhook target, and
+  it never resolves (`values.yaml`). The list exists because production runs with one (T-07) and
+  an empty list means "anywhere public"; it is short because nothing here has anywhere to go. A
+  walk that needs a receiver that answers adds its host to the list, in the diff, where the
+  addition can be read.
+* **No silenced A-14.** The three findings that filled the ticket mailbox for a week (#310) were
+  answered by making them untrue — a mail server, an allowlist, and a warning that had outlived
+  the code it warned about — rather than by a route to `muted`. The one route to `muted` is
+  A-12's, for a decision this list records above; a finding this environment does not mean to
+  keep is a finding to fix.
 
 ## What an RT-8 run leaves behind
 
