@@ -83,9 +83,37 @@ concurrently, with nanoseconds, with a structure in the changes, and with no cha
 
 A deliberate limit: the chain proves tampering **inside** the database, not against an attacker with
 full database access who recomputes the entire chain. Anyone who needs that level exports the daily
-chain end value (the "anchor") to an external, append-only target (a WORM bucket, a log service, a
-signed email). There is a job and a documented configuration point for that — external anchoring is
-optional and is not pretended to be in place.
+chain end value (the "anchor") to an external, append-only target. External anchoring is optional,
+and since P-13 (`0.9.0`, A-2) it is built rather than promised:
+
+* **The configuration point** is `PUT /audit/anchoring` (`ConfigureAuditAnchoring`): a workspace
+  names one of its own backup targets, or `null` to switch anchoring off. It needs `STRUCTURE` at
+  the workspace and is audited with the target before and after (`audit.anchoring_configured`).
+  The setting lives in the workspace's settings document (`audit_anchor_target_id`).
+* **The job** (`audit.anchor`) is per tenant and self-seeded — the configuration's write seeds it,
+  each round reschedules itself to shortly after the next midnight UTC, and a workspace that names
+  no target lets it finish — because nothing in this system may enumerate tenants. Once a day,
+  where the chain moved, it reads the chain's end (`last_seq`, its hash), writes
+  `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the target — the sequence, the hash, the moment,
+  the product version — and records the `audit_anchor` row with the target's identifier as
+  `destination` and the object's SHA-256 as `receipt`. The row is append-only for the application
+  role (migration 0090), as the trail and the pseudonyms are.
+* **The check** is `POST /audit:verify` with `anchors: true`: beside the chain walk it reads the
+  last anchor's file back from the target, checks the receipt, and compares the hash the file holds
+  with the chain end this database *derives* at that sequence — each link computed over the
+  previous derived hash rather than over what the row remembers, so that a chain rewritten below
+  the anchor is reported at the anchor as well as at the break, and a chain rewritten *and*
+  recomputed whole, which verifies inside the database, is reported at the anchor alone. The answer
+  carries `anchoring_configured`, `anchored_until`, `anchor_seq`, `anchor_agrees` and
+  `anchor_error_code` (`audit.anchor_unreadable`, `audit.anchor_receipt_mismatch`); a workspace
+  without a target is told so rather than answered a comparison with nothing.
+* **The target's own protection** is what B-3 recommended for a tenant's target
+  ([backup-restore.md](./backup-restore.md) §12): object lock, and a credential that cannot delete
+  or shorten. The arithmetic differs from a backup's: an anchor is a few hundred bytes, one per
+  day, so the lock retention is not bounded by storage and should be **no shorter than the audit
+  period** (400 days by default, A-1) — an anchor that expires before the entries it seals is a
+  seal nobody can check when the review comes. Longer costs nothing; a 400-day lock over 400 files
+  of a few hundred bytes is under a megabyte.
 
 Deletion happens exclusively through the retention job (age partitions), never individually. The
 deletion itself produces an audit entry with the count and the period.
@@ -312,6 +340,6 @@ that defines the tests and rewrote the rest. The identifiers that were in circul
 | # | Point | Needed by |
 |---|---|---|
 | A-1 | ~~Agree the default audit trail retention period legally (evidentiary interest vs. storage limitation)~~ — settled at **400 days**, the placeholder becoming the decision (H-13). A year plus a quarter, chosen so that an annual review still reaches the start of the year it is reviewing: at 365 the first weeks of a period are already gone by the time anybody looks at it, and the entries a review actually wants are the oldest ones in its window. Longer was weighed and declined — an audit entry is personal data under a legitimate interest, and an interest that cannot say why it needs a second year does not have one. The number is the default and not a ceiling: a tenant under its own obligation configures its own, and the trail is pseudonymised rather than deleted for an erased actor either way (§6) | Closed (H-13) |
-| A-2 | The format and target of the external chain anchoring (WORM bucket, transparency log) | `0.9.0` |
+| A-2 | ~~The format and target of the external chain anchoring (WORM bucket, transparency log)~~ — built in P-13 (`0.9.0`): the target is one of the workspace's own backup targets, named through `PUT /audit/anchoring`; the format is one small JSON file per tenant and day (§3), written by a self-seeded daily job and read back by `:verify` with `anchors: true`. A transparency log was weighed and declined for now: the product makes no outbound call nobody configured (PG-6), and a backup target is the one destination a workspace already trusts with its data. The lock recommendation is §3's | Closed (P-13) |
 | A-3 | Establish the need for a SIEM connection (syslog/CEF export or pull through the API) | After `1.0.0` |
 | A-4 | ~~The `AUDITOR`'s second half: reading the configuration~~ — done in G-12. `READ_CONFIGURATION` is split out of `STRUCTURE` in the role matrix (`domain-model.md` §3.2), the `AUDITOR` holds it, and the configuration reads — backup targets and runs, retention rules and previews, legal holds, automation rules and their runs, webhook subscriptions — accept it beside the permission they always named. No secret is in any of them, and no pre-existing role gained or lost a right: the matrix test asserts that in both directions | Closed (G-12) |
