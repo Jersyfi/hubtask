@@ -1745,6 +1745,13 @@ class SyncPullRequest(TypedDict, total=False):
     scopes: list[dict[str, Any]]
     limit: int
 
+class SyncSnapshotRequest(TypedDict, total=False):
+    """What `:pull` takes for an initial synchronisation, without a cursor or a page size."""
+    device_id: Required[str]
+    platform: str | None
+    display_name: str | None
+    scopes: list[dict[str, Any]]
+
 class SyncChange(TypedDict, total=False):
     op: Required[Literal["UPSERT", "DELETE", "ACCESS_REVOKED"]]
     entity: Required[str]

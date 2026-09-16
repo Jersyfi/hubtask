@@ -496,6 +496,14 @@ SYNC_CURSOR="$(printf '%s\n' "$initial" | tail -n 1 | sed -n 's/.*"cursor":"\([^
 if ! grep -q '"has_more":false' <<< "$(printf '%s\n' "$initial" | tail -n 1)"; then
 	fail "sync pull --all stopped with more to come"
 fi
+# The same walk as one stream (SY-C, P-12): the same records, the cursor last, kept in the
+# profile for the delta.
+hubctl sync snapshot --out "$WORK_DIR/snapshot.ndjson" --apply 2>/dev/null
+snapshot_records="$(grep -c '"entity"' "$WORK_DIR/snapshot.ndjson")"
+paged_records="$(printf '%s\n' "$initial" | grep -c '"entity"')"
+[ "$snapshot_records" = "$paged_records" ] || { echo "FAILED: the snapshot streamed $snapshot_records records, the pages $paged_records"; exit 1; }
+expect_contains "the snapshot ends on its cursor" "$(tail -n 1 "$WORK_DIR/snapshot.ndjson")" '"cursor"'
+expect_contains "the delta continues from the snapshot's cursor" "$(hubctl sync pull --continue)" '"cursor"'
 
 # A queue of three kinds, written the way a client writes it: a creation, a patch of the entry
 # just created, and a comment on it - each with its own op_id, none with a reading, so that the
