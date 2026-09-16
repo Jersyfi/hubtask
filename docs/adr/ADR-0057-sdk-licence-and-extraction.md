@@ -85,9 +85,11 @@ a fork in the road.
 * Publication is a separate decision with a separate owner action each time: an npm scope, a
   PyPI project, and — for Go — nothing, because the module path is the repository.
 * The TypeScript *types* stay `BUSL-1.1` and first-party; only the generated client class is
-  covered. A consumer who wants the types gets them with the client, regenerated from the same
-  document, which is the one place the two licences meet and the reason the client is generated
-  as a self-contained file rather than importing the package's types.
+  covered. The client imports the types (`operations` from `dist/schema.d.ts`) rather than
+  carrying a second copy of them — P-03 chose that over a self-contained file, because a
+  second type generator is a second description of the contract — so an extraction takes the
+  client *and* regenerates the types beside it under the SDK's licence, from the same document.
+  That is the one place the two licences meet, and it is a regeneration rather than a copy.
 
 ## Amendment — 2026-09-16, what P-02 found building the Go client
 
@@ -101,6 +103,17 @@ half is one file, `hubtask.go`, under sixty lines including its comments: a bear
 idempotency editor, an `If-Match` editor, and `Check`, which turns a transport error or a non-2xx
 answer into a `*ProblemError` carrying the decoded problem document. That is the whole of what
 an extraction would carry beside the generated file, which is the size this ADR hoped for.
+
+## Amendment — 2026-09-16, what P-03 found building the other two
+
+`tools/sdkgen` reads the document once and writes both: the TypeScript client into
+`packages/api-client/src/client.gen.ts` — committed, the generator being Go and the Node lanes
+having none — and the Python package into `sdk/python/hubtask/`. Neither output has a runtime
+dependency: `fetch` and `urllib`. The TypeScript client is typed against the `operations` types
+`openapi-typescript` generates, which is where the consequence above changed. The Python client
+takes a body as a `TypedDict` from `types.py` and answers `dict`s; the query and the headers are
+keyword arguments. Both are driven against the in-process server — the TypeScript one by the
+package's own test, the Python one by `test/contract` through whatever `python3` the runner has.
 
 ## Notes
 
