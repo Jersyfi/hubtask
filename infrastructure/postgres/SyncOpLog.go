@@ -195,3 +195,38 @@ func (SyncLogSweeper) CountExpired(ctx context.Context, cutoff time.Time, ceilin
 	}
 	return int(ops + stones), nil
 }
+
+// EpochRepository is the workspace's synchronisation epoch (N-11), a column of the tenant row.
+type EpochRepository struct{}
+
+func NewEpochRepository() EpochRepository { return EpochRepository{} }
+
+var _ repository.Epochs = EpochRepository{}
+
+func (EpochRepository) Current(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	epoch, err := queries.CurrentSyncEpoch(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the synchronisation epoch: %w", err))
+	}
+	return epoch, nil
+}
+
+func (EpochRepository) Advance(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	epoch, err := queries.AdvanceSyncEpoch(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("advancing the synchronisation epoch: %w", err))
+	}
+	return epoch, nil
+}

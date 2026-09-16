@@ -253,6 +253,7 @@ type restoreHarness struct {
 	events   *eventSpy
 	mail     *mailSpy
 	objects  *putSpy
+	epochs   *epochCounter
 	prefix   string
 }
 
@@ -273,6 +274,7 @@ func newRestoreHarness(t *testing.T, seed func(*runHarness)) *restoreHarness {
 		runHarness: run, restores: newMemoryRestores(), into: newWorkspace(),
 		journal: &memoryJournal{}, events: &eventSpy{}, mail: &mailSpy{},
 		objects: &putSpy{memoryObjects: run.objects},
+		epochs:  &epochCounter{},
 		prefix:  written.ArchivePath,
 	}
 }
@@ -292,9 +294,17 @@ func (h *restoreHarness) applier(t *testing.T) service.Applier {
 		Restores: h.restores, Targets: h.targets, Import: h.into, Journal: h.journal,
 		Opener: openerFor{store: h.store}, Encryptor: envelope, Keys: envelope,
 		Cipher: realCipher(), Objects: h.objects,
-		UnitOfWork: directWork{at: h.at}, Clock: clock.Fixed(h.at.Add(time.Hour)),
+		UnitOfWork: directWork{at: h.at}, Epochs: h.epochs, Clock: clock.Fixed(h.at.Add(time.Hour)),
 		IDs: fixedIDs{}, SchemaVersion: "0032", Batch: 2,
 	}
+}
+
+// epochCounter is the synchronisation epoch a restore advances (N-11), counted.
+type epochCounter struct{ advanced int }
+
+func (e *epochCounter) Advance(context.Context) (int64, error) {
+	e.advanced++
+	return int64(e.advanced), nil
 }
 
 // accept writes the restore the way the use case would.
@@ -375,6 +385,10 @@ func TestARestoreFiresNothingAndRestoresNoCredential(t *testing.T) {
 	}
 	if len(h.events.appended) != 0 {
 		t.Errorf("a restore wrote %d events: %+v", len(h.events.appended), h.events.appended)
+	}
+	// What it did tell is the devices, through the epoch (N-11, B-5): once, as it succeeded.
+	if h.epochs.advanced != 1 {
+		t.Errorf("the synchronisation epoch was advanced %d times, want once", h.epochs.advanced)
 	}
 	if len(h.mail.sent) != 0 {
 		t.Errorf("a restore sent %d messages", len(h.mail.sent))
@@ -473,6 +487,9 @@ func TestADryRunChangesNothingAtAll(t *testing.T) {
 	}
 	if len(h.objects.puts) != 0 {
 		t.Errorf("a dry run wrote %d objects", len(h.objects.puts))
+	}
+	if h.epochs.advanced != 0 {
+		t.Errorf("a dry run advanced the synchronisation epoch %d times", h.epochs.advanced)
 	}
 	if report.New == 0 {
 		t.Error("a dry run against a workspace missing the whole archive reported nothing new")

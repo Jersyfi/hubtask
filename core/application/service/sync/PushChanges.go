@@ -191,11 +191,10 @@ func (p PushChanges) Push(
 	if err != nil {
 		return PushResponse{}, err
 	}
-	now := p.Stream.Clock.Now()
 	return PushResponse{
 		Results:    results,
-		Cursor:     Position{Seq: latest, IssuedAt: now},
-		ServerTime: now,
+		Cursor:     latest,
+		ServerTime: latest.IssuedAt,
 	}, nil
 }
 

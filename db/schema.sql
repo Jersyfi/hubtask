@@ -121,7 +121,10 @@ CREATE TABLE tenant (
   version            integer NOT NULL DEFAULT 1,
   -- When the 30-day grace after a deletion request runs out (H-06); the hard-delete job waits
   -- for this moment.
-  purge_after        timestamptz
+  purge_after        timestamptz,
+  -- The synchronisation epoch (0087, N-11): every cursor carries the epoch it was minted under,
+  -- and a restore into the workspace advances it, so that a cursor minted before is refused.
+  sync_epoch         bigint NOT NULL DEFAULT 0
 );
 
 CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');

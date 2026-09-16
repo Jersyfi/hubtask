@@ -47,6 +47,11 @@ type Cursors interface {
 type Position struct {
 	Seq      int64
 	IssuedAt time.Time
+	// Epoch is the workspace's synchronisation epoch the position was minted under (N-11,
+	// backup-restore.md §12 B-5). A restore into the workspace advances the epoch, and a
+	// cursor from an older one is refused as too old: the rows a restore wrote are in no change
+	// log entry, so a delta past them would leave the device believing itself current.
+	Epoch int64
 	// Kind and After are where an initial synchronisation stands (N-02): the kind being walked
 	// and the key of the last row handed out. Both empty is a delta position, the only kind the
 	// stream resumes from.
@@ -109,7 +114,10 @@ type StreamChanges struct {
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 	Cursors    Cursors
-	Clock      clock.Clock
+	// Epochs is the workspace's synchronisation epoch (N-11): every position is minted under the
+	// current one, and a cursor from an older one is refused.
+	Epochs repository.Epochs
+	Clock  clock.Clock
 	// Window is how far back a cursor may reach: the maximum offline window, which is also the
 	// minimum tombstone period (offline-sync.md §7). Beyond it the log no longer holds everything
 	// that happened, so a delta would be silently wrong.
@@ -135,14 +143,10 @@ func (s StreamChanges) Resume(
 	}
 
 	if cursor == "" {
-		latest, err := s.latest(ctx, actor)
-		if err != nil {
-			return Position{}, err
-		}
-		return Position{Seq: latest, IssuedAt: s.Clock.Now()}, nil
+		return s.latest(ctx, actor)
 	}
 
-	position, err := s.decode(cursor)
+	position, err := s.decode(ctx, actor, cursor)
 	if err != nil {
 		return Position{}, err
 	}
@@ -156,9 +160,11 @@ func (s StreamChanges) Resume(
 	return position, nil
 }
 
-// decode reads a cursor back and judges its age - the half of Resume the pull shares, which
-// accepts a walk position where the stream does not.
-func (s StreamChanges) decode(cursor string) (Position, error) {
+// decode reads a cursor back and judges its age and its epoch - the half of Resume the pull
+// shares, which accepts a walk position where the stream does not.
+func (s StreamChanges) decode(
+	ctx context.Context, actor appshared.ActorContext, cursor string,
+) (Position, error) {
 	position, err := s.Cursors.Decode(cursor)
 	if err != nil {
 		return Position{}, err
@@ -168,23 +174,50 @@ func (s StreamChanges) decode(cursor string) (Position, error) {
 		// gap would silently omit whatever was pruned, and a client applying it would keep objects
 		// that are gone (offline-sync.md §7). A walk nobody finished inside the window starts
 		// again for the same reason: its log position is as old as its cursor.
-		return Position{}, shared.ErrGone.
-			WithDetail("sync.cursor_too_old").
-			WithParams(map[string]string{"window_days": days(s.Window)})
+		return Position{}, s.tooOld()
+	}
+	var epoch int64
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		epoch, err = s.Epochs.Current(ctx)
+		return err
+	})
+	if err != nil {
+		return Position{}, err
+	}
+	if position.Epoch != epoch {
+		// A restore has written rows since this cursor was minted, and none of them is in the
+		// log (backup-restore.md §12 B-5). The same answer as a cursor past the window, because
+		// it is the same situation for the device: a delta would leave it believing itself
+		// current, and the walk is what hands it the restored rows.
+		return Position{}, s.tooOld()
 	}
 	return position, nil
 }
 
-// latest is where the log stands now, read inside its own transaction.
-func (s StreamChanges) latest(ctx context.Context, actor appshared.ActorContext) (int64, error) {
-	var latest int64
+func (s StreamChanges) tooOld() error {
+	return shared.ErrGone.
+		WithDetail("sync.cursor_too_old").
+		WithParams(map[string]string{"window_days": days(s.Window)})
+}
+
+// latest is where the log stands now, under the current epoch, read inside one transaction and
+// minted now.
+func (s StreamChanges) latest(ctx context.Context, actor appshared.ActorContext) (Position, error) {
+	var latest, epoch int64
 	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
 			var err error
-			latest, err = s.Changes.Latest(ctx)
+			if latest, err = s.Changes.Latest(ctx); err != nil {
+				return err
+			}
+			epoch, err = s.Epochs.Current(ctx)
 			return err
 		})
-	return latest, err
+	if err != nil {
+		return Position{}, err
+	}
+	return Position{Seq: latest, IssuedAt: s.Clock.Now(), Epoch: epoch}, nil
 }
 
 // Next reads one round and returns what this actor may see.
@@ -216,7 +249,7 @@ func (s StreamChanges) page(
 		return Batch{}, err
 	}
 	if len(entries) == 0 {
-		return Batch{Cursor: s.at(from.Seq)}, nil
+		return Batch{Cursor: s.at(from.Seq, from.Epoch)}, nil
 	}
 
 	// One decision per container rather than one per record. A batch is usually a handful of
@@ -233,7 +266,7 @@ func (s StreamChanges) page(
 			// narrow it - the device drops whatever it holds under the root, and a device holding
 			// nothing there drops nothing.
 			if entry.ActorID == actor.AccountID {
-				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq)})
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
 			}
 			continue
 		}
@@ -247,7 +280,7 @@ func (s StreamChanges) page(
 		if keep != nil && !keep(seen.container) {
 			continue
 		}
-		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq)})
+		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
 	}
 
 	last := entries[len(entries)-1].Seq
@@ -255,7 +288,7 @@ func (s StreamChanges) page(
 		Records: records,
 		// The cursor of the last entry *read*, not of the last one sent. A cursor that stalled on
 		// a container somebody lost access to would re-read it on every round forever.
-		Cursor: s.at(last),
+		Cursor: s.at(last, from.Epoch),
 		More:   len(entries) == batch,
 	}, nil
 }
@@ -350,8 +383,10 @@ func knownEntity(entity string) bool {
 	return false
 }
 
-func (s StreamChanges) at(seq int64) Position {
-	return Position{Seq: seq, IssuedAt: s.Clock.Now()}
+// at is a position minted now, under the epoch the round was resumed under: a restore succeeding
+// in the middle of a connection is judged the next time the cursor is presented.
+func (s StreamChanges) at(seq, epoch int64) Position {
+	return Position{Seq: seq, IssuedAt: s.Clock.Now(), Epoch: epoch}
 }
 
 // Encode is how the presentation layer turns a position into the event's `id`, without knowing what

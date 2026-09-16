@@ -53,8 +53,14 @@ type Applier struct {
 	// to write it to refuses the destructive mode rather than proceeding without the copy.
 	Safety     SafetyBackup
 	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
+	// Epochs is the workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): a
+	// restore into an existing workspace advances it as it succeeds, in the same transaction, so
+	// that every cursor minted before is refused and the devices resynchronise by themselves -
+	// the rows a restore wrote are in no change log entry. A restore into a new workspace advances
+	// nothing: no device holds its cursor yet.
+	Epochs EpochAdvancer
+	Clock  clock.Clock
+	IDs    clock.IDGenerator
 	// SchemaVersion is the migration this build stands at. An archive from a newer one is refused
 	// rather than half-read: a restore migrates upwards and cannot go the other way.
 	SchemaVersion string
@@ -62,6 +68,11 @@ type Applier struct {
 	// transaction per batch size", which is what this is: a cancelled restore loses the batch in
 	// flight and keeps everything before it.
 	Batch int
+}
+
+// EpochAdvancer is the slice of the synchronisation epoch a restore moves.
+type EpochAdvancer interface {
+	Advance(ctx context.Context) (int64, error)
 }
 
 // DefaultRestoreBatch is how many records one transaction writes unless the installation says
@@ -100,7 +111,7 @@ func (a Applier) Apply(ctx context.Context, in ApplyInput) (domain.Report, error
 		}
 		return domain.Report{}, err
 	}
-	return report, a.succeed(ctx, in, report, ready.safetyRunID)
+	return report, a.succeed(ctx, in, report, ready)
 }
 
 // claimed is everything the restore needs, read once.
@@ -342,13 +353,24 @@ func (a Applier) takeSafetyCopy(ctx context.Context, in ApplyInput, ready *claim
 
 // succeed records what the restore did.
 func (a Applier) succeed(
-	ctx context.Context, in ApplyInput, report domain.Report, safetyRunID shared.ID,
+	ctx context.Context, in ApplyInput, report domain.Report, ready claimed,
 ) error {
 	return a.UnitOfWork.Within(ctx, persistence.Scope{TenantID: in.TenantID}, func(ctx context.Context) error {
-		return a.Restores.Finish(ctx, domain.RestoreOutcome{
+		if err := a.Restores.Finish(ctx, domain.RestoreOutcome{
 			ID: in.RestoreID, Status: domain.RestoreSucceeded, Report: report,
-			SafetyRunID: safetyRunID, FinishedAt: a.Clock.Now(),
-		})
+			SafetyRunID: ready.safetyRunID, FinishedAt: a.Clock.Now(),
+		}); err != nil {
+			return err
+		}
+		// The epoch moves with the success and in its transaction: rows that were restored are
+		// in no change log entry, and every cursor minted before this moment - during the restore
+		// included - has to be refused (backup-restore.md §12 B-5). Not on a dry run, which wrote
+		// nothing, and not into a new workspace, whose cursor nobody holds.
+		if ready.restore.DryRun || !ready.restore.Mode.Writes() || ready.restore.Mode == domain.RestoreNewTenant {
+			return nil
+		}
+		_, err := a.Epochs.Advance(ctx)
+		return err
 	})
 }
 

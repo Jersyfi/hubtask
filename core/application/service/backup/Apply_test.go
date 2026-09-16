@@ -199,7 +199,16 @@ type applyHarness struct {
 	imports  *importStore
 	journal  *journalDouble
 	safety   *safetyDouble
+	epochs   *epochDouble
 	prefix   string
+}
+
+// epochDouble counts how often the workspace's synchronisation epoch was advanced (N-11).
+type epochDouble struct{ advanced int }
+
+func (e *epochDouble) Advance(context.Context) (int64, error) {
+	e.advanced++
+	return int64(e.advanced), nil
 }
 
 // newApplyHarness writes one archive with the performer and hands back everything needed to read it
@@ -220,6 +229,7 @@ func newApplyHarness(t *testing.T, seed func(*rows)) *applyHarness {
 		imports:        newImports(),
 		journal:        &journalDouble{},
 		safety:         &safetyDouble{},
+		epochs:         &epochDouble{},
 		prefix:         run.ArchivePath,
 	}
 }
@@ -228,7 +238,7 @@ func (a *applyHarness) applier() Applier {
 	return Applier{
 		Restores: a.restores, Targets: a.targets, Import: a.imports, Journal: a.journal,
 		Opener: a.opener, Encryptor: a.encryptor, Keys: a.keys, Cipher: a.cipher,
-		Objects: a.objects, Safety: a.safety, UnitOfWork: a.uow,
+		Objects: a.objects, Safety: a.safety, UnitOfWork: a.uow, Epochs: a.epochs,
 		Clock: clock.Fixed(now), IDs: ids{next: runID}, SchemaVersion: "0032", Batch: 2,
 	}
 }
@@ -535,6 +545,34 @@ func TestReplaceTenantEmptiesTheTenantFirst(t *testing.T) {
 	}
 }
 
+// B-5 (backup-restore.md §12, N-11): a restore into an existing workspace advances its
+// synchronisation epoch as it succeeds - REPLACE_TENANT and the selective kinds alike - so that
+// every cursor minted before is refused and the devices resynchronise by themselves. A dry run
+// advances nothing, and neither does a restore into a new workspace.
+func TestARestoreIntoAnExistingWorkspaceAdvancesTheSynchronisationEpoch(t *testing.T) {
+	cases := map[string]struct {
+		change   func(*domain.Restore)
+		advanced int
+	}{
+		"REPLACE_TENANT": {func(r *domain.Restore) { r.Mode = domain.RestoreReplaceTenant }, 1},
+		"MERGE":          {func(r *domain.Restore) { r.Mode = domain.RestoreMerge }, 1},
+		"a dry run":      {func(r *domain.Restore) { r.Mode, r.DryRun = domain.RestoreMerge, true }, 0},
+		"INSPECT":        {func(r *domain.Restore) { r.Mode = domain.RestoreInspect }, 0},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newApplyHarness(t, containerRows)
+			in := h.accept(t, tc.change)
+			if _, err := h.applier().Apply(context.Background(), in); err != nil {
+				t.Fatalf("restoring: %v", err)
+			}
+			if h.epochs.advanced != tc.advanced {
+				t.Errorf("the epoch was advanced %d times, want %d", h.epochs.advanced, tc.advanced)
+			}
+		})
+	}
+}
+
 // §8.3 step 4: the copy comes before the destruction, and its identifier is on the run before the
 // mode that needs it runs.
 func TestADestructiveModeTakesASafetyCopyFirst(t *testing.T) {
@@ -727,6 +765,9 @@ func TestANewTenantRestoreAcceptsItsOwnArchive(t *testing.T) {
 	}
 	if report.Withheld[domain.WithheldExcluded] != 1 {
 		t.Errorf("the withheld feed is not on the report: %v", report.Withheld)
+	}
+	if h.epochs.advanced != 0 {
+		t.Errorf("a restore into a new workspace advanced its epoch %d times", h.epochs.advanced)
 	}
 }
 

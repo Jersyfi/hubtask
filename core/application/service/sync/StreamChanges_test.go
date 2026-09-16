@@ -116,13 +116,28 @@ func (a *authorizer) Permits(
 	return a.allowed[last.ID], nil
 }
 
+// epochs is the workspace's synchronisation epoch, and how often it was advanced.
+type epochs struct {
+	current  int64
+	advanced int
+}
+
+func (e *epochs) Current(context.Context) (int64, error) { return e.current, nil }
+
+func (e *epochs) Advance(context.Context) (int64, error) {
+	e.current++
+	e.advanced++
+	return e.current, nil
+}
+
 // cursors is the codec, without the cryptography: the application never looks inside the string,
 // so a test does not have to either.
 type cursors struct{ err error }
 
 func (c cursors) Encode(position Position) string {
 	cursor := strconv.FormatInt(position.Seq, 10) + "@" +
-		strconv.FormatInt(position.IssuedAt.Unix(), 10)
+		strconv.FormatInt(position.IssuedAt.Unix(), 10) + "@" +
+		strconv.FormatInt(position.Epoch, 10)
 	if position.Walking() {
 		cursor += "@" + position.Kind + "@" + position.After
 	}
@@ -134,7 +149,7 @@ func (c cursors) Decode(cursor string) (Position, error) {
 		return Position{}, c.err
 	}
 	fields := strings.Split(cursor, "@")
-	if len(fields) != 2 && len(fields) != 4 {
+	if len(fields) != 3 && len(fields) != 5 {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
 	seq, err := strconv.ParseInt(fields[0], 10, 64)
@@ -145,9 +160,13 @@ func (c cursors) Decode(cursor string) (Position, error) {
 	if err != nil {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
-	position := Position{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC()}
-	if len(fields) == 4 {
-		position.Kind, position.After = fields[2], fields[3]
+	epoch, err := strconv.ParseInt(fields[2], 10, 64)
+	if err != nil {
+		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
+	}
+	position := Position{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC(), Epoch: epoch}
+	if len(fields) == 5 {
+		position.Kind, position.After = fields[3], fields[4]
 	}
 	return position, nil
 }
@@ -197,6 +216,7 @@ type fixture struct {
 	containers *containerStore
 	auth       *authorizer
 	work       *unitOfWork
+	epochs     *epochs
 }
 
 func streaming(t *testing.T, entries ...repository.Recorded) fixture {
@@ -206,13 +226,14 @@ func streaming(t *testing.T, entries ...repository.Recorded) fixture {
 	containers := &containerStore{missing: map[shared.ID]bool{}, parents: map[shared.ID]shared.ID{}}
 	auth := &authorizer{allowed: map[shared.ID]bool{readable: true}}
 	work := &unitOfWork{}
+	epoch := &epochs{}
 
 	return fixture{
 		stream: StreamChanges{
 			Changes: changes, Containers: containers, Authorizer: auth, UnitOfWork: work,
-			Cursors: cursors{}, Clock: clock.Fixed(now), Window: window, Batch: 3,
+			Cursors: cursors{}, Epochs: epoch, Clock: clock.Fixed(now), Window: window, Batch: 3,
 		},
-		changes: changes, containers: containers, auth: auth, work: work,
+		changes: changes, containers: containers, auth: auth, work: work, epochs: epoch,
 	}
 }
 
@@ -392,6 +413,47 @@ func TestAnUnansweredAuthorisationQuestionIsNotARefusal(t *testing.T) {
 
 	if _, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now}); err == nil {
 		t.Fatal("a failure to answer was treated as a refusal")
+	}
+}
+
+// A cursor from an older epoch is refused the way a cursor past the window is (N-11,
+// backup-restore.md §12 B-5): a restore wrote rows that are in no change log entry, and the
+// walk is what hands them to the device. Every position minted - at the head, past a batch, at
+// the end of a walk - carries the current epoch.
+func TestACursorFromAnOlderEpochIsRefusedAndEveryPositionCarriesTheCurrentOne(t *testing.T) {
+	f := streaming(t, entry(1, readable))
+	f.epochs.current = 4
+
+	from, err := f.stream.Resume(t.Context(), actor(), "")
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if from.Epoch != 4 {
+		t.Errorf("the head was minted under epoch %d, want the workspace's", from.Epoch)
+	}
+	batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now, Epoch: 4})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if batch.Cursor.Epoch != 4 || batch.Records[0].Cursor.Epoch != 4 {
+		t.Errorf("a batch minted %d and %d, want the epoch it was resumed under", batch.Cursor.Epoch, batch.Records[0].Cursor.Epoch)
+	}
+	if _, err := f.stream.Resume(t.Context(), actor(), f.stream.Encode(batch.Cursor)); err != nil {
+		t.Errorf("a cursor of the current epoch was refused: %v", err)
+	}
+
+	// The restore succeeds: the cursor is from an older epoch now.
+	if _, err := f.epochs.Advance(t.Context()); err != nil {
+		t.Fatalf("advancing: %v", err)
+	}
+	_, err = f.stream.Resume(t.Context(), actor(), f.stream.Encode(batch.Cursor))
+	if !errors.Is(err, shared.ErrGone) || shared.AsError(err).DetailCode != "sync.cursor_too_old" {
+		t.Errorf("a cursor from an older epoch was answered %v, want cursor_too_old", err)
+	}
+	pull := PullChanges{Stream: f.stream}
+	_, err = pull.Pull(t.Context(), actor(), PullRequest{DeviceID: device, Cursor: f.stream.Encode(batch.Cursor), Limit: 10})
+	if !errors.Is(err, shared.ErrGone) || shared.AsError(err).DetailCode != "sync.cursor_too_old" {
+		t.Errorf("the pull answered a cursor from an older epoch %v, want cursor_too_old", err)
 	}
 }
 
