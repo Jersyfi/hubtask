@@ -200,7 +200,13 @@ type importRepo struct {
 	rows map[string]map[string]map[string]any
 }
 
-func newImportRepo() *importRepo { return &importRepo{rows: map[string]map[string]map[string]any{}} }
+// newImportRepo holds the hub the import lands under: the collection names it as its parent, and
+// a parent nowhere to be found is withheld rather than written (#693).
+func newImportRepo() *importRepo {
+	return &importRepo{rows: map[string]map[string]map[string]any{
+		"container": {hubID.String(): {"id": hubID.String(), "type": "HUB"}},
+	}}
+}
 func (r *importRepo) Holds(_ context.Context, table string, data map[string]any) (bool, error) {
 	_, ok := r.rows[table][data["id"].(string)]
 	return ok, nil
@@ -433,7 +439,7 @@ func TestTheRunnerLandsTheFileAndFinishesTheRun(t *testing.T) {
 	if finished.Report.Withheld["unmapped_members"] != 1 {
 		t.Errorf("withheld = %v", finished.Report.Withheld)
 	}
-	if len(landed.rows["work_item"]) != 2 || len(landed.rows["container"]) != 1 {
+	if len(landed.rows["work_item"]) != 2 || len(landed.rows["container"]) != 2 {
 		t.Errorf("landed = %v", landed.rows)
 	}
 	if len(stored.deleted) != 1 || stored.deleted[0] != mediaID {
@@ -474,7 +480,7 @@ func TestTheRunnerRecordsAFileThatIsNotItsKindAndRetriesTheStoreBeingAway(t *tes
 	if got := run.rows[runID]; got.Status != domain.StatusFailed || got.ErrorCode != domain.CodeFileNotKind {
 		t.Errorf("run = %+v", got)
 	}
-	if len(landed.rows) != 0 || epoch.advanced != 0 || len(stored.deleted) != 1 {
+	if len(landed.rows["work_item"]) != 0 || len(landed.rows["container"]) != 1 || epoch.advanced != 0 || len(stored.deleted) != 1 {
 		t.Error("nothing landed, the epoch stood, the file went")
 	}
 
