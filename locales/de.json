@@ -175,6 +175,7 @@
   "app.dismiss": "Schließen",
   "app.retry": "Noch einmal versuchen",
   "app.nav.home": "Start",
+  "app.skip_to_content": "Zum Inhalt springen",
   "app.entries.title": "Einträge",
   "app.entries.none": "Noch keine Einträge in dieser Sammlung.",
   "app.entries.add": "Eintrag hinzufügen",
