@@ -113,6 +113,7 @@ published ([§4](#4-push-or-pull)).
 | Ingress | Traefik, the controller k3s already ships |
 | TLS | cert-manager with Let's Encrypt, `HTTP-01`, one certificate per host |
 | Database | PostgreSQL in the cluster, on a local volume — the environment is rebuildable, not precious |
+| Mail | A catcher in the namespace, over STARTTLS behind a certificate authority the cluster issued to itself: the application takes production's path and the recipients at `example.org` never leave the node |
 | Host names | `<service>.<environment>.hubtask.eu`, so `api.integration.hubtask.eu` today and `app.integration.hubtask.eu` when the web client arrives |
 
 **Why an own server rather than managed Kubernetes.** What `integration` has to prove is that the
@@ -297,7 +298,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_HTTP_TIMEOUT` / `HUBTASK_HTTP_CONNECT_TIMEOUT` | `10s` / `5s` | Budget for one outbound call, and for its connection attempt (T-07) |
 | `HUBTASK_HTTP_MAX_RESPONSE_BYTES` | `1 MiB` | Cap on what is read from an outbound response (T-17) |
 | `HUBTASK_HTTP_MAX_REDIRECTS` | `3` | Hops followed, each re-checked from scratch; `0` follows none, `10` is the maximum |
-| `HUBTASK_HTTP_ALLOWED_HOSTS` | — | Egress allowlist, comma-separated host names. Empty means every public address; in multi-tenant operation an empty list warns (T-07) |
+| `HUBTASK_HTTP_ALLOWED_HOSTS` | — | Egress allowlist, comma-separated host names. Empty means every public address; in multi-tenant operation an empty list warns (T-07). An installation that calls nobody names one reserved host — `webhook.invalid`, which RFC 2606 guarantees never resolves — so that the list states the posture rather than leaving the gap |
 | `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` | `false` | Allows outbound calls into RFC 1918, loopback and link-local. Warns when set — it turns a webhook into a port scanner of the host network |
 | `HUBTASK_QUEUE_POLL_INTERVAL` | `2s` | Wait after a round that found no job. It is the floor under how late a job scheduled without a wake-up can start |
 | `HUBTASK_QUEUE_BATCH_SIZE` | `10` | Jobs claimed per round. A full batch is followed by the next round without waiting |
