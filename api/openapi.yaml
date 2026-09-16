@@ -10942,6 +10942,36 @@ components:
           description: When the generation plan expects this archive to go. Null while nothing has decided.
         verified_at: { type: [string, "null"], format: date-time }
         verify_ok: { type: [boolean, "null"] }
+        trial_restore:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRunTrial"
+            - type: "null"
+          description: >
+            What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule
+            has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore -
+            every member read, every checksum verified, every encrypted member decrypted with the
+            key the schedule names - and records the difference report against the workspace
+            here. Null where no trial ran. A trial that fails fails the run, with
+            `backup.trial_restore_failed` as its `error_code` and the failure recorded here.
+
+    BackupRunTrial:
+      type: object
+      required: [inspected_at]
+      properties:
+        inspected_at: { type: string, format: date-time }
+        report: { $ref: "#/components/schemas/RestoreReport" }
+        failure:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRunTrialFailure"
+            - type: "null"
+          description: What could not be read back, on a run that failed its trial.
+
+    BackupRunTrialFailure:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, description: The reader's message code. }
+        member: { type: [string, "null"], description: The member at the target where it stopped. }
 
     BackupSchedule:
       type: object
@@ -10960,6 +10990,15 @@ components:
         full_rrule: { type: [string, "null"], example: "FREQ=WEEKLY;BYDAY=SU" }
         include_media: { type: boolean, default: true }
         include_audit: { type: boolean, default: true }
+        trial_restore:
+          type: boolean
+          default: true
+          description: >
+            Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same
+            job, and store the difference report on the run (B-4, P-14). A trial that fails fails
+            the run - an archive the product cannot read back is not a backup - and `notify_on`
+            covers it as it covers any failure. On for a new schedule; schedules made before this
+            field existed keep it off, and say so.
         retention: { $ref: "#/components/schemas/BackupRetention" }
         notify_on:
           type: array
@@ -10980,6 +11019,7 @@ components:
         full_rrule: { type: [string, "null"] }
         include_media: { type: boolean }
         include_audit: { type: boolean }
+        trial_restore: { type: boolean }
         retention: { $ref: "#/components/schemas/BackupRetention" }
         notify_on:
           type: array

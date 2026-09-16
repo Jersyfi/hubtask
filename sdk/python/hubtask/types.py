@@ -1510,6 +1510,16 @@ class BackupRun(TypedDict, total=False):
     expires_at: str | None
     verified_at: str | None
     verify_ok: bool | None
+    trial_restore: "BackupRunTrial" | Any
+
+class BackupRunTrial(TypedDict, total=False):
+    inspected_at: Required[str]
+    report: "RestoreReport"
+    failure: "BackupRunTrialFailure" | Any
+
+class BackupRunTrialFailure(TypedDict, total=False):
+    code: Required[str]
+    member: str | None
 
 class BackupSchedule(TypedDict, total=False):
     id: str
@@ -1521,6 +1531,7 @@ class BackupSchedule(TypedDict, total=False):
     full_rrule: str | None
     include_media: bool
     include_audit: bool
+    trial_restore: bool
     retention: "BackupRetention"
     notify_on: list[Literal["FAILURE", "SUCCESS", "FIRST_SUCCESS_AFTER_FAILURE"]]
     enabled: bool
@@ -1534,6 +1545,7 @@ class BackupScheduleUpdate(TypedDict, total=False):
     full_rrule: str | None
     include_media: bool
     include_audit: bool
+    trial_restore: bool
     retention: "BackupRetention"
     notify_on: list[Literal["FAILURE", "SUCCESS", "FIRST_SUCCESS_AFTER_FAILURE"]]
     enabled: bool
