@@ -132,6 +132,34 @@ func TestTheActivationAnswersEveryDocumentedName(t *testing.T) {
 	}
 }
 
+// The event's two clocks (N-10, offline-sync.md §8): a change a device made three days ago and
+// pushed today reads its occurred_at as the person's moment and its received_at as the server's,
+// and one raised online reads one instant in both.
+func TestTheEventDocumentCarriesBothClocks(t *testing.T) {
+	cases := map[string]struct {
+		envelope event.Envelope
+		occurred time.Time
+		received time.Time
+	}{
+		"raised online": {envelope: itemEnvelope(), occurred: readAt, received: readAt},
+		"pushed three days later": {
+			envelope: itemEnvelope().Pushed(shared.ID("01936f2a-7c1e-7000-8000-000000000e08"), readAt.Add(-72*time.Hour)),
+			occurred: readAt.Add(-72 * time.Hour), received: readAt,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			doc, _ := resolved(t, condition.Values{Envelope: tc.envelope, Now: readAt}, "event").(map[string]any)
+			if got, _ := doc["occurred_at"].(time.Time); !got.Equal(tc.occurred) {
+				t.Errorf("occurred_at = %v, want %v", got, tc.occurred)
+			}
+			if got, _ := doc["received_at"].(time.Time); !got.Equal(tc.received) {
+				t.Errorf("received_at = %v, want %v", got, tc.received)
+			}
+		})
+	}
+}
+
 // A name the environment declared and the activation cannot produce is absent, not an error and
 // never false: a caller with no lookups - the dedupe key inside the dispatcher's transaction -
 // asks about `item` and hears "not there".

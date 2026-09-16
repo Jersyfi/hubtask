@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
 // The push (N-04, offline-sync.md §3.2): a device's queue of mutations, applied one at a time
@@ -132,6 +133,10 @@ type PushChanges struct {
 	// Clocks is the server's clock per field, which ITEM_PATCH decides against (N-05).
 	Clocks    repository.FieldClocks
 	Catalogue Catalogue
+	// IDs mints the push's own identity (N-10): every event a mutation of this push raises names
+	// it, which is what the webhook fan-out collapses the deliveries of one push on
+	// (offline-sync.md §8).
+	IDs clock.IDGenerator
 	// Activity writes the two steps a merge owes the history - a change with meaning that lost,
 	// and a merge that displaced free text (N-06). Nil writes neither, a test's convenience.
 	Activity StepRecorder
@@ -168,10 +173,11 @@ func (p PushChanges) Push(
 	// Everything applied under this context names the device: that is what lets the device skip
 	// its own echo on the next pull (offline-sync.md §10).
 	ctx = appshared.ContextWithDevice(ctx, request.DeviceID)
+	pushID := p.IDs.NewID()
 
 	results := make([]Result, 0, len(request.Mutations))
 	for _, mutation := range request.Mutations {
-		result, err := p.apply(ctx, actor, request.DeviceID, mutation)
+		result, err := p.apply(ctx, actor, request.DeviceID, pushID, mutation)
 		if err != nil {
 			// Not a refusal - a refusal is a result - but a dependency that could not answer.
 			// The results so far are committed and answered nowhere; the client pushes the
@@ -185,11 +191,10 @@ func (p PushChanges) Push(
 	if err != nil {
 		return PushResponse{}, err
 	}
-	now := p.Stream.Clock.Now()
 	return PushResponse{
 		Results:    results,
-		Cursor:     Position{Seq: latest, IssuedAt: now},
-		ServerTime: now,
+		Cursor:     latest,
+		ServerTime: latest.IssuedAt,
 	}, nil
 }
 
@@ -215,7 +220,7 @@ func (p PushChanges) touch(ctx context.Context, actor appshared.ActorContext, re
 // apply answers one mutation: from the operation log if it was seen before, otherwise by
 // performing it and recording what became of it.
 func (p PushChanges) apply(
-	ctx context.Context, actor appshared.ActorContext, deviceID shared.ID, m Mutation,
+	ctx context.Context, actor appshared.ActorContext, deviceID, pushID shared.ID, m Mutation,
 ) (Result, error) {
 	if m.OpID.IsZero() || !m.OpID.IsUUIDv7() {
 		// Without an operation identifier there is nothing to be idempotent about, and the
@@ -277,6 +282,10 @@ func (p PushChanges) apply(
 		return p.record(ctx, actor, deviceID, rejected(m, shared.ErrGone.WithDetail("sync.gone")))
 	}
 
+	// Every event the mutation raises names the push and carries the device's moment beside the
+	// server's (offline-sync.md §8); the outbox adapter reads it, and no use case has to know.
+	ctx = appshared.ContextWithPush(ctx, appshared.Push{ID: pushID, OccurredAt: momentOf(bounded)})
+
 	// The effect and its record commit together, so that a push that dies halfway leaves neither.
 	var result Result
 	err = p.Stream.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -297,6 +306,26 @@ func (p PushChanges) apply(
 	// refusal is recorded in a fresh one, so that the repeat answers the same refusal rather
 	// than trying again (SY-7).
 	return p.record(ctx, actor, deviceID, rejected(m, err))
+}
+
+// momentOf is when the device made the mutation, as far as the server honours it: the bounded
+// reading of the mutation, or the latest of its fields' for a patch that carries none of its
+// own. Zero when it carried no reading at all, which leaves the event at the server's time.
+func momentOf(m Mutation) time.Time {
+	var moment time.Time
+	consider := func(raw string) {
+		if raw == "" {
+			return
+		}
+		if reading, err := shared.ParseHLC(raw); err == nil && reading.Physical.After(moment) {
+			moment = reading.Physical
+		}
+	}
+	consider(m.HLC)
+	for _, field := range m.Fields {
+		consider(field.HLC)
+	}
+	return moment
 }
 
 // record writes a result's record in its own transaction and answers the result.

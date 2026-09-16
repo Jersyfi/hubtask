@@ -359,6 +359,7 @@ func streamFor(ctx context.Context, t *testing.T) syncservice.StreamChanges {
 		},
 		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
 		Cursors:    streamCursors{codec: security.NewStreamCursorCodec(secret.New("integration test installation secret"))},
+		Epochs:     postgres.NewEpochRepository(),
 		Clock:      clockadapter.System{},
 		Window:     90 * 24 * time.Hour,
 		Batch:      50,
@@ -371,7 +372,7 @@ type streamCursors struct{ codec security.StreamCursorCodec }
 
 func (c streamCursors) Encode(position syncservice.Position) string {
 	return c.codec.Encode(security.StreamPosition{
-		Seq: position.Seq, IssuedAt: position.IssuedAt, Kind: position.Kind, After: position.After,
+		Seq: position.Seq, IssuedAt: position.IssuedAt, Epoch: position.Epoch, Kind: position.Kind, After: position.After,
 	})
 }
 
@@ -381,7 +382,7 @@ func (c streamCursors) Decode(cursor string) (syncservice.Position, error) {
 		return syncservice.Position{}, err
 	}
 	return syncservice.Position{
-		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Kind: decoded.Kind, After: decoded.After,
+		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Epoch: decoded.Epoch, Kind: decoded.Kind, After: decoded.After,
 	}, nil
 }
 

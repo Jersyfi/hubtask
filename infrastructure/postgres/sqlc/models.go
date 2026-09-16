@@ -1053,6 +1053,8 @@ type OutboxEvent struct {
 	Attempts       int32
 	LockedUntil    pgtype.Timestamptz
 	Replay         bool
+	ReceivedAt     pgtype.Timestamptz
+	PushID         pgtype.UUID
 }
 
 type PrivacyIncident struct {
@@ -1311,6 +1313,7 @@ type Tenant struct {
 	DeletedAt       pgtype.Timestamptz
 	Version         int32
 	PurgeAfter      pgtype.Timestamptz
+	SyncEpoch       int64
 }
 
 type Tombstone struct {
@@ -1339,6 +1342,9 @@ type WebhookDelivery struct {
 	ErrorCode      *string
 	NextAttemptAt  pgtype.Timestamptz
 	CreatedAt      pgtype.Timestamptz
+	PushID         pgtype.UUID
+	Subject        *string
+	EventType      *string
 }
 
 type WebhookSubscription struct {

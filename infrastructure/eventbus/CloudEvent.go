@@ -31,6 +31,9 @@ func ToCloudEvent(envelope event.Envelope, source string) map[string]any {
 		"subject":         envelope.Subject,
 		"time":            envelope.OccurredAt.UTC().Format(time.RFC3339Nano),
 		"datacontenttype": "application/json",
+		// When the server learned of it (offline-sync.md §8): the same instant as `time` for an
+		// event raised online, and the push's moment for one a device brought in later.
+		"receivedat": receivedAt(envelope).Format(time.RFC3339Nano),
 
 		"tenantid":       envelope.TenantID.String(),
 		"actortype":      string(envelope.Actor.Kind),
@@ -53,6 +56,7 @@ func ToCloudEvent(envelope event.Envelope, source string) map[string]any {
 	for name, id := range map[string]string{
 		"actorid":     envelope.Actor.ID.String(),
 		"onbehalfof":  envelope.Actor.OnBehalfOf.String(),
+		"pushid":      envelope.PushID.String(),
 		"causationid": envelope.CausationID.String(),
 	} {
 		if id != "" {
@@ -60,4 +64,13 @@ func ToCloudEvent(envelope event.Envelope, source string) map[string]any {
 		}
 	}
 	return cloudEvent
+}
+
+// receivedAt is the server's clock for the event: what the envelope says, and the moment it
+// occurred for one built before the field existed.
+func receivedAt(envelope event.Envelope) time.Time {
+	if envelope.ReceivedAt.IsZero() {
+		return envelope.OccurredAt.UTC()
+	}
+	return envelope.ReceivedAt.UTC()
 }

@@ -15,12 +15,13 @@ const appendOutboxEvent = `-- name: AppendOutboxEvent :exec
 
 INSERT INTO outbox_event (
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay,
+  received_at, push_id
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9,
-  $10, $11
+  $10, $11, $12, $13
 )
 `
 
@@ -36,6 +37,8 @@ type AppendOutboxEventParams struct {
 	CausationDepth int32
 	OccurredAt     pgtype.Timestamptz
 	Replay         bool
+	ReceivedAt     pgtype.Timestamptz
+	PushID         pgtype.UUID
 }
 
 // The transactional outbox (ADR-0007): the event is written in the same transaction as the change
@@ -57,6 +60,8 @@ func (q *Queries) AppendOutboxEvent(ctx context.Context, arg AppendOutboxEventPa
 		arg.CausationDepth,
 		arg.OccurredAt,
 		arg.Replay,
+		arg.ReceivedAt,
+		arg.PushID,
 	)
 	return err
 }
@@ -87,7 +92,8 @@ func (q *Queries) ClaimEventConsumption(ctx context.Context, arg ClaimEventConsu
 const claimPendingEvents = `-- name: ClaimPendingEvents :many
 SELECT
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay,
+  coalesce(received_at, occurred_at)::timestamptz AS received_at, push_id
 FROM outbox_event
 WHERE dispatched_at IS NULL
 ORDER BY occurred_at, id
@@ -108,6 +114,8 @@ type ClaimPendingEventsRow struct {
 	CausationDepth int32
 	OccurredAt     pgtype.Timestamptz
 	Replay         bool
+	ReceivedAt     pgtype.Timestamptz
+	PushID         pgtype.UUID
 }
 
 // The dispatcher's claim. The rows are locked for the length of the transaction and rows another
@@ -135,6 +143,8 @@ func (q *Queries) ClaimPendingEvents(ctx context.Context, batchSize int32) ([]Cl
 			&i.CausationDepth,
 			&i.OccurredAt,
 			&i.Replay,
+			&i.ReceivedAt,
+			&i.PushID,
 		); err != nil {
 			return nil, err
 		}
@@ -251,7 +261,8 @@ func (q *Queries) DeleteExpiredConsumption(ctx context.Context, arg DeleteExpire
 
 const findOutboxEvent = `-- name: FindOutboxEvent :one
 SELECT id, tenant_id, event_type, subject, payload, actor_type, actor_id,
-       correlation_id, causation_id, causation_depth, occurred_at, replay
+       correlation_id, causation_id, causation_depth, occurred_at, replay,
+  coalesce(received_at, occurred_at)::timestamptz AS received_at, push_id
 FROM outbox_event
 WHERE id = $1
 `
@@ -269,6 +280,8 @@ type FindOutboxEventRow struct {
 	CausationDepth int32
 	OccurredAt     pgtype.Timestamptz
 	Replay         bool
+	ReceivedAt     pgtype.Timestamptz
+	PushID         pgtype.UUID
 }
 
 // One event, as it was written. The webhook deliverer renders the body from this rather than from
@@ -290,6 +303,8 @@ func (q *Queries) FindOutboxEvent(ctx context.Context, id pgtype.UUID) (FindOutb
 		&i.CausationDepth,
 		&i.OccurredAt,
 		&i.Replay,
+		&i.ReceivedAt,
+		&i.PushID,
 	)
 	return i, err
 }
@@ -315,7 +330,8 @@ func (q *Queries) MarkEventsDispatched(ctx context.Context, arg MarkEventsDispat
 const pollOutboxEvents = `-- name: PollOutboxEvents :many
 SELECT
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay,
+  coalesce(received_at, occurred_at)::timestamptz AS received_at, push_id
 FROM outbox_event
 WHERE event_type = $1
   AND replay = false
@@ -346,6 +362,8 @@ type PollOutboxEventsRow struct {
 	CausationDepth int32
 	OccurredAt     pgtype.Timestamptz
 	Replay         bool
+	ReceivedAt     pgtype.Timestamptz
+	PushID         pgtype.UUID
 }
 
 // The pull half of the stream (G-04, automation.md §3.2): one type, oldest first, from a position.
@@ -400,6 +418,8 @@ func (q *Queries) PollOutboxEvents(ctx context.Context, arg PollOutboxEventsPara
 			&i.CausationDepth,
 			&i.OccurredAt,
 			&i.Replay,
+			&i.ReceivedAt,
+			&i.PushID,
 		); err != nil {
 			return nil, err
 		}

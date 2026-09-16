@@ -1724,7 +1724,10 @@ func run() error {
 		changeStream := syncservice.StreamChanges{
 			Changes: changes, Containers: containers, Authorizer: authorizer,
 			UnitOfWork: unitOfWork, Cursors: streamCursors,
-			Clock: clockadapter.System{},
+			// The workspace's synchronisation epoch (N-11): a restore advances it, and a cursor
+			// minted before is refused.
+			Epochs: postgres.NewEpochRepository(),
+			Clock:  clockadapter.System{},
 			// The maximum offline window, which is also the minimum tombstone period: beyond
 			// it the log no longer holds everything that happened (offline-sync.md §7).
 			Window: cfg.Retention.TombstoneWindow,
@@ -1750,7 +1753,7 @@ func run() error {
 			// The push applies a device's queue through the catalogue as the pushing person
 			// (N-04): nothing here writes by any other path.
 			Push: syncservice.PushChanges{
-				Stream: changeStream, Devices: postgres.NewDeviceRepository(),
+				Stream: changeStream, Devices: postgres.NewDeviceRepository(), IDs: ids,
 				Ops: postgres.NewSyncOpLog(), Tombstones: postgres.NewTombstoneRepository(),
 				// The server's clock per field, kept by the change log (N-05).
 				Clocks:    changes,
@@ -2243,7 +2246,10 @@ func run() error {
 		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
 		Safety: backupPerformer, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		// The synchronisation epoch a restore advances (N-11, B-5), so that every device's cursor
+		// minted before is refused and the restored rows reach them through the walk.
+		Epochs: postgres.NewEpochRepository(),
+		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
 	retention := worker.RetentionSweep{
@@ -2842,7 +2848,8 @@ type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {
 	return a.codec.Encode(security.StreamPosition{
-		Seq: position.Seq, IssuedAt: position.IssuedAt, Kind: position.Kind, After: position.After,
+		Seq: position.Seq, IssuedAt: position.IssuedAt, Epoch: position.Epoch,
+		Kind: position.Kind, After: position.After,
 	})
 }
 
@@ -2852,7 +2859,8 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 		return syncservice.Position{}, err
 	}
 	return syncservice.Position{
-		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Kind: decoded.Kind, After: decoded.After,
+		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Epoch: decoded.Epoch,
+		Kind: decoded.Kind, After: decoded.After,
 	}, nil
 }
 

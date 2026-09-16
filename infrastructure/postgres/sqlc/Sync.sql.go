@@ -11,6 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advanceSyncEpoch = `-- name: AdvanceSyncEpoch :one
+UPDATE tenant SET sync_epoch = sync_epoch + 1 WHERE id = current_tenant_id()
+RETURNING sync_epoch
+`
+
+// A restore into the workspace succeeded: every cursor minted before is from an older epoch now,
+// and the device holding one resynchronises from scratch.
+func (q *Queries) AdvanceSyncEpoch(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, advanceSyncEpoch)
+	var sync_epoch int64
+	err := row.Scan(&sync_epoch)
+	return sync_epoch, err
+}
+
 const countAgedSyncOps = `-- name: CountAgedSyncOps :one
 SELECT count(*) FROM (
   SELECT 1 FROM sync_op_log AS aged
@@ -72,6 +86,19 @@ func (q *Queries) CountStaleDevices(ctx context.Context, arg CountStaleDevicesPa
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const currentSyncEpoch = `-- name: CurrentSyncEpoch :one
+SELECT sync_epoch FROM tenant WHERE id = current_tenant_id()
+`
+
+// The workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): what every cursor is
+// minted under, and what a cursor is judged against.
+func (q *Queries) CurrentSyncEpoch(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, currentSyncEpoch)
+	var sync_epoch int64
+	err := row.Scan(&sync_epoch)
+	return sync_epoch, err
 }
 
 const deleteAgedSyncOps = `-- name: DeleteAgedSyncOps :execrows

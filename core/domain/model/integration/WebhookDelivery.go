@@ -50,6 +50,34 @@ type WebhookDelivery struct {
 	// NextAttemptAt is when the retry is due, and zero when there will not be one.
 	NextAttemptAt time.Time
 	CreatedAt     time.Time
+	// Collapse is what the fan-out folds the deliveries of one push on (offline-sync.md §8),
+	// and empty for the delivery of an event made online, which folds with nothing. A retry
+	// and a replay carry none either: an attempt already made stands for the event it sent.
+	Collapse CollapseKey
+}
+
+// CollapseKey names the push, the subject and the type one delivery stands for: the events of
+// one push about one thing, of one kind, owe one delivery with the last event's payload.
+type CollapseKey struct {
+	PushID    shared.ID
+	Subject   string
+	EventType string
+}
+
+// Collapses reports whether the delivery is one of a push's, and can be folded onto.
+func (k CollapseKey) Collapses() bool { return !k.PushID.IsZero() }
+
+// Collapsed is the delivery with its collapse key, for the fan-out to fold later events onto.
+func (d WebhookDelivery) Collapsed(key CollapseKey) WebhookDelivery {
+	d.Collapse = key
+	return d
+}
+
+// Repointed is the delivery standing for a newer event of the same push: the payload the target
+// receives is the last one's, and the attempt is the same attempt.
+func (d WebhookDelivery) Repointed(eventID shared.ID) WebhookDelivery {
+	d.EventID = eventID
+	return d
 }
 
 // NewWebhookDelivery records an attempt about to be made.

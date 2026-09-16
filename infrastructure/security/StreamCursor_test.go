@@ -4,6 +4,7 @@
 package security_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -142,5 +143,42 @@ func TestAWalkCursorRoundTripsAndADeltaCursorStaysOne(t *testing.T) {
 	}
 	if delta.Kind != "" || delta.After != "" {
 		t.Errorf("a delta cursor came back walking: %+v", delta)
+	}
+}
+
+// The epoch travels inside the signed payload (N-11), in a delta and in a walk cursor alike; a
+// cursor minted before the field existed - two or four fields - reads as epoch zero rather than
+// as invalid, so that the field's arrival sends nobody through a resynchronisation.
+func TestTheEpochRoundTripsAndALegacyCursorReadsAsEpochZero(t *testing.T) {
+	codec := streamCursors()
+
+	for name, position := range map[string]security.StreamPosition{
+		"delta": {Seq: 41, IssuedAt: issued, Epoch: 3},
+		"walk":  {Seq: 41, IssuedAt: issued, Epoch: 3, Kind: "item", After: "0192f000-0000-7000-8000-00000000000a"},
+	} {
+		back, err := codec.Decode(codec.Encode(position))
+		if err != nil {
+			t.Fatalf("%s: decoding: %v", name, err)
+		}
+		if back != position {
+			t.Errorf("%s came back as %+v, want %+v", name, back, position)
+		}
+	}
+
+	for name, payload := range map[string]string{
+		"delta": "41." + strconv.FormatInt(issued.Unix(), 10),
+		"walk":  "41." + strconv.FormatInt(issued.Unix(), 10) + ".item.0192f000-0000-7000-8000-00000000000a",
+	} {
+		back, err := codec.Decode(security.SignStreamPayload(codec, payload))
+		if err != nil {
+			t.Fatalf("%s: a legacy cursor was refused: %v", name, err)
+		}
+		if back.Seq != 41 || back.Epoch != 0 {
+			t.Errorf("%s: a legacy cursor came back as %+v", name, back)
+		}
+	}
+
+	if _, err := codec.Decode(security.SignStreamPayload(codec, "41."+strconv.FormatInt(issued.Unix(), 10)+".-1")); err == nil {
+		t.Error("a negative epoch was accepted")
 	}
 }

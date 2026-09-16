@@ -12,6 +12,7 @@ package shared
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -179,4 +180,30 @@ func ReadingFrom(ctx context.Context, field string) (shared.HLC, bool) {
 	readings, _ := ctx.Value(readingsKey{}).(map[string]shared.HLC)
 	reading, found := readings[field]
 	return reading, found && !reading.IsZero()
+}
+
+// pushKey carries the push a mutation arrives in (N-10).
+type pushKey struct{}
+
+// Push is one push as the events it raises need to know it (offline-sync.md §8): which push, so
+// that the fan-out collapses the deliveries of one push; and the device's bounded reading of the
+// moment the change was made, which becomes the event's occurred_at while the writer's own clock
+// becomes when it was received.
+type Push struct {
+	ID         shared.ID
+	OccurredAt time.Time
+}
+
+// ContextWithPush marks everything done under the context as one mutation of one push. The
+// outbox adapter reads it when an event is appended, the change log adapter's way: fifty-five
+// writers raise events, and what a push adds to each is one fact about the caller.
+func ContextWithPush(ctx context.Context, push Push) context.Context {
+	return context.WithValue(ctx, pushKey{}, push)
+}
+
+// PushFrom answers the push the context was marked with, and false for a change made through
+// the API rather than through one.
+func PushFrom(ctx context.Context) (Push, bool) {
+	push, found := ctx.Value(pushKey{}).(Push)
+	return push, found && !push.ID.IsZero()
 }

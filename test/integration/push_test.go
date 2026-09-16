@@ -32,6 +32,7 @@ func pushFor(ctx context.Context, t *testing.T, skew time.Duration) syncservice.
 	t.Helper()
 	return syncservice.PushChanges{
 		Stream:     streamFor(ctx, t),
+		IDs:        clockadapter.NewUUIDv7(portclock.Fixed(created)),
 		Devices:    postgres.NewDeviceRepository(),
 		Ops:        postgres.NewSyncOpLog(),
 		Tombstones: postgres.NewTombstoneRepository(),

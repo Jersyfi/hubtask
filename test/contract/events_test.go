@@ -1648,6 +1648,30 @@ func TestTheExtensionAttributesAreTheOnesTheADRNames(t *testing.T) {
 	}
 }
 
+// The two clocks (N-10, offline-sync.md §8): an event raised online carries one instant as
+// `time` and `receivedat` and no push; one a device brought in carries the device's moment as
+// `time`, the server's as `receivedat`, and names the push - so that a consumer written before
+// the field existed reads `time` as it always did, and one written after can tell the two apart.
+func TestAPushedEventCarriesBothClocksAndThePush(t *testing.T) {
+	online := containerCreated(t)
+	rendered := eventbus.ToCloudEvent(online, "urn:hubtask:test")
+	if rendered["receivedat"] != rendered["time"] {
+		t.Errorf("an online event was received at %v and occurred at %v", rendered["receivedat"], rendered["time"])
+	}
+	if _, present := rendered["pushid"]; present {
+		t.Error("an online event names a push")
+	}
+
+	push := shared.MustParseID("0192f000-0000-7000-8000-0000000000f1")
+	pushed := eventbus.ToCloudEvent(online.Pushed(push, online.OccurredAt.Add(-72*time.Hour)), "urn:hubtask:test")
+	if pushed["receivedat"] != rendered["time"] || pushed["time"] == rendered["time"] {
+		t.Errorf("a pushed event was received at %v and occurred at %v, want the server's and the device's", pushed["receivedat"], pushed["time"])
+	}
+	if pushed["pushid"] != push.String() {
+		t.Errorf("a pushed event names push %v", pushed["pushid"])
+	}
+}
+
 // Present only when true, and absent otherwise rather than false: a consumer written before
 // restores existed reads an ordinary event exactly as it always did, and a broker's routing rule
 // can express "has this attribute" where it cannot express "equals false or missing"
