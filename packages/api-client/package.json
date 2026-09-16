@@ -20,7 +20,7 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node scripts/check-generated.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-generated.js"
+    "test": "node scripts/check-generated.js && node --test scripts/*.test.js"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",

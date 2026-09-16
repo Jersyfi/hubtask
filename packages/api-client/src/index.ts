@@ -8,9 +8,12 @@
  * `api/openapi.yaml`. This file adds no description of its own: the specification is the source
  * and a second description of it is a second thing to keep in step (ADR-0004).
  *
- * There is deliberately no runtime client yet. The fetch layer belongs to the sync engine's
- * Transport port (ADR-0033) and arrives with that work package; keeping this package to generated
- * types means the extraction ADR-0027 defers to before 1.0.0 stays a move rather than a rewrite.
+ * The one runtime value is the generated client in `client.gen.ts` (tools/sdkgen, P-03): a
+ * class over `fetch` for a third party, typed against the same generated `operations`. The
+ * first-party apps do not use it - their fetch layer is the sync engine's Transport port
+ * (ADR-0033) - and keeping this package to generated output means the extraction ADR-0027 defers
+ * to before 1.0.0, and ADR-0057 puts to the owner, stays a move rather than a rewrite.
  */
 
 export type { components, operations, paths, webhooks } from '../dist/schema.js';
+export { HubtaskClient, ProblemError, type CallOptions, type ClientOptions, type Problem } from './client.gen.js';
