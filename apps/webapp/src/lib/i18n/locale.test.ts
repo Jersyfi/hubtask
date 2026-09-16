@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyDocumentLocale, directionOf, fallbackChain, resolveLocale } from './locale.ts';
+import { applyDocumentLocale, directionOf, fallbackChain, languageName, resolveLocale } from './locale.ts';
 
 const supported = [
   { locale: 'en', direction: 'ltr' as const },
@@ -52,4 +52,14 @@ test('the document says both, in one place', () => {
   const written: Record<string, string> = {};
   applyDocumentLocale({ setAttribute: (name, value) => (written[name] = value) }, 'ar-EG', 'rtl');
   assert.deepEqual(written, { lang: 'ar-EG', dir: 'rtl' });
+});
+
+test('a language is named in its own words and in the reader’s, and by its tag when it cannot be', () => {
+  assert.equal(languageName('ar', 'en'), 'العربية — Arabic');
+  assert.equal(languageName('de', 'en'), 'Deutsch — German');
+  // The reader's own language needs no second name.
+  assert.equal(languageName('de', 'de'), 'Deutsch');
+  assert.equal(languageName('en', 'en'), 'English');
+  // A tag the platform cannot name is shown as itself, which is what the select showed before.
+  assert.equal(languageName('x-private', 'en'), 'x-private');
 });
