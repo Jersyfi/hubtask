@@ -2975,19 +2975,40 @@ func (e SyncMutationResultResult) Valid() bool {
 
 // Defines values for SyncPullRequestScopesDepth.
 const (
-	CHILDREN SyncPullRequestScopesDepth = "CHILDREN"
-	SELF     SyncPullRequestScopesDepth = "SELF"
-	SUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
+	SyncPullRequestScopesDepthCHILDREN SyncPullRequestScopesDepth = "CHILDREN"
+	SyncPullRequestScopesDepthSELF     SyncPullRequestScopesDepth = "SELF"
+	SyncPullRequestScopesDepthSUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
 )
 
 // Valid indicates whether the value is a known member of the SyncPullRequestScopesDepth enum.
 func (e SyncPullRequestScopesDepth) Valid() bool {
 	switch e {
-	case CHILDREN:
+	case SyncPullRequestScopesDepthCHILDREN:
 		return true
-	case SELF:
+	case SyncPullRequestScopesDepthSELF:
 		return true
-	case SUBTREE:
+	case SyncPullRequestScopesDepthSUBTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncSnapshotRequestScopesDepth.
+const (
+	SyncSnapshotRequestScopesDepthCHILDREN SyncSnapshotRequestScopesDepth = "CHILDREN"
+	SyncSnapshotRequestScopesDepthSELF     SyncSnapshotRequestScopesDepth = "SELF"
+	SyncSnapshotRequestScopesDepthSUBTREE  SyncSnapshotRequestScopesDepth = "SUBTREE"
+)
+
+// Valid indicates whether the value is a known member of the SyncSnapshotRequestScopesDepth enum.
+func (e SyncSnapshotRequestScopesDepth) Valid() bool {
+	switch e {
+	case SyncSnapshotRequestScopesDepthCHILDREN:
+		return true
+	case SyncSnapshotRequestScopesDepthSELF:
+		return true
+	case SyncSnapshotRequestScopesDepthSUBTREE:
 		return true
 	default:
 		return false
@@ -6626,6 +6647,23 @@ type SyncPushResponse struct {
 	ServerTime *time.Time           `json:"server_time,omitempty"`
 }
 
+// SyncSnapshotRequest What `:pull` takes for an initial synchronisation, without a cursor or a page size.
+type SyncSnapshotRequest struct {
+	// DeviceId The device asking, as on `:pull`; it registers by turning up.
+	DeviceId    openapi_types.UUID `json:"device_id"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Platform    *string            `json:"platform,omitempty"`
+
+	// Scopes What the device wants to hold, as on `:pull`; no scope means everything the caller may read.
+	Scopes *[]struct {
+		ContainerId *openapi_types.UUID             `json:"container_id,omitempty"`
+		Depth       *SyncSnapshotRequestScopesDepth `json:"depth,omitempty"`
+	} `json:"scopes,omitempty"`
+}
+
+// SyncSnapshotRequestScopesDepth defines model for SyncSnapshotRequest.Scopes.Depth.
+type SyncSnapshotRequestScopesDepth string
+
 // Template defines model for Template.
 type Template struct {
 	CreatedAt   time.Time          `json:"created_at"`
@@ -8475,6 +8513,9 @@ type SyncPullJSONRequestBody = SyncPullRequest
 
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
+
+// SyncSnapshotJSONRequestBody defines body for SyncSnapshot for application/json ContentType.
+type SyncSnapshotJSONRequestBody = SyncSnapshotRequest
 
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = TemplateInput
@@ -11459,6 +11500,52 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /sync:push (the `SyncPush` operationId).
 	SyncPush(ctx context.Context, body SyncPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncSnapshotWithBody The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshotWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncSnapshot The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshot(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTemplates performs a GET /templates (the `ListTemplates` operationId) request.
 	//
@@ -17725,6 +17812,72 @@ func (c *Client) SyncPushWithBody(ctx context.Context, contentType string, body 
 // Corresponds with POST /sync:push (the `SyncPush` operationId).
 func (c *Client) SyncPush(ctx context.Context, body SyncPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSyncPushRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SyncSnapshotWithBody The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *Client) SyncSnapshotWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncSnapshotRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SyncSnapshot The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *Client) SyncSnapshot(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncSnapshotRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -29016,6 +29169,46 @@ func NewSyncPushRequestWithBody(server string, contentType string, body io.Reade
 	return req, nil
 }
 
+// NewSyncSnapshotRequest calls the generic SyncSnapshot builder with application/json body
+func NewSyncSnapshotRequest(server string, body SyncSnapshotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSyncSnapshotRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSyncSnapshotRequestWithBody constructs an http.Request for the SyncSnapshot method, with any body, and a specified content type
+func NewSyncSnapshotRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sync:snapshot")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTemplatesRequest constructs an http.Request for the ListTemplates method
 func NewListTemplatesRequest(server string, params *ListTemplatesParams) (*http.Request, error) {
 	var err error
@@ -33226,6 +33419,52 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /sync:push (the `SyncPush` operationId).
 	SyncPushWithResponse(ctx context.Context, body SyncPushJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncPushResult, error)
+
+	// SyncSnapshotWithBodyWithResponse The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshotWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error)
+
+	// SyncSnapshotWithResponse The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshotWithResponse(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error)
 
 	// ListTemplatesWithResponse performs a GET /templates (the `ListTemplates` operationId) request.
 	//
@@ -44485,6 +44724,54 @@ func (r SyncPushResult) ContentType() string {
 	return ""
 }
 
+type SyncSnapshotResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SyncSnapshotResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r SyncSnapshotResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r SyncSnapshotResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SyncSnapshotResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SyncSnapshotResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SyncSnapshotResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTemplatesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -50502,6 +50789,64 @@ func (c *ClientWithResponses) SyncPushWithResponse(ctx context.Context, body Syn
 		return nil, err
 	}
 	return ParseSyncPushResult(rsp)
+}
+
+// SyncSnapshotWithBodyWithResponse The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *ClientWithResponses) SyncSnapshotWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error) {
+	rsp, err := c.SyncSnapshotWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncSnapshotResult(rsp)
+}
+
+// SyncSnapshotWithResponse The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *ClientWithResponses) SyncSnapshotWithResponse(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error) {
+	rsp, err := c.SyncSnapshot(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncSnapshotResult(rsp)
 }
 
 // ListTemplatesWithResponse performs a GET /templates (the `ListTemplates` operationId) request.
@@ -58898,6 +59243,39 @@ func ParseSyncPushResult(rsp *http.Response) (*SyncPushResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSyncSnapshotResult parses an HTTP response from a SyncSnapshotWithResponse call
+func ParseSyncSnapshotResult(rsp *http.Response) (*SyncSnapshotResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SyncSnapshotResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 

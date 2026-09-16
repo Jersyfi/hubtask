@@ -66,6 +66,21 @@ pull continues it. The device names itself on every pull and push (`device_id`, 
 client minted): it registers by turning up, and the row keeps its platform, its name, its last
 cursor and its last contact (§6, N-03).
 
+**The same walk as one response** is `POST /api/v1/sync:snapshot` (SY-C, P-12): what `:pull` takes
+without a cursor or a page size, answered as `application/x-ndjson` — the initial
+synchronisation's records in the walk's order, one per line, each the same `SyncChange` a page
+would carry, written as they are read so that the first byte arrives before the last row is
+counted, and the delta cursor as the last line in a record of its own (`{"cursor": …}`), minted
+from the log position read before the first row exactly as a page sequence's is. Permission is
+checked per record and a scope narrows the walk, by the same code the pages run. The response is
+bounded the way the stream is: admitted by the streams' registry — so it counts against the same
+complement per credential, per workspace and per pod, and `hubtask_stream_connections` counts it —
+and ended by a deadline and a byte budget of its own. A device whose connection ended before the
+last line has no cursor and starts again, which is what a page sequence offers it too; the
+difference is one request rather than a thousand. `hubctl sync snapshot` writes the stream to a
+file and, with `--apply`, keeps its cursor in the profile — hubctl holds no copy of the workspace,
+so the cursor is the whole of its store — for `hubctl sync pull --continue` to take the delta from.
+
 ### 3.2 `POST /api/v1/sync:push`
 
 ```json
@@ -340,5 +355,5 @@ integration environment - QS-24 to QS-27 of [arc42.md](./arc42.md) §10 - is fil
 |---|---|---|
 | SY-A | Character-level merging for long notes (CRDT text) — assess the need after user feedback | After `1.0.0` |
 | SY-B | The extent of the default sync scope (everything vs. subscribed containers) — storage requirements on mobile devices | Engine configuration per [ADR-0033](../adr/ADR-0033-shared-client-architecture.md); the product default is set in the sync-engine work package |
-| SY-C | Transfer format for large initial synchronisations (a snapshot file instead of a page sequence) | `0.9.0` |
+| SY-C | Transfer format for large initial synchronisations (a snapshot file instead of a page sequence) | **Closed in P-12** (`0.9.0`): `POST /sync:snapshot` streams the walk as newline-delimited JSON with the cursor last (§3.1); no file format of its own, because the records are the page sequence's and a file is what a client writes them to |
 | SY-D | The encryption method for the local cache per platform | Settled for first-party clients in [ADR-0033](../adr/ADR-0033-shared-client-architecture.md) (SQLite encrypted at rest, key in the platform keystore); open only for third-party clients, which decide per client |

@@ -578,7 +578,7 @@ progress where it can compute one, a result reference and the code of the last f
 payload, the attempt count, the lease and the deduplication key are the queue's and stay there.
 
 **What is deliberately not in the catalogue: the synchronisation protocol.** `GET /stream`,
-`POST /sync:pull` and `POST /sync:push` are served by `core/application/service/sync` and have no
+`POST /sync:pull`, `POST /sync:snapshot` and `POST /sync:push` are served by `core/application/service/sync` and have no
 MCP tool and no automation action, because the catalogue is the list of things a person, an agent
 or a rule can *ask for*, and none of the three is that: the stream is a connection being held, a
 pull is the same reader served in pages, and a push is a device's queue being applied — an agent
