@@ -38,6 +38,7 @@ jobs:
     permissions:
       contents: read
       packages: write                # push the per-commit image to ghcr.io
+      id-token: write                # keyless signing of that image through OIDC (CI-3)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -65,10 +66,11 @@ jobs:
         # nightly.yml:matrix-arm64 (support-matrix.md §2), and building a second architecture on
         # every push to main would double the wait for a platform nothing here runs on.
         #
-        # No SBOM, no signature, no provenance either. Those belong to what people install —
-        # release.yml attaches all three to every published version. This image exists for one
-        # cluster and one commit. Enforcing signature verification at deployment is CI-3
-        # (ci-cd.md), and when it arrives this is the workflow that grows the signing step.
+        # No SBOM and no provenance. Those belong to what people install — release.yml attaches
+        # both to every published version. This image exists for one cluster and one commit, and
+        # since CI-3 (P-15) it is signed all the same: the signature is what the verification
+        # below and the cluster's image policy check, and an unsigned image is one neither lets in.
+        id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -81,6 +83,25 @@ jobs:
           build-args: |
             VERSION=main-${{ github.sha }}
             COMMIT=${{ github.sha }}
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign the image (keyless)
+        # Under this workflow's own identity, which is what the chart's image policy names beside
+        # the release workflow's (k8s/values.yaml, imagePolicy.subjects).
+        run: cosign sign --yes ghcr.io/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+
+      - name: Verify the signature before anything rolls out
+        # The same check the cluster's policy makes, made here first (CI-3): the digest the build
+        # answered, verified against this workflow's identity and GitHub's issuer. A failure stops
+        # the rollout before helm is asked, and the environment stays on what it had.
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/deploy.yml@${{ github.ref }}" \
+            "ghcr.io/${IMAGE_NAME}@${DIGEST}" > /dev/null
+          echo "signed and verified: ghcr.io/${IMAGE_NAME}@${DIGEST}"
 
       - name: The cluster credential
         # Through the environment rather than through interpolation: a secret expanded into a shell
