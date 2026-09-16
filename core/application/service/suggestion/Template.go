@@ -20,15 +20,16 @@ import (
 // caller's words, for the collection it would belong to.
 const (
 	AiGenerateTemplateName = "AiGenerateTemplate"
-	// TemplateAskedAction is the audit code: what was sent to a provider, and what for (ADR-0018
-	// decision 7). Its own code rather than the fields', because a template is asked for from
-	// words the person typed rather than from an entry the workspace holds.
-	TemplateAskedAction audit.Action = "ai.template_asked"
-	templatePrompt                   = "generate-template"
+	templatePrompt         = "generate-template"
 	// MaxTemplateDescription bounds the words a template is drafted from: the contract's
 	// `TemplateGeneration.description`, and the request row's own check.
 	MaxTemplateDescription = 2000
 )
+
+// TemplateAskedAction is the audit code: what was sent to a provider, and what for (ADR-0018
+// decision 7). Its own code rather than the fields', because a template is asked for from words
+// the person typed rather than from an entry the workspace holds.
+const TemplateAskedAction audit.Action = "ai.template_asked"
 
 // AiGenerateTemplate asks the workspace's provider for a template.
 //
