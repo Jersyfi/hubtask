@@ -167,8 +167,10 @@
       <ContainerView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else}
-    <!-- The server's own code for a path that reaches nothing, at the same address. -->
-    <p>{t('route.unknown')} <code>{route.path}</code></p>
+    <!-- The server's own code for a path that reaches nothing, at the same address - as the
+         page's heading, because a screen without one is a screen a reader cannot name (F5-11). -->
+    <h1>{t('route.unknown')}</h1>
+    <p><code>{route.path}</code></p>
     <p><a href="/">{t('app.back_to_start')}</a></p>
   {/if}
 </AppFrame>
