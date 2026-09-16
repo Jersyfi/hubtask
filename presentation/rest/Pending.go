@@ -1050,6 +1050,12 @@ func (pending) SuggestDecomposition(
 	notAvailable(w, r)
 }
 
+func (pending) AiGenerateTemplate(
+	w http.ResponseWriter, r *http.Request, _ openapi.AiGenerateTemplateParams,
+) {
+	notAvailable(w, r)
+}
+
 // The imports (P-08) are overridden by RestController, for the reason given at CreateContainer.
 func (pending) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.ImportEntriesParams) {
 	notAvailable(w, r)

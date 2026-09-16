@@ -108,7 +108,7 @@ func TestAPayloadNoAllowListNarrowsIsNeverMergedIntoAnInput(t *testing.T) {
 		domain.TargetWorkItem, domain.TargetJumbleEntry, domain.TargetContainer,
 	} {
 		for _, kind := range []domain.Kind{
-			domain.KindFields, domain.KindDecomposition, domain.KindDuplicates,
+			domain.KindFields, domain.KindDecomposition, domain.KindDuplicates, domain.KindTemplate,
 		} {
 			if produced[applierPair{target, kind}] {
 				continue
