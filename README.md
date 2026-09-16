@@ -106,6 +106,9 @@ bin/hubctl comment add "$ITEM" --body "Done on the way home"
 bin/hubctl search milk
 bin/hubctl trash ls
 bin/hubctl watch                             # follow the change stream; Ctrl-C ends it
+bin/hubctl sync pull --all > state.jsonl     # the offline synchronisation, as a device: the cursor last
+bin/hubctl sync push --file queue.jsonl      # one mutation per line; one result per line back
+bin/hubctl sync devices ls                   # and `sync devices forget <id>`
 
 bin/hubctl due set "$ITEM" --at 2026-09-10   # a day; a timestamp is a moment instead
 bin/hubctl remind add "$ITEM" --at -PT30M    # half an hour before it is due
