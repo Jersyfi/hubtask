@@ -41,6 +41,7 @@
   import { isTerminal, mayCancel } from '../lib/data/jobs.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -94,6 +95,17 @@
   $effect(() => {
     const watch = watched;
     if (!watch || watch.watching || !isTerminal(watch.job.status)) return;
+    // A job finishing is a status change nobody focused (4.1.3): the sentence the panel shows is
+    // said once, through the one live region, at the moment it appears.
+    announcer.say(
+      watch.job.status === 'SUCCEEDED'
+        ? verifying
+          ? t('app.backup.verify_done')
+          : t('app.backup.run_done')
+        : watch.job.status === 'CANCELLED'
+          ? t('app.backup.run_cancelled')
+          : t('app.backup.run_failed'),
+    );
     const target = openedTarget;
     void untrack(async () => {
       // `refresh` rather than the cached answer: the server's listing of the target is from
@@ -143,11 +155,14 @@
     return stamps.sort().at(-1);
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -192,7 +207,7 @@
       draftHost = '';
       draftUser = '';
       draftPassword = '';
-    });
+    }, t('app.backup.target_added_announced'));
   }
 
   async function createSchedule(event: SubmitEvent): Promise<void> {
@@ -206,7 +221,7 @@
         rrule: scheduleRule.trim(),
         timezone: scheduleZone,
         ...(Number.isFinite(floor) && floor > 0 ? { retention: { min_keep: floor } } : {}),
-      }),
+      }), t('app.backup.schedule_added_announced')
     );
   }
 
@@ -216,7 +231,7 @@
       startedJob = accepted.job_id;
       openedTarget = targetId;
       verifying = undefined;
-    });
+    }, t('app.backup.started_announced'));
   }
 
   async function verify(runId: string): Promise<void> {
@@ -224,7 +239,7 @@
       const accepted = await backup.verify(runId);
       startedJob = accepted.job_id;
       verifying = runId;
-    });
+    }, t('app.backup.verify_started_announced'));
   }
 
   async function openTarget(targetId: string): Promise<void> {
@@ -280,7 +295,7 @@
                 <Button
                   size="sm"
                   tone="secondary"
-                  onclick={() => void attempt(() => jobs.cancel(watched!.job.job_id))}
+                  onclick={() => void attempt(() => jobs.cancel(watched!.job.job_id), t('app.jobs.cancel_asked_announced'))}
                 >
                   {t('app.backup.cancel')}
                 </Button>
@@ -370,7 +385,7 @@
                   tone="secondary"
                   isBusy={isWorking}
                   busyLabel={t('app.backup.testing')}
-                  onclick={() => void attempt(() => backup.test(target.id))}
+                  onclick={() => void attempt(() => backup.test(target.id), t('app.backup.tested_announced'))}
                 >
                   {t('app.backup.test')}
                 </Button>
@@ -414,7 +429,7 @@
                           void attempt(async () => {
                             await backup.deleteTarget(target.id);
                             removing = undefined;
-                          })}
+                          }, t('app.backup.target_removed_announced'))}
                       >
                         {t('app.backup.remove_confirm')}
                       </Button>
@@ -599,7 +614,7 @@
                   void attempt(() =>
                     backup.updateSchedule(schedule.id, {
                       enabled: (event.currentTarget as HTMLInputElement).checked,
-                    }),
+                    }), t('app.backup.schedule_saved_announced')
                   )}
               />
               <Button
@@ -607,7 +622,7 @@
                 tone="danger"
                 isBusy={isWorking}
                 busyLabel={t('app.backup.removing')}
-                onclick={() => void attempt(() => backup.deleteSchedule(schedule.id))}
+                onclick={() => void attempt(() => backup.deleteSchedule(schedule.id), t('app.backup.schedule_removed_announced'))}
               >
                 {t('app.backup.remove_schedule')}
               </Button>
