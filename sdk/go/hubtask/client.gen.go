@@ -3914,9 +3914,12 @@ type BackupRun struct {
 	StartedAt  time.Time          `json:"started_at"`
 	Status     BackupRunStatus    `json:"status"`
 	TargetId   openapi_types.UUID `json:"target_id"`
-	Trigger    BackupRunTrigger   `json:"trigger"`
-	VerifiedAt *time.Time         `json:"verified_at,omitempty"`
-	VerifyOk   *bool              `json:"verify_ok,omitempty"`
+
+	// TrialRestore What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore - every member read, every checksum verified, every encrypted member decrypted with the key the schedule names - and records the difference report against the workspace here. Null where no trial ran. A trial that fails fails the run, with `backup.trial_restore_failed` as its `error_code` and the failure recorded here.
+	TrialRestore *BackupRunTrial  `json:"trial_restore,omitempty"`
+	Trigger      BackupRunTrigger `json:"trigger"`
+	VerifiedAt   *time.Time       `json:"verified_at,omitempty"`
+	VerifyOk     *bool            `json:"verify_ok,omitempty"`
 }
 
 // BackupRunMode defines model for BackupRun.Mode.
@@ -3927,6 +3930,25 @@ type BackupRunStatus string
 
 // BackupRunTrigger defines model for BackupRun.Trigger.
 type BackupRunTrigger string
+
+// BackupRunTrial defines model for BackupRunTrial.
+type BackupRunTrial struct {
+	// Failure What could not be read back, on a run that failed its trial.
+	Failure     *BackupRunTrialFailure `json:"failure,omitempty"`
+	InspectedAt time.Time              `json:"inspected_at"`
+
+	// Report What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable.
+	Report *RestoreReport `json:"report,omitempty"`
+}
+
+// BackupRunTrialFailure defines model for BackupRunTrialFailure.
+type BackupRunTrialFailure struct {
+	// Code The reader's message code.
+	Code string `json:"code"`
+
+	// Member The member at the target where it stopped.
+	Member *string `json:"member,omitempty"`
+}
 
 // BackupSchedule defines model for BackupSchedule.
 type BackupSchedule struct {
@@ -3948,6 +3970,9 @@ type BackupSchedule struct {
 	} `json:"scope"`
 	TargetId openapi_types.UUID `json:"target_id"`
 	Timezone *string            `json:"timezone,omitempty"`
+
+	// TrialRestore Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same job, and store the difference report on the run (B-4, P-14). A trial that fails fails the run - an archive the product cannot read back is not a backup - and `notify_on` covers it as it covers any failure. On for a new schedule; schedules made before this field existed keep it off, and say so.
+	TrialRestore *bool `json:"trial_restore,omitempty"`
 }
 
 // BackupScheduleMode defines model for BackupSchedule.Mode.
@@ -3970,9 +3995,10 @@ type BackupScheduleUpdate struct {
 	NotifyOn     *[]BackupScheduleUpdateNotifyOn `json:"notify_on,omitempty"`
 
 	// Retention The generation principle. `min_keep` prevents no backup being left at all.
-	Retention *BackupRetention `json:"retention,omitempty"`
-	Rrule     *string          `json:"rrule,omitempty"`
-	Timezone  *string          `json:"timezone,omitempty"`
+	Retention    *BackupRetention `json:"retention,omitempty"`
+	Rrule        *string          `json:"rrule,omitempty"`
+	Timezone     *string          `json:"timezone,omitempty"`
+	TrialRestore *bool            `json:"trial_restore,omitempty"`
 }
 
 // BackupScheduleUpdateMode defines model for BackupScheduleUpdate.Mode.

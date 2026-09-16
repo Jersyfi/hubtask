@@ -606,6 +606,8 @@ type BackupRun struct {
 	ExpiresAt   pgtype.Timestamptz
 	VerifiedAt  pgtype.Timestamptz
 	VerifyOk    *bool
+	TrialReport []byte
+	TrialAt     pgtype.Timestamptz
 }
 
 type BackupSchedule struct {
@@ -626,6 +628,7 @@ type BackupSchedule struct {
 	NextRunAt    pgtype.Timestamptz
 	CreatedAt    pgtype.Timestamptz
 	Version      int32
+	TrialRestore bool
 }
 
 type BackupTarget struct {

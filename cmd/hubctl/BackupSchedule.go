@@ -55,7 +55,7 @@ func backupScheduleList(ctx context.Context, cli *CLI, args []string) error {
 // the command sends the flags that were actually given, so `--off` leaves the rule alone.
 func backupScheduleSet(ctx context.Context, cli *CLI, args []string) error {
 	const usage = "backup schedule set <id> [--rrule <rule>] [--timezone <zone>] " +
-		"[--mode FULL|INCREMENTAL] [--on|--off]"
+		"[--mode FULL|INCREMENTAL] [--trial|--no-trial] [--on|--off]"
 	scheduleID, rest, err := cli.takeID(args, usage)
 	if err != nil {
 		return err
@@ -67,11 +67,16 @@ func backupScheduleSet(ctx context.Context, cli *CLI, args []string) error {
 	fullRule := flags.String("full-rrule", "", "which of the rule's occurrences are full ones")
 	on := flags.Bool("on", false, "switch the schedule on")
 	off := flags.Bool("off", false, "switch it off, keeping the rule")
+	trial := flags.Bool("trial", false, "follow every FULL run with an INSPECT restore of its archive (B-4)")
+	noTrial := flags.Bool("no-trial", false, "write the archive and read nothing back")
 	if err := parseCommand(flags, rest); err != nil {
 		return err
 	}
 	if *on && *off {
 		return usagef("backup schedule set takes --on or --off, not both")
+	}
+	if *trial && *noTrial {
+		return usagef("backup schedule set takes --trial or --no-trial, not both")
 	}
 
 	change := openapi.BackupScheduleUpdate{}
@@ -85,6 +90,10 @@ func backupScheduleSet(ctx context.Context, cli *CLI, args []string) error {
 	if *on || *off {
 		enabled := *on
 		change.Enabled = &enabled
+	}
+	if *trial || *noTrial {
+		wanted := *trial
+		change.TrialRestore = &wanted
 	}
 
 	client, err := cli.client()
@@ -152,14 +161,24 @@ func scheduleTable(schedules []openapi.BackupSchedule) Table {
 			schedule.Rrule,
 			text(schedule.Timezone),
 			scheduleMode(schedule),
+			scheduleTrial(schedule),
 			scheduleState(schedule),
 			nextRun(schedule),
 		})
 	}
 	return Table{
-		Columns: []string{"id", "target", "scope", "rrule", "zone", "mode", "state", "next"},
+		Columns: []string{"id", "target", "scope", "rrule", "zone", "mode", "trial", "state", "next"},
 		Rows:    rows,
 	}
+}
+
+// scheduleTrial says whether a FULL run is read back after it is written (B-4): "yes" is the
+// default for a schedule made since, "no" what an older schedule kept.
+func scheduleTrial(schedule openapi.BackupSchedule) string {
+	if schedule.TrialRestore != nil && *schedule.TrialRestore {
+		return "yes"
+	}
+	return "no"
 }
 
 func scheduleScope(schedule openapi.BackupSchedule) string {

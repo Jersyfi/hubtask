@@ -132,6 +132,7 @@ func (p SchedulePass) fire(
 			"parent_run_id": parentID.String(),
 			"include_media": schedule.IncludeMedia,
 			"include_audit": schedule.IncludeAudit,
+			"trial_restore": schedule.TrialRestore && mode == domain.ModeFull,
 			"trigger":       string(domain.TriggerSchedule),
 		},
 	})

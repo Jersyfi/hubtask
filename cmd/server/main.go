@@ -2315,6 +2315,10 @@ func run() error {
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
+	// The trial restore (B-4): the run that wrote a FULL archive reads it back through the
+	// applier, in the same job. The applier's own safety copy keeps the performer as it was
+	// before this line - a copy taken before a restore has no archive to read back yet.
+	backupPerformer.Trial = backupApplier
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
