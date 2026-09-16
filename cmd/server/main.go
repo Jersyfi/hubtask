@@ -883,11 +883,14 @@ func run() error {
 	// the validation, the event and the entry's own history are the ones a person's own write
 	// would have produced, because it *is* a person's own write.
 	suggestionCatalogue := &deferredCatalogue{}
+	suggestionStore := postgres.NewSuggestionRepository(cursors)
 	suggestionCases := suggestionservice.Cases{
-		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Suggestions: suggestionStore,
 		Targets:     suggestionservice.EntryTargets{Catalogue: suggestionCatalogue},
 		Authorizer:  authorizer, Catalogue: suggestionCatalogue, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		// The words a template is drafted from, held for the job (P-11).
+		Requests: suggestionStore, IDs: ids,
 	}
 
 	// The cases the privacy use cases share.
@@ -1002,8 +1005,8 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions},
-		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
 		// And a proposal is narrowed to what that use case can take: `suggest-fields` proposes
@@ -1139,6 +1142,11 @@ func run() error {
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiSummarizeContainer{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AiGenerateTemplate{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
@@ -2304,6 +2312,10 @@ func run() error {
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
+	// The trial restore (B-4): the run that wrote a FULL archive reads it back through the
+	// applier, in the same job. The applier's own safety copy keeps the performer as it was
+	// before this line - a copy taken before a restore has no archive to read back yet.
+	backupPerformer.Trial = backupApplier
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
