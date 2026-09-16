@@ -27,7 +27,7 @@ const licenceHeader = "// SPDX-License-Identifier: BUSL-1.1"
 func TestEverySourceFileCarriesItsLicence(t *testing.T) {
 	var checked int
 
-	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../db", "../../tools", "../../test"},
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../db", "../../tools", "../../test", "../../sdk"},
 		func(path string, _ *ast.File, _ *token.FileSet) {
 			source, err := os.ReadFile(path)
 			if err != nil {

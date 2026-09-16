@@ -190,6 +190,13 @@ generate:
 	@# (P-01): the website's reference and the SDK generators read it, and it is committed so
 	@# that a Node lane without Go can build against it (project-structure.md §6).
 	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
+	@$(MAKE) --no-print-directory sdk-go
+
+## sdk-go: Regenerate the Go SDK from api/openapi.yaml (P-02, ADR-0057)
+.PHONY: sdk-go
+sdk-go:
+	$(call require_tool,oapi-codegen)
+	$(TOOLS_DIR)/oapi-codegen --config sdk/go/oapi-codegen.yaml api/openapi.yaml
 
 ## tokens: Regenerate the design tokens (CSS, TypeScript, and the Go label token names)
 # Separate from `make generate` on purpose: that target must keep working without Node.js, and a
