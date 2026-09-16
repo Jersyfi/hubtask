@@ -2246,7 +2246,10 @@ func run() error {
 		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
 		Safety: backupPerformer, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		// The synchronisation epoch a restore advances (N-11, B-5), so that every device's cursor
+		// minted before is refused and the restored rows reach them through the walk.
+		Epochs: postgres.NewEpochRepository(),
+		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
 	retention := worker.RetentionSweep{
