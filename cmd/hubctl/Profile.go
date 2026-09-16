@@ -68,6 +68,12 @@ type Profile struct {
 	// to the order of two fields; so the profile holds one at a time and each sign-in replaces
 	// the other.
 	Session Session
+	// Device is the identifier this shell synchronises as (N-12), minted on the first `hubctl
+	// sync` and kept, so that every invocation is the same device to the server; and Clock is
+	// the last reading hubctl stamped, so that its hybrid clock ticks on across invocations
+	// rather than starting over (offline-sync.md §4.1).
+	Device string
+	Clock  string
 }
 
 // Session is the pair a sign-in answered, held between invocations.
@@ -127,6 +133,8 @@ type storedProfile struct {
 	Token   string         `json:"token"`
 	Tenant  string         `json:"tenant,omitempty"`
 	Session *storedSession `json:"session,omitempty"`
+	Device  string         `json:"device,omitempty"`
+	Clock   string         `json:"clock,omitempty"`
 }
 
 type storedSession struct {
@@ -172,6 +180,8 @@ func LoadProfile(path string) (Profile, error) {
 		BaseURL: stored.BaseURL,
 		Token:   secret.New(stored.Token),
 		Tenant:  stored.Tenant,
+		Device:  stored.Device,
+		Clock:   stored.Clock,
 	}
 	if stored.Session != nil {
 		profile.Session = Session{
@@ -200,6 +210,8 @@ func SaveProfile(path string, profile Profile) error {
 		BaseURL: profile.BaseURL,
 		Token:   profile.Token.Reveal(),
 		Tenant:  profile.Tenant,
+		Device:  profile.Device,
+		Clock:   profile.Clock,
 	}
 	if !profile.Session.IsEmpty() {
 		stored.Session = &storedSession{
