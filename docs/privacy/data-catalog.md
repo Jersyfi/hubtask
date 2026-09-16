@@ -103,7 +103,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Webhook subscriptions (target URL, secret) | `webhook_subscription` | `SECRET` (the secret) + `NON_PERSONAL` | Integration | Until deleted | `CASCADE` |
 | Delivery logs (status, truncated body) | `webhook_delivery` | `PERSONAL_TECHNICAL` | Proof of delivery | 30 days | `RETENTION` |
 | Domain events (references, metadata) | `outbox_event` | `PERSONAL_TECHNICAL` | Integration | 7 days after delivery | `RETENTION` |
-| Change log (state deltas incl. field snapshots) | `change_log` | `PERSONAL_CONTENT` (the payload mirrors the row) | Offline synchronisation | The maximum offline window, 90 days by default (offline-sync.md §7) | `RETENTION` (a purge before it elapses would let a device recreate deleted objects) |
+| Change log (state deltas incl. field snapshots) | `change_log` | `PERSONAL_CONTENT` (the payload mirrors the row) | Offline synchronisation | The maximum offline window, 90 days by default (offline-sync.md §7) — the `SYNC_LOG` retention kind; a month falls as a partition once its every row has aged out for everybody | `RETENTION` (a purge before it elapses would let a device recreate deleted objects) |
 | Calendar feeds (token, scope) | `calendar_feed` | `SECRET` + `PERSONAL_CONTENT` (titles in the ICS) | Calendar integration | Until revoked | `CASCADE` |
 | AI usage metadata (provider, model, purpose, scope, timestamp) | `audit_log` | `PERSONAL_TECHNICAL` | Transparency, evidence of third-country transfer | The audit period | `IMMUTABLE` |
 | Content transmitted to AI | **not stored** (transmitted to the provider) | `PERSONAL_CONTENT` | AI suggestions | Not stored in the system; at the provider per their agreement | — |
@@ -113,8 +113,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | What a subscriber has already consumed (consumer, event, time) | `event_consumption` | `NON_PERSONAL` | At-least-once delivery without a repeated effect (ADR-0007) | With the event, 7 days after delivery | `RETENTION` |
 | Notifications (recipient, category, channel, state, reason, references) | `notification` | `PERSONAL_TECHNICAL` (references only — no title, no note, no comment text) | Telling somebody that work concerns them | 90 days (`NOTIFICATION`, data-retention.md §3) | `RETENTION`, and `CASCADE` with the account or the entry |
 | Notification preferences (category, channel, switched on, title in the message) | `notification_preference` | `PERSONAL_BASIC` | Honouring what somebody said about being told | The lifetime of the account | `CASCADE` |
-| Device operation log (operation, result, response) | `sync_op_log` | `PERSONAL_CONTENT` (the response mirrors the row) | Idempotent `:push` for offline devices | The offline window, 90 days by default | `RETENTION` |
-| Tombstones (entity, identifier, deletion time) | `tombstone` | `PERSONAL_TECHNICAL` (references only) | So a device that was offline learns of a deletion instead of recreating it | Until the purge date, the offline window | `RETENTION` |
+| Device operation log (operation, result, response) | `sync_op_log` | `PERSONAL_CONTENT` (the response mirrors the row) | Idempotent `:push` for offline devices | The offline window, 90 days by default — the `SYNC_LOG` retention kind, the tenant's sweep | `RETENTION` |
+| Tombstones (entity, identifier, deletion time) | `tombstone` | `PERSONAL_TECHNICAL` (references only) | So a device that was offline learns of a deletion instead of recreating it | Until the purge date, the offline window — the `SYNC_LOG` retention kind, the tenant's sweep | `RETENTION` |
 
 ---
 

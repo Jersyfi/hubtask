@@ -76,7 +76,7 @@ stable error code), or `conflict` (with both values, §5).
 Rules:
 
 * **The client assigns IDs** (UUIDv7). That makes a repeated push idempotent, and an item created offline has its final identity immediately — no re-keying after the sync.
-* **An `op_id` per mutation** is retained server-side for 30 days; a duplicate push takes effect exactly once.
+* **An `op_id` per mutation** is retained server-side for the offline window (`HUBTASK_TOMBSTONE_WINDOW`, 90 days by default - the one period the change log, the operation log and the tombstones share, the `SYNC_LOG` retention kind); a duplicate push takes effect exactly once. Shorter, a device back on the last day of the window whose first push half-succeeded would re-push into an empty log and apply twice.
 * **Ordering within one device is preserved**; between devices the HLC decides (§4.1).
 * **Partial success is normal.** A rejected mutation does not block the others; the client keeps it in a conflict state.
 
@@ -285,7 +285,7 @@ A conformance test (`hubctl sync-conformance`) checks these points against a run
 | `change_log` | The monotonic sequence of every change per tenant (`seq`, `entity`, `entity_id`, `op`, `actor`, `hlc`, `payload_ref`) — the basis for `:pull` |
 | `tombstone` | Purged objects with a minimum period |
 | `sync_device` | A device per account: `device_id`, platform, last cursor, last contact, push token, block status |
-| `op_log` | Processed `op_id`s for idempotency (30 days) |
+| `op_log` | Processed `op_id`s for idempotency, kept for the offline window (§3.2) |
 | `position` | The fractional index per item per context (bucket, view) |
 | `set_element` | OR-set tags for labels, members and attachments |
 | `field_clock` | The server's clock per field: the reading of the write that last landed on each field, stamped beside every change log entry that names a field, which a push's reading is compared against (N-05). Not backfilled: a field written before the table existed has no row and loses to the first device that writes it |

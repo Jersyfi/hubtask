@@ -244,6 +244,19 @@ var catalogue = []Kind{
 		Actions: []Action{ActionHardDelete},
 	},
 	{
+		// The synchronisation's own records (N-09, offline-sync.md §7): the change log, the
+		// operation log and the tombstones, on one clock - the offline window, 90 days by
+		// default. One kind for the three because the reason is one: a change log emptied
+		// before the window elapses would let a device that was offline recreate what was
+		// deleted, an operation log emptied sooner would let its first push apply twice, and a
+		// tombstone kept shorter would not be there to say so. The lower bound is the window
+		// itself, for the same reason; a tenant may keep the records longer and never shorter.
+		// The change log's months fall as partitions (H-09's duty), the other two by the tenant's
+		// sweep. No marking phase: nothing here is anybody's work.
+		Name: KindSyncLog, Anchor: AnchorOccurredAt, DefaultDays: 90, MinDays: 90,
+		Actions: []Action{ActionHardDelete},
+	},
+	{
 		// 400 days is a decision rather than a placeholder since H-13 (audit.md §9, A-1): a year
 		// plus a quarter, so that an annual review still reaches the start of the year it is
 		// reviewing. No action, because nothing in this build removes an audit entry - the trail
@@ -273,6 +286,7 @@ const (
 	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
 	KindSession               DataKind = "SESSION"
 	KindDevice                DataKind = "DEVICE"
+	KindSyncLog               DataKind = "SYNC_LOG"
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"

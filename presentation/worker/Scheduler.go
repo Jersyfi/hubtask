@@ -91,9 +91,15 @@ type Scheduler struct {
 	// entry of it does, and carries its own policy and its own revokes. Optional, like the two
 	// above: an installation without it keeps writing into the default partition, which has both.
 	AuditPartitions AuditPartitions
-	// StreamPartitions is the same duty for the three monthly streams (H-09): activity entries,
-	// outbox events and rule runs. Nil skips, ensureAuditPartitions' contract.
+	// StreamPartitions is the same duty for the four monthly streams (H-09, N-09): activity
+	// entries, outbox events, rule runs and the change log. Nil skips, ensureAuditPartitions'
+	// contract.
 	StreamPartitions streams.Partitions
+	// OfflineWindow is the installation's offline window (RetentionConfig.TombstoneWindow), the
+	// floor of the change log's drop: a month of it falls only once every device that was offline
+	// could have pulled it (N-09, offline-sync.md §7). Zero leaves the catalogue's default as the
+	// floor.
+	OfflineWindow time.Duration
 	// StreamEvidence records a dropped partition where a per-tenant trail cannot: a partition
 	// holds every tenant's rows, so the evidence is the instance journal's (audit.md §6). Nil
 	// records nothing.
@@ -310,7 +316,7 @@ func (s Scheduler) dropAgedStreamPartitions(ctx context.Context) {
 	defer cancel()
 
 	for _, table := range streams.Tables() {
-		defaultDays := streams.DefaultDays(table)
+		defaultDays := s.floorOf(table)
 		if defaultDays <= 0 {
 			continue
 		}
@@ -338,6 +344,21 @@ func (s Scheduler) dropAgedStreamPartitions(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// floorOf is the stream's drop floor: the catalogue's default, and for the change log the
+// installation's offline window when that is longer - the window is one value, and a month of
+// the change log falling inside it would let a device that was offline recreate what was deleted.
+func (s Scheduler) floorOf(table string) int {
+	days := streams.DefaultDays(table)
+	if table != streams.ChangeLog || s.OfflineWindow <= 0 {
+		return days
+	}
+	window := int(s.OfflineWindow / (24 * time.Hour))
+	if s.OfflineWindow%(24*time.Hour) != 0 {
+		window++
+	}
+	return max(days, window)
 }
 
 // sampleBackupFreshness publishes when each target last had a backup that worked - the number alert

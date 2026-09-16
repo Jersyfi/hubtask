@@ -949,6 +949,47 @@ func TestAPassSweepsStaleDevicesAtTheirOwnPeriod(t *testing.T) {
 	}
 }
 
+// The SYNC_LOG kind (N-09): the operation log and the tombstones age out through the engine
+// under their own data kind, at the offline window - and the window is one value: a policy for
+// the kind can only lengthen it, and a window longer than the policy's period is what decides.
+func TestAPassSweepsTheSyncLogAtTheOfflineWindow(t *testing.T) {
+	h := newRunHarness()
+	syncLog := &sessionStore{rows: []sessionRow{
+		{lastSeen: now.Add(-100 * 24 * time.Hour), over: true},
+		{lastSeen: now.Add(-time.Hour), over: true},
+	}}
+	h.run.SyncLog = syncLog
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+	if want := now.AddDate(0, 0, -90); !syncLog.askedAt.Equal(want) {
+		t.Errorf("cut off at %v, want the window back", syncLog.askedAt)
+	}
+	if len(syncLog.rows) != 1 {
+		t.Errorf("%d rows left, want the recent one", len(syncLog.rows))
+	}
+	if outcome.Removed < 1 {
+		t.Errorf("the pass reported %d removed, and a record went", outcome.Removed)
+	}
+	if !slices.Contains(h.runs.kinds, domain.KindSyncLog) {
+		t.Errorf("the log names %v and not the sync log", h.runs.kinds)
+	}
+
+	// An installation with a longer window keeps the records longer than the kind's default.
+	h = newRunHarness()
+	h.run.Purger.TombstoneWindow = 120 * 24 * time.Hour
+	syncLog = &sessionStore{rows: []sessionRow{{lastSeen: now.Add(-100 * 24 * time.Hour), over: true}}}
+	h.run.SyncLog = syncLog
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+	if len(syncLog.rows) != 1 {
+		t.Errorf("a record inside the installation's window was removed")
+	}
+}
+
 func TestAPassWithoutTheDeviceSweepStillRuns(t *testing.T) {
 	h := newRunHarness()
 	h.run.Devices = nil
