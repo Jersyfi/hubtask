@@ -531,6 +531,11 @@ export class HubtaskClient {
     return this.call("POST", "/sync:pull", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The initial synchronisation as one stream */
+  syncSnapshot(body: NonNullable<operations["syncSnapshot"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<Response> {
+    return this.call("POST", "/sync:snapshot", {  }, undefined, {  }, body, "json", "application/json", "raw", options.signal);
+  }
+
   /** Transmit local mutations */
   syncPush(body: NonNullable<operations["syncPush"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["syncPush"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/sync:push", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

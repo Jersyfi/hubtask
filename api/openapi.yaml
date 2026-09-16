@@ -2371,6 +2371,47 @@ paths:
         "409":
           $ref: "#/components/responses/Problem"
 
+  /sync:snapshot:
+    post:
+      tags: [sync]
+      operationId: syncSnapshot
+      summary: The initial synchronisation as one stream
+      description: |
+        What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+        the records of the initial synchronisation in the walk's order, one per line of
+        `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+        read so that the first byte arrives before the last row is counted, and the delta cursor
+        as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+        read before the first row, exactly as a page sequence's is. Permission is checked per
+        record, a scope narrows the walk, and the device is registered by turning up.
+
+        The response is bounded the way the stream is: a deadline, a byte budget per connection,
+        and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+        and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+        device that lost the connection before the last line has no cursor and starts again,
+        which is what a page sequence offers it too; the difference is one request rather than a
+        thousand. A connection that ends before the cursor line never learns the cursor - which is
+        the point: a snapshot a device did not read whole is not one it may resume from.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncSnapshotRequest" }
+      responses:
+        "200":
+          description: The records, one per line, and the cursor last
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+                description: |
+                  One `SyncChange` per line, then one line `{"cursor": "…"}`. A line is complete
+                  JSON; a response whose last line is not the cursor was cut short.
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /sync:push:
     post:
       tags: [sync]
@@ -11455,6 +11496,33 @@ components:
                   object it concerns, so an entry's change is in its collection's `SELF` and in its
                   hub's `CHILDREN`.
         limit: { type: integer, default: 500, maximum: 2000 }
+
+    SyncSnapshotRequest:
+      type: object
+      description: What `:pull` takes for an initial synchronisation, without a cursor or a page size.
+      required: [device_id]
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          description: The device asking, as on `:pull`; it registers by turning up.
+        platform:
+          type: [string, "null"]
+          maxLength: 40
+        display_name:
+          type: [string, "null"]
+          maxLength: 120
+        scopes:
+          type: array
+          description: What the device wants to hold, as on `:pull`; no scope means everything the caller may read.
+          items:
+            type: object
+            properties:
+              container_id: { type: string, format: uuid }
+              depth:
+                type: string
+                enum: [SELF, CHILDREN, SUBTREE]
+                default: SUBTREE
 
     SyncChange:
       type: object

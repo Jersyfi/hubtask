@@ -1771,6 +1771,9 @@ func run() error {
 				},
 			},
 			PushSignals: metrics,
+			// The snapshot is the walk as one response (SY-C), admitted and counted with the
+			// streams because it is a connection held open like one.
+			Registry: streams, StreamSignals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{

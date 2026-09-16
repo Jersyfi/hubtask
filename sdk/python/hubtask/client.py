@@ -435,6 +435,10 @@ class Client:
         """Fetch the changes since the cursor"""
         return self._call("POST", "/sync:pull", {}, None, {}, body, "json", "application/json", "json")
 
+    def sync_snapshot(self, body: "SyncSnapshotRequest") -> bytes:
+        """The initial synchronisation as one stream"""
+        return self._call("POST", "/sync:snapshot", {}, None, {}, body, "json", "application/json", "raw")
+
     def sync_push(self, body: "SyncPushRequest") -> "SyncPushResponse":
         """Transmit local mutations"""
         return self._call("POST", "/sync:push", {}, None, {}, body, "json", "application/json", "json")
