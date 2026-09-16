@@ -110,8 +110,11 @@
   /* `translate` is physical: its X is the screen's X and not the writing direction's. The knob has
      to travel towards the *end* of the line, so in RTL the same distance is negated. This is the
      one place in the wave where a logical property does not exist and the direction has to be
-     asked for by name. */
-  .native:checked + .track:dir(rtl) .knob {
+     asked for by name - and asked of the `dir` attribute, not of `:dir(rtl)`: Chromium does not
+     match `:dir()` on an element inserted after its ancestor's `dir` was set, which is every
+     element the workbench renders into a pane and every element the app renders after the
+     manifest turns the document round (F5-10). */
+  :global([dir='rtl']) .native:checked + .track .knob {
     translate: calc(-1 * var(--travel)) 0;
   }
 
