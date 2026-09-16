@@ -122,8 +122,11 @@ run_hubctl() {
 
 # first_id reads the identifier out of a hubctl table: a header, then one row per entry, the
 # identifier in the first column. That layout is a contract of the CLI, so reading it here is a
-# check of it as much as a convenience.
-first_id() { awk 'NR==2 {print $1}'; }
+# check of it as much as a convenience. The client's own diagnostics - "waiting 1s" while the
+# installation limits the credential - go to standard error and are captured beside the table
+# where a call is captured whole, so they are skipped: a session that has spent its budget would
+# otherwise read the header as the identifier.
+first_id() { grep -v '^hubctl: ' | awk 'NR==2 {print $1}'; }
 
 # Drawn rather than written down, as in compose-smoke.sh: a literal here would be a credential in
 # the repository even though it protects nothing, and the secret scanner is right not to know the
