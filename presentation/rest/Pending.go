@@ -404,6 +404,8 @@ func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openap
 }
 
 // VerifyAuditChain is overridden by RestController, for the reason ListAuditEntries is.
+func (pending) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // ExportAuditTrail is overridden by RestController, for the reason ListAuditEntries is.
