@@ -119,6 +119,35 @@ func (h ExportView) Execute(
 	return exported, nil
 }
 
+// Select is the selection without the audit entry, for a caller that polls: the CalDAV calendar
+// (P-06) fetches a view every quarter of an hour as its owner, exactly as the ICS feed does, and
+// an audit row per poll would bury the entries somebody actually looks for (audit.md §2). The
+// same visibility rule, the same walk, the same cap - only the record differs, which is why
+// this is a method on the export rather than a second selection.
+func (h ExportView) Select(
+	ctx context.Context, actor appshared.ActorContext, viewID shared.ID,
+) (ExportedView, error) {
+	if err := actor.RequireScope(viewsRead); err != nil {
+		return ExportedView{}, err
+	}
+	if viewID.IsZero() {
+		return ExportedView{}, viewNotFound(viewID)
+	}
+	var saved view.SavedView
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := h.Views.Find(ctx, viewID)
+		saved = found
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return ExportedView{}, viewNotFound(viewID)
+		}
+		return ExportedView{}, err
+	}
+	return h.rows(ctx, actor, saved)
+}
+
 // rows is the selection without the audit entry: the visibility question, the walk, and the
 // labels. Shared with the calendar feed, which performs the same selection as its owner and
 // records nothing per fetch - a subscription polls every quarter of an hour, and an audit row per
