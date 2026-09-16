@@ -1,0 +1,87 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('me')/todo/lists",
+  "value": [
+    {
+      "@odata.etag": "W/\"abc\"",
+      "id": "AQMkADAwATM0MDAAMS0wMDAwLTAwMDAtMDAwMC0wMDAwMDAAAAAAAA==",
+      "displayName": "Tasks",
+      "isOwner": true,
+      "isShared": false,
+      "wellknownListName": "defaultList",
+      "tasks": [
+        {
+          "@odata.etag": "W/\"def\"",
+          "id": "AAMkADAwATM0MDAAMS0wMDAwLTAwMDAtMDAwMDAwAAAAAAA=",
+          "importance": "high",
+          "isReminderOn": true,
+          "status": "notStarted",
+          "title": "File the quarterly report",
+          "createdDateTime": "2026-09-01T16:03:12.5678901Z",
+          "lastModifiedDateTime": "2026-09-05T09:00:00.0000000Z",
+          "hasAttachments": false,
+          "categories": ["Work"],
+          "body": { "content": "Numbers from finance first.\n", "contentType": "text" },
+          "dueDateTime": { "dateTime": "2026-10-01T00:00:00.0000000", "timeZone": "Pacific Standard Time" },
+          "reminderDateTime": { "dateTime": "2026-09-30T09:00:00.0000000", "timeZone": "Pacific Standard Time" },
+          "checklistItems": [
+            { "id": "chk-1", "displayName": "Ask finance", "isChecked": true, "checkedDateTime": "2026-09-04T12:00:00.0000000Z", "createdDateTime": "2026-09-01T16:04:00.0000000Z" },
+            { "id": "chk-2", "displayName": "Write the summary", "isChecked": false, "createdDateTime": "2026-09-01T16:04:30.0000000Z" }
+          ],
+          "linkedResources": [
+            { "id": "lr-1", "webUrl": "https://example.com/finance/q3", "applicationName": "Finance portal", "displayName": "Q3 figures" }
+          ]
+        },
+        {
+          "@odata.etag": "W/\"ghi\"",
+          "id": "AAMkADAwATM0MDAAMS0wMDAwLTAwMDAtMDAwMDAwAAAAAAB=",
+          "importance": "normal",
+          "isReminderOn": false,
+          "status": "completed",
+          "title": "Call the dentist",
+          "createdDateTime": "2026-08-20T10:00:00.0000000Z",
+          "lastModifiedDateTime": "2026-08-22T10:00:00.0000000Z",
+          "body": { "content": "", "contentType": "text" },
+          "dueDateTime": { "dateTime": "2026-08-22T15:30:00.0000000", "timeZone": "W. Europe Standard Time" },
+          "completedDateTime": { "dateTime": "2026-08-22T09:12:00.0000000", "timeZone": "UTC" },
+          "checklistItems": [],
+          "linkedResources": []
+        },
+        {
+          "@odata.etag": "W/\"jkl\"",
+          "id": "AAMkADAwATM0MDAAMS0wMDAwLTAwMDAtMDAwMDAwAAAAAAC=",
+          "importance": "low",
+          "isReminderOn": false,
+          "status": "notStarted",
+          "title": "Somewhere nobody knows",
+          "createdDateTime": "2026-08-20T10:00:00.0000000Z",
+          "body": { "content": "", "contentType": "text" },
+          "dueDateTime": { "dateTime": "2026-08-22T00:00:00.0000000", "timeZone": "Atlantis Standard Time" }
+        }
+      ]
+    },
+    {
+      "@odata.etag": "W/\"mno\"",
+      "id": "AQMkADAwATM0MDAAMS0wMDAwLTAwMDAtMDAwMDAwAAAAAAB=",
+      "displayName": "Holiday",
+      "isOwner": true,
+      "isShared": false,
+      "wellknownListName": "none",
+      "tasks": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('me')/todo/lists('x')/tasks",
+        "value": [
+          {
+            "id": "AAMkADAwATM0MDAAMS0wMDAwLTAwMDAtMDAwMDAwAAAAAAD=",
+            "importance": "normal",
+            "isReminderOn": false,
+            "status": "inProgress",
+            "title": "Pack",
+            "createdDateTime": "2026-09-10T10:00:00.0000000Z",
+            "body": { "content": "<p>Sun cream</p>", "contentType": "html" },
+            "checklistItems": [],
+            "linkedResources": []
+          }
+        ]
+      }
+    }
+  ]
+}

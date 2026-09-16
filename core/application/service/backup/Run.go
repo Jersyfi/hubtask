@@ -5,6 +5,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -439,6 +440,20 @@ func (h VerifyBackup) invoke(
 }
 
 // runOutput is a run as the three channels answer it.
+// trialOutput is what the trial restore found, in the report's contract shape, or nil where no
+// trial ran (B-4). The report was stored in that shape, so it is read back rather than rebuilt.
+func trialOutput(run domain.Run) map[string]any {
+	if run.TrialAt.IsZero() || len(run.TrialReport) == 0 {
+		return nil
+	}
+	var trial map[string]any
+	if err := json.Unmarshal(run.TrialReport, &trial); err != nil {
+		return nil
+	}
+	trial["inspected_at"] = run.TrialAt
+	return trial
+}
+
 func runOutput(run domain.Run) usecase.Output {
 	out := usecase.Output{
 		"id":         run.ID.String(),
@@ -476,6 +491,9 @@ func runOutput(run domain.Run) usecase.Output {
 	}
 	if run.ErrorCode != "" {
 		out["error_code"] = run.ErrorCode
+	}
+	if trial := trialOutput(run); trial != nil {
+		out["trial_restore"] = trial
 	}
 	if run.VerifyOK != nil {
 		out["verify_ok"] = *run.VerifyOK
