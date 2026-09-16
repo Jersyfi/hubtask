@@ -7,7 +7,6 @@ import assert from 'node:assert/strict';
 import type { Capabilities, NotificationPreference } from '@hubtask/sync-engine';
 
 import {
-  canBeCleared,
   categoriesOf,
   channelsOf,
   clearedOr,
@@ -16,6 +15,7 @@ import {
   zoneOptions,
   localesOf,
   preferenceFor,
+  withWorkspaceChoice,
 } from './preferences.ts';
 
 const manifest = {
@@ -29,22 +29,20 @@ const manifest = {
 } as unknown as Capabilities;
 
 test('clearing a preference sends the empty string, not null', () => {
-  // `Input.Present()` reports a present-but-nil entry as *absent*, so an explicit JSON null looks
-  // exactly like a field nobody sent and the value stays. Walked: `{"locale": null}` left it,
-  // `{"locale": ""}` cleared it.
+  // A server before 0.9.0 read an explicit JSON null as a field nobody sent and the value stayed;
+  // the empty string is what every version clears on.
   assert.equal(clearedOr(''), '');
   assert.equal(clearedOr('   '), '');
   assert.equal(clearedOr(' Europe/Berlin '), 'Europe/Berlin');
 });
 
-test('the first day of the week cannot be put back to the workspace’s', () => {
-  // `""` is refused — the descriptor's enum lists the three days and nothing else — and `null`
-  // reads as "not sent". So this version cannot un-choose it, and the control says so rather than
-  // offering a choice that quietly does nothing. The contract declares `null` in the enum and the
-  // descriptor does not; reported rather than worked around.
-  assert.equal(canBeCleared('locale'), true);
-  assert.equal(canBeCleared('time_zone'), true);
-  assert.equal(canBeCleared('week_start'), false);
+test('the workspace’s own value is a choice, so a chosen one can be put back', () => {
+  // Not a placeholder: `Select`'s placeholder is unselectable, and a first day of the week that
+  // could be chosen and never un-chosen was the F5-09 walk's finding.
+  assert.deepEqual(withWorkspaceChoice([{ value: 'MONDAY', label: 'Monday' }], 'Use the workspace’s'), [
+    { value: '', label: 'Use the workspace’s' },
+    { value: 'MONDAY', label: 'Monday' },
+  ]);
 });
 
 test('the locales are the installation’s, direction included', () => {
