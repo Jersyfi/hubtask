@@ -491,6 +491,39 @@ expect_docs_failure "a citation of an ADR nobody wrote" \
 
 The reasoning is in ADR-0099.'
 
+header "The chart (make gate-chart)"
+
+# The image policy verifies against an identity, and a policy without one verifies against nobody
+# (CI-3, P-15). The probes edit the chart's own defaults - the subjects in values.yaml, the failure
+# policy in the template - and expect the chart check to refuse the render.
+expect_chart_failure() {
+	local name="$1" file="$2" from="$3" to="$4"
+	CHECKS=$((CHECKS + 1))
+
+	cp "$file" "$TMP_PROBE"
+	sed -i.bak "s#$from#$to#" "$file" && rm -f "$file.bak"
+	if make --no-print-directory gate-chart >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-chart stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-chart\n' "$name"
+	fi
+	cp "$TMP_PROBE" "$file"
+}
+
+TMP_PROBE="$(mktemp)"
+trap 'cleanup; rm -f "$TMP_PROBE"' EXIT
+if [ -x .tools/helm ]; then
+	expect_chart_failure "an image policy without a subject" k8s/values.yaml \
+		'    - https://github.com/Jersyfi/hubtask/.github/workflows/release.yml@refs/tags/v\*' \
+		'    - ""'
+	expect_chart_failure "an image policy that lets a pod through" k8s/templates/imagepolicy.yaml \
+		'  failurePolicy: Fail' \
+		'  failurePolicy: Ignore'
+else
+	printf '  skipped %-44s helm is not installed\n' "the chart's probes"
+fi
+
 header "Prompts and the code that reads them (make gate-architecture)"
 
 # What a prompt asks a provider for and what the code keeps are a markdown file and a Go map, and
