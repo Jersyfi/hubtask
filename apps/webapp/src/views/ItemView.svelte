@@ -45,6 +45,7 @@
     namesMedia,
     namesPeople,
   } from '../lib/data/activity.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
@@ -53,6 +54,7 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
+  import SuggestionStrip from '../lib/entries/SuggestionStrip.svelte';
   import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
@@ -271,6 +273,12 @@
   // is about to be given.
   const frozenReason = $derived(item?.archived_at ? t('app.entries.archived') : undefined);
 
+  // The strip exists exactly when the manifest says AI is configured for this workspace, and not
+  // otherwise - not disabled with a reason, not rendered empty. An installation with AI switched
+  // off has a product that never mentioned it (milestone-F5.md decision 4), and the tokens the
+  // strip is the only consumer of leave with it.
+  const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+
   function startEditing() {
     if (!item) return;
     draftTitle = item.title;
@@ -364,6 +372,13 @@
             {t('app.entries.edit')}
           </Button>
         </div>
+      </Stack>
+    {/if}
+
+    {#if hasAi}
+      <Stack gap="150">
+        <h2 class="section">{t('app.suggestions.title')}</h2>
+        <SuggestionStrip {item} />
       </Stack>
     {/if}
 
