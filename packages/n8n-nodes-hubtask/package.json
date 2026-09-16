@@ -1,0 +1,17 @@
+{
+  "name": "@hubtask/n8n-nodes-hubtask",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The n8n community node for Hubtask, generated from the OpenAPI contract into dist/ - which carries the manifest that would be published (ADR-0058).",
+  "license": "BUSL-1.1",
+  "scripts": {
+    "build": "node scripts/generate.mjs",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../design-system/build/lint-no-literals.js",
+    "typecheck": "node scripts/generate.mjs --check",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "devDependencies": {
+    "@hubtask/api-client": "workspace:*"
+  }
+}

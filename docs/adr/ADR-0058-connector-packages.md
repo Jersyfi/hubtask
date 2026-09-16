@@ -73,6 +73,25 @@ change and nothing else.
   review somebody else runs, and is not part of the milestone (`milestone-0.9.0.md`, "what is
   deliberately not in this milestone").
 
+## Amendment — 2026-09-16, what P-04 found building the node
+
+A peer dependency is not free of the lockfile after all: pnpm's `autoInstallPeers` is on in this
+workspace, and a `peerDependencies` entry in a member's manifest installed `n8n-workflow` and
+fifty-four packages beneath it on the first `pnpm install` — which is the tree option A exists to
+keep out. Marking the peer optional did not stop it either. So the workspace's manifest for
+`packages/n8n-nodes-hubtask` names no platform library at all, and the manifest n8n and the
+registry read is a *second* one, generated into `dist/package.json` by the build: the registry's
+unscoped `n8n-nodes-hubtask` name, the `n8n` block naming the node and credential files, and
+`n8n-workflow` as the peer. What is published is `dist/`; what the workspace installs is the
+api-client link. The same shape applies to the Zapier app (P-05).
+
+The description is generated whole — a resource per tag, an operation per identifier with its
+routing, a property per path parameter, a field per body property with `send: body`, the
+optional ones in a collection, the query parameters in another, `If-Match` as a header — and the
+credential too; the trigger is the one hand-written node, because a webhook subscription is
+procedural in n8n's model and the twenty lines it takes are the same for every event type. The
+schema in `scripts/schema.mjs` is the typecheck A promised and a selftest proves it can fail.
+
 ## Notes
 
 Related: [`automation.md`](../architecture/automation.md) §3, [ADR-0007](./ADR-0007-events-outbox-cloudevents.md)
