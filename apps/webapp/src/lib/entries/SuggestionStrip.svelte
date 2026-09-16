@@ -35,9 +35,9 @@
     headingCodeOf,
     isStale,
     offersFor,
+    operationOf,
     shapeOf,
     type Operation,
-    type Shape,
   } from '../data/suggestions.ts';
   import { formatDateTime, formatDue } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -104,20 +104,6 @@
       // A `503 ai.unavailable` is the one sentence the catalogue gives it, through the same
       // renderer as every other refusal - never a sentence written here.
       askFailure = renderProblem(error as never, messages);
-    }
-  }
-
-  /** The operation a stale proposal is asked again as, read from its shape. */
-  function operationOf(shape: Shape): Operation {
-    switch (shape.shape) {
-      case 'classification':
-        return 'classify';
-      case 'breakdown':
-        return 'decompose';
-      case 'duplicates':
-        return 'duplicates';
-      default:
-        return 'suggest-fields';
     }
   }
 
@@ -261,7 +247,7 @@
 
       {#snippet actions()}
         {#if stale}
-          <Button tone="secondary" onclick={() => ask(operationOf(shape))}>{t('app.suggestions.ask_again')}</Button>
+          <Button tone="secondary" onclick={() => ask(operationOf(suggestion, shape))}>{t('app.suggestions.ask_again')}</Button>
         {:else if accept}
           <Button
             tone="primary"

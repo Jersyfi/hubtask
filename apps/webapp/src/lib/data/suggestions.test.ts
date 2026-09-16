@@ -18,7 +18,9 @@ import {
   followArrival,
   headingCodeOf,
   isStale,
+  isSummary,
   offersFor,
+  operationOf,
   shapeOf,
   suggestionsPath,
 } from './suggestions.ts';
@@ -113,6 +115,37 @@ test('a FIELDS payload of title, notes and a date is drawn beside what the entry
   );
   assert.equal(headingCodeOf(shape), 'app.suggestions.kind_fields');
   assert.equal(acceptCodeOf(shape), 'app.suggestions.accept_fields');
+});
+
+test('notes and nothing else is a summary, and says so in its heading and its verb', () => {
+  const summary = shapeOf(suggestion({ payload: { notes: 'Eleven comments over three days.' } }), item());
+  assert.ok(isSummary(summary));
+  assert.equal(headingCodeOf(summary), 'app.suggestions.kind_summary');
+  assert.equal(acceptCodeOf(summary), 'app.suggestions.accept_summary');
+  const fields = shapeOf(suggestion({ payload: { title: 'A title', notes: 'and notes' } }), item());
+  assert.ok(!isSummary(fields));
+});
+
+test('a classification names what accepting does: labels, a column, or both', () => {
+  const labels = shapeOf(suggestion({ payload: { label_ids: ['l1'] } }), item());
+  assert.equal(headingCodeOf(labels), 'app.suggestions.kind_labels');
+  assert.equal(acceptCodeOf(labels), 'app.suggestions.accept_labels');
+  const column = shapeOf(suggestion({ payload: { bucket_id: 'b1' } }), item());
+  assert.equal(acceptCodeOf(column), 'app.suggestions.accept_column');
+  const both = shapeOf(suggestion({ payload: { label_ids: ['l1'], bucket_id: 'b1' } }), item());
+  assert.equal(headingCodeOf(both), 'app.suggestions.kind_classification');
+  assert.equal(acceptCodeOf(both), 'app.suggestions.accept_classification');
+});
+
+test('a stale proposal is asked again as the operation that made it, read from the prompt', () => {
+  const notes = shapeOf(suggestion({ payload: { notes: 'x' } }), item());
+  assert.equal(operationOf(suggestion({ prompt_id: 'summarize-thread' }), notes), 'summarize-thread');
+  assert.equal(operationOf(suggestion({ prompt_id: 'summarize' }), notes), 'summarize');
+  assert.equal(operationOf(suggestion({ prompt_id: 'suggest-item-fields' }), notes), 'suggest-fields');
+  // A prompt this version has never met falls back to the shape.
+  assert.equal(operationOf(suggestion({ prompt_id: 'something-newer' }), notes), 'summarize');
+  const tree = shapeOf(suggestion({ kind: 'DECOMPOSITION', payload: { children: [] } }), item());
+  assert.equal(operationOf(suggestion({ prompt_id: 'something-newer' }), tree), 'decompose');
 });
 
 test('a FIELDS payload naming labels or a column is a classification', () => {

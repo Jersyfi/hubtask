@@ -230,13 +230,20 @@ export function shapeOf(suggestion: Pick<Suggestion, 'kind' | 'payload'>, item: 
   }
 }
 
+/** Whether a field proposal is a summary: notes and nothing else, which is what `summarize` answers. */
+export function isSummary(shape: Shape): boolean {
+  return shape.shape === 'fields' && shape.proposals.length > 0 && shape.proposals.every((p) => p.field === 'notes');
+}
+
 /** The heading's code per shape - what the kind is called when it is offered (voice-and-tone.md §7.1). */
 export function headingCodeOf(shape: Shape): string {
   switch (shape.shape) {
     case 'fields':
-      return 'app.suggestions.kind_fields';
+      return isSummary(shape) ? 'app.suggestions.kind_summary' : 'app.suggestions.kind_fields';
     case 'classification':
-      return 'app.suggestions.kind_classification';
+      return shape.labelIds.length > 0 && shape.bucketId === undefined && Object.keys(shape.customFields).length === 0
+        ? 'app.suggestions.kind_labels'
+        : 'app.suggestions.kind_classification';
     case 'breakdown':
       return 'app.suggestions.kind_breakdown';
     case 'duplicates':
@@ -250,13 +257,50 @@ export function headingCodeOf(shape: Shape): string {
 export function acceptCodeOf(shape: Shape): string | undefined {
   switch (shape.shape) {
     case 'fields':
-      return 'app.suggestions.accept_fields';
-    case 'classification':
+      return isSummary(shape) ? 'app.suggestions.accept_summary' : 'app.suggestions.accept_fields';
+    case 'classification': {
+      // The verb names what accepting does, and a classification does one of three things.
+      const hasLabels = shape.labelIds.length > 0;
+      const hasColumn = shape.bucketId !== undefined;
+      const hasFields = Object.keys(shape.customFields).length > 0;
+      if (hasLabels && !hasColumn && !hasFields) return 'app.suggestions.accept_labels';
+      if (hasColumn && !hasLabels && !hasFields) return 'app.suggestions.accept_column';
       return 'app.suggestions.accept_classification';
+    }
     case 'breakdown':
       return 'app.suggestions.accept_breakdown';
     default:
       return undefined;
+  }
+}
+
+/**
+ * The operation a proposal is asked again as, read from the prompt that made it - the one fact
+ * that tells a summary of the entry from a summary of its discussion - and from the shape where
+ * the prompt is one this version has never met.
+ */
+export function operationOf(suggestion: Pick<Suggestion, 'prompt_id'>, shape: Shape): Operation {
+  switch (suggestion.prompt_id) {
+    case 'summarize':
+      return 'summarize';
+    case 'summarize-thread':
+      return 'summarize-thread';
+    case 'classify':
+      return 'classify';
+    case 'decompose':
+      return 'decompose';
+    case 'suggest-item-fields':
+      return 'suggest-fields';
+  }
+  switch (shape.shape) {
+    case 'classification':
+      return 'classify';
+    case 'breakdown':
+      return 'decompose';
+    case 'duplicates':
+      return 'duplicates';
+    default:
+      return isSummary(shape) ? 'summarize' : 'suggest-fields';
   }
 }
 
