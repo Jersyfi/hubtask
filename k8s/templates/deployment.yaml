@@ -80,6 +80,9 @@ spec:
               mountPath: /var/run/hubtask/restore-drill
               readOnly: true
             {{- end }}
+            {{- with $.Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -93,6 +96,9 @@ spec:
         - name: media
           persistentVolumeClaim:
             claimName: {{ $.Values.storage.persistence.existingClaim | default (printf "%s-media" (include "hubtask.fullname" $)) }}
+        {{- end }}
+        {{- with $.Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with $.Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
