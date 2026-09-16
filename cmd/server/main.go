@@ -1853,7 +1853,7 @@ func run() error {
 			Router: rest.Mounted{
 				Router: controller.Routes(),
 				Path:   calendar.WellKnown,
-				Mount:  http.RedirectHandler(calendar.Prefix, http.StatusMovedPermanently),
+				Mount:  calendar.Discovery(),
 			},
 			Path:   calendar.Prefix,
 			Prefix: true,

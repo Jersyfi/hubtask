@@ -56,6 +56,15 @@ const Prefix = "/caldav/"
 // follows the redirect to Prefix.
 const WellKnown = "/.well-known/caldav"
 
+// Discovery answers WellKnown: a permanent redirect into the tree, to any method and to any
+// caller. RFC 6764 has the client ask unauthenticated and follow the redirect before it presents
+// anything, so the address is public (rest.PublicRoutes) - it discloses nothing, since the tree
+// it points at still asks - and it takes Basic beside the bearer like the tree does, for the
+// client that sends its credential from the first request on (issue 719).
+func Discovery() http.Handler {
+	return http.RedirectHandler(Prefix, http.StatusMovedPermanently)
+}
+
 const (
 	nsDAV    = "DAV:"
 	nsCalDAV = "urn:ietf:params:xml:ns:caldav"
