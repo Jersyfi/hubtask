@@ -2601,6 +2601,7 @@
   "app.fields.values_none": "No custom field applies to this kind of entry.",
   "app.fields.unknown_kind": "This field is of a kind this version cannot edit. A newer client will.",
   "app.fields.empty_value": "Not set",
+  "app.fields.number_invalid": "Not a number. Write it with digits and “{separator}” for the decimals.",
   "app.fields.deciding": "Reading what this type carries…",
   "app.fields.saved": "Saved.",
   "app.fields.pick_person": "Who this field names",
