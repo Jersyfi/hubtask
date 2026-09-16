@@ -95,6 +95,9 @@
       "name": "jobs"
     },
     {
+      "name": "imports"
+    },
+    {
       "name": "ai"
     },
     {
@@ -2919,6 +2922,82 @@
             }
           },
           "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/imports": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "operationId": "importEntries",
+        "summary": "Import entries from another system into a hub",
+        "description": "Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,\na Microsoft To Do dump - and lands its contents as collections under the named hub. One\ningestion path (backup-restore.md §9): the file is converted into the same records a\nbackup archive holds and applied through the restore in `MERGE` mode with `skip`, under\nidentities derived from the source's own, so that importing the same file twice creates\nnothing the second time.\n\nThe file arrives first, through the media upload staged with `usage: IMPORT`; this\noperation names the object. The work is a job, and `result_url` points at the import,\nwhere the report is read once the job has finished. The object is deleted when the job\nends, success or failure: a file somebody imported is not a file they attached.\n\nNeeds `STRUCTURE` on the hub, because an import creates collections there.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The import was accepted; `result_url` is where its report will be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRef"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/imports/{importId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ImportId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "operationId": "getImport",
+        "summary": "An import and its report",
+        "description": "What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.\n",
+        "responses": {
+          "200": {
+            "description": "The import",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRun"
+                }
+              }
+            }
+          },
+          "404": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -9376,6 +9455,15 @@
           "format": "uuid"
         }
       },
+      "ImportId": {
+        "name": "importId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "JobId": {
         "name": "jobId",
         "in": "path",
@@ -13935,7 +14023,8 @@
             "type": "string",
             "enum": [
               "COVER",
-              "ATTACHMENT"
+              "ATTACHMENT",
+              "IMPORT"
             ]
           },
           "status": {
@@ -14038,8 +14127,10 @@
             "type": "string",
             "enum": [
               "COVER",
-              "ATTACHMENT"
-            ]
+              "ATTACHMENT",
+              "IMPORT"
+            ],
+            "description": "What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.\n"
           }
         }
       },
@@ -17173,6 +17264,126 @@
               "null"
             ],
             "description": "The message code of the failure, never a message and never free text."
+          }
+        }
+      },
+      "ImportKind": {
+        "type": "string",
+        "enum": [
+          "CSV",
+          "TRELLO",
+          "GOOGLE_TASKS",
+          "MICROSOFT_TODO"
+        ],
+        "description": "The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.\n"
+      },
+      "ImportRequest": {
+        "type": "object",
+        "required": [
+          "media_id",
+          "kind",
+          "hub_id"
+        ],
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The uploaded file, staged with `usage: IMPORT` and confirmed."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ImportKind"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub the imported collections land under."
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "For `CSV` only: which column carries which field, by header name, where the header does not already say - `title`, `notes`, `due`, `completed`, `labels`, `bucket`, `parent`. A column not mapped and not named like a field is ignored.\n"
+          }
+        }
+      },
+      "ImportRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "hub_id",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ImportKind"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "media_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "report": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RestoreReport"
+              }
+            ],
+            "description": "What landed, in the restore's shape; absent until the job has run."
+          },
+          "refused": {
+            "type": "array",
+            "description": "The rows the converter could not read, by their number in the source and the code that says why. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "row",
+                "code"
+              ],
+              "properties": {
+                "row": {
+                  "type": "integer"
+                },
+                "code": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },

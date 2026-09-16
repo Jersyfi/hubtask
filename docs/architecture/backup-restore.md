@@ -492,6 +492,17 @@ Separate from backup, but technically related: the importer for Trello, Microsof
 Tasks, and CSV (roadmap `0.9.0`) produces the same internal intermediate form as an archive. That
 gives one ingestion path, not two.
 
+**Built in P-08, with CSV as the first kind.** `POST /imports` names a file uploaded through the
+media flow with `usage: IMPORT` and the hub the collections land under; a converter per kind
+(`infrastructure/importer`) turns the file into `archive.Record`s under identities derived from
+the hub and the source's own identity — the file's digest for a CSV, the board's identifier for
+a Trello export — so that the same source imported into the same hub twice produces the same
+identifiers, and the applier (`Applier.Ingest`) lands them in `MERGE` mode with `skip`, which
+makes the second import a no-op. The run's row (`import_run`) carries the report in §8.2's shape
+and the rows the converter refused by number; the file is deleted when the job ends; and the
+workspace's synchronisation epoch advances as after a `MERGE` restore, because the rows land
+without change log entries (§12 B-5). `hubctl import <kind> <file> --hub <id>` is the verb.
+
 The user export (`GET /tenants/{id}:export`, GDPR portability) also produces a Hubtask archive —
 unencrypted or password-protected, directly downloadable. An export is therefore simultaneously a
 restorable backup, without a second format coming into existence.

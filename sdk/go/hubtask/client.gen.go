@@ -1443,6 +1443,54 @@ func (e HttpRequestCallMethod) Valid() bool {
 	}
 }
 
+// Defines values for ImportKind.
+const (
+	ImportKindCSV           ImportKind = "CSV"
+	ImportKindGOOGLETASKS   ImportKind = "GOOGLE_TASKS"
+	ImportKindMICROSOFTTODO ImportKind = "MICROSOFT_TODO"
+	ImportKindTRELLO        ImportKind = "TRELLO"
+)
+
+// Valid indicates whether the value is a known member of the ImportKind enum.
+func (e ImportKind) Valid() bool {
+	switch e {
+	case ImportKindCSV:
+		return true
+	case ImportKindGOOGLETASKS:
+		return true
+	case ImportKindMICROSOFTTODO:
+		return true
+	case ImportKindTRELLO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportRunStatus.
+const (
+	ImportRunStatusFAILED    ImportRunStatus = "FAILED"
+	ImportRunStatusPENDING   ImportRunStatus = "PENDING"
+	ImportRunStatusRUNNING   ImportRunStatus = "RUNNING"
+	ImportRunStatusSUCCEEDED ImportRunStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the ImportRunStatus enum.
+func (e ImportRunStatus) Valid() bool {
+	switch e {
+	case ImportRunStatusFAILED:
+		return true
+	case ImportRunStatusPENDING:
+		return true
+	case ImportRunStatusRUNNING:
+		return true
+	case ImportRunStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -1723,6 +1771,7 @@ func (e MediaObjectStatus) Valid() bool {
 const (
 	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
 	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
+	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectUsage enum.
@@ -1731,6 +1780,8 @@ func (e MediaObjectUsage) Valid() bool {
 	case MediaObjectUsageATTACHMENT:
 		return true
 	case MediaObjectUsageCOVER:
+		return true
+	case MediaObjectUsageIMPORT:
 		return true
 	default:
 		return false
@@ -1759,6 +1810,7 @@ func (e MediaTransferMethod) Valid() bool {
 const (
 	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
 	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
+	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
 )
 
 // Valid indicates whether the value is a known member of the MediaUploadRequestUsage enum.
@@ -1767,6 +1819,8 @@ func (e MediaUploadRequestUsage) Valid() bool {
 	case MediaUploadRequestUsageATTACHMENT:
 		return true
 	case MediaUploadRequestUsageCOVER:
+		return true
+	case MediaUploadRequestUsageIMPORT:
 		return true
 	default:
 		return false
@@ -4798,6 +4852,50 @@ type IdentityProviderConfiguration struct {
 	Issuer       string  `json:"issuer"`
 }
 
+// ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
+type ImportKind string
+
+// ImportRequest defines model for ImportRequest.
+type ImportRequest struct {
+	// HubId The hub the imported collections land under.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
+	Kind ImportKind `json:"kind"`
+
+	// Mapping For `CSV` only: which column carries which field, by header name, where the header does not already say - `title`, `notes`, `due`, `completed`, `labels`, `bucket`, `parent`. A column not mapped and not named like a field is ignored.
+	Mapping *map[string]string `json:"mapping,omitempty"`
+
+	// MediaId The uploaded file, staged with `usage: IMPORT` and confirmed.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
+
+// ImportRun defines model for ImportRun.
+type ImportRun struct {
+	CreatedAt  time.Time          `json:"created_at"`
+	ErrorCode  *string            `json:"error_code,omitempty"`
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
+	Kind    ImportKind          `json:"kind"`
+	MediaId *openapi_types.UUID `json:"media_id,omitempty"`
+
+	// Refused The rows the converter could not read, by their number in the source and the code that says why. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.
+	Refused *[]struct {
+		Code string `json:"code"`
+		Row  int    `json:"row"`
+	} `json:"refused,omitempty"`
+
+	// Report What landed, in the restore's shape; absent until the job has run.
+	Report *RestoreReport  `json:"report,omitempty"`
+	Status ImportRunStatus `json:"status"`
+}
+
+// ImportRunStatus defines model for ImportRun.Status.
+type ImportRunStatus string
+
 // InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
 type InboundTriggerToken struct {
 	RotatedAt time.Time          `json:"rotated_at"`
@@ -5200,11 +5298,13 @@ type MediaUploadRequest struct {
 	FileName    *string `json:"file_name,omitempty"`
 
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
-	Size  int64                   `json:"size"`
+	Size int64 `json:"size"`
+
+	// Usage What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage defines model for MediaUploadRequest.Usage.
+// MediaUploadRequestUsage What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -7090,6 +7190,9 @@ type IdempotencyKey = openapi_types.UUID
 // IfMatch defines model for IfMatch.
 type IfMatch = string
 
+// ImportId defines model for ImportId.
+type ImportId = openapi_types.UUID
+
 // IncludeArchived defines model for IncludeArchived.
 type IncludeArchived = bool
 
@@ -7454,6 +7557,12 @@ type CreateGroupParams struct {
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ImportEntriesParams defines parameters for ImportEntries.
+type ImportEntriesParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
@@ -8179,6 +8288,9 @@ type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
+// ImportEntriesJSONRequestBody defines body for ImportEntries for application/json ContentType.
+type ImportEntriesJSONRequestBody = ImportRequest
 
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
@@ -9713,6 +9825,55 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
 	ConfigureIdentityProvider(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportEntriesWithBody Import entries from another system into a hub
+	//
+	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+	// identities derived from the source's own, so that importing the same file twice creates
+	// nothing the second time.
+	//
+	// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+	// operation names the object. The work is a job, and `result_url` points at the import,
+	// where the report is read once the job has finished. The object is deleted when the job
+	// ends, success or failure: a file somebody imported is not a file they attached.
+	//
+	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /imports (the `ImportEntries` operationId).
+	ImportEntriesWithBody(ctx context.Context, params *ImportEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportEntries Import entries from another system into a hub
+	//
+	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+	// identities derived from the source's own, so that importing the same file twice creates
+	// nothing the second time.
+	//
+	// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+	// operation names the object. The work is a job, and `result_url` points at the import,
+	// where the report is read once the job has finished. The object is deleted when the job
+	// ends, success or failure: a file somebody imported is not a file they attached.
+	//
+	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /imports (the `ImportEntries` operationId).
+	ImportEntries(ctx context.Context, params *ImportEntriesParams, body ImportEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetImport An import and its report
+	//
+	// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+	//
+	// Corresponds with GET /imports/{importId} (the `GetImport` operationId).
+	GetImport(ctx context.Context, importId ImportId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCalendarFeeds performs a GET /integrations/calendar-feeds (the `ListCalendarFeeds` operationId) request.
 	//
@@ -14160,6 +14321,85 @@ func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, contentT
 // Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
 func (c *Client) ConfigureIdentityProvider(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfigureIdentityProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ImportEntriesWithBody Import entries from another system into a hub
+//
+// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+// identities derived from the source's own, so that importing the same file twice creates
+// nothing the second time.
+//
+// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+// operation names the object. The work is a job, and `result_url` points at the import,
+// where the report is read once the job has finished. The object is deleted when the job
+// ends, success or failure: a file somebody imported is not a file they attached.
+//
+// Needs `STRUCTURE` on the hub, because an import creates collections there.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /imports (the `ImportEntries` operationId).
+func (c *Client) ImportEntriesWithBody(ctx context.Context, params *ImportEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportEntriesRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ImportEntries Import entries from another system into a hub
+//
+// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+// identities derived from the source's own, so that importing the same file twice creates
+// nothing the second time.
+//
+// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+// operation names the object. The work is a job, and `result_url` points at the import,
+// where the report is read once the job has finished. The object is deleted when the job
+// ends, success or failure: a file somebody imported is not a file they attached.
+//
+// Needs `STRUCTURE` on the hub, because an import creates collections there.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /imports (the `ImportEntries` operationId).
+func (c *Client) ImportEntries(ctx context.Context, params *ImportEntriesParams, body ImportEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportEntriesRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetImport An import and its report
+//
+// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+//
+// Corresponds with GET /imports/{importId} (the `GetImport` operationId).
+func (c *Client) GetImport(ctx context.Context, importId ImportId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetImportRequest(c.Server, importId)
 	if err != nil {
 		return nil, err
 	}
@@ -22470,6 +22710,95 @@ func NewConfigureIdentityProviderRequestWithBody(server string, contentType stri
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewImportEntriesRequest calls the generic ImportEntries builder with application/json body
+func NewImportEntriesRequest(server string, params *ImportEntriesParams, body ImportEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewImportEntriesRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewImportEntriesRequestWithBody constructs an http.Request for the ImportEntries method, with any body, and a specified content type
+func NewImportEntriesRequestWithBody(server string, params *ImportEntriesParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/imports")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetImportRequest constructs an http.Request for the GetImport method
+func NewGetImportRequest(server string, importId ImportId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "importId", importId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/imports/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -30869,6 +31198,57 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
 	ConfigureIdentityProviderWithResponse(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
 
+	// ImportEntriesWithBodyWithResponse Import entries from another system into a hub
+	//
+	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+	// identities derived from the source's own, so that importing the same file twice creates
+	// nothing the second time.
+	//
+	// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+	// operation names the object. The work is a job, and `result_url` points at the import,
+	// where the report is read once the job has finished. The object is deleted when the job
+	// ends, success or failure: a file somebody imported is not a file they attached.
+	//
+	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /imports (the `ImportEntries` operationId).
+	ImportEntriesWithBodyWithResponse(ctx context.Context, params *ImportEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportEntriesResult, error)
+
+	// ImportEntriesWithResponse Import entries from another system into a hub
+	//
+	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// ingestion path (backup-restore.md §9): the file is converted into the same records a
+	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+	// identities derived from the source's own, so that importing the same file twice creates
+	// nothing the second time.
+	//
+	// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+	// operation names the object. The work is a job, and `result_url` points at the import,
+	// where the report is read once the job has finished. The object is deleted when the job
+	// ends, success or failure: a file somebody imported is not a file they attached.
+	//
+	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /imports (the `ImportEntries` operationId).
+	ImportEntriesWithResponse(ctx context.Context, params *ImportEntriesParams, body ImportEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportEntriesResult, error)
+
+	// GetImportWithResponse An import and its report
+	//
+	// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /imports/{importId} (the `GetImport` operationId).
+	GetImportWithResponse(ctx context.Context, importId ImportId, reqEditors ...RequestEditorFn) (*GetImportResult, error)
+
 	// ListCalendarFeedsWithResponse performs a GET /integrations/calendar-feeds (the `ListCalendarFeeds` operationId) request.
 	//
 	// The caller's own calendar feeds, newest first - never anybody else's, whatever the role: a feed is a credential its owner holds, and an administrator who could list them could subscribe to them.
@@ -37694,6 +38074,116 @@ func (r ConfigureIdentityProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfigureIdentityProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ImportEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *Problem
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r ImportEntriesResult) GetJSON202() *JobRef {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r ImportEntriesResult) GetApplicationproblemJSON403() *Problem {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r ImportEntriesResult) GetApplicationproblemJSON404() *Problem {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r ImportEntriesResult) GetApplicationproblemJSON422() *Problem {
+	return r.ApplicationproblemJSON422
+}
+
+// GetBody returns the raw response body bytes
+func (r ImportEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ImportEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetImportResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ImportRun
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetImportResult) GetJSON200() *ImportRun {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r GetImportResult) GetApplicationproblemJSON404() *Problem {
+	return r.ApplicationproblemJSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetImportResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetImportResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetImportResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetImportResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -46783,6 +47273,75 @@ func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.
 	return ParseConfigureIdentityProviderResult(rsp)
 }
 
+// ImportEntriesWithBodyWithResponse Import entries from another system into a hub
+//
+// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+// identities derived from the source's own, so that importing the same file twice creates
+// nothing the second time.
+//
+// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+// operation names the object. The work is a job, and `result_url` points at the import,
+// where the report is read once the job has finished. The object is deleted when the job
+// ends, success or failure: a file somebody imported is not a file they attached.
+//
+// Needs `STRUCTURE` on the hub, because an import creates collections there.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /imports (the `ImportEntries` operationId).
+func (c *ClientWithResponses) ImportEntriesWithBodyWithResponse(ctx context.Context, params *ImportEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportEntriesResult, error) {
+	rsp, err := c.ImportEntriesWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportEntriesResult(rsp)
+}
+
+// ImportEntriesWithResponse Import entries from another system into a hub
+//
+// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
+// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// ingestion path (backup-restore.md §9): the file is converted into the same records a
+// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
+// identities derived from the source's own, so that importing the same file twice creates
+// nothing the second time.
+//
+// The file arrives first, through the media upload staged with `usage: IMPORT`; this
+// operation names the object. The work is a job, and `result_url` points at the import,
+// where the report is read once the job has finished. The object is deleted when the job
+// ends, success or failure: a file somebody imported is not a file they attached.
+//
+// Needs `STRUCTURE` on the hub, because an import creates collections there.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /imports (the `ImportEntries` operationId).
+func (c *ClientWithResponses) ImportEntriesWithResponse(ctx context.Context, params *ImportEntriesParams, body ImportEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportEntriesResult, error) {
+	rsp, err := c.ImportEntries(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportEntriesResult(rsp)
+}
+
+// GetImportWithResponse An import and its report
+//
+// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /imports/{importId} (the `GetImport` operationId).
+func (c *ClientWithResponses) GetImportWithResponse(ctx context.Context, importId ImportId, reqEditors ...RequestEditorFn) (*GetImportResult, error) {
+	rsp, err := c.GetImport(ctx, importId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetImportResult(rsp)
+}
+
 // ListCalendarFeedsWithResponse performs a GET /integrations/calendar-feeds (the `ListCalendarFeeds` operationId) request.
 //
 // The caller's own calendar feeds, newest first - never anybody else's, whatever the role: a feed is a credential its owner holds, and an administrator who could list them could subscribe to them.
@@ -53403,6 +53962,86 @@ func ParseConfigureIdentityProviderResult(rsp *http.Response) (*ConfigureIdentit
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportEntriesResult parses an HTTP response from a ImportEntriesWithResponse call
+func ParseImportEntriesResult(rsp *http.Response) (*ImportEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetImportResult parses an HTTP response from a GetImportWithResponse call
+func ParseGetImportResult(rsp *http.Response) (*GetImportResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetImportResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ImportRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
 
 	}
 
