@@ -14,7 +14,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/importer"
-	mediarepo "github.com/Jersyfi/hubtask/core/application/repository/media"
 	"github.com/Jersyfi/hubtask/core/application/service/backup"
 	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
@@ -33,7 +32,7 @@ import (
 // path" means in code.
 type Runner struct {
 	Runs       repository.Runs
-	Objects    mediarepo.Objects
+	Objects    ObjectFinder
 	Store      storage.ObjectStore
 	Converters map[domain.Kind]repository.Converter
 	Applier    backup.Applier
@@ -54,9 +53,10 @@ type RunInput struct {
 	Report   func(float64)
 }
 
-// Run performs the import. An error the run itself produced is recorded on the run and answered
-// as nil, so that the job finishes rather than retrying a file that will fail the same way; an
-// error reaching the database is returned, so that the job retries.
+// Run performs the import. A failure of the file - the wrong kind, an unreadable document - is
+// the run's outcome, recorded on it and answered as nil, so that the job finishes rather than
+// retrying a file that will fail the same way; the store or the database being away is returned,
+// so that the job retries and the next attempt continues the same run.
 func (r Runner) Run(ctx context.Context, in RunInput) error {
 	scope := persistence.Scope{TenantID: in.TenantID}
 
@@ -95,6 +95,12 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 	}
 
 	report, refused, applied := r.perform(ctx, in, run, object)
+	if applied != nil && isTransient(applied) {
+		// The store or the database being away is not the file's fault: the run stays RUNNING
+		// with the progress it recorded, the job retries, and the next attempt claims the same
+		// run and continues where the batches got to.
+		return applied
+	}
 	return r.finish(ctx, scope, run, report, refused, applied)
 }
 
@@ -192,14 +198,8 @@ func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
 	// A failure of the file is the run's outcome, recorded above; the job is done with it.
-	if applied != nil && !isTransient(applied) {
-		return nil
-	}
-	return applied
+	return err
 }
 
 // errorCode is what the run records about a failure: the typed error's detail, or the category.

@@ -12,6 +12,7 @@ package importer
 import (
 	"context"
 	"errors"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	mediarepo "github.com/Jersyfi/hubtask/core/application/repository/media"
@@ -49,14 +50,39 @@ type Authorizer interface {
 	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
 }
 
+// The slices of the ports the import needs - an interface each, so that the use case and the
+// runner can be tested without a database and the presentation layer keeps pointing inwards.
+type (
+	// ObjectFinder answers the uploaded file's record, and marks it for deletion when the job
+	// ends.
+	ObjectFinder interface {
+		Find(ctx context.Context, id shared.ID) (media.Object, error)
+		MarkDeleted(ctx context.Context, id shared.ID, at time.Time) (bool, error)
+	}
+	// ContainerFinder answers the hub.
+	ContainerFinder interface {
+		Find(ctx context.Context, id shared.ID) (work.Container, error)
+	}
+	// Enqueuer accepts the job.
+	Enqueuer interface {
+		Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
+	}
+)
+
+var (
+	_ ObjectFinder    = mediarepo.Objects(nil)
+	_ ContainerFinder = workrepo.Containers(nil)
+	_ Enqueuer        = queue.Queue(nil)
+)
+
 // ImportEntries accepts an import: checks the hub, the file and the kind, writes the run and
 // enqueues the job.
 type ImportEntries struct {
 	Runs       repository.Runs
-	Objects    mediarepo.Objects
-	Containers workrepo.Containers
+	Objects    ObjectFinder
+	Containers ContainerFinder
 	Authorizer Authorizer
-	Jobs       queue.Queue
+	Jobs       Enqueuer
 	// Kinds is which kinds this build converts; a kind the contract declares and no converter
 	// serves is refused by name here rather than in the job.
 	Kinds      []domain.Kind
