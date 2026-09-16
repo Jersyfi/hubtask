@@ -502,6 +502,10 @@ makes the second import a no-op. The run's row (`import_run`) carries the report
 and the rows the converter refused by number; the file is deleted when the job ends; and the
 workspace's synchronisation epoch advances as after a `MERGE` restore, because the rows land
 without change log entries (§12 B-5). `hubctl import <kind> <file> --hub <id>` is the verb.
+P-09 and P-10 added the other three kinds: a Trello board export, Google Takeout's `Tasks.json`,
+and the Graph API's JSON for Microsoft To Do, whose zone names are Windows names — the converter
+carries Unicode CLDR's `windowsZones` table (`infrastructure/importer/WindowsZones.go`) rather
+than a library, and refuses a row whose zone it does not know rather than guessing.
 
 The user export (`GET /tenants/{id}:export`, GDPR portability) also produces a Hubtask archive —
 unencrypted or password-protected, directly downloadable. An export is therefore simultaneously a

@@ -663,6 +663,31 @@ expect_contains "import trello" "$board_imported" "TRELLO"
 # The member's assignment has no place here and is counted rather than lost silently.
 expect_contains "import trello counts the unmapped members" "$board_imported" '"unmapped_members": 1'
 
+echo "--- a Google Tasks Takeout and a Microsoft To Do dump, imported (P-10) ---"
+cat > "$WORK_DIR/Tasks.json" <<'TAKEOUT'
+{"kind":"tasks#taskLists","items":[{"kind":"tasks#taskList","id":"e2elist1","title":"Imported list","items":[
+ {"kind":"tasks#task","id":"e2etask1","title":"Imported Google task","status":"needsAction","due":"2026-09-25T00:00:00.000Z","position":"0"},
+ {"kind":"tasks#task","id":"e2etask2","title":"Its child","status":"completed","completed":"2026-09-02T10:00:00.000Z","parent":"e2etask1","position":"0"}]}]}
+TAKEOUT
+takeout_imported="$(hubctl --json import google-tasks "$WORK_DIR/Tasks.json" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import google-tasks" "$takeout_imported" "SUCCEEDED"
+expect_contains "import google-tasks" "$takeout_imported" "GOOGLE_TASKS"
+cat > "$WORK_DIR/todo.json" <<'GRAPH'
+{"value":[{"id":"e2egraph1","displayName":"Imported To Do","wellknownListName":"defaultList","tasks":{"value":[
+ {"id":"e2egraphtask1","title":"Imported Graph task","status":"notStarted","importance":"high","isReminderOn":true,
+  "body":{"content":"From Graph.","contentType":"text"},
+  "dueDateTime":{"dateTime":"2026-09-26T00:00:00.0000000","timeZone":"Pacific Standard Time"},
+  "reminderDateTime":{"dateTime":"2036-09-25T09:00:00.0000000","timeZone":"Pacific Standard Time"},
+  "checklistItems":[{"id":"e2echk1","displayName":"A step","isChecked":false}],"linkedResources":[]}]}}]}
+GRAPH
+graph_imported="$(hubctl --json import microsoft-todo "$WORK_DIR/todo.json" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import microsoft-todo" "$graph_imported" "SUCCEEDED"
+expect_contains "import microsoft-todo" "$graph_imported" "MICROSOFT_TODO"
+# The reminder landed beside the task: one record of its kind in the report.
+expect_contains "import microsoft-todo lands the reminder" "$graph_imported" '"reminders": 1'
+# The file is what two Graph requests answer; the verb without a file says which.
+expect_contains "import microsoft-todo explains itself" "$(hubctl import microsoft-todo)" "/me/todo/lists"
+
 echo "--- a custom field, defined and written ---"
 defined="$(hubctl field define --key urgency --kind SELECT --collection "$COLLECTION_ID" --options low,high)"
 expect_contains "field define" "$defined" "urgency"

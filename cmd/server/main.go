@@ -580,8 +580,10 @@ func run() error {
 	// The imports (P-08): the run's row, and the converters this build serves, one per kind.
 	importRuns := postgres.NewImportRunRepository()
 	importConverters := map[importdomain.Kind]importrepo.Converter{
-		importdomain.KindCSV:    importadapter.CSV{},
-		importdomain.KindTrello: importadapter.Trello{},
+		importdomain.KindCSV:           importadapter.CSV{},
+		importdomain.KindTrello:        importadapter.Trello{},
+		importdomain.KindGoogleTasks:   importadapter.GoogleTasks{},
+		importdomain.KindMicrosoftTodo: importadapter.MicrosoftTodo{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {
