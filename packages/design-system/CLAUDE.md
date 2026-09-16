@@ -9,7 +9,9 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
 
 * **No second place for a value.** A design system drifts at exactly the point where the same
   number is written twice. `pnpm lint` fails on a colour written outside `tokens.json`, and on a
-  bare length or duration in application code.
+  bare length or duration in application code — and on a `var(--x)` that names a property
+  `tokens.json` does not generate and no file declares, because that declaration is invalid at
+  computed-value time and paints nothing, silently.
 * **No sentence in a component.** Every string is a message code in `locales/en.json`
   ([ADR-0011](../../docs/adr/ADR-0011-i18n-message-codes.md)); a component takes resolved text as a
   prop. How that text is written is
