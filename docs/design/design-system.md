@@ -487,25 +487,25 @@ rule is the proof; where it needs a walk, the walk is evidence in `docs/evidence
 
 | Criterion | What the product commits to | Proved by |
 |---|---|---|
-| 1.1.1 Non-text content | Every `Icon` carries a name or is marked decorative; an image a person uploads carries the description they gave it | The `Icon` contract (ADR-0041); the workbench story of every component that draws one |
-| 1.3.1 Info and relationships | Structure is markup: headings, lists, tables, labels bound to controls, `VisuallyHidden` where a name is not on screen | The workbench's tab-order walk; a screen-reader pass at `F5` |
-| 1.4.1 Use of colour | Colour never stands alone — rule 3 | Rule 3, reviewed per story |
-| 1.4.3 / 1.4.11 Contrast | Text 4.5:1, controls and the focus ring 3:1, in both modes, against every surface | `test/contrast.test.js` on every `pnpm test` (§1) |
-| 1.4.4 Resize text | 200 % through page zoom without loss, the trade §3 records | The workbench's zoom axis |
-| 1.4.10 Reflow | 320 CSS px without horizontal scrolling for content that does not require it | The workbench's five breakpoints |
+| 1.1.1 Non-text content | Every `Icon` carries a name or is marked decorative; an image a person uploads carries the description they gave it | The `Icon` contract (ADR-0041); the workbench story of every component that draws one; every icon on every route read from the tree at `F5-13` — 378, all hidden beside a name ([A11Y-2026-09-16.md](../evidence/A11Y-2026-09-16.md)) |
+| 1.3.1 Info and relationships | Structure is markup: headings, lists, tables, labels bound to controls, `VisuallyHidden` where a name is not on screen | The workbench's tab-order walk; the tree of every route at `F5-13` (one `h1`, no skipped level, captions and `th`, lists of `li`) and the residue test that holds every screen to one `h1` since `F5-11`; the reader pass itself is still owed ([A11Y-2026-09-16.md](../evidence/A11Y-2026-09-16.md) says which readers were not run and why) |
+| 1.4.1 Use of colour | Colour never stands alone — rule 3 | Rule 3, reviewed per story; the six lifts painted with an undefined token ([#711](https://github.com/Jersyfi/hubtask/issues/711)) are missing colour, not colour alone — the state is carried by text or `aria-current` — and the issue owes the token |
+| 1.4.3 / 1.4.11 Contrast | Text 4.5:1, controls and the focus ring 3:1, in both modes, against every surface | `test/contrast.test.js` on every `pnpm test` (§1); `F5-01`'s AI tokens entered the roles the day they were added |
+| 1.4.4 Resize text | 200 % through page zoom without loss, the trade §3 records | The workbench's zoom axis; not re-walked per route at `F5` — the axis is the proof, and `1.0.0` criterion 16 repeats it |
+| 1.4.10 Reflow | 320 CSS px without horizontal scrolling for content that does not require it | The workbench's five breakpoints; not re-walked per route at `F5`, for the same reason |
 | 1.4.12 Text spacing | Nothing breaks when spacing is widened | Walked on every route with the text-spacing bookmarklet at `F5-12`: no overflow, nothing clipped |
-| 2.1.1 / 2.1.2 Keyboard | Everything operable by keyboard, no trap; `Dialog` traps focus and returns it | Rule 5; the tab-order walk; `layers.ts` (§6) |
-| 2.4.3 Focus order | The order of the DOM is the order that makes sense | The tab-order walk |
-| 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6) |
-| 2.5.7 Dragging movements | Every drag has a keyboard or button alternative — ordering by drag and drop is also ordering by a menu | `F2`'s ordering surfaces; walked at `F5` |
-| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§9) and its token test |
+| 2.1.1 / 2.1.2 Keyboard | Everything operable by keyboard, no trap; `Dialog` traps focus and returns it | Rule 5; `layers.ts` (§6); every route by `Tab` at `F5-11`, no trap, every overlay entered and left ([A11Y-keyboard-2026-09-16.md](../evidence/A11Y-keyboard-2026-09-16.md)) |
+| 2.4.3 Focus order | The order of the DOM is the order that makes sense | Every route at `F5-11`; the six places focus fell to `body` — every write from a list, five inline editors, a card that changed column — fixed there (`SyncEngine` keeps a `ready` state through a reload; `focusFirst()`) |
+| 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6); every stop at `F5-11` matched `:focus-visible` and drew the ring, none under a sticky region; the one transparent stop (`UploadField`'s input) left the tab order |
+| 2.5.7 Dragging movements | Every drag has a keyboard or button alternative — ordering by drag and drop is also ordering by a menu | `F2`'s ordering surfaces; walked at `F5-11`: the row's menu, the card's menu, the collection's toolbar — each announced, focus kept |
+| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§9) and its token test; not re-walked at `F5` |
 | 2.3.3 Animation from interactions | Reduced motion honoured from the media query and from the product's own preference — the switch on the profile, kept on the device (`F5-12`) | Rule 6; `[data-motion="reduced"]` (ADR-0037); `lib/motion.ts` |
-| 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry rendered in another language (`content_language`) | `i18n-l10n.md` §6, lines 1 and 9 |
-| 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | Reviewed per story |
-| 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and says what would be accepted — the problem document's `fields[]`, rendered from codes | `F1-07`'s problem-details rendering |
+| 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry rendered in another language (`content_language`) | `i18n-l10n.md` §6, lines 1 and 9; `F5-06` (the picker, `lang` on title and notes) and the tree at `F5-13` (`h1[lang=pt-BR]`) |
+| 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | Reviewed per story; read in the source at `F5-11`: no `onfocus` handler in either client tree, no `onchange` that navigates |
+| 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and says what would be accepted — the problem document's `fields[]`, rendered from codes | `F1-07`'s problem-details rendering; a form's refusal an alert since `F5-12`; the tree at `F5-13` |
 | 3.3.7 Redundant entry | Nothing asks twice for what it already has in the same flow; a second proof for a second privileged action is the security exception, by the contract's one-grant-one-action rule | Reviewed per flow at `F5-12` |
-| 3.3.8 Accessible authentication | No cognitive test at sign-in; the TOTP code may be pasted | The sign-in and step-up surfaces (`F4`) |
-| 4.1.2 Name, role, value | Every control has a name, a role and a state the accessibility tree exposes — native elements first, ARIA only where nothing native exists | The workbench's tab-order walk; the screen-reader pass |
+| 3.3.8 Accessible authentication | No cognitive test at sign-in; the TOTP code may be pasted | The sign-in and step-up surfaces (`F4`); not re-walked at `F5` |
+| 4.1.2 Name, role, value | Every control has a name, a role and a state the accessibility tree exposes — native elements first, ARIA only where nothing native exists | The workbench's tab-order walk; the tree of every route at `F5-13` — 676 controls, every one named; the reader pass itself is still owed ([A11Y-2026-09-16.md](../evidence/A11Y-2026-09-16.md)) |
 | 4.1.3 Status messages | A change that is not focused is announced — a save, a job ending, a proposal arriving, the health banner, a bulk action's count — through the frame's one live region; a refusal beside its form is an alert | Every write in `lib/data/` audited at `F5-12`; `announce.svelte.ts` |
 
 **Two walks, filed as evidence.** A screen-reader pass with VoiceOver (macOS and iOS), NVDA
