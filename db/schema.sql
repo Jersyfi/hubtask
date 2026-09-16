@@ -1847,6 +1847,33 @@ CREATE TABLE field_clock (
   PRIMARY KEY (tenant_id, entity, entity_id, field)
 );
 
+-- An import from another system (P-08, backup-restore.md §9): what was asked, where it stands,
+-- and the report the applier wrote in the restore's shape. Not a restore_run, which names a
+-- target and an archive at it; an import's file is a media object deleted when the job ends.
+CREATE TABLE import_run (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  requested_by  uuid NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('CSV','TRELLO','GOOGLE_TASKS','MICROSOFT_TODO')),
+  media_id      uuid NOT NULL,
+  hub_id        uuid NOT NULL,
+  mapping       jsonb,
+  -- The requester's zone and language at the request, for a source that writes dates without a
+  -- zone and entries without a language: what the rows are read in.
+  time_zone     text,
+  language      text,
+  status        text NOT NULL DEFAULT 'PENDING'
+                  CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED')),
+  report        jsonb,
+  refused       jsonb,
+  progress      jsonb,
+  error_code    text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  started_at    timestamptz,
+  finished_at   timestamptz
+);
+CREATE INDEX import_run_tenant_idx ON import_run (tenant_id, created_at DESC);
+
 CREATE TABLE sync_device (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1998,7 +2025,8 @@ BEGIN
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',
-    'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock'
+    'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
+    'import_run'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
