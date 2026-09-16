@@ -85,6 +85,12 @@ type Runner struct {
 	// latency, never delivery, and a runner that stopped working when the notification channel
 	// did would have turned an optimisation into a dependency.
 	Woken <-chan struct{}
+	// Diagnose names what a failure's cause was, in attributes safe for a log line: a database
+	// error's SQLSTATE and the constraint it broke, never its message, which quotes the row.
+	// Injected, because the cause is an adapter's error type and this layer knows no adapter;
+	// nil logs the code alone, which is what the rule-10-safe line always carried. What it buys
+	// is the difference between "postgres.query_failed" and knowing which statement (issue 692).
+	Diagnose func(error) []slog.Attr
 }
 
 // bookkeepingTimeout bounds the statements that are not the job itself: claiming a batch, and
@@ -194,7 +200,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	if !known {
 		// Not this process's job. It goes back to the queue with a code that says so, and a pod
 		// that knows the kind picks it up.
-		r.fail(ctx, job, "queue.handler_missing")
+		r.fail(ctx, job, "queue.handler_missing", nil)
 		return
 	}
 
@@ -227,7 +233,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 		})
 	})
 	if err != nil {
-		r.fail(ctx, job, shared.AsError(err).DetailCode)
+		r.fail(ctx, job, shared.AsError(err).DetailCode, err)
 		return
 	}
 
@@ -265,7 +271,7 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 // It runs on a context of its own. The job's context may be cancelled - by its own deadline, or by
 // the shutdown that killed the job - and a failure nobody could record is a job that stays
 // RUNNING until its lease expires, which is a delay for no reason.
-func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
+func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause error) {
 	if code == "" {
 		code = "queue.job_failed"
 	}
@@ -298,13 +304,19 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
 	}
 
 	// The code and the identifiers only. What the job was working on may be user content, and a
-	// log line is not the place for it (rule 10).
-	slog.WarnContext(ctx, "job failed",
+	// log line is not the place for it (rule 10). The diagnosis adds what the cause's adapter
+	// can say without quoting anything: which constraint, which SQLSTATE.
+	attrs := []slog.Attr{
 		slog.String("job_kind", job.Kind.String()),
 		slog.String("job_id", job.ID.String()),
 		slog.Int("attempt", job.Attempts),
 		slog.String("error_code", code),
-		slog.Bool("dead_letter", attemptClass == "final"))
+		slog.Bool("dead_letter", attemptClass == "final"),
+	}
+	if r.Diagnose != nil && cause != nil {
+		attrs = append(attrs, r.Diagnose(cause)...)
+	}
+	slog.LogAttrs(ctx, slog.LevelWarn, "job failed", attrs...)
 
 	failCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
 	defer cancel()
