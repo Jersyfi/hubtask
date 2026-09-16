@@ -15,8 +15,7 @@ import (
 func TestTheScheduleListingShowsTheTrialAndSetMovesIt(t *testing.T) {
 	schedule := `{"id":"` + itemID + `","target_id":"` + targetID + `","scope":{"kind":"TENANT"},` +
 		`"rrule":"FREQ=DAILY;BYHOUR=3","timezone":"UTC","mode":"FULL","enabled":true,"trial_restore":true}`
-	var stub *installation
-	stub = serve(t, func(w http.ResponseWriter, r *http.Request) {
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodGet {
 			_, _ = w.Write([]byte("[" + schedule + "]"))
