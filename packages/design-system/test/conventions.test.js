@@ -18,6 +18,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+
+import { findPhysical, selftest } from '../build/lint-direction.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,19 +59,24 @@ test('src/ is not empty and every file was read', () => {
   assert.ok(ALL.length >= 10, `only ${ALL.length} components found - the walk is broken`);
 });
 
-test('no component writes left or right', () => {
+test('the physical-side rule catches every planted violation before it is trusted', () => {
+  // Selftest first, per the habit `gate-selftest` established on the Go side: a checker that
+  // cannot fail proves nothing by passing.
+  assert.equal(selftest(), true);
+});
+
+test('no component writes a physical inline side', () => {
   // §3: alignment is start/end only, because RTL is a requirement and not a later port. The
-  // failure is invisible in development and total in Arabic, which is why it is a gate.
-  const physical =
-    /\b(?:margin|padding|border|inset)?-?(?:left|right)\s*:|:\s*(?:left|right)\s*[;}]|\btext-align\s*:\s*(?:left|right)\b/;
+  // failure is invisible in development and total in Arabic, which is why it is a gate. The rule
+  // itself lives in build/lint-direction.js, where `pnpm lint` applies it to every client tree
+  // (F5-10); here it reads each component's whole source - the template's inline styles included.
   for (const component of ALL) {
-    const style = styleOf(component.source);
-    const match = physical.exec(style);
-    assert.equal(
-      match,
-      null,
-      `${component.relative} uses ${match?.[0]?.trim()}. Use the logical property - inline-start, ` +
-        'inline-end, or text-align: start (design-system.md §3).',
+    const hits = findPhysical(component.source);
+    assert.deepEqual(
+      hits,
+      [],
+      `${component.relative}:${hits[0]?.line} uses ${hits[0]?.found}. Write ${hits[0]?.instead} ` +
+        '(design-system.md §3).',
     );
   }
 });

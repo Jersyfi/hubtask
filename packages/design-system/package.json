@@ -23,7 +23,7 @@
     "build": "node build/build.js",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "icons": "node build/icons.js",
-    "lint": "node build/lint-no-literals.js",
+    "lint": "node build/lint-no-literals.js && node build/lint-direction.js --selftest && node build/lint-direction.js",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "node --test test/*.test.js",
     "workbench": "node build/build.js && vite --config workbench/vite.config.ts",
