@@ -92,6 +92,7 @@ import (
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
+	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
@@ -1797,8 +1798,35 @@ func run() error {
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
 		// it still travels through the whole middleware chain, which is what makes an agent's call
 		// authenticated, rate limited and observed exactly like a person's (ai-first.md §1.1).
+		// The CalDAV tree (P-06) is mounted the same way, as a prefix: WebDAV rather than REST,
+		// outside the contract, inside the middleware chain - authenticated by the same token
+		// path, through HTTP Basic because a calendar client can send nothing else. The discovery
+		// address of RFC 6764 redirects into it.
+		caldav := rest.Mounted{
+			Router: rest.Mounted{
+				Router: controller.Routes(),
+				Path:   calendar.WellKnown,
+				Mount:  http.RedirectHandler(calendar.Prefix, http.StatusMovedPermanently),
+			},
+			Path:   calendar.Prefix,
+			Prefix: true,
+			Mount: &calendar.Controller{
+				Feeds: work.ListCalendarFeeds{Writer: calendarFeedWriter},
+				Views: work.ExportView{
+					Views: savedViews, Containers: containers, Permits: authorizer,
+					Query: work.QueryItems{
+						Items: items, ItemLabels: itemLabels, Containers: containers,
+						Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+					},
+					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+					Clock: clockadapter.System{},
+				},
+				BaseURL: cfg.BaseURL,
+				Now:     clockadapter.System{}.Now,
+			},
+		}
 		apiRoutes := rest.Mounted{
-			Router: controller.Routes(),
+			Router: caldav,
 			Path:   mcp.Path,
 			Mount: mcp.Server{
 				Catalogue: useCases,
@@ -1906,7 +1934,7 @@ func run() error {
 			Handler: rest.Observed{
 				Router: rest.Fallback{
 					API:      apiRoutes,
-					Reserved: []string{rest.APIBasePath + "/", mcp.Path},
+					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
 					UI:       ui,
 					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Shedding{
 						Routes: apiRoutes, Admit: admit, Signals: metrics,

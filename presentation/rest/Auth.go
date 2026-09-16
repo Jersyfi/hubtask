@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/presentation/calendar"
 )
 
 // PublicRoutes are the operations api/openapi.yaml declares with `security: []`. Everything else
@@ -76,6 +77,18 @@ var PublicRoutes = map[string]bool{
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.
 const bearerScheme = "bearer"
 
+// basicScheme is accepted on BasicRoutes only: a CalDAV client sends the credential it was
+// configured with as a Basic password and has nowhere to put a bearer (P-06). The password is
+// the token - a personal access token, revocable where a password is not - and the user name is
+// whatever the client shows; it is read and discarded.
+const basicScheme = "basic"
+
+// BasicRoutes are the mounted trees that take HTTP Basic beside the bearer. The route label is
+// the mount's path (Mounted.Handler).
+var BasicRoutes = map[string]bool{
+	calendar.Prefix: true,
+}
+
 // TokenAuthenticator is the slice of the authentication use case this middleware needs. An
 // interface rather than the handler, so that the middleware can be tested without a database and
 // the presentation layer keeps pointing inwards.
@@ -106,7 +119,8 @@ type Authenticated struct {
 func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
-	credential, err := bearerCredential(r)
+	_, route := a.Routes.Handler(r)
+	credential, err := credentialOf(r, BasicRoutes[route])
 	if err != nil {
 		WriteUnauthenticated(w, err, requestID)
 		return
@@ -116,8 +130,14 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// No credential at all. A public route is served anonymously; everything else is refused
 		// here rather than by the handler, because a handler that has to remember is one that
 		// will forget.
-		if _, route := a.Routes.Handler(r); PublicRoutes[route] {
+		if PublicRoutes[route] {
 			a.Next.ServeHTTP(w, r)
+			return
+		}
+		if BasicRoutes[route] {
+			// The challenge a CalDAV client acts on: it prompts for the account and the token
+			// on a Basic challenge, and shows an error on a Bearer one.
+			writeBasicChallenge(w, shared.ErrUnauthenticated.WithDetail("access.credential_required"), requestID)
 			return
 		}
 		WriteUnauthenticated(w, shared.ErrUnauthenticated.WithDetail("access.credential_required"), requestID)
@@ -134,6 +154,10 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		FallbackTimeZone: a.Locale.DefaultTimeZone,
 	})
 	if err != nil {
+		if BasicRoutes[route] {
+			writeBasicChallenge(w, err, requestID)
+			return
+		}
 		WriteUnauthenticated(w, err, requestID)
 		return
 	}
@@ -182,12 +206,26 @@ func tenantLabel(host, baseHost string) string {
 // bearerCredential reads the Authorization header. An absent header is not an error - that is an
 // anonymous request, and only the route decides whether it is allowed. A malformed one is.
 func bearerCredential(r *http.Request) (string, error) {
+	return credentialOf(r, false)
+}
+
+// credentialOf reads the credential a request presents: a bearer anywhere, and on a Basic
+// route also a Basic password. The Basic user name is not a credential and is not read.
+func credentialOf(r *http.Request, basicAllowed bool) (string, error) {
 	header := r.Header.Get("Authorization")
 	if header == "" {
 		return "", nil
 	}
 
 	scheme, value, found := strings.Cut(header, " ")
+	if found && basicAllowed && strings.EqualFold(scheme, basicScheme) {
+		// The standard library's parser, on a copy of the request so the header is read once.
+		_, password, ok := r.BasicAuth()
+		if !ok || strings.TrimSpace(password) == "" {
+			return "", shared.ErrUnauthenticated.WithDetail("access.token_malformed")
+		}
+		return password, nil
+	}
 	if !found || !strings.EqualFold(scheme, bearerScheme) {
 		return "", shared.ErrUnauthenticated.WithDetail("access.scheme_unsupported")
 	}
@@ -196,6 +234,17 @@ func bearerCredential(r *http.Request) (string, error) {
 		return "", shared.ErrUnauthenticated.WithDetail("access.token_malformed")
 	}
 	return value, nil
+}
+
+// writeBasicChallenge is the answer a Basic route gives to a missing or refused credential: the
+// same problem document, under the challenge a CalDAV client prompts on. A Bearer challenge
+// would make the client show an error instead of asking again.
+func writeBasicChallenge(w http.ResponseWriter, err error, requestID string) {
+	problem := ProblemFrom(err, requestID)
+	if problem.Status == http.StatusUnauthorized {
+		w.Header().Set("WWW-Authenticate", `Basic realm="Hubtask", charset="UTF-8"`)
+	}
+	writeProblem(w, problem)
 }
 
 // WriteUnauthenticated answers a refused credential. A 401 without WWW-Authenticate is
