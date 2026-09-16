@@ -335,6 +335,13 @@ Three of those steps are worth pinning down as E-06 implemented them:
   than one that decides the same records again. That is what makes `duplicate` resumable at all:
   the question it turns on — "does the workspace already hold this" — changes its answer once the
   first attempt has written half the archive.
+* **A child that arrives before its parent waits for it.** The order within an entity is by change
+  time, so a task renamed after its activity was made — or a whole tree imported in one instant —
+  puts the child first, and `parent_id` is an immediate foreign key. The applier defers such a row
+  and writes the deferred ones once the entity's stream is exhausted, in rounds; what still has no
+  parent after a round that settled nothing is withheld as `orphaned` rather than failing the run.
+  The progress marker stops before the first deferred row until it is settled, so a replaced
+  worker re-reads it instead of skipping it (#693).
 * **Step 6's index needs no pass of its own.** The search document is maintained by a trigger on
   the row, so rows written by a restore are indexed as they land.
 
