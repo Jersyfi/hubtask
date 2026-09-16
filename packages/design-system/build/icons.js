@@ -92,6 +92,12 @@ export const DECLARED = {
     'file-text', // a note
     'repeat', // a recurrence rule
   ],
+  'The AI treatment — F5-01': [
+    // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
+    // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
+    // voice-and-tone.md §7.2 - and it takes the text's colour like every other glyph.
+    'sparkles',
+  ],
 };
 
 const SOURCE = path.join(packageRoot, 'node_modules', 'lucide-static', 'icon-nodes.json');
