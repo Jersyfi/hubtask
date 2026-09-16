@@ -185,7 +185,14 @@ func up(ctx context.Context, pool *sql.DB) error {
 		return fmt.Errorf("reading the ledger: %w", err)
 	}
 
-	if err := goose.UpContext(ctx, pool, "migrations"); err != nil {
+	// A migration merged after a higher-numbered one is applied rather than refused. Numbers are
+	// taken when a branch is cut and the branches merge in whatever order review finishes them, so
+	// a database that took 0091 before 0090 existed is the ordinary outcome of two pull requests,
+	// not a corrupted ledger - it is how the integration environment stopped deploying on
+	// 2026-09-16, with P-13's 0090 merged after P-14's 0091. Goose's default refuses that case to
+	// protect a migration that assumes its predecessors; ADR-0003's are expand-only and assume
+	// nothing but the schema they name, and the test beside this proves the case applies.
+	if err := goose.UpContext(ctx, pool, "migrations", goose.WithAllowMissing()); err != nil {
 		return fmt.Errorf("applying: %w", err)
 	}
 
