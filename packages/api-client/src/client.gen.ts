@@ -141,6 +141,11 @@ export class HubtaskClient {
     return this.call("POST", "/templates/{templateId}:instantiate", { "templateId": templateId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Ask AI to draft a template from a description */
+  aiGenerateTemplate(body: NonNullable<operations["aiGenerateTemplate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<void> {
+    return this.call("POST", "/templates:generate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "void", options.signal);
+  }
+
   /** GET /views */
   listSavedViews(options: CallOptions & { readonly query?: NonNullable<operations["listSavedViews"]['parameters']['query']> } = {}): Promise<operations["listSavedViews"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/views", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

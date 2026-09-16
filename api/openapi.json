@@ -334,6 +334,42 @@
         }
       }
     },
+    "/templates:generate": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "operationId": "aiGenerateTemplate",
+        "summary": "Ask AI to draft a template from a description",
+        "description": "Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.\nAsynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateGeneration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The provider will be asked; the draft appears under /suggestions"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/views": {
       "get": {
         "tags": [
@@ -10441,7 +10477,7 @@
           "payload": {
             "type": "object",
             "additionalProperties": true,
-            "description": "What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. It is data, never an instruction, and nothing acts on it until somebody accepts.\n"
+            "description": "What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.\n"
           },
           "source": {
             "type": "string",
@@ -10614,9 +10650,10 @@
         "enum": [
           "FIELDS",
           "DECOMPOSITION",
-          "DUPLICATES"
+          "DUPLICATES",
+          "TEMPLATE"
         ],
-        "description": "What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.\n`DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.\n"
+        "description": "What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.\n`TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.\n`DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.\n"
       },
       "SuggestionStatus": {
         "type": "string",
@@ -15648,6 +15685,27 @@
             "items": {
               "$ref": "#/components/schemas/TemplateNode"
             }
+          }
+        }
+      },
+      "TemplateGeneration": {
+        "type": "object",
+        "description": "What to ask for, and where the template would belong.",
+        "required": [
+          "collection_id",
+          "description"
+        ],
+        "properties": {
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The collection the template is drafted for and would be defined in. The draft's scope is `COLLECTION` and this container; a model names no destination.\n"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "What the template should produce, in the caller's own words — \"onboarding a new colleague, with the accounts to create and the introductions in the first week\". It travels to the provider as content, never as instruction.\n"
           }
         }
       },
