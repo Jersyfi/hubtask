@@ -206,6 +206,8 @@ class Items {
       parent_id?: string | null;
       title: string;
       notes?: string | null;
+      /** BCP-47, the language the title and the notes are in. Omitted takes the creator's locale. */
+      content_language?: string | null;
     },
     idempotencyKey: string,
   ): Promise<WorkItem> {
@@ -223,7 +225,7 @@ class Items {
     // `start_at` is a plain scalar on the patch, which is D-01's own decision: a start is one
     // instant with nothing qualifying it, while a due date is three fields that only mean
     // something together and therefore has a writer of its own.
-    body: { title?: string; notes?: string | null; start_at?: string | null },
+    body: { title?: string; notes?: string | null; start_at?: string | null; content_language?: string | null },
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {

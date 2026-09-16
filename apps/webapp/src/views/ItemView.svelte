@@ -56,7 +56,9 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
+  import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
   import SuggestionStrip from '../lib/entries/SuggestionStrip.svelte';
+  import TranslatePanel from '../lib/entries/TranslatePanel.svelte';
   import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
@@ -67,6 +69,7 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
   import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
+  import { textLanguages } from '../lib/data/query.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -262,6 +265,16 @@
   let isEditing = $state(false);
   let draftTitle = $state('');
   let draftNotes = $state('');
+  /** The entry's language as the editor holds it; empty is "none stated". */
+  let draftLanguage = $state('');
+  const languages = $derived(textLanguages(manifest.value));
+
+  // The language the entry is written in, where it differs from the page's, so that a screen
+  // reader switches voice on the title and the notes (design-system.md §10, 3.1.2). The same
+  // language as the document says nothing - `lang` there would be noise.
+  const entryLang = $derived(
+    item?.content_language && item.content_language !== messages.locale ? item.content_language : undefined,
+  );
   let isSaving = $state(false);
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isTitleFailure = $state(false);
@@ -306,6 +319,7 @@
     if (!item) return;
     draftTitle = item.title;
     draftNotes = item.notes ?? '';
+    draftLanguage = item.content_language ?? '';
     writeFailure = undefined;
     isTitleFailure = false;
     isEditing = true;
@@ -321,7 +335,13 @@
       // is "there are none", and a note of zero characters is not a note somebody wrote.
       await items.update(
         item.id,
-        { title: draftTitle.trim(), notes: draftNotes.trim() === '' ? null : draftNotes },
+        {
+          title: draftTitle.trim(),
+          notes: draftNotes.trim() === '' ? null : draftNotes,
+          // Sent only when it moved: null clears a stated language, and a language the
+          // installation cannot index is stored all the same (the contract's tolerance).
+          ...(draftLanguage !== (item.content_language ?? '') ? { content_language: draftLanguage || null } : {}),
+        },
         item.version,
       );
       // Both the entry and its history come back on their own: the write invalidates `/items`, and
@@ -360,6 +380,15 @@
           error={isTitleFailure ? writeFailure?.message : undefined}
         />
         <Textarea label={t('app.entries.notes')} bind:value={draftNotes} rows={6} />
+        <LanguagePicker
+          {languages}
+          bind:value={draftLanguage}
+          label={t('app.entries.language')}
+          hint={t('app.entries.language_hint')}
+          otherLabel={t('app.entries.language_other')}
+          tagLabel={t('app.entries.language_tag')}
+          tagHint={t('app.entries.language_tag_hint')}
+        />
         <!-- Everything that is not about the title is a sentence above the buttons: a version
              conflict is the ordinary case here, and nothing about the title is wrong when the
              entry moved underneath the reader. -->
@@ -377,7 +406,7 @@
       </Stack>
     {:else}
       <Stack gap="150">
-        <h1 class="name">{item.title}</h1>
+        <h1 class="name" lang={entryLang}>{item.title}</h1>
         <div class="marks">
           <Badge>{item.type}</Badge>
           {#if item.archived_at}
@@ -387,7 +416,7 @@
             <Badge tone="success">{t('app.entries.complete', { title: item.title })}</Badge>
           {/if}
         </div>
-        {#if item.notes}<p class="notes">{item.notes}</p>{/if}
+        {#if item.notes}<p class="notes" lang={entryLang}>{item.notes}</p>{/if}
         <div>
           <!-- Offered with its reason rather than hidden when the entry is archived, which is what
                every other refused control in this application does. -->
@@ -402,6 +431,7 @@
       <Stack gap="150" data-ai>
         <h2 class="section">{t('app.suggestions.title')}</h2>
         <SuggestionStrip {item} />
+        <TranslatePanel {item} {languages} />
       </Stack>
     {/if}
 

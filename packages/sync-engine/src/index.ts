@@ -89,6 +89,8 @@ export type {
   HealthReport,
   IdentityProvider,
   AiProvider,
+  AiTranslation,
+  AiTranslateRequest,
   AiProviderConfiguration,
   AiProviderKind,
   AiJurisdiction,
