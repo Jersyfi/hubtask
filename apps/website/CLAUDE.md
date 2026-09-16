@@ -13,7 +13,11 @@ skips politely on a fork or an installation where the deploy variables are not c
 
 * **No API calls.** If this page needs data from an installation, the requirement is wrong: this
   is a brochure, and `apps/webapp` is the application.
-* **No dependency on `@hubtask/api-client`.** Only the design system.
+* **From `@hubtask/api-client`, the document and nothing else.** The site takes
+  `openapi.json` and `events.json` from it at build time to prerender `/developers/api/` (P-01,
+  `src/lib/api/`), which is the contract as documentation. It takes no type from it and makes no
+  request with it; a page that imported `paths` or `components` would be a page about to call
+  something. The design system is the other dependency, and there is no third.
 * **No colour, spacing, radius or duration written here** — same rule as everywhere, same lint
   ([ADR-0029](../../docs/adr/ADR-0029-design-system-tokens.md)).
 * **The framework is decided**: Svelte 5 with SvelteKit and `adapter-static`, fully prerendered

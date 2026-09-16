@@ -196,7 +196,7 @@ towards what is shared:
 
 ```
 apps/webapp  → packages/design-system, packages/sync-engine
-apps/website → packages/design-system
+apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
 ```
@@ -204,7 +204,11 @@ packages/*   → other packages/* only, acyclically (ADR-0033)
 `apps/webapp` reaches the contract *through* the engine rather than beside it: `sync-engine`
 re-exports the types it needs, and a component that imported `@hubtask/api-client` directly would
 be a component that could reach past the seam ADR-0033 §2 puts there. The engine is the only edge
-between the two packages, and the only one the map has gained.
+between the two packages. `apps/website` has the other edge to `api-client`, and it is a different
+kind: the site reads the **document** — `dist/openapi.json` and `dist/events.json`, which
+`make api-client` copies from `api/` — at build time, to prerender the API reference (P-01), and
+never a type and never a call. A brochure that called the API would be the application; one that
+renders the contract is documentation.
 
 Forbidden:
 

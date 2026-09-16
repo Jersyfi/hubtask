@@ -6,7 +6,8 @@
 //
 // The map, in full (project-structure.md §2.1):
 //
-//   apps/*     → packages/*                      never another app
+//   apps/*     → packages/*                      never another app (the website: the design
+//                                                system, and the api-client for its document)
 //   packages/* → other packages/*, acyclically   never an app
 //
 // The Go side has gate-architecture; until this script the workspace half of the map held by
