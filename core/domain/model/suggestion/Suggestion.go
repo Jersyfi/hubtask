@@ -111,9 +111,13 @@ const (
 	// which of those they mean. So it is a kind of its own precisely because its effect is its
 	// own, and `:dismiss` is what closes it.
 	KindDuplicates Kind = "DUPLICATES"
+	// KindTemplate proposes a template for the collection it targets (P-11). Its own kind by the
+	// rule above: accepting it defines a template rather than changing an entry, and the payload
+	// is a template's input rather than an entry's fields or a tree under one.
+	KindTemplate Kind = "TEMPLATE"
 )
 
-var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates}
+var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate}
 
 // Kinds is the closed set, in the contract's order.
 func Kinds() []Kind { return slices.Clone(kinds) }

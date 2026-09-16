@@ -41,6 +41,23 @@ func (d *double) Walk(_ context.Context, _ Period, yield func(Record) error) err
 
 func (d *double) LatestAnchor(context.Context) (Anchor, error) { return Anchor{}, nil }
 
+func (d *double) ChainEnd(context.Context) (ChainEnd, error) {
+	if len(d.stored) == 0 {
+		return ChainEnd{}, nil
+	}
+	last := d.stored[len(d.stored)-1]
+	return ChainEnd{LastSeq: last.Seq, Hash: last.Hash}, nil
+}
+
+func (d *double) HashAt(_ context.Context, seq int64) ([]byte, error) {
+	for _, record := range d.stored {
+		if record.Seq == seq {
+			return record.Hash, nil
+		}
+	}
+	return nil, shared.ErrNotFound
+}
+
 var _ Trail = (*double)(nil)
 
 func TestTheTrailIsReadableAndNarrowable(t *testing.T) {

@@ -179,9 +179,15 @@ func (b *builder) item(in Item) (shared.ID, bool) {
 	if in.CreatedAt != nil {
 		created = *in.CreatedAt
 	}
+	// A root is a task and a child is the work under it, unless the converter said otherwise:
+	// the model holds `type = TASK` and `parent_id IS NULL` to be one fact, and a default that
+	// ignored the parent would write a row the database refuses.
 	kind := in.Type
 	if kind == "" {
 		kind = "TASK"
+		if in.ParentKey != "" {
+			kind = "WORK_PACKAGE"
+		}
 	}
 	data := map[string]any{
 		"id": id.String(), "collection_id": in.Collection.String(), "type": kind,
@@ -228,6 +234,39 @@ func (b *builder) link(item, label shared.ID) {
 	})
 }
 
+// comment adds a comment by the importing person, with the source's author named in the text:
+// a Trello member is not an account here, and a comment's author must be one.
+func (b *builder) comment(key string, item shared.ID, author, body string, at *time.Time) {
+	id := b.id("comments", key)
+	text := clip(strings.TrimSpace(body), 20000)
+	if text == "" {
+		return
+	}
+	if author != "" {
+		text = clip(author+": "+text, 20000)
+	}
+	created := b.source.Now
+	if at != nil {
+		created = *at
+	}
+	b.add("comments", id, map[string]any{
+		"id": id.String(), "item_id": item.String(), "author_id": b.source.Actor.String(),
+		"parent_comment_id": nil, "body": text, "created_at": stamp(created), "edited_at": nil,
+		"deleted_at": nil, "version": 1, "kind": "USER", "system_code": nil, "system_params": nil,
+	})
+}
+
+// reminder adds an absolute reminder at the moment another system kept, by e-mail to whoever
+// the entry concerns; one whose moment has passed is marked lapsed by the restore that applies it.
+func (b *builder) reminder(key string, item shared.ID, at time.Time) {
+	id := b.id("reminders", key)
+	b.add("reminders", id, map[string]any{
+		"id": id.String(), "item_id": item.String(), "offset_spec": "ABS:" + at.UTC().Format(time.RFC3339),
+		"channels": []string{"EMAIL"}, "recipients": []string{}, "state": "PENDING", "fire_at": stamp(at),
+		"created_at": stamp(b.source.Now), "updated_at": nil, "version": 1,
+	})
+}
+
 func (b *builder) result(refused []refusal) service.Result {
 	out := service.Result{Records: b.records}
 	for _, r := range refused {
@@ -267,4 +306,32 @@ func tokenFor(name string) string {
 		sum = (sum*31 + int(r)) % len(tokens)
 	}
 	return string(tokens[sum])
+}
+
+// tokenNamed maps a colour word another system uses onto the nearest of the ten tokens, and
+// falls back to the hash where the word is unknown.
+func tokenNamed(colour, name string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(colour, "_")[0])) {
+	case "green":
+		return "green"
+	case "yellow", "lime":
+		return "lime"
+	case "orange":
+		return "orange"
+	case "red":
+		return "red"
+	case "purple", "violet":
+		return "violet"
+	case "blue", "sky":
+		return "blue"
+	case "pink", "magenta":
+		return "magenta"
+	case "black", "gray", "grey", "slate":
+		return "slate"
+	case "teal", "cyan":
+		return "teal"
+	case "amber", "gold":
+		return "amber"
+	}
+	return tokenFor(name)
 }

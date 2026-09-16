@@ -22,7 +22,9 @@ third-party apps, sessions, OIDC and MFA (`0.6.0` — the PAT stays the only cre
 `api-guidelines.md` §11 phases it); general resource quotas per tenant (`0.6.0` — the rule engine's
 own throttle and dedupe land here, a tenant-wide budget does not); the NATS adapter (`0.6.0`); the
 official n8n node and Zapier app (`0.9.0` — this milestone builds the endpoints they will be
-generated against); the importers that share the jumble's ingestion path (`0.9.0`); IMAP polling as
+generated against); the importers (`0.9.0` — this line used to say they share *the jumble's*
+ingestion path; they share the *restore's*, as `backup-restore.md` §9 decided in phase 0 and
+`0.9.0`'s P-08 built, and P-17 corrected the sentence here rather than let it stand); IMAP polling as
 a mail intake (see decision 6 — the intake lands webhook-first, and the IMAP adapter waits for its
 dependency decision); and every screen that renders any of it — the client builds this surface in
 **F4**, one window behind, exactly as `roadmap.md` says it should.

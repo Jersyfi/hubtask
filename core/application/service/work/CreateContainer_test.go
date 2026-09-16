@@ -295,8 +295,13 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn
 	return u.run(ctx, s, fn)
 }
 
+// inTransaction marks a context the double handed to a transaction's body, so that a sink can
+// refuse an append made outside one - the real store does (`postgres.no_transaction_in_context`),
+// and a double that did not is how AiTranslate's audit entry came to be written bare (#703).
+type inTransaction struct{}
+
 func (u *unitOfWork) run(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
-	if err := fn(ctx); err != nil {
+	if err := fn(context.WithValue(ctx, inTransaction{}, true)); err != nil {
 		u.rolledBack = true
 		return err
 	}
