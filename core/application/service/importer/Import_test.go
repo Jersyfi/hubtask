@@ -179,6 +179,13 @@ func (c converter) Convert(_ context.Context, source repository.Source) (reposit
 			result.Refused = append(result.Refused, domain.Refusal{Row: i + 1, Code: domain.CodeRowTitleMissing})
 			continue
 		}
+		if strings.HasPrefix(line, "@") {
+			if result.Unmapped == nil {
+				result.Unmapped = map[string]int{}
+			}
+			result.Unmapped["members"]++
+			line = strings.TrimPrefix(line, "@")
+		}
 		id := backupdomain.DuplicateID(collection, "work_items", line)
 		result.Records["work_items"] = append(result.Records["work_items"], archive.Record{
 			ID: id.String(), Op: archive.OpUpsert, UpdatedAt: source.Now,
@@ -413,7 +420,7 @@ func TestTheRunnerLandsTheFileAndFinishesTheRun(t *testing.T) {
 	run := newRuns()
 	run.rows[runID] = pendingRun()
 	object := readyObject()
-	r, landed, stored, epoch := runner(run, object, map[string][]byte{object.StorageKey: []byte("one\ntwo\nbad three\n")}, converter{})
+	r, landed, stored, epoch := runner(run, object, map[string][]byte{object.StorageKey: []byte("one\n@two\nbad three\n")}, converter{})
 	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil {
 		t.Fatal(err)
 	}
@@ -426,6 +433,11 @@ func TestTheRunnerLandsTheFileAndFinishesTheRun(t *testing.T) {
 	}
 	if len(finished.Refused) != 1 || finished.Refused[0].Row != 3 {
 		t.Errorf("refused = %+v", finished.Refused)
+	}
+	// What the source carried and the product has no place for is counted with what did not
+	// land, by reason.
+	if finished.Report.Withheld["unmapped_members"] != 1 {
+		t.Errorf("withheld = %v", finished.Report.Withheld)
 	}
 	if len(landed.rows["work_item"]) != 2 || len(landed.rows["container"]) != 2 {
 		t.Errorf("landed = %v", landed.rows)
