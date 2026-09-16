@@ -911,3 +911,42 @@ func TestARestoredReminderWhoseMomentHasGoneIsMarkedLapsed(t *testing.T) {
 		t.Errorf("a reminder that had fired came back as %v", state)
 	}
 }
+
+// The trial's reader (B-4, P-14): an archive just written is read back whole and compared with
+// the workspace, nothing is written, and a member damaged at the target is refused by name.
+func TestTheTrialInspectsAnArchiveAndRefusesADamagedOne(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+
+	report, err := h.applier().Inspect(context.Background(), InspectInput{
+		TenantID: tenantID, TargetID: targetID, Store: h.opener.store, Archive: h.prefix,
+	})
+	if err != nil {
+		t.Fatalf("inspecting: %v", err)
+	}
+	if h.imports.writes != 0 || len(h.restores.outcomes) != 0 {
+		t.Fatalf("the trial wrote %d rows and closed %d restores", h.imports.writes, len(h.restores.outcomes))
+	}
+	if report.New != 3 || report.Entities["work_items"] != 2 {
+		t.Errorf("the trial's report is %+v", report)
+	}
+
+	// The attacker, or the disk: one member's bytes change after the write.
+	member := h.prefix + "/" + archive.DataName("work_items")
+	damaged := append([]byte{}, h.opener.store.objects[member]...)
+	damaged[len(damaged)/2] ^= 0xff
+	h.opener.store.objects[member] = damaged
+	_, err = h.applier().Inspect(context.Background(), InspectInput{
+		TenantID: tenantID, TargetID: targetID, Store: h.opener.store, Archive: h.prefix,
+	})
+	if shared.AsError(err).DetailCode != archive.CodeChecksumMismatch || memberOf(err) == "" {
+		t.Errorf("a damaged member answered %v", err)
+	}
+
+	// And a member gone from the target.
+	delete(h.opener.store.objects, member)
+	if _, err := h.applier().Inspect(context.Background(), InspectInput{
+		TenantID: tenantID, TargetID: targetID, Store: h.opener.store, Archive: h.prefix,
+	}); err == nil {
+		t.Error("an archive missing a member was read back as sound")
+	}
+}

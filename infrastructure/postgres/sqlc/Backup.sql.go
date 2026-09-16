@@ -111,7 +111,8 @@ func (q *Queries) DeleteBackupTarget(ctx context.Context, id pgtype.UUID) (int64
 
 const dueBackupSchedules = `-- name: DueBackupSchedules :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 WHERE enabled AND next_run_at IS NOT NULL AND next_run_at <= $1::timestamptz
 ORDER BY next_run_at
@@ -156,6 +157,7 @@ func (q *Queries) DueBackupSchedules(ctx context.Context, arg DueBackupSchedules
 			&i.NextRunAt,
 			&i.CreatedAt,
 			&i.Version,
+			&i.TrialRestore,
 		); err != nil {
 			return nil, err
 		}
@@ -179,7 +181,7 @@ func (q *Queries) ExpireBackupRun(ctx context.Context, id pgtype.UUID) error {
 const findBackupRun = `-- name: FindBackupRun :one
 SELECT id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status, archive_path,
        size_bytes, item_count, media_count, checksum, snapshot_at, started_at, finished_at,
-       error_code, expires_at, verified_at, verify_ok
+       error_code, expires_at, verified_at, verify_ok, trial_report, trial_at
 FROM backup_run
 WHERE id = $1
 `
@@ -205,6 +207,8 @@ type FindBackupRunRow struct {
 	ExpiresAt   pgtype.Timestamptz
 	VerifiedAt  pgtype.Timestamptz
 	VerifyOk    *bool
+	TrialReport []byte
+	TrialAt     pgtype.Timestamptz
 }
 
 func (q *Queries) FindBackupRun(ctx context.Context, id pgtype.UUID) (FindBackupRunRow, error) {
@@ -231,13 +235,16 @@ func (q *Queries) FindBackupRun(ctx context.Context, id pgtype.UUID) (FindBackup
 		&i.ExpiresAt,
 		&i.VerifiedAt,
 		&i.VerifyOk,
+		&i.TrialReport,
+		&i.TrialAt,
 	)
 	return i, err
 }
 
 const findBackupSchedule = `-- name: FindBackupSchedule :one
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 WHERE id = $1
 `
@@ -263,6 +270,7 @@ func (q *Queries) FindBackupSchedule(ctx context.Context, id pgtype.UUID) (Backu
 		&i.NextRunAt,
 		&i.CreatedAt,
 		&i.Version,
+		&i.TrialRestore,
 	)
 	return i, err
 }
@@ -355,8 +363,10 @@ UPDATE backup_run SET
   checksum     = $7,
   snapshot_at  = COALESCE($8, snapshot_at),
   finished_at  = $9,
-  error_code   = $10
-WHERE id = $11 AND status = 'RUNNING'
+  error_code   = $10,
+  trial_report = $11,
+  trial_at     = $12
+WHERE id = $13 AND status = 'RUNNING'
 `
 
 type FinishBackupRunParams struct {
@@ -370,6 +380,8 @@ type FinishBackupRunParams struct {
 	SnapshotAt  pgtype.Timestamptz
 	FinishedAt  pgtype.Timestamptz
 	ErrorCode   *string
+	TrialReport []byte
+	TrialAt     pgtype.Timestamptz
 	ID          pgtype.UUID
 }
 
@@ -387,6 +399,8 @@ func (q *Queries) FinishBackupRun(ctx context.Context, arg FinishBackupRunParams
 		arg.SnapshotAt,
 		arg.FinishedAt,
 		arg.ErrorCode,
+		arg.TrialReport,
+		arg.TrialAt,
 		arg.ID,
 	)
 	if err != nil {
@@ -457,14 +471,15 @@ const insertBackupSchedule = `-- name: InsertBackupSchedule :exec
 
 INSERT INTO backup_schedule (
   id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-  include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+  include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+  trial_restore
 )
 VALUES (
   $1, $2, $3, $4,
   $5, $6, $7, $8,
   $9, $10, $11,
   $12, $13::text[], true, $14,
-  $15, 1
+  $15, 1, $16
 )
 `
 
@@ -484,6 +499,7 @@ type InsertBackupScheduleParams struct {
 	NotifyOn     []string
 	NextRunAt    pgtype.Timestamptz
 	CreatedAt    pgtype.Timestamptz
+	TrialRestore bool
 }
 
 // ─────────────────────────── The schedules and the runs (E-05) ───────────────────────────
@@ -508,6 +524,7 @@ func (q *Queries) InsertBackupSchedule(ctx context.Context, arg InsertBackupSche
 		arg.NotifyOn,
 		arg.NextRunAt,
 		arg.CreatedAt,
+		arg.TrialRestore,
 	)
 	return err
 }
@@ -615,7 +632,7 @@ func (q *Queries) LastSuccessfulBackupPerTarget(ctx context.Context) ([]LastSucc
 const latestSuccessfulBackupRun = `-- name: LatestSuccessfulBackupRun :one
 SELECT id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status, archive_path,
        size_bytes, item_count, media_count, checksum, snapshot_at, started_at, finished_at,
-       error_code, expires_at, verified_at, verify_ok
+       error_code, expires_at, verified_at, verify_ok, trial_report, trial_at
 FROM backup_run
 WHERE target_id = $1 AND status = 'SUCCEEDED' AND archive_path IS NOT NULL
 ORDER BY snapshot_at DESC NULLS LAST, started_at DESC
@@ -643,6 +660,8 @@ type LatestSuccessfulBackupRunRow struct {
 	ExpiresAt   pgtype.Timestamptz
 	VerifiedAt  pgtype.Timestamptz
 	VerifyOk    *bool
+	TrialReport []byte
+	TrialAt     pgtype.Timestamptz
 }
 
 // The archive an incremental continues: the newest run at this target that finished and left
@@ -671,13 +690,16 @@ func (q *Queries) LatestSuccessfulBackupRun(ctx context.Context, targetID pgtype
 		&i.ExpiresAt,
 		&i.VerifiedAt,
 		&i.VerifyOk,
+		&i.TrialReport,
+		&i.TrialAt,
 	)
 	return i, err
 }
 
 const listBackupSchedules = `-- name: ListBackupSchedules :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 ORDER BY created_at
 `
@@ -709,6 +731,7 @@ func (q *Queries) ListBackupSchedules(ctx context.Context) ([]BackupSchedule, er
 			&i.NextRunAt,
 			&i.CreatedAt,
 			&i.Version,
+			&i.TrialRestore,
 		); err != nil {
 			return nil, err
 		}
@@ -792,7 +815,8 @@ func (q *Queries) ListBackupTargets(ctx context.Context) ([]ListBackupTargetsRow
 
 const listSchedulesForTarget = `-- name: ListSchedulesForTarget :many
 SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
-       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version,
+       trial_restore
 FROM backup_schedule
 WHERE target_id = $1
 ORDER BY created_at
@@ -827,6 +851,7 @@ func (q *Queries) ListSchedulesForTarget(ctx context.Context, targetID pgtype.UU
 			&i.NextRunAt,
 			&i.CreatedAt,
 			&i.Version,
+			&i.TrialRestore,
 		); err != nil {
 			return nil, err
 		}
@@ -971,12 +996,13 @@ SET rrule = $1,
     full_rrule = $4,
     include_media = $5,
     include_audit = $6,
-    retention = $7,
-    notify_on = $8,
-    enabled = $9,
-    next_run_at = $10,
+    trial_restore = $7,
+    retention = $8,
+    notify_on = $9,
+    enabled = $10,
+    next_run_at = $11,
     version = version + 1
-WHERE id = $11 AND version = $12
+WHERE id = $12 AND version = $13
 `
 
 type UpdateBackupScheduleParams struct {
@@ -986,6 +1012,7 @@ type UpdateBackupScheduleParams struct {
 	FullRrule       *string
 	IncludeMedia    bool
 	IncludeAudit    bool
+	TrialRestore    bool
 	Retention       []byte
 	NotifyOn        []string
 	Enabled         bool
@@ -1007,6 +1034,7 @@ func (q *Queries) UpdateBackupSchedule(ctx context.Context, arg UpdateBackupSche
 		arg.FullRrule,
 		arg.IncludeMedia,
 		arg.IncludeAudit,
+		arg.TrialRestore,
 		arg.Retention,
 		arg.NotifyOn,
 		arg.Enabled,

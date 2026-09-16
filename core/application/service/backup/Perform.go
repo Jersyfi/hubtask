@@ -55,6 +55,9 @@ type Performer struct {
 	// it, and a build knows that about itself.
 	SchemaVersion  string
 	ProductVersion string
+	// Trial reads a FULL archive back where the schedule asks for it (B-4). Nil is a build
+	// without a restore, and a run that asked for a trial then fails rather than pretending.
+	Trial Inspector
 }
 
 // PerformInput is one run, as the job's payload describes it.
@@ -68,6 +71,9 @@ type PerformInput struct {
 	Trigger      domain.Trigger
 	IncludeMedia bool
 	IncludeAudit bool
+	// TrialRestore follows the archive with an INSPECT restore of it, in this same job, and fails
+	// the run where it cannot be read back (B-4, P-14). Only meaningful for a FULL run.
+	TrialRestore bool
 	// Report is how far along the run is, between 0 and 1. It may be nil, and losing a progress
 	// reading is never a reason to fail a backup.
 	Report func(fraction float64)
@@ -103,7 +109,21 @@ func (p Performer) Perform(ctx context.Context, in PerformInput) (domain.Run, er
 		}
 		return domain.Run{}, err
 	}
-	return p.succeed(ctx, in, ready.prefix, manifest, snapshotAt)
+
+	// The trial (B-4): the archive read back before the run is called a success. Only a FULL
+	// archive - an incremental is read back with its chain, which the next full one covers.
+	var trial *Trial
+	if in.TrialRestore && in.Mode == domain.ModeFull {
+		read, err := p.trial(ctx, in, ready.store, ready.prefix)
+		if err != nil {
+			if closing := p.fail(ctx, in, err, &read); closing != nil {
+				return domain.Run{}, closing
+			}
+			return domain.Run{}, err
+		}
+		trial = &read
+	}
+	return p.succeed(ctx, in, ready.prefix, manifest, snapshotAt, trial)
 }
 
 // prepared is everything the export needs, read once.
@@ -298,6 +318,7 @@ func encryptionOf(ready prepared) archive.Encryption {
 // succeed records what the run left behind.
 func (p Performer) succeed(
 	ctx context.Context, in PerformInput, prefix string, manifest archive.Manifest, snapshotAt time.Time,
+	trial *Trial,
 ) (domain.Run, error) {
 	encoded, err := json.Marshal(manifest)
 	if err != nil {
@@ -319,11 +340,21 @@ func (p Performer) succeed(
 		MediaCount: int(manifest.MediaCount), Checksum: manifest.ArchiveID,
 		SnapshotAt: snapshotAt, FinishedAt: p.Clock.Now(),
 	}
+	if trial != nil {
+		outcome.TrialReport, outcome.TrialAt = trial.encoded(), trial.InspectedAt
+	}
 
 	var run domain.Run
 	err = p.UnitOfWork.Within(ctx, persistence.Scope{TenantID: in.TenantID}, func(ctx context.Context) error {
 		if err := p.Runs.Finish(ctx, outcome); err != nil {
 			return err
+		}
+		if trial != nil {
+			// A trial that read every member and checked every checksum is a verification, and
+			// the row says so where `:verify` would have said it.
+			if err := p.Runs.RecordVerification(ctx, in.RunID, trial.InspectedAt, true); err != nil {
+				return err
+			}
 		}
 		var err error
 		run, err = p.Runs.Find(ctx, in.RunID)
@@ -359,7 +390,7 @@ func (p Performer) Abandon(ctx context.Context, runID, tenantID shared.ID) error
 //
 // The code and never a message: an error's text can carry a bucket name, a host or a path, and a
 // dashboard is a place a lot of people look (rules 8 and 10).
-func (p Performer) fail(ctx context.Context, in PerformInput, cause error) error {
+func (p Performer) fail(ctx context.Context, in PerformInput, cause error, trial ...*Trial) error {
 	// A run that never claimed the target left no row to close, and a conflict is exactly that.
 	if errors.Is(cause, shared.ErrConflict) {
 		var domainErr *shared.Error
@@ -371,6 +402,13 @@ func (p Performer) fail(ctx context.Context, in PerformInput, cause error) error
 	outcome := domain.Outcome{
 		ID: in.RunID, Status: domain.RunFailed,
 		FinishedAt: p.Clock.Now(), ErrorCode: runFailureCode(cause),
+	}
+	// A trial that failed is kept on the run with what it found - the member that could not be
+	// read - beside the code that says the archive is not a backup.
+	for _, read := range trial {
+		if read != nil {
+			outcome.TrialReport, outcome.TrialAt = read.encoded(), read.InspectedAt
+		}
 	}
 	err := p.UnitOfWork.Within(ctx, persistence.Scope{TenantID: in.TenantID}, func(ctx context.Context) error {
 		return p.Runs.Finish(ctx, outcome)

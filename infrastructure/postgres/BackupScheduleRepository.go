@@ -66,7 +66,8 @@ func (r BackupScheduleRepository) Insert(
 		Rrule: schedule.RRULE, TimeZone: schedule.TimeZone, Mode: string(schedule.Mode),
 		FullRrule:    optionalText(schedule.FullRRULE),
 		IncludeMedia: schedule.IncludeMedia, IncludeAudit: schedule.IncludeAudit,
-		Retention: retention, NotifyOn: notificationsOf(schedule.NotifyOn),
+		TrialRestore: schedule.TrialRestore,
+		Retention:    retention, NotifyOn: notificationsOf(schedule.NotifyOn),
 		NextRunAt: optionalTimestamp(timeOrNil(nextRunAt)), CreatedAt: timestampOf(schedule.CreatedAt),
 	})
 	if err != nil {
@@ -206,7 +207,8 @@ func (r BackupScheduleRepository) Update(
 		ID: id, Rrule: schedule.RRULE, TimeZone: schedule.TimeZone, Mode: string(schedule.Mode),
 		FullRrule:    optionalText(schedule.FullRRULE),
 		IncludeMedia: schedule.IncludeMedia, IncludeAudit: schedule.IncludeAudit,
-		Retention: retention, NotifyOn: notificationsOf(schedule.NotifyOn),
+		TrialRestore: schedule.TrialRestore,
+		Retention:    retention, NotifyOn: notificationsOf(schedule.NotifyOn),
 		Enabled: schedule.Enabled, NextRunAt: optionalTimestamp(timeOrNil(nextRunAt)),
 		//nolint:gosec // G115: a row version, bounded far below either type's range
 		ExpectedVersion: int32(expectedVersion),
@@ -314,7 +316,7 @@ func scheduleOf(row sqlc.BackupSchedule) (domain.Schedule, error) {
 		ID: id, TargetID: targetID, TenantID: tenantID,
 		Scope: domain.ScheduleScope(row.ScopeKind), ScopeID: scopeID,
 		RRULE: row.Rrule, TimeZone: row.TimeZone, Mode: domain.Mode(row.Mode),
-		IncludeMedia: row.IncludeMedia, IncludeAudit: row.IncludeAudit,
+		IncludeMedia: row.IncludeMedia, IncludeAudit: row.IncludeAudit, TrialRestore: row.TrialRestore,
 		Retention: domain.Retention{
 			KeepLast: plan.KeepLast, KeepDaily: plan.KeepDaily, KeepWeekly: plan.KeepWeekly,
 			KeepMonthly: plan.KeepMonthly, KeepYearly: plan.KeepYearly, MinKeep: plan.MinKeep,
