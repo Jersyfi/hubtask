@@ -24,9 +24,7 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -227,11 +225,6 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 		})
 	})
 	if err != nil {
-		var chain []string
-		for e := err; e != nil; e = errors.Unwrap(e) {
-			chain = append(chain, e.Error())
-		}
-		slog.WarnContext(ctx, "DEBUG job error chain", slog.String("job_kind", job.Kind.String()), slog.String("chain", strings.Join(chain, " <- ")))
 		r.fail(ctx, job, shared.AsError(err).DetailCode)
 		return
 	}
