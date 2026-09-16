@@ -591,6 +591,12 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 	changes := postgres.NewChangeLog()
+	// The one place a lost read access becomes a record a device can act on (N-08): every use case
+	// that ends one says what was removed, and this decides who may no longer read what.
+	revocations := access.Revocations{
+		Permits: authorizer, Grants: grants, Groups: groups, Containers: containers, Items: items,
+		Changes: changes, HLC: hybrid,
+	}
 
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
 	// value rather than two fields per writer, so that what the history says about a change cannot
@@ -1040,7 +1046,7 @@ func run() error {
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.RevokeMembership{
-			Grants: grants, Authorizer: authorizer, Audit: auditSink,
+			Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
@@ -1051,11 +1057,11 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		identity.UpdateGroup{
-			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
+			Groups: groups, Accounts: accounts, Authorizer: authorizer, Revocations: revocations,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 		}.Descriptor(),
 		identity.DeleteGroup{
-			Groups: groups, Authorizer: authorizer, Audit: auditSink,
+			Groups: groups, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
@@ -1265,7 +1271,7 @@ func run() error {
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
-		work.MoveContainer{Writer: containerWriter}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter, Revocations: revocations}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
@@ -1753,6 +1759,12 @@ func run() error {
 				// for a change that lost, and the comment that keeps displaced free text.
 				Activity:  journal,
 				Displaced: work.AddComment{Writer: commentWriter},
+				// Where each set's tags are read for the OR-set merge (N-07).
+				Sets: syncservice.Sets{
+					Labels:      postgres.NewItemLabelRepository(),
+					Members:     postgres.NewItemMemberRepository(),
+					Attachments: mediaObjects,
+				},
 			},
 			PushSignals: metrics,
 		}
@@ -2251,6 +2263,9 @@ func run() error {
 			// The devices that synchronise (N-03): silent past their period, their sign-in is
 			// revoked and the row goes.
 			Devices: postgres.NewDeviceRepository(),
+			// The synchronisation's records (N-09): the operation log and the tombstones past
+			// the offline window; the change log's months fall as partitions, the leader's duty.
+			SyncLog: postgres.NewSyncLogSweeper(),
 			// What AI proposed (J-05). Thirty days, the shortest default in the catalogue: a
 			// suggestion is about a state of an entry, and an entry's state does not stay still.
 			Proposals: postgres.NewSuggestionRepository(cursors),
@@ -2560,10 +2575,12 @@ func run() error {
 			AuditPartitions: auditPartitionsInBackground{
 				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
 			},
-			// The same duty for the three monthly streams (H-09).
+			// The same duty for the four monthly streams (H-09; the change log since N-09, with
+			// the offline window as the floor of its drop).
 			StreamPartitions: streamPartitionsInBackground{
 				Partitions: postgres.NewStreamPartitionRepository(), Work: backgroundWork,
 			},
+			OfflineWindow: cfg.Retention.TombstoneWindow,
 			StreamEvidence: streamEvidenceInBackground{
 				Journal: postgres.NewInstanceJournal(), IDs: ids, Work: backgroundWork,
 				Clock: clockadapter.System{},

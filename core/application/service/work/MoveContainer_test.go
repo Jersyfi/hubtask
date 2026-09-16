@@ -4,12 +4,44 @@
 package work
 
 import (
+	"context"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
+
+// moveRevoker notes what the move said may have been lost, and what it announced; who actually
+// lost what is access.Revocations' decision, tested there.
+type moveRevoker struct {
+	moves     [][2]domain.Container
+	announced []access.Loss
+}
+
+func (r *moveRevoker) AfterContainerMoved(_ context.Context, from, to domain.Container) (access.Loss, error) {
+	r.moves = append(r.moves, [2]domain.Container{from, to})
+	if from.ParentID == to.ParentID {
+		return access.Loss{}, nil
+	}
+	return access.Loss{Accounts: []shared.ID{accountID}, Scope: identity.CollectionScope(to.ID)}, nil
+}
+
+func (r *moveRevoker) Announce(_ context.Context, _ shared.ID, losses ...access.Loss) error {
+	for _, loss := range losses {
+		if len(loss.Accounts) != 0 {
+			r.announced = append(r.announced, loss)
+		}
+	}
+	return nil
+}
+
+// move is the use case over the harness, with a revoker that notes what it was told.
+func (h *containerHarness) move() MoveContainer {
+	return MoveContainer{Writer: h.writer, Revocations: h.revoker}
+}
 
 // moving wires a harness with two hubs and a collection in the first, which is the shape every
 // case below starts from.
@@ -17,6 +49,7 @@ func moving(t *testing.T) *containerHarness {
 	t.Helper()
 
 	h := newContainerHarness()
+	h.revoker = &moveRevoker{}
 	h.withHub(hubID, "Private")
 	h.withHub(otherHubID, "Work")
 	h.withCollection()
@@ -43,7 +76,7 @@ var (
 func TestMovingACollectionIntoAnotherHub(t *testing.T) {
 	h := moving(t)
 
-	moved, err := MoveContainer{Writer: h.writer}.Execute(t.Context(), actor(), MoveContainerCommand{
+	moved, err := h.move().Execute(t.Context(), actor(), MoveContainerCommand{
 		ContainerID: shoppingID, TargetParentID: otherHubID,
 	})
 	if err != nil {
@@ -67,6 +100,14 @@ func TestMovingACollectionIntoAnotherHub(t *testing.T) {
 	if len(h.audit.entries) != 1 || h.audit.entries[0].Action != ContainerMovedAction {
 		t.Fatalf("unexpected audit entries: %+v", h.audit.entries)
 	}
+	// Whoever read it through the hub it left is told (N-08): the move says where it came from
+	// and where it went, after the placement is written.
+	if len(h.revoker.moves) != 1 || h.revoker.moves[0][0].ParentID != hubID || h.revoker.moves[0][1].ParentID != otherHubID {
+		t.Errorf("the revocation was told %+v, want the move from one hub to the other", h.revoker.moves)
+	}
+	if len(h.revoker.announced) != 1 {
+		t.Errorf("announced %v, want the one loss", h.revoker.announced)
+	}
 }
 
 // Both hubs are put to the authorisation service, because taking a collection out of a hub is a
@@ -74,7 +115,7 @@ func TestMovingACollectionIntoAnotherHub(t *testing.T) {
 func TestMovingAsksThePermissionOfBothHubs(t *testing.T) {
 	h := moving(t)
 
-	if _, err := (MoveContainer{Writer: h.writer}).Execute(t.Context(), actor(), MoveContainerCommand{
+	if _, err := h.move().Execute(t.Context(), actor(), MoveContainerCommand{
 		ContainerID: shoppingID, TargetParentID: otherHubID,
 	}); err != nil {
 		t.Fatalf("the move was refused: %v", err)
@@ -92,7 +133,7 @@ func TestReorderingWithinTheSameHubAsksOneQuestion(t *testing.T) {
 	h.sibling(booksID, hubID, "Books", "a1")
 	h.sibling(travelID, hubID, "Travel", "a2")
 
-	moved, err := MoveContainer{Writer: h.writer}.Execute(t.Context(), actor(), MoveContainerCommand{
+	moved, err := h.move().Execute(t.Context(), actor(), MoveContainerCommand{
 		ContainerID: shoppingID, TargetParentID: hubID, BeforeContainerID: travelID,
 	})
 	if err != nil {
@@ -108,6 +149,10 @@ func TestReorderingWithinTheSameHubAsksOneQuestion(t *testing.T) {
 	if moved.OrderKey <= "a1" || moved.OrderKey >= "a2" {
 		t.Errorf("rank %q is not between Books and Travel", moved.OrderKey)
 	}
+	// Nobody lost anything: the collection is where it was, for everybody who could read it.
+	if len(h.revoker.announced) != 0 {
+		t.Errorf("a reorder announced a loss: %v", h.revoker.announced)
+	}
 }
 
 // A client that asked for a position and got the end of the list has been ignored, so a sibling
@@ -117,7 +162,7 @@ func TestASiblingThatIsNotAtTheDestinationIsRefused(t *testing.T) {
 	// Books is in the hub the collection is leaving, not in the one it is moving into.
 	h.sibling(booksID, hubID, "Books", "a1")
 
-	_, err := MoveContainer{Writer: h.writer}.Execute(t.Context(), actor(), MoveContainerCommand{
+	_, err := h.move().Execute(t.Context(), actor(), MoveContainerCommand{
 		ContainerID: shoppingID, TargetParentID: otherHubID, BeforeContainerID: booksID,
 	})
 	assertValidation(t, err, "containers.before_container_not_in_level")
@@ -132,7 +177,7 @@ func TestANameCollisionAtTheDestinationIsRefused(t *testing.T) {
 		WithDetail("containers.name_taken").
 		WithParams(map[string]string{"name": "Shopping"})
 
-	_, err := MoveContainer{Writer: h.writer}.Execute(t.Context(), actor(), MoveContainerCommand{
+	_, err := h.move().Execute(t.Context(), actor(), MoveContainerCommand{
 		ContainerID: shoppingID, TargetParentID: otherHubID,
 	})
 	assertConflict(t, err, "containers.name_taken")
@@ -205,7 +250,7 @@ func TestMovingRefusesWhatTheTreeDoesNotAllow(t *testing.T) {
 			h := moving(t)
 			cmd := c.prepare(h)
 
-			_, err := MoveContainer{Writer: h.writer}.Execute(t.Context(), actor(), cmd)
+			_, err := h.move().Execute(t.Context(), actor(), cmd)
 			assertCode(t, err, c.detailCode)
 			if len(h.containers.written) != 0 {
 				t.Errorf("a refused move wrote a row: %+v", h.containers.written)
@@ -220,7 +265,7 @@ func TestMovingRefusesWhatTheTreeDoesNotAllow(t *testing.T) {
 func TestRepeatingAMoveWritesNothingTheSecondTime(t *testing.T) {
 	h := moving(t)
 	h.sibling(booksID, otherHubID, "Books", "a1")
-	handler := MoveContainer{Writer: h.writer}
+	handler := h.move()
 	cmd := MoveContainerCommand{ContainerID: shoppingID, TargetParentID: otherHubID}
 
 	if _, err := handler.Execute(t.Context(), actor(), cmd); err != nil {

@@ -250,6 +250,47 @@ VALUES (current_tenant_id(), sqlc.arg('op_id'), sqlc.narg('device_id'), sqlc.arg
         sqlc.narg('entity_id'), sqlc.arg('applied_at'), sqlc.narg('response'))
 ON CONFLICT (tenant_id, op_id) DO NOTHING;
 
+-- name: DeleteAgedSyncOps :execrows
+-- The SYNC_LOG data kind's sweep of the operation log (N-09, data-retention.md §3): an operation
+-- past the offline window has answered every repeat it will ever see - a device silent longer
+-- than the window resynchronises from scratch. Batched through a subquery, oldest first,
+-- DeleteStaleDevices' shape; the primary key is what the subquery hands back.
+DELETE FROM sync_op_log
+WHERE (tenant_id, op_id) IN (
+  SELECT aged.tenant_id, aged.op_id FROM sync_op_log AS aged
+  WHERE aged.tenant_id = current_tenant_id() AND aged.applied_at < sqlc.arg('cutoff')
+  ORDER BY aged.applied_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountAgedSyncOps :one
+SELECT count(*) FROM (
+  SELECT 1 FROM sync_op_log AS aged
+  WHERE aged.tenant_id = current_tenant_id() AND aged.applied_at < sqlc.arg('cutoff')
+  LIMIT sqlc.arg('ceiling')
+) AS due;
+
+-- name: DeleteAgedTombstones :execrows
+-- A tombstone past the window has told every device that could still be told (offline-sync.md
+-- §7); its own purge date is the deletion plus the window as it stood, and the cutoff is the
+-- window as it stands, so the later of the two is what is honoured.
+DELETE FROM tombstone
+WHERE (tenant_id, entity, entity_id) IN (
+  SELECT aged.tenant_id, aged.entity, aged.entity_id FROM tombstone AS aged
+  WHERE aged.tenant_id = current_tenant_id()
+    AND aged.deleted_at < sqlc.arg('cutoff') AND aged.purge_after < sqlc.arg('now')
+  ORDER BY aged.deleted_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountAgedTombstones :one
+SELECT count(*) FROM (
+  SELECT 1 FROM tombstone AS aged
+  WHERE aged.tenant_id = current_tenant_id()
+    AND aged.deleted_at < sqlc.arg('cutoff') AND aged.purge_after < sqlc.arg('now')
+  LIMIT sqlc.arg('ceiling')
+) AS due;
+
 -- name: HoldsTombstone :one
 -- Whether an entity has been purged (offline-sync.md §7). The trash is not a tombstone: a trashed
 -- entry can still be restored, and the use case that receives a mutation about it says so itself.

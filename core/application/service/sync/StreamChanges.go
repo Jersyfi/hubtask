@@ -20,6 +20,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -225,7 +226,18 @@ func (s StreamChanges) page(
 	resolved := map[shared.ID]visibility{}
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
-		seen, err := s.mayRead(ctx, actor, entry.ContainerID, resolved)
+		if entry.Op == repository.AccessRevoked {
+			// Addressed to a person, and the one record permission does not filter (N-08): every
+			// other record reaches a device because its account may read the container, and a
+			// revocation reaches it precisely because the account no longer may. Nor does a scope
+			// narrow it - the device drops whatever it holds under the root, and a device holding
+			// nothing there drops nothing.
+			if entry.ActorID == actor.AccountID {
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq)})
+			}
+			continue
+		}
+		seen, err := s.mayRead(ctx, actor, entry.Entity, entry.ContainerID, resolved)
 		if err != nil {
 			return Batch{}, err
 		}
@@ -255,17 +267,14 @@ type visibility struct {
 	container work.Container
 }
 
-// mayRead answers whether the actor may see changes in a container, remembering the answer for the
-// rest of the batch.
+// mayRead answers whether the actor may see a change, remembering the answer for the rest of the
+// batch: by container for a change filed under one, and once for the workspace otherwise.
 func (s StreamChanges) mayRead(
-	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, entity string, containerID shared.ID,
 	resolved map[shared.ID]visibility,
 ) (visibility, error) {
 	if containerID.IsZero() {
-		// A change that names no container is one whose visibility nothing here can decide.
-		// Withheld rather than sent: nothing writes such an entry today, and the day something
-		// does, the safe answer is the one that does not leak it.
-		return visibility{}, nil
+		return s.mayReadWorkspaceWide(ctx, actor, entity, resolved)
 	}
 	if seen, decided := resolved[containerID]; decided {
 		return seen, nil
@@ -300,6 +309,45 @@ func (s StreamChanges) mayRead(
 	seen := visibility{allowed: allowed, container: container}
 	resolved[containerID] = seen
 	return seen, nil
+}
+
+// mayReadWorkspaceWide decides a change that names no container. A template defined at the
+// workspace has no scope identifier, and its record is filed under none (#626); such a change is
+// visible to whoever may read at the tenant scope - the question every hub-level check starts
+// from. Only an entity the reader knows is read that way: a record of a kind the walk does not
+// name is withheld, because nothing here can say what it describes, and the safe answer to a
+// change nobody can place is the one that does not leak it.
+func (s StreamChanges) mayReadWorkspaceWide(
+	ctx context.Context, actor appshared.ActorContext, entity string,
+	resolved map[shared.ID]visibility,
+) (visibility, error) {
+	if !knownEntity(entity) {
+		return visibility{}, nil
+	}
+	if seen, decided := resolved[shared.ID("")]; decided {
+		return seen, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Path:       []identity.Scope{identity.TenantScope()},
+	})
+	if err != nil {
+		return visibility{}, err
+	}
+	seen := visibility{allowed: allowed}
+	resolved[shared.ID("")] = seen
+	return seen, nil
+}
+
+// knownEntity reports whether the reader can place a change of this kind: the entities the walk
+// hands out are the ones a client holds.
+func knownEntity(entity string) bool {
+	for _, kind := range walkKinds {
+		if kind == entity && kind != kindSet {
+			return true
+		}
+	}
+	return false
 }
 
 func (s StreamChanges) at(seq int64) Position {

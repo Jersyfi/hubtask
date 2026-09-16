@@ -11,6 +11,48 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countAgedSyncOps = `-- name: CountAgedSyncOps :one
+SELECT count(*) FROM (
+  SELECT 1 FROM sync_op_log AS aged
+  WHERE aged.tenant_id = current_tenant_id() AND aged.applied_at < $1
+  LIMIT $2
+) AS due
+`
+
+type CountAgedSyncOpsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountAgedSyncOps(ctx context.Context, arg CountAgedSyncOpsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAgedSyncOps, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAgedTombstones = `-- name: CountAgedTombstones :one
+SELECT count(*) FROM (
+  SELECT 1 FROM tombstone AS aged
+  WHERE aged.tenant_id = current_tenant_id()
+    AND aged.deleted_at < $1 AND aged.purge_after < $2
+  LIMIT $3
+) AS due
+`
+
+type CountAgedTombstonesParams struct {
+	Cutoff  pgtype.Timestamptz
+	Now     pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountAgedTombstones(ctx context.Context, arg CountAgedTombstonesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAgedTombstones, arg.Cutoff, arg.Now, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countStaleDevices = `-- name: CountStaleDevices :one
 SELECT count(*) FROM (
   SELECT 1 FROM sync_device AS stale
@@ -30,6 +72,61 @@ func (q *Queries) CountStaleDevices(ctx context.Context, arg CountStaleDevicesPa
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteAgedSyncOps = `-- name: DeleteAgedSyncOps :execrows
+DELETE FROM sync_op_log
+WHERE (tenant_id, op_id) IN (
+  SELECT aged.tenant_id, aged.op_id FROM sync_op_log AS aged
+  WHERE aged.tenant_id = current_tenant_id() AND aged.applied_at < $1
+  ORDER BY aged.applied_at
+  LIMIT $2
+)
+`
+
+type DeleteAgedSyncOpsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The SYNC_LOG data kind's sweep of the operation log (N-09, data-retention.md §3): an operation
+// past the offline window has answered every repeat it will ever see - a device silent longer
+// than the window resynchronises from scratch. Batched through a subquery, oldest first,
+// DeleteStaleDevices' shape; the primary key is what the subquery hands back.
+func (q *Queries) DeleteAgedSyncOps(ctx context.Context, arg DeleteAgedSyncOpsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAgedSyncOps, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteAgedTombstones = `-- name: DeleteAgedTombstones :execrows
+DELETE FROM tombstone
+WHERE (tenant_id, entity, entity_id) IN (
+  SELECT aged.tenant_id, aged.entity, aged.entity_id FROM tombstone AS aged
+  WHERE aged.tenant_id = current_tenant_id()
+    AND aged.deleted_at < $1 AND aged.purge_after < $2
+  ORDER BY aged.deleted_at
+  LIMIT $3
+)
+`
+
+type DeleteAgedTombstonesParams struct {
+	Cutoff pgtype.Timestamptz
+	Now    pgtype.Timestamptz
+	Batch  int32
+}
+
+// A tombstone past the window has told every device that could still be told (offline-sync.md
+// §7); its own purge date is the deletion plus the window as it stood, and the cutoff is the
+// window as it stands, so the later of the two is what is honoured.
+func (q *Queries) DeleteAgedTombstones(ctx context.Context, arg DeleteAgedTombstonesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAgedTombstones, arg.Cutoff, arg.Now, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteStaleDevices = `-- name: DeleteStaleDevices :execrows

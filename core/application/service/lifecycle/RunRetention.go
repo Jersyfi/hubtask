@@ -59,6 +59,10 @@ type RunRetention struct {
 	// and with the same shape: a device silent past its period has its sign-in revoked and its
 	// row removed, and an installation wired without it sweeps exactly what it did before.
 	Devices ExpiredDevices
+	// SyncLog is the remover of the synchronisation's records past the offline window (N-09):
+	// the operation log and the tombstones. Optional for the device's reason. The change log is
+	// not swept here - its months fall as partitions, the leader's duty (H-09).
+	SyncLog ExpiredSyncLog
 	Clock   clock.Clock
 	IDs     clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
@@ -125,6 +129,14 @@ type ExpiredSessions interface {
 // ExpiredDevices is the slice of the device repository this run removes through (N-03,
 // offline-sync.md §6): the session's two methods, and the same shape on purpose.
 type ExpiredDevices interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// ExpiredSyncLog is the slice of the synchronisation's log this run removes through (N-09,
+// offline-sync.md §7): the operation log rows and the tombstones past the window, in one pass
+// per batch, the device's two methods and the same shape on purpose.
+type ExpiredSyncLog interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
@@ -244,6 +256,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	syncLog, err := h.sweepSyncLog(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	proposals, err := h.sweepProposals(ctx, started)
 	if err != nil {
 		return outcome, err
@@ -270,6 +287,8 @@ func (h RunRetention) Execute(
 	outcome.Removed += sessions.Removed
 	outcome.Matched += devices.Matched
 	outcome.Removed += devices.Removed
+	outcome.Matched += syncLog.Matched
+	outcome.Removed += syncLog.Removed
 	// add rather than the two additions, the jumble's reasoning: a suggestion is somebody's work
 	// before anybody has filed it, so a tenant-wide hold reaches it and the blocked count has to
 	// reach the pass.
@@ -450,6 +469,60 @@ func (h RunRetention) sweepDevices(ctx context.Context, started time.Time) (Outc
 	}
 
 	h.report(ctx, domain.KindDevice, outcome, finished.Sub(started))
+	return outcome, nil
+}
+
+// sweepSyncLog removes one batch of the synchronisation's records past the offline window (N-09,
+// offline-sync.md §7, data-retention.md §4 point 5): operation log rows, whose repeats a device
+// silent that long will never send because it resynchronises from scratch, and tombstones, which
+// have told every device that could still be told.
+//
+// The window is one value: the installation's (RetentionConfig.TombstoneWindow), which the stream
+// refuses cursors past and the purge writes tombstones with. A tenant's policy for the kind can
+// only lengthen it - the floor is the window's default - so the cutoff is the earlier of the two.
+// No legal hold and no audit entry, the device's reason: these are records about records.
+func (h RunRetention) sweepSyncLog(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.SyncLog == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindSyncLog)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindSyncLog, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	if byWindow := started.Add(-h.Purger.TombstoneWindow); byWindow.Before(cutoff) {
+		cutoff = byWindow
+	}
+	matched, err := h.SyncLog.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.SyncLog.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindSyncLog, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

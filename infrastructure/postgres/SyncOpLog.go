@@ -7,6 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -124,4 +127,71 @@ func (TombstoneRepository) Holds(ctx context.Context, entity string, id shared.I
 			WithCause(fmt.Errorf("reading the tombstone: %w", err))
 	}
 	return held, nil
+}
+
+// SyncLogSweeper removes the synchronisation's records past the offline window (N-09,
+// data-retention.md §3, the SYNC_LOG kind): operation log rows and tombstones, one batch of each
+// per pass, the device sweep's shape. The change log is not its business - its months fall as
+// partitions (drop_stream_partition).
+type SyncLogSweeper struct{}
+
+func NewSyncLogSweeper() SyncLogSweeper { return SyncLogSweeper{} }
+
+// DeleteExpired removes up to batch operation log rows and up to batch tombstones older than the
+// cutoff, and reports how many rows went. A tombstone goes only when its own purge date has
+// passed too: the date is the deletion plus the window as it stood, and the later of the two is
+// what a device was promised.
+func (SyncLogSweeper) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	at := pgtype.Timestamptz{Time: cutoff, Valid: true}
+	ops, err := queries.DeleteAgedSyncOps(ctx, sqlc.DeleteAgedSyncOpsParams{
+		Cutoff: at,
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the operation log: %w", err))
+	}
+	stones, err := queries.DeleteAgedTombstones(ctx, sqlc.DeleteAgedTombstonesParams{
+		Cutoff: at, Now: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		Batch: int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the tombstones: %w", err))
+	}
+	return int(ops + stones), nil
+}
+
+// CountExpired answers how many records are due, up to the ceiling for each of the two tables.
+func (SyncLogSweeper) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	at := pgtype.Timestamptz{Time: cutoff, Valid: true}
+	ops, err := queries.CountAgedSyncOps(ctx, sqlc.CountAgedSyncOpsParams{
+		Cutoff:  at,
+		Ceiling: int32(ceiling), //nolint:gosec // G115: the ceiling is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the aged operations: %w", err))
+	}
+	stones, err := queries.CountAgedTombstones(ctx, sqlc.CountAgedTombstonesParams{
+		Cutoff: at, Now: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		Ceiling: int32(ceiling), //nolint:gosec // G115: the ceiling is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the aged tombstones: %w", err))
+	}
+	return int(ops + stones), nil
 }

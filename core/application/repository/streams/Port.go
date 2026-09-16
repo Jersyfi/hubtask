@@ -14,8 +14,12 @@ import (
 )
 
 // Tables is the closed set of partitioned streams, the vocabulary the two functions validate
-// against (migration 0068).
-func Tables() []string { return []string{"activity_entry", "outbox_event", "rule_run"} }
+// against (migration 0068; the change log joined in 0085, N-09).
+func Tables() []string { return []string{"activity_entry", "outbox_event", "rule_run", ChangeLog} }
+
+// ChangeLog is the synchronisation's stream, named because its floor is the offline window the
+// installation is configured with rather than the catalogue's default alone.
+const ChangeLog = "change_log"
 
 // DefaultDays answers the stream's catalogue default - the floor of the drop cutoff. 0 means
 // the stream has no bound and no month of it ever falls (activity entries, until the catalogue
@@ -25,6 +29,7 @@ func DefaultDays(table string) int {
 		"activity_entry": lifecycle.KindActivityEntry,
 		"outbox_event":   lifecycle.KindOutboxEvent,
 		"rule_run":       lifecycle.KindRuleRun,
+		ChangeLog:        lifecycle.KindSyncLog,
 	}
 	kind, held := kinds[table]
 	if !held {
