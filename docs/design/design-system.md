@@ -247,6 +247,18 @@ structural, not reviewed.
 CodeBlock · ApiEndpointCard · ParameterTable · Callout · VersionSelector ·
 PricingTable · FeatureGrid · LicenceNotice
 
+The first four are **built** (P-01), for the API reference `hubtask.eu/developers/api/` renders
+from the contract. Three decisions travel with them. `CodeBlock` has **no highlighter** — a
+grammar per language is a dependency, and the website ships no script at all (ADR-0030), so the
+copy control is the caller's to ask for, exactly as `OneTimeSecret`'s is, and a page without
+JavaScript passes no `copyLabel` and gets no dead button. `Callout` is **not a `Banner`**: a
+banner says something about this page now and is a live region for it; a callout is
+documentation, true whenever it is read, `role="note"`, never dismissed. And `ParameterTable`
+is a **`Table` underneath** — a screen reader reads down a column — with *required* as a word
+rather than an asterisk, because a symbol alone is a convention some readers were never taught
+(rule 3), and a deprecated field marked and kept rather than hidden, because the reader of an
+old integration is the one who needs to find it. The other four wait for the 1.0 site.
+
 ---
 
 ## 5. Naming in code
