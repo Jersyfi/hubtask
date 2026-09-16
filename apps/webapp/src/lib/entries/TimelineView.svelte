@@ -19,6 +19,8 @@
   // span against a different clock per row would put two entries due at the same moment in two
   // columns.
 
+  import { untrack } from 'svelte';
+
   import { Button, Select, Skeleton, Timeline, type TimelineRow } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
@@ -73,7 +75,9 @@
   $effect(() => {
     const wanted = collectionId;
     const asked = windowed;
-    return items.openTimeline(wanted, asked);
+    // From `untrack`, like the board's: the subscription writes the store this component reads,
+    // and an effect that tracked that write would re-open the subscription it had just opened.
+    return untrack(() => items.openTimeline(wanted, asked));
   });
 
   const entries = $derived(items.onTimeline(collectionId));
