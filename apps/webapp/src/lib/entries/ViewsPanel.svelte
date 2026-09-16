@@ -246,7 +246,7 @@
           <p class="quiet">{t(shareRefusal)}</p>
         {/if}
 
-        {#if failure && !failure.fields.get('/name')}<p class="failure">{failure.message}</p>{/if}
+        {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={() => rename(current)}>
@@ -273,7 +273,7 @@
           bind:value={scope}
           options={VIEW_SCOPES.map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
         />
-        {#if failure && !failure.fields.get('/name')}<p class="failure">{failure.message}</p>{/if}
+        {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
         <div>
           <Button
             isBusy={isSaving}
@@ -298,7 +298,7 @@
   >
     <Stack gap="150">
       <p class="quiet">{t('app.views.delete_explains')}</p>
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
           {t('app.views.delete')}

@@ -169,7 +169,7 @@
     {#if isReading}
       <div aria-busy="true"><Skeleton lines={2} /></div>
     {:else if readFailure}
-      <p class="failure">{renderProblem(readFailure, messages).message}</p>
+      <p class="failure" role="alert">{renderProblem(readFailure, messages).message}</p>
     {:else if isOccurrence}
       <p class="quiet">{t('app.recurrence.occurrence')}</p>
       {#if source}
@@ -248,7 +248,7 @@
         <!-- A rule the server cannot read comes back as a field error on `/rrule`, which is the
              raw field: the reader typed it, so that is where it belongs. -->
         {#if failure?.fields.get('/rrule')}
-          <p class="failure">{failure.fields.get('/rrule')}</p>
+          <p class="failure" role="alert">{failure.fields.get('/rrule')}</p>
         {/if}
 
         <Inline gap="100">
@@ -263,7 +263,7 @@
     {/if}
 
     {#if notice}<p class="quiet">{notice}</p>{/if}
-    {#if failure && !failure.fields.get('/rrule')}<p class="failure">{failure.message}</p>{/if}
+    {#if failure && !failure.fields.get('/rrule')}<p class="failure" role="alert">{failure.message}</p>{/if}
   </Stack>
 </CapabilityGate>
 

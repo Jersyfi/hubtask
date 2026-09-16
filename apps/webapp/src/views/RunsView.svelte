@@ -260,7 +260,7 @@
 
               {#if run.error_code}
                 <!-- The catalogue's sentence for it, not the code shown raw. -->
-                <p class="failure">{messages.has(run.error_code) ? t(run.error_code) : run.error_code}</p>
+                <p class="failure" role="alert">{messages.has(run.error_code) ? t(run.error_code) : run.error_code}</p>
               {/if}
 
               <div class="row">

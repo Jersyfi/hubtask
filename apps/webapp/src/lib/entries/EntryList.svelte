@@ -768,7 +768,7 @@
     />
   {:else}
     {#if writeFailure}
-      <p class="failure">{writeFailure.message}</p>
+      <p class="failure" role="alert">{writeFailure.message}</p>
     {/if}
 
     <!-- I-W6, on the screen. A label belongs to a collection and a column belongs to a board, so

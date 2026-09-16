@@ -154,7 +154,7 @@
 >
   <Stack gap="200">
     {#if failure}
-      <p class="failure">{failure.message}</p>
+      <p class="failure" role="alert">{failure.message}</p>
     {/if}
 
     <CommentThread
@@ -184,7 +184,7 @@
         rows={3}
         error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
       />
-      {#if writeFailure}<p class="failure">{writeFailure}</p>{/if}
+      {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
       <div class="actions">
         <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
           {editing ? t('app.workspace.save') : t('app.comments.send')}

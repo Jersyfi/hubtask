@@ -148,7 +148,7 @@
         {/each}
       </fieldset>
 
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
       <Inline gap="100">
         <Button

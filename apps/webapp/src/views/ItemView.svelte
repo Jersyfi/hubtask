@@ -402,7 +402,7 @@
              conflict is the ordinary case here, and nothing about the title is wrong when the
              entry moved underneath the reader. -->
         {#if writeFailure && !isTitleFailure}
-          <p class="failure">{writeFailure.message}</p>
+          <p class="failure" role="alert">{writeFailure.message}</p>
         {/if}
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
@@ -473,7 +473,7 @@
           </div>
         {/if}
         {#if childFailure}
-          <p class="failure">{childFailure.message}</p>
+          <p class="failure" role="alert">{childFailure.message}</p>
         {/if}
       </Stack>
     {/if}

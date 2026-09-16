@@ -244,7 +244,7 @@
       </ReminderEditor>
       </div>
 
-      {#if failure}<p class="failure">{failure}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
       <div class="actions">
         <Button
@@ -271,7 +271,7 @@
           {t('app.reminders.add')}
         </Button>
       </div>
-      {#if failure}<p class="failure">{failure}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
     {/if}
   </Stack>
 </CapabilityGate>

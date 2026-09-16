@@ -313,7 +313,7 @@
               {/if}
             {/if}
           {:else if archives.status === 'failed'}
-            <p class="failure">{renderProblem(archives.error, messages).message}</p>
+            <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>
           {/if}
         {/if}
 
@@ -444,9 +444,9 @@
               </div>
             {/if}
           {:else if watch.unreachable}
-            <p class="failure">{sentence(watch.unreachable)}</p>
+            <p class="failure" role="alert">{sentence(watch.unreachable)}</p>
           {:else if watch.job.status !== 'SUCCEEDED'}
-            <p class="failure">
+            <p class="failure" role="alert">
               {sentence(watch.job.error_code) ?? t('app.restore.failed')}
             </p>
           {/if}
@@ -536,7 +536,7 @@
             </p>
           {/if}
           {#if real.error_code}
-            <p class="failure">{sentence(real.error_code)}</p>
+            <p class="failure" role="alert">{sentence(real.error_code)}</p>
           {/if}
         </Stack>
       </section>

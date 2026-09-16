@@ -140,7 +140,7 @@
   pendingLabel={t('app.media.deciding')}
 >
   <Stack gap="150">
-    {#if readFailure}<p class="failure">{readFailure.message}</p>{/if}
+    {#if readFailure}<p class="failure" role="alert">{readFailure.message}</p>{/if}
 
     {#if rows.length === 0}
       <p class="quiet">{t('app.media.attachments_none')}</p>
@@ -191,7 +191,7 @@
     />
 
     {#if notice}<p class="quiet">{notice}</p>{/if}
-    {#if failure}<p class="failure">{failure}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
 </CapabilityGate>
 

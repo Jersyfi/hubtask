@@ -77,7 +77,7 @@
     </Button>
   </div>
   {#if failure}
-    <p class="failure">{failure.message}</p>
+    <p class="failure" role="alert">{failure.message}</p>
   {/if}
   {#if answer}
     <AISuggestion

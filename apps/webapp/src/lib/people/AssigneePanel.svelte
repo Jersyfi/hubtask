@@ -157,7 +157,7 @@
   </CapabilityGate>
 
   {#if failure}
-    <p class="failure">{failure}</p>
+    <p class="failure" role="alert">{failure}</p>
   {/if}
 </Stack>
 

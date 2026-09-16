@@ -313,9 +313,9 @@
           {:else if watched.unreachable}
             <!-- A job whose status could not be read is not a job that failed, and saying so
                  would report a failure the server never reported. -->
-            <p class="failure">{sentence(watched.unreachable)}</p>
+            <p class="failure" role="alert">{sentence(watched.unreachable)}</p>
           {:else}
-            <p class="failure">
+            <p class="failure" role="alert">
               {sentence(watched.job.error_code) ?? t('app.backup.run_failed')}
             </p>
           {/if}
@@ -501,7 +501,7 @@
                     {/each}
                   </ul>
                 {:else if archives.status === 'failed'}
-                  <p class="failure">{renderProblem(archives.error, messages).message}</p>
+                  <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>
                 {/if}
               {/if}
             </Stack>

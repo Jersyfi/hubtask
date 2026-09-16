@@ -107,7 +107,7 @@
       error={limitProblem}
     />
     <Switch label={t('app.board.is_done_column')} hint={t('app.board.done_bucket')} bind:checked={isDone} />
-    {#if failure}<p class="failure">{failure.message}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
   </Stack>
 
   {#snippet actions()}

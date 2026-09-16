@@ -137,7 +137,7 @@
             {/snippet}
           </CustomFieldRenderer>
           {#if failedKey === definition.key && failure}
-            <p class="failure">{failure}</p>
+            <p class="failure" role="alert">{failure}</p>
           {/if}
         </div>
       {/each}

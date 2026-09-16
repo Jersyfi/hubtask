@@ -276,11 +276,11 @@
             </Inline>
           {/if}
           {#if chosen.length === 0}
-            <p class="failure">{t('app.fields.applies_to_empty')}</p>
+            <p class="failure" role="alert">{t('app.fields.applies_to_empty')}</p>
           {/if}
         </fieldset>
 
-        {#if failure}<p class="failure">{failure.message}</p>{/if}
+        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
@@ -304,7 +304,7 @@
   >
     <Stack gap="150">
       <p class="hint">{t('app.fields.delete_explains')}</p>
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
           {t('app.fields.delete')}

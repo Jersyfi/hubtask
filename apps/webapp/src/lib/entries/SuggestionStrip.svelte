@@ -177,7 +177,7 @@
       <p class="note">{t('app.suggestions.nothing_near')}</p>
     {/if}
     {#if askFailure}
-      <p class="failure">{askFailure.message}</p>
+      <p class="failure" role="alert">{askFailure.message}</p>
     {/if}
   </div>
 
@@ -186,7 +186,7 @@
   {/if}
 
   {#if listingFailure}
-    <p class="failure">{listingFailure.message}</p>
+    <p class="failure" role="alert">{listingFailure.message}</p>
   {:else if listing.state.status === 'loading' || listing.state.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else if open.length === 0 && asking?.outcome !== 'following'}
@@ -261,7 +261,7 @@
         <p class="line">{t('app.suggestions.unknown_hint')}</p>
       {/if}
       {#if decideFailure?.id === suggestion.id}
-        <p class="failure">{decideFailure.problem.message}</p>
+        <p class="failure" role="alert">{decideFailure.problem.message}</p>
       {/if}
 
       {#snippet actions()}

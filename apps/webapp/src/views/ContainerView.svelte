@@ -469,7 +469,7 @@
              version conflict is the ordinary case: nothing about the name is wrong, the row moved
              underneath the reader. -->
         {#if failure && !isNameFailure}
-          <p class="failure">{failure.message}</p>
+          <p class="failure" role="alert">{failure.message}</p>
         {/if}
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
@@ -496,7 +496,7 @@
         {/if}
 
         {#if failure && !isRenaming}
-          <p class="failure">{failure.message}</p>
+          <p class="failure" role="alert">{failure.message}</p>
         {/if}
 
         <Toolbar label={t('app.workspace.title')}>

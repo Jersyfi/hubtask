@@ -101,7 +101,7 @@
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
          error, because there is no field for it to land on. -->
     {#if failure && !isNameFailure}
-      <p class="failure">{failure.message}</p>
+      <p class="failure" role="alert">{failure.message}</p>
     {/if}
   </Stack>
 

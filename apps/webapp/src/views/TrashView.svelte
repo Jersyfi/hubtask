@@ -182,7 +182,7 @@
 <Stack gap="300">
   <h1 class="name">{t('app.trash.title')}</h1>
 
-  {#if failure}<p class="failure">{failure.message}</p>{/if}
+  {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
   {#if summary}
     <div class="summary">

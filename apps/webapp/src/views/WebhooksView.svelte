@@ -369,7 +369,7 @@
                     <span>{t('app.webhooks.reading_deliveries')}</span>
                   </p>
                 {:else if state.status === 'failed'}
-                  <p class="failure">{renderProblem(state.error, messages).message}</p>
+                  <p class="failure" role="alert">{renderProblem(state.error, messages).message}</p>
                 {:else}
                   <ul class="deliveries">
                     {#each webhooks.deliveriesOf(subscription.id, outcome || undefined) as delivery (delivery.id)}

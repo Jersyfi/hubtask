@@ -167,7 +167,7 @@
       {/if}
     {/if}
 
-    {#if failure}<p class="failure">{failure}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
 </Dialog>
 
@@ -180,7 +180,7 @@
   >
     <Stack gap="150">
       <p class="quiet">{t('app.feeds.revoke_explains')}</p>
-      {#if failure}<p class="failure">{failure}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={confirmRevoke}>
           {t('app.feeds.revoke')}

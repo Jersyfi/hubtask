@@ -522,7 +522,7 @@
     {/snippet}
   </EmptyState>
 {:else}
-  {#if writeFailure}<p class="failure">{writeFailure.message}</p>{/if}
+  {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
   <div class="board" bind:this={board}>
     {#each [...columns, null] as bucket (bucket?.id ?? 'none')}

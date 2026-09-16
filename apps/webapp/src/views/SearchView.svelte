@@ -161,7 +161,7 @@
 
   <p class="hint">{t('app.search.hint')}</p>
 
-  {#if writeFailure}<p class="failure">{writeFailure.message}</p>{/if}
+  {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
   {#if failure}
     <ErrorState

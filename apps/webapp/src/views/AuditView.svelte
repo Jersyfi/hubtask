@@ -415,9 +415,9 @@
             </Stack>
           </Banner>
         {:else if watch.unreachable}
-          <p class="failure">{sentence(watch.unreachable)}</p>
+          <p class="failure" role="alert">{sentence(watch.unreachable)}</p>
         {:else if watch.job.status !== 'SUCCEEDED'}
-          <p class="failure">{sentence(watch.job.error_code) ?? t('app.audit.export_failed')}</p>
+          <p class="failure" role="alert">{sentence(watch.job.error_code) ?? t('app.audit.export_failed')}</p>
         {/if}
       {/if}
     </Stack>

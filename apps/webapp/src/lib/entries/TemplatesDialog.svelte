@@ -216,7 +216,7 @@
         <Input label={t('app.templates.anchor')} type="date" hint={t('app.templates.anchor_hint')} bind:value={anchor} />
         <Input label={t('app.templates.root_title')} hint={t('app.templates.root_title_hint')} bind:value={rootTitle} />
 
-        {#if failure}<p class="failure">{failure.message}</p>{/if}
+        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
         {#if created !== undefined}
           <p class="quiet">{t('app.templates.created', { count: String(created) })}</p>
         {/if}
@@ -275,7 +275,7 @@
           onnodes={(next) => (nodes = next)}
         />
 
-        {#if failure && !failure.fields.get('/name')}<p class="failure">{failure.message}</p>{/if}
+        {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
           <Button
@@ -324,7 +324,7 @@
         </ul>
       {/if}
 
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
       <CapabilityGate
         status={structure.status}
@@ -350,7 +350,7 @@
   >
     <Stack gap="150">
       <p class="quiet">{t('app.templates.delete_explains')}</p>
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
           {t('app.templates.delete')}
