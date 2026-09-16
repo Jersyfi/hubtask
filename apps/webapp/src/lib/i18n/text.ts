@@ -36,7 +36,3 @@ export function truncateGraphemes(text: string, max: number, locale = 'en'): str
   return parts.length <= max ? text : parts.slice(0, max).join('');
 }
 
-/** How long a text is as the server counts it: code points, not UTF-16 units (§5). */
-export function codePoints(text: string): number {
-  return Array.from(text).length;
-}

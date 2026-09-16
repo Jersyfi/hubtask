@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 import { byName } from './collation.ts';
 import { decimalSeparatorOf, formatDecimal, parseDecimal } from './number.ts';
-import { codePoints, graphemes, truncateGraphemes } from './text.ts';
+import { graphemes, truncateGraphemes } from './text.ts';
 import { firstWeekdayOf, weekStartKeyOf } from './week.ts';
 
 test('names are ordered the way the reader reads them, not by code unit', () => {
@@ -28,7 +28,6 @@ test('a cut falls between graphemes and never inside one', () => {
   assert.equal(truncateGraphemes(flagAndFamily, 2), '🇩🇪👨‍👩‍👧');
   assert.equal(truncateGraphemes('short', 80), 'short');
   // `slice` would have cut the flag in half; the family is 7 code points and 11 units.
-  assert.equal(codePoints('👨‍👩‍👧'), 5);
   assert.equal('👨‍👩‍👧'.length, 8);
 });
 
