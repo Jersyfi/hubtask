@@ -220,7 +220,7 @@
     cursor: pointer;
   }
 
-  .row:hover { background: var(--bg-surface-raised); }
+  .row:hover { background: var(--bg-surface-hover); }
 
   .row:focus-visible,
   .entry:focus-visible {
@@ -269,7 +269,7 @@
     cursor: pointer;
   }
 
-  .entry:hover { background: var(--bg-surface-raised); }
+  .entry:hover { background: var(--bg-surface-hover); }
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 </style>
