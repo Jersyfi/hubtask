@@ -239,6 +239,7 @@
   "app.translate.asking": "Wird übersetzt…",
   "app.translate.heading": "Gelesen auf {language}",
   "app.translate.display_only": "Wird hier gezeigt und nirgends behalten. Der Eintrag selbst bleibt unverändert.",
+  "app.translate.done_announced": "Die Übersetzung ist da.",
   "app.gate.role_unknown": "Dieser Arbeitsbereich verwendet die Rolle {role} nicht, darum ist hier unbekannt, was sie darf.",
   "app.gate.permission_missing": "Eine Rolle {role} kann das nicht. Dazu braucht sie die Berechtigung {permission}.",
   "app.gate.change_none": "Deine Rolle kann Einträge hier lesen, aber nicht ändern.",
@@ -1024,6 +1025,7 @@
   "app.service_accounts.no_roles": "Dieses Konto hält keine Rolle, darum werden seine Token angenommen und dann von allem abgelehnt. Gib ihm unter Leute eine Rolle.",
   "app.service_accounts.show_tokens": "Seine Token",
   "app.service_accounts.hide_tokens": "Seine Token verbergen",
+  "app.service_accounts.created_announced": "Dienstkonto erstellt; sein Geheimnis wird einmal gezeigt.",
   "app.admin.service_accounts": "Dienstkonten",
   "app.admin.service_accounts_hint": "Konten für Integrationen und Automatisierungen, und die Token, mit denen sie handeln.",
   "app.grants.title": "Apps, die du erlaubt hast",
@@ -1417,6 +1419,7 @@
   "app.tokens.keep_first": "Sichere zuerst das Token. Es kann nicht noch einmal gezeigt werden.",
   "app.tokens.done": "Fertig",
   "app.tokens.revoked_announced": "Token zurückgezogen.",
+  "app.tokens.minted_announced": "Token erstellt; er wird einmal gezeigt.",
   "app.people.nobody_here": "Noch niemand hält hier eine Rolle.",
   "app.people.a_group": "Eine Gruppe",
   "app.people.more_members": "Weitere an diesem Eintrag: {count}.",
@@ -2083,5 +2086,7 @@
   "app.suggestions.dismissed_announced": "Der Vorschlag wurde verworfen.",
   "app.jobs.cancel_asked_announced": "Abbruch angefordert.",
   "app.buckets.saved_announced": "Spalte gespeichert.",
-  "app.buckets.removed_announced": "Spalte gelöscht."
+  "app.buckets.removed_announced": "Spalte gelöscht.",
+  "app.cover.set_announced": "Titelbild gesetzt.",
+  "app.cover.cleared_announced": "Titelbild entfernt."
 }

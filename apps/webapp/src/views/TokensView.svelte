@@ -103,6 +103,7 @@
         expiresAt: `${expiresAt}T23:59:59Z`,
         accountId,
       });
+      announcer.say(t('app.tokens.minted_announced'));
       name = '';
       expiresAt = '';
       chosen = [];

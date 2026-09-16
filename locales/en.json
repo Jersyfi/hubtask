@@ -1227,6 +1227,7 @@
   "app.translate.asking": "Translating…",
   "app.translate.heading": "Read in {language}",
   "app.translate.display_only": "Shown here and kept nowhere. The entry itself is unchanged.",
+  "app.translate.done_announced": "The translation arrived.",
   "app.gate.role_unknown": "This workspace does not use the role {role}, so what it may do is unknown here.",
   "app.gate.permission_missing": "A {role} cannot do this. It needs the {permission} permission.",
   "app.gate.change_none": "Your role can read entries here but not change them.",
@@ -2012,6 +2013,7 @@
   "app.service_accounts.no_roles": "This account holds no role, so its tokens will be accepted and then refused by everything. Give it a role under People.",
   "app.service_accounts.show_tokens": "Its tokens",
   "app.service_accounts.hide_tokens": "Hide its tokens",
+  "app.service_accounts.created_announced": "Service account created; its secret is shown once.",
   "app.admin.service_accounts": "Service accounts",
   "app.admin.service_accounts_hint": "Accounts for integrations and automations, and the tokens they act with.",
   "app.grants.title": "Apps you have allowed",
@@ -2405,6 +2407,7 @@
   "app.tokens.keep_first": "Save the token first. It cannot be shown again.",
   "app.tokens.done": "Done",
   "app.tokens.revoked_announced": "Token withdrawn.",
+  "app.tokens.minted_announced": "Token minted; it is shown once.",
   "app.people.nobody_here": "Nobody holds a role here yet.",
   "app.people.a_group": "A group",
   "app.people.more_members": "Others on this entry: {count}.",
@@ -3071,5 +3074,7 @@
   "app.suggestions.dismissed_announced": "The proposal was dismissed.",
   "app.jobs.cancel_asked_announced": "Cancellation asked for.",
   "app.buckets.saved_announced": "Column saved.",
-  "app.buckets.removed_announced": "Column deleted."
+  "app.buckets.removed_announced": "Column deleted.",
+  "app.cover.set_announced": "Cover set.",
+  "app.cover.cleared_announced": "Cover removed."
 }

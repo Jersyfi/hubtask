@@ -299,7 +299,12 @@
            inferring it from a sign-in that did not ask for a code would be inferring from an
            absence. So the panel offers enrolment, and the server refuses one that is already
            armed — in its own words, which is the honest answer rather than a guess. -->
-      <TotpEnrollment onarmed={() => (mfaNotice = t('app.mfa.armed'))} />
+      <TotpEnrollment
+        onarmed={() => {
+          mfaNotice = t('app.mfa.armed');
+          announcer.say(mfaNotice);
+        }}
+      />
 
       {#if mfaNotice}<p class="quiet">{mfaNotice}</p>{/if}
 
