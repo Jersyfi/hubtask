@@ -931,6 +931,8 @@ func (pending) SyncPull(w http.ResponseWriter, r *http.Request) { notAvailable(w
 
 func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) SyncSnapshot(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.StreamChangesParams) {
 	notAvailable(w, r)
 }

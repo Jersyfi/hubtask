@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -214,6 +215,56 @@ func (c *Client) OpenStream(ctx context.Context, lastEventID string) (httpclient
 		return httpclient.StreamResponse{}, c.transportError(err)
 	}
 	return response, nil
+}
+
+// OpenSnapshot asks for the initial synchronisation as one stream (SY-C) and hands the open
+// response back, for OpenStream's reason: the body is read line by line as it arrives, and the
+// caller closes it. A refusal before the first byte is an ordinary problem document and is
+// answered as one.
+func (c *Client) OpenSnapshot(ctx context.Context, body any) (httpclient.StreamResponse, error) {
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return httpclient.StreamResponse{}, fmt.Errorf("building the request: %w", err)
+	}
+	request := port.Request{
+		Method:      http.MethodPost,
+		URL:         c.base + syncSnapshotPath,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":       {"application/x-ndjson, application/problem+json"},
+			"Content-Type": {"application/json"},
+			"User-Agent":   {"hubctl/" + version},
+		},
+		Body: encoded,
+	}
+	c.identify(request.Header)
+	// A rate limit is waited out here as `send` waits it out: a snapshot asked for a moment after
+	// a dozen other things is not abuse, and the budget is this credential's own to spend.
+	for attempt := 0; ; attempt++ {
+		response, err := c.transport.Stream(ctx, request)
+		if err != nil {
+			return httpclient.StreamResponse{}, c.transportError(err)
+		}
+		if response.Status < http.StatusBadRequest {
+			return response, nil
+		}
+		document, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+		_ = response.Body.Close()
+		if response.Status != http.StatusTooManyRequests || attempt >= rateLimitRetries {
+			return httpclient.StreamResponse{}, c.problem(port.Response{
+				Status: response.Status, Header: response.Header, Body: document,
+			})
+		}
+		wait := retryAfter(response.Header)
+		if c.Notice != nil {
+			c.Notice("the installation is limiting this credential; waiting %s", wait)
+		}
+		if !c.sleep(ctx, wait) {
+			return httpclient.StreamResponse{}, c.problem(port.Response{
+				Status: response.Status, Header: response.Header, Body: document,
+			})
+		}
+	}
 }
 
 // Upload puts staged bytes where requestMediaUpload said to put them.
