@@ -10,7 +10,9 @@ Two nodes and one credential:
   `api/openapi.yaml`, and there is no code per operation.
 * **Hubtask Trigger** — a webhook subscription over the REST hooks pattern: activating a workflow
   creates the subscription, deactivating it deletes it, and every delivery's signature is
-  verified against the secret the subscription answered once.
+  verified against the secret the subscription answered once. A delivery is read from the
+  request's raw bytes: it arrives as `application/cloudevents+json`, which n8n's own body parser
+  leaves unread, and the signature is over those bytes.
 * **Hubtask API** — the installation's API root and a personal access token.
 
 `pnpm build` generates `dist/`, which is the package as it would be published: its own
