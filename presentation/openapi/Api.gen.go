@@ -3619,6 +3619,21 @@ type AuditActor struct {
 // AuditActorType defines model for AuditActor.Type.
 type AuditActorType string
 
+// AuditAnchoring defines model for AuditAnchoring.
+type AuditAnchoring struct {
+	ConfiguredAt time.Time           `json:"configured_at"`
+	ConfiguredBy *openapi_types.UUID `json:"configured_by,omitempty"`
+
+	// TargetId The target anchoring writes to, or null where it is off.
+	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
+}
+
+// AuditAnchoringConfiguration defines model for AuditAnchoringConfiguration.
+type AuditAnchoringConfiguration struct {
+	// TargetId The workspace's backup target the daily anchor is written to; null switches anchoring off.
+	TargetId *openapi_types.UUID `json:"target_id"`
+}
+
 // AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
@@ -7341,8 +7356,10 @@ type ListAuditEntriesParamsOutcome string
 
 // VerifyAuditChainJSONBody defines parameters for VerifyAuditChain.
 type VerifyAuditChainJSONBody struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
+	Anchors *bool     `json:"anchors,omitempty"`
+	From    time.Time `json:"from"`
+	To      time.Time `json:"to"`
 }
 
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
@@ -8230,6 +8247,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
+// ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
+type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
+
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
 
@@ -8583,6 +8603,9 @@ type ServerInterface interface {
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
+	// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
+	// (PUT /audit/anchoring)
+	ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request)
 	// ExportAuditTrail Export the audit trail over a period
 	// (POST /audit:export)
 	ExportAuditTrail(w http.ResponseWriter, r *http.Request)
@@ -9867,6 +9890,20 @@ func (siw *ServerInterfaceWrapper) ListAuditEntries(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAuditEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureAuditAnchoring operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureAuditAnchoring(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18286,6 +18323,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/health", wrapper.GetHealthReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:verify", wrapper.VerifyAuditChain)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/audit/anchoring", wrapper.ConfigureAuditAnchoring)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:export", wrapper.ExportAuditTrail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets", wrapper.ListBackupTargets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets", wrapper.CreateBackupTarget)

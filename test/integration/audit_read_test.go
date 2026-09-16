@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -414,7 +415,7 @@ func TestOneTenantCannotReadAnothersTrail(t *testing.T) {
 }
 
 // And the anchor, which is read under the same policy.
-func TestTheAnchorIsReadPerTenantAndIsEmptyToday(t *testing.T) {
+func TestTheAnchorIsReadPerTenantAndIsEmptyUntilAnchored(t *testing.T) {
 	ctx := context.Background()
 	tenant, other := auditTenant(ctx, t), auditTenant(ctx, t)
 
@@ -427,7 +428,7 @@ func TestTheAnchorIsReadPerTenantAndIsEmptyToday(t *testing.T) {
 		t.Fatalf("reading the anchor: %v", err)
 	}
 	if !anchor.IsZero() {
-		t.Errorf("an installation that anchors nothing answered %+v", anchor)
+		t.Errorf("a workspace that anchors nothing answered %+v", anchor)
 	}
 
 	// One tenant's anchor is not another's, which is what the policy on the table says.
@@ -1088,5 +1089,92 @@ func TestAnEntryThatChangedNothingStillVerifies(t *testing.T) {
 	}
 	if !found.Valid {
 		t.Errorf("a chain carrying an entry that changed nothing does not verify: %+v", found)
+	}
+}
+
+// The anchoring's own reads and its one write (A-2, P-13), against the real boundary: the chain's
+// end is the sink's tail, a hash is read by its sequence number, an anchor is recorded once per
+// sequence number and only under the tenant's own policy - and the application role cannot change
+// or remove one.
+func TestAnAnchorIsRecordedOncePerSequenceAndCannotBeChanged(t *testing.T) {
+	ctx := context.Background()
+	tenant, other := auditTenant(ctx, t), auditTenant(ctx, t)
+	appendTo(ctx, t, tenant, mixedEntries(t, tenant, 5))
+
+	var end repository.ChainEnd
+	var third []byte
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		if end, err = auditTrailRepo().ChainEnd(ctx); err != nil {
+			return err
+		}
+		third, err = auditTrailRepo().HashAt(ctx, 3)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the chain: %v", err)
+	}
+	if end.LastSeq != 5 || len(end.Hash) == 0 || len(third) == 0 {
+		t.Fatalf("the chain's end is %+v, the third hash %x", end, third)
+	}
+
+	anchor := repository.Anchor{
+		AnchoredAt: created, LastSeq: end.LastSeq, ChainHash: end.Hash,
+		Destination: freshID(t).String(), Receipt: "d0d1d2",
+	}
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		return auditTrailRepo().Record(ctx, anchor)
+	}); err != nil {
+		t.Fatalf("recording the anchor: %v", err)
+	}
+	// Once per sequence number: the second is a conflict, not a duplicate.
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		return auditTrailRepo().Record(ctx, anchor)
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a second anchor of the same sequence answered %v", err)
+	}
+
+	var latest, alien repository.Anchor
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		latest, err = auditTrailRepo().LatestAnchor(ctx)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if latest.LastSeq != 5 || latest.Destination != anchor.Destination || latest.Receipt != "d0d1d2" {
+		t.Errorf("the anchor read back is %+v", latest)
+	}
+	if err := read(ctx, t, other, func(ctx context.Context) error {
+		var err error
+		if alien, err = auditTrailRepo().LatestAnchor(ctx); err != nil {
+			return err
+		}
+		if _, err := auditTrailRepo().HashAt(ctx, 3); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("a tenant read another's hash: %v", err)
+		}
+		end, err := auditTrailRepo().ChainEnd(ctx)
+		if err != nil || end.LastSeq != 0 {
+			t.Errorf("a tenant read another's chain end: %+v %v", end, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !alien.IsZero() {
+		t.Errorf("a tenant read another's anchor: %+v", alien)
+	}
+
+	// The row is append-only for the application role, as the catalogue has said all along.
+	app := appPool(ctx, t)
+	if _, err := app.Exec(ctx, `SELECT set_config('app.tenant_id', $1, false)`, tenant.String()); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`UPDATE audit_anchor SET receipt = 'tampered' WHERE tenant_id = $1`,
+		`DELETE FROM audit_anchor WHERE tenant_id = $1`,
+	} {
+		if _, err := app.Exec(ctx, statement, tenant.String()); err == nil {
+			t.Errorf("the application role could run: %s", statement)
+		}
 	}
 }

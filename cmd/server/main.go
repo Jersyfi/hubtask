@@ -550,6 +550,17 @@ func run() error {
 	// that writes holds the sink, and a sink that could also read would put the whole trail one
 	// call away from code that has no business reading it (E-09).
 	auditTrail := postgres.NewAuditTrailRepository(cursors)
+	// External anchoring (A-2, P-13): the chain's end written daily to a target the workspace
+	// named, and read back by a verification that asks for it.
+	auditAnchoring := auditservice.Anchoring{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Targets: backupTargets,
+		Trail: auditTrail, Anchors: auditTrail,
+		Stores: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor, UnitOfWork: unitOfWork,
+		},
+		Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, ProductVersion: version,
+	}
 	// Data subject rights (E-10). One repository over four ports - the cases, the consents, the
 	// account states an erasure and a restriction write, and the pseudonyms the audit trail reads
 	// at the boundary - because they are one table group and one transaction's worth of work.
@@ -1443,8 +1454,9 @@ func run() error {
 		}.Descriptor(),
 		auditservice.VerifyAuditChain{
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Anchoring: &auditAnchoring,
 		}.Descriptor(),
+		auditservice.ConfigureAuditAnchoring{Anchoring: auditAnchoring}.Descriptor(),
 		privacyservice.CreateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
@@ -2528,6 +2540,7 @@ func run() error {
 			},
 			Progress: jobs,
 		},
+		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
 		// The grace job the deletion request seeded (H-06). Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
 		// The workspace export the control plane seeds (H-07). Detached for the audit
