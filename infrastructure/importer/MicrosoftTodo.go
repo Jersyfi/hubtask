@@ -6,6 +6,7 @@ package importer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 	"time"
@@ -95,11 +96,7 @@ func (d graphDateTime) instant() (at time.Time, midnight bool, err error) {
 	return parsed.UTC(), h == 0 && m == 0 && s == 0, nil
 }
 
-type zoneError struct{}
-
-func (zoneError) Error() string { return "zone unknown" }
-
-var errZoneUnknown error = zoneError{}
+var errZoneUnknown = errors.New("zone unknown")
 
 func (MicrosoftTodo) Convert(_ context.Context, source service.Source) (service.Result, error) {
 	raw, err := io.ReadAll(source.Content)
@@ -212,7 +209,7 @@ func graphTasksOf(raw json.RawMessage) ([]graphTask, error) {
 }
 
 func dateCode(err error) string {
-	if err == errZoneUnknown {
+	if errors.Is(err, errZoneUnknown) {
 		return domain.CodeRowZoneUnknown
 	}
 	return domain.CodeRowDateInvalid
