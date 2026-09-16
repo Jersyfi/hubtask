@@ -28,6 +28,20 @@ config:
   baseUrl: https://api.integration.hubtask.eu
   logFormat: json
   logLevel: info
+  extraEnv:
+    # The application's mail path (smtp.yaml): a catcher in this namespace, reached by the name
+    # its certificate carries, on production's port, with the default - STARTTLS - security.
+    # No credentials: the catcher authenticates nobody, and the adapter sends AUTH only when a
+    # user is configured. What is exercised is what reminders need - the connection, the
+    # STARTTLS upgrade, the envelope - and what production's relay adds is a password.
+    HUBTASK_SMTP_HOST: smtp.hubtask.svc
+    HUBTASK_SMTP_FROM: noreply@integration.hubtask.eu
+    # Go's own knob for a second trust directory. The default bundle stays - SSL_CERT_DIR replaces
+    # the directory list, not the file list - so public certificates verify as before and the
+    # cluster's mail authority verifies beside them. It is the process-wide trust store: a
+    # webhook target presenting a certificate from this authority would be trusted too, which is
+    # the same statement an operator makes when they add an internal authority in production.
+    SSL_CERT_DIR: /etc/hubtask/mail-ca
 
 # The names are in bootstrap.sh, and the values were generated on the host and never left it.
 existingSecret: hubtask-secrets
@@ -62,6 +76,20 @@ storage:
   persistence:
     enabled: true
     existingClaim: hubtask-media
+
+# The mail authority's certificate, and nothing else out of that secret: the key stays with
+# cert-manager. The directory is what SSL_CERT_DIR above names.
+extraVolumes:
+  - name: mail-ca
+    secret:
+      secretName: smtp-ca
+      items:
+        - key: ca.crt
+          path: ca.crt
+extraVolumeMounts:
+  - name: mail-ca
+    mountPath: /etc/hubtask/mail-ca
+    readOnly: true
 
 networkPolicy:
   enabled: true

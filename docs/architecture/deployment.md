@@ -113,6 +113,7 @@ published ([§4](#4-push-or-pull)).
 | Ingress | Traefik, the controller k3s already ships |
 | TLS | cert-manager with Let's Encrypt, `HTTP-01`, one certificate per host |
 | Database | PostgreSQL in the cluster, on a local volume — the environment is rebuildable, not precious |
+| Mail | A catcher in the namespace, over STARTTLS behind a certificate authority the cluster issued to itself: the application takes production's path and the recipients at `example.org` never leave the node |
 | Host names | `<service>.<environment>.hubtask.eu`, so `api.integration.hubtask.eu` today and `app.integration.hubtask.eu` when the web client arrives |
 
 **Why an own server rather than managed Kubernetes.** What `integration` has to prove is that the
