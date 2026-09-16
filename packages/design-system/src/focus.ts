@@ -11,6 +11,8 @@
 // The components keep the DOM half, and it stays small: read the items, call `rovingIndex`, focus
 // what it names.
 
+import type { Attachment } from 'svelte/attachments';
+
 import { handleEscape, layers, type LayerRegister } from './layers.ts';
 
 /** Which arrows move the selection. A menu is vertical; a toolbar, later, is not. */
@@ -114,4 +116,40 @@ export function focusables(root: ParentNode): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
     (element) => element.getAttribute('aria-hidden') !== 'true',
   );
+}
+
+/**
+ * Moves focus into what just appeared, and back out when it goes: the first focusable inside the
+ * element once it is in the document, and the control that opened it once the element is gone.
+ *
+ * For an editor that opens in place of, or under, the control that opened it - the entry's edit
+ * form, a reminder's editor, the rename field, the add-an-entry form. Without this the browser
+ * drops focus to `body` on both journeys: the control is gone by the time the form is there, and
+ * the form's Cancel is gone by the time the control is back, so a keyboard reader is twice at the
+ * top of the page with no idea why (2.4.3; the F5-11 walk found five of these). An overlay does
+ * the same through `openOverlay`; this is the non-overlay case, as an attachment so that the
+ * form says so where it is written: `<Stack {@attach focusFirst()}>`.
+ *
+ * The way back is the element that was focused when the form arrived, where it still exists -
+ * the button that stays beside what it opened - and otherwise `returnTo`, a selector for the
+ * control that replaced the form. Nothing is moved when focus is already somewhere: a Save that
+ * navigated away keeps its destination. A microtask rather than a frame, because a frame never
+ * comes in a background tab.
+ */
+export function focusFirst(options: { returnTo?: string } = {}): Attachment {
+  return (node) => {
+    const opener = document.activeElement === document.body ? null : document.activeElement;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) focusables(node as ParentNode)[0]?.focus();
+    });
+    return () => {
+      cancelled = true;
+      queueMicrotask(() => {
+        if (document.activeElement !== document.body) return;
+        if (focusReturn(opener)) return;
+        if (options.returnTo) document.querySelector<HTMLElement>(options.returnTo)?.focus();
+      });
+    };
+  };
 }

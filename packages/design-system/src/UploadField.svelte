@@ -113,10 +113,15 @@
     }}
     role="presentation"
   >
+    <!-- Out of the tab order: the input is transparent, so its ring is transparent too, and a
+         keyboard reader would land on a stop that shows nothing (2.4.7 - the F5-11 walk). The
+         button beside it is the keyboard's way in; the input keeps the pointer's click and the
+         drop. -->
     <input
       class="native"
       id={inputId}
       type="file"
+      tabindex="-1"
       {accept}
       bind:this={input}
       disabled={unavailable}
@@ -187,7 +192,9 @@
     cursor: pointer;
   }
 
-  .native:focus-visible {
+  /* Rule 5's ring, drawn by the target rather than by the input: the input is transparent, so
+     a ring on it would be transparent too. It is reached by a label's click, never by Tab. */
+  .target:has(.native:focus-visible) {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
   }
