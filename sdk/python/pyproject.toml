@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# The Python SDK's package manifest (P-03). Not published by the milestone: the name, the licence
+# classifier and the version are what ADR-0057 puts to the owner, and the version follows the
+# product's (ADR-0035) when it is.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hubtask"
+version = "0.1.0"
+description = "The Python client for the Hubtask API, generated from the OpenAPI contract"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "BUSL-1.1"
+dependencies = []
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/Jersyfi/hubtask"
+
+[tool.setuptools.packages.find]
+include = ["hubtask*"]
