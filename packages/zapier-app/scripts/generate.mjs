@@ -24,6 +24,13 @@ import { appProblems, selftest } from './schema.mjs';
 const require = createRequire(import.meta.url);
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * The platform library's version, pinned to the platform's current one: `zapier validate` names
+ * the latest under D027, and `cleanInputData` - which every perform here needs said, because they
+ * drop empty values themselves - is a key the schema learned after 17 (issue 722).
+ */
+export const PLATFORM_VERSION = '19.1.0';
+
 /** The creates the app offers: the writes a Zap does (automation.md §3.3), by operationId. */
 export const CREATES = [
   { id: 'createWorkItem', noun: 'Entry', label: 'Create Entry' },
@@ -38,6 +45,36 @@ export const SEARCHES = [
   { id: 'searchItems', noun: 'Entry', label: 'Find Entry by Text' },
   { id: 'queryItems', noun: 'Entry', label: 'Find Entries by Filter' },
 ];
+
+/**
+ * The hidden triggers that feed a dynamic dropdown (the platform's D004): an identifier field is
+ * a list to choose from, not a UUID to paste. Each one is a listing of the contract, read by
+ * `operationId`; one that `needs` a field of the form reads it from the form's current input and
+ * answers nothing until it is filled. There is no listing for accounts by design - a membership
+ * names an account by identifier only - so an assignee stays a field one fills from a search.
+ */
+export const CHOICES = [
+  { key: 'hubChoices', noun: 'Hub', operation: 'listContainers', query: { type: 'HUB' }, label: 'name' },
+  { key: 'collectionChoices', noun: 'Collection', operation: 'listContainers', query: { type: 'COLLECTION' }, label: 'name' },
+  { key: 'containerChoices', noun: 'Container', operation: 'listContainers', query: {}, label: 'name' },
+  { key: 'entryChoices', noun: 'Entry', operation: 'listWorkItems', needs: 'collection_id', query: { collection_id: '{collection_id}' }, label: 'title' },
+  // A form that names an entry and no collection - an update - reaches the buckets through the
+  // entry's own collection, one read away.
+  { key: 'bucketChoices', noun: 'Bucket', operation: 'listBuckets', needs: 'collection_id', via: { field: 'itemId', operation: 'getWorkItem', read: 'collection_id' }, path: { containerId: '{collection_id}' }, label: 'name' },
+  { key: 'commentChoices', noun: 'Comment', operation: 'listComments', needs: 'itemId', path: { itemId: '{itemId}' }, label: 'body' },
+];
+
+/** Which field of which entry is fed by which choices trigger, as `key.id.label`. */
+export const DROPDOWNS = {
+  createWorkItem: { collection_id: 'collectionChoices.id.name', parent_id: 'entryChoices.id.title', before_item_id: 'entryChoices.id.title', bucket_id: 'bucketChoices.id.name' },
+  updateWorkItem: { bucket_id: 'bucketChoices.id.name' },
+  addComment: { parent_comment_id: 'commentChoices.id.body' },
+  createContainer: { parent_id: 'hubChoices.id.name' },
+  searchItems: { container_id: 'containerChoices.id.name' },
+};
+
+/** The fields a search step can fill: an entry's identifier, wherever a form asks for one. */
+export const SEARCHABLE = { itemId: 'searchItems.id', parent_id: 'searchItems.id', before_item_id: 'searchItems.id' };
 
 /* ── Reading the contract ──────────────────────────────────────────────────────────────── */
 
@@ -149,18 +186,28 @@ export function readDocument(document) {
 
 const ZAPIER_TYPE = { string: 'string', integer: 'integer', number: 'number', boolean: 'boolean' };
 
-function inputField(field) {
+function inputField(field, entryId) {
   const out = { key: field.name, label: words(field.name), required: field.required, helpText: field.description || undefined };
   if (field.enum && field.type === 'string') out.choices = field.enum;
   else if (field.type === 'array') out.list = true;
   else if (field.type === 'object') out.dict = true;
   else out.type = ZAPIER_TYPE[field.type] ?? 'string';
   if (field.name === 'notes' || field.name === 'body') out.type = 'text';
-  return out;
+  return withChoices(out, entryId);
 }
 
-function pathField(parameter) {
-  return { key: parameter.name, label: words(parameter.name), required: true, type: 'string', helpText: firstSentence(parameter.description) || undefined };
+function pathField(parameter, entryId) {
+  return withChoices({ key: parameter.name, label: words(parameter.name), required: true, type: 'string', helpText: firstSentence(parameter.description) || undefined }, entryId);
+}
+
+/** The dropdown and the search step a field takes, where one is declared for it. */
+function withChoices(field, entryId) {
+  const dynamic = DROPDOWNS[entryId]?.[field.key];
+  if (dynamic) field.dynamic = dynamic;
+  // A field another dropdown depends on refreshes the form when it changes.
+  if (CHOICES.some((choice) => choice.needs === field.key || choice.via?.field === field.key)) field.altersDynamicFields = true;
+  if (SEARCHABLE[field.key] && entryId !== 'searchItems') field.search = SEARCHABLE[field.key];
+  return field;
 }
 
 const HEADER = '// Code generated by scripts/generate.mjs from api/openapi.yaml - DO NOT EDIT.\n//\n// SPDX-License-Identifier: BUSL-1.1\n\'use strict\';\n\nconst { request } = require(\'../hubtask\');\n\n';
@@ -170,7 +217,7 @@ function js(value) {
 }
 
 export function createSource(op, entry) {
-  const fields = [...op.pathParameters.map(pathField), ...(op.body?.fields ?? []).map(inputField)];
+  const fields = [...op.pathParameters.map((p) => pathField(p, entry.id)), ...(op.body?.fields ?? []).map((f) => inputField(f, entry.id))];
   const bodyKeys = (op.body?.fields ?? []).map((f) => f.name);
   const pathKeys = op.pathParameters.map((p) => p.name);
   const contentType = op.body?.contentType;
@@ -202,7 +249,7 @@ module.exports = {
 }
 
 export function searchSource(op, entry) {
-  const fields = (op.body?.fields ?? []).map(inputField);
+  const fields = (op.body?.fields ?? []).map((f) => inputField(f, entry.id));
   return `${HEADER}module.exports = {
   key: ${js(entry.id)},
   noun: ${js(entry.noun)},
@@ -221,14 +268,30 @@ export function searchSource(op, entry) {
 `;
 }
 
-export function triggerSource(eventType, sample) {
+/**
+ * A trigger's description, in the shape the platform's D021 check demands: "Triggers when " and
+ * then the event's own first sentence, as the contract writes it in api/events - "Triggers when a
+ * task, a work package or an activity was created." The task references the schemas carry for a
+ * reader of the repository ("(C-03)") are dropped; a person building a Zap has no use for them.
+ */
+export function triggerDescription(eventType, schema) {
+  const own = firstSentence(schema?.description ?? '')
+    .replace(/\s*\((?:[A-Z]{1,2}-\d+|invariant [^)]*)\)/g, '')
+    .replace(/\s+([.,:;])/g, '$1')
+    .trim();
+  if (own === '') return `Triggers when ${eventType} happens in the connected workspace.`;
+  const sentence = own.charAt(0).toLowerCase() + own.slice(1);
+  return `Triggers when ${/[.!?]$/.test(sentence) ? sentence : `${sentence}.`}`;
+}
+
+export function triggerSource(eventType, sample, schema) {
   const key = triggerKey(eventType);
   return `${HEADER}const EVENT_TYPE = ${js(eventType)};
 
 module.exports = {
   key: ${js(key)},
   noun: 'Event',
-  display: { label: ${js(words(triggerKey(eventType)))}, description: ${js(`Triggers on ${eventType} in the connected workspace.`)} },
+  display: { label: ${js(words(triggerKey(eventType)))}, description: ${js(triggerDescription(eventType, schema))} },
   operation: {
     type: 'hook',
     inputFields: [],
@@ -242,6 +305,48 @@ module.exports = {
     perform: (z, bundle) => [bundle.cleanedRequest],
     performList: async (z, bundle) => {
       const page = await request(z, bundle, 'GET', '/integrations/triggers/' + encodeURIComponent(EVENT_TYPE), { query: { limit: 3 } });
+      return Array.isArray(page.data) ? page.data : Array.isArray(page) ? page : [];
+    },
+    sample: ${js(sample)},
+  },
+};
+`;
+}
+
+/**
+ * A choices trigger: a polling trigger the platform never shows, read for a dropdown. It answers
+ * the first page at the contract's largest size, because a dropdown is not a paginated list; a
+ * choice that `needs` a field answers nothing until the form has it.
+ */
+export function choicesSource(choice, op, contract) {
+  const query = { ...choice.query, size: 200 };
+  const sample = op.sample?.data?.[0] ?? (Array.isArray(op.sample) ? op.sample[0] : op.sample) ?? {};
+  const route = op.path.replace(/\{[^}]+\}/g, (m) => (choice.path ? choice.path[m.slice(1, -1)] ?? m : m));
+  const via = choice.via ? contract.operations.get(choice.via.operation) : undefined;
+  if (choice.via && !via) throw new Error(`zapier: the contract has no operation ${choice.via.operation}`);
+  const resolve = choice.via
+    ? `if (!input[${js(choice.needs)}] && input[${js(choice.via.field)}]) {
+        const found = await request(z, bundle, ${js(via.method)}, fill(${js(via.path)}, input));
+        input = { ...input, [${js(choice.needs)}]: found[${js(choice.via.read)}] };
+      }
+      `
+    : '';
+  return `${HEADER}function fill(template, input) {
+  return template.replace(/\\{([^}]+)\\}/g, (_, name) => encodeURIComponent(String(input[name] ?? '')));
+}
+
+module.exports = {
+  key: ${js(choice.key)},
+  noun: ${js(choice.noun)},
+  display: { label: ${js(words(choice.key))}, description: ${js(`Triggers when the ${choice.noun.toLowerCase()} choices are read for a dropdown.`)}, hidden: true },
+  operation: {
+    type: 'polling',
+    inputFields: [],
+    perform: async (z, bundle) => {
+      let input = bundle.inputData || {};
+      ${resolve}${choice.needs ? `if (!input[${js(choice.needs)}]) return [];\n      ` : ''}const query = {};
+      for (const [key, value] of Object.entries(${js(query)})) query[key] = typeof value === 'string' ? value.replace(/\\{([^}]+)\\}/g, (_, name) => String(input[name] ?? '')) : value;
+      const page = await request(z, bundle, ${js(op.method)}, fill(${js(route)}, input), { query });
       return Array.isArray(page.data) ? page.data : Array.isArray(page) ? page : [];
     },
     sample: ${js(sample)},
@@ -270,8 +375,11 @@ export function indexSource(triggers, creates, searches, version) {
 
 module.exports = {
   version: ${js(version)},
-  platformVersion: '17.0.0',
+  platformVersion: ${js(PLATFORM_VERSION)},
   authentication,
+  // Every perform drops the empty values itself, and says so here rather than leaving the
+  // platform to do it first (D028): what reaches a perform is what the person entered.
+  flags: { cleanInputData: false },
   beforeRequest: [
     (request, z, bundle) => {
       if (bundle.authData && bundle.authData.access_token) request.headers.Authorization = 'Bearer ' + bundle.authData.access_token;
@@ -303,8 +411,8 @@ export function publishedManifest(version) {
     // `zapier-platform-core` is a dependency of a Zapier app by the CLI's own rule, at the exact
     // version the platform pins; it is named here, in the manifest the CLI reads, and not in the
     // workspace's own (ADR-0058).
-    dependencies: { 'zapier-platform-core': '17.0.0' },
-    zapier: { convertedByCLIVersion: '17.0.0' },
+    dependencies: { 'zapier-platform-core': PLATFORM_VERSION },
+    zapier: { convertedByCLIVersion: PLATFORM_VERSION },
   };
 }
 
@@ -318,8 +426,14 @@ export function writeApp({ document, events, into }) {
   const triggers = [];
   for (const [type, schema] of Object.entries(events).sort()) {
     const key = triggerKey(type);
-    fs.writeFileSync(path.join(into, 'triggers', `${key}.js`), triggerSource(type, eventSample(type, schema, contract.exampleOf)));
+    fs.writeFileSync(path.join(into, 'triggers', `${key}.js`), triggerSource(type, eventSample(type, schema, contract.exampleOf), schema));
     triggers.push(key);
+  }
+  for (const choice of CHOICES) {
+    const op = contract.operations.get(choice.operation);
+    if (!op) throw new Error(`zapier: the contract has no operation ${choice.operation}`);
+    fs.writeFileSync(path.join(into, 'triggers', `${choice.key}.js`), choicesSource(choice, op, contract));
+    triggers.push(choice.key);
   }
   for (const entry of CREATES) {
     const op = contract.operations.get(entry.id);
