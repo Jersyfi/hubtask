@@ -1823,6 +1823,9 @@ func run() error {
 				},
 				BaseURL: cfg.BaseURL,
 				Now:     clockadapter.System{}.Now,
+				// The writes (P-07): a completion, a date, a name, a deletion, each the
+				// ordinary use case performed as the token's account through the registry.
+				UseCases: useCases,
 			},
 		}
 		apiRoutes := rest.Mounted{
