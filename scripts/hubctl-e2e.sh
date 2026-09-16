@@ -538,6 +538,21 @@ expect_contains "the device says what it is" "$(hubctl sync devices ls)" "hubctl
 hubctl sync devices forget "$DEVICE_ID" 2>/dev/null
 expect_contains "the device is blocked" "$(hubctl sync devices ls | grep -F "$DEVICE_ID")" "true"
 
+echo "--- the client requirements of offline-sync.md §9, checked ---"
+# The conformance runner (N-13): the server driven through the protocol as two devices, each of
+# §9's eight requirements answered by its number. What it cannot test from outside it says so
+# about - the sixth is a client's alone - and a broken server fails exactly the check it breaks,
+# which cmd/hubctl/Conformance_test.go proves against a stub with one switch per requirement,
+# because a running instance has no switch to flip.
+conformance="$(hubctl sync-conformance --report "$WORK_DIR/conformance.md")"
+expect_contains "the conformance report" "$conformance" "| Checks | 8, 0 failed"
+expect_contains "requirement 3" "$conformance" "| 3 | After ACCESS_REVOKED or sync.gone, local data is deleted | **pass** |"
+expect_contains "requirement 6 is a client's alone" "$conformance" "| 6 | Local storage is encrypted and discarded on sign-out | **not-tested** |"
+expect_missing "no check failed" "$conformance" "**fail**"
+if [ ! -s "$WORK_DIR/conformance.md" ]; then
+	fail "sync-conformance wrote no report"
+fi
+
 echo "--- a saved view, and the file it becomes ---"
 cat > "$WORK_DIR/query.json" <<QUERY
 {"scope_container_id":"$COLLECTION_ID",

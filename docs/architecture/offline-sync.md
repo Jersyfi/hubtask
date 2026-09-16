@@ -274,7 +274,7 @@ substitute for the still-open frontend decision:
 7. Unknown fields and enum values are tolerated and written back unchanged (forward compatibility).
 8. Nothing in the right-hand column of §1 is offered offline.
 
-A conformance test (`hubctl sync-conformance`) checks these points against a running instance.
+A conformance test (`hubctl sync-conformance`) checks these points against a running instance - from the server's side, as two devices: it assigns an identifier and reads it back (1), pushes the same operation twice (2), revokes the second device's membership and watches the `ACCESS_REVOKED` record arrive and a push below it be refused (3), walks the full synchronisation and presents a cursor the server cannot read (4), pushes a stale patch and an empty title and reads the server's answer and its code (5), pushes a field of a later version in the frame and in a payload and reads the refusal that names it (7 - what the server owes a client's forward compatibility: a field it does not know is named, never dropped in silence; that a client keeps a field the server sends is the client's alone), and asks for mutation kinds of §1's right-hand column and is refused (8). What it does not test it says so about: encryption at rest (6) is a client's alone and invisible from the server, and a cursor past the window cannot be minted from outside - the server's own SY-5 covers `sync.cursor_too_old`. The report is one row per requirement, in the shape the evidence files use.
 
 ---
 
