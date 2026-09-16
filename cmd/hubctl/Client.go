@@ -238,18 +238,33 @@ func (c *Client) OpenSnapshot(ctx context.Context, body any) (httpclient.StreamR
 		Body: encoded,
 	}
 	c.identify(request.Header)
-	response, err := c.transport.Stream(ctx, request)
-	if err != nil {
-		return httpclient.StreamResponse{}, c.transportError(err)
-	}
-	if response.Status >= http.StatusBadRequest {
-		defer func() { _ = response.Body.Close() }()
+	// A rate limit is waited out here as `send` waits it out: a snapshot asked for a moment after
+	// a dozen other things is not abuse, and the budget is this credential's own to spend.
+	for attempt := 0; ; attempt++ {
+		response, err := c.transport.Stream(ctx, request)
+		if err != nil {
+			return httpclient.StreamResponse{}, c.transportError(err)
+		}
+		if response.Status < http.StatusBadRequest {
+			return response, nil
+		}
 		document, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
-		return httpclient.StreamResponse{}, c.problem(port.Response{
-			Status: response.Status, Header: response.Header, Body: document,
-		})
+		_ = response.Body.Close()
+		if response.Status != http.StatusTooManyRequests || attempt >= rateLimitRetries {
+			return httpclient.StreamResponse{}, c.problem(port.Response{
+				Status: response.Status, Header: response.Header, Body: document,
+			})
+		}
+		wait := retryAfter(response.Header)
+		if c.Notice != nil {
+			c.Notice("the installation is limiting this credential; waiting %s", wait)
+		}
+		if !c.sleep(ctx, wait) {
+			return httpclient.StreamResponse{}, c.problem(port.Response{
+				Status: response.Status, Header: response.Header, Body: document,
+			})
+		}
 	}
-	return response, nil
 }
 
 // Upload puts staged bytes where requestMediaUpload said to put them.
