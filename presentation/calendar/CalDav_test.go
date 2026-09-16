@@ -97,7 +97,7 @@ func do(t *testing.T, c *Controller, method, target, depth string, body []byte, 
 	} else {
 		reader = strings.NewReader("")
 	}
-	r := httptest.NewRequest(method, target, reader)
+	r := httptest.NewRequestWithContext(t.Context(), method, target, reader)
 	if depth != "" {
 		r.Header.Set("Depth", depth)
 	}
@@ -226,7 +226,7 @@ func TestTheWalkFromTheRootToATodo(t *testing.T) {
 		t.Error("an open todo carries no COMPLETED")
 	}
 	// If-None-Match with the current tag is 304.
-	r := httptest.NewRequest(http.MethodGet, memberPath(me, feedID.String(), itemID.String()), nil)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, memberPath(me, feedID.String(), itemID.String()), nil)
 	r.Header.Set("If-None-Match", `"3"`)
 	w := httptest.NewRecorder()
 	c.ServeHTTP(w, r.WithContext(appshared.ContextWithActor(r.Context(), actor())))

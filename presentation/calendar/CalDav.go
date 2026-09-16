@@ -479,7 +479,7 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 		}
 		view.members = append(view.members, m)
 		view.byID[m.id] = m
-		fmt.Fprintf(digest, "%s:%d\n", item.ID, item.Version)
+		_, _ = fmt.Fprintf(digest, "%s:%d\n", item.ID, item.Version)
 	}
 	view.ctag = hex.EncodeToString(digest.Sum(nil))[:32]
 	view.props = map[xml.Name]element{
