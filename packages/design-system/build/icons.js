@@ -100,6 +100,23 @@ export const DECLARED = {
   ],
 };
 
+/**
+ * The icons that point the way the text runs, and so turn round with it (F5-10, i18n-l10n.md §6
+ * line 6). An arrow that means "forward" points the other way in Arabic; a clock, a check and a
+ * calendar do not. The mark is here rather than on the call site because the call site does not
+ * know the direction and should not have to: `Icon` reads this set and flips the glyph under
+ * `:dir(rtl)`. Every name has to be in DECLARED, which `render` checks.
+ */
+export const MIRRORED = [
+  'arrow-left',
+  'arrow-right',
+  'chevron-left',
+  'chevron-right',
+  'external-link', // an arrow leaving the box, towards the end of the line
+  'log-out', // an arrow leaving the frame, the same way
+  'panel-left', // the panel sits at the start of the line, which is the end in Arabic
+];
+
 const SOURCE = path.join(packageRoot, 'node_modules', 'lucide-static', 'icon-nodes.json');
 const DESTINATION = path.join(packageRoot, 'src', 'icons', 'base.ts');
 
@@ -133,6 +150,11 @@ export function render() {
     );
   }
   const nodes = JSON.parse(fs.readFileSync(SOURCE, 'utf8'));
+
+  const declared = new Set(Object.values(DECLARED).flat());
+  for (const name of MIRRORED) {
+    if (!declared.has(name)) throw new Error(`"${name}" is in MIRRORED but not in DECLARED - build/icons.js`);
+  }
 
   const lines = [];
   let icons = 0;
@@ -183,6 +205,9 @@ import type { IconNode } from './node.ts';
 
 export const BASE_ICONS = {${lines.join('\n')}
 } as const satisfies Record<string, readonly IconNode[]>;
+
+/** The base icons that turn round with the writing direction (build/icons.js MIRRORED). */
+export const BASE_MIRRORED = [${[...MIRRORED].sort().map((name) => `'${name}'`).join(', ')}] as const satisfies readonly (keyof typeof BASE_ICONS)[];
 `;
 
   return { file, icons, bytes, version };

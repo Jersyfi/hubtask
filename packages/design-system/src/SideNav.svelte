@@ -169,7 +169,5 @@
     color: var(--text-subtle);
   }
 
-  :global([dir='rtl']) .twist { transform: scaleX(-1); }
-
   .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

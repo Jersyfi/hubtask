@@ -10,7 +10,7 @@
   // would save. What is left of the trade is the part that favours the name: one import, one
   // element, and a call site short enough that people use the icon rather than working around it.
 
-  import { ICONS, type IconName } from './icons/index.ts';
+  import { ICONS, MIRRORED, type IconName } from './icons/index.ts';
 
   interface Props {
     name: IconName;
@@ -31,11 +31,14 @@
   const { name, size = 'md', label }: Props = $props();
 
   const nodes = $derived(ICONS[name] ?? []);
+  /** Whether this glyph points the way the text runs, and so turns round with it. */
+  const mirrored = $derived(MIRRORED.has(name));
 </script>
 
 <svg
   class="icon"
   data-size={size}
+  data-mirrored={mirrored ? '' : undefined}
   viewBox="0 0 24 24"
   fill="none"
   stroke="currentColor"
@@ -68,6 +71,14 @@
   .icon[data-size='md'] {
     width: var(--fs-300);
     height: var(--fs-300);
+  }
+
+  /* An arrow that means "forward" points the other way when the text runs the other way. The
+     glyph is flipped here, once, rather than at every call site that would otherwise have to
+     know the direction - and `:dir()` reads the element's own direction, so a code block that
+     keeps `dir="ltr"` inside an Arabic page keeps its arrows too. */
+  .icon[data-mirrored]:dir(rtl) {
+    transform: scaleX(-1);
   }
 
   .icon[data-size='sm'] {
