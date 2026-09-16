@@ -36,6 +36,11 @@
     selected?: readonly string[];
     /** The name of the filter field. */
     filterLabel: string;
+    /**
+     * The locale the filter folds case under - `toLowerCase` without one is not the reader's
+     * fold (under `tr`, a capital I lowers to a dotless ı). Without it, the host's.
+     */
+    locale?: string;
     /** What an empty collection's label list says. Resolved text (ADR-0011). */
     emptyLabel: string;
     /** What a filter that matched nothing says — a different sentence (voice-and-tone.md §4.2). */
@@ -48,6 +53,7 @@
     labels,
     selected = [],
     filterLabel,
+    locale,
     emptyLabel,
     noMatchLabel,
     onToggle,
@@ -60,7 +66,9 @@
   const shown = $derived(
     term.trim() === ''
       ? labels
-      : labels.filter((entry) => entry.name.toLowerCase().includes(term.trim().toLowerCase())),
+      : labels.filter((entry) =>
+          entry.name.toLocaleLowerCase(locale).includes(term.trim().toLocaleLowerCase(locale)),
+        ),
   );
 
   function onKeydown(event: KeyboardEvent) {

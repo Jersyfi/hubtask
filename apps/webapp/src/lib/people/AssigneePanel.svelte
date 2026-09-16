@@ -24,6 +24,7 @@
   import { supports } from '../data/capability.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
+  import { byName } from '../i18n/collation.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -33,8 +34,12 @@
   const membership = $derived(supports(item.type, 'MEMBERS'));
 
   const candidateIds = $derived(people.candidates(path));
+  // Gathered from four memberships, so the list has no order until this gives it one - the
+  // reader's, under the collator for the resolved locale (F5-09, i18n-l10n.md §6 line 3).
   const candidates = $derived(
-    candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') })),
+    candidateIds
+      .map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') }))
+      .sort((left, right) => byName(messages.locale)(left.name, right.name)),
   );
 
   const memberIds = $derived((item.member_ids ?? []) as readonly string[]);
@@ -95,6 +100,7 @@
       selection="single"
       selected={item.assignee_id ? [item.assignee_id] : []}
       filterLabel={t('app.people.filter')}
+      locale={messages.locale}
       emptyLabel={t('app.people.no_candidates')}
       noMatchLabel={t('app.people.no_match')}
       chosenLabel={t('app.people.assigned_to')}
@@ -135,6 +141,7 @@
       selection="multiple"
       selected={memberIds}
       filterLabel={t('app.people.filter')}
+      locale={messages.locale}
       emptyLabel={t('app.people.no_candidates')}
       noMatchLabel={t('app.people.no_match')}
       chosenLabel={t('app.people.members')}

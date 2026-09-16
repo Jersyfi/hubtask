@@ -48,6 +48,11 @@
     selection?: 'single' | 'multiple';
     /** The name of the filter field. */
     filterLabel: string;
+    /**
+     * The locale the filter folds case under - `toLowerCase` without one is not the reader's
+     * fold (under `tr`, a capital I lowers to a dotless ı). Without it, the host's.
+     */
+    locale?: string;
     /** What nobody-to-choose-from says. Resolved text (ADR-0011). */
     emptyLabel: string;
     /** What a filter that matched nothing says — a different sentence (voice-and-tone.md §4.2). */
@@ -66,6 +71,7 @@
     selected = [],
     selection = 'single',
     filterLabel,
+    locale,
     emptyLabel,
     noMatchLabel,
     chosenLabel,
@@ -84,7 +90,9 @@
   const shown = $derived(
     term.trim() === ''
       ? candidates
-      : candidates.filter((person) => person.name.toLowerCase().includes(term.trim().toLowerCase())),
+      : candidates.filter((person) =>
+          person.name.toLocaleLowerCase(locale).includes(term.trim().toLocaleLowerCase(locale)),
+        ),
   );
 
   /** The chosen people in the order the caller holds them, so the summary does not reorder itself. */

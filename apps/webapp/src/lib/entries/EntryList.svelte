@@ -919,6 +919,7 @@
                         labels={available}
                         selected={row.item.label_ids ?? []}
                         filterLabel={t('app.labels.filter')}
+                        locale={messages.locale}
                         emptyLabel={t('app.labels.none_yet')}
                         noMatchLabel={t('app.labels.no_match')}
                         onToggle={(labelId) => toggleLabel(row.item, labelId)}
