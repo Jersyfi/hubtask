@@ -195,7 +195,7 @@ func (p PullChanges) resume(
 		return Position{}, err
 	}
 	if cursor != "" {
-		return p.Stream.decode(cursor)
+		return p.Stream.decode(ctx, actor, cursor)
 	}
 	if p.Snapshot == nil {
 		// Refused rather than answered with an empty page and a fresh cursor: that page would be
@@ -210,7 +210,8 @@ func (p PullChanges) resume(
 	if err != nil {
 		return Position{}, err
 	}
-	return Position{Seq: latest, IssuedAt: p.Stream.Clock.Now(), Kind: walkKinds[0]}, nil
+	latest.Kind = walkKinds[0]
+	return latest, nil
 }
 
 // pullLimit settles the page size against the contract's bounds.

@@ -1724,7 +1724,10 @@ func run() error {
 		changeStream := syncservice.StreamChanges{
 			Changes: changes, Containers: containers, Authorizer: authorizer,
 			UnitOfWork: unitOfWork, Cursors: streamCursors,
-			Clock: clockadapter.System{},
+			// The workspace's synchronisation epoch (N-11): a restore advances it, and a cursor
+			// minted before is refused.
+			Epochs: postgres.NewEpochRepository(),
+			Clock:  clockadapter.System{},
 			// The maximum offline window, which is also the minimum tombstone period: beyond
 			// it the log no longer holds everything that happened (offline-sync.md §7).
 			Window: cfg.Retention.TombstoneWindow,
@@ -2842,7 +2845,8 @@ type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {
 	return a.codec.Encode(security.StreamPosition{
-		Seq: position.Seq, IssuedAt: position.IssuedAt, Kind: position.Kind, After: position.After,
+		Seq: position.Seq, IssuedAt: position.IssuedAt, Epoch: position.Epoch,
+		Kind: position.Kind, After: position.After,
 	})
 }
 
@@ -2852,7 +2856,8 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 		return syncservice.Position{}, err
 	}
 	return syncservice.Position{
-		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Kind: decoded.Kind, After: decoded.After,
+		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Epoch: decoded.Epoch,
+		Kind: decoded.Kind, After: decoded.After,
 	}, nil
 }
 

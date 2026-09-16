@@ -1311,6 +1311,7 @@ type Tenant struct {
 	DeletedAt       pgtype.Timestamptz
 	Version         int32
 	PurgeAfter      pgtype.Timestamptz
+	SyncEpoch       int64
 }
 
 type Tombstone struct {

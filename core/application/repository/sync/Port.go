@@ -211,3 +211,15 @@ type FieldClocks interface {
 	// written since the clocks exist, and loses to any reading.
 	Of(ctx context.Context, entity string, id shared.ID) (map[string]shared.HLC, error)
 }
+
+// Epochs is the workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): a restore
+// writes rows without change log entries, so every cursor carries the epoch it was minted under
+// and a restore into the workspace advances it. A cursor from an older epoch is refused as too
+// old, and the device resynchronises from scratch - which is what hands it the restored rows.
+type Epochs interface {
+	// Current is the epoch a cursor is minted under, and judged against.
+	Current(ctx context.Context) (int64, error)
+	// Advance moves the workspace to the next epoch and answers it. Inside the caller's
+	// transaction: the restore's success and the epoch it owes commit together.
+	Advance(ctx context.Context) (int64, error)
+}

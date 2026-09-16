@@ -315,3 +315,14 @@ ON CONFLICT (tenant_id, entity, entity_id, field) DO UPDATE SET hlc = excluded.h
 SELECT field, hlc
 FROM field_clock
 WHERE tenant_id = current_tenant_id() AND entity = sqlc.arg('entity') AND entity_id = sqlc.arg('entity_id');
+
+-- name: CurrentSyncEpoch :one
+-- The workspace's synchronisation epoch (N-11, backup-restore.md §12 B-5): what every cursor is
+-- minted under, and what a cursor is judged against.
+SELECT sync_epoch FROM tenant WHERE id = current_tenant_id();
+
+-- name: AdvanceSyncEpoch :one
+-- A restore into the workspace succeeded: every cursor minted before is from an older epoch now,
+-- and the device holding one resynchronises from scratch.
+UPDATE tenant SET sync_epoch = sync_epoch + 1 WHERE id = current_tenant_id()
+RETURNING sync_epoch;

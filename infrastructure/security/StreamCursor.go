@@ -21,11 +21,16 @@ import (
 // separation one would be accepted where the other belongs.
 const streamCursorInfo = "hubtask/stream-cursor/v1"
 
-// streamCursorParts is how many fields a delta cursor's payload has: the position and the moment
-// it was minted. A walk cursor carries two more: the kind being walked and the key it resumes after.
+// streamCursorParts is how many fields a delta cursor's payload has: the position, the moment it
+// was minted, and the epoch it was minted under (N-11). A walk cursor carries two more: the kind
+// being walked and the key it resumes after. A cursor minted before the epoch existed has one
+// field fewer in either shape and reads as epoch zero, which is the epoch every workspace starts
+// at - so a device holding one is not sent through a resynchronisation for the field's sake.
 const (
-	streamCursorParts = 2
-	walkCursorParts   = 4
+	streamCursorParts       = 3
+	walkCursorParts         = 5
+	legacyStreamCursorParts = 2
+	legacyWalkCursorParts   = 4
 )
 
 // streamCursorFieldSeparator ends the position inside the payload. A full stop, because both fields
@@ -42,6 +47,10 @@ const streamCursorFieldSeparator = "."
 type StreamPosition struct {
 	Seq      int64
 	IssuedAt time.Time
+	// Epoch is the workspace's synchronisation epoch the cursor was minted under (N-11): a
+	// restore advances it, and a cursor from an older epoch is refused, because the rows a
+	// restore wrote are in no change log entry the cursor could reach.
+	Epoch int64
 	// Kind and After are set while an initial synchronisation is under way (N-02): the kind being
 	// walked and the key of the last row handed out. Both empty is a delta position - the only
 	// kind a stream resumes from. They are inside the signed payload for the same reason the
@@ -77,7 +86,9 @@ func NewStreamCursorCodec(installationSecret secret.Secret) StreamCursorCodec {
 func (c StreamCursorCodec) Encode(position StreamPosition) string {
 	text := strconv.FormatInt(position.Seq, 10) +
 		streamCursorFieldSeparator +
-		strconv.FormatInt(position.IssuedAt.Unix(), 10)
+		strconv.FormatInt(position.IssuedAt.Unix(), 10) +
+		streamCursorFieldSeparator +
+		strconv.FormatInt(position.Epoch, 10)
 	if position.Kind != "" {
 		text += streamCursorFieldSeparator + position.Kind + streamCursorFieldSeparator + position.After
 	}
@@ -107,7 +118,16 @@ func (c StreamCursorCodec) Decode(cursor string) (StreamPosition, error) {
 	}
 
 	fields := strings.Split(string(payload), streamCursorFieldSeparator)
-	if len(fields) != streamCursorParts && len(fields) != walkCursorParts {
+	var walk []string
+	switch len(fields) {
+	case streamCursorParts:
+	case walkCursorParts:
+		walk = fields[3:]
+	case legacyStreamCursorParts:
+		fields = append(fields, "0")
+	case legacyWalkCursorParts:
+		walk, fields = fields[2:], append(fields[:2], "0")
+	default:
 		return StreamPosition{}, errStreamCursorInvalid
 	}
 	seq, err := strconv.ParseInt(fields[0], 10, 64)
@@ -118,12 +138,16 @@ func (c StreamCursorCodec) Decode(cursor string) (StreamPosition, error) {
 	if err != nil {
 		return StreamPosition{}, errStreamCursorInvalid
 	}
-	position := StreamPosition{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC()}
-	if len(fields) == walkCursorParts {
-		if fields[2] == "" {
+	epoch, err := strconv.ParseInt(fields[2], 10, 64)
+	if err != nil || epoch < 0 {
+		return StreamPosition{}, errStreamCursorInvalid
+	}
+	position := StreamPosition{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC(), Epoch: epoch}
+	if walk != nil {
+		if walk[0] == "" {
 			return StreamPosition{}, errStreamCursorInvalid
 		}
-		position.Kind, position.After = fields[2], fields[3]
+		position.Kind, position.After = walk[0], walk[1]
 	}
 	return position, nil
 }

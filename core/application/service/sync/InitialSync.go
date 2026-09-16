@@ -121,7 +121,7 @@ func (p PullChanges) walk(
 	// that happened since is in the log past it, and the first delta delivers it.
 	return Batch{
 		Records: records,
-		Cursor:  Position{Seq: from.Seq, IssuedAt: from.IssuedAt},
+		Cursor:  Position{Seq: from.Seq, IssuedAt: from.IssuedAt, Epoch: from.Epoch},
 		More:    false,
 	}, nil
 }
