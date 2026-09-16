@@ -175,6 +175,8 @@
   "app.dismiss": "Schließen",
   "app.retry": "Noch einmal versuchen",
   "app.nav.home": "Start",
+  "app.nav.label": "Bereiche",
+  "app.footer.accessibility": "Erklärung zur Barrierefreiheit, auf hubtask.eu",
   "app.skip_to_content": "Zum Inhalt springen",
   "app.entries.title": "Einträge",
   "app.entries.none": "Noch keine Einträge in dieser Sammlung.",
