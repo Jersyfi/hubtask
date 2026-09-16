@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**229 use cases, 200 distinct action codes, 164 of them recorded on every call.** A use case that
+**228 use cases, 199 distinct action codes, 164 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -65,6 +65,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `audit.anchoring_configured` | ConfigureAuditAnchoring | `audit_anchoring` | NOTICE | Every time |
 | `audit.chain_broken` | VerifyAuditChain | `audit_trail` | CRITICAL | When refused |
 | `audit.exported` | ExportAuditTrail | `audit_trail` | WARNING | Every time |
 | `audit.read` | ListAuditEntries | `audit_trail` | INFO | When refused |
@@ -242,12 +243,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `identity.provider_sign_in_started` | StartOidcSignIn | `identity_provider` | INFO | Every time |
 | `identity.provider_signed_in` | CompleteOidcSignIn | `session` | NOTICE | Every time |
 
-## Import
-
-| Action | Use case | Target | Severity | Recorded |
-|---|---|---|---|---|
-| `import.requested` | ImportEntries | `import` | INFO | Every time |
-
 ## Jumble
 
 | Action | Use case | Target | Severity | Recorded |
@@ -278,12 +273,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `sync.device_forgotten` | ForgetSyncDevice | `sync_device` | NOTICE | Every time |
 | `sync.device_read` | ListSyncDevices | `sync_device` | INFO | When refused |
-
-## Other
-
-| Action | Use case | Target | Severity | Recorded |
-|---|---|---|---|---|
-| `` | GetImport | `` |  | When refused |
 
 ## Permissions
 

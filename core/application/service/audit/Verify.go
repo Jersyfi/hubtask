@@ -6,6 +6,7 @@ package audit
 import (
 	"bytes"
 	"context"
+	"errors"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/audit"
@@ -52,6 +53,17 @@ type VerifyAuditChain struct {
 	Audit      port.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Anchoring reads the last anchor's copy back when a check asks for it (P-13). Nil is a
+	// build that anchors nothing, and a check that asked is told the workspace anchors nothing.
+	Anchoring *Anchoring
+}
+
+// VerifyRequest is one check: the period, and whether the last anchor's external copy is read
+// back and compared - asked for rather than always done, because it is a read of somebody else's
+// machine.
+type VerifyRequest struct {
+	Period  repository.Period
+	Anchors bool
 }
 
 // Verification is what one check found.
@@ -69,14 +81,24 @@ type Verification struct {
 	// GapCount is how many are missing in total, which may be more than Gaps holds.
 	GapCount int
 	// SealedUntil is when this tenant's chain was last anchored outside the database, and the zero
-	// time when it never was - which is every installation today (audit.md §3).
+	// time when it never was (audit.md §3).
 	SealedUntil time.Time
+	// Anchor is what reading the last anchor back found, when the check asked for it (P-13).
+	Anchor AnchorCheck
 }
 
 // Execute checks the chain over a period.
 func (h VerifyAuditChain) Execute(
 	ctx context.Context, actor appshared.ActorContext, period repository.Period,
 ) (Verification, error) {
+	return h.Check(ctx, actor, VerifyRequest{Period: period})
+}
+
+// Check is Execute with the anchor question.
+func (h VerifyAuditChain) Check(
+	ctx context.Context, actor appshared.ActorContext, request VerifyRequest,
+) (Verification, error) {
+	period := request.Period
 	// The whole trail, always. There is no narrowed verification: a chain checked over one
 	// actor's entries would be a chain with every other entry missing, and the answer would be
 	// "broken" for a trail that is intact.
@@ -94,18 +116,49 @@ func (h VerifyAuditChain) Execute(
 			WithFields(shared.FieldError{Path: "/to", Code: "audit.period_invalid"})
 	}
 
-	var found Verification
+	var (
+		found    Verification
+		anchor   repository.Anchor
+		computed []byte
+	)
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		anchor, err := h.Trail.LatestAnchor(ctx)
-		if err != nil {
+		var err error
+		if anchor, err = h.Trail.LatestAnchor(ctx); err != nil {
 			return err
 		}
 		found.SealedUntil = anchor.AnchoredAt
+		if h.Anchoring != nil {
+			workspace, err := h.Anchoring.Workspaces.Find(ctx)
+			if err != nil {
+				return err
+			}
+			found.Anchor.Configured = !workspace.Settings.AuditAnchorTargetID.IsZero()
+		}
 
-		return h.walk(ctx, period, &found)
+		// The chain end at the anchor's sequence number, as this walk computes it where the
+		// period covers it - so that a chain rewritten below the anchor is reported at the
+		// anchor as well as at the break - and as the row stores it otherwise.
+		if err := h.walk(ctx, period, &found, anchor.LastSeq, &computed); err != nil {
+			return err
+		}
+		if request.Anchors && !anchor.IsZero() && computed == nil {
+			stored, err := h.Trail.HashAt(ctx, anchor.LastSeq)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			computed = stored
+		}
+		return nil
 	})
 	if err != nil {
 		return Verification{}, err
+	}
+
+	if request.Anchors && !anchor.IsZero() && h.Anchoring != nil {
+		// Outside the transaction: the copy is at somebody else's machine.
+		check := h.Anchoring.readBack(ctx, actor.TenantID, anchor, computed)
+		check.Configured = found.Anchor.Configured
+		found.Anchor = check
 	}
 
 	found.Valid = found.FirstBrokenSeq == 0 && found.GapCount == 0
@@ -120,9 +173,16 @@ func (h VerifyAuditChain) Execute(
 // walk is the check itself: one pass, three questions per entry.
 func (h VerifyAuditChain) walk(
 	ctx context.Context, period repository.Period, found *Verification,
+	anchorSeq int64, computed *[]byte,
 ) error {
 	var previous repository.Record
 	seen := false
+	// running is the chain as this walk derives it, each link over the previous *derived* hash
+	// rather than over what the row remembers. An entry rewritten below the anchor changes every
+	// derived hash above it, whatever the rows store - which is how a rewrite is reported at the
+	// anchor as well as at the break. The first entry of a period links to what its row says,
+	// because the walk cannot see below it.
+	var running []byte
 
 	return h.Trail.Walk(ctx, period, func(record repository.Record) error {
 		found.Checked++
@@ -135,6 +195,14 @@ func (h VerifyAuditChain) walk(
 		}
 		if !bytes.Equal(expected, record.Hash) {
 			found.note(record.Seq)
+		}
+		if !seen {
+			running = expected
+		} else if running, err = h.Chain.Link(running, record.ID, record.Seq, record.Entry); err != nil {
+			return err
+		}
+		if record.Seq == anchorSeq && anchorSeq != 0 {
+			*computed = running
 		}
 
 		if seen {
@@ -222,6 +290,12 @@ func (h VerifyAuditChain) Descriptor() usecase.Descriptor {
 				Name: "to", Kind: usecase.KindString, Required: true,
 				Description: "The end of the period, exclusive. RFC 3339.",
 			},
+			{
+				Name: "anchors", Kind: usecase.KindBool,
+				Description: "Also read the last anchor's copy back from the workspace's " +
+					"anchoring target and compare it with the chain at that sequence. False " +
+					"unless it is said: a read of somebody else's machine.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ChainBrokenAction, TargetType: trailTarget,
@@ -243,7 +317,11 @@ func (h VerifyAuditChain) invoke(
 		return nil, err
 	}
 
-	found, err := h.Execute(ctx, actor, repository.Period{From: from, To: to})
+	anchors := false
+	if in.Present("anchors") {
+		anchors = in.Bool("anchors")
+	}
+	found, err := h.Check(ctx, actor, VerifyRequest{Period: repository.Period{From: from, To: to}, Anchors: anchors})
 	if err != nil {
 		return nil, err
 	}
@@ -271,6 +349,18 @@ func VerificationOutput(found Verification) usecase.Output {
 	}
 	if found.Gaps == nil {
 		out["gaps"] = []int64{}
+	}
+	out["anchoring_configured"] = found.Anchor.Configured
+	out["anchored_until"], out["anchor_seq"], out["anchor_agrees"], out["anchor_error_code"] = nil, nil, nil, nil
+	if found.Anchor.Agrees != nil || found.Anchor.ErrorCode != "" {
+		out["anchor_seq"] = found.Anchor.LastSeq
+		if found.Anchor.Agrees != nil {
+			out["anchored_until"] = found.Anchor.AnchoredAt.UTC()
+			out["anchor_agrees"] = *found.Anchor.Agrees
+		}
+		if found.Anchor.ErrorCode != "" {
+			out["anchor_error_code"] = found.Anchor.ErrorCode
+		}
 	}
 	return out
 }
