@@ -1440,6 +1440,54 @@ func (e HttpRequestCallMethod) Valid() bool {
 	}
 }
 
+// Defines values for ImportKind.
+const (
+	ImportKindCSV           ImportKind = "CSV"
+	ImportKindGOOGLETASKS   ImportKind = "GOOGLE_TASKS"
+	ImportKindMICROSOFTTODO ImportKind = "MICROSOFT_TODO"
+	ImportKindTRELLO        ImportKind = "TRELLO"
+)
+
+// Valid indicates whether the value is a known member of the ImportKind enum.
+func (e ImportKind) Valid() bool {
+	switch e {
+	case ImportKindCSV:
+		return true
+	case ImportKindGOOGLETASKS:
+		return true
+	case ImportKindMICROSOFTTODO:
+		return true
+	case ImportKindTRELLO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportRunStatus.
+const (
+	ImportRunStatusFAILED    ImportRunStatus = "FAILED"
+	ImportRunStatusPENDING   ImportRunStatus = "PENDING"
+	ImportRunStatusRUNNING   ImportRunStatus = "RUNNING"
+	ImportRunStatusSUCCEEDED ImportRunStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the ImportRunStatus enum.
+func (e ImportRunStatus) Valid() bool {
+	switch e {
+	case ImportRunStatusFAILED:
+		return true
+	case ImportRunStatusPENDING:
+		return true
+	case ImportRunStatusRUNNING:
+		return true
+	case ImportRunStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -1720,6 +1768,7 @@ func (e MediaObjectStatus) Valid() bool {
 const (
 	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
 	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
+	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectUsage enum.
@@ -1728,6 +1777,8 @@ func (e MediaObjectUsage) Valid() bool {
 	case MediaObjectUsageATTACHMENT:
 		return true
 	case MediaObjectUsageCOVER:
+		return true
+	case MediaObjectUsageIMPORT:
 		return true
 	default:
 		return false
@@ -1756,6 +1807,7 @@ func (e MediaTransferMethod) Valid() bool {
 const (
 	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
 	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
+	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
 )
 
 // Valid indicates whether the value is a known member of the MediaUploadRequestUsage enum.
@@ -1764,6 +1816,8 @@ func (e MediaUploadRequestUsage) Valid() bool {
 	case MediaUploadRequestUsageATTACHMENT:
 		return true
 	case MediaUploadRequestUsageCOVER:
+		return true
+	case MediaUploadRequestUsageIMPORT:
 		return true
 	default:
 		return false
@@ -4790,6 +4844,50 @@ type IdentityProviderConfiguration struct {
 	Issuer       string  `json:"issuer"`
 }
 
+// ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
+type ImportKind string
+
+// ImportRequest defines model for ImportRequest.
+type ImportRequest struct {
+	// HubId The hub the imported collections land under.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
+	Kind ImportKind `json:"kind"`
+
+	// Mapping For `CSV` only: which column carries which field, by header name, where the header does not already say - `title`, `notes`, `due`, `completed`, `labels`, `bucket`, `parent`. A column not mapped and not named like a field is ignored.
+	Mapping *map[string]string `json:"mapping,omitempty"`
+
+	// MediaId The uploaded file, staged with `usage: IMPORT` and confirmed.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
+
+// ImportRun defines model for ImportRun.
+type ImportRun struct {
+	CreatedAt  time.Time          `json:"created_at"`
+	ErrorCode  *string            `json:"error_code,omitempty"`
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
+	Kind    ImportKind          `json:"kind"`
+	MediaId *openapi_types.UUID `json:"media_id,omitempty"`
+
+	// Refused The rows the converter could not read, by their number in the source and the code that says why. The rest of the file lands; a file that is not the kind it claims to be fails the import instead.
+	Refused *[]struct {
+		Code string `json:"code"`
+		Row  int    `json:"row"`
+	} `json:"refused,omitempty"`
+
+	// Report What landed, in the restore's shape; absent until the job has run.
+	Report *RestoreReport  `json:"report,omitempty"`
+	Status ImportRunStatus `json:"status"`
+}
+
+// ImportRunStatus defines model for ImportRun.Status.
+type ImportRunStatus string
+
 // InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
 type InboundTriggerToken struct {
 	RotatedAt time.Time          `json:"rotated_at"`
@@ -5192,11 +5290,13 @@ type MediaUploadRequest struct {
 	FileName    *string `json:"file_name,omitempty"`
 
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
-	Size  int64                   `json:"size"`
+	Size int64 `json:"size"`
+
+	// Usage What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage defines model for MediaUploadRequest.Usage.
+// MediaUploadRequestUsage What the object is for. `IMPORT` (P-08) stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -7099,6 +7199,9 @@ type IdempotencyKey = openapi_types.UUID
 // IfMatch defines model for IfMatch.
 type IfMatch = string
 
+// ImportId defines model for ImportId.
+type ImportId = openapi_types.UUID
+
 // IncludeArchived defines model for IncludeArchived.
 type IncludeArchived = bool
 
@@ -7463,6 +7566,12 @@ type CreateGroupParams struct {
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ImportEntriesParams defines parameters for ImportEntries.
+type ImportEntriesParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
@@ -8189,6 +8298,9 @@ type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
+// ImportEntriesJSONRequestBody defines body for ImportEntries for application/json ContentType.
+type ImportEntriesJSONRequestBody = ImportRequest
+
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
 
@@ -8662,6 +8774,12 @@ type ServerInterface interface {
 	// ConfigureIdentityProvider Configure the workspace's identity provider
 	// (PUT /identity-provider)
 	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// ImportEntries Import entries from another system into a hub
+	// (POST /imports)
+	ImportEntries(w http.ResponseWriter, r *http.Request, params ImportEntriesParams)
+	// GetImport An import and its report
+	// (GET /imports/{importId})
+	GetImport(w http.ResponseWriter, r *http.Request, importId ImportId)
 
 	// (GET /integrations/calendar-feeds)
 	ListCalendarFeeds(w http.ResponseWriter, r *http.Request)
@@ -12404,6 +12522,73 @@ func (siw *ServerInterfaceWrapper) ConfigureIdentityProvider(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfigureIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ImportEntries operation middleware
+func (siw *ServerInterfaceWrapper) ImportEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ImportEntriesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImportEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetImport operation middleware
+func (siw *ServerInterfaceWrapper) GetImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "importId" -------------
+	var importId ImportId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "importId", r.PathValue("importId"), &importId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "importId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetImport(w, r, importId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18024,6 +18209,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/restores/{restoreId}", wrapper.GetRestoreRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jobs/{jobId}", wrapper.GetJob)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jobs/{jobId}:cancel", wrapper.CancelJob)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/imports", wrapper.ImportEntries)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/imports/{importId}", wrapper.GetImport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/trash:empty", wrapper.EmptyTrash)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/legal-holds", wrapper.ListLegalHolds)

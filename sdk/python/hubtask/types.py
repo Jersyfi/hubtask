@@ -965,7 +965,7 @@ class MediaObject(TypedDict, total=False):
     content_type: Required[str]
     size: Required[int]
     checksum: str | None
-    usage: Required[Literal["COVER", "ATTACHMENT"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT"]]
     status: Required[Literal["PENDING", "READY"]]
     ref_count: Required[int]
     created_by: Required[str]
@@ -983,7 +983,7 @@ class MediaUploadRequest(TypedDict, total=False):
     file_name: str | None
     content_type: str | None
     size: Required[int]
-    usage: Required[Literal["COVER", "ATTACHMENT"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT"]]
 
 class MediaPage(TypedDict, total=False):
     data: Required[list["MediaObject"]]
@@ -1575,6 +1575,26 @@ class RestoreRun(TypedDict, total=False):
     started_at: str | None
     finished_at: str | None
     error_code: str | None
+
+ImportKind = Literal["CSV", "TRELLO", "GOOGLE_TASKS", "MICROSOFT_TODO"]
+
+class ImportRequest(TypedDict, total=False):
+    media_id: Required[str]
+    kind: Required["ImportKind"]
+    hub_id: Required[str]
+    mapping: dict[str, Any]
+
+class ImportRun(TypedDict, total=False):
+    id: Required[str]
+    kind: Required["ImportKind"]
+    hub_id: Required[str]
+    media_id: str
+    status: Required[Literal["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]]
+    report: "RestoreReport"
+    refused: list[dict[str, Any]]
+    error_code: str | None
+    created_at: Required[str]
+    finished_at: str | None
 
 class RestoreReport(TypedDict, total=False):
     """What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable."""

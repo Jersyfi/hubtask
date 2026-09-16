@@ -471,6 +471,16 @@ export class HubtaskClient {
     return this.call("POST", "/jobs/{jobId}:cancel", { "jobId": jobId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Import entries from another system into a hub */
+  importEntries(body: NonNullable<operations["importEntries"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["importEntries"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/imports", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** An import and its report */
+  getImport(importId: string, options: CallOptions = {}): Promise<operations["getImport"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/imports/{importId}", { "importId": importId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What is in the trash */
   listTrash(options: CallOptions & { readonly query?: NonNullable<operations["listTrash"]['parameters']['query']> } = {}): Promise<operations["listTrash"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/trash", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

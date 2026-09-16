@@ -641,6 +641,21 @@ MEDIA_ID="$(printf '%s\n' "$uploaded" | first_id)"
 attached="$(hubctl media attach "$TASK_ID" --media "$MEDIA_ID")"
 expect_contains "media attach" "$attached" "$MEDIA_ID"
 
+echo "--- a CSV, imported under the hub (P-08) ---"
+printf 'title,due,labels,bucket\nImported one,2026-09-20,rot;blau,Doing\nImported two,2026-09-21 10:00,rot,Done\nBroken,nope,,\n' > "$WORK_DIR/tasks.csv"
+imported="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import csv" "$imported" "SUCCEEDED"
+# The import's own table: two rows landed beside the collection, its buckets and its labels; one
+# row was refused by its date and the rest of the file landed anyway.
+expect_contains "import csv" "$imported" "CSV"
+imported_again="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import csv, again" "$imported_again" "SUCCEEDED"
+IMPORTED_JSON="$(hubctl --json import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+case "$IMPORTED_JSON" in
+	*'"new": 0'*) ;;
+	*) echo "FAILED: the same file a third time created something: $IMPORTED_JSON"; exit 1 ;;
+esac
+
 echo "--- a custom field, defined and written ---"
 defined="$(hubctl field define --key urgency --kind SELECT --collection "$COLLECTION_ID" --options low,high)"
 expect_contains "field define" "$defined" "urgency"
