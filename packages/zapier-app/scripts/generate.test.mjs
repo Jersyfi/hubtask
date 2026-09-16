@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { CREATES, SEARCHES, loadApp, triggerKey, words, writeApp } from './generate.mjs';
+import { CHOICES, CREATES, SEARCHES, loadApp, triggerDescription, triggerKey, words, writeApp } from './generate.mjs';
 import { appProblems, selftest } from './schema.mjs';
 
 const require = createRequire(import.meta.url);
@@ -25,13 +25,15 @@ const app = loadApp(into);
 test.after(() => fs.rmSync(into, { recursive: true, force: true }));
 
 /** A `z` that records requests and answers what the test says. */
-function fakeZ(answer) {
+function fakeZ(answer, ...later) {
   const calls = [];
+  const answers = [answer, ...later];
   return {
     calls,
     request: async (options) => {
       calls.push(options);
-      return typeof answer === 'function' ? answer(options) : answer;
+      const next = answers.length > 1 ? answers.shift() : answers[0];
+      return typeof next === 'function' ? next(options) : next;
     },
     hash: (_, value) => `hash-of-${value.length}`,
     errors: { Error: class ZapierError extends Error { constructor(message, code, status) { super(message); this.code = code; this.status = status; } } },
@@ -46,11 +48,13 @@ test('the format validator catches what it claims to catch', () => {
 
 test('the app validates, and names every event type as a trigger and every create and search', () => {
   assert.deepEqual(appProblems(app), []);
-  assert.equal(Object.keys(app.triggers).length, Object.keys(events).length);
+  // The event types, and beside them the hidden choices triggers that feed the dropdowns.
+  assert.equal(Object.keys(app.triggers).length, Object.keys(events).length + CHOICES.length);
   for (const type of Object.keys(events)) assert.ok(app.triggers[triggerKey(type)], `${type} has no trigger`);
+  for (const choice of CHOICES) assert.equal(app.triggers[choice.key]?.display.hidden, true, `${choice.key} is shown`);
   assert.deepEqual(Object.keys(app.creates).sort(), CREATES.map((c) => c.id).sort());
   assert.deepEqual(Object.keys(app.searches).sort(), SEARCHES.map((s) => s.id).sort());
-  assert.equal(written.triggers.length, Object.keys(events).length);
+  assert.equal(written.triggers.length, Object.keys(events).length + CHOICES.length);
   assert.equal(triggerKey('de.hubtask.work.item.created.v1'), 'workItemCreated');
   assert.equal(words('workItemCreated'), 'Work Item Created');
 });
@@ -116,4 +120,47 @@ test('the published manifest names the platform library and the workspace\'s doe
   const own = require('../package.json');
   assert.equal(own.dependencies, undefined);
   assert.equal(own.peerDependencies, undefined);
+});
+
+test('a trigger\'s description is the event\'s own sentence, in the shape D021 demands', () => {
+  // The platform's publishing check D021: "Triggers when " and then a sentence. The sentence is
+  // the event schema's first, as api/events writes it, without the repository's task references.
+  assert.equal(
+    triggerDescription('de.hubtask.work.item.created.v1', { description: 'A task, a work package or an activity was created.\n\nMore.' }),
+    'Triggers when a task, a work package or an activity was created.',
+  );
+  assert.equal(
+    triggerDescription('de.hubtask.jumble.entry.received.v1', { description: 'An entry arrived in the jumble (G-10).' }),
+    'Triggers when an entry arrived in the jumble.',
+  );
+  assert.equal(triggerDescription('de.hubtask.x.y.v1', {}), 'Triggers when de.hubtask.x.y.v1 happens in the connected workspace.');
+  for (const trigger of Object.values(app.triggers)) assert.ok(trigger.display.description.startsWith('Triggers when '), trigger.key);
+  // Every perform drops empty values itself and says so, which is D028's ask.
+  assert.deepEqual(app.flags, { cleanInputData: false });
+});
+
+test('an identifier field is a dropdown fed by a hidden choices trigger, and a search step where it can be', async () => {
+  const collection = app.creates.createWorkItem.operation.inputFields.find((f) => f.key === 'collection_id');
+  assert.equal(collection.dynamic, 'collectionChoices.id.name');
+  assert.equal(collection.altersDynamicFields, true);
+  const parent = app.creates.createWorkItem.operation.inputFields.find((f) => f.key === 'parent_id');
+  assert.equal(parent.dynamic, 'entryChoices.id.title');
+  assert.equal(parent.search, 'searchItems.id');
+  assert.equal(app.creates.completeWorkItem.operation.inputFields.find((f) => f.key === 'itemId').search, 'searchItems.id');
+
+  // A choice that needs a field of the form answers nothing until it is filled, then lists.
+  const z = fakeZ({ status: 200, data: { data: [{ id: 'i1', title: 'Milk' }], page: {} } });
+  assert.deepEqual(await app.triggers.entryChoices.operation.perform(z, bundle({})), []);
+  assert.equal(z.calls.length, 0);
+  const listed = await app.triggers.entryChoices.operation.perform(z, bundle({ collection_id: 'c1' }));
+  assert.deepEqual(listed, [{ id: 'i1', title: 'Milk' }]);
+  assert.equal(z.calls[0].url, 'https://hubtask.example/api/v1/items');
+  assert.deepEqual(z.calls[0].params, { collection_id: 'c1', size: 200 });
+
+  // The buckets of an entry's own collection, one read away, for a form that names no collection.
+  const two = fakeZ({ status: 200, data: { id: 'i1', collection_id: 'c9' } }, { status: 200, data: [{ id: 'b1', name: 'Doing' }] });
+  const buckets = await app.triggers.bucketChoices.operation.perform(two, bundle({ itemId: 'i1' }));
+  assert.deepEqual(buckets, [{ id: 'b1', name: 'Doing' }]);
+  assert.equal(two.calls[0].url, 'https://hubtask.example/api/v1/items/i1');
+  assert.equal(two.calls[1].url, 'https://hubtask.example/api/v1/containers/c9/buckets');
 });
