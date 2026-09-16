@@ -332,6 +332,10 @@ type Result struct {
 	// one would swallow anyway.
 	Repeat      bool
 	RepeatAfter time.Duration
+	// Counts is what a handler wants written down about a job that succeeded, by name: how much
+	// of a provider's answer the narrowing dropped, say. The runner logs them with the job's kind
+	// and identifier and nothing else; a handler puts no content here (rule 10).
+	Counts map[string]int
 }
 
 // Handler runs one kind of job.
