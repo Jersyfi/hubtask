@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -90,9 +91,11 @@ func (s *containerStore) Find(_ context.Context, id shared.ID) (work.Container, 
 	return work.Container{ID: id, TenantID: tenant, Type: kind, ParentID: parent}, nil
 }
 
-// authorizer permits the containers it was told to permit, and counts the questions.
+// authorizer permits the containers it was told to permit, and the workspace when told to, and
+// counts the questions.
 type authorizer struct {
 	allowed   map[shared.ID]bool
+	workspace bool
 	questions int
 	err       error
 }
@@ -104,8 +107,12 @@ func (a *authorizer) Permits(
 	if a.err != nil {
 		return false, a.err
 	}
-	// The container is the last scope of the path, which is what ContainerScopes builds.
+	// The container is the last scope of the path, which is what ContainerScopes builds; a path
+	// that ends at the tenant is the workspace-wide question.
 	last := request.Path[len(request.Path)-1]
+	if last.Type == identity.ScopeTenant {
+		return a.workspace, nil
+	}
 	return a.allowed[last.ID], nil
 }
 
@@ -284,10 +291,40 @@ func TestARecordForAContainerTheCallerMayNotReadIsWithheld(t *testing.T) {
 	}
 }
 
-// A change naming no container is one whose visibility nothing here can decide, and the safe
-// answer is the one that does not leak it.
-func TestARecordWithNoContainerIsWithheld(t *testing.T) {
+// A change naming no container is workspace-wide - a template defined at the workspace (#626) -
+// and is read at the tenant scope, once for the batch.
+func TestAWorkspaceWideRecordIsReadAtTheTenantScope(t *testing.T) {
+	first, second := entry(1, ""), entry(2, "")
+	first.Entity, second.Entity = "template", "template"
+	f := streaming(t, first, second)
+	f.auth.workspace = true
+
+	batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(batch.Records) != 2 {
+		t.Errorf("the workspace-wide records were not sent: %+v", batch.Records)
+	}
+	if f.auth.questions != 1 {
+		t.Errorf("the workspace was put to the authorizer %d times, want once for the batch", f.auth.questions)
+	}
+
+	f.auth.workspace = false
+	batch, err = f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatalf("reading again: %v", err)
+	}
+	if len(batch.Records) != 0 {
+		t.Errorf("a workspace-wide record was sent to somebody who may not read the workspace: %+v", batch.Records)
+	}
+}
+
+// A change naming no container of a kind the reader cannot place is one whose visibility nothing
+// here can decide, and the safe answer is the one that does not leak it.
+func TestARecordOfAnUnknownKindWithNoContainerIsWithheld(t *testing.T) {
 	f := streaming(t, entry(1, ""))
+	f.auth.workspace = true
 
 	batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
 	if err != nil {
@@ -297,7 +334,21 @@ func TestARecordWithNoContainerIsWithheld(t *testing.T) {
 		t.Errorf("a record with no container was sent: %+v", batch.Records)
 	}
 	if f.auth.questions != 0 {
-		t.Error("a container that does not exist was put to the authorizer")
+		t.Error("a record nobody can place was put to the authorizer")
+	}
+
+	// The workspace's answer, once given for the batch, does not carry over to a kind the
+	// reader cannot place.
+	template := entry(1, "")
+	template.Entity = "template"
+	f = streaming(t, template, entry(2, ""))
+	f.auth.workspace = true
+	batch, err = f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(batch.Records) != 1 || batch.Records[0].Seq != 1 {
+		t.Errorf("sent %+v, want the template alone", batch.Records)
 	}
 }
 
