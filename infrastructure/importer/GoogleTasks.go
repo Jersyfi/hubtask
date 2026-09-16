@@ -101,7 +101,10 @@ func (GoogleTasks) Convert(_ context.Context, source service.Source) (service.Re
 			item := Item{Key: "task:" + task.ID, Collection: collection, Title: task.Title, Notes: googleNotes(task)}
 			if task.Parent != "" {
 				if _, known := b.entries["task:"+task.Parent]; known {
-					item.ParentKey = "task:" + task.Parent
+					// A subtask is the work under its task: Google nests one level, and a `TASK`
+					// with a parent is what the model refuses (I-W1) - the e2e's first import found
+					// the row rejected for exactly that.
+					item.ParentKey, item.Type = "task:"+task.Parent, "WORK_PACKAGE"
 				}
 			}
 			if task.Due != "" {

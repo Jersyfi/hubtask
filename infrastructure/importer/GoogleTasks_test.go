@@ -73,6 +73,11 @@ func TestTakeoutBecomesOneCollectionPerListWithItsNesting(t *testing.T) {
 	if slot["is_completed"] != true || slot["completed_at"] != "2026-09-03T10:00:00Z" || slot["depth"] != 1 {
 		t.Errorf("slot = %v", slot)
 	}
+	// The work under a task, not a second task: `TASK` and a parent are what the model refuses
+	// to hold together, and the first e2e import met the database saying so.
+	if slot["type"] != "WORK_PACKAGE" || passport["type"] != "TASK" {
+		t.Errorf("slot type = %v, passport type = %v", slot["type"], passport["type"])
+	}
 	if titled(items, "Old and gone") != nil {
 		t.Error("a deleted item is not imported")
 	}

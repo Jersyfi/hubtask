@@ -179,9 +179,15 @@ func (b *builder) item(in Item) (shared.ID, bool) {
 	if in.CreatedAt != nil {
 		created = *in.CreatedAt
 	}
+	// A root is a task and a child is the work under it, unless the converter said otherwise:
+	// the model holds `type = TASK` and `parent_id IS NULL` to be one fact, and a default that
+	// ignored the parent would write a row the database refuses.
 	kind := in.Type
 	if kind == "" {
 		kind = "TASK"
+		if in.ParentKey != "" {
+			kind = "WORK_PACKAGE"
+		}
 	}
 	data := map[string]any{
 		"id": id.String(), "collection_id": in.Collection.String(), "type": kind,
