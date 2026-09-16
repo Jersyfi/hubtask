@@ -48,12 +48,23 @@ Two operations plus an event stream.
 ### 3.1 `POST /api/v1/sync:pull`
 
 ```json
-{ "cursor": "c1:00000000018f3a2b", "scopes": [{ "container_id": "…", "depth": "SUBTREE" }], "limit": 500 }
+{ "device_id": "0192…", "cursor": "…", "scopes": [{ "container_id": "…", "depth": "SUBTREE" }], "limit": 500 }
 ```
 
 The response: an ordered list of changes since the cursor (upserts, tombstones, access
-revocations), a new cursor, and `has_more`. The cursor is an opaque, monotonically increasing value
-per tenant (`change_log.seq`), not a timestamp — timestamps are not gap-safe under concurrency.
+revocations), a new cursor, `has_more`, the server's time and the window in days. The cursor is
+opaque and signed: inside it is the position (`change_log.seq`, monotonic per tenant - not a
+timestamp, which is not gap-safe under concurrency), the moment it was minted, which is what
+decides whether it is still inside the window (§7), and the workspace's synchronisation epoch,
+which is what a restore advances (§8). A **null cursor is the initial synchronisation** (N-02):
+the current state, one kind at a time - containers, buckets, labels, entries, set elements,
+comments, reminders, recurrence rules, templates - in pages by identifier, each row judged by the
+same permission as a delta record, and the log position taken *before* the first page so that a
+change landing mid-walk is the first delta's business. A page in the middle of a walk carries a
+cursor that names the kind and the key it resumes after; the stream refuses such a cursor, the
+pull continues it. The device names itself on every pull and push (`device_id`, a UUIDv7 the
+client minted): it registers by turning up, and the row keeps its platform, its name, its last
+cursor and its last contact (§6, N-03).
 
 ### 3.2 `POST /api/v1/sync:push`
 
@@ -282,14 +293,14 @@ A conformance test (`hubctl sync-conformance`) checks these points against a run
 
 | Building block | Purpose |
 |---|---|
-| `change_log` | The monotonic sequence of every change per tenant (`seq`, `entity`, `entity_id`, `op`, `actor`, `hlc`, `payload_ref`) — the basis for `:pull` |
-| `tombstone` | Purged objects with a minimum period |
-| `sync_device` | A device per account: `device_id`, platform, last cursor, last contact, push token, block status |
-| `op_log` | Processed `op_id`s for idempotency, kept for the offline window (§3.2) |
-| `position` | The fractional index per item per context (bucket, view) |
+| `change_log` | The monotonic sequence of every change per tenant (`seq`, `entity`, `entity_id`, `op`, `container_id`, `actor_id`, `device_id`, `hlc`, `occurred_at`, `payload`) — the basis for `:pull`; partitioned by month and dropped by the retention duty once a month has wholly aged out of the window (N-09) |
+| `tombstone` | Purged objects with their purge date, kept for the offline window; what a push consults before applying (§7) |
+| `sync_device` | A device per account: `device_id`, platform, name, last cursor, last contact, the credential it last synchronised under, block status. Forgotten is blocked, not erased, and the retention kind `DEVICE` takes the row after thirty days of silence (§6). `push_token` is a column nothing writes yet |
+| `sync_op_log` | Processed `op_id`s with the answer each was given, for idempotency, kept for the offline window (§3.2) |
+| `order_key` on the row | The fractional index is a column of the entry, the bucket and the container rather than a table of its own: one key per row per level, computed by the client between two neighbours (§4.2) |
 | `set_element` | OR-set tags for labels, members and attachments |
 | `field_clock` | The server's clock per field: the reading of the write that last landed on each field, stamped beside every change log entry that names a field, which a push's reading is compared against (N-05). Not backfilled: a field written before the table existed has no row and loses to the first device that writes it |
-| Sync service | `core/application/service/SyncService.go`: pull, push, merge rules, conflict log |
+| Sync service | `core/application/service/sync`: the stream and the pull share one reader (`StreamChanges`, `PullChanges`), the walk is `InitialSync`, the push is `PushChanges` with its appliers per kind (`Patch`, `Move`, `Set`), the devices are `Devices`; the revocation record is written by `access.Revocations` beside the acts that end an access (§6) |
 
 The change log is deliberately not the event outbox: the outbox carries business integration events
 outwards (CloudEvents, versioned, a public contract), while the change log carries state deltas to
@@ -299,6 +310,12 @@ commitments; mixing them would damage both.
 ---
 
 ## 11. Evidence
+
+The table is a test package: [`test/sync/`](../../test/sync/) holds one test per row (N-14),
+against a real PostgreSQL in the data gate - SY-4 and SY-11 written there, the ten the tasks
+wrote where their fixtures live named by file and function and checked to exist. The walk on the
+integration environment - QS-24 to QS-27 of [arc42.md](./arc42.md) §10 - is filed under
+`docs/evidence/SY-<date>.md`.
 
 | Test | Contents |
 |---|---|

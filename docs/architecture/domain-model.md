@@ -586,7 +586,10 @@ has no offline queue, and a rule that pulled would be reading its own effects (C
 [offline-sync.md](./offline-sync.md) §3). What a push *applies* is never its own code path: every
 mutation is an ordinary use case of this catalogue performed as the pushing person, so a push
 grants nothing and somebody who could not make a change by hand cannot make it by pushing (N-04,
-the shape J-05 gave accepting a suggestion).
+the shape J-05 gave accepting a suggestion). Two things about the protocol *are* in the catalogue:
+`ListSyncDevices` and `ForgetSyncDevice` (N-03) - the device list a person reads and the
+forgetting a person asks for, under the account scopes the session listing uses, and forgetting
+revokes the sign-in the device last synchronised under.
 
 ---
 
