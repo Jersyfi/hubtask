@@ -35,13 +35,13 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
-  const columns = [
+  const columns = $derived([
     { id: 'quota', label: t('app.quotas.limit_name') },
     { id: 'limit', label: t('app.quotas.ceiling') },
     { id: 'used', label: t('app.quotas.used') },
     { id: 'ratio', label: t('app.quotas.approach') },
     { id: 'source', label: t('app.quotas.source') },
-  ];
+  ]);
 
   /** The wording for a limit this build knows. One it does not is shown as the server's token. */
   const KNOWN = new Set([

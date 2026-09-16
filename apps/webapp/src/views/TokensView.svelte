@@ -62,14 +62,14 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
-  const columns = [
+  const columns = $derived([
     { id: 'name', label: t('app.tokens.name') },
     { id: 'scopes', label: t('app.tokens.scopes') },
     { id: 'expiry', label: t('app.tokens.expires') },
     { id: 'used', label: t('app.tokens.last_used') },
     { id: 'state', label: t('app.tokens.state') },
     { id: 'actions', label: t('app.tokens.actions'), isLabelHidden: true },
-  ];
+  ]);
 
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : undefined;

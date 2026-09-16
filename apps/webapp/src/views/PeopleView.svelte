@@ -72,12 +72,12 @@
       .map((id) => ({ value: id, label: accounts.nameOf(id) ?? t('app.people.unnamed') })),
   );
 
-  const columns = [
+  const columns = $derived([
     { id: 'who', label: t('app.people.who') },
     { id: 'role', label: t('app.people.role_column') },
     { id: 'status', label: t('app.people.status') },
     { id: 'actions', label: t('app.people.actions'), isLabelHidden: true },
-  ];
+  ]);
 
   /** The workspace is the only scope here, so every badge says the same thing about reach. */
   const scopeLabel = t('app.people.at_workspace');
