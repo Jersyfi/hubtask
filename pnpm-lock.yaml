@@ -41,6 +41,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@hubtask/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system

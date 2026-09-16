@@ -11,7 +11,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Reader, readReference, slugOf } from '../src/lib/api/reference.ts';
+import { Reader, humanize, readReference, slugOf } from '../src/lib/api/reference.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const real = path.resolve(here, '..', '..', '..', 'api', 'openapi.json');
@@ -123,8 +123,10 @@ test('an unknown reference is an error rather than an empty table', () => {
   assert.throws(() => reader.rowsOf({ $ref: '#/components/schemas/ItemCreate' }), /unknown schema/);
 });
 
-test('a slug is a path segment', () => {
+test('a slug is a path segment, and an identifier is written out where a summary is missing', () => {
   assert.equal(slugOf('Work items'), 'work-items');
+  assert.equal(humanize('createWorkItem'), 'Create work item');
+  assert.equal(humanize('listOAuthGrants'), 'List oauth grants');
 });
 
 test('the real contract renders every operation exactly once', { skip: !fs.existsSync(real) && 'api/openapi.json is not beside the site' }, () => {

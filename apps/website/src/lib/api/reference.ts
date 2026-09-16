@@ -408,7 +408,10 @@ export class Reader {
       id: raw.operationId ?? `${method}-${path}`,
       method: upper,
       path,
-      summary: raw.summary ?? '',
+      // Ninety operations of the contract carry no summary; the identifier, written out, is a
+      // truer line than an empty one, and it is marked as derived nowhere because it is the
+      // operation's own name.
+      summary: raw.summary ?? humanize(raw.operationId ?? `${method} ${path}`),
       description,
       isDeprecated: raw.deprecated === true,
       pathParameters: this.#parameterRows(parameters, 'path'),
@@ -449,7 +452,9 @@ export class Reader {
       name,
       description: schema.description ?? '',
       type: this.typeOf(schema),
-      rows: this.rowsOf(schema),
+      // Flat: on the schemas page every named schema has its own table, and a field that is one
+      // is a name the reader scrolls to rather than a second copy of that table.
+      rows: this.rowsOf(schema, UNFOLD_DEPTH),
       facts: this.factsOf(schema),
     }));
     const server = this.#document.servers?.[0]?.url ?? '';
@@ -463,6 +468,12 @@ export class Reader {
       operationCount,
     };
   }
+}
+
+/** `createWorkItem` → `Create work item`. */
+export function humanize(identifier: string): string {
+  const words = identifier.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export function slugOf(name: string): string {
