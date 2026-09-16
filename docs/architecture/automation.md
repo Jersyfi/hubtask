@@ -206,6 +206,14 @@ took unreadable for false would match the opposite of what it says.
 **`now` is one instant per run**, taken from the `Clock` port. A rule with two conditions must not
 have the first answer "before six" and the second "after six" because a second passed between them.
 
+**A time condition evaluates the server's time.** An event carries two clocks
+([offline-sync.md](./offline-sync.md) §8): `event.occurred_at` is the person's moment, which for a
+change a device made offline is the device's bounded reading - days before the server heard of it -
+and `event.received_at` is when the server learned of it, the same instant for every event raised
+online. `now` is the server's, so a completion three days old does not fire a deadline rule about
+the day it happened; a condition that wants to speak of the moment of receipt names
+`event.received_at`, and one that wants the person's moment names `event.occurred_at` knowingly.
+
 The three limits, and what each one is for:
 
 | Limit | Value | Why it is not covered by the next one |

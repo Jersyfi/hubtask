@@ -20,6 +20,7 @@
   },
   "datacontenttype": "application/json",
   "id": "0192f000-0000-7000-8000-0000000000e1",
+  "receivedat": "2026-08-17T09:00:00Z",
   "source": "urn:hubtask:golden",
   "specversion": "1.0",
   "subject": "container/0192f000-0000-7000-8000-00000000000b",

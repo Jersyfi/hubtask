@@ -152,6 +152,30 @@ func (d *deliveryStore) List(_ context.Context, query repository.DeliveryQuery) 
 	return found, nil
 }
 
+// FindPendingOfPush and Repoint are the fan-out's collapse (N-10): the newest pending delivery
+// of the push, and its event replaced in place.
+func (d *deliveryStore) FindPendingOfPush(
+	_ context.Context, subscriptionID shared.ID, key domain.CollapseKey,
+) (domain.WebhookDelivery, bool, error) {
+	for i := len(d.rows) - 1; i >= 0; i-- {
+		row := d.rows[i]
+		if row.SubscriptionID == subscriptionID && row.Collapse == key && row.Status == domain.DeliveryPending {
+			return row, true, nil
+		}
+	}
+	return domain.WebhookDelivery{}, false, nil
+}
+
+func (d *deliveryStore) Repoint(_ context.Context, deliveryID, eventID shared.ID) (bool, error) {
+	for i := range d.rows {
+		if d.rows[i].ID == deliveryID && d.rows[i].Status == domain.DeliveryPending {
+			d.rows[i].EventID = eventID
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (d *deliveryStore) RecordOutcome(_ context.Context, outcome repository.DeliveryOutcome) error {
 	for index, delivery := range d.rows {
 		if delivery.ID == outcome.ID {

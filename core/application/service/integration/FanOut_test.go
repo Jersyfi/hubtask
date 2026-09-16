@@ -73,6 +73,71 @@ func TestAnEventBecomesADeliveryJobPerInterestedSubscription(t *testing.T) {
 	}
 }
 
+// The events of one push that name the same subscription, subject and type owe one delivery
+// for the push, with the last event's payload (N-10, offline-sync.md §8): the pending delivery
+// is repointed rather than a second one recorded, and its job waits the grace so that the push's
+// events fold before the first attempt. A delivery already attempted stands for what it sent.
+// An event with no push in its cause collapses with nothing.
+func TestTheEventsOfOnePushCollapseToOneDelivery(t *testing.T) {
+	h := withSubscription(t)
+	queued := &jobs{}
+	push := shared.ID("01936f2a-7c1e-7000-8000-000000000f31")
+	first := anEvent(t, event.ItemCreated).Pushed(push, now.Add(-time.Hour))
+	second := first
+	second.ID = shared.ID("01936f2a-7c1e-7000-8000-000000000f32")
+	fan := fanOut(h, queued)
+
+	for _, envelope := range []event.Envelope{first, second} {
+		if err := fan.Deliver(t.Context(), envelope); err != nil {
+			t.Fatalf("fanning out: %v", err)
+		}
+	}
+	if len(h.delivered.rows) != 1 || h.delivered.rows[0].EventID != second.ID {
+		t.Fatalf("recorded %+v, want one delivery standing for the second event", h.delivered.rows)
+	}
+	if !h.delivered.rows[0].Collapse.Collapses() || h.delivered.rows[0].Collapse.PushID != push {
+		t.Errorf("the delivery carries %+v, want the push's key", h.delivered.rows[0].Collapse)
+	}
+	if len(queued.requests) != 1 || !queued.requests[0].RunAt.Equal(now.Add(DefaultCollapseGrace)) {
+		t.Errorf("queued %+v, want one job after the grace", queued.requests)
+	}
+
+	// Another subject of the same push is its own delivery; an attempt already made is not
+	// repointed, and the next event gets a delivery of its own.
+	other := first
+	other.ID, other.Subject = shared.ID("01936f2a-7c1e-7000-8000-000000000f33"), "item/01936f2a-7c1e-7000-8000-000000000f34"
+	if err := fan.Deliver(t.Context(), other); err != nil {
+		t.Fatalf("fanning out another subject: %v", err)
+	}
+	h.delivered.rows[0].Status = domain.DeliverySucceeded
+	third := first
+	third.ID = shared.ID("01936f2a-7c1e-7000-8000-000000000f35")
+	if err := fan.Deliver(t.Context(), third); err != nil {
+		t.Fatalf("fanning out after the attempt: %v", err)
+	}
+	if len(h.delivered.rows) != 3 {
+		t.Errorf("recorded %d deliveries, want the push's, the other subject's and the one after the attempt", len(h.delivered.rows))
+	}
+
+	// Two online events about the same subject stay two deliveries, at once.
+	h, queued = withSubscription(t), &jobs{}
+	online := anEvent(t, event.ItemCreated)
+	again := online
+	again.ID = shared.ID("01936f2a-7c1e-7000-8000-000000000f36")
+	fan = fanOut(h, queued)
+	for _, envelope := range []event.Envelope{online, again} {
+		if err := fan.Deliver(t.Context(), envelope); err != nil {
+			t.Fatalf("fanning out online: %v", err)
+		}
+	}
+	if len(h.delivered.rows) != 2 || h.delivered.rows[0].Collapse.Collapses() {
+		t.Errorf("online events recorded %+v, want two deliveries with no key", h.delivered.rows)
+	}
+	if !queued.requests[0].RunAt.Equal(now) {
+		t.Errorf("an online delivery waits: %v", queued.requests[0].RunAt)
+	}
+}
+
 // A subscription that did not ask for this type, and one that is not active, both get nothing.
 func TestOnlyAnActiveSubscriptionThatAskedForItIsDelivered(t *testing.T) {
 	h := withSubscription(t)
