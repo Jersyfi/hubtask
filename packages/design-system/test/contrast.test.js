@@ -74,6 +74,18 @@ const ROLES = {
 
   'focus.ring': 'indicator',
 
+  // The AI treatment (F5-01): a proposal has to be legible *and* visibly not the reader's own
+  // content, so its surfaces are measured under every text like any other tinted surface, and
+  // its own text, border and fill are measured against every surface like any other - both
+  // directions, one table. The surfaces sit at the neutrals' luminance on purpose - they differ
+  // by hue, and rule 3 says a hue never stands alone - so the boundary a proposal is told apart
+  // by is `ai.border`, held to SC 1.4.11 on every surface including its own.
+  'ai.surface': 'tinted-surface',
+  'ai.surface-strong': 'tinted-surface',
+  'ai.border': 'indicator',
+  'ai.text': 'body-text',
+  'ai.accent': 'fill',
+
   // Laid over the canvas as gradient stops, so they change what body text is read on rather than
   // being read themselves. Measured as a canvas variant, not as a pair of their own.
   'ambient.primary': 'canvas-tint',
