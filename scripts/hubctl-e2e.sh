@@ -644,7 +644,7 @@ imported_again="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait
 expect_contains "import csv, again" "$imported_again" "SUCCEEDED"
 IMPORTED_JSON="$(hubctl --json import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
 case "$IMPORTED_JSON" in
-	*'"new":0'*) ;;
+	*'"new": 0'*) ;;
 	*) echo "FAILED: the same file a third time created something: $IMPORTED_JSON"; exit 1 ;;
 esac
 
