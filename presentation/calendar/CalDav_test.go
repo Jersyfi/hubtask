@@ -39,8 +39,23 @@ func (f fakeFeeds) Execute(context.Context, appshared.ActorContext) ([]integrati
 }
 
 type fakeViews struct {
-	items []workmodel.WorkItem
-	asked []shared.ID
+	items      []workmodel.WorkItem
+	asked      []shared.ID
+	collection shared.ID
+}
+
+type httpResponse = httptest.ResponseRecorder
+
+func newRequest(t *testing.T, method, target string, body []byte) *http.Request {
+	t.Helper()
+	r := httptest.NewRequestWithContext(t.Context(), method, target, strings.NewReader(string(body)))
+	return r.WithContext(appshared.ContextWithActor(r.Context(), actor()))
+}
+
+func serve(c *Controller, r *http.Request) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	c.ServeHTTP(w, r)
+	return w
 }
 
 func (f *fakeViews) Select(_ context.Context, actor appshared.ActorContext, id shared.ID) (work.ExportedView, error) {
@@ -48,8 +63,12 @@ func (f *fakeViews) Select(_ context.Context, actor appshared.ActorContext, id s
 	if id != viewID {
 		return work.ExportedView{}, shared.ErrNotFound.WithDetail("views.not_found")
 	}
+	saved := view.SavedView{ID: viewID, Name: "This week", Query: map[string]any{}}
+	if !f.collection.IsZero() {
+		saved.Query["collection_id"] = f.collection.String()
+	}
 	return work.ExportedView{
-		View:        view.SavedView{ID: viewID, Name: "This week"},
+		View:        saved,
 		Items:       f.items,
 		TimeZone:    actor.TimeZone,
 		GeneratedAt: time.Date(2026, 9, 16, 10, 0, 0, 0, time.UTC),

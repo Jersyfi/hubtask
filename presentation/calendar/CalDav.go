@@ -23,6 +23,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -59,6 +60,10 @@ const (
 	nsDAV    = "DAV:"
 	nsCalDAV = "urn:ietf:params:xml:ns:caldav"
 	nsCS     = "http://calendarserver.org/ns/"
+
+	// allowed is the method list: the reads of P-06 and the writes of P-07. No MKCALENDAR - a
+	// calendar is made by creating a feed - and no MOVE, COPY or PROPPATCH.
+	allowed = "OPTIONS, PROPFIND, REPORT, GET, HEAD, PUT, DELETE"
 )
 
 // FeedLister answers the calendars: the account's own feeds and no others.
@@ -81,6 +86,8 @@ type Controller struct {
 	BaseURL string
 	// Now stamps DTSTAMP where the selection carries no moment of its own.
 	Now func() time.Time
+	// UseCases performs the writes of P-07 as the actor; nil means the tree is read-only.
+	UseCases Catalogue
 }
 
 /* ── Routing ───────────────────────────────────────────────────────────────────────────── */
@@ -144,7 +151,7 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodOptions:
 		w.Header().Set("DAV", "1, 3, calendar-access")
-		w.Header().Set("Allow", "OPTIONS, PROPFIND, REPORT, GET, HEAD")
+		w.Header().Set("Allow", allowed)
 		w.WriteHeader(http.StatusOK)
 	case "PROPFIND":
 		c.propfind(w, r, actor, target)
@@ -152,8 +159,12 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.report(w, r, actor, target)
 	case http.MethodGet, http.MethodHead:
 		c.get(w, r, actor, target)
+	case http.MethodPut:
+		c.put(w, r, actor, target)
+	case http.MethodDelete:
+		c.delete(w, r, actor, target)
 	default:
-		w.Header().Set("Allow", "OPTIONS, PROPFIND, REPORT, GET, HEAD")
+		w.Header().Set("Allow", allowed)
 		writeStatus(w, http.StatusMethodNotAllowed)
 	}
 }
@@ -389,11 +400,13 @@ func supportedReports() element {
 /* ── A calendar and its members ────────────────────────────────────────────────────────── */
 
 type member struct {
-	id   string
-	path string
-	etag string
-	todo Todo
-	body []byte
+	id      string
+	path    string
+	etag    string
+	version int
+	start   time.Time
+	todo    Todo
+	body    []byte
 }
 
 func (m member) props(withData bool) map[xml.Name]element {
@@ -412,6 +425,7 @@ func (m member) props(withData bool) map[xml.Name]element {
 
 type calendarView struct {
 	feed    integration.CalendarFeed
+	view    view.SavedView
 	name    string
 	ctag    string
 	members []member
@@ -462,7 +476,7 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 		children[item.ParentID] = count
 	}
 
-	view := calendarView{feed: feed, name: exported.View.Name, byID: map[string]member{}}
+	view := calendarView{feed: feed, view: exported.View, name: exported.View.Name, byID: map[string]member{}}
 	digest := sha256.New()
 	for _, item := range exported.Items {
 		todo, dated := c.todoOf(item, zone, children)
@@ -471,11 +485,15 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 		}
 		body := RenderTodo(todo, stamp)
 		m := member{
-			id:   item.ID.String(),
-			path: memberPath(account, feed.ID.String(), item.ID.String()),
-			etag: `"` + strconv.Itoa(item.Version) + `"`,
-			todo: todo,
-			body: body,
+			id:      item.ID.String(),
+			path:    memberPath(account, feed.ID.String(), item.ID.String()),
+			etag:    `"` + strconv.Itoa(item.Version) + `"`,
+			version: item.Version,
+			todo:    todo,
+			body:    body,
+		}
+		if item.StartAt != nil {
+			m.start = *item.StartAt
 		}
 		view.members = append(view.members, m)
 		view.byID[m.id] = m
