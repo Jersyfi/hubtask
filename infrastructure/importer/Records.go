@@ -250,6 +250,17 @@ func (b *builder) comment(key string, item shared.ID, author, body string, at *t
 	})
 }
 
+// reminder adds an absolute reminder at the moment another system kept, by e-mail to whoever
+// the entry concerns; one whose moment has passed is marked lapsed by the restore that applies it.
+func (b *builder) reminder(key string, item shared.ID, at time.Time) {
+	id := b.id("reminders", key)
+	b.add("reminders", id, map[string]any{
+		"id": id.String(), "item_id": item.String(), "offset_spec": "ABS:" + at.UTC().Format(time.RFC3339),
+		"channels": []string{"EMAIL"}, "recipients": []string{}, "state": "PENDING", "fire_at": stamp(at),
+		"created_at": stamp(b.source.Now), "updated_at": nil, "version": 1,
+	})
+}
+
 func (b *builder) result(refused []refusal) service.Result {
 	out := service.Result{Records: b.records}
 	for _, r := range refused {
