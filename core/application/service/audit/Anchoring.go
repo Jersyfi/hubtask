@@ -269,7 +269,7 @@ func sameDay(a, b time.Time) bool {
 	if a.IsZero() || b.IsZero() {
 		return false
 	}
-	return a.UTC().Truncate(24*time.Hour) == b.UTC().Truncate(24*time.Hour)
+	return a.UTC().Truncate(24 * time.Hour).Equal(b.UTC().Truncate(24 * time.Hour))
 }
 
 func digestOf(content []byte) string {
