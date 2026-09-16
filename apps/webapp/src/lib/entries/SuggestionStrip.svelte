@@ -163,7 +163,7 @@
   </div>
 
   {#if asking?.outcome === 'following'}
-    <AISuggestion heading={t(OPERATION_CODE[asking.operation])} state="pending" pendingLabel={t('app.suggestions.pending')} />
+    <AISuggestion heading={t(OPERATION_CODE[asking.operation as Operation])} state="pending" pendingLabel={t('app.suggestions.pending')} />
   {/if}
 
   {#if listingFailure}
