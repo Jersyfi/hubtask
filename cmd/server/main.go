@@ -1379,7 +1379,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
