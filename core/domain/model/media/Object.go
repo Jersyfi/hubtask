@@ -46,19 +46,22 @@ type Object struct {
 	DeletedAt *time.Time
 }
 
-// Usage is what the object was staged for. The schema also reserves IMPORT and EXPORT; they
-// arrive with the milestones that own them.
+// Usage is what the object was staged for. The schema also reserves EXPORT; it arrives with the
+// milestone that owns it.
 type Usage string
 
 const (
 	UsageCover      Usage = "COVER"
 	UsageAttachment Usage = "ATTACHMENT"
+	// UsageImport is a file for POST /imports (P-08): it attaches to nothing, covers nothing,
+	// and is deleted when the import's job ends.
+	UsageImport Usage = "IMPORT"
 )
 
 // ParseUsage reads a submitted usage.
 func ParseUsage(value string) (Usage, error) {
 	usage := Usage(value)
-	if usage != UsageCover && usage != UsageAttachment {
+	if usage != UsageCover && usage != UsageAttachment && usage != UsageImport {
 		return "", shared.ErrValidation.
 			WithDetail("media.usage_unknown").
 			WithParams(map[string]string{"value": value}).
@@ -129,7 +132,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 	if err != nil {
 		return Object{}, err
 	}
-	if input.Usage != UsageCover && input.Usage != UsageAttachment {
+	if input.Usage != UsageCover && input.Usage != UsageAttachment && input.Usage != UsageImport {
 		return Object{}, shared.ErrValidation.
 			WithDetail("media.usage_unknown").
 			WithParams(map[string]string{"value": string(input.Usage)}).
