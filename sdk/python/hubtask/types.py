@@ -220,7 +220,7 @@ class SuggestionPage(TypedDict, total=False):
 
 SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER"]
 
-SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES"]
+SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE"]
 
 SuggestionStatus = Literal["PROPOSED", "ACCEPTED", "DISMISSED"]
 
@@ -1258,6 +1258,11 @@ class TemplateInput(TypedDict, total=False):
     description: str | None
     root_type: Required["ItemType"]
     nodes: Required[list["TemplateNode"]]
+
+class TemplateGeneration(TypedDict, total=False):
+    """What to ask for, and where the template would belong."""
+    collection_id: Required[str]
+    description: Required[str]
 
 class TemplateUpdate(TypedDict, total=False):
     """A merge patch. An absent member is not touched; the node tree travels whole."""
