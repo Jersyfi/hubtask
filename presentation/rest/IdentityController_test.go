@@ -124,6 +124,44 @@ func TestAnUnsetPreferenceIsAbsentRatherThanEmpty(t *testing.T) {
 	}
 }
 
+// A merge patch says "leave it alone" by omission and "clear it" by an empty string or a null: the
+// contract declares null for all three preferences. The generated pointer reads a null as an
+// omission, so the handler reads presence from the bytes (issue 709).
+func TestANullPreferenceClearsAndAnOmittedOneIsLeftAlone(t *testing.T) {
+	registry := &catalogue{out: ownAccount()}
+	body := `{"week_start": null, "locale": "", "time_zone": "Europe/Berlin"}`
+	recorder := identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", body)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != updateAccountPreferencesUseCase {
+		t.Fatalf("the handler invoked %q", registry.name)
+	}
+	if got, ok := registry.in["week_start"]; !ok || got != "" {
+		t.Errorf("week_start = %v (present %v), want present and empty", got, ok)
+	}
+	if got, ok := registry.in["locale"]; !ok || got != "" {
+		t.Errorf("locale = %v (present %v), want present and empty", got, ok)
+	}
+	if got := registry.in["time_zone"]; got != "Europe/Berlin" {
+		t.Errorf("time_zone = %v", got)
+	}
+
+	registry = &catalogue{out: ownAccount()}
+	recorder = identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", `{"time_zone": null}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	for _, field := range []string{"week_start", "locale"} {
+		if _, ok := registry.in[field]; ok {
+			t.Errorf("%s was not sent and reached the use case: %v", field, registry.in)
+		}
+	}
+	if got, ok := registry.in["time_zone"]; !ok || got != "" {
+		t.Errorf("a null time zone is present and empty, got %v (present %v)", got, ok)
+	}
+}
+
 // `me` is a reserved segment and not a possible identifier - identifiers are UUIDs - so the two
 // routes cannot collide. Asserted rather than assumed, because the day somebody widens the
 // AccountId schema to a plain string is the day this stops being true silently.

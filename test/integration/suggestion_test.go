@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -302,5 +303,61 @@ func TestTheSuggestionSweepStaysInsideTheTenant(t *testing.T) {
 	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
 		_, err := suggestions.DeleteExpired(ctx, now.Add(time.Hour), 100)
 		return err
+	})
+}
+
+// The words a person asked a template to be drafted from (P-11): held under the same policy,
+// invisible and unremovable next door, and swept with the suggestions when a job left one behind.
+func TestARequestIsBoundedLikeTheSuggestionsAndSweptWithThem(t *testing.T) {
+	ctx := context.Background()
+	seedSuggestionTenants(ctx, t)
+
+	suggestions := postgres.NewSuggestionRepository(security.NewCursorCodec(secret.New(installationSecret)))
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+
+	held := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb51")
+	stale := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb52")
+	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
+		for id, at := range map[shared.ID]time.Time{held: now, stale: now.Add(-90 * 24 * time.Hour)} {
+			if err := suggestions.Put(ctx, repository.Request{ID: id, AskedBy: sugPersonA, Text: "onboarding a colleague", CreatedAt: at}); err != nil {
+				t.Fatalf("holding: %v", err)
+			}
+		}
+		request, err := suggestions.Get(ctx, held)
+		if err != nil || request.Text != "onboarding a colleague" || request.AskedBy != sugPersonA {
+			t.Errorf("read back %+v, %v", request, err)
+		}
+		return nil
+	})
+
+	inTenant(t, uow, sugTenantB, func(ctx context.Context) error {
+		if _, err := suggestions.Get(ctx, held); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("A's request is readable next door: %v", err)
+		}
+		if err := suggestions.Delete(ctx, held); err != nil {
+			t.Errorf("deleting next door errs rather than doing nothing: %v", err)
+		}
+		return nil
+	})
+
+	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
+		if _, err := suggestions.Get(ctx, held); err != nil {
+			t.Errorf("B's delete took A's request: %v", err)
+		}
+		if _, err := suggestions.DeleteExpired(ctx, now.Add(-30*24*time.Hour), 100); err != nil {
+			t.Fatalf("sweeping: %v", err)
+		}
+		if _, err := suggestions.Get(ctx, stale); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the sweep left the stale request: %v", err)
+		}
+		if _, err := suggestions.Get(ctx, held); err != nil {
+			t.Errorf("the sweep took the fresh request: %v", err)
+		}
+		// The job's own way out, and a second deletion is no error.
+		if err := suggestions.Delete(ctx, held); err != nil {
+			t.Fatalf("deleting: %v", err)
+		}
+		return suggestions.Delete(ctx, held)
 	})
 }

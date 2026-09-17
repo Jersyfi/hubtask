@@ -158,6 +158,12 @@ const (
 	// leader's duty instead - see the scheduler.
 	KindBackupSchedule Kind = "backup.schedule"
 
+	// KindAuditAnchor is one tenant's daily anchoring (A-2, P-13, audit.md §3): the chain's
+	// end written to the backup target the workspace named. One job per tenant, seeded by the
+	// configuration's write and rescheduling itself to the next day, for the backup schedule's
+	// reason: nothing in this system may enumerate tenants.
+	KindAuditAnchor Kind = "audit.anchor"
+
 	// KindAuditExport writes a period of the audit trail to a backup target as a signed archive
 	// (E-09, audit.md §5).
 	//
@@ -336,6 +342,10 @@ type Result struct {
 	// one would swallow anyway.
 	Repeat      bool
 	RepeatAfter time.Duration
+	// Counts is what a handler wants written down about a job that succeeded, by name: how much
+	// of a provider's answer the narrowing dropped, say. The runner logs them with the job's kind
+	// and identifier and nothing else; a handler puts no content here (rule 10).
+	Counts map[string]int
 }
 
 // Handler runs one kind of job.

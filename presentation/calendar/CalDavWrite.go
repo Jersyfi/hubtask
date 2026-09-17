@@ -6,12 +6,14 @@ package calendar
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -94,6 +96,22 @@ func (c *Controller) put(w http.ResponseWriter, r *http.Request, actor appshared
 
 	existing, exists := calendar.byID[target.member]
 	if !exists {
+		// The calendar answers no member at the address, which is not the same as no entry
+		// holding the identifier: a todo the client completed leaves a view of open entries,
+		// and one it sent back without a DUE is no longer a moment. The client still holds the
+		// address and PUTs to it, and what it means is an edit of that entry - so the decision
+		// is the entry's, not the view's (issue 720). Only an identifier nothing holds is a
+		// creation.
+		outside, found, err := c.outsideTheView(r.Context(), actor, calendar, target.member)
+		if err != nil {
+			c.refuse(w, err)
+			return
+		}
+		if found {
+			existing, exists = outside, true
+		}
+	}
+	if !exists {
 		if ifMatch != "" {
 			writeStatus(w, http.StatusPreconditionFailed)
 			return
@@ -117,6 +135,29 @@ func (c *Controller) put(w http.ResponseWriter, r *http.Request, actor appshared
 	}
 	w.Header().Set("ETag", `"`+strconv.Itoa(version)+`"`)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// outsideTheView reads the entry at an address the calendar does not answer, as the actor. Not
+// found is the one answer that says the address is free; a refusal says the entry exists and the
+// caller may not touch it, which is the same refusal the update would meet.
+func (c *Controller) outsideTheView(ctx context.Context, actor appshared.ActorContext, calendar calendarView, address string) (member, bool, error) {
+	id, err := shared.ParseID(address)
+	if err != nil || c.Items == nil {
+		return member{}, false, nil
+	}
+	item, err := c.Items.Execute(ctx, actor, work.GetWorkItemQuery{ItemID: id})
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return member{}, false, nil
+		}
+		return member{}, false, err
+	}
+	var stamp time.Time
+	if c.Now != nil {
+		stamp = c.Now()
+	}
+	zone := zoneOr(actor.TimeZone, time.UTC)
+	return c.memberOf(actor.AccountID.String(), calendar.feed.ID.String(), item, zone, nil, stamp), true, nil
 }
 
 // apply performs the differences between the todo the client sent and the entry, each through

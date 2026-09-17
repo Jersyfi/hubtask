@@ -127,6 +127,10 @@ class Client:
         """POST /templates/{templateId}:instantiate"""
         return self._call("POST", "/templates/{templateId}:instantiate", {"templateId": template_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def ai_generate_template(self, body: "TemplateGeneration", *, idempotency_key: str | None = None) -> None:
+        """Ask AI to draft a template from a description"""
+        return self._call("POST", "/templates:generate", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "void")
+
     def list_saved_views(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
         """GET /views"""
         return self._call("GET", "/views", {}, query, {}, None, "none", None, "json")
@@ -319,6 +323,10 @@ class Client:
         """Verify the integrity of the audit chain"""
         return self._call("POST", "/audit:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def configure_audit_anchoring(self, body: "AuditAnchoringConfiguration") -> "AuditAnchoring":
+        """Name where the audit chain's end is anchored, or switch anchoring off"""
+        return self._call("PUT", "/audit/anchoring", {}, None, {}, body, "json", "application/json", "json")
+
     def export_audit_trail(self, body: "AuditExport") -> "JobRef":
         """Export the audit trail over a period"""
         return self._call("POST", "/audit:export", {}, None, {}, body, "json", "application/json", "json")
@@ -442,6 +450,10 @@ class Client:
     def sync_pull(self, body: "SyncPullRequest") -> "SyncPullResponse":
         """Fetch the changes since the cursor"""
         return self._call("POST", "/sync:pull", {}, None, {}, body, "json", "application/json", "json")
+
+    def sync_snapshot(self, body: "SyncSnapshotRequest") -> bytes:
+        """The initial synchronisation as one stream"""
+        return self._call("POST", "/sync:snapshot", {}, None, {}, body, "json", "application/json", "raw")
 
     def sync_push(self, body: "SyncPushRequest") -> "SyncPushResponse":
         """Transmit local mutations"""

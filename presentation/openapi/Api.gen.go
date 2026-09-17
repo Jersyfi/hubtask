@@ -2804,6 +2804,7 @@ const (
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
 	FIELDS        SuggestionKind = "FIELDS"
+	TEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionKind enum.
@@ -2814,6 +2815,8 @@ func (e SuggestionKind) Valid() bool {
 	case DUPLICATES:
 		return true
 	case FIELDS:
+		return true
+	case TEMPLATE:
 		return true
 	default:
 		return false
@@ -2969,19 +2972,40 @@ func (e SyncMutationResultResult) Valid() bool {
 
 // Defines values for SyncPullRequestScopesDepth.
 const (
-	CHILDREN SyncPullRequestScopesDepth = "CHILDREN"
-	SELF     SyncPullRequestScopesDepth = "SELF"
-	SUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
+	SyncPullRequestScopesDepthCHILDREN SyncPullRequestScopesDepth = "CHILDREN"
+	SyncPullRequestScopesDepthSELF     SyncPullRequestScopesDepth = "SELF"
+	SyncPullRequestScopesDepthSUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
 )
 
 // Valid indicates whether the value is a known member of the SyncPullRequestScopesDepth enum.
 func (e SyncPullRequestScopesDepth) Valid() bool {
 	switch e {
-	case CHILDREN:
+	case SyncPullRequestScopesDepthCHILDREN:
 		return true
-	case SELF:
+	case SyncPullRequestScopesDepthSELF:
 		return true
-	case SUBTREE:
+	case SyncPullRequestScopesDepthSUBTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncSnapshotRequestScopesDepth.
+const (
+	SyncSnapshotRequestScopesDepthCHILDREN SyncSnapshotRequestScopesDepth = "CHILDREN"
+	SyncSnapshotRequestScopesDepthSELF     SyncSnapshotRequestScopesDepth = "SELF"
+	SyncSnapshotRequestScopesDepthSUBTREE  SyncSnapshotRequestScopesDepth = "SUBTREE"
+)
+
+// Valid indicates whether the value is a known member of the SyncSnapshotRequestScopesDepth enum.
+func (e SyncSnapshotRequestScopesDepth) Valid() bool {
+	switch e {
+	case SyncSnapshotRequestScopesDepthCHILDREN:
+		return true
+	case SyncSnapshotRequestScopesDepthSELF:
+		return true
+	case SyncSnapshotRequestScopesDepthSUBTREE:
 		return true
 	default:
 		return false
@@ -3595,6 +3619,21 @@ type AuditActor struct {
 // AuditActorType defines model for AuditActor.Type.
 type AuditActorType string
 
+// AuditAnchoring defines model for AuditAnchoring.
+type AuditAnchoring struct {
+	ConfiguredAt time.Time           `json:"configured_at"`
+	ConfiguredBy *openapi_types.UUID `json:"configured_by,omitempty"`
+
+	// TargetId The target anchoring writes to, or null where it is off.
+	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
+}
+
+// AuditAnchoringConfiguration defines model for AuditAnchoringConfiguration.
+type AuditAnchoringConfiguration struct {
+	// TargetId The workspace's backup target the daily anchor is written to; null switches anchoring off.
+	TargetId *openapi_types.UUID `json:"target_id"`
+}
+
 // AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
@@ -3887,9 +3926,12 @@ type BackupRun struct {
 	StartedAt  time.Time          `json:"started_at"`
 	Status     BackupRunStatus    `json:"status"`
 	TargetId   openapi_types.UUID `json:"target_id"`
-	Trigger    BackupRunTrigger   `json:"trigger"`
-	VerifiedAt *time.Time         `json:"verified_at,omitempty"`
-	VerifyOk   *bool              `json:"verify_ok,omitempty"`
+
+	// TrialRestore What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore - every member read, every checksum verified, every encrypted member decrypted with the key the schedule names - and records the difference report against the workspace here. Null where no trial ran. A trial that fails fails the run, with `backup.trial_restore_failed` as its `error_code` and the failure recorded here.
+	TrialRestore *BackupRunTrial  `json:"trial_restore,omitempty"`
+	Trigger      BackupRunTrigger `json:"trigger"`
+	VerifiedAt   *time.Time       `json:"verified_at,omitempty"`
+	VerifyOk     *bool            `json:"verify_ok,omitempty"`
 }
 
 // BackupRunMode defines model for BackupRun.Mode.
@@ -3900,6 +3942,25 @@ type BackupRunStatus string
 
 // BackupRunTrigger defines model for BackupRun.Trigger.
 type BackupRunTrigger string
+
+// BackupRunTrial defines model for BackupRunTrial.
+type BackupRunTrial struct {
+	// Failure What could not be read back, on a run that failed its trial.
+	Failure     *BackupRunTrialFailure `json:"failure,omitempty"`
+	InspectedAt time.Time              `json:"inspected_at"`
+
+	// Report What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable.
+	Report *RestoreReport `json:"report,omitempty"`
+}
+
+// BackupRunTrialFailure defines model for BackupRunTrialFailure.
+type BackupRunTrialFailure struct {
+	// Code The reader's message code.
+	Code string `json:"code"`
+
+	// Member The member at the target where it stopped.
+	Member *string `json:"member,omitempty"`
+}
 
 // BackupSchedule defines model for BackupSchedule.
 type BackupSchedule struct {
@@ -3921,6 +3982,9 @@ type BackupSchedule struct {
 	} `json:"scope"`
 	TargetId openapi_types.UUID `json:"target_id"`
 	Timezone *string            `json:"timezone,omitempty"`
+
+	// TrialRestore Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same job, and store the difference report on the run (B-4, P-14). A trial that fails fails the run - an archive the product cannot read back is not a backup - and `notify_on` covers it as it covers any failure. On for a new schedule; schedules made before this field existed keep it off, and say so.
+	TrialRestore *bool `json:"trial_restore,omitempty"`
 }
 
 // BackupScheduleMode defines model for BackupSchedule.Mode.
@@ -3943,9 +4007,10 @@ type BackupScheduleUpdate struct {
 	NotifyOn     *[]BackupScheduleUpdateNotifyOn `json:"notify_on,omitempty"`
 
 	// Retention The generation principle. `min_keep` prevents no backup being left at all.
-	Retention *BackupRetention `json:"retention,omitempty"`
-	Rrule     *string          `json:"rrule,omitempty"`
-	Timezone  *string          `json:"timezone,omitempty"`
+	Retention    *BackupRetention `json:"retention,omitempty"`
+	Rrule        *string          `json:"rrule,omitempty"`
+	Timezone     *string          `json:"timezone,omitempty"`
+	TrialRestore *bool            `json:"trial_restore,omitempty"`
 }
 
 // BackupScheduleUpdateMode defines model for BackupScheduleUpdate.Mode.
@@ -5758,7 +5823,7 @@ type RestoreReport struct {
 	// Skipped Objects left as they are.
 	Skipped *int `json:"skipped,omitempty"`
 
-	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`. An object rather than a total, so that a client can say why.
+	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`, `media_missing`, `orphaned` (a row whose parent is in neither the archive nor the target) - and, for an import, what the source carried that the product has no place for - `unmapped_members`. An object rather than a total, so that a client can say why.
 	Withheld *map[string]int `json:"withheld,omitempty"`
 }
 
@@ -6350,13 +6415,14 @@ type Suggestion struct {
 	Id        openapi_types.UUID  `json:"id"`
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -6390,6 +6456,7 @@ type SuggestionAcceptance struct {
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 // `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -6577,6 +6644,23 @@ type SyncPushResponse struct {
 	ServerTime *time.Time           `json:"server_time,omitempty"`
 }
 
+// SyncSnapshotRequest What `:pull` takes for an initial synchronisation, without a cursor or a page size.
+type SyncSnapshotRequest struct {
+	// DeviceId The device asking, as on `:pull`; it registers by turning up.
+	DeviceId    openapi_types.UUID `json:"device_id"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Platform    *string            `json:"platform,omitempty"`
+
+	// Scopes What the device wants to hold, as on `:pull`; no scope means everything the caller may read.
+	Scopes *[]struct {
+		ContainerId *openapi_types.UUID             `json:"container_id,omitempty"`
+		Depth       *SyncSnapshotRequestScopesDepth `json:"depth,omitempty"`
+	} `json:"scopes,omitempty"`
+}
+
+// SyncSnapshotRequestScopesDepth defines model for SyncSnapshotRequest.Scopes.Depth.
+type SyncSnapshotRequestScopesDepth string
+
 // Template defines model for Template.
 type Template struct {
 	CreatedAt   time.Time          `json:"created_at"`
@@ -6597,6 +6681,15 @@ type Template struct {
 	ScopeType TemplateScope `json:"scope_type"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
+}
+
+// TemplateGeneration What to ask for, and where the template would belong.
+type TemplateGeneration struct {
+	// CollectionId The collection the template is drafted for and would be defined in. The draft's scope is `COLLECTION` and this container; a model names no destination.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Description What the template should produce, in the caller's own words — "onboarding a new colleague, with the accounts to create and the introductions in the first week". It travels to the provider as content, never as instruction.
+	Description string `json:"description"`
 }
 
 // TemplateInput defines model for TemplateInput.
@@ -7263,8 +7356,10 @@ type ListAuditEntriesParamsOutcome string
 
 // VerifyAuditChainJSONBody defines parameters for VerifyAuditChain.
 type VerifyAuditChainJSONBody struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
+	Anchors *bool     `json:"anchors,omitempty"`
+	From    time.Time `json:"from"`
+	To      time.Time `json:"to"`
 }
 
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
@@ -8062,6 +8157,12 @@ type InstantiateTemplateParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// AiGenerateTemplateParams defines parameters for AiGenerateTemplate.
+type AiGenerateTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // UpdateWorkspaceParams defines parameters for UpdateWorkspace.
 type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -8145,6 +8246,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
+
+// ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
+type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
 
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
@@ -8407,6 +8511,9 @@ type SyncPullJSONRequestBody = SyncPullRequest
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
 
+// SyncSnapshotJSONRequestBody defines body for SyncSnapshot for application/json ContentType.
+type SyncSnapshotJSONRequestBody = SyncSnapshotRequest
+
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = TemplateInput
 
@@ -8415,6 +8522,9 @@ type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation
+
+// AiGenerateTemplateJSONRequestBody defines body for AiGenerateTemplate for application/json ContentType.
+type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
@@ -8493,6 +8603,9 @@ type ServerInterface interface {
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
+	// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
+	// (PUT /audit/anchoring)
+	ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request)
 	// ExportAuditTrail Export the audit trail over a period
 	// (POST /audit:export)
 	ExportAuditTrail(w http.ResponseWriter, r *http.Request)
@@ -9099,6 +9212,9 @@ type ServerInterface interface {
 	// SyncPush Transmit local mutations
 	// (POST /sync:push)
 	SyncPush(w http.ResponseWriter, r *http.Request)
+	// SyncSnapshot The initial synchronisation as one stream
+	// (POST /sync:snapshot)
+	SyncSnapshot(w http.ResponseWriter, r *http.Request)
 
 	// (GET /templates)
 	ListTemplates(w http.ResponseWriter, r *http.Request, params ListTemplatesParams)
@@ -9117,6 +9233,9 @@ type ServerInterface interface {
 
 	// (POST /templates/{templateId}:instantiate)
 	InstantiateTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params InstantiateTemplateParams)
+	// AiGenerateTemplate Ask AI to draft a template from a description
+	// (POST /templates:generate)
+	AiGenerateTemplate(w http.ResponseWriter, r *http.Request, params AiGenerateTemplateParams)
 	// ReadWorkspace The workspace the caller is in, and how it is set up
 	// (GET /tenant)
 	ReadWorkspace(w http.ResponseWriter, r *http.Request)
@@ -9771,6 +9890,20 @@ func (siw *ServerInterfaceWrapper) ListAuditEntries(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAuditEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureAuditAnchoring operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureAuditAnchoring(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureAuditAnchoring(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -17223,6 +17356,20 @@ func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// SyncSnapshot operation middleware
+func (siw *ServerInterfaceWrapper) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncSnapshot(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -17490,6 +17637,47 @@ func (siw *ServerInterfaceWrapper) InstantiateTemplate(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InstantiateTemplate(w, r, templateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AiGenerateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) AiGenerateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AiGenerateTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AiGenerateTemplate(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18086,6 +18274,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates/{templateId}", wrapper.GetTemplate)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/templates/{templateId}", wrapper.UpdateTemplate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates/{templateId}:instantiate", wrapper.InstantiateTemplate)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates:generate", wrapper.AiGenerateTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views", wrapper.ListSavedViews)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views", wrapper.CreateSavedView)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/views/{viewId}", wrapper.DeleteSavedView)
@@ -18134,6 +18323,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/health", wrapper.GetHealthReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:verify", wrapper.VerifyAuditChain)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/audit/anchoring", wrapper.ConfigureAuditAnchoring)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:export", wrapper.ExportAuditTrail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets", wrapper.ListBackupTargets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets", wrapper.CreateBackupTarget)
@@ -18165,6 +18355,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:retain", wrapper.RetainItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:pull", wrapper.SyncPull)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:snapshot", wrapper.SyncSnapshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:push", wrapper.SyncPush)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sync/devices/{deviceId}", wrapper.ForgetSyncDevice)

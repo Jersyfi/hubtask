@@ -309,3 +309,72 @@ func indexOfKind(kind string) int {
 	}
 	return -1
 }
+
+// SnapshotRequest is what `:pull` takes for an initial synchronisation without a cursor or a
+// page size (SY-C, P-12): the device, what it says about itself, and what it wants to hold.
+type SnapshotRequest struct {
+	DeviceID    shared.ID
+	Platform    string
+	DisplayName string
+	Scopes      []Scope
+}
+
+// snapshotBatch is how many rows one read of the walk takes while a snapshot streams. The
+// contract's largest page: the reads are the page sequence's, and the sequence has already
+// decided how much one transaction should carry.
+const snapshotBatch = PullLimitMax
+
+// WalkAll serves the initial synchronisation as one walk rather than a page sequence (SY-C,
+// P-12): every record the page sequence would answer, in the same order, handed to `emit` as it
+// is read, and the delta cursor the sequence would end on answered last.
+//
+// The same reads, the same permission per record, the same scope filter and the same cursor - the
+// snapshot is the sequence with the pages joined, which is what makes a test able to hold the two
+// against each other. The device registers by turning up exactly as it does on a pull. An `emit`
+// that fails ends the walk with its error and the cursor is not answered: what was written before
+// the failure is a device's problem to start over from, never something it may resume.
+func (p PullChanges) WalkAll(
+	ctx context.Context, actor appshared.ActorContext, request SnapshotRequest,
+	emit func(Record) error,
+) (Position, error) {
+	if request.DeviceID.IsZero() {
+		return Position{}, shared.ErrValidation.
+			WithDetail("sync.device_required").
+			WithFields(shared.FieldError{Path: "/device_id", Code: "sync.device_required"})
+	}
+	keep, err := scopeFilter(request.Scopes)
+	if err != nil {
+		return Position{}, err
+	}
+	from, err := p.resume(ctx, actor, "")
+	if err != nil {
+		return Position{}, err
+	}
+	pull := PullRequest{
+		DeviceID: request.DeviceID, Platform: request.Platform, DisplayName: request.DisplayName,
+		Scopes: request.Scopes,
+	}
+	if err := p.touch(ctx, actor, pull, from); err != nil {
+		return Position{}, err
+	}
+
+	position := from
+	for {
+		if err := ctx.Err(); err != nil {
+			return Position{}, err
+		}
+		batch, err := p.walk(ctx, actor, position, snapshotBatch, keep)
+		if err != nil {
+			return Position{}, err
+		}
+		for _, record := range batch.Records {
+			if err := emit(record); err != nil {
+				return Position{}, err
+			}
+		}
+		if !batch.More {
+			return batch.Cursor, nil
+		}
+		position = batch.Cursor
+	}
+}

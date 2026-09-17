@@ -62,6 +62,13 @@ config:
   # rather than a template change.
   extraEnv: {}
 
+# Files the process needs and the chart does not know about, mounted into every role: a private
+# certificate authority behind an internal mail relay, most likely, read through Go's own
+# SSL_CERT_DIR in extraEnv. Lists in the pod's own syntax, so that a new kind of file is a value
+# rather than a template change - and no secret's contents, only a reference to one.
+extraVolumes: []
+extraVolumeMounts: []
+
 # Secrets come from an existing secret, not from values.yaml.
 existingSecret: ""            # expects the keys: db-dsn, secret-key, smtp-password
 

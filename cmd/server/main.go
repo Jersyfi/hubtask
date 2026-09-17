@@ -550,6 +550,17 @@ func run() error {
 	// that writes holds the sink, and a sink that could also read would put the whole trail one
 	// call away from code that has no business reading it (E-09).
 	auditTrail := postgres.NewAuditTrailRepository(cursors)
+	// External anchoring (A-2, P-13): the chain's end written daily to a target the workspace
+	// named, and read back by a verification that asks for it.
+	auditAnchoring := auditservice.Anchoring{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Targets: backupTargets,
+		Trail: auditTrail, Anchors: auditTrail,
+		Stores: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor, UnitOfWork: unitOfWork,
+		},
+		Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, ProductVersion: version,
+	}
 	// Data subject rights (E-10). One repository over four ports - the cases, the consents, the
 	// account states an erasure and a restriction write, and the pseudonyms the audit trail reads
 	// at the boundary - because they are one table group and one transaction's worth of work.
@@ -580,7 +591,10 @@ func run() error {
 	// The imports (P-08): the run's row, and the converters this build serves, one per kind.
 	importRuns := postgres.NewImportRunRepository()
 	importConverters := map[importdomain.Kind]importrepo.Converter{
-		importdomain.KindCSV: importadapter.CSV{},
+		importdomain.KindCSV:           importadapter.CSV{},
+		importdomain.KindTrello:        importadapter.Trello{},
+		importdomain.KindGoogleTasks:   importadapter.GoogleTasks{},
+		importdomain.KindMicrosoftTodo: importadapter.MicrosoftTodo{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {
@@ -883,11 +897,14 @@ func run() error {
 	// the validation, the event and the entry's own history are the ones a person's own write
 	// would have produced, because it *is* a person's own write.
 	suggestionCatalogue := &deferredCatalogue{}
+	suggestionStore := postgres.NewSuggestionRepository(cursors)
 	suggestionCases := suggestionservice.Cases{
-		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Suggestions: suggestionStore,
 		Targets:     suggestionservice.EntryTargets{Catalogue: suggestionCatalogue},
 		Authorizer:  authorizer, Catalogue: suggestionCatalogue, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		// The words a template is drafted from, held for the job (P-11).
+		Requests: suggestionStore, IDs: ids,
 	}
 
 	// The cases the privacy use cases share.
@@ -1002,8 +1019,8 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions},
-		Suggestions: postgres.NewSuggestionRepository(cursors),
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
 		// And a proposal is narrowed to what that use case can take: `suggest-fields` proposes
@@ -1139,6 +1156,11 @@ func run() error {
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiSummarizeContainer{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AiGenerateTemplate{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
@@ -1359,7 +1381,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -1434,8 +1456,9 @@ func run() error {
 		}.Descriptor(),
 		auditservice.VerifyAuditChain{
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Anchoring: &auditAnchoring,
 		}.Descriptor(),
+		auditservice.ConfigureAuditAnchoring{Anchoring: auditAnchoring}.Descriptor(),
 		privacyservice.CreateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
@@ -1792,6 +1815,9 @@ func run() error {
 				},
 			},
 			PushSignals: metrics,
+			// The snapshot is the walk as one response (SY-C), admitted and counted with the
+			// streams because it is a connection held open like one.
+			Registry: streams, StreamSignals: metrics,
 		}
 		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
 		controller.Capabilities = meta.GetCapabilities{
@@ -1827,7 +1853,7 @@ func run() error {
 			Router: rest.Mounted{
 				Router: controller.Routes(),
 				Path:   calendar.WellKnown,
-				Mount:  http.RedirectHandler(calendar.Prefix, http.StatusMovedPermanently),
+				Mount:  calendar.Discovery(),
 			},
 			Path:   calendar.Prefix,
 			Prefix: true,
@@ -1841,6 +1867,12 @@ func run() error {
 					},
 					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
 					Clock: clockadapter.System{},
+				},
+				// The entry behind an address the view no longer answers (issue 720): the same
+				// read the API performs, so the permission is the same one.
+				Items: work.GetWorkItem{
+					Items: items, ItemLabels: itemLabels, Containers: containers,
+					Authorizer: authorizer, UnitOfWork: unitOfWork,
 				},
 				BaseURL: cfg.BaseURL,
 				Now:     clockadapter.System{}.Now,
@@ -2304,6 +2336,10 @@ func run() error {
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
+	// The trial restore (B-4): the run that wrote a FULL archive reads it back through the
+	// applier, in the same job. The applier's own safety copy keeps the performer as it was
+	// before this line - a copy taken before a restore has no archive to read back yet.
+	backupPerformer.Trial = backupApplier
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
@@ -2512,6 +2548,7 @@ func run() error {
 			},
 			Progress: jobs,
 		},
+		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
 		// The grace job the deletion request seeded (H-06). Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
 		// The workspace export the control plane seeds (H-07). Detached for the audit
@@ -2616,6 +2653,9 @@ func run() error {
 			// The poll interval stays what it was. This shortens the wait when the notification
 			// arrives and changes nothing when it does not (ADR-0007).
 			Woken: jobListener.Woken(),
+			// A failed statement's constraint and SQLSTATE beside the code, never its message
+			// (issue 692).
+			Diagnose: postgres.Diagnostics,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}

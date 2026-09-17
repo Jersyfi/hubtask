@@ -85,12 +85,42 @@ class HubtaskTrigger {
   async webhook() {
     const data = this.getWorkflowStaticData('node');
     const request = this.getRequestObject();
+    // The bytes the installation sent, not what n8n made of them. A delivery is
+    // `application/cloudevents+json` (ADR-0007), which n8n's body parser does not read - it
+    // reads `application/json` and the form types, and leaves `body` empty for anything else -
+    // so the item is parsed here from the raw body, and the signature is verified over the same
+    // bytes it was computed over (issue 723).
+    const raw = await rawBodyOf(request);
     const signature = this.getHeaderData()['x-hubtask-signature'];
-    if (data.secret && !verify(signature, data.secret, request.rawBody ?? JSON.stringify(request.body))) {
-      return { webhookResponse: { status: 401 } };
+    if (data.secret) {
+      if (!verify(signature, data.secret, raw)) return { webhookResponse: { status: 401 } };
+    } else if (this.logger) {
+      // A subscription whose secret this workflow does not hold cannot be verified. Said, not
+      // hidden: the workflow runs on the strength of its webhook address alone.
+      this.logger.warn('Hubtask Trigger: no subscription secret is held for this workflow, so the delivery is not verified');
     }
-    return { workflowData: [this.helpers.returnJsonArray(request.body)] };
+    let event;
+    try {
+      event = JSON.parse(raw);
+    } catch {
+      return { webhookResponse: { status: 400 } };
+    }
+    return { workflowData: [this.helpers.returnJsonArray(event)] };
   }
+}
+
+/**
+ * The request body as the sender wrote it. n8n keeps the bytes on `rawBody` - read on demand in
+ * the versions that read it lazily - and what it parsed on `body`; only the former can carry a
+ * signature, and only the former is there at all for a content type the parser does not know.
+ */
+async function rawBodyOf(request) {
+  if (request.rawBody === undefined && typeof request.readRawBody === 'function') await request.readRawBody();
+  const raw = request.rawBody;
+  if (Buffer.isBuffer(raw)) return raw.toString('utf8');
+  if (typeof raw === 'string') return raw;
+  if (typeof request.body === 'string') return request.body;
+  return JSON.stringify(request.body ?? {});
 }
 
 /** `t=<ts>,v1=<hmac-sha256(secret, ts + "." + body)>`, within a five-minute window (automation.md §3.1). */
