@@ -4,7 +4,11 @@
 package worker
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -624,4 +628,43 @@ func waitForClaims(t *testing.T, jobs *queueDouble, count int) {
 		time.Sleep(2 * time.Millisecond)
 	}
 	t.Fatalf("the queue was claimed from %d times, want at least %d", jobs.claims(), count)
+}
+
+// A failure's cause is handed to the diagnosis, and what it answers reaches the log line beside
+// the code - which is how a `postgres.query_failed` comes to name its constraint (issue 692). The
+// handler-missing failure has no cause and asks nothing.
+func TestAFailureIsDiagnosedForTheLogLine(t *testing.T) {
+	jobs := newQueue()
+	cause := shared.ErrUnavailable.WithDetail("postgres.query_failed").WithCause(errors.New("the driver's error"))
+	handler := handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{}, cause
+	})
+
+	var diagnosed []error
+	r := runner(jobs, &unitOfWork{}, handler, &signalsDouble{})
+	r.Diagnose = func(err error) []slog.Attr {
+		diagnosed = append(diagnosed, err)
+		return []slog.Attr{slog.String("constraint", "work_item_pkey")}
+	}
+
+	var lines bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&lines, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	r.execute(t.Context(), job(1))
+
+	if len(diagnosed) != 1 || !errors.Is(diagnosed[0], cause) {
+		t.Fatalf("the diagnosis saw %v, want the handler's error", diagnosed)
+	}
+	if line := lines.String(); !strings.Contains(line, "constraint=work_item_pkey") || !strings.Contains(line, "error_code=postgres.query_failed") {
+		t.Errorf("the log line lacks the diagnosis: %s", line)
+	}
+
+	diagnosed = nil
+	r.Handlers = map[queue.Kind]queue.Handler{}
+	r.execute(t.Context(), job(1))
+	if len(diagnosed) != 0 {
+		t.Errorf("a missing handler has no cause to diagnose, saw %v", diagnosed)
+	}
 }
