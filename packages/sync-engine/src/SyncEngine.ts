@@ -571,8 +571,11 @@ export class SyncEngine {
         const error = cause instanceof TransportError ? cause : undefined;
         if (error?.detailCode === 'sync.device_revoked') {
           // This device was forgotten (N-03): nothing it holds may be pushed under its name, and
-          // a copy it synchronised under it is not a copy the server will resume. Everything
-          // goes, and the next attach mints a new device.
+          // a copy it synchronised under it is not a copy the server will resume. The copy goes
+          // and the next attach mints a new device; what the queue held is kept as refused,
+          // under the code, for the person to look at (§9.5) - it was theirs, and a forgotten
+          // device is not a reason to lose it silently.
+          await queue.revoked(pending, this.#clock.now());
           await replica.empty();
           await replica.store.delete('meta', 'device');
           this.#device = undefined;

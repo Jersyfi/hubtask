@@ -81,6 +81,9 @@ export interface QueuedWrite {
   readonly invalidates?: readonly string[];
 }
 
+/** A device of the account as `GET /sync/devices` lists it: forgotten stays listed as `blocked`. */
+export type SyncDevice = components['schemas']['SyncDevice'];
+
 /** One mutation as `:push` carries it - `SyncMutation` in the contract. */
 export type SyncMutation = components['schemas']['SyncMutation'];
 export type SyncMutationResult = components['schemas']['SyncMutationResult'];
