@@ -92,6 +92,13 @@ export const DECLARED = {
     'file-text', // a note
     'repeat', // a recurrence rule
   ],
+  'Offline operation — F6-06': [
+    // What SyncStatus says in a shape beside its word (rule 3): the copy is in step with the
+    // server, the server cannot be reached, a change waits to be sent, a change was refused.
+    'cloud-check', // synchronised
+    'cloud-off', // offline - the server cannot be reached
+    'cloud-upload', // changes waiting to be pushed
+  ],
   'The AI treatment — F5-01': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
