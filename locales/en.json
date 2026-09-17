@@ -3002,7 +3002,6 @@
   "app.profile.category_RETENTION": "Something I hold is about to be removed",
   "app.nav.profile": "Your settings",
   "app.profile.no_locales": "This workspace has not said which languages it serves, so there is nothing to choose between. It speaks the installation’s own.",
-  "app.profile.week_start_fixed": "Once a first day is chosen, this version cannot put it back to the workspace’s. Choose a different day instead.",
   "app.profile.notification_saved_announced": "Notification preference saved.",
   "app.profile.device_section": "On this device",
   "app.profile.device_hint": "These two belong to the device in front of you rather than to you, so each of your devices keeps its own (ADR-0043). They are kept in this browser.",
