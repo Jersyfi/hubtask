@@ -122,6 +122,23 @@
   /* Rule 3: a completed card is not told apart by a tint. The title is struck as well. */
   .card[data-completed] .title { color: var(--text-subtle); text-decoration: line-through; }
 
+  /* Tier 1 of §7 on a card, as on a row: the title settles with the `celebration` role, in
+     transform and opacity alone; under reduced motion the strike is the acknowledgement. */
+  .card[data-completed] .title {
+    animation: settle var(--motion-celebration-duration) var(--motion-celebration-easing) both;
+  }
+
+  @keyframes settle {
+    0% { opacity: 0.4; transform: scale(0.98); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card[data-completed] .title { animation: none; }
+  }
+
+  :global([data-motion='reduced']) .card[data-completed] .title { animation: none; }
+
   .cover { display: block; inline-size: 100%; }
 
   img.cover { block-size: var(--sp-1000); object-fit: cover; }
