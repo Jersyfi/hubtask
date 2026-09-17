@@ -11,6 +11,8 @@
 import { TransportError, type FieldProblem } from './errors.ts';
 import type {
   ByteTransfer,
+  SnapshotLine,
+  SnapshotOptions,
   TransportDocument,
   RequestOptions,
   Response,
@@ -134,6 +136,68 @@ export class FetchTransport implements Transport {
     const body = answer.body;
     const release = () => options.signal?.removeEventListener('abort', abort);
     return { events: readEvents(body, controller, options.idleTimeoutMs, release) };
+  }
+
+  /**
+   * The initial synchronisation, read as it arrives: `POST /sync:snapshot` answers
+   * `application/x-ndjson`, one change record per line and the cursor as the last line. The same
+   * connection shape as a stream - a wait for the headers, then a silence bound between lines -
+   * because it is the same kind of response: written as the rows are read, and meant to be long.
+   */
+  async snapshot(path: string, body: unknown, options: SnapshotOptions): Promise<AsyncIterable<SnapshotLine>> {
+    for (const [name, value] of [['connectTimeoutMs', options.connectTimeoutMs], ['idleTimeoutMs', options.idleTimeoutMs]] as const) {
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new TypeError(`a snapshot needs a positive ${name}; there is no default of "forever"`);
+      }
+    }
+
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options.signal?.aborted) controller.abort();
+    options.signal?.addEventListener('abort', abort, { once: true });
+    const connecting = setTimeout(abort, options.connectTimeoutMs);
+
+    const headers = new Headers({ Accept: 'application/x-ndjson', 'Content-Type': 'application/json' });
+    if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
+
+    let answer: globalThis.Response;
+    try {
+      answer = await this.#fetch(`${this.#baseUrl}${path}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body ?? {}),
+        signal: controller.signal,
+        credentials: 'same-origin',
+      });
+    } catch (cause) {
+      clearTimeout(connecting);
+      options.signal?.removeEventListener('abort', abort);
+      const aborted = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
+      throw new TransportError(aborted ? 'timeout' : 'offline', { cause });
+    }
+    clearTimeout(connecting);
+
+    if (!answer.ok) {
+      options.signal?.removeEventListener('abort', abort);
+      await this.#read(answer).catch((error: unknown) => {
+        if (error instanceof TransportError) {
+          throw new TransportError(error.kind, {
+            status: error.status, code: error.code, detailCode: error.detailCode,
+            params: error.params, fieldErrors: error.fieldErrors, requestId: error.requestId,
+            retryAfterMs: retryAfterOf(answer.headers), cause: error,
+          });
+        }
+        throw error;
+      });
+      throw new TransportError('malformed', { status: answer.status });
+    }
+    if (!answer.body) {
+      options.signal?.removeEventListener('abort', abort);
+      throw new TransportError('malformed', { status: answer.status });
+    }
+
+    const release = () => options.signal?.removeEventListener('abort', abort);
+    return readLines(answer.body, controller, options.idleTimeoutMs, release);
   }
 
   /**
@@ -371,6 +435,77 @@ function retryAfterOf(headers: Headers): number | undefined {
  * between chunks: a heartbeat arrives well inside it, and silence for longer is a proxy that
  * dropped the connection without saying so - the iteration ends, and the engine reconnects.
  */
+/**
+ * The lines of an ndjson body, as `SnapshotLine`s. A line that is not JSON is skipped rather than
+ * thrown, for the reason an unreadable stream frame is: the ninety-nine lines behind it are the
+ * workspace. The cursor line is the one whose only meaning is its `cursor` - hubctl reads it the
+ * same way (`cmd/hubctl/Sync.go`) - and the reader stops there, because the server writes nothing
+ * after it.
+ */
+async function* readLines(
+  body: ReadableStream<Uint8Array>, controller: AbortController, idleTimeoutMs: number,
+  release: () => void,
+): AsyncGenerator<SnapshotLine> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const cancel = () => { void reader.cancel().catch(() => {}); };
+  if (controller.signal.aborted) cancel();
+  controller.signal.addEventListener('abort', cancel, { once: true });
+  let idle = setTimeout(() => controller.abort(), idleTimeoutMs);
+  let buffered = '';
+
+  const lineOf = (text: string): SnapshotLine | undefined => {
+    if (text.trim() === '') return undefined;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return undefined;
+    }
+    if (parsed === null || typeof parsed !== 'object') return undefined;
+    const record = parsed as { cursor?: unknown; entity?: unknown };
+    if (typeof record.cursor === 'string' && record.cursor !== '' && record.entity === undefined) {
+      return { kind: 'cursor', cursor: record.cursor };
+    }
+    return { kind: 'record', record: parsed };
+  };
+
+  try {
+    for (;;) {
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await reader.read();
+      } catch {
+        return;
+      }
+      if (chunk.done) {
+        const last = lineOf(buffered);
+        if (last) yield last;
+        return;
+      }
+      clearTimeout(idle);
+      idle = setTimeout(() => controller.abort(), idleTimeoutMs);
+
+      buffered += decoder.decode(chunk.value, { stream: true });
+      let newline = buffered.indexOf('\n');
+      while (newline >= 0) {
+        const text = buffered.slice(0, newline).replace(/\r$/, '');
+        buffered = buffered.slice(newline + 1);
+        newline = buffered.indexOf('\n');
+        const line = lineOf(text);
+        if (!line) continue;
+        yield line;
+        if (line.kind === 'cursor') return;
+      }
+    }
+  } finally {
+    clearTimeout(idle);
+    controller.signal.removeEventListener('abort', cancel);
+    release();
+    cancel();
+  }
+}
+
 async function* readEvents(
   body: ReadableStream<Uint8Array>, controller: AbortController, idleTimeoutMs: number,
   release: () => void,

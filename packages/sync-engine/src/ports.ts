@@ -124,6 +124,21 @@ export interface ByteTransfer {
   readonly onProgress?: (sent: number, total: number) => void;
 }
 
+/** One line of the initial synchronisation: a change record, or the cursor line that ends it. */
+export type SnapshotLine =
+  | { readonly kind: 'record'; readonly record: unknown }
+  | { readonly kind: 'cursor'; readonly cursor: string };
+
+/** How the initial synchronisation is asked for: the device, and how long the whole may take. */
+export interface SnapshotOptions {
+  readonly token?: string;
+  /** The wait for the headers, as on a stream. */
+  readonly connectTimeoutMs: number;
+  /** The silence between lines the response may leave, as on a stream. */
+  readonly idleTimeoutMs: number;
+  readonly signal?: AbortSignal;
+}
+
 /**
  * Transport is the seam between the engine and a server. `@hubtask/api-client` supplies the types
  * it is parameterised with; an in-memory fake supplies it in tests, which is what makes the engine
@@ -147,6 +162,14 @@ export interface Transport {
    * other call, so the engine has one shape to decide on.
    */
   stream(path: string, options: StreamOptions): Promise<StreamConnection>;
+  /**
+   * The initial synchronisation as one response: `POST /sync:snapshot`, `application/x-ndjson`,
+   * read line by line as it arrives and handed over one line at a time - the records in the
+   * walk's order, and the cursor as the last line (`offline-sync.md` §3.1). A response that ends
+   * without a cursor line was cut short, and the iterable simply ends; deciding what that means
+   * is the engine's. A refusal rejects with a `TransportError` like any other call.
+   */
+  snapshot(path: string, body: unknown, options: SnapshotOptions): Promise<AsyncIterable<SnapshotLine>>;
   /**
    * A body that is bytes, to an absolute URL the server handed over. Resolves when the bytes
    * are stored; rejects with a `TransportError` otherwise.
