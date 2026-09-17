@@ -198,7 +198,7 @@ graph LR
 | Identity provider | Outbound | OIDC discovery, authorization code + PKCE; local users as a fallback |
 | Object storage | Outbound | The S3 API (presigned URLs); self-hosting fallback: a local volume |
 | Email | Inbound and outbound | SMTP for sending; intake **webhook-only** — a bridge, an MTA or a provider's push posts the message to a token-protected URL per tenant ([ADR-0040](../adr/ADR-0040-no-imap-intake.md) closed AM-1: no IMAP). The parser stays transport-independent, so a later transport — JMAP, when one is wanted — is a producer of bytes rather than a second intake |
-| Calendar | Bidirectional | An ICS feed per view/user; CalDAV since `0.9.0` (P-06, P-07): one `VTODO` calendar per calendar feed under HTTP Basic with a personal access token, read by any client and written back through the use cases — a completion, a due date, a title |
+| Calendar | Bidirectional | An ICS feed per view/user; CalDAV since `0.9.0` (P-06, P-07): one `VTODO` calendar per calendar feed under HTTP Basic with a personal access token, read by any client and written back through the use cases — a completion, a due date, a title, and a todo made in the client, which lives at the UID the client chose while the server mints the identifier (`work_item.calendar_uid`, #721) |
 | LLM provider | Outbound | The `core/port/ai` port; adapters for OpenAI-compatible APIs and local Ollama; disabled by default |
 
 ### 3.2 Technical context
