@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -414,7 +415,54 @@ func (c *conformance) checkCursorAndWalk(ctx context.Context) {
 		c.fail(4, claim, "a cursor the server cannot read was not refused as sync.cursor_invalid")
 		return
 	}
-	c.pass(4, claim, "the walk from nothing delivers the hub and the collection and ends on a cursor the delta accepts; a cursor the server cannot read is sync.cursor_invalid. A cursor past the window cannot be minted from outside - the server's own SY-5 covers sync.cursor_too_old")
+	// The second half (SY-C, P-12): the snapshot is the page sequence with the pages joined -
+	// the same number of records, and a cursor at its end the delta accepts.
+	streamed, snapshotCursor, err := c.snapshot(ctx, c.client, c.deviceA)
+	if err != nil {
+		c.fail(4, claim, "the snapshot failed: "+err.Error())
+		return
+	}
+	if streamed != len(changes) {
+		c.fail(4, claim, fmt.Sprintf("the snapshot streamed %d records where the page sequence answered %d", streamed, len(changes)))
+		return
+	}
+	if snapshotCursor == "" {
+		c.fail(4, claim, "the snapshot ended without its cursor line")
+		return
+	}
+	if _, _, err := c.pull(ctx, c.client, c.deviceA, snapshotCursor); err != nil {
+		c.fail(4, claim, "the cursor the snapshot ended on is refused: "+err.Error())
+		return
+	}
+	c.pass(4, claim, fmt.Sprintf("the walk from nothing delivers the hub and the collection and ends on a cursor the delta accepts; a cursor the server cannot read is sync.cursor_invalid; the snapshot streams the same %d records and ends on a cursor the delta accepts. A cursor past the window cannot be minted from outside - the server's own SY-5 covers sync.cursor_too_old", streamed))
+}
+
+// snapshot takes the initial synchronisation as one stream and counts its records, answering
+// the cursor on its last line - empty where the stream ended before it.
+func (c *conformance) snapshot(ctx context.Context, client *Client, device openapitypes.UUID) (int, string, error) {
+	response, err := client.OpenSnapshot(ctx, map[string]any{"device_id": device.String(), "platform": syncPlatform})
+	if err != nil {
+		return 0, "", err
+	}
+	defer func() { _ = response.Body.Close() }()
+	scanner := bufio.NewScanner(response.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), syncLineLimit)
+	records, cursor := 0, ""
+	for scanner.Scan() {
+		var line struct {
+			Cursor string `json:"cursor"`
+			Entity string `json:"entity"`
+		}
+		if err := json.Unmarshal(scanner.Bytes(), &line); err != nil {
+			return records, "", fmt.Errorf("a snapshot line is not JSON: %w", err)
+		}
+		if line.Cursor != "" && line.Entity == "" {
+			cursor = line.Cursor
+			continue
+		}
+		records++
+	}
+	return records, cursor, scanner.Err()
 }
 
 // 5: the server's answer overrides the device's prediction, and a refusal carries its code.

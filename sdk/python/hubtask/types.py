@@ -220,7 +220,7 @@ class SuggestionPage(TypedDict, total=False):
 
 SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER"]
 
-SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES"]
+SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE"]
 
 SuggestionStatus = Literal["PROPOSED", "ACCEPTED", "DISMISSED"]
 
@@ -1259,6 +1259,11 @@ class TemplateInput(TypedDict, total=False):
     root_type: Required["ItemType"]
     nodes: Required[list["TemplateNode"]]
 
+class TemplateGeneration(TypedDict, total=False):
+    """What to ask for, and where the template would belong."""
+    collection_id: Required[str]
+    description: Required[str]
+
 class TemplateUpdate(TypedDict, total=False):
     """A merge patch. An absent member is not touched; the node tree travels whole."""
     name: str
@@ -1424,6 +1429,14 @@ class AuditEntry(TypedDict, total=False):
 
 AuditExportFormat = Literal["JSONL", "CSV"]
 
+class AuditAnchoringConfiguration(TypedDict, total=False):
+    target_id: Required[str | None]
+
+class AuditAnchoring(TypedDict, total=False):
+    target_id: str | None
+    configured_at: Required[str]
+    configured_by: str | None
+
 AuditExport = TypedDict("AuditExport", {
     "from": Required[str],
     "to": Required[str],
@@ -1510,6 +1523,16 @@ class BackupRun(TypedDict, total=False):
     expires_at: str | None
     verified_at: str | None
     verify_ok: bool | None
+    trial_restore: "BackupRunTrial" | Any
+
+class BackupRunTrial(TypedDict, total=False):
+    inspected_at: Required[str]
+    report: "RestoreReport"
+    failure: "BackupRunTrialFailure" | Any
+
+class BackupRunTrialFailure(TypedDict, total=False):
+    code: Required[str]
+    member: str | None
 
 class BackupSchedule(TypedDict, total=False):
     id: str
@@ -1521,6 +1544,7 @@ class BackupSchedule(TypedDict, total=False):
     full_rrule: str | None
     include_media: bool
     include_audit: bool
+    trial_restore: bool
     retention: "BackupRetention"
     notify_on: list[Literal["FAILURE", "SUCCESS", "FIRST_SUCCESS_AFTER_FAILURE"]]
     enabled: bool
@@ -1534,6 +1558,7 @@ class BackupScheduleUpdate(TypedDict, total=False):
     full_rrule: str | None
     include_media: bool
     include_audit: bool
+    trial_restore: bool
     retention: "BackupRetention"
     notify_on: list[Literal["FAILURE", "SUCCESS", "FIRST_SUCCESS_AFTER_FAILURE"]]
     enabled: bool
@@ -1719,6 +1744,13 @@ class SyncPullRequest(TypedDict, total=False):
     cursor: str | None
     scopes: list[dict[str, Any]]
     limit: int
+
+class SyncSnapshotRequest(TypedDict, total=False):
+    """What `:pull` takes for an initial synchronisation, without a cursor or a page size."""
+    device_id: Required[str]
+    platform: str | None
+    display_name: str | None
+    scopes: list[dict[str, Any]]
 
 class SyncChange(TypedDict, total=False):
     op: Required[Literal["UPSERT", "DELETE", "ACCESS_REVOKED"]]

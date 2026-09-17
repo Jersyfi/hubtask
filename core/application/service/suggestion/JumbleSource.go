@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -23,6 +24,9 @@ import (
 // another and the staleness check would pass for a suggestion made from something else.
 type CatalogueSources struct {
 	Catalogue Catalogue
+	// Profiles is the shape a template may take (P-11), read for that one prompt. Nil in a
+	// build that never asks it, and the question then fails by name.
+	Profiles metarepo.CapabilityProfiles
 }
 
 var _ Sources = CatalogueSources{}
@@ -44,8 +48,11 @@ func (s CatalogueSources) Material(
 		}
 		return s.item(ctx, actor, targetID, promptID)
 	case domain.TargetContainer:
-		// A collection is read for one question only, and the source that reads it is the one the
-		// prompt names (K-05).
+		// A collection is read for two questions, and the source that reads it is the one the
+		// prompt names (K-05, P-11).
+		if promptID == templatePrompt {
+			return s.templateMaterial(ctx, actor, targetID)
+		}
 		return s.collection(ctx, actor, targetID)
 	default:
 		return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")

@@ -160,6 +160,7 @@ func TestARunRoundTripsAndFinishes(t *testing.T) {
 			ID: id, Status: domain.RunSucceeded, ArchivePath: "hubtask-backup-x",
 			Manifest: []byte(`{"format_version":1}`), SizeBytes: 4096, ItemCount: 12,
 			MediaCount: 2, SnapshotAt: created, FinishedAt: finishedAt,
+			TrialReport: []byte(`{"inspected_at":"2026-09-16T10:00:00Z","report":{"new":0}}`), TrialAt: finishedAt,
 		})
 	}); err != nil {
 		t.Fatalf("running: %v", err)
@@ -182,6 +183,8 @@ func TestARunRoundTripsAndFinishes(t *testing.T) {
 		t.Fatalf("counts: %+v", stored)
 	case !stored.FinishedAt.Equal(finishedAt.UTC()):
 		t.Fatalf("finished at %v", stored.FinishedAt)
+	case !stored.TrialAt.Equal(finishedAt.UTC()) || len(stored.TrialReport) == 0:
+		t.Fatalf("the trial did not round-trip: %s at %v", stored.TrialReport, stored.TrialAt)
 	}
 
 	// And a run that is no longer RUNNING refuses a second outcome, which is what makes a
@@ -365,7 +368,7 @@ func TestAScheduleRoundTripsWithItsPlan(t *testing.T) {
 		ID: id, TargetID: target, TenantID: tenantA, Scope: domain.ScopeTenant,
 		RRULE: "FREQ=DAILY;BYHOUR=3;BYMINUTE=0", TimeZone: "Europe/Berlin",
 		Mode: domain.ModeIncremental, FullRRULE: "FREQ=WEEKLY;BYDAY=SU",
-		IncludeMedia: true, IncludeAudit: true,
+		IncludeMedia: true, IncludeAudit: true, TrialRestore: true,
 		Retention: domain.Retention{KeepLast: 5, KeepDaily: 9, KeepWeekly: 2,
 			KeepMonthly: 1, KeepYearly: 1, MinKeep: 4},
 		NotifyOn: []domain.Notification{domain.NotifyFailure, domain.NotifySuccess},
@@ -404,6 +407,8 @@ func TestAScheduleRoundTripsWithItsPlan(t *testing.T) {
 		t.Fatalf("plan: %+v, want %+v", stored.Retention, schedule.Retention)
 	case len(stored.NotifyOn) != 2:
 		t.Fatalf("notify on %v", stored.NotifyOn)
+	case !stored.TrialRestore:
+		t.Fatalf("the trial restore flag did not round-trip: %+v", stored)
 	case !stored.NextRunAt.Equal(due.UTC()):
 		t.Fatalf("next run %v", stored.NextRunAt)
 	// At most our own: the tenant may carry schedules from other tests, and the earliest of them

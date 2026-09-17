@@ -74,6 +74,11 @@ type Profile struct {
 	// rather than starting over (offline-sync.md §4.1).
 	Device string
 	Clock  string
+	// Cursor is where this device stands after a snapshot it applied (SY-C, P-12): the delta
+	// cursor `hubctl sync snapshot --apply` kept, moved by every `hubctl sync pull --continue`.
+	// hubctl keeps no copy of the workspace, so the cursor is the whole of what "the profile's
+	// store" holds.
+	Cursor string
 }
 
 // Session is the pair a sign-in answered, held between invocations.
@@ -135,6 +140,7 @@ type storedProfile struct {
 	Session *storedSession `json:"session,omitempty"`
 	Device  string         `json:"device,omitempty"`
 	Clock   string         `json:"clock,omitempty"`
+	Cursor  string         `json:"cursor,omitempty"`
 }
 
 type storedSession struct {
@@ -182,6 +188,7 @@ func LoadProfile(path string) (Profile, error) {
 		Tenant:  stored.Tenant,
 		Device:  stored.Device,
 		Clock:   stored.Clock,
+		Cursor:  stored.Cursor,
 	}
 	if stored.Session != nil {
 		profile.Session = Session{
@@ -212,6 +219,7 @@ func SaveProfile(path string, profile Profile) error {
 		Tenant:  profile.Tenant,
 		Device:  profile.Device,
 		Clock:   profile.Clock,
+		Cursor:  profile.Cursor,
 	}
 	if !profile.Session.IsEmpty() {
 		stored.Session = &storedSession{

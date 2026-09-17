@@ -531,7 +531,9 @@ gate-chart:
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
 		--set imagePolicy.enabled=true \
-		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
+		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} \
+		--set 'extraVolumes[0].name=mail-ca' --set 'extraVolumes[0].secret.secretName=mail-ca' \
+		--set 'extraVolumeMounts[0].name=mail-ca' --set 'extraVolumeMounts[0].mountPath=/etc/hubtask/mail-ca' > /dev/null
 	@# Every host the operator names has to reach the API and be on the certificate. A name in the
 	@# rules and not in the `tls` block is a route a browser refuses before the application sees it.
 	@routed="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \

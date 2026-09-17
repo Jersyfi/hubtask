@@ -82,7 +82,7 @@ func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		FieldsAskedAction, domain.KindFields, itemFieldsPrompt, apply)
+		FieldsAskedAction, domain.KindFields, itemFieldsPrompt, apply, "")
 }
 
 // Execute asks for a summary.
@@ -90,7 +90,7 @@ func (h AiSummarize) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		SummaryAskedAction, domain.KindFields, "summarize", apply)
+		SummaryAskedAction, domain.KindFields, "summarize", apply, "")
 }
 
 // Execute asks for labels.
@@ -98,7 +98,7 @@ func (h AiClassify) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		ClassifyAskedAction, domain.KindFields, "classify", apply)
+		ClassifyAskedAction, domain.KindFields, "classify", apply, "")
 }
 
 // Execute asks for a summary of the discussion.
@@ -106,7 +106,7 @@ func (h AiSummarizeThread) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		SummaryAskedAction, domain.KindFields, threadPrompt, apply)
+		SummaryAskedAction, domain.KindFields, threadPrompt, apply, "")
 }
 
 // Execute asks how the collection stands.
@@ -117,7 +117,7 @@ func (h AiSummarizeContainer) Execute(
 	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetContainer, containerID,
-		SummaryAskedAction, domain.KindFields, collectionPrompt, false)
+		SummaryAskedAction, domain.KindFields, collectionPrompt, false, "")
 }
 
 // askInput is the input all three declare: which entry, and whether the answer is applied or

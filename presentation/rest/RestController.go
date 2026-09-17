@@ -110,6 +110,15 @@ func (c *RestController) SyncPull(w http.ResponseWriter, r *http.Request) {
 	c.Sync.SyncPull(w, r)
 }
 
+// SyncSnapshot streams the initial synchronisation (SY-C), delegated for the same reason.
+func (c *RestController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
+	if c.Sync == nil {
+		c.pending.SyncSnapshot(w, r)
+		return
+	}
+	c.Sync.SyncSnapshot(w, r)
+}
+
 // SyncPush applies a device's queue (N-04), delegated for the same reason.
 func (c *RestController) SyncPush(w http.ResponseWriter, r *http.Request) {
 	if c.Sync == nil || c.Sync.Push == nil {

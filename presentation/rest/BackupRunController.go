@@ -107,6 +107,9 @@ func (c *RestController) CreateBackupSchedule(w http.ResponseWriter, r *http.Req
 	if body.IncludeAudit != nil {
 		in["include_audit"] = *body.IncludeAudit
 	}
+	if body.TrialRestore != nil {
+		in["trial_restore"] = *body.TrialRestore
+	}
 	if body.NotifyOn != nil {
 		occasions := make([]any, 0, len(*body.NotifyOn))
 		for _, occasion := range *body.NotifyOn {
@@ -199,6 +202,9 @@ func backupRunResponse(out usecase.Output) openapi.BackupRun {
 	if ok, present := out["verify_ok"].(bool); present {
 		run.VerifyOk = &ok
 	}
+	if trial, present := out["trial_restore"].(map[string]any); present {
+		run.TrialRestore = trialResponse(trial)
+	}
 	return run
 }
 
@@ -218,6 +224,8 @@ func backupScheduleResponse(out usecase.Output) openapi.BackupSchedule {
 	schedule.IncludeMedia = &includeMedia
 	includeAudit, _ := out["include_audit"].(bool)
 	schedule.IncludeAudit = &includeAudit
+	trialRestore, _ := out["trial_restore"].(bool)
+	schedule.TrialRestore = &trialRestore
 	enabled, _ := out["enabled"].(bool)
 	schedule.Enabled = &enabled
 
@@ -259,6 +267,22 @@ func retentionResponse(plan map[string]any) *openapi.BackupRetention {
 		if value, present := plan[name].(int); present {
 			count := value
 			*into = &count
+		}
+	}
+	return out
+}
+
+// trialResponse maps what the run kept of its trial restore (B-4) onto the contract's shape.
+func trialResponse(trial map[string]any) *openapi.BackupRunTrial {
+	out := &openapi.BackupRunTrial{InspectedAt: timeValue(trial["inspected_at"])}
+	if report, held := trial["report"].(map[string]any); held {
+		out.Report = restoreReportResponse(report)
+	}
+	if failure, held := trial["failure"].(map[string]any); held {
+		code, _ := failure["code"].(string)
+		out.Failure = &openapi.BackupRunTrialFailure{Code: code}
+		if member, _ := failure["member"].(string); member != "" {
+			out.Failure.Member = &member
 		}
 	}
 	return out
