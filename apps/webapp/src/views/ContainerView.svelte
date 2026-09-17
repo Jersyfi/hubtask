@@ -17,6 +17,7 @@
     Button,
     Dialog,
     EmptyState,
+    focusFirst,
     IconButton,
     Inline,
     Input,
@@ -434,7 +435,8 @@
     />
 
     {#if isRenaming}
-      <Stack gap="150">
+      <!-- The field takes the place of the control that opened it, so it takes the focus too (2.4.3). -->
+      <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="rename"]' })}>
         <Input
           label={container.type === 'HUB' ? t('app.workspace.hub_name') : t('app.workspace.collection_name')}
           bind:value={draft}
@@ -478,6 +480,7 @@
           <Button
             size="sm"
             tone="secondary"
+            data-opener="rename"
             onclick={startRename}
             disabledReason={isReadOnly
               ? (archival === 'archived' ? t('app.workspace.archived') : t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' }))

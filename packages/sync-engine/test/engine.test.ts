@@ -43,6 +43,24 @@ test('a subscriber is told idle, then loading, then ready', async () => {
   assert.equal(ready?.status === 'ready' ? ready.at : 0, clock.now());
 });
 
+test('a reload keeps what the reader has until the new answer arrives', async () => {
+  const transport = new FakeTransport().answer('/accounts/me', { id: 'a1', locale: 'de' });
+  const engine = new SyncEngine({ transport });
+
+  const { seen } = record<{ id: string; locale: string }>(engine, ME.path);
+  await engine.refresh(ME);
+  const before = seen.length;
+
+  // A list torn down to its skeleton on every write is a list that drops the keyboard's focus
+  // (F5-11): the second read publishes nothing until it has something to say.
+  transport.answer('/accounts/me', { id: 'a1', locale: 'fr' });
+  await engine.refresh(ME);
+
+  const after = seen.slice(before);
+  assert.deepEqual(after.map((state) => state.status), ['ready']);
+  assert.deepEqual(after[0]?.status === 'ready' ? after[0].data : undefined, { id: 'a1', locale: 'fr' });
+});
+
 test('a second subscriber is handed what the first already loaded', async () => {
   const transport = new FakeTransport().answer('/accounts/me', { id: 'a1' });
   const engine = new SyncEngine({ transport });

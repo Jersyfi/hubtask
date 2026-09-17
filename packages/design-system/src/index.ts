@@ -123,7 +123,7 @@ export {
   type Side,
 } from './positioning.ts';
 
-export { escapeHandler, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
+export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 
 export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
 

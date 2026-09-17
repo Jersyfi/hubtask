@@ -45,6 +45,13 @@ a fifth:
   loaded with so a query keeps its document; unwatched ones are forgotten, because reloading a
   cache nobody is looking at is a burst of requests for nothing.
 
+**F5-11 gave it one rule about what a screen sees during a reload.** A resource that already
+holds data keeps publishing it while the next answer is on its way; `loading` is published for
+the first read and for a retry after a failure, never over a `ready` state. Before that, every
+write tore the list that made it down to its skeleton for the length of the reload — and took the
+keyboard's focus to `body` with it, so a reorder by menu cost the reader the whole tab order back
+to the row. A reload is invisible until it lands, and lands as `ready` like the first.
+
 **F3-04 gave it the two network primitives it did not have.** Both belong here because both are
 `fetch`, and there is one caller of `fetch`:
 

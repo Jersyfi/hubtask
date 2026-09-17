@@ -170,8 +170,10 @@ async function boot() {
   engine.reset?.();
   const { jumble } = await import('../src/lib/data/jumble.svelte.ts');
   const { containers } = await import('../src/lib/data/containers.svelte.ts');
-  const stops = [manifest.start()];
+  const { actor } = await import('../src/lib/data/account.svelte.ts');
+  const stops = [manifest.start(), actor.start()];
   await engine.refresh({ path: '/meta/capabilities' });
+  await engine.refresh({ path: '/accounts/me' });
   await engine.refresh({ path: `/items/${ITEM}` });
   await engine.refresh({ path: `/containers/${COLLECTION}` });
   // The inbox reads through its own store rather than a `resource()`, and a store fills from its
@@ -247,6 +249,31 @@ test('with AI off, no route renders anything the AI tokens style or anything tha
   } finally {
     stop();
   }
+});
+
+test('every screen renders exactly one h1 and no main of its own; the frame renders the one main', async () => {
+  // 2.4.1 and 1.3.1, as the F5-11 walk read them: one landmark to skip to, one heading that names
+  // the page. A screen that rendered its own `<main>` would give a reader two, and a screen with
+  // two `<h1>` - or none while it loads - would name itself twice or not at all.
+  installFetch(false);
+  const { render } = await import('svelte/server');
+  const stop = await boot();
+  try {
+    for (const [name, View, props] of await views()) {
+      const { body } = render(View, { props });
+      const headings = body.match(/<h1[\s>]/g)?.length ?? 0;
+      assert.equal(headings, 1, `${name} renders ${headings} <h1> elements`);
+      assert.ok(!/<main[\s>]/.test(body), `${name} renders a <main> of its own`);
+    }
+  } finally {
+    stop();
+  }
+  // The frame is not rendered here - it takes a session and a router - so the one `<main>` is
+  // asserted where it is written, with the skip link that lands on it.
+  const frame = fs.readFileSync(path.join(ROOT, 'src', 'lib', 'frame', 'AppFrame.svelte'), 'utf8');
+  assert.equal(frame.match(/<main[\s>]/g)?.length, 1, 'the frame renders exactly one <main>');
+  assert.ok(/<main id="main" tabindex="-1"/.test(frame), 'the main landmark is where the skip link lands');
+  assert.ok(/href="#main"/.test(frame), 'the frame has a skip link to the main landmark');
 });
 
 test('with AI on, the screens that carry a proposal render it - so the first test cannot pass by accident', async () => {

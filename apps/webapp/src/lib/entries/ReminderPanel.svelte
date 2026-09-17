@@ -25,6 +25,7 @@
     Badge,
     Button,
     CapabilityGate,
+    focusFirst,
     ReminderEditor,
     Stack,
   } from '@hubtask/design-system/components';
@@ -192,6 +193,8 @@
     {/if}
 
     {#if isComposing}
+      <!-- The editor appears under the control that opened it; the focus goes in with it (2.4.3). -->
+      <div class="opened" {@attach focusFirst({ returnTo: '[data-opener="reminder"]' })}>
       <ReminderEditor
         label={t('app.reminders.editor')}
         value={spec}
@@ -235,6 +238,7 @@
           />
         {/snippet}
       </ReminderEditor>
+      </div>
 
       {#if failure}<p class="failure">{failure}</p>{/if}
 
@@ -257,6 +261,7 @@
           size="sm"
           tone="secondary"
           disabledReason={mayAdd ? undefined : t('app.reminders.at_limit')}
+          data-opener="reminder"
           onclick={startNew}
         >
           {t('app.reminders.add')}
@@ -268,6 +273,9 @@
 </CapabilityGate>
 
 <style>
+  /* A focus scope and nothing else: the editor keeps the layout it had. */
+  .opened { display: contents; }
+
   .list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }

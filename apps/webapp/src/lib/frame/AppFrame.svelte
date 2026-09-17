@@ -12,7 +12,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Inline, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
@@ -43,6 +43,8 @@
   // client that did would need somewhere to keep it - which is the platform seam's question and
   // F6's storage port, not this component's.
   let dismissed = $state(false);
+  /** The landmark the skip link lands on. */
+  let mainElement = $state<HTMLElement | null>(null);
 
   // Who is signed in, read once the frame is up - and read again whenever that changes, which is
   // what the `session.status` below is doing in an effect that otherwise depends on nothing. A
@@ -129,6 +131,23 @@
 </script>
 
 <div class="frame">
+  <!-- The first stop on every page (2.4.1). The keyboard walk of F5-11 counted eleven stops from
+       the top of the frame to the first control of the content; this is the one that skips them.
+       Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
+       here rather than left to the anchor: the router takes every same-origin link and would
+       navigate to the same path with the fragment dropped. -->
+  <VisuallyHidden as="div" isFocusable>
+    <a
+      class="skip"
+      href="#main"
+      onclick={(event) => {
+        event.preventDefault();
+        mainElement?.focus();
+      }}
+    >
+      {t('app.skip_to_content')}
+    </a>
+  </VisuallyHidden>
   <header class="bar">
     <!-- A name rather than a message: the product is called Hubtask in every language. -->
     <a class="wordmark" href="/">Hubtask</a>
@@ -201,7 +220,9 @@
         <WorkspaceNav currentId={route.params.id} {onnavigate} />
       </aside>
     {/if}
-    <main>
+    <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
+         so it draws no ring when it does. -->
+    <main id="main" tabindex="-1" bind:this={mainElement}>
       {@render children()}
     </main>
   </div>
@@ -323,6 +344,22 @@
   }
 
   main { flex: 1; min-width: 0; }
+
+  main:focus { outline: none; }
+
+  .skip {
+    display: inline-block;
+    padding: var(--sp-100) var(--sp-200);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-weight: var(--fw-medium);
+  }
+
+  .skip:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
 
   /* Announced and not drawn. What it says is already on the screen — the row is where it now is —
      so printing it as well would be noise for every reader who can see the list. */
