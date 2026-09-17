@@ -57,6 +57,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
   { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
+  // The AI provider and the consent that lets it be used (F5-05): where a workspace's content may
+  // be sent is administration, exactly as the sign-in provider above it is.
+  { name: 'ai', pattern: '/administration/ai', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content
   // and a query string travels through access logs, proxies and browser history. A route that
   // carried the term would undo that in the address bar (security.md §9, ADR-0018).

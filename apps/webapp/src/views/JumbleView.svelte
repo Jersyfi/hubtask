@@ -241,6 +241,7 @@
                     <Button
                       tone="secondary"
                       icon="sparkles"
+                      data-ai
                       disabledReason={suggestions.askingOf(entry.id)?.outcome === 'following' ? t('app.suggestions.pending') : undefined}
                       onclick={() => void ask(entry)}
                     >

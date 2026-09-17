@@ -75,7 +75,7 @@
   }
 </script>
 
-<div class="summary">
+<div class="summary" data-ai>
   <div>
     <Button
       size="sm"

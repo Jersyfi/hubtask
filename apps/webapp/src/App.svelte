@@ -42,6 +42,7 @@
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
+  import AiSettingsView from './views/AiSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
@@ -146,6 +147,8 @@
     <PrivacyView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
+  {:else if route.name === 'ai'}
+    <AiSettingsView />
   {:else if route.name === 'search'}
     <SearchView />
   {:else if route.name === 'jumble'}

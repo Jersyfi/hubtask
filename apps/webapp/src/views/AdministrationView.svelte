@@ -44,6 +44,7 @@
       label: 'app.admin.identity_provider',
       hint: 'app.admin.identity_provider_hint',
     },
+    { path: '/administration/ai', label: 'app.admin.ai', hint: 'app.admin.ai_hint' },
   ];
 </script>
 

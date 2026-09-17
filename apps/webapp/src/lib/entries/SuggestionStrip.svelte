@@ -145,7 +145,7 @@
   const fieldNamed = (key: string) => customFields.of(item.collection_id).find((definition) => definition.key === key || definition.id === key);
 </script>
 
-<div class="strip">
+<div class="strip" data-ai>
   <div class="ask">
     <Menu label={t('app.suggestions.ask_menu', { title: item.title })} items={menuItems} onselect={(id) => ask(id as Operation)}>
       {#snippet trigger(props)}

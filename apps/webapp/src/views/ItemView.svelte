@@ -399,7 +399,7 @@
     {/if}
 
     {#if hasAi}
-      <Stack gap="150">
+      <Stack gap="150" data-ai>
         <h2 class="section">{t('app.suggestions.title')}</h2>
         <SuggestionStrip {item} />
       </Stack>
