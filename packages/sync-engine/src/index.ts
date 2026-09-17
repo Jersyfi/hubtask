@@ -58,6 +58,7 @@ export type { SyncPosition } from './replica.ts';
 export type { DeviceIdentity } from './device.ts';
 export { isUuidV7, mintUuidV7 } from './device.ts';
 export { HybridClock, compareHlc, formatHlc, parseHlc, tickHlc } from './hlc.ts';
+export { ORDER_KEY_ZERO, OrderKeyError, orderKeyAfter, orderKeyBetween, validateOrderKey } from './ordering.ts';
 export type { HlcReading } from './hlc.ts';
 
 export type {
@@ -130,6 +131,14 @@ export type {
   NotificationPreferenceList,
   NotificationPreferenceUpdate,
   PendingMutation,
+  MutationKind,
+  QueuedWrite,
+  QueueState,
+  RejectedMutation,
+  ConflictRecord,
+  SetName,
+  SyncMutation,
+  SyncMutationResult,
   Problem,
   PurgeSummary,
   QueryField,

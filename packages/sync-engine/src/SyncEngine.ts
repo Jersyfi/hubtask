@@ -20,7 +20,9 @@ import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
 import { Replica } from './replica.ts';
 import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
-import { HybridClock } from './hlc.ts';
+import { HybridClock, formatHlc } from './hlc.ts';
+import { Queue, mutationOf } from './queue.ts';
+import type { QueueState, QueuedWrite, SyncMutationResult } from './schema.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -41,6 +43,8 @@ export const RECONNECT_BASE_MS = 1_000;
 export const RECONNECT_MAX_MS = 30_000;
 /** How many records one delta page asks for. The contract's default, and well under its maximum. */
 export const PULL_PAGE_SIZE = 500;
+/** How many mutations one push carries at most: the contract's `maxItems`. */
+export const PUSH_BATCH = 500;
 /** The snapshot's silence between lines: the server writes rows as it reads them. */
 export const DEFAULT_SNAPSHOT_IDLE_MS = 60_000;
 /**
@@ -236,6 +240,20 @@ export interface SyncEngineOptions {
    */
   readonly storeFor?: (request: ResourceRequest, storage: Storage) => Promise<unknown>;
   /**
+   * What a write becomes when it has to be queued (F6-05): the mutation `:push` takes, without its
+   * clocks, or nothing for a write that cannot be made offline - which is then performed directly
+   * as before, and fails in front of the person if the server cannot be reached. The
+   * application's, like `pathsFor`: it knows that `PATCH /items/{id}` is an `ITEM_PATCH` and the
+   * engine does not. Handed the store for a write that needs the copy - a reorder minting its
+   * rank between two neighbours - and a way to mint an identifier.
+   */
+  readonly mutationFor?: (
+    method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+    path: string,
+    body: unknown,
+    helpers: { readonly storage: Storage; readonly mintId: () => string },
+  ) => Promise<QueuedWrite | undefined>;
+  /**
    * Called when a request meets a `401`, to exchange the refresh token for the next pair (F4-03).
    *
    * `true` means a new credential is held and the request is retried **once**; `false` means the
@@ -266,6 +284,17 @@ export class SyncEngine {
   readonly #onUnauthorized: () => void;
   readonly #onRefresh: () => Promise<boolean>;
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
+  readonly #mutationFor: SyncEngineOptions['mutationFor'];
+  /** The queue, once a store is attached. */
+  #queue: Queue | undefined;
+  /** Whether the last call reached the server: decision 5's other half. */
+  #reachable = true;
+  /** The push in flight, so that a second trigger joins it rather than racing it. */
+  #pushing: Promise<void> | undefined;
+  /** What the queue's subscribers were last told, and who they are. */
+  #queueState: QueueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
+  readonly #queueListeners = new Set<(state: QueueState) => void>();
+
   /** The exchange in flight, so that concurrent refusals share one rather than racing. */
   #renewal: Promise<boolean> | undefined;
   /** The replica, once a store is attached. Absent means online-only: F1's engine, unchanged. */
@@ -282,6 +311,7 @@ export class SyncEngine {
     // client holding a credential somebody typed can honestly do.
     this.#onRefresh = options.onRefresh ?? (async () => false);
     this.#storeFor = options.storeFor;
+    this.#mutationFor = options.mutationFor;
   }
 
   /**
@@ -293,8 +323,11 @@ export class SyncEngine {
    */
   async #attempt<T>(call: () => Promise<T>): Promise<T> {
     try {
-      return await call();
+      const answer = await call();
+      this.#reachable = true;
+      return answer;
     } catch (cause) {
+      if (cause instanceof TransportError && unreachable(cause)) this.#reachable = false;
       if (!isRefusal(cause)) throw cause;
       if (!(await this.#renew())) {
         this.#onUnauthorized();
@@ -343,6 +376,8 @@ export class SyncEngine {
     this.#replica = replica;
     this.#device = device;
     this.#hlc = new HybridClock(this.#clock, device.id, await replica.hlc());
+    this.#queue = new Queue(replica);
+    await this.#publishQueue();
     // A screen that asked before the store was attached and could not reach the server is
     // asked again, now that the copy can answer it (F6-04): a tab reloading offline subscribes
     // to its tree before it knows which account's store to open.
@@ -435,11 +470,177 @@ export class SyncEngine {
     body: unknown,
     options: MutateOptions = {},
   ): Promise<T> {
-    const answer = await this.#attempt(
-      () => this.#transport.send<T>(method, path, body, this.#options(options)),
+    // Decision 5: direct while the queue is empty and the last call reached the server, queued
+    // otherwise - and a direct write that fails to reach the server is queued too, where the
+    // application knows how. Order is what decides it: a write made behind a queued one has to
+    // arrive behind it, so once anything is queued everything queueable is.
+    const queue = this.#queue;
+    if (queue && this.#mutationFor) {
+      const waiting = this.#queueState.count > 0 || !this.#reachable;
+      if (waiting) {
+        const queued = await this.#enqueue(method, path, body, options);
+        if (queued !== undefined) return queued as T;
+      }
+    }
+    try {
+      const answer = await this.#attempt(
+        () => this.#transport.send<T>(method, path, body, this.#options(options)),
+      );
+      this.#invalidate(options.invalidates);
+      return answer.body;
+    } catch (cause) {
+      if (!(cause instanceof TransportError) || !unreachable(cause) || !queue || !this.#mutationFor) throw cause;
+      const queued = await this.#enqueue(method, path, body, options);
+      if (queued === undefined) throw cause;
+      return queued as T;
+    }
+  }
+
+  /**
+   * Queues a write the application knows how to queue, applies its prediction to the replica,
+   * tells the screens that show it, and pushes at once where the server answers. Answers the
+   * prediction as the write's result, or `undefined` for a write that cannot be queued.
+   */
+  async #enqueue(
+    method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+    path: string,
+    body: unknown,
+    options: MutateOptions,
+  ): Promise<unknown> {
+    const queue = this.#queue;
+    const replica = this.#replica;
+    if (!queue || !replica || !this.#mutationFor) return undefined;
+    const write = await this.#mutationFor(method, path, body, {
+      storage: replica.store,
+      mintId: () => mintUuidV7(this.#clock),
+    });
+    if (!write) return undefined;
+    const mutation = mutationOf(
+      { ...write, invalidates: write.invalidates ?? options.invalidates },
+      mintUuidV7(this.#clock),
+      () => this.#stampNow(),
     );
-    this.#invalidate(options.invalidates);
-    return answer.body;
+    await queue.enqueue({ ...write, invalidates: write.invalidates ?? options.invalidates }, mutation, this.#clock.now());
+    await this.#publishQueue();
+    // The screens that show the entry read again: from the copy while the server is away, which
+    // is where the prediction is, and from the server once the push has landed.
+    this.#invalidate(write.invalidates ?? options.invalidates);
+    if (this.#reachable) void this.push();
+    const entity = write.kind === 'COMMENT_ADD' ? 'comments' : 'items';
+    const entityId = write.kind === 'COMMENT_ADD' ? String(write.payload?.id ?? mutation.op_id) : write.itemId;
+    const held = await replica.store.get<{ document: unknown }>(entity, entityId);
+    return held?.document;
+  }
+
+  /** The next clock reading, formatted; the store is told afterwards without being waited for. */
+  #stampNow(): string {
+    if (!this.#hlc) throw new TypeError('no clock: attach a store first');
+    const reading = this.#hlc.next();
+    void this.#replica?.holdHlc(reading);
+    return formatHlc(reading);
+  }
+
+  /**
+   * Pushes the queue: batches of at most `PUSH_BATCH`, in order, every result applied as the
+   * server's word (`Queue.settle`), the push's cursor advancing the store's. Runs on every
+   * reconnect and at once when a mutation is queued while the server answers; a second trigger
+   * while one push is on its way joins it. A push that fails to reach the server leaves the
+   * queue as it was.
+   */
+  push(): Promise<void> {
+    this.#pushing ??= this.#push().finally(() => {
+      this.#pushing = undefined;
+    });
+    return this.#pushing;
+  }
+
+  async #push(): Promise<void> {
+    const queue = this.#queue;
+    const replica = this.#replica;
+    if (!queue || !replica) return;
+    for (;;) {
+      const pending = (await queue.pending()).slice(0, PUSH_BATCH);
+      if (pending.length === 0) break;
+      await this.#publishQueue({ pushing: true });
+      let answer: { results?: readonly SyncMutationResult[]; cursor?: string | null };
+      try {
+        answer = (await this.#attempt(() => this.#transport.send<{ results?: readonly SyncMutationResult[]; cursor?: string | null }>(
+          'POST', '/sync:push', { ...this.#deviceBody(), mutations: pending.map((p) => p.mutation) }, this.#options({}),
+        ))).body;
+      } catch (cause) {
+        const error = cause instanceof TransportError ? cause : undefined;
+        if (error?.detailCode === 'sync.device_revoked') {
+          // This device was forgotten (N-03): nothing it holds may be pushed under its name, and
+          // a copy it synchronised under it is not a copy the server will resume. Everything
+          // goes, and the next attach mints a new device.
+          await replica.empty();
+          await replica.store.delete('meta', 'device');
+          this.#device = undefined;
+          this.#invalidate(undefined);
+        } else {
+          await queue.failed(pending);
+        }
+        await this.#publishQueue({ pushing: false });
+        return;
+      }
+      const results = new Map((answer.results ?? []).map((result) => [String(result.op_id), result]));
+      const at = this.#clock.now();
+      const stale: string[] = [];
+      for (const mutation of pending) {
+        const result = results.get(mutation.id);
+        // A mutation the server did not answer stays queued: the contract answers every one,
+        // so this is a truncated answer, and the next push asks again under the same op_id.
+        if (!result) continue;
+        await queue.settle(mutation, result, at);
+        stale.push(...(mutation.invalidates ?? []));
+      }
+      if (answer.cursor) await replica.hold({ ...(await replica.position()), cursor: answer.cursor });
+      await this.#publishQueue({ pushing: false });
+      this.#invalidate(stale.length > 0 ? [...new Set(stale)] : undefined);
+    }
+  }
+
+  /**
+   * The queue as a subscription, like `subscribe`: the count, the oldest moment, what was
+   * rejected and what conflicted - what `SyncStatus` renders. The listener is told at once.
+   */
+  queue(listener: (state: QueueState) => void): Unsubscribe {
+    this.#queueListeners.add(listener);
+    listener(this.#queueState);
+    return () => {
+      this.#queueListeners.delete(listener);
+    };
+  }
+
+  /** The queue as it stands, for a caller that wants one look. */
+  get queueState(): QueueState {
+    return this.#queueState;
+  }
+
+  /** Takes a rejected mutation off the list: the person has seen it (§9.5). */
+  async dismissRejected(id: string): Promise<void> {
+    await this.#queue?.dismiss(id);
+    await this.#publishQueue();
+  }
+
+  /** Takes a conflict off the list: the person has seen both values. */
+  async dismissConflict(id: string): Promise<void> {
+    await this.#queue?.dismissConflict(id);
+    await this.#publishQueue();
+  }
+
+  async #publishQueue(override: { pushing?: boolean } = {}): Promise<void> {
+    const queue = this.#queue;
+    const pending = queue ? await queue.pending() : [];
+    const state: QueueState = {
+      count: pending.length,
+      ...(pending[0] ? { oldestAt: pending[0].queuedAt } : {}),
+      pushing: override.pushing ?? this.#queueState.pushing,
+      rejected: queue ? await queue.rejected() : [],
+      conflicts: queue ? await queue.conflicts() : [],
+    };
+    this.#queueState = state;
+    for (const listener of this.#queueListeners) listener(state);
   }
 
   /**
@@ -586,7 +787,9 @@ export class SyncEngine {
           // stream then resumes from where the pull left the store.
           cursor = await this.#catchUp(options, signal);
           if (signal.aborted) return;
-          // The server answered, so whatever a screen is showing from the copy is read again.
+          // The server answered: what the queue holds is pushed, and whatever a screen is
+          // showing from the copy is read again.
+          await this.push();
           this.#replaceReplicaStates();
         }
         const connection = await this.#transport.stream(path, {
@@ -671,6 +874,8 @@ export class SyncEngine {
     this.#replica = undefined;
     this.#device = undefined;
     this.#hlc = undefined;
+    this.#queue = undefined;
+    this.#queueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
     await replica?.store.clear();
   }
 

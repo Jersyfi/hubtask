@@ -39,9 +39,31 @@ shared machine does not go into browser storage at all; the promise lives in the
 keystore is the platform's (ADR-0031). What the browser store promises instead is §9.6's other half,
 exactly: `clear()` deletes the database rather than emptying it.
 
-**The queue is F6-05's.** Nothing is queued yet and nothing is applied optimistically: a write
-still succeeds or fails in front of the person who made it. `stamp()` and `catchUp()` are the two
-things the queue will need from here and already has.
+**F6-05 built the queue.** `mutate` decides by decision 5's rule: direct while the queue is empty
+and the last call reached the server, queued otherwise — and a direct write that fails to reach
+the server is queued too, where the application says how. `mutationFor` is that saying, the
+counterpart of `pathsFor`: it maps a write's method, path and body to the mutation `:push` takes
+(`QueuedWrite`, without its clocks) or answers nothing for a write that cannot be made offline,
+which then fails in front of the person as before. The engine mints the `op_id` (a UUIDv7, once
+per intent — a repeated push takes effect exactly once, §9.2), stamps every field with its own
+clock, writes the mutation to the store's `queue` collection in order, and applies the
+**prediction** to the replica, marked `pending` on the record. The push (`push()`): batches of at
+most 500, in order, on every reconnect and at once when a mutation is queued while the server
+answers; the frame carries the device and its name; every result is applied as the server's word
+— `APPLIED` and `MERGED` write `server_state` over the prediction, `CONFLICT` writes the server's
+state and keeps both values in `conflicts` for the resolver, `REJECTED` takes the mutation out
+and keeps it with its code in `rejected` until dismissed (`sync.gone` also takes the copy of the
+purged entry; the local text stays in the rejected record for safekeeping). The push's cursor
+advances the store's. A push that fails to reach the server leaves the queue as it was;
+`sync.device_revoked` empties the store and forgets the device, and the next attach mints a new
+one. `queue()` is a subscription like `subscribe` — the count, the oldest moment, the rejected
+and the conflicts — which is what `SyncStatus` renders. The order keys a reorder needs offline
+are minted by `ordering.ts`, the server's scheme branch for branch, with the server's cases as
+its test.
+
+**A prediction is not a merge.** It is what the replica would hold if the server applied the
+mutation as sent, and the server's answer overwrites it whole (§9.5). Nothing on this side
+compares two values and chooses.
 
 **F2-03 gave it four things a screen needs and F1 did not.** They are worth knowing before adding
 a fifth:
@@ -134,11 +156,11 @@ whatever its verb.
   A merge rule in this package is a bug against that decision rather than a feature, and
   `test/rules.test.ts` fails on a symbol that merges. Concatenating page two onto page one is not
   one: nothing is reconciled, and the order is the server's.
-* **No optimistic apply, and therefore no rollback.** A write still either succeeds or fails in
-  front of the person who made it. Rolling one back would be a guess about a `:push` the queue does
-  not send yet (F6-05), and the queue arrives with the protocol that decides what a rollback is.
-  Applying a *server's* record to the replica is not that: it is transcription of a decision the
-  server has taken.
+* **No rollback.** A queued mutation's prediction is not rolled back when the server refuses it:
+  the server's state replaces it where the server named one, the rejection is kept and shown
+  (§9.5), and the copy is otherwise read again. A rollback would be this side deciding what the
+  entry should say, which is a merge in another shape. Applying a *server's* record or answer to
+  the replica is transcription of a decision the server has taken.
 * **No framework.** No Svelte, no React, nothing that needs a DOM. The engine has to be
   exercisable headlessly — it is the first-party counterpart to `hubctl sync-conformance` — and a
   package that imported a framework could not be. The Svelte binding lives in

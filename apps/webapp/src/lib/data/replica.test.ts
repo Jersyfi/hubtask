@@ -117,3 +117,86 @@ test('the four the replica refuses by design', async () => {
     assert.equal(await storeFor({ path }, storage), undefined, path);
   }
 });
+
+// ---------------------------------------------------------------------------------------------
+// What a write becomes when it is queued (F6-05): the seven kinds, and what is refused.
+// ---------------------------------------------------------------------------------------------
+
+import { mutationFor } from './replica.ts';
+
+const helpers = (storage: MemoryStorage) => ({ storage, mintId: () => '0192f000-0000-7000-8000-00000000f00d' });
+
+test('ITEM_CREATE: a created entry takes an identifier the client mints', async () => {
+  const storage = await workspace();
+  const write = await mutationFor('POST', '/items', { type: 'TASK', collection_id: COLLECTION, title: 'new' }, helpers(storage));
+  assert.deepEqual(write, { kind: 'ITEM_CREATE', itemId: '0192f000-0000-7000-8000-00000000f00d', payload: { type: 'TASK', collection_id: COLLECTION, title: 'new' } });
+});
+
+test('ITEM_PATCH: an edit, a completion, an assignment, a due date, a custom field', async () => {
+  const storage = await workspace();
+  const h = helpers(storage);
+  assert.deepEqual(await mutationFor('PATCH', '/items/i-1', { title: 'renamed', notes: null }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { title: 'renamed', notes: null } });
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:complete', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { completion: { is_completed: true } } });
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:reopen', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { completion: { is_completed: false } } });
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:assign', { assignee_id: 'acc-2' }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: 'acc-2' } });
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:unassign', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: null } });
+  assert.deepEqual(
+    await mutationFor('PUT', '/items/i-1/due', { due_at: '2026-12-24T00:00:00Z', due_date_only: true, due_time_zone: 'Europe/Berlin' }, h),
+    { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { due_at: '2026-12-24T00:00:00Z', due_date_only: true, due_time_zone: 'Europe/Berlin' } },
+  );
+  assert.deepEqual(await mutationFor('DELETE', '/items/i-1/due', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { due_at: null } });
+  assert.deepEqual(await mutationFor('PUT', '/items/i-1/custom-fields/urgency', { value: 'high' }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { 'custom_fields.urgency': 'high' } });
+});
+
+test('MOVE: a reorder mints its rank between the neighbours the copy knows, a move names its destination', async () => {
+  const storage = await workspace();
+  const h = helpers(storage);
+  // i-2 (a1) moved before i-1 (a0): a key below a0, at the top of the level.
+  assert.deepEqual(await mutationFor('POST', '/items/i-2:reorder', { before_item_id: 'i-1' }, h), { kind: 'MOVE', itemId: 'i-2', payload: { parent_id: null, order_key: 'Zz' } });
+  // i-1 moved to the end: after i-2's a1.
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:reorder', { before_item_id: null }, h), { kind: 'MOVE', itemId: 'i-1', payload: { parent_id: null, order_key: 'a2' } });
+  // i-9 moved under i-1, into its collection, as the first child - before i-1-a (a0).
+  assert.deepEqual(
+    await mutationFor('POST', '/items/i-9:move', { target_parent_id: 'i-1', target_collection_id: COLLECTION, before_item_id: 'i-1-a' }, h),
+    { kind: 'MOVE', itemId: 'i-9', payload: { parent_id: 'i-1', order_key: 'Zz', collection_id: COLLECTION } },
+  );
+  // A destination the copy does not hold cannot name a rank: the write goes directly.
+  assert.equal(await mutationFor('POST', '/items/i-1:reorder', { before_item_id: 'nope' }, h), undefined);
+  assert.equal(await mutationFor('POST', '/items/nope:reorder', { before_item_id: null }, h), undefined);
+});
+
+test('SET_ADD, SET_REMOVE, ITEM_DELETE, COMMENT_ADD', async () => {
+  const storage = await workspace();
+  const h = helpers(storage);
+  assert.deepEqual(await mutationFor('PUT', '/items/i-1/labels/l-1', undefined, h), { kind: 'SET_ADD', itemId: 'i-1', set: 'labels', element: 'l-1' });
+  assert.deepEqual(await mutationFor('DELETE', '/items/i-1/members/acc-1', undefined, h), { kind: 'SET_REMOVE', itemId: 'i-1', set: 'members', element: 'acc-1' });
+  assert.deepEqual(await mutationFor('PUT', '/items/i-1/attachments/m-1', undefined, h), { kind: 'SET_ADD', itemId: 'i-1', set: 'attachments', element: 'm-1' });
+  assert.deepEqual(await mutationFor('DELETE', '/items/i-1', undefined, h), { kind: 'ITEM_DELETE', itemId: 'i-1' });
+  assert.deepEqual(
+    await mutationFor('POST', '/items/i-1/comments', { body: 'soon', parent_comment_id: null }, h),
+    { kind: 'COMMENT_ADD', itemId: 'i-1', payload: { body: 'soon', parent_comment_id: null, id: '0192f000-0000-7000-8000-00000000f00d' } },
+  );
+});
+
+test('the writes the queue does not carry, and why', async () => {
+  const storage = await workspace();
+  const h = helpers(storage);
+  for (const [method, path, why] of [
+    ['POST', '/items/i-1:archive', 'lifecycle the server owns'],
+    ['POST', '/items/i-1:restore', 'the trash is the server\'s'],
+    ['POST', '/items/i-1:purge', 'irreversible, and the server\'s'],
+    ['POST', '/items/i-1:duplicate', 'no mutation kind copies a subtree'],
+    ['PUT', '/items/i-1/cover', 'the cover has no mutation kind'],
+    ['POST', '/items:bulk', 'a bulk is many operations the server judges together'],
+    ['POST', '/containers', 'structure (§1) is not queued'],
+    ['PATCH', '/containers/c-1', 'structure (§1) is not queued'],
+    ['POST', '/containers/c-1/labels', 'a label\'s definition is structure'],
+    ['POST', '/templates', 'structure'],
+    ['POST', '/views', 'structure'],
+    ['PATCH', '/items/i-1/comments/k-1', 'editing a comment has no mutation kind; only adding one does'],
+    ['POST', '/memberships', 'administration (§1\'s right column)'],
+    ['POST', '/backups:run', 'administration'],
+  ] as const) {
+    assert.equal(await mutationFor(method, path, {}, h), undefined, `${method} ${path}: ${why}`);
+  }
+});
