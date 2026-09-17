@@ -129,6 +129,7 @@ class QueueView {
 function reasonCodeOf(code: string): string {
   if (code === 'sync.gone') return 'app.sync.refused.gone';
   if (code === 'forbidden') return 'app.sync.refused.forbidden';
+  if (code === 'sync.device_revoked') return 'app.sync.refused.device_revoked';
   return 'app.sync.refused.other';
 }
 

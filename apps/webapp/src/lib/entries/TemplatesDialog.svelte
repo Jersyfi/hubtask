@@ -29,6 +29,8 @@
   import type { DroppedReference, Template, TemplateNode } from '@hubtask/sync-engine';
 
   import { holds } from '../data/capability.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { suggestions } from '../data/suggestions.svelte.ts';
   import { rootTypes } from '../data/capability.svelte.ts';
   import { templates } from '../data/templates.svelte.ts';
   import { scopeCodeOf } from '../data/templates.ts';
@@ -90,6 +92,17 @@
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
+  /**
+   * Generate from a description… (P-11, F6-10): present exactly when the manifest says AI is on
+   * (milestone-F5.md decision 4 - absence is absence, not a disabled control). The draft is a
+   * suggestion targeting the collection, so it arrives in the collection's strip behind this
+   * dialog, where accepting it is `CreateTemplate` and this list then shows it.
+   */
+  const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+  let isGenerating = $state(false);
+  let wanted = $state('');
+  const generation = $derived(suggestions.askingOf(collectionId));
+
   $effect(() => {
     if (!isOpen) return;
     reset();
@@ -97,6 +110,8 @@
 
   function reset() {
     isDefining = false;
+    isGenerating = false;
+    wanted = '';
     editing = undefined;
     name = '';
     description = '';
@@ -110,6 +125,22 @@
     created = undefined;
     madeRoot = undefined;
     failure = undefined;
+  }
+
+  function startGenerating() {
+    reset();
+    isGenerating = true;
+  }
+
+  function generate() {
+    const description = wanted.trim();
+    void attempt(async () => {
+      // The ask is answered `202` at once and the store follows the listing on its own; the
+      // dialog closes so that the strip, where the draft lands, is what the person sees. Only
+      // the ask's own refusal - no provider, no consent - is this dialog's to show.
+      await suggestions.generateTemplate(collectionId, description);
+      isOpen = false;
+    }, t('app.templates.generation_asked_announced'));
   }
 
   function startDefining() {
@@ -253,6 +284,30 @@
           <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
         </Inline>
       </Stack>
+    {:else if isGenerating}
+      <Stack gap="150">
+        <Textarea
+          label={t('app.templates.generate_description')}
+          hint={t('app.templates.generate_hint')}
+          bind:value={wanted}
+          rows={4}
+          error={failure?.fields.get('/description')}
+        />
+        <p class="quiet">{t('app.templates.generate_note')}</p>
+        {#if failure && !failure.fields.get('/description')}<p class="failure" role="alert">{failure.message}</p>{/if}
+        <Inline gap="100">
+          <Button
+            icon="sparkles"
+            isBusy={isSaving}
+            busyLabel={t('app.templates.generating')}
+            disabledReason={wanted.trim() === '' ? t('app.templates.generate_empty') : structureReason}
+            onclick={generate}
+          >
+            {t('app.templates.generate')}
+          </Button>
+          <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
+        </Inline>
+      </Stack>
     {:else if isDefining}
       <Stack gap="150">
         <Input label={t('app.templates.name')} bind:value={name} error={failure?.fields.get('/name')} />
@@ -331,11 +386,22 @@
         reason={structure.status === 'refused' ? t(structure.code, structure.params) : undefined}
         pendingLabel={t('app.templates.deciding')}
       >
-        <div>
+        <Inline gap="100">
           <Button size="sm" tone="secondary" onclick={startDefining}>
             {t('app.templates.define')}
           </Button>
-        </div>
+          {#if hasAi}
+            <Button
+              size="sm"
+              tone="secondary"
+              icon="sparkles"
+              disabledReason={generation?.outcome === 'following' ? t('app.suggestions.pending') : undefined}
+              onclick={startGenerating}
+            >
+              {t('app.templates.generate_from_description')}
+            </Button>
+          {/if}
+        </Inline>
       </CapabilityGate>
     {/if}
   </Stack>
