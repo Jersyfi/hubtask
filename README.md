@@ -215,7 +215,7 @@ Details: [LICENSE](./LICENSE) · [ADR-0013](./docs/adr/ADR-0013-licensing.md) ·
 [TRADEMARK.md](./TRADEMARK.md). Licensing enquiries: licensing@hubtask.eu.
 
 This is source-available software, not OSI open source, and the project does not claim otherwise.
-Donations keep it free for private use — see [the funding section](./docs/architecture/licensing-editions.md#5-funding-and-what-happens-if-it-does-not-work)
+Donations keep it free for private use — see [the funding section](./docs/architecture/licensing-editions.md#7-funding-and-what-happens-if-it-does-not-work)
 for what happens if they stop covering maintenance.
 
 ---
