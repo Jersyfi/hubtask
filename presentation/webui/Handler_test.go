@@ -27,7 +27,7 @@ func bundle() fstest.MapFS {
 
 func handler(t *testing.T) webui.Handler {
 	t.Helper()
-	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders)
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
@@ -153,6 +153,49 @@ func TestThePolicyIsExactlyThis(t *testing.T) {
 	}
 }
 
+// ADR-0047: an installation on object storage names its storage origin in exactly the two
+// directives the upload and the cover need, and an installation whose media is its own does not
+// change at all. Equality rather than containment on the `local` side, because "contains the
+// constant" is true of a widened policy too.
+func TestThePolicyNamesTheMediaOriginInTwoDirectivesAndNowhereElse(t *testing.T) {
+	t.Parallel()
+
+	if got := webui.PolicyFor(""); got != webui.ContentSecurityPolicy {
+		t.Errorf("the local policy is not the ADR-0028 constant:\n got %q\nwant %q", got, webui.ContentSecurityPolicy)
+	}
+
+	const origin = "https://s3.eu-central-1.amazonaws.com"
+	got := webui.PolicyFor(origin)
+	want := "default-src 'none'; " +
+		"script-src 'self'; " +
+		"style-src 'self'; " +
+		"img-src 'self' data: blob: " + origin + "; " +
+		"font-src 'self'; " +
+		"connect-src 'self' " + origin + "; " +
+		"manifest-src 'self'; " +
+		"worker-src 'self' blob:; " +
+		"base-uri 'none'; " +
+		"form-action 'none'; " +
+		"frame-ancestors 'none'"
+	if got != want {
+		t.Errorf("the s3 policy:\n got %q\nwant %q", got, want)
+	}
+	if n := strings.Count(got, origin); n != 2 {
+		t.Errorf("the origin appears %d times, want exactly twice", n)
+	}
+
+	// And it is what the handler sends, on every answer, once composed.
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "http://minio.internal:9000")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	for _, path := range []string{"/", "/assets/gone.js"} {
+		if csp := get(t, h, path).Header().Get("Content-Security-Policy"); csp != webui.PolicyFor("http://minio.internal:9000") {
+			t.Errorf("GET %s: CSP = %q", path, csp)
+		}
+	}
+}
+
 func TestThePolicyAllowsNoInlineScriptAndNoEval(t *testing.T) {
 	t.Parallel()
 
@@ -220,7 +263,7 @@ func TestTheEmbeddedBundleIsUsable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FS: %v", err)
 	}
-	h, err := webui.NewHandler(files, rest.WriteSecurityHeaders)
+	h, err := webui.NewHandler(files, rest.WriteSecurityHeaders, "")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}

@@ -1957,7 +1957,14 @@ func run() error {
 			if fsErr != nil {
 				return fmt.Errorf("web interface: %w", fsErr)
 			}
-			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders)
+			// The origin the interface may reach for its media (ADR-0047): the storage
+			// endpoint's under s3, none under local - derived from the configuration the
+			// storage adapter was built from, so the two cannot disagree.
+			mediaOrigin, originErr := storageadapter.MediaOrigin(cfg.Storage)
+			if originErr != nil {
+				return fmt.Errorf("web interface: %w", originErr)
+			}
+			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders, mediaOrigin)
 			if uiErr != nil {
 				return fmt.Errorf("web interface: %w", uiErr)
 			}
