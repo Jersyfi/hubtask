@@ -89,8 +89,9 @@ Twelve decisions taken while writing this backlog, so that nobody re-derives the
   (`/audit:export`) and a data subject request's archive are written to a backup target, and the
   `Job.result_url` that follows points at where the archive lies. Under `s3` or `sftp` that is an
   origin `connect-src 'self'` does not name and a place the browser holds no credential for.
-  ADR-0047 added the **media** origin to the policy and exactly one origin; a backup target is not
-  the media origin, and F4 does not widen the policy a second time. Every export screen therefore
+  ADR-0047 names the **media** origin as the one origin the policy gains — accepted on
+  2026-09-17 and, as of that day, not yet built — and a backup target is not the media origin, so
+  F4 does not widen the policy a second time. Every export screen therefore
   reports the target and the path it was written to, and offers no download.
 * **The two routes the server already points browsers at are owed by this milestone.** The
   invitation mail links `<base>/redeem#token=…` — the token in a **fragment**, which no `Referer`
