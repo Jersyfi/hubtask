@@ -132,7 +132,8 @@
 <Stack gap="300">
   <h1 class="name">{t('app.search.title')}</h1>
 
-  <Inline gap="150" align="end">
+  <!-- `data-tour`: where the tour points for the query language (F6-14). -->
+  <Inline gap="150" align="end" data-tour="search">
     <SearchField
       label={t('app.search.label')}
       clearLabel={t('app.search.clear')}

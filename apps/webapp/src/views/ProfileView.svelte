@@ -511,7 +511,7 @@
          theme, and reduced motion beside it (F5-12, §10 row 2.3.3). Each applies at once and is
          kept in this browser; the account is not asked, because there is nothing above the device
          to resolve to. A radio group rather than a select: three words, all visible, one press. -->
-    <Stack gap="150">
+    <Stack gap="150" data-tour="profile">
       <h2 class="section">{t('app.profile.device_section')}</h2>
       <p class="quiet">{t('app.profile.device_hint')}</p>
       <Radio

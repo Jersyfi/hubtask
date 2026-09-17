@@ -12,10 +12,11 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Inline, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Banner, Button, Inline, Menu, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
+  import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
 
@@ -24,6 +25,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { session } from '../session.svelte.ts';
+  import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -173,6 +175,20 @@
           {#if actor.account}
             <span class="who">{t('app.signed_in_as', { name: actor.account.display_name })}</span>
           {/if}
+          <!-- The help menu (§8): where the tour is taken again. One entry today, a menu rather
+               than a button so that the second entry has somewhere to go. -->
+          <Menu
+            label={t('app.help.label')}
+            items={[{ id: 'tour', label: t('app.help.tour_again'), icon: 'info' }]}
+            placement={{ side: 'block-end', align: 'end' }}
+            onselect={(id) => {
+              if (id === 'tour') void tour.restart();
+            }}
+          >
+            {#snippet trigger(props)}
+              <Button size="sm" tone="subtle" icon="info" {...props}>{t('app.help.label')}</Button>
+            {/snippet}
+          </Menu>
           <Button size="sm" tone="subtle" icon="log-out" onclick={() => void session.signOut()}>
             {t('app.sign_out')}
           </Button>
@@ -210,7 +226,7 @@
     <!-- The sidebar is the frame's, not a view's: it is the same tree on every screen, and a view
          that rendered it would rebuild it on every navigation. -->
     {#if session.isSignedIn}
-      <aside class="sidebar">
+      <aside class="sidebar" data-tour="hubs">
         <WorkspaceNav currentId={route.params.id} {onnavigate} />
       </aside>
     {/if}
@@ -234,6 +250,10 @@
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
        the prompt belongs to the frame rather than to whichever screen made the request (H-03). -->
   <StepUpPrompt />
+  <!-- The tour (F6-14): walks routes, so it lives where every route is. -->
+  {#if session.isSignedIn}
+    <TourGuide {onnavigate} />
+  {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a
        screen reader watches both and reads whichever changed, in an order nobody chose. It is here
