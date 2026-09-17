@@ -98,14 +98,21 @@ production the rule is: fix forwards).
 
 ## 5. Support and upgrade policy
 
-| Point | Commitment |
+**Until Licensing Start** ([licensing-editions.md](./licensing-editions.md) §6) none of this is a
+commitment: the project is provided as is, fixes are best effort and go into the current minor,
+no version has a support period, and the project may be archived at any time. The rows below are
+the policy the project *aims* to follow, and the one it is bound to from Licensing Start for every
+major that licences have been sold for — because from then the Cyber Resilience Act binds it,
+not this document.
+
+| Point | Aim now, policy for sold majors from Licensing Start |
 |---|---|
-| Supported versions | The current major plus the previous major for 12 months |
+| Supported versions | The current major plus the previous major for its declared support period (12 months intended) |
 | Upgrade path | Any version can be upgraded to from any version of the previous major; jumps across two majors need an intermediate step |
 | Downgrade | Not supported (restore from backup) |
 | Deprecation | At least two minor releases of notice, announced in the changelog, `Deprecation`/`Sunset` headers, an entry in the capability manifest |
 | Security updates | A patch on every supported major; an advisory with CVSS |
-| Pre-releases | `X.Y.Z-rc.N` with the image tag `:rc`; no production commitment |
+| Pre-releases | `X.Y.Z-rc.N` with the image tag `:rc`; never for production |
 | Client maturity | `experimental` → `preview` → `stable`, stated per release in `CHANGELOG.md` and by the application itself until it is `stable`. It is a statement about a release, not a runtime capability, so it does not appear in `/meta/capabilities` ([ADR-0035](../adr/ADR-0035-one-product-version.md)) |
 
 ---

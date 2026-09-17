@@ -3,48 +3,39 @@ Business Source License 1.1
 Parameters
 
 Licensor:             Jérôme Bastian Winkel
-Licensed Work:        Hubtask, all versions.
+Licensed Work:        Hubtask, in the version this copy of the License is
+                      distributed with: a release, as named by its tag, or
+                      otherwise the commit the copy is checked out from.
+                      Each version of the Licensed Work is licensed
+                      separately, under the terms distributed with it.
+                      Files that carry the header
+                      "SPDX-License-Identifier: Apache-2.0", and files in a
+                      subdirectory that carries a LICENSE file of its own, are
+                      not part of the Licensed Work and are licensed under the
+                      terms stated there.
                       The Licensed Work is (c) 2026 Jérôme Bastian Winkel.
 Additional Use Grant: You may use, copy, modify, redistribute, and self-host the
                       Licensed Work in production, with its full functionality
-                      and without any feature limitation, for any Non-Commercial
-                      Purpose.
+                      and without any feature limitation, for any purpose,
+                      including commercial purposes and production use by
+                      companies, by organisations of any kind, and by sole
+                      traders, freelancers, and self-employed professionals in
+                      their professional practice, subject to one exception:
 
-                      "Non-Commercial Purpose" means a purpose that is not
-                      primarily intended for or directed toward commercial
-                      advantage or monetary compensation. It includes, without
-                      limitation:
+                      This grant does not extend to making the Licensed Work,
+                      or a service whose value derives substantially from the
+                      Licensed Work, available to third parties on a hosted,
+                      managed, embedded, or white-label basis, for a fee or as
+                      part of a commercial offering.
 
-                      (a) use by a natural person for personal, family, or
-                          household purposes, including self-hosting an instance
-                          for themselves and for other members of their
-                          household;
-
-                      (b) use by a charitable, non-profit, or public-benefit
-                          organisation in direct furtherance of its charitable or
-                          public-benefit purposes;
-
-                      (c) use by an educational institution for teaching or
-                          study, and use by any person or organisation for
-                          non-commercial scientific research;
-
-                      (d) evaluation, testing, development, demonstration, and
-                          contribution to the Licensed Work, including by an
-                          organisation whose production use would otherwise
-                          require a separate commercial licence, provided that
-                          such use does not form part of that organisation's
-                          operations serving its own customers or business
-                          processes.
-
-                      This grant does not extend to providing the Licensed Work,
-                      or any service whose value derives substantially from the
-                      Licensed Work, to third parties for a fee or other
-                      commercial consideration.
-
-                      A natural person acting as a sole trader, freelancer, or
-                      self-employed professional acts for a commercial purpose
-                      when using the Licensed Work in their professional
-                      practice.
+                      An organisation that uses the Licensed Work to deliver
+                      its own products or services to its own clients,
+                      including by inviting those clients into its instance as
+                      users, does not thereby make the Licensed Work available
+                      to third parties within the meaning of the exception.
+                      The exception covers offering access to the Licensed
+                      Work itself, or to a service substantially based on it,
+                      as the thing that is provided.
 Change Date:          Three years from the date a given version of the Licensed
                       Work is first publicly distributed.
 Change License:       Apache License, Version 2.0

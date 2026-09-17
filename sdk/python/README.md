@@ -33,6 +33,7 @@ What is hand-written is `hubtask/__init__.py`, `pyproject.toml` and this file; `
 `types.py` are regenerated from the contract on every `make generate`, and `test/contract`
 drives the example against the in-process server where a `python3` is on the path.
 
-**Licence.** The package is under the repository's licence (BSL 1.1) until
-[ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md) is accepted, which puts the
-SDKs' own licence, name and extraction to the owner.
+**Licence.** Apache-2.0 — the `LICENSE` file beside this README, the header every file carries,
+and the classifier in `pyproject.toml` ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)
+§6, deciding [ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)). The package name
+on PyPI and an extraction into a repository of its own stay open.

@@ -118,7 +118,7 @@ jobs:
 
       - name: The third-party licences of this release
         # Regenerated rather than taken from the repository: what ships has to be the list of what
-        # this build actually links (ADR-0013, licensing-editions.md §3).
+        # this build actually links (ADR-0013, licensing-editions.md §9).
         run: make licenses
 
       - name: Package the Helm chart

@@ -1,6 +1,6 @@
 # ADR-0057 — The SDKs: which packages, under which licence, extracted or not
 
-**Status:** proposed · **Date:** 2026-09-16
+**Status:** accepted · **Date:** 2026-09-16 · **Decided:** 2026-09-17, the licence part; the names and the extraction stay open
 
 ## Context
 
@@ -114,6 +114,35 @@ dependency: `fetch` and `urllib`. The TypeScript client is typed against the `op
 takes a body as a `TypedDict` from `types.py` and answers `dict`s; the query and the headers are
 keyword arguments. Both are driven against the in-process server — the TypeScript one by the
 package's own test, the Python one by `test/contract` through whatever `python3` the runner has.
+
+## Decision — 2026-09-17, the licence part accepted by the owner
+
+**A, for the licence; the rest stays open.** Decided in
+[ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) §6, with the scope drawn a little
+wider than the proposal above: Apache-2.0 for `sdk/go/`, `sdk/python/`, the generated TypeScript
+client and its example in `packages/api-client`, the contract `api/openapi.yaml` (and the
+`api/openapi.json` generated from it), the event schemas under `api/events/`, and the n8n
+community node package of [ADR-0058](./ADR-0058-connector-packages.md). Not for the first-party
+types the project's own apps compile against; the file boundary inside `packages/api-client` is
+ADR-0059 Appendix B. The Zapier app is not named and stays under the repository licence.
+
+Two details differ from the consequences written above. The sentence excluding the Apache-2.0
+files went into the *Licensed Work* parameter of `LICENSE` rather than into the Additional Use
+Grant — the grant says what may be done with the Licensed Work, and the parameter says what the
+Licensed Work is, which is where an exclusion belongs. And the Change Date is three years, not
+four: the context above misread `licensing-editions.md`, and the number was never four anywhere
+else.
+
+**Still open, and deliberately:** the package names (an npm scope, a PyPI project) and whether
+any SDK is extracted into a repository of its own. Nothing is created for either; B remains the
+fallback it was.
+
+Later the same day the owner closed the one boundary this left ragged: the TypeScript client
+moved out of `packages/api-client` into `sdk/typescript/`, a workspace member that generates its
+own types from the document and depends on no first-party package — the regeneration the
+consequence above described for an extraction, done in place — and the Zapier app joined the n8n
+node under Apache-2.0 (ADR-0059, amendment of 2026-09-17). Every SDK now sits under `sdk/`, as
+option A first imagined.
 
 ## Notes
 

@@ -3,7 +3,7 @@
 # The named schemas of the Hubtask API as TypedDicts (P-03). A field the contract does not
 # require is NotRequired; a schema that is not an object is an alias.
 #
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, Required, TypedDict

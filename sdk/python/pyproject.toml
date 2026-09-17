@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 Jérôme Bastian Winkel
 #
-# The Python SDK's package manifest (P-03). Not published by the milestone: the name, the licence
-# classifier and the version are what ADR-0057 puts to the owner, and the version follows the
-# product's (ADR-0035) when it is.
+# The Python SDK's package manifest (P-03). Not published by the milestone: the licence is
+# Apache-2.0 (ADR-0059 §6, deciding ADR-0057), the name stays what ADR-0057 leaves open, and the
+# version follows the product's (ADR-0035) when it is published.
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
@@ -14,9 +14,10 @@ version = "0.1.0"
 description = "The Python client for the Hubtask API, generated from the OpenAPI contract"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 dependencies = []
 classifiers = [
+  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Typing :: Typed",

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The TypeScript client's example: list the collections of a hub, create an entry in the first
@@ -6,7 +6,7 @@
 // `node` alone (Node 24 strips the types):
 //
 //   HUBTASK_URL=https://hubtask.example/api/v1 HUBTASK_TOKEN=hbt_pat_… HUBTASK_HUB=<hub-id> \
-//     node packages/api-client/examples/quickstart.mjs
+//     node sdk/typescript/examples/quickstart.mjs
 
 import { HubtaskClient, ProblemError } from '../src/client.gen.ts';
 

@@ -26,7 +26,10 @@ skips politely on a fork or an installation where the deploy variables are not c
 * **No claim about the licence that `LICENSE` does not make.** BSL 1.1 with a Change Date to
   Apache-2.0 after three years is "source available", not "open source", and
   [ADR-0013](../../docs/adr/ADR-0013-licensing.md) is explicit about that. Saying otherwise on the
-  website is a legal problem, not a wording preference.
+  website is a legal problem, not a wording preference. The same rule the other way round: no
+  statement that anybody has to pay today, no price, and no support period, deadline or
+  maintenance commitment before Licensing Start
+  ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)).
 
 ## How to check a change
 

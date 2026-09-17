@@ -5,7 +5,7 @@
 // typed against the `operations` types in dist/schema.d.ts, over the platform's `fetch` and
 // nothing else.
 //
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 
 import type { components, operations } from '../dist/schema.js';
 

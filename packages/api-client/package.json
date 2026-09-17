@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "TypeScript types generated from api/openapi.yaml. Generated output only - never hand-edited.",
+  "description": "TypeScript types generated from api/openapi.yaml. Generated output only - never hand-edited; the client is sdk/typescript.",
   "license": "BUSL-1.1",
   "exports": {
     ".": "./src/index.ts",
@@ -20,7 +20,7 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node scripts/check-generated.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-generated.js && node --test scripts/*.test.js"
+    "test": "node scripts/check-generated.js"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",

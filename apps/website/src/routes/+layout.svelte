@@ -127,9 +127,9 @@
 
     <div class="colophon-note">
       <p>
-        © 2026 Jérôme Bastian Winkel · Business Source License 1.1, converting to Apache-2.0 three
-        years after each version is published. Source available, not open source — and the
-        difference is stated rather than blurred.
+        © 2026 Jérôme Bastian Winkel · Business Source License 1.1 per version, converting to
+        Apache-2.0 three years after each version is published. Source available, not open source —
+        and the difference is stated rather than blurred. Provided as is until Licensing Start.
       </p>
       <nav aria-label="Contact">
         <a href="mailto:info@hubtask.eu">info@hubtask.eu</a>

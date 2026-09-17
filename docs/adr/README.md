@@ -19,7 +19,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0010](./ADR-0010-multi-tenancy.md) | Multi-tenancy through a shared schema and RLS | accepted | Security, scaling |
 | [0011](./ADR-0011-i18n-message-codes.md) | i18n through message codes rather than server text | accepted | i18n |
 | [0012](./ADR-0012-ai-first-mcp.md) | AI first through an MCP server and an AI port | accepted | AI |
-| [0013](./ADR-0013-licensing.md) | The BSL 1.1 licence model with a conversion to Apache-2.0 | accepted | Legal, product |
+| [0013](./ADR-0013-licensing.md) | The BSL 1.1 licence model with a conversion to Apache-2.0 | superseded | Legal, product |
 | [0014](./ADR-0014-single-image-multi-role.md) | One container image, several roles | accepted | Deployment |
 | [0015](./ADR-0015-security-baseline.md) | Security as an enforced baseline with CI gates | accepted | Security, process |
 | [0016](./ADR-0016-observability-reliability.md) | Self-diagnosis, controlled degradation, SLOs | accepted | Operations, reliability |
@@ -63,5 +63,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0054](./ADR-0054-embedding-width.md) | An embedding narrower than the index is padded, and a wider one is refused | accepted | AI, search, persistence |
 | [0055](./ADR-0055-translation-process.md) | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted | i18n, process, operations |
 | [0056](./ADR-0056-golang-x-text-and-idna.md) | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted | i18n, supply chain, ports |
-| [0057](./ADR-0057-sdk-licence-and-extraction.md) | The SDKs: which packages, under which licence, extracted or not | proposed | licensing, ecosystem, sdk |
+| [0057](./ADR-0057-sdk-licence-and-extraction.md) | The SDKs: which packages, under which licence, extracted or not | accepted | licensing, ecosystem, sdk |
 | [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | accepted | ecosystem, supply chain, automation |
+| [0059](./ADR-0059-licensing-phases-and-licensing-start.md) | Licensing phases and Licensing Start | proposed | Legal, product, process |

@@ -163,27 +163,30 @@ justify keeping.
 **The licence is decided; the money is not.** These are two different sentences and the website must
 not blur them.
 
-*Decided, and therefore stated plainly:* Business Source License 1.1, with free use — including
-production self-hosting with the full feature set — for private and household purposes, non-profits,
-teaching and non-commercial research, and for evaluation and development by anyone. Each released
-version converts to Apache-2.0 three years after it is published, per version and irrevocably. That
-is [ADR-0013](../adr/ADR-0013-licensing.md), it is the text in [`LICENSE`](../../LICENSE), and it is
-the single most persuasive thing on the site for audience 1 — because it is the answer to "what if
-this project is abandoned or sold".
+*Decided, and therefore stated plainly:* Business Source License 1.1, per version. Until
+Licensing Start any use is free — including commercial production use by companies and freelancers,
+with the full feature set — and the one thing reserved is offering Hubtask itself to third parties
+as a service. Each released version converts to Apache-2.0 three years after it is published, per
+version and irrevocably, and keeps the grant it went out with. That is
+[ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md), it is the text in
+[`LICENSE`](../../LICENSE), and it is the single most persuasive thing on the site for audience 1 —
+because it is the answer to "what if this project is abandoned or sold".
 
-*Not decided, and therefore said as not decided:* what a commercial licence costs, how it is
-metered, and exactly where the commercial boundary falls.
-[`licensing-editions.md`](../architecture/licensing-editions.md) §2 already records that the
-freelancer line "is the line most likely to be revisited", and the owner's position in September 2026
-is that the monetisation model waits on a final market analysis before `1.0.0`.
+*Intended, and therefore said as intended:* the grant from Licensing Start (organisations under five
+persons stay free; larger ones in production need a licence for versions published after that day)
+and the model — a one-time licence per major, an optional support contract, an annual provider
+licence, the fairness rules. *Not decided, and therefore not said:* a price, or a date.
+[`licensing-editions.md`](../architecture/licensing-editions.md) §4 and §5 carry the draft.
 
 **How to present that — the recommendation.** Not as a gap, and not as a coming-soon banner. As a
-commitment with a date:
+position, honestly bounded:
 
-> *What a commercial licence costs is not decided yet. It is being worked out before 1.0, and it
-> will be published here before anyone is asked to pay for anything. What is already decided, and
-> cannot be taken back, is the part that protects you: every version is free for private use, and
-> every version becomes Apache-2.0 three years after its release.*
+> *Until Licensing Start, everything is free — commercial use included — and every version you
+> install keeps those terms. Licensing Start is a date we announce at least sixty days ahead; from
+> the first release after it, organisations of five persons or more need a licence. No price
+> exists yet, and none is asked. Until that day the project is provided as is: no support period
+> and no promise about maintenance — what is promised is written into each version's licence and
+> needs nobody to keep it.*
 
 Three reasons this is the right presentation rather than silence. A buyer in audience 2 who cannot
 find a price assumes the worst and leaves; a buyer who is told the price is unsettled *and* told the
@@ -194,8 +197,9 @@ BSL relicensing.
 
 **What the site must never say**: "open source" (it is source available, and
 [`apps/website/CLAUDE.md`](../../apps/website/CLAUDE.md) already makes that a build-level rule), any
-price, any date for a price, or that free private use is permanent without the condition
-[`licensing-editions.md`](../architecture/licensing-editions.md) §5 attaches to it.
+price, any date for a price, that anybody has to pay today, or anything that reads as a support
+period, a deadline or a maintenance commitment before Licensing Start
+([`licensing-editions.md`](../architecture/licensing-editions.md) §6).
 
 ---
 

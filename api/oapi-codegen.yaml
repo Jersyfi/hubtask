@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
 # Generation of the REST server from openapi.yaml (ADR-0004).
 #
 # The specification is the source, this file only says what is made of it. Paths are relative to

@@ -4,7 +4,7 @@
 # specification is the source and this is the result (ADR-0004). One method per operation, over
 # urllib and nothing else.
 #
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
 import json

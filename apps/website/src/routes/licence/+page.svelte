@@ -9,18 +9,19 @@
   <title>Licence and editions — Hubtask</title>
   <meta
     name="description"
-    content="Business Source License 1.1: free for private use, non-profits, teaching and evaluation; a paid licence for commercial operation. Every version becomes Apache-2.0 three years after it is published. Source available, not open source."
+    content="Business Source License 1.1, per version: until Licensing Start any use is free, commercial use included, with one exception; every version becomes Apache-2.0 three years after it is published. Source available, not open source."
   />
 </svelte:head>
 
 <section class="hero hero-sub">
   <div class="wrap">
     <p class="kicker">Licence</p>
-    <h1>Free for you. Paid if you sell it.</h1>
+    <h1>Free for everyone, until further notice — given in advance.</h1>
     <p class="lede">
-      Hubtask is <strong>source available</strong> under the Business Source License 1.1 — and every
-      version becomes Apache-2.0 three years after it is published, per version, irrevocably. This
-      page says exactly who pays, who does not, and which part of this is not settled yet.
+      Hubtask is <strong>source available</strong> under the Business Source License 1.1, licensed
+      separately for each version — and every version becomes Apache-2.0 three years after it is
+      published, irrevocably. This page says who pays today (nobody), what is reserved, what the
+      owner intends to charge for one day, and what is deliberately not promised.
     </p>
   </div>
 </section>
@@ -32,14 +33,15 @@
       <h2>This is not open source, and we do not call it that</h2>
     </div>
     <p class="narrow">
-      “Open source” has a definition, and BSL 1.1 does not meet it: it reserves commercial
-      production use. Calling it open source anyway would be a legal problem rather than a wording
-      preference, so the project does not do it — the build for this website will fail on a page
-      that tries.
+      “Open source” has a definition, and BSL 1.1 does not meet it: it lets the licensor reserve a
+      use. Calling it open source anyway would be a legal problem rather than a wording preference,
+      so the project does not do it.
     </p>
     <p class="narrow">
       What you do get is the whole source, a readable history, the right to run it, read it, change
       it, and contribute to it — and a dated, automatic conversion to a genuine open source licence.
+      The SDKs, the API contract and the n8n and Zapier connectors are Apache-2.0 outright, so a
+      product of yours may build on them today.
     </p>
     <Proof href="{repo}/LICENSE" label="LICENSE · the text, with the parameters filled in" />
   </div>
@@ -48,39 +50,94 @@
 <section class="section">
   <div class="wrap">
     <div class="section-head">
-      <p class="kicker">Who pays</p>
-      <h2>The line, drawn where you can check it</h2>
+      <p class="kicker">Who pays today</p>
+      <h2>Nobody — with one thing reserved</h2>
     </div>
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th scope="col">If you are…</th><th scope="col">Paid licence?</th></tr>
+          <tr><th scope="col">If you are…</th><th scope="col">Licence needed?</th></tr>
         </thead>
         <tbody>
           <tr><th scope="row">A private person, for yourself or your household</th><td><span class="yes">No</span></td></tr>
-          <tr><th scope="row">A registered non-profit, for its charitable purposes</th><td><span class="yes">No</span></td></tr>
-          <tr><th scope="row">A school or university, for teaching</th><td><span class="yes">No</span></td></tr>
-          <tr><th scope="row">Anyone, for non-commercial research</th><td><span class="yes">No</span></td></tr>
-          <tr><th scope="row">A company evaluating, testing or developing against it</th><td><span class="yes">No</span></td></tr>
-          <tr><th scope="row">A company running it for its own operations or its customers</th><td><span class="part">Yes</span></td></tr>
-          <tr><th scope="row">Anyone offering it, or a service built on it, to third parties for a fee</th><td><span class="part">Yes</span></td></tr>
-          <tr><th scope="row">A freelancer or sole trader, in their professional practice</th><td><span class="part">Yes</span></td></tr>
+          <tr><th scope="row">A non-profit, a school, a university, a public body</th><td><span class="yes">No</span></td></tr>
+          <tr><th scope="row">A company evaluating, developing against, or contributing to it</th><td><span class="yes">No</span></td></tr>
+          <tr><th scope="row">A company running it for its own operations, or for its own clients</th><td><span class="yes">No</span></td></tr>
+          <tr><th scope="row">A freelancer or sole trader, in your professional practice</th><td><span class="yes">No</span></td></tr>
+          <tr><th scope="row">Anyone offering Hubtask itself, or a service built on it, to third parties for a fee</th><td><span class="part">Reserved</span></td></tr>
         </tbody>
       </table>
     </div>
     <p class="narrow section-gap">
-      The last line is the debatable one, and it was drawn deliberately rather than by accident: the
-      model is free for private persons and paid for commercial activity, and a sole trader’s
-      practice is commercial activity. It is also the line most likely to move.
+      The last line is the provider case: hosting, managing, embedding or white-labelling Hubtask
+      as the thing you sell. It is reserved, and until Licensing Start there is no licence to buy
+      for it — so it is a case to <a href="mailto:licensing@hubtask.eu">write to us</a> about, not
+      one to guess at. Using Hubtask to do your own work for your own clients — an agency running
+      its projects in it, a consultancy inviting its clients in as users — is not that case, and the
+      licence says so in its own words.
     </p>
     <div class="callout">
       <p>
-        <strong>No-cost commercial licences exist.</strong> They are granted on request to
-        non-profits, educational institutions and public bodies whose use falls outside the grant
-        above, and case by case to small projects where charging would be absurd. That is policy
-        rather than licence text, which means it can be widened without amending anything.
-        <a href="mailto:info@hubtask.eu">Ask about one</a>.
+        <strong>A version keeps its terms.</strong> Every version published before Licensing Start
+        stays under these terms until its own Change Date, whatever later versions say. The version
+        you install today is yours to run, commercially, for as long as it exists — and three years
+        after its release it is Apache-2.0.
       </p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Licensing Start</p>
+      <h2>What changes on a day named at least 60 days ahead</h2>
+    </div>
+    <div class="two-up">
+      <div>
+        <p>
+          <strong>Licensing Start</strong> is a date the owner announces — here, in the release
+          notes and in the repository — at least sixty days in advance. It is not tied to a version
+          number. From the first release published after it, the use grant changes to the one
+          drafted on the right; nothing changes for any version already published.
+        </p>
+        <p>
+          <strong>Until then, nothing is promised.</strong> Hubtask is provided as is: no support
+          period, no service levels, no response deadlines, no roadmap commitment, and the project
+          may be archived at any time. Security fixes are best effort. What is promised is written
+          into each version's licence and needs nobody to keep it: the Change Date, and that a
+          published version is never tightened.
+        </p>
+        <p>
+          <strong>What is intended, not promised, from that day:</strong> a one-time licence per
+          major version, priced by organisation size, covering every release of that major with
+          security updates, and never a lock-out — a licence key restricts nothing. An optional
+          annual support contract. An annual licence for providers. A paid major at most every two
+          years, a free upgrade for anyone who bought in the year before it, and half price for
+          everyone else. No price is published anywhere before that day.
+        </p>
+      </div>
+      <div>
+        <h4>The draft grant from Licensing Start</h4>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">Free of charge</th><th scope="col">Licence required</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Private and household use</td><td>Every other organisation in production use</td></tr>
+              <tr><td>Non-profits and public-benefit organisations</td><td>Providers — hosting, managing, embedding or white-labelling Hubtask — whatever their size</td></tr>
+              <tr><td>Teaching and non-commercial research</td><td></td></tr>
+              <tr><td>Evaluation, development and contribution, by anyone</td><td></td></tr>
+              <tr><td>Organisations with fewer than five persons, professional use included</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          A draft, requiring legal review, effective for no version published before that day.
+        </p>
+        <Proof href="https://github.com/Jersyfi/hubtask/blob/main/docs/adr/ADR-0059-licensing-phases-and-licensing-start.md" label="ADR-0059 · the phases, the grants and the intended model" />
+      </div>
     </div>
   </div>
 </section>
@@ -100,14 +157,16 @@
         </p>
         <p>
           That is the answer to the two questions everybody sensible asks about a source-available
-          project: what if it is abandoned, and what if the terms are quietly worsened later. The
-          version you are running today already has its conversion date, and nothing anyone does
-          later can take it away.
+          project: what if it is abandoned, and what if the terms are quietly worsened later. If the
+          project is archived, the code stays public and every version converts on its date — the
+          licensor may bring that forward, and cannot push it back. The version you are running
+          today already has its conversion date, and nothing anyone does later can take it away.
         </p>
         <p>
           It is also worth being straight about the history of this licence class: the projects
           damaged by BSL are the ones that <em>changed to</em> it after building a community under
-          something permissive. This one starts here, in public, on day one.
+          something permissive. This one starts here, in public, on day one — and the one change it
+          has made so far loosened the terms rather than tightened them.
         </p>
       </div>
       <div>
@@ -117,41 +176,15 @@
             <tbody>
               <tr><th scope="row">Licence</th><td>Business Source License 1.1</td></tr>
               <tr><th scope="row">Licensor</th><td>Jérôme Bastian Winkel</td></tr>
-              <tr><th scope="row">Licensed work</th><td>Hubtask, all versions</td></tr>
+              <tr><th scope="row">Licensed work</th><td>Hubtask, in the version the licence file is distributed with</td></tr>
               <tr><th scope="row">Change date</th><td>Three years after a version is first publicly distributed</td></tr>
               <tr><th scope="row">Change licence</th><td>Apache-2.0</td></tr>
-              <tr><th scope="row">Use grant</th><td>Free for any non-commercial purpose, including production self-hosting with the full feature set</td></tr>
+              <tr><th scope="row">Use grant</th><td>Any use, commercial production use included, except offering Hubtask itself to third parties</td></tr>
             </tbody>
           </table>
         </div>
         <Proof href="https://github.com/Jersyfi/hubtask/blob/main/docs/adr/ADR-0013-licensing.md" label="ADR-0013 · why this and not MIT or AGPL" />
       </div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="wrap">
-    <div class="section-head">
-      <p class="kicker">Honestly</p>
-      <h2>What a commercial licence costs is not decided yet</h2>
-    </div>
-    <div class="callout">
-      <p>
-        We would rather leave this blank than guess at it. The pricing and the metering for
-        commercial use are still being worked out — a final market analysis comes first — and where
-        exactly the commercial boundary falls may still move with it.
-      </p>
-      <p>
-        <strong>Two commitments in the meantime.</strong> It will be published on this page before
-        anybody is asked to pay for anything. And it will not touch the part that is already
-        settled and cannot be taken back: private use is free, the full feature set is in every
-        installation, and every version converts to Apache-2.0 on its own schedule.
-      </p>
-      <p>
-        Running it commercially now, and want to talk before there is a price list?
-        <a href="mailto:info@hubtask.eu">Write to us</a> — that conversation is useful to both of us.
-      </p>
     </div>
   </div>
 </section>
@@ -166,16 +199,16 @@
       <div class="site-card">
         <h3>Community</h3>
         <p>
-          Private individuals, non-profits, evaluation, development. Every feature active, no
-          licence key, no telemetry, no limits that are not operational.
+          Everyone the use grant covers — until Licensing Start, everyone but a provider. Every
+          feature active, no licence key, no telemetry, no limits that are not operational.
         </p>
       </div>
       <div class="site-card">
         <h3>Commercial</h3>
         <p>
-          Companies and service providers. The same image, plus a licence key as legal evidence and
-          optional add-ons — support with a service level, managed instances, advanced sign-in,
-          extended retention.
+          From Licensing Start: organisations the grant does not cover, and providers. The same
+          image, plus a licence key as legal evidence and optional add-ons — support with a service
+          level, managed instances, advanced sign-in, extended retention.
         </p>
       </div>
       <div class="site-card">
@@ -221,7 +254,8 @@
         <p>
           Contributions are welcome and go through a contributor licence agreement, signed once on
           your first pull request. It is what keeps the promised conversion to Apache-2.0 possible —
-          a relicensing needs the rights to relicense.
+          a relicensing needs the rights to relicense — and it binds the licensor in return: your
+          work is never placed under stricter terms than it was published with.
         </p>
         <Proof href="{repo}/CONTRIBUTING.md" label="CONTRIBUTING.md" />
       </div>

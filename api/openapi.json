@@ -6,7 +6,8 @@
     "summary": "Task management with Hub / Collection / Task / Work Package / Activity",
     "description": "The skeleton of the API contract (API first). This file is the single source of truth:\nserver interfaces and client SDKs are generated from it (`make generate`).\n\nFor the conventions see docs/architecture/api-guidelines.md:\n  * one major path `/api/v1`, additive changes without a version bump\n  * errors per RFC 9457 with a stable `code`\n  * cursor pagination, `Idempotency-Key`, `ETag`/`If-Match`\n  * actions as a suffix (`POST /items/{id}:complete`)\n  * no display text, only codes and parameters\n\nNot yet elaborated (deliberately open, to be added in phase 0/1): templates, views, jumble,\nreminders, recurrence, automation, webhooks, media, search, SSE. admin/tenants left the list\nwith H-06: the control plane is part of the contract like everything else.\n",
     "license": {
-      "name": "BUSL-1.1"
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
     }
   },
   "servers": [

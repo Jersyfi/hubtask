@@ -1,0 +1,28 @@
+{
+  "name": "@hubtask/sdk-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The TypeScript client for the Hubtask API, generated from api/openapi.yaml (P-03, ADR-0059). Apache-2.0; the npm name is not decided.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/client.gen.ts",
+    "./schema": "./dist/schema.d.ts"
+  },
+  "files": [
+    "dist",
+    "src",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/generate.js",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node scripts/check-generated.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/check-generated.js && node --test scripts/*.test.js"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -29,6 +29,7 @@ idempotency and `If-Match` editors, and `Check`. Everything else is regenerated 
 on every `make generate`, and `test/contract` drives the client against the in-process server so
 that the two halves cannot drift apart.
 
-**Licence.** The package is under the repository's licence (BSL 1.1) until
-[ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md) is accepted, which puts the
-SDKs' own licence and their extraction to the owner.
+**Licence.** Apache-2.0 — the `LICENSE` file beside this README, and the header every file
+carries ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) §6, deciding
+[ADR-0057](../../docs/adr/ADR-0057-sdk-licence-and-extraction.md)). A module path of its own and
+an extraction into a repository of its own stay open.
