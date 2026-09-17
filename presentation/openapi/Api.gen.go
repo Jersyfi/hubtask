@@ -3391,11 +3391,16 @@ type AccessTokenSecret struct {
 
 // Account defines model for Account.
 type Account struct {
-	DisplayName string               `json:"display_name"`
-	Email       *openapi_types.Email `json:"email,omitempty"`
-	Id          openapi_types.UUID   `json:"id"`
-	Kind        AccountKind          `json:"kind"`
-	Locale      *string              `json:"locale,omitempty"`
+	// Celebrations Whether the moments are marked for this person (design-system.md §7). Absent or null means the default, which is on.
+	Celebrations *bool                `json:"celebrations,omitempty"`
+	DisplayName  string               `json:"display_name"`
+	Email        *openapi_types.Email `json:"email,omitempty"`
+	Id           openapi_types.UUID   `json:"id"`
+	Kind         AccountKind          `json:"kind"`
+	Locale       *string              `json:"locale,omitempty"`
+
+	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
+	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
@@ -3427,11 +3432,18 @@ type AccountInvite struct {
 }
 
 // AccountPreferences Every field is optional, and an empty string clears the preference rather than setting it
-// to nothing — the workspace default applies again.
+// to nothing — the workspace default applies again. The two the client writes for itself
+// (F6-12, decision 11) clear the same way, with `null`: `celebrations` back to the default,
+// which is on; `onboarding_completed_at` back to "not taken", which runs the tour again.
 type AccountPreferences struct {
-	Locale    *string                      `json:"locale,omitempty"`
-	TimeZone  *string                      `json:"time_zone,omitempty"`
-	WeekStart *AccountPreferencesWeekStart `json:"week_start,omitempty"`
+	// Celebrations Whether the moments are marked. `null` clears it; the default is on.
+	Celebrations *bool   `json:"celebrations,omitempty"`
+	Locale       *string `json:"locale,omitempty"`
+
+	// OnboardingCompletedAt When the tour ended or was skipped, written by the client. `null` clears it, which is how the tour is asked for again.
+	OnboardingCompletedAt *time.Time                   `json:"onboarding_completed_at,omitempty"`
+	TimeZone              *string                      `json:"time_zone,omitempty"`
+	WeekStart             *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.

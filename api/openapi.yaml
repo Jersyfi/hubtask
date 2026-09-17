@@ -7189,6 +7189,17 @@ components:
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+        celebrations:
+          type: [boolean, "null"]
+          description: >
+            Whether the moments are marked for this person (design-system.md §7). Absent or null
+            means the default, which is on.
+        onboarding_completed_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the person finished or skipped the first-run tour. Absent or null means the tour
+            has not been taken - or was asked for again.
 
     Actor:
       type: object
@@ -7241,11 +7252,22 @@ components:
       type: object
       description: |
         Every field is optional, and an empty string clears the preference rather than setting it
-        to nothing — the workspace default applies again.
+        to nothing — the workspace default applies again. The two the client writes for itself
+        (F6-12, decision 11) clear the same way, with `null`: `celebrations` back to the default,
+        which is on; `onboarding_completed_at` back to "not taken", which runs the tour again.
       properties:
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+        celebrations:
+          type: [boolean, "null"]
+          description: Whether the moments are marked. `null` clears it; the default is on.
+        onboarding_completed_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the tour ended or was skipped, written by the client. `null` clears it, which
+            is how the tour is asked for again.
 
     NotificationPreference:
       type: object

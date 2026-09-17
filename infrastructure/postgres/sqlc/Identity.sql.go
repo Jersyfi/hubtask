@@ -64,21 +64,24 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 }
 
 const accountsOfKind = `-- name: AccountsOfKind :many
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE kind = $1 AND deleted_at IS NULL
 ORDER BY id DESC
 `
 
 type AccountsOfKindRow struct {
-	ID          pgtype.UUID
-	Kind        AccountKind
-	Email       *string
-	DisplayName string
-	Status      AccountStatus
-	Locale      *string
-	TimeZone    *string
-	WeekStart   *string
+	ID                    pgtype.UUID
+	Kind                  AccountKind
+	Email                 *string
+	DisplayName           string
+	Status                AccountStatus
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
 }
 
 // The workspace's service accounts, newest first by identifier - UUIDv7 is time-ordered, so the
@@ -104,6 +107,8 @@ func (q *Queries) AccountsOfKind(ctx context.Context, kind AccountKind) ([]Accou
 			&i.Locale,
 			&i.TimeZone,
 			&i.WeekStart,
+			&i.Celebrations,
+			&i.OnboardingCompletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -313,20 +318,23 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 
 const findAccount = `-- name: FindAccount :one
 
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
 
 type FindAccountRow struct {
-	ID          pgtype.UUID
-	Kind        AccountKind
-	Email       *string
-	DisplayName string
-	Status      AccountStatus
-	Locale      *string
-	TimeZone    *string
-	WeekStart   *string
+	ID                    pgtype.UUID
+	Kind                  AccountKind
+	Email                 *string
+	DisplayName           string
+	Status                AccountStatus
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
 }
 
 // ============================== Accounts ==============================
@@ -345,25 +353,30 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.Locale,
 		&i.TimeZone,
 		&i.WeekStart,
+		&i.Celebrations,
+		&i.OnboardingCompletedAt,
 	)
 	return i, err
 }
 
 const findAccountByEmail = `-- name: FindAccountByEmail :one
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower($1) AND deleted_at IS NULL
 `
 
 type FindAccountByEmailRow struct {
-	ID          pgtype.UUID
-	Kind        AccountKind
-	Email       *string
-	DisplayName string
-	Status      AccountStatus
-	Locale      *string
-	TimeZone    *string
-	WeekStart   *string
+	ID                    pgtype.UUID
+	Kind                  AccountKind
+	Email                 *string
+	DisplayName           string
+	Status                AccountStatus
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
 }
 
 // Compared lower case, the way the uniqueness index does - two spellings of one address are two
@@ -380,6 +393,8 @@ func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAcc
 		&i.Locale,
 		&i.TimeZone,
 		&i.WeekStart,
+		&i.Celebrations,
+		&i.OnboardingCompletedAt,
 	)
 	return i, err
 }
@@ -960,25 +975,31 @@ UPDATE account SET
   locale     = $1,
   time_zone  = $2,
   week_start = $3,
-  updated_at = $4
-WHERE id = $5 AND deleted_at IS NULL
+  celebrations = $4,
+  onboarding_completed_at = $5,
+  updated_at = $6
+WHERE id = $7 AND deleted_at IS NULL
 `
 
 type UpdateAccountPreferencesParams struct {
-	Locale    *string
-	TimeZone  *string
-	WeekStart *string
-	UpdatedAt pgtype.Timestamptz
-	ID        pgtype.UUID
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	ID                    pgtype.UUID
 }
 
-// Three columns and no others. An update that could write any column is one that can write the
-// status by accident, and the status is what decides whether an account may act at all.
+// The preference columns and no others. An update that could write any column is one that can
+// write the status by accident, and the status is what decides whether an account may act at all.
 func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccountPreferencesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateAccountPreferences,
 		arg.Locale,
 		arg.TimeZone,
 		arg.WeekStart,
+		arg.Celebrations,
+		arg.OnboardingCompletedAt,
 		arg.UpdatedAt,
 		arg.ID,
 	)
