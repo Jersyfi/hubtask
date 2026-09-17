@@ -1115,7 +1115,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -1156,6 +1157,7 @@ type SnapshotWorkItemsRow struct {
 	CoverMediaID          pgtype.UUID
 	CustomFields          []byte
 	ContentLanguage       *string
+	CalendarUid           *string
 	RecurrenceRuleID      pgtype.UUID
 	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
@@ -1206,6 +1208,7 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 			&i.CoverMediaID,
 			&i.CustomFields,
 			&i.ContentLanguage,
+			&i.CalendarUid,
 			&i.RecurrenceRuleID,
 			&i.RecurrenceSourceID,
 			&i.OriginJumbleID,

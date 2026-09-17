@@ -7054,6 +7054,11 @@ type WorkItem struct {
 	AutoAssign *AutoAssignOutcome  `json:"auto_assign,omitempty"`
 	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
 
+	// CalendarUid The UID a calendar client knows this entry by, and null for an entry no calendar client made. A todo made in Reminders, Thunderbird or any CalDAV client arrives as a PUT to an address the client chose, carrying the UID it keys the todo by from then on; the server mints the entry's identifier as it does for every creation and keeps the client's UID beside it, so the calendar tree answers the entry at `{calendar_uid}.ics` and renders that UID back unchanged.
+	//
+	// Set once, at creation, and never edited: a UID that moved would be a todo the client cannot find again. Unique within the workspace. Server-owned for offline merging - it reaches a device inside the entry's UPSERT, and a patch naming it is refused.
+	CalendarUid *string `json:"calendar_uid,omitempty"`
+
 	// Children Only with expand=children:N
 	Children     *[]WorkItem        `json:"children,omitempty"`
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -7111,6 +7116,9 @@ type WorkItemCreate struct {
 	AutoAssign   *bool               `json:"auto_assign,omitempty"`
 	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
 	BucketId     *openapi_types.UUID `json:"bucket_id,omitempty"`
+
+	// CalendarUid The UID a calendar client chose for the entry it is making - what the CalDAV tree sends when a client PUTs a new todo, and what any client may send that will later address the entry through the tree. Up to 255 characters of a URL path segment (RFC 3986's pchar without percent-encoding); anything else is refused by name (`items.calendar_uid_invalid`). Taken in this workspace already: `409` with `items.calendar_uid_taken`. Leave it out for an entry no calendar client made.
+	CalendarUid  *string             `json:"calendar_uid,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
 	// ContentLanguage BCP-47. The language the title and the notes are written in, which decides the text search configuration this entry is indexed under (i18n-l10n.md §5, ADR-0034). Omitted takes the creator's locale; a language this installation cannot index is stored and indexed word by word rather than refused. `/meta/capabilities` lists the ones it can under `text_languages`.

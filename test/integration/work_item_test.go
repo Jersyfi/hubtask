@@ -397,3 +397,107 @@ func TestTitlesAreNormalisedOnTheWayIn(t *testing.T) {
 		t.Errorf("title = %q, want it normalised to %q", stored.Title, composed)
 	}
 }
+
+// The calendar UID round trip (P-07, issue #721): a client's UID is stored as it was chosen,
+// read back on the row and by itself, and a second entry under the same UID is the other taken
+// identity - a conflict, for the same reason the identifier is one.
+func TestACalendarUIDIsStoredAndLooksTheEntryUp(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	repo := itemRepo()
+
+	id := freshID(t)
+	uid := "reminders-" + freshID(t).String() + "@example.invalid"
+	task := taskIn(tenantA, authorA, collection, id, "Made in a calendar", "a0")
+	task.CalendarUID = uid
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, task)
+	}); err != nil {
+		t.Fatalf("writing the task: %v", err)
+	}
+
+	var stored, byUID work.WorkItem
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		if stored, err = repo.Find(ctx, id); err != nil {
+			return err
+		}
+		byUID, err = repo.FindByCalendarUID(ctx, uid)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the task: %v", err)
+	}
+	if stored.CalendarUID != uid {
+		t.Errorf("calendar UID = %q, want %q", stored.CalendarUID, uid)
+	}
+	if byUID.ID != id {
+		t.Errorf("the UID resolved to %s, want %s", byUID.ID, id)
+	}
+
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		second := taskIn(tenantA, authorA, collection, freshID(t), "Made again", "a1")
+		second.CalendarUID = uid
+		return repo.Insert(ctx, second)
+	})
+	if !errors.Is(err, shared.ErrConflict) {
+		t.Fatalf("the second insert under the same UID: %v, want a conflict", err)
+	}
+	if got := shared.AsError(err).DetailCode; got != "items.calendar_uid_taken" {
+		t.Errorf("detail code %q, want items.calendar_uid_taken", got)
+	}
+}
+
+// The cross-tenant negative test for FindByCalendarUID: the index is per workspace, so the same
+// UID may name an entry in each, and a lookup answers only the caller's - another workspace's
+// entry under it is absent, not found, and not a conflict either.
+func TestACalendarUIDIsResolvedPerTenant(t *testing.T) {
+	ctx := context.Background()
+	collectionA := collectionFor(ctx, t, tenantA, authorA)
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := itemRepo()
+
+	uid := "shared-" + freshID(t).String()
+	inA, inB := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		task := taskIn(tenantA, authorA, collectionA, inA, "A's", "a0")
+		task.CalendarUID = uid
+		return repo.Insert(ctx, task)
+	}); err != nil {
+		t.Fatalf("writing A's task: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		task := taskIn(tenantB, authorB, collectionB, inB, "B's", "a0")
+		task.CalendarUID = uid
+		return repo.Insert(ctx, task)
+	}); err != nil {
+		t.Fatalf("writing B's task under the same UID: %v", err)
+	}
+
+	var found work.WorkItem
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		found, err = repo.FindByCalendarUID(ctx, uid)
+		return err
+	}); err != nil {
+		t.Fatalf("B reading its own entry by UID: %v", err)
+	}
+	if found.ID != inB {
+		t.Errorf("tenant B resolved the UID to %s, want its own %s", found.ID, inB)
+	}
+
+	onlyA := "only-a-" + freshID(t).String()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		task := taskIn(tenantA, authorA, collectionA, freshID(t), "A's alone", "a1")
+		task.CalendarUID = onlyA
+		return repo.Insert(ctx, task)
+	}); err != nil {
+		t.Fatalf("writing A's second task: %v", err)
+	}
+	err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := repo.FindByCalendarUID(ctx, onlyA)
+		return err
+	})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("tenant B resolved tenant A's UID: %v", err)
+	}
+}

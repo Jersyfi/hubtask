@@ -12,6 +12,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -235,6 +236,20 @@ func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {
 		return domain.WorkItem{}, shared.ErrNotFound
 	}
 	return item, nil
+}
+
+// FindByCalendarUID answers the stored entry carrying the UID, the way the row's partial unique
+// index would.
+func (i *items) FindByCalendarUID(_ context.Context, uid string) (domain.WorkItem, error) {
+	if i.findErr != nil {
+		return domain.WorkItem{}, i.findErr
+	}
+	for _, item := range i.stored {
+		if item.CalendarUID == uid {
+			return item, nil
+		}
+	}
+	return domain.WorkItem{}, shared.ErrNotFound
 }
 
 func (i *items) List(_ context.Context, query repository.ItemQuery) (repository.ItemPage, error) {
@@ -1150,6 +1165,7 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
 		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
+		"calendar_uid",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
@@ -1244,6 +1260,42 @@ func TestAnEntryStatesNoLanguageWhenTheCreatorHasNoLocale(t *testing.T) {
 	}
 	if item.ContentLanguage != "" {
 		t.Errorf("the language is %q, want none", item.ContentLanguage)
+	}
+}
+
+// The address a calendar client chose reaches the entry through the catalogue - the tree performs
+// the create through it like every other channel - and comes back in the projection, null for an
+// entry nobody addressed (P-07, issue #721).
+func TestACalendarUIDReachesTheEntryAndItsProjection(t *testing.T) {
+	h := newItemHarness()
+	descriptor := h.handler.Descriptor()
+
+	out, err := descriptor.Handler.Invoke(context.Background(), itemActor(), usecase.Input{
+		"type": "TASK", "collection_id": collectionID.String(), "title": "Made in Reminders",
+		"calendar_uid": "6BA7B810-9DAD-11D1-80B4-00C04FD430C8",
+	})
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if got := out.String("calendar_uid"); got != "6BA7B810-9DAD-11D1-80B4-00C04FD430C8" {
+		t.Errorf("calendar_uid = %q in the projection", got)
+	}
+	created, err := shared.ParseID(out.String("id"))
+	if err != nil {
+		t.Fatalf("the projection's id: %v", err)
+	}
+	if h.items.stored[created].CalendarUID != "6BA7B810-9DAD-11D1-80B4-00C04FD430C8" {
+		t.Errorf("the stored entry carries %q", h.items.stored[created].CalendarUID)
+	}
+
+	plain, err := descriptor.Handler.Invoke(context.Background(), itemActor(), usecase.Input{
+		"type": "TASK", "collection_id": collectionID.String(), "title": "Made here",
+	})
+	if err != nil {
+		t.Fatalf("creating without one: %v", err)
+	}
+	if value, present := plain["calendar_uid"]; !present || value != nil {
+		t.Errorf("calendar_uid = %v for an entry nobody addressed, want an explicit null", value)
 	}
 }
 

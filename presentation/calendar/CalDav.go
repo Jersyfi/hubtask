@@ -86,9 +86,9 @@ type ViewSelector interface {
 	Select(ctx context.Context, actor appshared.ActorContext, viewID shared.ID) (work.ExportedView, error)
 }
 
-// ItemReader answers one entry by identifier, with the caller's permission decided inwards of
-// here: the write half's way of telling an address the calendar does not answer from an entry
-// that does not exist (issue 720).
+// ItemReader answers one entry by identifier or by the UID a calendar client chose, with the
+// caller's permission decided inwards of here: the write half's way of telling an address the
+// calendar does not answer from an entry that does not exist (issues 720, 721).
 type ItemReader interface {
 	Execute(ctx context.Context, actor appshared.ActorContext, query work.GetWorkItemQuery) (workmodel.WorkItem, error)
 }
@@ -418,8 +418,12 @@ func supportedReports() element {
 
 /* ── A calendar and its members ────────────────────────────────────────────────────────── */
 
+// member is one entry at its address. `id` is the address - the segment before `.ics` - which is
+// the UID a calendar client chose where the entry was made through one and the identifier
+// otherwise (P-07, issue #721); `itemID` is always the identifier, for the use cases.
 type member struct {
 	id      string
+	itemID  string
 	path    string
 	etag    string
 	version int
@@ -528,8 +532,9 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 func (c *Controller) memberOf(account, feed string, item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int, stamp time.Time) member {
 	todo := c.todoOf(item, zone, children)
 	m := member{
-		id:      item.ID.String(),
-		path:    memberPath(account, feed, item.ID.String()),
+		id:      addressOf(item),
+		itemID:  item.ID.String(),
+		path:    memberPath(account, feed, addressOf(item)),
 		etag:    `"` + strconv.Itoa(item.Version) + `"`,
 		version: item.Version,
 		todo:    todo,
@@ -541,12 +546,32 @@ func (c *Controller) memberOf(account, feed string, item workmodel.WorkItem, zon
 	return m
 }
 
+// addressOf is the segment an entry lives at: the UID the client that made it chose, or the
+// identifier. The two never collide in one calendar - a UID is held to what a path segment can
+// carry and is unique in the workspace, and an entry has one address or the other.
+func addressOf(item workmodel.WorkItem) string {
+	if item.CalendarUID != "" {
+		return item.CalendarUID
+	}
+	return item.ID.String()
+}
+
+// uidOf is what the rendered todo carries as its UID: the client's own where it chose one, so
+// that a client keyed by UID reads back the todo it wrote (issue #721), and the identifier with
+// the tree's suffix otherwise.
+func uidOf(item workmodel.WorkItem) string {
+	if item.CalendarUID != "" {
+		return item.CalendarUID
+	}
+	return item.ID.String() + "@hubtask"
+}
+
 // todoOf turns one entry into a todo. An entry without a due date is one the calendar does not
 // show, and the caller decides that; here it is a todo without a DUE, which is what the write
 // half diffs a client's PUT against.
 func (c *Controller) todoOf(item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int) Todo {
 	todo := Todo{
-		UID:             item.ID.String() + "@hubtask",
+		UID:             uidOf(item),
 		Summary:         item.Title,
 		URL:             c.itemURL(item.ID.String()),
 		Created:         item.CreatedAt,

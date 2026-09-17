@@ -46,6 +46,8 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		// Empty is not a value here but the absence of one: the use case then takes the creator's
 		// locale, which is what an unstated content language falls back to (C-08).
 		"content_language": optionalStringField(body.ContentLanguage),
+		// The address a calendar client chose, where the caller is one (P-07, issue #721).
+		"calendar_uid": optionalStringField(body.CalendarUid),
 	}
 	// The two assignment fields the create path serves since C-02: a named person, or the
 	// collection's policy asked for explicitly. Both optional, and the catalogue refuses the
@@ -304,6 +306,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	}
 	if language := out.String("content_language"); language != "" {
 		item.ContentLanguage = &language
+	}
+	if uid := out.String("calendar_uid"); uid != "" {
+		item.CalendarUid = &uid
 	}
 	if parent := out.String("parent_id"); parent != "" {
 		parentID := uuidValue(parent)

@@ -595,6 +595,7 @@ CREATE TABLE work_item (
   recurrence_source_id uuid,
   origin_jumble_id   uuid,
   content_language   text,
+  calendar_uid       text,
   search_vector      tsvector GENERATED ALWAYS AS
                        (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(notes, ''))) STORED,
   -- The language-dependent document the search reads, maintained by the trigger below and dropping
@@ -640,6 +641,8 @@ CREATE TABLE work_item (
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
+CREATE UNIQUE INDEX wi_calendar_uid_uq ON work_item (tenant_id, calendar_uid)
+  WHERE calendar_uid IS NOT NULL;
 ALTER TABLE work_item ADD CONSTRAINT work_item_parent_id_fkey
     FOREIGN KEY (tenant_id, parent_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, order_key)

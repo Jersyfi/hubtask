@@ -90,6 +90,10 @@ type CreateWorkItemCommand struct {
 	// StartAt is when the work begins, nil for no start - the create's own field, a plain
 	// attribute beside the notes (D-01).
 	StartAt *time.Time
+	// CalendarUID is the UID a calendar client chose for the entry it is making, and empty for
+	// every other creation (P-07, issue #721). The tree answers the entry at that address from
+	// then on; nothing else reads it, and nothing ever changes it.
+	CalendarUID string
 	// Due creates the entry already carrying a due date (D-01): the same validation and the same
 	// records as PUT /items/{id}/due, in the same transaction as the creation - the way an
 	// explicit assignee reuses the :assign machinery. Nil for none.
@@ -507,6 +511,7 @@ func (h CreateWorkItem) build(
 		// indexed word by word - which is the worse guess of the two.
 		ContentLanguage: languageOr(cmd.ContentLanguage, actor.Locale),
 		StartAt:         cmd.StartAt,
+		CalendarUID:     cmd.CalendarUID,
 		Profile:         profile,
 		Path:            placement.PathOf(id),
 		Depth:           placement.Depth,
@@ -616,7 +621,8 @@ func (h CreateWorkItem) nextItemOrderKey(
 // the merge rule for every field it carries - the Definition of Done asks for one per new field.
 //
 // `title`, `notes` and `content_language` are scalar attributes: last writer wins per field,
-// decided by the HLC.
+// decided by the HLC. `calendar_uid` is server-side and never merged: written once by the create,
+// it reaches a device inside the UPSERT like the provenance fields do (offline-sync.md §4.2).
 // `order_key` is a fractional index and merges by itself. `parent_id`, `path` and `depth` are the
 // hierarchy, which is last writer wins with cycle detection on the server - a move that would
 // make a cycle is rejected rather than merged (offline-sync.md §4.2). `completion` is the status
@@ -729,12 +735,15 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		// picker reads it back to show what the entry is indexed under, and a missing key would
 		// read as "this server does not know about languages" (C-08).
 		"content_language": stringOrNil(item.ContentLanguage),
-		"archived_at":      timeOrNil(item.ArchivedAt),
-		"deleted_at":       timeOrNil(item.DeletedAt),
-		"created_by":       item.CreatedBy.String(),
-		"created_at":       item.CreatedAt,
-		"updated_at":       item.UpdatedAt,
-		"version":          item.Version,
+		// Always present, as null for an entry no calendar client made: the address the tree
+		// answers the entry at, where a client chose one (P-07, issue #721).
+		"calendar_uid": stringOrNil(item.CalendarUID),
+		"archived_at":  timeOrNil(item.ArchivedAt),
+		"deleted_at":   timeOrNil(item.DeletedAt),
+		"created_by":   item.CreatedBy.String(),
+		"created_at":   item.CreatedAt,
+		"updated_at":   item.UpdatedAt,
+		"version":      item.Version,
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()
@@ -878,6 +887,13 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"Omitted for an entry with no start.",
 			},
 			{
+				Name: "calendar_uid", Kind: usecase.KindString,
+				Description: "The UID a calendar client knows the entry by, for an entry made " +
+					"through one: the CalDAV tree answers it at that address from then on. Set " +
+					"once, never changed, unique in the workspace; up to 255 characters of a " +
+					"URL path segment. Leave it out for an entry no calendar client made.",
+			},
+			{
 				Name: "due_at", Kind: usecase.KindString,
 				Description: "When the entry is due, RFC 3339, with the same rules as the due " +
 					"date route: the entry is created already carrying it, and the scheduler " +
@@ -940,6 +956,7 @@ func (h CreateWorkItem) invoke(
 		AssigneeID:      assigneeID,
 		AutoAssign:      in.Bool("auto_assign"),
 		ContentLanguage: in.String("content_language"),
+		CalendarUID:     in.String("calendar_uid"),
 	}
 	if raw := in.String("start_at"); raw != "" {
 		startAt, err := parseInstantField(raw, "start_at")

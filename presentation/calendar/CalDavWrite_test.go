@@ -36,8 +36,17 @@ func (r *recording) Invoke(_ context.Context, name string, actor appshared.Actor
 		return nil, r.refuse
 	}
 	r.version++
-	return usecase.Output{"version": r.version, "id": in.String("id")}, nil
+	id := in.String("id")
+	if name == createWorkItemUseCase && id == "" {
+		// The server mints the identifier of a created entry (issue #721); the fake mints a
+		// recognisable one, so a test can see it travel into the completion that follows.
+		id = mintedID.String()
+	}
+	return usecase.Output{"version": r.version, "id": id}, nil
 }
+
+// mintedID is the identifier the recording hands a creation that brought none.
+var mintedID = shared.MustParseID("0192f000-0000-7000-8000-00000000f00d")
 
 // fakeItems answers the entries the view does not: by identifier, or with a refusal.
 type fakeItems struct {
@@ -50,6 +59,16 @@ func (f *fakeItems) Execute(_ context.Context, _ appshared.ActorContext, query w
 	f.asked = append(f.asked, query.ItemID)
 	if f.refuse != nil {
 		return workmodel.WorkItem{}, f.refuse
+	}
+	if query.ItemID.IsZero() {
+		// By the UID a calendar client chose, the way the repository's partial unique index
+		// answers it (issue #721).
+		for _, item := range f.items {
+			if item.CalendarUID == query.CalendarUID {
+				return item, nil
+			}
+		}
+		return workmodel.WorkItem{}, shared.ErrNotFound.WithDetail("items.not_found")
 	}
 	item, ok := f.items[query.ItemID]
 	if !ok {
@@ -179,18 +198,22 @@ func TestTheRaceAndTheRefusals(t *testing.T) {
 func TestCreatingThroughPut(t *testing.T) {
 	c, rec := writable()
 	me := accountID.String()
-	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:0192f000-0000-7000-8000-0000000000aa\r\nSUMMARY:Made in Reminders\r\nDUE;VALUE=DATE:20260930\r\nSTATUS:COMPLETED\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+	// A random UID, as Reminders mints one: the address is the client's and the identifier is
+	// the server's (issue #721).
+	const uid = "8B2C1D2E-0000-4000-8000-000000000000"
+	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:" + uid + "\r\nSUMMARY:Made in Reminders\r\nDUE;VALUE=DATE:20260930\r\nSTATUS:COMPLETED\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
 
 	// The view names no single collection: refused by name.
-	w := put(t, c, memberPath(me, feedID.String(), "0192f000-0000-7000-8000-0000000000aa"), "", []byte(body))
+	w := put(t, c, memberPath(me, feedID.String(), uid), "", []byte(body))
 	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "no-single-collection") {
 		t.Fatalf("a hub-wide view refuses a creation: %d %s", w.Code, w.Body.String())
 	}
 
-	// The view names one collection: created with the client's identifier, then completed.
+	// The view names one collection: created under the client's UID with an identifier the
+	// server minted, then completed under that identifier.
 	views := c.Views.(*fakeViews)
 	views.collection = shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
-	w = put(t, c, memberPath(me, feedID.String(), "0192f000-0000-7000-8000-0000000000aa"), "", []byte(body))
+	w = put(t, c, memberPath(me, feedID.String(), uid), "", []byte(body))
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", w.Code, w.Body.String())
 	}
@@ -198,19 +221,68 @@ func TestCreatingThroughPut(t *testing.T) {
 		t.Fatalf("calls = %v", rec.calls)
 	}
 	in := rec.inputs[0]
-	if in["id"] != "0192f000-0000-7000-8000-0000000000aa" || in["collection_id"] != "0192f000-0000-7000-8000-0000000000c1" || in["type"] != "TASK" || in["title"] != "Made in Reminders" || in["due_date_only"] != true {
+	if _, minted := in["id"]; minted || in["calendar_uid"] != uid || in["collection_id"] != "0192f000-0000-7000-8000-0000000000c1" || in["type"] != "TASK" || in["title"] != "Made in Reminders" || in["due_date_only"] != true {
 		t.Errorf("CreateWorkItem input = %v", in)
 	}
+	if rec.inputs[1]["item_id"] != mintedID.String() {
+		t.Errorf("the completion names %v, want the identifier the server minted", rec.inputs[1]["item_id"])
+	}
 
-	// A client whose UID is not a UUIDv7 cannot be given its address back.
+	// A document whose UID is not the address would be a todo the client cannot recognise:
+	// refused by name, before anything is written.
 	rec.calls = nil
-	w = put(t, c, memberPath(me, feedID.String(), "8B2C1D2E-0000-4000-8000-000000000000"), "", []byte(body))
-	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "creation-needs-uuidv7") || len(rec.calls) != 0 {
-		t.Errorf("a v4 UID is refused by name: %d %s %v", w.Code, w.Body.String(), rec.calls)
+	w = put(t, c, memberPath(me, feedID.String(), "another-address"), "", []byte(body))
+	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "uid-must-match-address") || len(rec.calls) != 0 {
+		t.Errorf("a UID at another address is refused by name: %d %s %v", w.Code, w.Body.String(), rec.calls)
+	}
+	// An address no UID can be - one the tree would have to escape - is refused by name too.
+	if w := put(t, c, memberPath(me, feedID.String(), "two%20words"), "", []byte(strings.ReplaceAll(body, uid, "two words"))); w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "uid-not-addressable") {
+		t.Errorf("an unaddressable UID: %d %s", w.Code, w.Body.String())
 	}
 	// If-Match on an address that has no member is a lost race.
 	if w := put(t, c, memberPath(me, feedID.String(), "0192f000-0000-7000-8000-0000000000ab"), `"1"`, []byte(body)); w.Code != http.StatusPreconditionFailed {
 		t.Errorf("If-Match on a missing member is 412, got %d", w.Code)
+	}
+}
+
+// The round trip a client keyed by UID depends on (issue #721): an entry made under a client's
+// UID lives at that address, renders that UID back unchanged, is found there when the view no
+// longer answers it, and is edited under the identifier the server minted.
+func TestAnEntryLivesAtTheUIDItsClientChose(t *testing.T) {
+	c, rec := writable()
+	me := accountID.String()
+	const uid = "20260917T101500Z-4711@laptop.example"
+	completedAt := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	entryID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e2")
+	// Completed and undated: outside the calendar's members, so the address is resolved
+	// through the reader - by the UID first.
+	c.Items.(*fakeItems).items[entryID] = workmodel.WorkItem{
+		ID: entryID, CalendarUID: uid, Title: "Made in Thunderbird", Version: 2,
+		Completion: workmodel.Completion{IsCompleted: true, CompletedAt: &completedAt},
+	}
+	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:" + uid + "\r\nSUMMARY:Made in Thunderbird\r\nSTATUS:NEEDS-ACTION\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+
+	w := put(t, c, memberPath(me, feedID.String(), uid), `"2"`, []byte(body))
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("PUT at the client's UID: %d %s", w.Code, w.Body.String())
+	}
+	if strings.Join(rec.calls, ",") != "ReopenWorkItem" || rec.inputs[0]["item_id"] != entryID.String() {
+		t.Errorf("calls = %v, inputs = %v: want a reopen of the entry the UID names", rec.calls, rec.inputs)
+	}
+	// The identifier is not an address of the entry: a client that made it never saw one.
+	if w := put(t, c, memberPath(me, feedID.String(), entryID.String()), `"2"`, []byte(body)); w.Code != http.StatusNoContent {
+		t.Errorf("the identifier still resolves the entry for a client that has it: %d", w.Code)
+	}
+
+	// Rendered back: the client's UID, verbatim, and no suffix.
+	dated := c.Items.(*fakeItems).items[entryID]
+	todo := c.todoOf(dated, time.UTC, nil)
+	if todo.UID != uid {
+		t.Errorf("UID = %q, want the client's own", todo.UID)
+	}
+	m := c.memberOf(me, feedID.String(), dated, time.UTC, nil, time.Time{})
+	if m.id != uid || m.itemID != entryID.String() || !strings.HasSuffix(m.path, "/"+uid+".ics") {
+		t.Errorf("member = %+v: want the UID as the address and the identifier beside it", m)
 	}
 }
 
@@ -259,17 +331,18 @@ func TestAPutToAnEntryOutsideTheViewIsAnUpdate(t *testing.T) {
 	}
 }
 
-// A creation with an identifier the workspace holds is 409, the shape N-04's client identifiers
-// give a push - never a dependency failure.
-func TestACreationMeetingATakenIdentifierIs409(t *testing.T) {
+// A creation under a UID the workspace holds - two clients racing to the same address, or one
+// the reader could not see - is 409, the shape a taken identifier gives a push (issue 720) and
+// never a dependency failure.
+func TestACreationMeetingATakenUIDIs409(t *testing.T) {
 	c, rec := writable()
 	me := accountID.String()
 	c.Views.(*fakeViews).collection = shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
-	rec.refuse = shared.ErrConflict.WithDetail("items.id_taken")
+	rec.refuse = shared.ErrConflict.WithDetail("items.calendar_uid_taken")
 	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:x\r\nSUMMARY:Twice\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
-	w := put(t, c, memberPath(me, feedID.String(), "0192f000-0000-7000-8000-0000000000ac"), "", []byte(body))
+	w := put(t, c, memberPath(me, feedID.String(), "x"), "", []byte(body))
 	if w.Code != http.StatusConflict {
-		t.Errorf("a taken identifier is 409, got %d", w.Code)
+		t.Errorf("a taken UID is 409, got %d", w.Code)
 	}
 }
 

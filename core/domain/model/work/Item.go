@@ -4,6 +4,7 @@
 package work
 
 import (
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -160,6 +161,19 @@ type WorkItem struct {
 	// a genuine conflict with one answer (offline-sync.md §4.2).
 	ContentLanguage string
 
+	// CalendarUID is the UID a calendar client knows this entry by, and empty for an entry no
+	// calendar client made (P-07, issue #721). A todo made in Reminders or Thunderbird arrives as
+	// a PUT to an address the client chose, and the client keys the todo by that UID from then
+	// on - so the tree answers the entry at that address and renders that UID back, and the
+	// identifier the server minted stays the server's. Not an identifier: N-04's rule about
+	// client-minted ones (offline-sync.md §9) is untouched, and every other channel addresses the
+	// entry by ID.
+	//
+	// Set exactly once, at creation, and never edited: a UID that moved would be a todo the
+	// client cannot find again. Server-side rather than merged, like the provenance below - it
+	// reaches a device inside the item's UPSERT, and a patch naming it is refused.
+	CalendarUID string
+
 	// OriginJumbleID is the jumble entry this item came from, and zero for an item that was not
 	// converted out of one (G-10). Provenance, set exactly once at the conversion and never
 	// cleared: where an item came from does not stop being true.
@@ -257,6 +271,12 @@ type NewWorkItemInput struct {
 	// way an assignee does.
 	StartAt *time.Time
 
+	// CalendarUID is the UID a calendar client chose for the entry it is making, and empty for
+	// every other creation (P-07). Bounded and checked here, because it becomes a path segment
+	// of the tree: what a client may write into a UID is anything, and what an address can carry
+	// is not.
+	CalendarUID string
+
 	// Text brings the title and the notes to normal form C before they are bounded and stored
 	// (i18n-l10n.md §5, M-07). Handed in like the profile is, because the domain may not import
 	// the library that knows the form (rule 1, ADR-0056); without it, a title that is not ASCII
@@ -319,6 +339,10 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		return WorkItem{}, err
 	}
 
+	if err := checkCalendarUID(in.CalendarUID); err != nil {
+		return WorkItem{}, err
+	}
+
 	if err := checkPlacement(in.ID, in.ParentID, in.Path, in.Depth); err != nil {
 		return WorkItem{}, err
 	}
@@ -352,11 +376,58 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		BucketID:        in.BucketID,
 		OrderKey:        in.OrderKey,
 		ContentLanguage: language,
+		CalendarUID:     in.CalendarUID,
 		CreatedBy:       in.CreatedBy,
 		CreatedAt:       in.Now,
 		UpdatedAt:       in.Now,
 		Version:         1,
 	}, nil
+}
+
+// MaxCalendarUIDLength bounds a calendar UID. RFC 5545 bounds a UID by nothing; an address has to
+// fit in a URL a client stores, and the value is opaque, so the bound is a generous one.
+const MaxCalendarUIDLength = 255
+
+// checkCalendarUID holds a calendar UID to what a path segment can carry, or accepts the empty
+// one - no calendar client made this entry.
+//
+// The alphabet is RFC 3986's pchar without percent-encoding: the unreserved characters, the
+// sub-delimiters, `:` and `@`. A UID from any client this tree was walked with fits - a UUID in
+// either case, `<random>@<host>` - and one that does not would be an address the tree escapes on
+// the way out and reads back differently on the way in. Refused by name rather than escaped, so
+// that the client hears why (calendar.uid_unaddressable in the tree's error condition).
+func checkCalendarUID(uid string) error {
+	if uid == "" || ValidCalendarUID(uid) {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("items.calendar_uid_invalid").
+		WithParams(map[string]string{"maximum": strconv.Itoa(MaxCalendarUIDLength)}).
+		WithFields(shared.FieldError{Path: "/calendar_uid", Code: "items.calendar_uid_invalid"})
+}
+
+// ValidCalendarUID reports whether a string is one the tree could answer an entry at: one to
+// MaxCalendarUIDLength bytes of the alphabet checkCalendarUID describes. Exported for the tree,
+// which asks it of an address before spending a read on it.
+func ValidCalendarUID(uid string) bool {
+	if uid == "" || len(uid) > MaxCalendarUIDLength {
+		return false
+	}
+	for i := 0; i < len(uid); i++ {
+		if !calendarUIDByte(uid[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// calendarUIDByte is one byte of RFC 3986's pchar, percent-encoding excluded.
+func calendarUIDByte(b byte) bool {
+	switch {
+	case b >= 'a' && b <= 'z', b >= 'A' && b <= 'Z', b >= '0' && b <= '9':
+		return true
+	}
+	return strings.IndexByte("-._~!$&'()*+,;=:@", b) >= 0
 }
 
 // checkPlacement holds the parent, the path and the depth to one another (I-W2).
@@ -480,6 +551,9 @@ const (
 	// object with is_completed, completed_at and completed_by - which merges as one (N-06).
 	FieldCompletion      = "completion"
 	FieldContentLanguage = "content_language"
+	// FieldCalendarUID is the address a calendar client knows the entry by. Not something an
+	// update may set - it is written once by the create - but a field the projections spell.
+	FieldCalendarUID = "calendar_uid"
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"

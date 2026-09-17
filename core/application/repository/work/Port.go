@@ -417,6 +417,12 @@ type Items interface {
 	// exist" (I-W4).
 	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
 
+	// FindByCalendarUID returns the item a calendar client's UID names, or ErrNotFound if no entry
+	// of this tenant carries it (P-07, issue #721). The same answer for the trash and the
+	// archive as Find, for the same reason: the tree decides what an address it cannot show
+	// means, and "gone" is a different thing from "free".
+	FindByCalendarUID(ctx context.Context, uid string) (work.WorkItem, error)
+
 	// List returns one page of one level of one collection, in the items' manual order.
 	//
 	// Trashed items are never in it, and archived ones only when asked - unlike Find, which reports
