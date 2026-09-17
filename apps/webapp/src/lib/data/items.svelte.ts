@@ -235,6 +235,21 @@ class Items {
   }
 
   /**
+   * "Write mine again" after a conflict on the notes (F6-06, offline-sync.md §5): an ordinary
+   * PATCH of the one field from the entry's current version - read first, so the write states
+   * the version the server holds now and not the one that lost - and nothing else. Never a merge
+   * of the two texts, and never an automatic retry: the person chose this.
+   */
+  async rewriteNotes(id: string, notes: string): Promise<WorkItem> {
+    const current = await engine.refresh<WorkItem>({ path: `/items/${id}` });
+    const version = current.status === 'ready' ? current.data.version : undefined;
+    return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { notes }, {
+      ...(version !== undefined ? { ifMatch: etagFor(version) } : {}),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
    * Moves an entry into a bucket, or out of every one.
    *
    * A `PATCH` rather than an action, because `bucket_id` is a field of the entry. What happens next

@@ -52,6 +52,7 @@
   import { acceptsChild, childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
@@ -863,6 +864,7 @@
               title={row.item.title}
               depth={row.depth}
               href={`/items/${row.item.id}`}
+              pendingLabel={queue.isPending(row.item.id) ? t('app.sync.pending_entry') : undefined}
               isCompleted={row.item.completion?.is_completed ?? false}
               expansion={!row.takesChildren
                 ? 'leaf'

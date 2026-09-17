@@ -44,6 +44,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
@@ -613,6 +614,7 @@
                 <WorkItemCard
                   title={card.title}
                   href={`/items/${card.id}`}
+                  pendingLabel={queue.isPending(card.id) ? t('app.sync.pending_entry') : undefined}
                   isCompleted={card.completion?.is_completed ?? false}
                   coverKind={card.cover?.kind ?? null}
                   coverColorToken={card.cover?.color_token ?? null}
