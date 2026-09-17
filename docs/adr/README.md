@@ -64,4 +64,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0055](./ADR-0055-translation-process.md) | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted | i18n, process, operations |
 | [0056](./ADR-0056-golang-x-text-and-idna.md) | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted | i18n, supply chain, ports |
 | [0057](./ADR-0057-sdk-licence-and-extraction.md) | The SDKs: which packages, under which licence, extracted or not | proposed | licensing, ecosystem, sdk |
-| [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | proposed | ecosystem, supply chain, automation |
+| [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | accepted | ecosystem, supply chain, automation |
