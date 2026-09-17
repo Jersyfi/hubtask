@@ -184,9 +184,9 @@ export interface TransportDocument {
  * because that is the intersection of IndexedDB and SQLite - and the intersection is the honest
  * port when two implementations are already known.
  *
- * F1 ships no implementation. The engine is online-only until F6 brings the protocol
- * (`offline-sync.md` §9), and a store with nothing to put in it would be a guess about a shape the
- * `:pull` contract has not yet had to satisfy.
+ * Two implementations ship with the package (F6-03): `IndexedDbStorage`, one database per API
+ * origin and account, which the browser platform seam supplies; and `MemoryStorage`, which the
+ * tests and the conformance runner use. `test/storage.test.ts` holds both to the same promises.
  */
 export interface Storage {
   get<T>(collection: string, id: string): Promise<T | undefined>;
@@ -195,8 +195,15 @@ export interface Storage {
   /** Everything in one collection. The engine reads whole collections, never ranges. */
   all<T>(collection: string): Promise<readonly T[]>;
   /**
+   * The collections that hold at least one record. A subtree deletion and an access revocation
+   * walk every collection for what points under the root (`offline-sync.md` §6), and the engine
+   * does not know which entities a newer server has sent it (§9.7).
+   */
+  collections(): Promise<readonly string[]>;
+  /**
    * Removes everything. Sign-out deletes the store completely on every platform
-   * (`offline-sync.md` §9.6, ADR-0033 §4), so this is a promise rather than a convenience.
+   * (`offline-sync.md` §9.6, ADR-0033 §4), so this is a promise rather than a convenience: the
+   * IndexedDB store deletes its database rather than emptying it.
    */
   clear(): Promise<void>;
 }
