@@ -56,6 +56,7 @@ func main() {
 	problems = append(problems, checkArc42ADRTable(root)...)
 	problems = append(problems, checkGoVersion(root)...)
 	problems = append(problems, checkSupportMatrix(root)...)
+	problems = append(problems, checkCoverageReport(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)
