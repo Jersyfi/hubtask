@@ -67,6 +67,27 @@ Then `https://demo.api.integration.hubtask.eu/` is a sign-in screen, and `owner@
 that password gets in. The bootstrap is idempotent: run again, it replaces the token row and prints
 a new token, which is also how a lost one is replaced.
 
+## Mail
+
+Two mail catchers run on the node, and they are not interchangeable. The application sends
+through `smtp` in the `hubtask` namespace — invitations, reminders, the notifications a person
+turned on — over STARTTLS behind a certificate authority the cluster issued to itself
+([`smtp.yaml`](./smtp.yaml)); the application trusts that authority through `SSL_CERT_DIR`, the
+way a self-hoster trusts the authority behind an internal relay. Alertmanager delivers into
+`mailpit` in the `monitoring` namespace, below. A reminder in the alert mailbox would be noise in
+the one mailbox the daily check reads, and an alert in the application's would be a person's
+notification nobody sent — so two catchers, two namespaces, and nothing in common but the
+protocol.
+
+Both take what they are given and forward to nobody, which is what makes recipients at
+`example.org` safe here. Reading what the application sent:
+
+```bash
+kubectl -n hubtask port-forward svc/smtp 8025:8025 >/dev/null 2>&1 &
+curl -s localhost:8025/api/v1/messages | head -c 2000
+kill %1
+```
+
 ## Monitoring
 
 The environment watches itself (`observability-reliability.md` §14, O-1): Prometheus scrapes every
@@ -139,6 +160,16 @@ kill %1
   chart, the migration hook and the rollout — none of which needs a second node.
 * **No production hardening of PostgreSQL.** It is a container with a local volume and
   `sslmode=disable` inside the cluster. Production is D-1 and D-2, and both are open on purpose.
+* **No egress.** The application's allowlist names one host, the e2e walk's webhook target, and
+  it never resolves (`values.yaml`). The list exists because production runs with one (T-07) and
+  an empty list means "anywhere public"; it is short because nothing here has anywhere to go. A
+  walk that needs a receiver that answers adds its host to the list, in the diff, where the
+  addition can be read.
+* **No silenced A-14.** The three findings that filled the ticket mailbox for a week (#310) were
+  answered by making them untrue — a mail server, an allowlist, and a warning that had outlived
+  the code it warned about — rather than by a route to `muted`. The one route to `muted` is
+  A-12's, for a decision this list records above; a finding this environment does not mean to
+  keep is a finding to fix.
 
 ## What an RT-8 run leaves behind
 

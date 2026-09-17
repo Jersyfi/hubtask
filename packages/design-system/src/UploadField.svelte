@@ -179,7 +179,7 @@
       border-color var(--motion-state-duration) var(--motion-state-easing);
   }
 
-  .target[data-over] { background: var(--bg-surface-raised); border-color: var(--accent-primary); }
+  .target[data-over] { background: var(--bg-surface-hover); border-color: var(--accent-primary); }
 
   /* Transparent and on top, never hidden: the input is the control and everything beside it is a
      picture of it. It covers the whole target so that a click anywhere opens the dialog. */

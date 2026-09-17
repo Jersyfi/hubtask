@@ -229,7 +229,7 @@
     cursor: pointer;
   }
 
-  .option:hover:not(:disabled) { background: var(--bg-surface-raised); }
+  .option:hover:not(:disabled) { background: var(--bg-surface-hover); }
 
   .option:disabled { background: var(--bg-surface-sunken); color: var(--text-subtle); cursor: not-allowed; }
 

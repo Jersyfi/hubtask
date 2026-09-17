@@ -301,6 +301,7 @@ test('the AI tokens are consumed by AISuggestion and nothing else', () => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
+      // design-system-lint-ignore: a prefix the test searches for, not a property it reads
       else if (/\.(svelte|ts|css)$/.test(entry.name) && fs.readFileSync(full, 'utf8').includes('var(--ai-')) consumers.push(path.relative(ROOT, full));
     }
   };

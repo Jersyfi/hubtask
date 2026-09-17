@@ -25,6 +25,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -84,6 +85,12 @@ type Runner struct {
 	// latency, never delivery, and a runner that stopped working when the notification channel
 	// did would have turned an optimisation into a dependency.
 	Woken <-chan struct{}
+	// Diagnose names what a failure's cause was, in attributes safe for a log line: a database
+	// error's SQLSTATE and the constraint it broke, never its message, which quotes the row.
+	// Injected, because the cause is an adapter's error type and this layer knows no adapter;
+	// nil logs the code alone, which is what the rule-10-safe line always carried. What it buys
+	// is the difference between "postgres.query_failed" and knowing which statement (issue 692).
+	Diagnose func(error) []slog.Attr
 }
 
 // bookkeepingTimeout bounds the statements that are not the job itself: claiming a batch, and
@@ -193,7 +200,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	if !known {
 		// Not this process's job. It goes back to the queue with a code that says so, and a pod
 		// that knows the kind picks it up.
-		r.fail(ctx, job, "queue.handler_missing")
+		r.fail(ctx, job, "queue.handler_missing", nil)
 		return
 	}
 
@@ -216,6 +223,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 			if err != nil {
 				return err
 			}
+			logCounts(txCtx, job, result)
 			if result.Repeat {
 				// A poller: the same row goes back to the queue for its next round rather than
 				// finishing, so the deduplication of a pending job keeps it a single row.
@@ -225,7 +233,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 		})
 	})
 	if err != nil {
-		r.fail(ctx, job, shared.AsError(err).DetailCode)
+		r.fail(ctx, job, shared.AsError(err).DetailCode, err)
 		return
 	}
 
@@ -247,6 +255,7 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 	if err != nil {
 		return err
 	}
+	logCounts(ctx, job, result)
 
 	return r.UnitOfWork.Within(ctx, scopeOf(job), func(txCtx context.Context) error {
 		if result.Repeat {
@@ -262,7 +271,7 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 // It runs on a context of its own. The job's context may be cancelled - by its own deadline, or by
 // the shutdown that killed the job - and a failure nobody could record is a job that stays
 // RUNNING until its lease expires, which is a delay for no reason.
-func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
+func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause error) {
 	if code == "" {
 		code = "queue.job_failed"
 	}
@@ -295,13 +304,19 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
 	}
 
 	// The code and the identifiers only. What the job was working on may be user content, and a
-	// log line is not the place for it (rule 10).
-	slog.WarnContext(ctx, "job failed",
+	// log line is not the place for it (rule 10). The diagnosis adds what the cause's adapter
+	// can say without quoting anything: which constraint, which SQLSTATE.
+	attrs := []slog.Attr{
 		slog.String("job_kind", job.Kind.String()),
 		slog.String("job_id", job.ID.String()),
 		slog.Int("attempt", job.Attempts),
 		slog.String("error_code", code),
-		slog.Bool("dead_letter", attemptClass == "final"))
+		slog.Bool("dead_letter", attemptClass == "final"),
+	}
+	if r.Diagnose != nil && cause != nil {
+		attrs = append(attrs, r.Diagnose(cause)...)
+	}
+	slog.LogAttrs(ctx, slog.LevelWarn, "job failed", attrs...)
 
 	failCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
 	defer cancel()
@@ -316,6 +331,27 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
 			slog.String("job_id", job.ID.String()),
 			slog.String("error", shared.AsError(err).Code))
 	}
+}
+
+// logCounts writes down what a handler counted about a job that succeeded, in the job's own
+// terms and nothing else: the kind, the identifier, and the numbers by name. Only where there is
+// something to say - a job that counted nothing logs nothing.
+func logCounts(ctx context.Context, job queue.Job, result queue.Result) {
+	if len(result.Counts) == 0 {
+		return
+	}
+	attributes := make([]any, 0, 2+len(result.Counts))
+	attributes = append(attributes,
+		slog.String("job_kind", job.Kind.String()), slog.String("job_id", job.ID.String()))
+	names := make([]string, 0, len(result.Counts))
+	for name := range result.Counts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		attributes = append(attributes, slog.Int(name, result.Counts[name]))
+	}
+	slog.InfoContext(ctx, "job counted", attributes...)
 }
 
 // observe applies the injected span wrapper, or runs fn plainly when there is none.

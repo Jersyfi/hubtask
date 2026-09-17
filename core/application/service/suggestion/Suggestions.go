@@ -94,6 +94,10 @@ type Cases struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Requests holds the words a question is asked with where it has no material of its own to
+	// read (P-11), and IDs names the row. Both nil in a build that asks no such question.
+	Requests repository.Requests
+	IDs      clock.IDGenerator
 }
 
 // ListSuggestions answers what stands against one entry.
@@ -264,6 +268,10 @@ type accepted struct {
 	// Refusal is the detail code for a shape nothing accepts. A shape with one is not a gap in
 	// this build - it is a proposal whose answer is somebody's decision, and dismissing closes it.
 	Refusal string
+	// TargetKey is the input the target travels under where it is not the target type's usual
+	// one: a template's collection is its `scope_id`, not a `container_id` CreateTemplate would
+	// refuse. Empty takes `targetKeys`.
+	TargetKey string
 }
 
 // acceptance says, for every shape of proposal this build can produce, what accepting it does.
@@ -292,6 +300,10 @@ var acceptance = map[applierKey]accepted{
 	// it: a collection's description says what it is *for*, not how its week went, and writing a
 	// status into it would overwrite the one with the other.
 	{domain.TargetContainer, domain.KindFields}: {Refusal: "suggestions.nothing_to_apply"},
+	// A template drafted for a collection is defined by CreateTemplate as the accepting person
+	// (P-11): the payload is the template's input, the scope is the target, and the rights asked
+	// are the ones defining a template asks for - STRUCTURE at the collection.
+	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id"},
 	// The one kind nothing accepts (K-04). Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
 	// the other - and which of those somebody means is theirs to say, through the use case that
@@ -311,6 +323,7 @@ const (
 	setCustomFieldName = "SetCustomField"
 	setDueDateName     = "SetDueDate"
 	updateWorkItemName = "UpdateWorkItem"
+	createTemplateName = "CreateTemplate"
 )
 
 // under is the level a proposed subtask lands at: the default profile's CHILDREN row
@@ -377,11 +390,25 @@ func (c Cases) apply(
 	// the overrides can move it. A proposal about one entry able to change another would be a
 	// stored capability, and the registry would refuse nothing about it: `item_id` is a field
 	// UpdateWorkItem declares, and `entry_id` one ConvertJumbleEntry does.
-	in[targetKeys[proposal.TargetType]] = proposal.TargetID.String()
+	targetKey := how.TargetKey
+	if targetKey == "" {
+		targetKey = targetKeys[proposal.TargetType]
+	}
+	in[targetKey] = proposal.TargetID.String()
 
-	out, err := c.Catalogue.Invoke(ctx, name, actor, in)
-	if err != nil {
-		return err
+	// An applier that would be handed nothing but the target is not called (#696). Every key a
+	// classification proposes about a work item is grown - the labels, the column, the custom
+	// fields are each their own use case - so `UpdateWorkItem` would be asked to update nothing
+	// and would refuse, and a refusal there would be the acceptance failing for a proposal that
+	// is whole. The jumble's applier is a conversion rather than an update and always runs: the
+	// overrides carry its destination, so its input is never the target alone.
+	out := usecase.Output{}
+	if len(in) > 1 || proposal.TargetType != domain.TargetWorkItem {
+		var err error
+		out, err = c.Catalogue.Invoke(ctx, name, actor, in)
+		if err != nil {
+			return err
+		}
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
 	//
