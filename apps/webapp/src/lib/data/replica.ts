@@ -27,7 +27,7 @@
  * that without knowing the language. A board grouped by bucket is the same question in columns.
  */
 
-import type { ResourceRequest, Storage, StoredRecord } from '@hubtask/sync-engine';
+import { orderKeyBetween, type QueuedWrite, type ResourceRequest, type Storage, type StoredRecord } from '@hubtask/sync-engine';
 
 type Document = Record<string, unknown>;
 
@@ -200,4 +200,147 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   }
 
   return undefined;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The other direction (F6-05): what a write becomes when it has to be queued.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * `mutationFor` maps a write - its method, path and body, as `mutate` was called - to the
+ * mutation `:push` takes, without its clocks (the engine stamps them), or to `undefined` for a
+ * write that cannot be made offline and goes straight to the server as before. The seven kinds
+ * (`offline-sync.md` §3.2):
+ *
+ * - `POST /items` is an `ITEM_CREATE` with an identifier the client mints (§9.1: final). The
+ *   direct path keeps the server's identifier, because a direct create is not a mutation.
+ * - `PATCH /items/{id}`, `:complete`, `:reopen`, `:assign`, `:unassign`, the due date set or
+ *   cleared, and a custom field written are an `ITEM_PATCH`, one clock per field.
+ * - `:move` and `:reorder` are a `MOVE`: the parent, and the rank as a key minted between the
+ *   neighbours the copy knows - the server's own scheme (`ordering.ts`), so a rank chosen offline
+ *   is a rank the server would have chosen.
+ * - a label, a member or an attachment put or deleted is a `SET_ADD` or `SET_REMOVE`.
+ * - `DELETE /items/{id}` is an `ITEM_DELETE`; `POST /items/{id}/comments` a `COMMENT_ADD` with a
+ *   comment identifier the client mints.
+ *
+ * Everything else answers `undefined`, and the test says which and why: archiving and restoring
+ * change lifecycle the server owns; the cover, a bulk and a duplicate have no mutation kind;
+ * containers, labels' definitions, templates and views are §1's structure the queue does not
+ * carry; and the administration's writes are §1's right column.
+ */
+export async function mutationFor(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  body: unknown,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  const { pathname } = parse(path);
+  const fields = (body ?? {}) as Record<string, unknown>;
+
+  if (method === 'POST' && pathname === '/items') {
+    return { kind: 'ITEM_CREATE', itemId: helpers.mintId(), payload: fields };
+  }
+
+  let match = /^\/items\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    if (method === 'PATCH') return { kind: 'ITEM_PATCH', itemId: match[1], fields };
+    if (method === 'DELETE') return { kind: 'ITEM_DELETE', itemId: match[1] };
+    return undefined;
+  }
+
+  match = /^\/items\/([^/:]+):(complete|reopen|assign|unassign|move|reorder)$/.exec(pathname);
+  if (match?.[1] && match[2]) {
+    const itemId = match[1];
+    switch (match[2]) {
+      case 'complete':
+        return { kind: 'ITEM_PATCH', itemId, fields: { completion: { is_completed: true } } };
+      case 'reopen':
+        return { kind: 'ITEM_PATCH', itemId, fields: { completion: { is_completed: false } } };
+      case 'assign':
+        return typeof fields.assignee_id === 'string'
+          ? { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: fields.assignee_id } }
+          : undefined;
+      case 'unassign':
+        return { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: null } };
+      case 'move':
+      case 'reorder':
+        return moveOf(itemId, match[2], fields, helpers.storage);
+      default:
+        return undefined;
+    }
+  }
+
+  match = /^\/items\/([^/]+)\/due$/.exec(pathname);
+  if (match?.[1]) {
+    if (method === 'PUT') {
+      return { kind: 'ITEM_PATCH', itemId: match[1], fields: {
+        due_at: fields.due_at ?? null,
+        due_date_only: fields.due_date_only ?? false,
+        due_time_zone: fields.due_time_zone ?? null,
+      } };
+    }
+    if (method === 'DELETE') return { kind: 'ITEM_PATCH', itemId: match[1], fields: { due_at: null } };
+    return undefined;
+  }
+
+  match = /^\/items\/([^/]+)\/custom-fields\/([^/]+)$/.exec(pathname);
+  if (match?.[1] && match[2] && method === 'PUT') {
+    return { kind: 'ITEM_PATCH', itemId: match[1], fields: { [`custom_fields.${decodeURIComponent(match[2])}`]: fields.value ?? null } };
+  }
+
+  match = /^\/items\/([^/]+)\/(labels|members|attachments)\/([^/]+)$/.exec(pathname);
+  if (match?.[1] && match[2] && match[3] && (method === 'PUT' || method === 'DELETE')) {
+    return { kind: method === 'PUT' ? 'SET_ADD' : 'SET_REMOVE', itemId: match[1], set: match[2] as 'labels' | 'members' | 'attachments', element: match[3] };
+  }
+
+  match = /^\/items\/([^/]+)\/comments$/.exec(pathname);
+  if (match?.[1] && method === 'POST') {
+    return { kind: 'COMMENT_ADD', itemId: match[1], payload: { ...fields, id: helpers.mintId() } };
+  }
+
+  return undefined;
+}
+
+/**
+ * A move or a reorder as a `MOVE`: where the entry goes, and the rank it takes there. The rank
+ * is minted between the neighbours the copy knows at the destination - the entry to go before,
+ * and whatever sits above it - with the server's own scheme, so that two devices inserting into
+ * one list keep both insertions (§4.2). A destination the copy does not hold cannot name a rank,
+ * and the write then goes directly.
+ */
+async function moveOf(
+  itemId: string, verb: 'move' | 'reorder', body: Record<string, unknown>, storage: Storage,
+): Promise<QueuedWrite | undefined> {
+  const moving = await one(storage, 'items', itemId);
+  if (!moving) return undefined;
+  const parentId = verb === 'move'
+    ? (typeof body.target_parent_id === 'string' ? body.target_parent_id : null)
+    : ((moving.parent_id as string | null | undefined) ?? null);
+  const collectionId = verb === 'move' && typeof body.target_collection_id === 'string'
+    ? body.target_collection_id
+    : (moving.collection_id as string | undefined);
+  if (!collectionId) return undefined;
+
+  const siblings = (await level(storage, parentId ? { item_id: parentId } : { container_id: collectionId }))
+    .filter((row) => row.id !== itemId);
+  const beforeId = typeof body.before_item_id === 'string' ? body.before_item_id : null;
+  let previous = '';
+  let next = '';
+  if (beforeId) {
+    const at = siblings.findIndex((row) => row.id === beforeId);
+    if (at < 0) return undefined;
+    next = String(siblings[at]?.order_key ?? '');
+    previous = at > 0 ? String(siblings[at - 1]?.order_key ?? '') : '';
+  } else {
+    previous = siblings.length > 0 ? String(siblings[siblings.length - 1]?.order_key ?? '') : '';
+  }
+  let orderKey: string;
+  try {
+    orderKey = orderKeyBetween(previous, next);
+  } catch {
+    return undefined;
+  }
+  const payload: Record<string, unknown> = { parent_id: parentId, order_key: orderKey };
+  if (verb === 'move' && typeof body.target_collection_id === 'string') payload.collection_id = body.target_collection_id;
+  return { kind: 'MOVE', itemId, payload };
 }

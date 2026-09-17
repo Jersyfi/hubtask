@@ -15,7 +15,7 @@
 import { FetchTransport, SyncEngine } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
-import { storeFor } from './replica.ts';
+import { mutationFor, storeFor } from './replica.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -95,4 +95,7 @@ export const engine = new SyncEngine({
   // What the replica answers while the server cannot be reached (F6-04): this application's
   // paths, mapped in `replica.ts` the way `live.ts` maps a record - the engine learns neither.
   storeFor,
+  // What a write becomes when it has to be queued (F6-05): the seven mutation kinds, mapped from
+  // this application's writes in the same file.
+  mutationFor,
 });
