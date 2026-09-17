@@ -106,6 +106,7 @@ const (
 	CodeRunNotRunning    = "imports.run_not_running"
 	CodeRowUnreadable    = "imports.row_unreadable"
 	CodeRowDateInvalid   = "imports.row_date_invalid"
+	CodeRowZoneUnknown   = "imports.row_zone_unknown"
 	CodeRowTitleMissing  = "imports.row_title_missing"
 	CodeRowParentUnknown = "imports.row_parent_unknown"
 	CodeMappingUnknown   = "imports.mapping_unknown"

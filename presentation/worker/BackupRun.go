@@ -172,6 +172,7 @@ func performInputOf(job queue.Job) (service.PerformInput, error) {
 		Trigger:      domain.Trigger(textIn(job, "trigger")),
 		IncludeMedia: flagIn(job, "include_media"),
 		IncludeAudit: flagIn(job, "include_audit"),
+		TrialRestore: flagIn(job, "trial_restore"),
 	}
 	if !in.Mode.Valid() {
 		return service.PerformInput{}, shared.Internalf("backup: a run job with mode %q", in.Mode)

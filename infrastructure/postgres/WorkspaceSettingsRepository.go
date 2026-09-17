@@ -37,6 +37,10 @@ var _ repository.Workspaces = WorkspaceSettingsRepository{}
 // unmodelled keys never travel through here at all - the write merges rather than replaces.
 type settingsDocument struct {
 	RequireAdminTotp bool `json:"require_admin_totp"`
+	// AuditAnchorTargetID names the backup target the chain's end is anchored to daily (P-13);
+	// empty is anchoring switched off, and it is written empty rather than omitted because the
+	// write merges keys - an omitted key would leave the old target standing.
+	AuditAnchorTargetID string `json:"audit_anchor_target_id"`
 }
 
 // Find answers the workspace the transaction is bound to.
@@ -79,7 +83,10 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 			DefaultLocale: row.DefaultLocale, DefaultTimeZone: row.DefaultTimeZone,
 			CreatedAt: timeFrom(row.CreatedAt),
 		},
-		Settings:  identity.WorkspaceSettings{RequireAdminTotp: settings.RequireAdminTotp},
+		Settings: identity.WorkspaceSettings{
+			RequireAdminTotp:    settings.RequireAdminTotp,
+			AuditAnchorTargetID: shared.ID(settings.AuditAnchorTargetID),
+		},
 		UpdatedAt: timeFrom(row.UpdatedAt),
 		Version:   int(row.Version),
 	}, nil
@@ -95,7 +102,8 @@ func (WorkspaceSettingsRepository) Update(
 	}
 
 	payload, err := json.Marshal(settingsDocument{
-		RequireAdminTotp: changed.Settings.RequireAdminTotp,
+		RequireAdminTotp:    changed.Settings.RequireAdminTotp,
+		AuditAnchorTargetID: changed.Settings.AuditAnchorTargetID.String(),
 	})
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the workspace settings: %w", err)

@@ -56,6 +56,15 @@ const Prefix = "/caldav/"
 // follows the redirect to Prefix.
 const WellKnown = "/.well-known/caldav"
 
+// Discovery answers WellKnown: a permanent redirect into the tree, to any method and to any
+// caller. RFC 6764 has the client ask unauthenticated and follow the redirect before it presents
+// anything, so the address is public (rest.PublicRoutes) - it discloses nothing, since the tree
+// it points at still asks - and it takes Basic beside the bearer like the tree does, for the
+// client that sends its credential from the first request on (issue 719).
+func Discovery() http.Handler {
+	return http.RedirectHandler(Prefix, http.StatusMovedPermanently)
+}
+
 const (
 	nsDAV    = "DAV:"
 	nsCalDAV = "urn:ietf:params:xml:ns:caldav"
@@ -77,10 +86,20 @@ type ViewSelector interface {
 	Select(ctx context.Context, actor appshared.ActorContext, viewID shared.ID) (work.ExportedView, error)
 }
 
+// ItemReader answers one entry by identifier, with the caller's permission decided inwards of
+// here: the write half's way of telling an address the calendar does not answer from an entry
+// that does not exist (issue 720).
+type ItemReader interface {
+	Execute(ctx context.Context, actor appshared.ActorContext, query work.GetWorkItemQuery) (workmodel.WorkItem, error)
+}
+
 // Controller serves the tree.
 type Controller struct {
 	Feeds FeedLister
 	Views ViewSelector
+	// Items reads an entry the view does not answer; nil means a PUT to such an address is a
+	// creation, which is only right where no entry holds the identifier.
+	Items ItemReader
 	// BaseURL is the installation's own address, for the URL a todo carries back into the
 	// product; empty means a relative one.
 	BaseURL string
@@ -479,22 +498,12 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 	view := calendarView{feed: feed, view: exported.View, name: exported.View.Name, byID: map[string]member{}}
 	digest := sha256.New()
 	for _, item := range exported.Items {
-		todo, dated := c.todoOf(item, zone, children)
-		if !dated {
+		// As the feed's eventOf, an entry with no due date is not shown - a calendar is a set
+		// of moments.
+		if item.Due == nil {
 			continue
 		}
-		body := RenderTodo(todo, stamp)
-		m := member{
-			id:      item.ID.String(),
-			path:    memberPath(account, feed.ID.String(), item.ID.String()),
-			etag:    `"` + strconv.Itoa(item.Version) + `"`,
-			version: item.Version,
-			todo:    todo,
-			body:    body,
-		}
-		if item.StartAt != nil {
-			m.start = *item.StartAt
-		}
+		m := c.memberOf(account, feed.ID.String(), item, zone, children, stamp)
 		view.members = append(view.members, m)
 		view.byID[m.id] = m
 		_, _ = fmt.Fprintf(digest, "%s:%d\n", item.ID, item.Version)
@@ -515,25 +524,42 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 	return view, nil
 }
 
-// todoOf turns one entry into a todo, and says whether it is one at all: as the feed's eventOf,
-// an entry with no due date is not shown - a calendar is a set of moments.
-func (c *Controller) todoOf(item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int) (Todo, bool) {
-	if item.Due == nil {
-		return Todo{}, false
+// memberOf is one entry at its address: the todo rendered, the version as the ETag.
+func (c *Controller) memberOf(account, feed string, item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int, stamp time.Time) member {
+	todo := c.todoOf(item, zone, children)
+	m := member{
+		id:      item.ID.String(),
+		path:    memberPath(account, feed, item.ID.String()),
+		etag:    `"` + strconv.Itoa(item.Version) + `"`,
+		version: item.Version,
+		todo:    todo,
+		body:    RenderTodo(todo, stamp),
 	}
+	if item.StartAt != nil {
+		m.start = *item.StartAt
+	}
+	return m
+}
+
+// todoOf turns one entry into a todo. An entry without a due date is one the calendar does not
+// show, and the caller decides that; here it is a todo without a DUE, which is what the write
+// half diffs a client's PUT against.
+func (c *Controller) todoOf(item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int) Todo {
 	todo := Todo{
 		UID:             item.ID.String() + "@hubtask",
 		Summary:         item.Title,
-		Due:             item.Due.At,
 		URL:             c.itemURL(item.ID.String()),
 		Created:         item.CreatedAt,
 		LastModified:    item.UpdatedAt,
 		PercentComplete: -1,
 	}
-	if item.Due.DateOnly {
-		day := item.Due.At.In(zoneOr(item.Due.TimeZone, zone))
-		todo.AllDay = true
-		todo.Due = time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+	if item.Due != nil {
+		todo.Due = item.Due.At
+		if item.Due.DateOnly {
+			day := item.Due.At.In(zoneOr(item.Due.TimeZone, zone))
+			todo.AllDay = true
+			todo.Due = time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+		}
 	}
 	if item.Completion.IsCompleted && item.Completion.CompletedAt != nil {
 		todo.Completed = *item.Completion.CompletedAt
@@ -541,7 +567,7 @@ func (c *Controller) todoOf(item workmodel.WorkItem, zone *time.Location, childr
 	if count, ok := children[item.ID]; ok && count[0] > 0 {
 		todo.PercentComplete = count[1] * 100 / count[0]
 	}
-	return todo, true
+	return todo
 }
 
 func (c *Controller) itemURL(id string) string {
@@ -747,6 +773,11 @@ func (c *Controller) refuse(w http.ResponseWriter, err error) {
 			return
 		case shared.CategoryValidation:
 			writeStatus(w, http.StatusBadRequest)
+			return
+		case shared.CategoryConflict:
+			// A version the client did not see, or an identifier the workspace already holds:
+			// RFC 4918 §9.7's answer to a PUT the resource's state refuses.
+			writeStatus(w, http.StatusConflict)
 			return
 		}
 	}

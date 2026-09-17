@@ -140,12 +140,12 @@
     user-select: none;
   }
 
-  .row:hover { background: var(--bg-surface-raised); color: var(--text-primary); }
+  .row:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
   /* Rule 3: the current node is announced by `aria-current` and carries a mark of its own, so it
      does not rest on the colour alone. */
   .row[aria-current='page'] {
-    background: var(--bg-surface-raised);
+    background: var(--bg-surface-pressed);
     color: var(--text-primary);
     font-weight: var(--fw-medium);
     box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
