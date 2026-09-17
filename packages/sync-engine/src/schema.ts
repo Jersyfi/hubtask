@@ -185,6 +185,12 @@ export type IdentityProvider = components['schemas']['IdentityProvider'];
  * its own, false until somebody says otherwise.
  */
 export type AiProvider = components['schemas']['AiProvider'];
+/**
+ * An entry read in another language (M-11): display only, stored nowhere, with the provenance
+ * every AI output carries. Not a record - no id, no status, nothing to accept.
+ */
+export type AiTranslation = components['schemas']['AiTranslation'];
+export type AiTranslateRequest = components['schemas']['AiTranslateRequest'];
 export type AiProviderConfiguration = components['schemas']['AiProviderConfiguration'];
 export type AiProviderKind = components['schemas']['AiProviderKind'];
 export type AiJurisdiction = components['schemas']['AiJurisdiction'];

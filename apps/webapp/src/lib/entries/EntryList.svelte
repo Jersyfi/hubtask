@@ -43,6 +43,7 @@
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
+  import LanguagePicker from './LanguagePicker.svelte';
   import MoveDialog from './MoveDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
 
@@ -57,6 +58,9 @@
   import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
+  import { actor } from '../data/account.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { textLanguages } from '../data/query.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
@@ -282,9 +286,14 @@
         : childTypes(rows.find((row) => row.item.id === addingUnder)?.item.type ?? ''),
   );
 
+  /** The language a new entry is written in: the person's own, preselected, and changeable. */
+  let draftLanguage = $state('');
+  const languages = $derived(textLanguages(manifest.value));
+
   function startAdding(under: string) {
     addingUnder = under;
     draftTitle = '';
+    draftLanguage = actor.locale ?? messages.locale;
     writeFailure = undefined;
     // The first type the manifest offers, so the common case needs no choice at all.
     draftType =
@@ -298,10 +307,13 @@
     isSaving = true;
     writeFailure = undefined;
     try {
+      // The language travels only when the person chose one: omitted is the contract's own
+      // default - the creator's locale - and sending the same thing would say it twice.
+      const language = draftLanguage.trim() ? { content_language: draftLanguage.trim() } : {};
       await items.create(
         addingUnder === 'root'
-          ? { type: draftType, collection_id: collectionId, title: draftTitle.trim() }
-          : { type: draftType, parent_id: addingUnder, title: draftTitle.trim() },
+          ? { type: draftType, collection_id: collectionId, title: draftTitle.trim(), ...language }
+          : { type: draftType, parent_id: addingUnder, title: draftTitle.trim(), ...language },
         crypto.randomUUID(),
       );
       // The new entry appears because the write invalidated the level and the engine re-read it.
@@ -1007,6 +1019,17 @@
       />
     {/if}
     <Input label={t('app.entries.new_title')} bind:value={draftTitle} />
+    <!-- Which language it is written in (i18n-l10n.md §6 line 9): the person's own preselected,
+         the installation's list to choose from, a typed tag for one outside it. -->
+    <LanguagePicker
+      {languages}
+      bind:value={draftLanguage}
+      size="sm"
+      label={t('app.entries.language')}
+      otherLabel={t('app.entries.language_other')}
+      tagLabel={t('app.entries.language_tag')}
+      tagHint={t('app.entries.language_tag_hint')}
+    />
     <Inline gap="100">
       <!-- Off with a reason rather than silently doing nothing. `create()` returns early on an
            empty title, and a button that answers a press with nothing is the silent ignoring this
