@@ -662,6 +662,15 @@ gate-cli:
 gate-e2e: docker-build
 	scripts/hubctl-e2e.sh $(VERSION)
 
+## gate-engine-conformance: The sync engine's conformance run against the reference Compose stack
+# The client's half of the offline synchronisation's conformance: `hubctl sync-conformance` (a
+# section of gate-e2e) asks what the server owes a client, this asks whether the first-party
+# engine keeps offline-sync.md §9 against a real server. Its own stack, because the end-to-end
+# session spends the rate limiter's burst in its last sections (F6-08). Needs Node and pnpm.
+.PHONY: gate-engine-conformance
+gate-engine-conformance: docker-build
+	scripts/sync-engine-conformance.sh $(VERSION)
+
 ## gate-observability: The shipped alert rules, checked by Prometheus itself
 .PHONY: gate-observability
 gate-observability:
