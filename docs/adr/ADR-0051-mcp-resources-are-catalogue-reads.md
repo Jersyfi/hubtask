@@ -1,6 +1,6 @@
 # ADR-0051 — An MCP resource is a catalogue read with a URI for an argument
 
-**Status:** proposed · **Date:** 2026-09-09
+**Status:** accepted · **Date:** 2026-09-09 · **Accepted:** 2026-09-17
 
 ## Context
 
@@ -109,6 +109,20 @@ comes.
   copy of it.
 * Prompts (J-12) and the streaming half of the transport (J-13) stay unimplemented and undeclared,
   which is the rule `McpServer.go` already states about itself.
+
+## Amendment — 2026-09-17, on acceptance: what J-12 and J-13 changed since this was written
+
+Decision 5 and the last consequence describe the server of 2026-09-09, and both have moved as the
+decision itself anticipated. Since J-13 the server has a stream to carry a notification, so
+`initialize` answers `resources.listChanged` as **true where a stream and a subscription exist and
+false otherwise** (`capabilities()` in `McpServer.go`); `subscribe` stays false, because MCP's
+subscription is per resource URI and what this server watches is a workspace. Since J-12 the
+prompts capability is declared whenever the prompt store is configured, published from the one
+store [ADR-0049](./ADR-0049-ai-provider-surface.md) decision 3 names. Neither changes decisions
+1–4, which are what this record is for: a resource is a catalogue read, the table is three rows a
+person chose, items are not enumerated, and a refusal is a JSON-RPC error carrying the problem
+document. The implementation is J-11 ([#468](https://github.com/Jersyfi/hubtask/pull/468)), and
+`presentation/mcp/Resources.go` is the table.
 
 ## Alternatives considered
 
