@@ -597,3 +597,103 @@ func TestAChainWhoseParentIsGoneIsRefused(t *testing.T) {
 		t.Fatalf("detail code: %v", err)
 	}
 }
+
+// The trial restore (B-4, P-14): a FULL run with the flag on reads its own archive back and the
+// run carries what the trial found; an archive damaged between the write and the trial fails the
+// run with the code and the member.
+
+// inspector is the trial's double: it remembers what it was asked to read and answers a report,
+// or refuses as a reader refuses.
+type inspector struct {
+	asked  []InspectInput
+	refuse error
+	report domain.Report
+}
+
+func (i *inspector) Inspect(_ context.Context, in InspectInput) (domain.Report, error) {
+	i.asked = append(i.asked, in)
+	if i.refuse != nil {
+		return domain.Report{}, i.refuse
+	}
+	return i.report, nil
+}
+
+func TestAFullRunWithTheFlagOnReadsItsOwnArchiveBack(t *testing.T) {
+	h := newPerformHarness(t)
+	h.export.byTable["work_item"] = []repository.Row{
+		{ID: "w1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{"state": "OPEN"}},
+	}
+	trial := &inspector{report: domain.Report{Skipped: 1, Conflicts: 1, Entities: map[string]int{"work_items": 1}}}
+	performer := h.performer()
+	performer.Trial = trial
+	in := performInput()
+	in.TrialRestore = true
+
+	run, err := performer.Perform(context.Background(), in)
+	if err != nil {
+		t.Fatalf("performing: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Fatalf("status %s", run.Status)
+	}
+	if len(trial.asked) != 1 || trial.asked[0].Archive != run.ArchivePath || trial.asked[0].TenantID != tenantID || trial.asked[0].Store == nil {
+		t.Fatalf("the trial was asked %+v", trial.asked)
+	}
+	outcome := h.runs.outcomes[0]
+	if outcome.TrialAt.IsZero() || !strings.Contains(string(outcome.TrialReport), `"skipped":1`) || strings.Contains(string(outcome.TrialReport), "failure") {
+		t.Errorf("the run keeps %s at %s", outcome.TrialReport, outcome.TrialAt)
+	}
+	if verified := h.runs.stored[runID]; verified.VerifyOK == nil || !*verified.VerifyOK {
+		t.Error("a trial that read every member is not recorded as a verification")
+	}
+	// What the run answers: the trial in the contract's shape.
+	out := runOutput(domain.Run{ID: runID, TargetID: targetID, StartedAt: now, TrialReport: outcome.TrialReport, TrialAt: outcome.TrialAt})
+	trialOut, held := out["trial_restore"].(map[string]any)
+	if !held || trialOut["report"] == nil || trialOut["inspected_at"] == nil {
+		t.Errorf("the run answers %v", out["trial_restore"])
+	}
+
+	// An incremental run, or a schedule without the flag, reads nothing back.
+	in.TrialRestore = false
+	h2 := newPerformHarness(t)
+	performer2 := h2.performer()
+	performer2.Trial = trial
+	if _, err := performer2.Perform(context.Background(), in); err != nil || len(trial.asked) != 1 {
+		t.Errorf("a run without the flag was tried: %v %d", err, len(trial.asked))
+	}
+}
+
+func TestAnArchiveDamagedBetweenWriteAndTrialFailsTheRun(t *testing.T) {
+	h := newPerformHarness(t)
+	trial := &inspector{refuse: shared.ErrValidation.WithDetail(archive.CodeChecksumMismatch).
+		WithParams(map[string]string{"path": "data/work_items.jsonl.zst", "reason": "mismatch"})}
+	performer := h.performer()
+	performer.Trial = trial
+	in := performInput()
+	in.TrialRestore = true
+
+	_, err := performer.Perform(context.Background(), in)
+	if err == nil || shared.AsError(err).DetailCode != CodeTrialRestoreFailed {
+		t.Fatalf("the answer was %v, want %s", err, CodeTrialRestoreFailed)
+	}
+	if len(h.runs.outcomes) != 1 {
+		t.Fatalf("%d outcomes recorded", len(h.runs.outcomes))
+	}
+	outcome := h.runs.outcomes[0]
+	if outcome.Status != domain.RunFailed || outcome.ErrorCode != CodeTrialRestoreFailed {
+		t.Errorf("the run ended %s %s", outcome.Status, outcome.ErrorCode)
+	}
+	if !strings.Contains(string(outcome.TrialReport), `"member":"data/work_items.jsonl.zst"`) ||
+		!strings.Contains(string(outcome.TrialReport), archive.CodeChecksumMismatch) {
+		t.Errorf("the run keeps %s", outcome.TrialReport)
+	}
+	if verified := h.runs.stored[runID]; verified.VerifyOK != nil {
+		t.Error("a failed trial was recorded as a verification")
+	}
+
+	// A build without a restore refuses the trial rather than pretending it ran.
+	h2 := newPerformHarness(t)
+	if _, err := h2.performer().Perform(context.Background(), in); err == nil || shared.AsError(err).DetailCode != CodeTrialRestoreFailed {
+		t.Errorf("a build without an inspector answered %v", err)
+	}
+}

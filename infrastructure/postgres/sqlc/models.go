@@ -416,6 +416,14 @@ type AiProvider struct {
 	Version           int32
 }
 
+type AiRequest struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AskedBy   pgtype.UUID
+	Text      string
+	CreatedAt pgtype.Timestamptz
+}
+
 type AiSuggestion struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID
@@ -598,6 +606,8 @@ type BackupRun struct {
 	ExpiresAt   pgtype.Timestamptz
 	VerifiedAt  pgtype.Timestamptz
 	VerifyOk    *bool
+	TrialReport []byte
+	TrialAt     pgtype.Timestamptz
 }
 
 type BackupSchedule struct {
@@ -618,6 +628,7 @@ type BackupSchedule struct {
 	NextRunAt    pgtype.Timestamptz
 	CreatedAt    pgtype.Timestamptz
 	Version      int32
+	TrialRestore bool
 }
 
 type BackupTarget struct {

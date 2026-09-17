@@ -116,3 +116,27 @@ export function applyDocumentLocale(root: LocaleTarget, locale: string, directio
   root.setAttribute('lang', locale);
   root.setAttribute('dir', direction);
 }
+
+/**
+ * A language's name as its own speakers write it, and as the reader writes it — "العربية — Arabic"
+ * for somebody reading in English, "Deutsch" alone for somebody reading in German. The tag is
+ * what the platform's `Intl.DisplayNames` is given, and stays the value the control carries; a
+ * platform that cannot name the tag answers the tag, which is the honest fallback and what the
+ * select showed before (issue 715).
+ */
+export function languageName(tag: string, reader: string): string {
+  const own = displayName(tag, tag);
+  const theirs = displayName(tag, reader);
+  if (own === undefined && theirs === undefined) return tag;
+  if (own === undefined || theirs === undefined || own === theirs) return own ?? theirs ?? tag;
+  return `${own} \u2014 ${theirs}`;
+}
+
+function displayName(tag: string, inLocale: string): string | undefined {
+  try {
+    const name = new Intl.DisplayNames([inLocale], { type: 'language', fallback: 'none' }).of(tag);
+    return typeof name === 'string' && name.trim() !== '' ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}

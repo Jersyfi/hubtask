@@ -50,6 +50,11 @@ config:
   logLevel: info
   # The installation's own absolute URL. Set by the operator.
   baseUrl: ""
+  # The hosts the application may call out to over HTTP: webhook receivers, HTTP action targets,
+  # a workspace's identity provider. Mandatory in provider operation (T-07) - an empty list means
+  # "anywhere public" and /meta/health says so on every pod, which is A-14 firing from the first
+  # day. Set by the operator; a workspace that names a receiver not on it is refused at delivery.
+  egressAllowedHosts: []
   extraEnv:
     # Exactly the origin the browser sends, scheme included: the chart refuses a bare host name
     # rather than silently matching nothing (security.md §9). Set by the operator.

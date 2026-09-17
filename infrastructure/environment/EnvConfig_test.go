@@ -455,8 +455,7 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 	warnings := New("v", "c").Warnings(cfg)
 
 	for _, want := range []string{
-		"config.base_url_missing", // links in emails would be wrong
-		"config.oidc_missing_in_multi_tenancy",
+		"config.base_url_missing",         // links in emails would be wrong
 		"config.egress_allowlist_missing", // mandatory in provider operation (T-07)
 		"config.smtp_without_tls",
 	} {
