@@ -466,7 +466,7 @@ teaches the screenshots.
   about is the `attach` role; and the tone in `voice-and-tone.md` §7 — offered, never asserted.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: the wordmark in `F1`, because the website needs it; platform adaptation in `F6`, with the mobile shell that raises the question.
+list: the wordmark in `F1`, because the website needs it; platform adaptation in `F7`, with the mobile shell that raises the question.
 
 ---
 
