@@ -157,23 +157,35 @@ export class FetchTransport implements Transport {
 
     const total = sizeOf(transfer.body);
     const report = transfer.onProgress ?? (() => {});
-    const streaming = supportsStreamingUploads();
+    const send = (streamed: boolean) => this.#fetch(transfer.url, {
+      method: transfer.method,
+      headers,
+      body: streamed ? counted(transfer.body, total, report) : transfer.body,
+      signal,
+      credentials: 'omit',
+      // `duplex` is what a streamed request body requires, and TypeScript's `RequestInit`
+      // has not caught up with the specification.
+      ...(streamed ? { duplex: 'half' } : {}),
+    } as RequestInit);
 
     let answer: globalThis.Response;
     try {
-      answer = await this.#fetch(transfer.url, {
-        method: transfer.method,
-        headers,
-        body: streaming ? counted(transfer.body, total, report) : transfer.body,
-        signal,
-        credentials: 'omit',
-        // `duplex` is what a streamed request body requires, and TypeScript's `RequestInit`
-        // has not caught up with the specification.
-        ...(streaming ? { duplex: 'half' } : {}),
-      } as RequestInit);
+      answer = await send(supportsStreamingUploads());
     } catch (cause) {
-      const aborted = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
-      throw new TransportError(aborted ? 'timeout' : 'offline', { cause });
+      if (aborted(cause) || !supportsStreamingUploads()) {
+        throw new TransportError(aborted(cause) ? 'timeout' : 'offline', { cause });
+      }
+      // The runtime streams, and the connection does not: Chromium sends a streamed request body
+      // over HTTP/2 or HTTP/3 only and refuses the fetch over HTTP/1.1 before a byte leaves - a
+      // plain-HTTP bucket, the reference Compose stack - and the feature test above cannot tell,
+      // because it is a property of the connection rather than of the runtime (issue 756). The
+      // same bytes once more, whole: a PUT is idempotent and nothing was acknowledged, and the
+      // progress is then reported once at the end, as it is wherever streaming is unavailable.
+      try {
+        answer = await send(false);
+      } catch (again) {
+        throw new TransportError(aborted(again) ? 'timeout' : 'offline', { cause: again });
+      }
     }
 
     if (!answer.ok) {
@@ -431,6 +443,11 @@ async function* readEvents(
     await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
+}
+
+/** Whether a fetch failed because its deadline passed or its caller stopped it. */
+function aborted(cause: unknown): boolean {
+  return cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
 }
 
 function sizeOf(body: ByteTransfer['body']): number {

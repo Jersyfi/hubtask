@@ -385,6 +385,39 @@ test('a byte transfer without a deadline is refused, and an aborted one is a tim
   );
 });
 
+test('a streamed transfer the connection refuses is sent once more, whole (issue 756)', async () => {
+  // Chromium streams a request body over HTTP/2 only and fails the fetch over HTTP/1.1 before a
+  // byte leaves; the feature test cannot see the connection. The first attempt here is whatever
+  // the runtime does, and a fake that refuses a streamed body once is the connection saying no.
+  const calls: RequestInit[] = [];
+  const fetch = (async (_url: string | URL | Request, init: RequestInit = {}) => {
+    calls.push(init);
+    if (init.body instanceof ReadableStream) throw new TypeError('Failed to fetch');
+    return new Response(null, { status: 200 });
+  }) as unknown as typeof globalThis.fetch;
+  const progress: [number, number][] = [];
+
+  await new FetchTransport({ baseUrl: '/api/v1', fetch }).transfer({
+    url: 'http://minio.internal:9000/b/o?X-Amz-Signature=abc', method: 'PUT',
+    body: new Uint8Array(3), contentType: 'image/png', timeoutMs: 1000,
+    onProgress: (sent, total) => progress.push([sent, total]),
+  });
+
+  const last = calls.at(-1);
+  assert.ok(last && !(last.body instanceof ReadableStream), 'the retry still streamed');
+  assert.equal(new Headers(last?.headers).get('Content-Type'), 'image/png');
+  assert.deepEqual(progress.at(-1), [3, 3]);
+
+  // And a refusal that is not about streaming is what it was: offline, once.
+  const always = (async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof globalThis.fetch;
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch: always }).transfer({
+      url: 'http://minio.internal:9000/b/o', method: 'PUT', body: new Uint8Array(3), timeoutMs: 1000,
+    }),
+    (error: unknown) => error instanceof TransportError && error.kind === 'offline',
+  );
+});
+
 test('a bucket refusing the bytes is a problem with its status, readable body or not', async () => {
   const { fetch } = recordingFetch(() => new Response('<Error><Code>AccessDenied</Code></Error>', { status: 403 }));
   await assert.rejects(
