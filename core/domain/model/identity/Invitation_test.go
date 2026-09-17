@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -145,6 +146,11 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 		{"a zone nobody has", Preferences{TimeZone: "Europe/Atlantis"}, "accounts.time_zone_invalid"},
 		{"an offset cannot represent daylight saving", Preferences{TimeZone: "+02:00"}, "accounts.time_zone_invalid"},
 		{"a day the calendar does not start on", Preferences{WeekStart: "WEDNESDAY"}, "accounts.week_start_invalid"},
+		{"celebrations off", Preferences{Celebrations: "false"}, ""},
+		{"celebrations on, any case", Preferences{Celebrations: "TRUE"}, ""},
+		{"a tour that ended", Preferences{OnboardingCompletedAt: "2026-09-17T10:00:00+02:00"}, ""},
+		{"a word that is not a switch must not turn a moment off", Preferences{Celebrations: "off"}, "accounts.celebrations_invalid"},
+		{"a date without a time is not an instant", Preferences{OnboardingCompletedAt: "2026-09-17"}, "accounts.onboarding_completed_at_invalid"},
 	}
 
 	for _, c := range cases {
@@ -157,6 +163,15 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 				}
 				if c.given.WeekStart != "" && updated.WeekStart != strings.ToUpper(c.given.WeekStart) {
 					t.Errorf("week start %q, want it upper case", updated.WeekStart)
+				}
+				if c.given.Celebrations != "" && (updated.Celebrations == nil || *updated.Celebrations != strings.EqualFold(c.given.Celebrations, "true")) {
+					t.Errorf("celebrations %v, want %s read as a switch", updated.Celebrations, c.given.Celebrations)
+				}
+				if c.given.OnboardingCompletedAt != "" && (updated.OnboardingCompletedAt == nil || updated.OnboardingCompletedAt.Location() != time.UTC || updated.OnboardingCompletedAt.Hour() != 8) {
+					t.Errorf("onboarding completed at %v, want the instant kept in UTC", updated.OnboardingCompletedAt)
+				}
+				if c.given.Celebrations == "" && updated.Celebrations != nil {
+					t.Errorf("celebrations %v, want the default (nil) when nothing was given", *updated.Celebrations)
 				}
 				return
 			}

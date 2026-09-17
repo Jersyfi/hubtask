@@ -6,6 +6,7 @@ package identity
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -112,6 +113,66 @@ func TestAWeekStartCanBeClearedThroughTheRegistry(t *testing.T) {
 	}
 	if out.String("locale") != "de" || out.String("time_zone") != "Europe/Berlin" {
 		t.Errorf("clearing one preference touched another: %v", out)
+	}
+}
+
+// The moments (F6-12) follow the same rule as the three before them: written as words, read back
+// in their own types, and cleared by an empty string - the default (on) for the celebrations, the
+// tour asked for again for the other.
+func TestTheMomentsAreWrittenAndClearedLikeEveryOtherPreference(t *testing.T) {
+	accounts := newAccounts(settled(t))
+	handler := preferencesHandler(accounts, &authorizer{}, &auditSink{})
+	off, ended := "false", "2026-09-17T10:00:00Z"
+
+	written, err := handler.Execute(t.Context(), admin(), UpdateAccountPreferencesCommand{
+		Celebrations: &off, OnboardingCompletedAt: &ended,
+	})
+	if err != nil {
+		t.Fatalf("writing the moments: %v", err)
+	}
+	if written.Celebrations == nil || *written.Celebrations || written.OnboardingCompletedAt == nil ||
+		written.OnboardingCompletedAt.Format(time.RFC3339) != ended {
+		t.Fatalf("read back celebrations %v, completed at %v", written.Celebrations, written.OnboardingCompletedAt)
+	}
+	if written.Locale != "de" {
+		t.Errorf("writing the moments touched the locale: %q", written.Locale)
+	}
+
+	// Leave both, change nothing else: absent is absent.
+	dutch := "nl"
+	left, err := handler.Execute(t.Context(), admin(), UpdateAccountPreferencesCommand{Locale: &dutch})
+	if err != nil {
+		t.Fatalf("changing the locale: %v", err)
+	}
+	if left.Celebrations == nil || *left.Celebrations || left.OnboardingCompletedAt == nil {
+		t.Errorf("an absent moment was not left alone: %v, %v", left.Celebrations, left.OnboardingCompletedAt)
+	}
+
+	// Cleared through the registry, the way a request reaches it.
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	out, err := registry.Invoke(t.Context(), UpdateAccountPreferencesName, admin(),
+		usecase.Input{"account_id": adminID.String(), "celebrations": "", "onboarding_completed_at": ""})
+	if err != nil {
+		t.Fatalf("clearing the moments: %v", err)
+	}
+	if _, present := out["celebrations"]; present {
+		t.Errorf("celebrations still answered after clearing: %v", out["celebrations"])
+	}
+	if _, present := out["onboarding_completed_at"]; present {
+		t.Errorf("onboarding_completed_at still answered after clearing: %v", out["onboarding_completed_at"])
+	}
+	if out.String("locale") != "nl" {
+		t.Errorf("clearing the moments touched the locale: %v", out)
+	}
+
+	// A word the domain refuses is refused by the registry's enum before it, by name.
+	_, err = registry.Invoke(t.Context(), UpdateAccountPreferencesName, admin(),
+		usecase.Input{"account_id": adminID.String(), "celebrations": "off"})
+	if err == nil {
+		t.Fatal("a word that is not a switch was accepted")
 	}
 }
 

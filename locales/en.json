@@ -375,6 +375,8 @@
   "accounts.locale_invalid": "{value} is not a language tag. Use a form such as de, de-AT or pt-BR.",
   "accounts.time_zone_invalid": "{value} is not a time zone. Use an IANA name such as Europe/Berlin.",
   "accounts.week_start_invalid": "A week can start on MONDAY, SUNDAY or SATURDAY.",
+  "accounts.celebrations_invalid": "{value} is not a setting for the celebrations. Send true, false, or nothing for the default.",
+  "accounts.onboarding_completed_at_invalid": "{value} is not a moment. Send an RFC 3339 date and time, or nothing to run the tour again.",
   "accounts.not_found": "That person is not in this workspace.",
   "accounts.account_required": "Say whose account to read.",
   "accounts.self_required": "This call runs as the installation itself, which has no account of its own to report.",

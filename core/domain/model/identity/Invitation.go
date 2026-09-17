@@ -206,6 +206,10 @@ type Preferences struct {
 	// WeekStart is a day name in English, because it is a code and not display text (rule 8):
 	// MONDAY, SUNDAY, SATURDAY - what CLDR distinguishes for the calendars this product draws.
 	WeekStart string
+	// Celebrations is "true" or "false", and OnboardingCompletedAt an RFC 3339 instant - strings,
+	// so that the one rule every preference has holds for them too: empty clears (F6-12).
+	Celebrations          string
+	OnboardingCompletedAt string
 }
 
 // weekStarts is the closed set. Three rather than seven: those are the ones a calendar in real use
@@ -229,9 +233,54 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+	celebrations, err := celebrationsOf(p.Celebrations)
+	if err != nil {
+		return Account{}, err
+	}
+	completedAt, err := onboardingCompletedAtOf(p.OnboardingCompletedAt)
+	if err != nil {
+		return Account{}, err
+	}
 
 	a.Locale, a.TimeZone, a.WeekStart = locale, zone, weekStart
+	a.Celebrations, a.OnboardingCompletedAt = celebrations, completedAt
 	return a, nil
+}
+
+// celebrationsOf reads the switch: "true", "false", or empty for the default (on). Anything else
+// is refused by name rather than read as off - a misspelt value must not turn a moment off.
+func celebrationsOf(raw string) (*bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "":
+		return nil, nil
+	case "true":
+		on := true
+		return &on, nil
+	case "false":
+		off := false
+		return &off, nil
+	}
+	return nil, shared.ErrValidation.
+		WithDetail("accounts.celebrations_invalid").
+		WithParams(map[string]string{"value": strings.TrimSpace(raw)})
+}
+
+// onboardingCompletedAtOf reads the instant the tour ended: RFC 3339, kept in UTC, or empty for
+// "not taken". The client writes it and the server keeps it; nothing here checks it against the
+// clock, because a person who skipped the tour on a device with its clock wrong still skipped it.
+func onboardingCompletedAtOf(raw string) (*time.Time, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return nil, nil
+	}
+	at, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return nil, shared.ErrValidation.
+			WithDetail("accounts.onboarding_completed_at_invalid").
+			WithParams(map[string]string{"value": value})
+	}
+	at = at.UTC()
+	return &at, nil
 }
 
 // localeTag checks the shape of a BCP 47 tag: de, de-AT, pt-BR, zh-Hans. Structural on purpose -

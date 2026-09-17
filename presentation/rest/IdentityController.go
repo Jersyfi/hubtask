@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -114,6 +115,14 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 		}
 		if present["week_start"] {
 			in["week_start"] = weekStartOrEmpty(body.WeekStart)
+		}
+		// The moments (F6-12) travel as the words the use case reads - "true"/"false", an RFC
+		// 3339 instant - and a null as the empty one, like the three above.
+		if present["celebrations"] {
+			in["celebrations"] = boolWordOrEmpty(body.Celebrations)
+		}
+		if present["onboarding_completed_at"] {
+			in["onboarding_completed_at"] = instantOrEmpty(body.OnboardingCompletedAt)
 		}
 		return c.UseCases.Invoke(r.Context(), updateAccountPreferencesUseCase, actor, in)
 	}, func(out usecase.Output) {
@@ -398,6 +407,10 @@ func accountResponse(out usecase.Output) openapi.Account {
 		day := openapi.AccountWeekStart(weekStart)
 		account.WeekStart = &day
 	}
+	if celebrations, ok := out["celebrations"].(bool); ok {
+		account.Celebrations = &celebrations
+	}
+	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
 	return account
 }
 
@@ -452,4 +465,18 @@ func weekStartOrEmpty(value *openapi.AccountPreferencesWeekStart) string {
 		return ""
 	}
 	return string(*value)
+}
+
+func boolWordOrEmpty(value *bool) string {
+	if value == nil {
+		return ""
+	}
+	return strconv.FormatBool(*value)
+}
+
+func instantOrEmpty(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
 }
