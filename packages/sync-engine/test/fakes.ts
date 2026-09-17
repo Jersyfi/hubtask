@@ -124,6 +124,12 @@ export class FakeTransport implements Transport {
     return this;
   }
 
+  /** The path answers again: the server came back. */
+  recover(path: string): this {
+    this.#failures.delete(path);
+    return this;
+  }
+
   /**
    * Fails a path once and answers normally afterwards - which is exactly the shape of an expired
    * access token: the first call is refused, the exchange happens, the retry succeeds.

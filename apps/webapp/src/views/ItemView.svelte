@@ -55,6 +55,7 @@
   import { media } from '../lib/data/media.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
+  import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
@@ -380,6 +381,7 @@
   <EmptyState kind="filtered" title={t('app.item.not_found')} />
 {:else}
   <Stack gap="300">
+    <ReplicaMark state={entry.state} />
     {#if isEditing}
       <!-- The form takes the place of the control that opened it, so it takes the focus too (2.4.3). -->
       <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="entry-edit"]' })}>

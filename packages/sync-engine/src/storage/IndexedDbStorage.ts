@@ -50,6 +50,7 @@ export class IndexedDbStorage implements Storage {
   readonly #name: string;
   readonly #factory: IDBFactory;
   #database: Promise<IDBDatabase> | undefined;
+  #writing: IDBTransaction | undefined;
 
   constructor(name: string, factory: IDBFactory | undefined = globalThis.indexedDB) {
     if (!factory) throw new TypeError('indexeddb: this runtime has no IndexedDB');
@@ -91,22 +92,67 @@ export class IndexedDbStorage implements Storage {
     return database.transaction(STORE, mode).objectStore(STORE);
   }
 
+  /**
+   * The one writing transaction, reused while it is alive. A snapshot is tens of thousands of
+   * records applied one after another, and a transaction per record - each committed to disk on
+   * its own - is what made a 67,000-entry workspace take half a minute in Firefox. A transaction
+   * stays alive as long as a request is issued from a request's own completion, which is how
+   * the replica writes: one put resolves, the next is issued in its continuation. When nothing
+   * follows it, the transaction commits on its own and the next write opens a fresh one.
+   */
+  async #writer(): Promise<IDBObjectStore> {
+    if (this.#writing) {
+      try {
+        return this.#writing.objectStore(STORE);
+      } catch {
+        // Finished or aborted in between - the guard below missed it. Open a new one.
+        this.#writing = undefined;
+      }
+    }
+    const database = await this.#open();
+    const transaction = database.transaction(STORE, 'readwrite');
+    const done = () => {
+      if (this.#writing === transaction) this.#writing = undefined;
+    };
+    transaction.oncomplete = done;
+    transaction.onabort = done;
+    transaction.onerror = done;
+    this.#writing = transaction;
+    return transaction.objectStore(STORE);
+  }
+
+  /**
+   * A store to read from: the writing transaction while one is alive - a read on the same
+   * transaction keeps it alive for the write that follows it, which is the replica's whole
+   * pattern (read the copy, write it back) - and a fresh readonly one otherwise.
+   */
+  async #reader(): Promise<IDBObjectStore> {
+    if (this.#writing) {
+      try {
+        return this.#writing.objectStore(STORE);
+      } catch {
+        this.#writing = undefined;
+      }
+    }
+    return this.#store('readonly');
+  }
+
   async get<T>(collection: string, id: string): Promise<T | undefined> {
-    const row = await settled((await this.#store('readonly')).get([collection, id]));
+    const row = await settled((await this.#reader()).get([collection, id]));
     return (row as Row | undefined)?.value as T | undefined;
   }
 
   async put<T>(collection: string, id: string, value: T): Promise<void> {
     const row: Row = { collection, id, value };
-    await settled((await this.#store('readwrite')).put(row));
+    await settled((await this.#writer()).put(row));
   }
 
   async delete(collection: string, id: string): Promise<void> {
-    await settled((await this.#store('readwrite')).delete([collection, id]));
+    await settled((await this.#writer()).delete([collection, id]));
   }
 
   async all<T>(collection: string): Promise<readonly T[]> {
-    const rows = await settled((await this.#store('readonly')).index(BY_COLLECTION).getAll(collection));
+    const rows = await settled((await this.#reader()).index(BY_COLLECTION).getAll(collection));
     return (rows as Row[]).map((row) => row.value as T);
   }
 
@@ -130,6 +176,7 @@ export class IndexedDbStorage implements Storage {
   async clear(): Promise<void> {
     const open = this.#database;
     this.#database = undefined;
+    this.#writing = undefined;
     if (open) {
       try {
         (await open).close();

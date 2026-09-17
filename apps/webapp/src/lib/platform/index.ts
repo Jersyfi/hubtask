@@ -107,6 +107,13 @@ export interface Platform {
   storageFor(accountId: string): Storage | undefined;
 
   /**
+   * Which account the held pair belongs to, remembered once `/accounts/me` has said and gone with
+   * the pair. What a tab that reloads while the server cannot be reached opens its replica by.
+   */
+  rememberAccount(id: string): void;
+  lastAccount(): string | undefined;
+
+  /**
    * How this device introduces itself in the workspace's device list - "Firefox on Linux" -
    * beside the platform, which is `web` here and a shell's own name there.
    */

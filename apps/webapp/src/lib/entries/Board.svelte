@@ -38,6 +38,7 @@
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
   import BucketDialog from './BucketDialog.svelte';
+  import ReplicaMark from '../frame/ReplicaMark.svelte';
   import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
@@ -510,6 +511,7 @@
     onRetry={() => items.openBoard(collectionId, query)()}
   />
 {:else if columns.length === 0}
+  <ReplicaMark state={boardState} />
   <!-- §4.1: say what this place is for, and offer the one action. A board with no columns used to
        explain what a column is and offer no way to make one. -->
   <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket">
@@ -522,6 +524,7 @@
     {/snippet}
   </EmptyState>
 {:else}
+  <ReplicaMark state={boardState} />
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
   <div class="board" bind:this={board}>

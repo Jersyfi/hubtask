@@ -77,6 +77,9 @@ class Actor {
         this.#state = { status: 'idle' };
         return;
       }
+      // Remembered beside the pair, so that a tab reloading while the server is away still knows
+      // whose replica to open (F6-04).
+      if (next.status === 'ready') platform.rememberAccount(next.data.id);
       this.#state = next;
     });
   }

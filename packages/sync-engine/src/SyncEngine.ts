@@ -65,6 +65,14 @@ export type ResourceState<T> =
       readonly data: T;
       readonly at: number;
       /**
+       * Where the data came from: the server, or the replica while the server could not be
+       * reached (F6-04). Two values rather than an optional that means two things - a screen
+       * marks a replica state as of the store's last synchronisation, and a write against a
+       * replica state has no `etag` to state. The first server answer after a reconnect replaces
+       * a replica state.
+       */
+      readonly source: 'server' | 'replica';
+      /**
        * The `ETag` the server sent with this read, where it sent one.
        *
        * It is handed to the caller rather than applied behind their back: a write goes to a path,
@@ -218,6 +226,16 @@ export interface SyncEngineOptions {
    */
   readonly onUnauthorized?: () => void;
   /**
+   * How a read is answered from the replica while the server cannot be reached (F6-04).
+   *
+   * The application's, like `pathsFor`: the engine does not learn which path is a list of what.
+   * Handed the request and the store, it answers the document the path would have answered - the
+   * tree, one node, a level's entries in the server's order - or `undefined` for a path the
+   * replica cannot answer, which is then `failed` as before. Asked only for a read that failed to
+   * *reach* the server; a refusal the server answered is the server's answer.
+   */
+  readonly storeFor?: (request: ResourceRequest, storage: Storage) => Promise<unknown>;
+  /**
    * Called when a request meets a `401`, to exchange the refresh token for the next pair (F4-03).
    *
    * `true` means a new credential is held and the request is retried **once**; `false` means the
@@ -247,6 +265,7 @@ export class SyncEngine {
   readonly #resources = new Map<string, ResourceEntry<unknown>>();
   readonly #onUnauthorized: () => void;
   readonly #onRefresh: () => Promise<boolean>;
+  readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
   /** The exchange in flight, so that concurrent refusals share one rather than racing. */
   #renewal: Promise<boolean> | undefined;
   /** The replica, once a store is attached. Absent means online-only: F1's engine, unchanged. */
@@ -262,6 +281,7 @@ export class SyncEngine {
     // No refresher is the shape F1 shipped: a `401` ends the session at once, which is what a
     // client holding a credential somebody typed can honestly do.
     this.#onRefresh = options.onRefresh ?? (async () => false);
+    this.#storeFor = options.storeFor;
   }
 
   /**
@@ -323,6 +343,14 @@ export class SyncEngine {
     this.#replica = replica;
     this.#device = device;
     this.#hlc = new HybridClock(this.#clock, device.id, await replica.hlc());
+    // A screen that asked before the store was attached and could not reach the server is
+    // asked again, now that the copy can answer it (F6-04): a tab reloading offline subscribes
+    // to its tree before it knows which account's store to open.
+    for (const entry of this.#resources.values()) {
+      if (entry.state.status === 'failed' && unreachable(entry.state.error) && entry.listeners.size > 0) {
+        void this.#load(entry.request, entry);
+      }
+    }
     return device;
   }
 
@@ -483,7 +511,7 @@ export class SyncEngine {
         data: [...(held.data ?? []), ...(arrived?.data ?? [])],
       } as T;
       entry.etag = answer.etag;
-      this.#publish(entry, { status: 'ready', data: combined, at: this.#clock.now(), etag: answer.etag });
+      this.#publish(entry, { status: 'ready', data: combined, at: this.#clock.now(), source: 'server', etag: answer.etag });
     } catch (cause) {
       // The page that failed does not take the pages that succeeded with it: the reader keeps what
       // they had and is told the next one did not arrive. Replacing the state with `failed` here
@@ -558,6 +586,8 @@ export class SyncEngine {
           // stream then resumes from where the pull left the store.
           cursor = await this.#catchUp(options, signal);
           if (signal.aborted) return;
+          // The server answered, so whatever a screen is showing from the copy is read again.
+          this.#replaceReplicaStates();
         }
         const connection = await this.#transport.stream(path, {
           token: this.#token(),
@@ -815,6 +845,7 @@ export class SyncEngine {
         status: 'ready',
         data: answer.body,
         at: this.#clock.now(),
+        source: 'server',
         etag: answer.etag,
       });
     } catch (cause) {
@@ -823,9 +854,60 @@ export class SyncEngine {
       const error = cause instanceof TransportError
         ? cause
         : new TransportError('malformed', { cause });
+      // A read that did not reach the server is answered from the replica where one is attached
+      // and can answer it (F6-04): `ready` as of the store's last synchronisation, with no etag.
+      // A refusal the server answered is the server's answer and is never replaced by the copy.
+      if (unreachable(error)) {
+        const copy = await this.#fromReplica<T>(request);
+        if (copy) {
+          this.#publish(entry, copy);
+          return;
+        }
+      }
       // The refusal itself was already reported by `#attempt`, which is the one place that sees
       // a 401 - here it only becomes a state a screen can render.
-      this.#publish(entry, { status: 'failed', error });
+      this.#publish(entry, { status: 'failed', error: this.#needsConnection(error) });
+    }
+  }
+
+  /** The replica's answer to a request, as a state, or nothing where it cannot answer. */
+  async #fromReplica<T>(request: ResourceRequest): Promise<ResourceState<T> | undefined> {
+    const replica = this.#replica;
+    if (!replica || !this.#storeFor) return undefined;
+    try {
+      const data = await this.#storeFor(request, replica.store);
+      if (data === undefined) return undefined;
+      const position = await replica.position();
+      return { status: 'ready', data: data as T, at: position?.at ?? this.#clock.now(), source: 'replica' };
+    } catch {
+      // A store that cannot be read is no store: the failure the screen sees is the network's.
+      return undefined;
+    }
+  }
+
+  /**
+   * An unreachable server with a replica attached, for a path the replica cannot answer: the
+   * failure is named so - `sync.needs_connection` - rather than as a generic outage, because a
+   * screen beside it is showing the copy and this one is what the copy does not hold.
+   */
+  #needsConnection(error: TransportError): TransportError {
+    if (!this.#replica || !unreachable(error) || error.detailCode) return error;
+    return new TransportError(error.kind, {
+      status: error.status, code: error.code, detailCode: 'sync.needs_connection',
+      params: error.params, fieldErrors: error.fieldErrors, requestId: error.requestId, cause: error,
+    });
+  }
+
+  /**
+   * Every entry a screen is showing from the replica, read from the server again: what the loop
+   * runs once the server answered a pull after a reconnect, so a replica state is replaced by
+   * the first server answer rather than retried on every render.
+   */
+  #replaceReplicaStates(): void {
+    for (const entry of this.#resources.values()) {
+      if (entry.state.status === 'ready' && entry.state.source === 'replica' && entry.listeners.size > 0) {
+        void this.#load(entry.request, entry);
+      }
     }
   }
 
@@ -883,6 +965,11 @@ export class SyncEngine {
       void this.#load(entry.request, entry);
     }
   }
+}
+
+/** A failure that never reached the server: no answer at all, or none in time. */
+function unreachable(error: TransportError): boolean {
+  return error.kind === 'offline' || error.kind === 'timeout';
 }
 
 /** What `:pull` answers, narrowed to what the engine reads of it. */
