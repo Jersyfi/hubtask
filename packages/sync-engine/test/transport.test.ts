@@ -328,6 +328,56 @@ test('the caller ends the stream through its signal', async () => {
 
 // ---- The bytes (F3-04): the one request that leaves for an address the engine did not compose.
 
+test('a snapshot is a POST that reads ndjson as it arrives, and ends on the cursor line', async () => {
+  const { body, write, close } = feed();
+  const { fetch, calls } = recordingFetch(() => new Response(body, {
+    status: 200, headers: { 'Content-Type': 'application/x-ndjson' },
+  }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+  const lines = await transport.snapshot('/sync:snapshot', { device_id: 'd-1' }, { ...STREAM, token: 'tok' });
+  const headers = new Headers(calls[0]?.init.headers);
+  assert.equal(calls[0]?.init.method, 'POST');
+  assert.equal(calls[0]?.url, '/api/v1/sync:snapshot');
+  assert.equal(headers.get('Authorization'), 'Bearer tok');
+  assert.equal(headers.get('Accept'), 'application/x-ndjson');
+  assert.equal(calls[0]?.init.body, '{"device_id":"d-1"}');
+
+  // A record split across two chunks, a blank line, an unreadable line, CRLF, then the cursor -
+  // and a line after it the server never writes, which the reader must not read.
+  write('{"op":"UPSERT","entity":"item","entity_id":"i-1",');
+  write('"payload":{"id":"i-1"}}\r\n\n');
+  write('not json\n{"op":"DELETE","entity":"item","entity_id":"i-2"}\n{"cursor":"c-9"}\n{"op":"UPSERT","entity":"item","entity_id":"never"}\n');
+  close();
+
+  const seen = [];
+  for await (const line of lines) seen.push(line);
+  assert.deepEqual(seen, [
+    { kind: 'record', record: { op: 'UPSERT', entity: 'item', entity_id: 'i-1', payload: { id: 'i-1' } } },
+    { kind: 'record', record: { op: 'DELETE', entity: 'item', entity_id: 'i-2' } },
+    { kind: 'cursor', cursor: 'c-9' },
+  ]);
+});
+
+test('a snapshot cut short before its cursor line simply ends, and a refusal is a problem', async () => {
+  const { body, write, close } = feed();
+  const { fetch } = recordingFetch(() => new Response(body, { status: 200 }));
+  const lines = await new FetchTransport({ baseUrl: '/api/v1', fetch }).snapshot('/sync:snapshot', {}, STREAM);
+  write('{"op":"UPSERT","entity":"item","entity_id":"i-1","payload":{"id":"i-1"}}\n{"op":"UPSERT","entity":"item","entity_id":"i-2"');
+  close();
+  const seen = [];
+  for await (const line of lines) seen.push(line.kind);
+  assert.deepEqual(seen, ['record'], 'the half line at the end is not a record, and there is no cursor');
+
+  const refusing = recordingFetch(() => new Response(JSON.stringify({ code: 'forbidden', detail_code: 'sync.stream_unavailable' }), {
+    status: 503, headers: { 'Retry-After': '7' },
+  }));
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch: refusing.fetch }).snapshot('/sync:snapshot', {}, STREAM),
+    (error: unknown) => error instanceof TransportError && error.status === 503 && error.retryAfterMs === 7_000,
+  );
+});
+
 test('a byte transfer sends no bearer, honours its deadline and reports progress', async () => {
   const { fetch, calls } = recordingFetch(() => new Response(null, { status: 204 }));
   const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });

@@ -14,6 +14,7 @@
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { ROUTES } from './lib/routes.ts';
+  import { actor } from './lib/data/account.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { session } from './lib/session.svelte.ts';
   import ContainerView from './views/ContainerView.svelte';
@@ -72,7 +73,9 @@
   });
 
   /**
-   * The one stream this tab keeps, opened once there is a credential to open it with.
+   * The one stream this tab keeps, opened once there is a credential to open it with and an
+   * account to hold the copy for - the replica is one store per account (F6-03), so the stream
+   * waits for `/accounts/me` rather than for the bearer alone.
    *
    * Here rather than in a view, because it belongs to the session rather than to a screen: a
    * reader who navigates from a board to an entry does not want the connection torn down and made
@@ -81,7 +84,9 @@
    */
   $effect(() => {
     if (!session.isSignedIn) return;
-    live.start();
+    const accountId = actor.account?.id;
+    if (!accountId) return;
+    live.start(accountId);
     return () => live.stop();
   });
 </script>

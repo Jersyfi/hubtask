@@ -5,11 +5,43 @@ calls `fetch`. It implements the client half of [ADR-0021](../../docs/adr/ADR-00
 against the three ports [ADR-0033](../../docs/adr/ADR-0033-shared-client-architecture.md) §2 names:
 `Transport`, `Storage`, `Clock`.
 
-**F1 built the shape and not the behaviour.** The engine is online-only: no queue, no local store,
-no hybrid logical clock. Those implement `:pull` and `:push`, which have no server yet, and a
-client written against a protocol that does not exist is a client written twice — they arrive in
-F6 with `offline-sync.md` §9. What is here now is what everything else is built on, so that when
-the queue lands behind `SyncEngine`, no component changes.
+**F1 built the shape; F6-03 built the replica behind it.** `SyncEngine` holds, once a store is
+attached, the local copy of the workspace `offline-sync.md` §2 describes: `attach(storage,
+identity)` gives it the store — one database per API origin and account, opened by the platform
+seam because the engine does not learn what an account is — mints the device (a UUIDv7, §9.1, held
+in the store and gone with it) and the hybrid logical clock (`hlc.ts`: the server's textual form,
+physical time from the `Clock`, a counter, the device, and `Tick`'s rule that the physical part
+never moves backwards). `listen` then takes the **initial synchronisation** where the store holds
+no cursor — `Transport.snapshot`, `POST /sync:snapshot`, read line by line into the replica, its
+cursor kept from the last line; a snapshot that ends without one is taken again, and after the
+second such end the engine walks `:pull` from nothing, page by page — and the **delta** from the
+held cursor otherwise, on start, on every reconnect and after every push; and the stream
+**applies** every record to the replica before it invalidates what `pathsFor` names. The cursor
+advances in the store, not in memory, so a reload continues where the tab was. Nothing under
+`apps/` touches IndexedDB: `IndexedDbStorage` and `MemoryStorage` are this package's, and
+`test/storage.test.ts` holds both to one contract.
+
+**What applying is, and what it is not.** A record is the server's decision, already taken: a
+whole object replaces the stored document, one field updates that field, a set record adds or
+removes an element in the entry's set — held beside the document, because the document the server
+sends carries no sets — a `DELETE` removes the entity and, for a container, everything under it by
+the tree the containers describe, and `ACCESS_REVOKED` does what a subtree deletion does at the root
+it names (§6). None of that is a merge: two values for one field and a rule choosing between them
+is the server's, and reaches this store as one more record. A field or an entity this build has
+never seen is stored as it came (§9.7). The two refusals that concern the store: `sync.cursor_too_old`
+empties it — the device stays, it is the copy that is stale — and runs the initial synchronisation
+again (§9.4); `sync.cursor_invalid` forgets the cursor and keeps the copy. `reset()` deletes the
+store — the copy, the queue-to-be, the device, the cursor — which is what sign-out means (§9.6).
+
+**No encryption in the browser, by decision.** ADR-0033 §4: "no browser-side encryption theatre".
+A key the page holds is a key the page's origin can read, and what must not sit unencrypted on a
+shared machine does not go into browser storage at all; the promise lives in the shells, whose
+keystore is the platform's (ADR-0031). What the browser store promises instead is §9.6's other half,
+exactly: `clear()` deletes the database rather than emptying it.
+
+**The queue is F6-05's.** Nothing is queued yet and nothing is applied optimistically: a write
+still succeeds or fails in front of the person who made it. `stamp()` and `catchUp()` are the two
+things the queue will need from here and already has.
 
 **F2-03 gave it four things a screen needs and F1 did not.** They are worth knowing before adding
 a fifth:
@@ -63,15 +95,18 @@ to the row. A reload is invisible until it lands, and lands as `ready` like the 
   wait for the headers, and `idleTimeoutMs` bounds the silence between chunks, because the body is
   meant never to end.
 
-  A record is **a signal to re-read, never data to apply**. Applying `payload` would be a merge.
-  So a record invalidates prefixes exactly as a write does, and which prefixes comes from
-  `pathsFor`, which the application supplies — the engine does not learn what a hub is. The four
+  A record is **the server's decision, transcribed to the replica, and a signal to re-read**.
+  Nothing in it is merged with anything — the engine writes what the record says and re-reads
+  what it names. Which prefixes comes from `pathsFor`, which the application supplies — the engine
+  does not learn what a hub is. The four
   refusals are four recoveries and the engine tells them apart: `401` ends the session through the
-  one hook, `sync.cursor_too_old` drops everything held and restarts with no cursor (a delta across
-  a gap would be silently wrong, `offline-sync.md` §7), `sync.cursor_invalid` restarts with no
-  cursor and drops nothing, and a `503` waits exactly the `Retry-After` the server named. The
-  cursor advances on the frame rather than on the record, so a reconnect never asks for a record it
-  already has, and it lives in memory for the tab's lifetime — the store that would keep it is F6's.
+  one hook, `sync.cursor_too_old` drops everything held — the store included, since F6-03 — and
+  restarts with no cursor (a delta across a gap would be silently wrong, `offline-sync.md` §7),
+  `sync.cursor_invalid` restarts with no cursor and drops nothing, and a `503` waits exactly the
+  `Retry-After` the server named. The cursor advances on the frame rather than on the record, so a
+  reconnect never asks for a record it already has; with a store attached it advances there, and a
+  reload continues where the tab was. Since F6-03 a record is applied to the replica *and* is a
+  signal to re-read — the re-read is what a screen shows while the copy is what it reads offline.
 
 * **A body that is bytes.** `Transport.transfer` is the middle step of the three-step upload
   (arc42 §8.4) and the **one** request that may leave for an address the engine did not compose.
@@ -100,8 +135,10 @@ whatever its verb.
   `test/rules.test.ts` fails on a symbol that merges. Concatenating page two onto page one is not
   one: nothing is reconciled, and the order is the server's.
 * **No optimistic apply, and therefore no rollback.** A write still either succeeds or fails in
-  front of the person who made it. Rolling one back would be a guess about a `:push` that does not
-  exist, and the queue arrives in F6 with the protocol that decides what a rollback is.
+  front of the person who made it. Rolling one back would be a guess about a `:push` the queue does
+  not send yet (F6-05), and the queue arrives with the protocol that decides what a rollback is.
+  Applying a *server's* record to the replica is not that: it is transcription of a decision the
+  server has taken.
 * **No framework.** No Svelte, no React, nothing that needs a DOM. The engine has to be
   exercisable headlessly — it is the first-party counterpart to `hubctl sync-conformance` — and a
   package that imported a framework could not be. The Svelte binding lives in

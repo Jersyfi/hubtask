@@ -124,6 +124,21 @@ export interface ByteTransfer {
   readonly onProgress?: (sent: number, total: number) => void;
 }
 
+/** One line of the initial synchronisation: a change record, or the cursor line that ends it. */
+export type SnapshotLine =
+  | { readonly kind: 'record'; readonly record: unknown }
+  | { readonly kind: 'cursor'; readonly cursor: string };
+
+/** How the initial synchronisation is asked for: the device, and how long the whole may take. */
+export interface SnapshotOptions {
+  readonly token?: string;
+  /** The wait for the headers, as on a stream. */
+  readonly connectTimeoutMs: number;
+  /** The silence between lines the response may leave, as on a stream. */
+  readonly idleTimeoutMs: number;
+  readonly signal?: AbortSignal;
+}
+
 /**
  * Transport is the seam between the engine and a server. `@hubtask/api-client` supplies the types
  * it is parameterised with; an in-memory fake supplies it in tests, which is what makes the engine
@@ -147,6 +162,14 @@ export interface Transport {
    * other call, so the engine has one shape to decide on.
    */
   stream(path: string, options: StreamOptions): Promise<StreamConnection>;
+  /**
+   * The initial synchronisation as one response: `POST /sync:snapshot`, `application/x-ndjson`,
+   * read line by line as it arrives and handed over one line at a time - the records in the
+   * walk's order, and the cursor as the last line (`offline-sync.md` §3.1). A response that ends
+   * without a cursor line was cut short, and the iterable simply ends; deciding what that means
+   * is the engine's. A refusal rejects with a `TransportError` like any other call.
+   */
+  snapshot(path: string, body: unknown, options: SnapshotOptions): Promise<AsyncIterable<SnapshotLine>>;
   /**
    * A body that is bytes, to an absolute URL the server handed over. Resolves when the bytes
    * are stored; rejects with a `TransportError` otherwise.
@@ -184,9 +207,9 @@ export interface TransportDocument {
  * because that is the intersection of IndexedDB and SQLite - and the intersection is the honest
  * port when two implementations are already known.
  *
- * F1 ships no implementation. The engine is online-only until F6 brings the protocol
- * (`offline-sync.md` §9), and a store with nothing to put in it would be a guess about a shape the
- * `:pull` contract has not yet had to satisfy.
+ * Two implementations ship with the package (F6-03): `IndexedDbStorage`, one database per API
+ * origin and account, which the browser platform seam supplies; and `MemoryStorage`, which the
+ * tests and the conformance runner use. `test/storage.test.ts` holds both to the same promises.
  */
 export interface Storage {
   get<T>(collection: string, id: string): Promise<T | undefined>;
@@ -195,8 +218,15 @@ export interface Storage {
   /** Everything in one collection. The engine reads whole collections, never ranges. */
   all<T>(collection: string): Promise<readonly T[]>;
   /**
+   * The collections that hold at least one record. A subtree deletion and an access revocation
+   * walk every collection for what points under the root (`offline-sync.md` §6), and the engine
+   * does not know which entities a newer server has sent it (§9.7).
+   */
+  collections(): Promise<readonly string[]>;
+  /**
    * Removes everything. Sign-out deletes the store completely on every platform
-   * (`offline-sync.md` §9.6, ADR-0033 §4), so this is a promise rather than a convenience.
+   * (`offline-sync.md` §9.6, ADR-0033 §4), so this is a promise rather than a convenience: the
+   * IndexedDB store deletes its database rather than emptying it.
    */
   clear(): Promise<void>;
 }

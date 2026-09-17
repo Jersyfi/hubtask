@@ -22,6 +22,7 @@
 
 import type { ChangeRecord } from '@hubtask/sync-engine';
 
+import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
 import { pathsFor, revokedContainerOf } from './live.ts';
 
@@ -44,17 +45,43 @@ class Live {
   }
 
   /**
-   * Opens the stream. Idempotent: a second call while one is open does nothing, because a tab
-   * needs one connection and the per-credential cap is real.
+   * Opens the stream, over the account's replica. Idempotent: a second call while one is open
+   * does nothing, because a tab needs one connection and the per-credential cap is real.
+   *
+   * The store is attached first (F6-03): one database per API origin and account, which is why
+   * this waits for the account rather than for the credential alone. The engine then takes the
+   * initial synchronisation or the delta before it opens the stream, and every record the stream
+   * carries is written to the copy before it is acted on. Where the platform offers no store, the
+   * engine listens as it did before: online-only.
    */
-  start(): void {
+  start(accountId: string): void {
     if (this.#stop) return;
 
     this.#state = 'reconnecting';
-    this.#stop = engine.listen({
-      pathsFor,
-      onRecord: (record) => this.#notice(record),
-    });
+    let stopped = false;
+    let stopListening: (() => void) | undefined;
+    this.#stop = () => {
+      stopped = true;
+      stopListening?.();
+    };
+
+    const attach = async () => {
+      const storage = platform.storageFor(accountId);
+      if (storage) {
+        try {
+          await engine.attach(storage, { platform: 'web', displayName: platform.deviceName() });
+        } catch {
+          // A store that cannot be opened is no store: the copy is a convenience in the browser,
+          // and the stream and every read work without it.
+        }
+      }
+      if (stopped) return;
+      stopListening = engine.listen({
+        pathsFor,
+        onRecord: (record) => this.#notice(record),
+      });
+    };
+    void attach();
   }
 
   /** Closes it. Sign-out calls this before `engine.reset()`, so nothing arrives into a cleared cache. */

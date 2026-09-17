@@ -24,6 +24,14 @@ The right-hand column is not an omission: these are operations whose outcome can
 predicted without the server. A client that fakes them offline produces conflicts nobody can
 resolve.
 
+What each first-party client holds, and promises (ADR-0033 §4, F6-03): the **browser** holds a
+replica in IndexedDB — one database per API origin and account, the initial synchronisation taken
+on the first sign-in and the delta from the held cursor on every start after — as a best-effort
+cache with no encryption of its own, deleted whole at sign-out, and never the offline promise
+(ADR-0031); the **shells** hold the same replica in SQLite under the platform keystore, and that is
+where the promise lives. `packages/sync-engine` is the one implementation of both, behind the
+`Storage` port.
+
 ---
 
 ## 2. The base model: server-authoritative with per-field merging

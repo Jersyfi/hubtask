@@ -50,6 +50,13 @@ const EMPTY_PAGE = { data: [], items: [], page: { next_cursor: null, has_more: f
 async function stub(route) {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/api/v1/stream')) return route.abort();
+  // The initial synchronisation (F6-03): an empty workspace, and the cursor line that ends it.
+  if (url.pathname.endsWith('/api/v1/sync:snapshot')) {
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: '{"cursor":"c-e2e"}\n' });
+  }
+  if (url.pathname.endsWith('/api/v1/sync:pull')) {
+    return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
+  }
   if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
   if (url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
     return route.fulfill({ json: { ...EMPTY_PAGE, data: [HUB] } });
@@ -177,6 +184,30 @@ for (const [name, engine] of Object.entries(ENGINES)) {
         const landed = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
         assert.fail(`${name}: focus did not return to the trigger but sits on ${landed}`);
       });
+
+    // The replica (F6-03): the engine opened this account's database in this engine's IndexedDB
+    // and kept the snapshot's cursor in it - one database per origin and account, and gone whole
+    // at sign-out (offline-sync.md §9.6). Asked of the engine itself, because a fake IndexedDB
+    // in Node proves the store's logic and not the engine's behaviour.
+    const database = `hubtask:${served.origin}:${ACCOUNT.id}`;
+    await page.waitForFunction(async (name) => (await indexedDB.databases()).some((d) => d.name === name), database, { timeout: 10_000 })
+      .catch(() => assert.fail(`${name}: the replica's database was not opened`));
+    const position = await page.evaluate((name) => new Promise((resolve, reject) => {
+      const open = indexedDB.open(name);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const db = open.result;
+        const get = db.transaction('records', 'readonly').objectStore('records').get(['meta', 'position']);
+        get.onsuccess = () => { db.close(); resolve(get.result?.value ?? null); };
+        get.onerror = () => { db.close(); reject(get.error); };
+      };
+    }), database);
+    assert.equal(position?.cursor, 'c-e2e', `${name}: the cursor in the store is ${JSON.stringify(position)}`);
+
+    // Sign-out deletes the database, not its rows.
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.waitForFunction(async (name) => !(await indexedDB.databases()).some((d) => d.name === name), database, { timeout: 10_000 })
+      .catch(() => assert.fail(`${name}: the replica's database survived the sign-out`));
     assert.deepEqual(failures, [], `${name}: the bundle threw during the walk`);
   });
 }

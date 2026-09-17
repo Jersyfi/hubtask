@@ -15,6 +15,8 @@ import type {
   Clock,
   RequestOptions,
   Response,
+  SnapshotLine,
+  SnapshotOptions,
   StreamConnection,
   StreamEvent,
   StreamOptions,
@@ -47,8 +49,45 @@ export interface StreamSession {
   readonly open?: boolean;
 }
 
+/**
+ * One scripted snapshot: the records the server writes, and whether the cursor line follows them
+ * - a snapshot without one was cut short (offline-sync.md §3.1).
+ */
+export interface SnapshotSession {
+  readonly refuse?: TransportError;
+  readonly records?: readonly unknown[];
+  readonly cursor?: string;
+}
+
 export class FakeTransport implements Transport {
   readonly calls: Call[] = [];
+  /** Every snapshot asked for, with the body it was asked with. */
+  readonly snapshots: { readonly body: unknown; readonly token?: string }[] = [];
+  #snapshotSessions: SnapshotSession[] = [];
+
+  /** Scripts the snapshots, consumed one per request. The last one repeats. */
+  snapshotSessions(...sessions: SnapshotSession[]): this {
+    this.#snapshotSessions = [...sessions];
+    return this;
+  }
+
+  async snapshot(_path: string, body: unknown, options: SnapshotOptions): Promise<AsyncIterable<SnapshotLine>> {
+    this.snapshots.push({ body, token: options.token });
+    await Promise.resolve();
+    const session = this.#snapshotSessions.length > 1 ? this.#snapshotSessions.shift() : this.#snapshotSessions[0];
+    if (!session) throw new TransportError('offline');
+    if (session.refuse) throw session.refuse;
+    const records = session.records ?? [];
+    const cursor = session.cursor;
+    return (async function* () {
+      for (const record of records) {
+        await Promise.resolve();
+        yield { kind: 'record', record } as SnapshotLine;
+      }
+      if (cursor !== undefined) yield { kind: 'cursor', cursor } as SnapshotLine;
+    })();
+  }
+
   /** Every stream opened, with the cursor it was opened with - what a reconnect test asserts. */
   readonly streams: { readonly lastEventId?: string; readonly token?: string }[] = [];
   /** Every byte transfer, as it was asked for. */

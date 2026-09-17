@@ -3,23 +3,24 @@
 
 // The seam every component reads through, and the subscription API a framework binds to.
 //
-// F1's engine is **online-only and deliberately so**: a call goes straight to the Transport, and
-// there is no queue, no local store and no hybrid logical clock. Those implement `:pull` and
-// `:push`, which do not exist yet, and a client written against a protocol with no server is a
-// client written twice (`offline-sync.md` §9 arrives in F6 with `0.8.5`).
-//
-// What has to be right *today* is the shape, because it is what everything else is built on: a
-// component subscribes to a resource and is told about every state it can be in, and it never
-// learns that a Transport exists. When F6 puts a queue behind this, no component changes.
+// F1's engine was online-only: a call went straight to the Transport, with no queue, no local
+// store and no hybrid logical clock. F6-03 put the replica behind it - the store, the device, the
+// clock, the initial synchronisation and the delta, the stream applied to the copy - and nothing
+// a component sees changed: it subscribes to a resource and is told about every state it can be
+// in, and it never learns that a Transport or a Storage exists. Without a store attached the
+// engine is still what F1 shipped. The queue is F6-05's.
 //
 // No Svelte, and nothing framework-shaped. The subscription is a function that takes a listener
 // and returns an unsubscribe - the smallest thing runes, signals or a React hook can all wrap, and
 // the reason this package can be exercised headlessly at all (ADR-0033 §2).
 
 import { TransportError } from './errors.ts';
-import type { ByteTransfer, Clock, RequestOptions, Transport } from './ports.ts';
+import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
+import { Replica } from './replica.ts';
+import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
+import { HybridClock } from './hlc.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -38,6 +39,16 @@ export const DEFAULT_IDLE_TIMEOUT_MS = 45_000;
 export const RECONNECT_BASE_MS = 1_000;
 /** The longest the engine waits between attempts. A tab left open overnight still comes back. */
 export const RECONNECT_MAX_MS = 30_000;
+/** How many records one delta page asks for. The contract's default, and well under its maximum. */
+export const PULL_PAGE_SIZE = 500;
+/** The snapshot's silence between lines: the server writes rows as it reads them. */
+export const DEFAULT_SNAPSHOT_IDLE_MS = 60_000;
+/**
+ * How many times a snapshot may end without its cursor line before the engine walks the pages
+ * instead. A stream cut short once is a network; twice is a response this connection cannot carry
+ * whole, and a thousand small requests is what the page walk exists for.
+ */
+export const SNAPSHOT_ATTEMPTS = 2;
 
 /**
  * Every state a resource can be in, as one union rather than three booleans.
@@ -238,6 +249,10 @@ export class SyncEngine {
   readonly #onRefresh: () => Promise<boolean>;
   /** The exchange in flight, so that concurrent refusals share one rather than racing. */
   #renewal: Promise<boolean> | undefined;
+  /** The replica, once a store is attached. Absent means online-only: F1's engine, unchanged. */
+  #replica: Replica | undefined;
+  #device: DeviceIdentity | undefined;
+  #hlc: HybridClock | undefined;
 
   constructor(options: SyncEngineOptions) {
     this.#transport = options.transport;
@@ -287,6 +302,50 @@ export class SyncEngine {
       this.#renewal = undefined;
     });
     return this.#renewal;
+  }
+
+  /**
+   * attach gives the engine its store: the replica, the device, the clock (F6-03).
+   *
+   * Called once the account is known, because the store is one database per API origin and
+   * account (ADR-0033 §4) and the engine does not learn what an account is - the application
+   * opens the store and hands it over. The device identifier is minted on the first attach of a
+   * fresh store and read back on every later one; it goes with the store at `reset`, so a new
+   * sign-in is a new device.
+   */
+  async attach(storage: Storage, identity: { platform: string; displayName: string }): Promise<DeviceIdentity> {
+    const replica = new Replica(storage, this.#clock);
+    let device = await replica.device();
+    if (!device || device.platform !== identity.platform || device.displayName !== identity.displayName) {
+      device = boundedIdentity(device?.id ?? mintUuidV7(this.#clock), identity.platform, identity.displayName);
+      await replica.holdDevice(device);
+    }
+    this.#replica = replica;
+    this.#device = device;
+    this.#hlc = new HybridClock(this.#clock, device.id, await replica.hlc());
+    return device;
+  }
+
+  /** The device this store is, or nothing while no store is attached. */
+  get device(): DeviceIdentity | undefined {
+    return this.#device;
+  }
+
+  /** The store beneath the replica, for a caller that reads the copy - or nothing while online-only. */
+  get storage(): Storage | undefined {
+    return this.#replica?.store;
+  }
+
+  /**
+   * The next clock reading, formatted as a mutation carries it, and kept in the store so a
+   * reload does not stamp backwards. Only with a store attached: an online-only engine has no
+   * device to stamp for.
+   */
+  async stamp(): Promise<string | undefined> {
+    if (!this.#hlc || !this.#replica) return undefined;
+    const reading = this.#hlc.next();
+    await this.#replica.holdHlc(reading);
+    return `${String(reading.physical).padStart(13, '0')}:${String(reading.counter).padStart(5, '0')}:${reading.device}`;
   }
 
   /**
@@ -443,10 +502,10 @@ export class SyncEngine {
    * everything the caller may read and has no subscription filter, because what a client wants to
    * see is a question about its own screen and the authorisation already answers who may see what.
    *
-   * A record is **a signal to re-read, never data to apply**. Applying `payload` to local state
-   * would be a merge, and merging is the server's (ADR-0021). So what a record does is exactly
-   * what a write does: it invalidates prefixes, watched entries are read again and unwatched ones
-   * are forgotten.
+   * A record is the server's decision, transcribed to the replica where one is attached, and
+   * **a signal to re-read**: it invalidates prefixes exactly as a write does, watched entries are
+   * read again and unwatched ones are forgotten. Nothing in it is merged with anything - merging
+   * is the server's (ADR-0021).
    *
    * The stream is an accelerator and not a second source of truth. Every way it can end - the
    * server closing it, a proxy dropping it, a `503`, a cursor the server will not resume from - is
@@ -480,8 +539,12 @@ export class SyncEngine {
   async #listen(options: ListenOptions, signal: AbortSignal): Promise<void> {
     const wait = options.wait ?? sleeper(signal);
     const path = options.path ?? '/stream';
-    /** The last `id` seen. In memory for the tab's lifetime - the store that would keep it is F6's. */
-    let cursor: string | undefined;
+    /**
+     * The last cursor seen. With a store attached it is the store's, read here and written on
+     * every frame, so a reload continues where the tab was; without one it lives in memory for the
+     * tab's lifetime.
+     */
+    let cursor: string | undefined = (await this.#replica?.position())?.cursor;
     /** The server's own reconnect suggestion, from the `retry:` field it sends on connect. */
     let suggested: number | undefined;
     let attempt = 0;
@@ -489,6 +552,13 @@ export class SyncEngine {
     while (!signal.aborted) {
       let pause: number;
       try {
+        if (this.#replica) {
+          // On start and on every reconnect: the initial synchronisation where the store holds
+          // no cursor, the delta from the held one otherwise (offline-sync.md §3.1, §3.3). The
+          // stream then resumes from where the pull left the store.
+          cursor = await this.#catchUp(options, signal);
+          if (signal.aborted) return;
+        }
         const connection = await this.#transport.stream(path, {
           token: this.#token(),
           lastEventId: cursor,
@@ -506,12 +576,18 @@ export class SyncEngine {
           // would be asking for a record it has already been given.
           if (event.id) cursor = event.id;
           const record = recordOf(event.data);
-          if (!record) continue;
-          options.onRecord?.(record);
-          // The empty list is not the absent one: `#invalidate(undefined)` means everything, and
-          // an application that maps a record to no path means the opposite. The list travels as
-          // it is, and a record that names nothing here invalidates nothing.
-          this.#invalidate(options.pathsFor(record));
+          if (record) {
+            // Applied to the replica before anything is re-read (F6-03): the store is what a
+            // screen reads while offline, and a record it has not been given is a change it
+            // shows nobody. The cursor advances in the store on the frame, not on the record.
+            await this.#replica?.apply(record);
+            options.onRecord?.(record);
+            // The empty list is not the absent one: `#invalidate(undefined)` means everything,
+            // and an application that maps a record to no path means the opposite. The list
+            // travels as it is, and a record that names nothing here invalidates nothing.
+            this.#invalidate(options.pathsFor(record));
+          }
+          if (event.id && this.#replica) await this.#replica.hold({ ...(await this.#replica.position()), cursor: event.id });
         }
         // The server closed the stream: a deployment, a drain, an idle proxy. Come back when it
         // asked to be come back to.
@@ -526,7 +602,18 @@ export class SyncEngine {
           this.#onUnauthorized();
           return;
         }
-        if (error.isCursorTooOld) this.#invalidate(undefined);
+        if (error.isCursorTooOld) {
+          // The gap is wider than the window, or the workspace was restored under a new epoch
+          // (§7, §8): everything held is stale in a way no delta can repair. The store is
+          // emptied - the device kept - and the next turn of the loop takes the initial
+          // synchronisation again (§9.4).
+          this.#invalidate(undefined);
+          await this.#replica?.empty();
+        } else if (error.isCursorInvalid && this.#replica) {
+          // A cursor this installation never minted: forget it and keep the copy. The next turn
+          // synchronises from nothing into what is held, which is what a snapshot does anyway.
+          await this.#replica.hold({ ...(await this.#replica.position()), cursor: undefined });
+        }
         if ((error.isCursorTooOld || error.isCursorInvalid) && cursor !== undefined) {
           // A refused cursor is not a busy server. Drop it and reconnect at once - and only once,
           // because the branch needs a cursor to drop and there is now none.
@@ -542,10 +629,144 @@ export class SyncEngine {
     }
   }
 
-  /** Forgets everything held in memory. Sign-out (`offline-sync.md` §9.6). */
-  reset(): void {
+  /**
+   * Forgets everything held: the resources in memory, and the store beneath the replica - the
+   * copy, the device, the cursor, all of it, deleted rather than emptied. Sign-out
+   * (`offline-sync.md` §9.6).
+   */
+  async reset(): Promise<void> {
     for (const entry of this.#resources.values()) entry.listeners.clear();
     this.#resources.clear();
+    const replica = this.#replica;
+    this.#replica = undefined;
+    this.#device = undefined;
+    this.#hlc = undefined;
+    await replica?.store.clear();
+  }
+
+  /**
+   * The delta since the held cursor, page by page until the server says there is no more - or
+   * the initial synchronisation where the store holds no cursor. What the loop runs on start and
+   * on every reconnect, and what a push runs after itself (F6-05). Answers the cursor the store
+   * now holds.
+   */
+  async catchUp(options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>): Promise<string | undefined> {
+    if (!this.#replica) return undefined;
+    return this.#catchUp(options, new AbortController().signal);
+  }
+
+  async #catchUp(
+    options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    const replica = this.#replica;
+    if (!replica) return undefined;
+    let cursor = (await replica.position())?.cursor;
+    if (cursor === undefined) {
+      cursor = await this.#initial(options, signal);
+      if (cursor === undefined) return undefined;
+    }
+    return this.#delta(cursor, options);
+  }
+
+  /**
+   * The initial synchronisation: the snapshot, read line by line into the replica, and its
+   * cursor kept. A snapshot that ends without its cursor line was cut short and is taken again;
+   * after `SNAPSHOT_ATTEMPTS` such endings the engine walks `:pull` from nothing, page by page,
+   * and keeps the cursor of the last page (offline-sync.md §3.1). The records of a cut-short
+   * snapshot stay in the store: they are the server's, and the next attempt writes them again.
+   */
+  async #initial(
+    options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    const replica = this.#replica;
+    if (!replica) return undefined;
+    const body = this.#deviceBody();
+
+    for (let attempt = 0; attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
+      const lines = await this.#attempt(() => this.#transport.snapshot('/sync:snapshot', body, {
+        token: this.#token(),
+        connectTimeoutMs: options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
+        idleTimeoutMs: options.idleTimeoutMs ?? DEFAULT_SNAPSHOT_IDLE_MS,
+        signal,
+      }));
+      for await (const line of lines) {
+        if (line.kind === 'cursor') {
+          await replica.hold({ ...(await replica.position()), cursor: line.cursor });
+          this.#invalidate(undefined);
+          return line.cursor;
+        }
+        const record = recordOf(JSON.stringify(line.record));
+        if (!record) continue;
+        await replica.apply(record);
+        options.onRecord?.(record);
+      }
+    }
+    if (signal.aborted) return undefined;
+
+    // The page walk: `:pull` with no cursor, until the server says the walk is over. The cursor
+    // a page in the middle carries names the kind and the key it resumes after, and the last
+    // page's is the delta cursor - the same one the snapshot would have ended on.
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await this.#pull(cursor ?? null, options);
+      cursor = page.cursor;
+      if (!page.has_more) break;
+    }
+    await replica.hold({ ...(await replica.position()), cursor });
+    this.#invalidate(undefined);
+    return cursor;
+  }
+
+  /** `:pull` from the cursor until `has_more` is false, applying every page. */
+  async #delta(
+    from: string,
+    options: Pick<ListenOptions, 'pathsFor' | 'onRecord'>,
+  ): Promise<string> {
+    let cursor = from;
+    for (;;) {
+      const page = await this.#pull(cursor, options);
+      cursor = page.cursor;
+      if (!page.has_more) return cursor;
+    }
+  }
+
+  /** One page of `:pull`, applied to the replica, the position kept, the paths invalidated. */
+  async #pull(
+    cursor: string | null,
+    options: Pick<ListenOptions, 'pathsFor' | 'onRecord'>,
+  ): Promise<{ cursor: string; has_more: boolean }> {
+    const replica = this.#replica;
+    if (!replica) throw new TypeError('no store is attached');
+    const answer = await this.#attempt(() => this.#transport.send<PullPage>('POST', '/sync:pull', {
+      ...this.#deviceBody(),
+      cursor,
+      limit: PULL_PAGE_SIZE,
+    }, this.#options({})));
+    const page = answer.body;
+    const stale: string[] = [];
+    for (const raw of page.changes ?? []) {
+      const record = recordOf(JSON.stringify(raw));
+      if (!record) continue;
+      await replica.apply(record);
+      options.onRecord?.(record);
+      stale.push(...options.pathsFor(record));
+    }
+    await replica.hold({
+      cursor: page.cursor,
+      tombstoneWindowDays: page.tombstone_window_days ?? (await replica.position())?.tombstoneWindowDays,
+      serverTime: page.server_time ?? (await replica.position())?.serverTime,
+    });
+    if (stale.length > 0) this.#invalidate([...new Set(stale)]);
+    return { cursor: page.cursor, has_more: page.has_more === true };
+  }
+
+  /** How the device introduces itself on every pull and push. */
+  #deviceBody(): { device_id: string; platform: string; display_name: string } {
+    const device = this.#device;
+    if (!device) throw new TypeError('no device: attach a store first');
+    return { device_id: device.id, platform: device.platform, display_name: device.displayName };
   }
 
   /**
@@ -662,6 +883,15 @@ export class SyncEngine {
       void this.#load(entry.request, entry);
     }
   }
+}
+
+/** What `:pull` answers, narrowed to what the engine reads of it. */
+interface PullPage {
+  readonly changes?: readonly unknown[];
+  readonly cursor: string;
+  readonly has_more?: boolean;
+  readonly server_time?: string;
+  readonly tombstone_window_days?: number;
 }
 
 /**

@@ -11,8 +11,11 @@ export {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_CONNECT_TIMEOUT_MS,
   DEFAULT_IDLE_TIMEOUT_MS,
+  DEFAULT_SNAPSHOT_IDLE_MS,
+  PULL_PAGE_SIZE,
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
+  SNAPSHOT_ATTEMPTS,
 } from './SyncEngine.ts';
 export type {
   Listener,
@@ -36,6 +39,8 @@ export type {
   Clock,
   RequestOptions,
   Response,
+  SnapshotLine,
+  SnapshotOptions,
   Storage,
   StreamConnection,
   StreamEvent,
@@ -43,6 +48,17 @@ export type {
   Transport,
   TransportDocument,
 } from './ports.ts';
+
+// The two stores (F6-03): the browser's, which the platform seam of a client opens per API origin
+// and account, and the memory one the tests and the conformance runner use.
+export { IndexedDbStorage, databaseNameFor } from './storage/IndexedDbStorage.ts';
+export { MemoryStorage } from './storage/MemoryStorage.ts';
+export { META, collectionOf } from './replica.ts';
+export type { SyncPosition } from './replica.ts';
+export type { DeviceIdentity } from './device.ts';
+export { isUuidV7, mintUuidV7 } from './device.ts';
+export { HybridClock, compareHlc, formatHlc, parseHlc, tickHlc } from './hlc.ts';
+export type { HlcReading } from './hlc.ts';
 
 export type {
   AccessToken,
