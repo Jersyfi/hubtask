@@ -231,6 +231,20 @@ export class Queue {
     await this.#storage.put(collection, entityId, rest);
   }
 
+  /**
+   * The device was forgotten: every waiting mutation is refused under `sync.device_revoked` and
+   * kept, with what it carried, until dismissed - shown rather than lost (§9.5).
+   */
+  async revoked(mutations: readonly PendingMutation[], at: number): Promise<void> {
+    for (const pending of mutations) {
+      await this.#storage.delete(QUEUE, pending.id);
+      await this.#storage.put<RejectedMutation>(REJECTED, pending.id, {
+        id: pending.id, kind: pending.kind, itemId: pending.itemId, code: 'sync.device_revoked',
+        local: localOf(pending.mutation), at,
+      });
+    }
+  }
+
   /** A push that never reached the server: the mutations stay, one attempt older. */
   async failed(mutations: readonly PendingMutation[]): Promise<void> {
     for (const pending of mutations) {

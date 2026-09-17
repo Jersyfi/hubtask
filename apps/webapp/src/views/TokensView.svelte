@@ -132,6 +132,9 @@
       dismissLabel={t('app.tokens.done')}
       onDismiss={() => (minted = undefined)}
     />
+    <!-- The one other thing a token is for that no screen said (P-06, F6-11): it is what a calendar
+         client asks for as the password. -->
+    <p class="quiet">{t('app.tokens.caldav_note')}</p>
   {/if}
 
   {#if failure}
