@@ -178,7 +178,7 @@ this domain needs — and nothing else in the wave knows which of the two a mark
 The wave arrived in two halves: the eight a form is made of, and then the overlays and the
 feedback components on top of the layering scale and
 [ADR-0039](../adr/ADR-0039-overlay-positioning.md). Three modules came with the second half and
-are what those five are made of — `positioning.ts` is the ADR's positioner, `focus.ts` is the
+are what those five are made of — `anchor.ts` is the ADR's positioner, `focus.ts` is the
 keyboard arithmetic, and `overlay.ts` is the four things opening a layer means, written once so
 that `Menu` and `Popover` cannot come to disagree about what dismisses them.
 
@@ -317,7 +317,7 @@ number written at a call site is the failure this exists to prevent — five ove
 their own is five different answers to which is on top.
 
 Where the browser has it, an anchored overlay is raised into the **top layer** instead
-(`src/positioning.ts`, ADR-0039's module): the scale answers "what paints over what" only among
+(`src/anchor.ts`, ADR-0039's module): the scale answers "what paints over what" only among
 elements in the same tree, and an overlay is otherwise laid out inside any ancestor that is a
 containing block for fixed elements — a transform, a filter, `contain` — and clipped by its
 `overflow`. That ancestor is not always ours: a card that lifts on hover is a transform, and a menu
@@ -434,12 +434,13 @@ teaches the screenshots.
   engine on the row, and a wider one would have commissioned fallbacks for the first three rather
   than merely widening a promise.
 
-  Two things the row does **not** say. It is `best effort`, not `supported`, because §1 of that
-  table defines `supported` as "a CI job runs the software on it" and no browser job exists — the
-  row says where a defect will be fixed, not where anyone has looked. And
-  [ADR-0039](../adr/ADR-0039-overlay-positioning.md)'s fallback is now unreachable by any engine on
-  the row, but stays until that job does exist: seventy-nine lines are cheap insurance while nothing
-  checks any engine at all.
+  Two things the row did **not** say when it was cut, and says since F6-02. It read `best effort`,
+  not `supported`, because §1 of that table defines `supported` as "a CI job runs the software on
+  it" and no browser job existed; the `engines` job ([ADR-0048](../adr/ADR-0048-browser-job-driver.md))
+  now loads the built bundle in the three engines and asks each for the table above, so the row
+  reads `supported`. And [ADR-0039](../adr/ADR-0039-overlay-positioning.md)'s fallback, unreachable
+  by any engine on the row, stayed until that job existed — cheap insurance while nothing checked
+  any engine at all — and went in the commit after the job proved it unreachable.
 - ~~**Named motion roles**~~ — closed by F2-01. `motion.<role>` pairs a duration with an easing for
   seven roles: `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`. The
   gap was not theoretical — five components animated a surface arriving and three of them used a

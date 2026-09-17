@@ -19,7 +19,7 @@
   import Icon from './Icon.svelte';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
-  import type { Placement } from './positioning.ts';
+  import type { Placement } from './anchor.ts';
 
   interface Props {
     /** What the list is called. A menu with no name is a list of verbs with no subject. */

@@ -8,8 +8,8 @@ the forms half (`Icon`, `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `
 
 Beside them are `space.ts` and `control.ts` (the shared prop types), `layers.ts` (which layer
 `Escape` reaches), `focus.ts` (where the arrows go, and where focus goes back to),
-`positioning.ts` ([ADR-0039](../../../docs/adr/ADR-0039-overlay-positioning.md)'s positioner —
-no component measures anything itself), `overlay.ts` (the four things opening a layer means,
+`anchor.ts` ([ADR-0039](../../../docs/adr/ADR-0039-overlay-positioning.md)'s positioner —
+CSS anchor positioning, and no component measures anything itself), `overlay.ts` (the four things opening a layer means,
 written once), `icons/` (the set — `base.ts` is generated, `custom.ts` is the domain marks) and
 `index.ts`, which is what `@hubtask/design-system/components` resolves to.
 

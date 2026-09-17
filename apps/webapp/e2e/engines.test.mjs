@@ -1,0 +1,182 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// The browser job (ADR-0048): the built bundle, loaded in Chromium, Firefox and WebKit, and
+// ADR-0044's feature table asserted in each - not a journey. Every assertion is a fact about the
+// engine that fails loudly in one that lacks the feature: a modal dialog traps focus and makes
+// the page behind it inert, the focus ring lands where design-system.md's rule 5 puts it, a
+// visually-hidden label is in the tree and not on the screen, an overlay is placed by CSS anchor
+// positioning. What runs is `dist/`, served the way the binary serves it (serve.mjs).
+//
+// The API is stubbed at the network edge, once, with the two answers the frame needs to draw a
+// signed-in workspace - an account and one hub - and nothing else: the stream is refused, every
+// other call answers an empty page. That is the least a workspace can be, and it is enough for a
+// dialog, a focus ring and a hidden label; deeper screens are F5's and F6's own walks.
+//
+// `node --test e2e/` rather than the package's `test` script: this needs the three browsers
+// installed (`pnpm exec playwright install --with-deps`), and the unit tests must keep running
+// where they are not.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+
+import { chromium, firefox, webkit } from 'playwright';
+
+import { serve } from './serve.mjs';
+
+const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+
+const ACCOUNT = {
+  id: '01a0e2e0-0000-7000-8000-000000000001',
+  kind: 'USER',
+  display_name: 'Engine Walker',
+  email: 'engines@example.invalid',
+  status: 'ACTIVE',
+  locale: 'en',
+};
+const HUB = {
+  id: '01a0e2e0-0000-7000-8000-000000000002',
+  type: 'HUB',
+  parent_id: null,
+  name: 'Engines',
+  order_key: 'a0',
+  version: 1,
+};
+const EMPTY_PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
+
+/** The API at the network edge: an account, a hub, and empty pages for everything else. */
+async function stub(route) {
+  const url = new URL(route.request().url());
+  if (url.pathname.endsWith('/api/v1/stream')) return route.abort();
+  if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+  if (url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...EMPTY_PAGE, data: [HUB] } });
+  }
+  return route.fulfill({ json: EMPTY_PAGE });
+}
+
+/** ADR-0044's feature table, asked of the engine itself. */
+const FEATURES = {
+  'dialog.showModal': () => typeof HTMLDialogElement?.prototype?.showModal === 'function',
+  inert: () => 'inert' in HTMLElement.prototype,
+  ':has()': () => CSS.supports('selector(:has(a))'),
+  popover: () => typeof HTMLElement.prototype.showPopover === 'function',
+  'clip-path': () => CSS.supports('clip-path: inset(50%)'),
+  'logical properties': () => CSS.supports('inset-inline-start: 0'),
+  'anchor-name': () => CSS.supports('anchor-name: --hbt'),
+  'position-area': () => CSS.supports('position-area: block-start'),
+  'position-try-fallbacks': () => CSS.supports('position-try-fallbacks: flip-block'),
+};
+
+const ENGINES = { chromium, firefox, webkit };
+
+const served = await serve(DIST);
+test.after(() => served.close());
+
+for (const [name, engine] of Object.entries(ENGINES)) {
+  test(`${name}: the client runs, and the engine has what it is built on`, async (t) => {
+    const browser = await engine.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext();
+    await context.route('**/api/v1/**', stub);
+    // A session the frame believes: the pair lives in sessionStorage (platform/browser.ts).
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+
+    await page.goto(`${served.origin}/`);
+    const createHub = page.getByRole('button', { name: 'Create hub' });
+    await createHub.waitFor({ state: 'visible', timeout: 15_000 });
+    assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
+
+    // The table, engine by engine: each of these is one thing the client is built on
+    // (ADR-0044), and a `false` here is the engine saying so before any screen could.
+    for (const [feature, probe] of Object.entries(FEATURES)) {
+      assert.equal(await page.evaluate(probe), true, `${name} lacks ${feature}`);
+    }
+
+    // A visually-hidden label is in the accessibility tree and not on the screen: the skip link,
+    // until it takes focus. One pixel, clipped - never `display: none`.
+    const skip = page.getByRole('link', { name: 'Skip to the content' });
+    assert.equal(await skip.count(), 1, `${name}: the skip link is not in the tree`);
+    const hiddenBox = await skip.evaluate((el) => {
+      const wrapper = el.closest('.visually-hidden');
+      const rect = wrapper.getBoundingClientRect();
+      return { w: rect.width, h: rect.height, clip: getComputedStyle(wrapper).clipPath };
+    });
+    assert.deepEqual([hiddenBox.w, hiddenBox.h], [1, 1], `${name}: the hidden wrapper is ${JSON.stringify(hiddenBox)}`);
+    assert.equal(hiddenBox.clip, 'inset(50%)', `${name}: the clip pattern is ${hiddenBox.clip}`);
+
+    // The focus ring lands where rule 5 puts it: the first keyboard step reaches the skip link,
+    // which reveals itself, and the ring is the token's outline rather than the engine's default.
+    // WebKit keeps links out of the Tab order, as Safari does by default; there the step that
+    // reaches a link is Option+Tab, and the client cannot and should not change that.
+    await page.keyboard.press('Tab');
+    if (await page.evaluate(() => document.activeElement?.tagName !== 'A')) {
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Alt+Tab');
+    }
+    const ring = await page.evaluate(() => {
+      const el = document.activeElement;
+      const style = getComputedStyle(el);
+      const wrapper = el.closest('.visually-hidden');
+      return {
+        name: el.textContent.trim(),
+        outlineStyle: style.outlineStyle,
+        outlineWidth: Number.parseFloat(style.outlineWidth),
+        revealed: wrapper ? wrapper.getBoundingClientRect().width > 1 : null,
+      };
+    });
+    assert.equal(ring.name, 'Skip to the content', `${name}: the first keyboard step landed on ${ring.name}`);
+    assert.equal(ring.revealed, true, `${name}: the skip link did not reveal itself on focus`);
+    assert.notEqual(ring.outlineStyle, 'none', `${name}: no focus ring`);
+    assert.ok(ring.outlineWidth > 0, `${name}: the focus ring is ${ring.outlineWidth}px wide`);
+
+    // A dialog opens as a modal, takes focus, traps it, and makes the page behind it inert - so a
+    // control behind it is unreachable by keyboard, which is what a gated control has to be.
+    // Opened from the keyboard, because that is the case focus return is for: WebKit, like
+    // Safari, does not focus a button a pointer clicks, so a pointer's dialog has no opener to
+    // return to and the engine leaves focus on the body - as Safari does.
+    await createHub.focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.locator('dialog[open]');
+    await dialog.waitFor({ state: 'visible', timeout: 5_000 });
+    assert.equal(await dialog.getAttribute('aria-labelledby') !== null, true, `${name}: the dialog has no name`);
+    assert.equal(await page.evaluate(() => document.activeElement?.closest('dialog[open]') !== null), true,
+      `${name}: focus did not enter the dialog`);
+    // Twelve Tabs is more than the dialog has controls: focus stays in it, or sits on the body
+    // for the one step in which an engine hands it to its own chrome on the way round - what
+    // must never happen is a control behind the dialog taking it.
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press('Tab');
+      const landed = await page.evaluate(() => {
+        const el = document.activeElement;
+        if (!el || el === document.body) return 'body';
+        return el.closest('dialog[open]') ? 'dialog' : el.outerHTML.slice(0, 80);
+      });
+      assert.ok(landed === 'dialog' || landed === 'body', `${name}: Tab ${i + 1} left the dialog for ${landed}`);
+    }
+    const reachedBehind = await page.evaluate(() => {
+      const behind = document.querySelector('nav a, nav button');
+      behind?.focus();
+      return document.activeElement === behind;
+    });
+    assert.equal(reachedBehind, false, `${name}: a control behind the modal took focus`);
+
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+    // Back on the trigger - polled, because an engine hands focus back a task after `close()`.
+    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Create hub', null, { timeout: 5_000 })
+      .catch(async () => {
+        const landed = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
+        assert.fail(`${name}: focus did not return to the trigger but sits on ${landed}`);
+      });
+    assert.deepEqual(failures, [], `${name}: the bundle threw during the walk`);
+  });
+}

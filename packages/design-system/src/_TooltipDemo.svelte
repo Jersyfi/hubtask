@@ -5,7 +5,7 @@
   import Inline from './Inline.svelte';
   import Stack from './Stack.svelte';
   import Tooltip from './Tooltip.svelte';
-  import type { Placement } from './positioning.ts';
+  import type { Placement } from './anchor.ts';
 
   const { mode = 'row' }: { mode?: 'row' | 'edges' } = $props();
 

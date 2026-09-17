@@ -13,7 +13,7 @@
 // focus goes when an overlay closes depends on why it closed - back to the trigger after `Escape`,
 // onwards after a menu item that opened a dialog - and only the component knows.
 
-import { anchorTo, type Placement } from './positioning.ts';
+import { anchorTo, type Placement } from './anchor.ts';
 import type { IconName } from './icons/index.ts';
 import { escapeHandler } from './focus.ts';
 import { layers, type DismissibleLayer } from './layers.ts';

@@ -554,6 +554,56 @@ jobs:
       - if: ${{ matrix.run }}
         run: pnpm --filter "@hubtask/${{ matrix.package }}" test
 
+  # The browser job (ADR-0048, F6-02): the built bundle loaded in Chromium, Firefox and WebKit,
+  # and ADR-0044's feature table asserted in each - a dialog traps focus and makes the page inert,
+  # the focus ring lands where rule 5 puts it, a hidden label is in the tree and off the screen,
+  # anchor positioning exists. Not a journey. It is what turns support-matrix.md §5's `supported`
+  # from a claim into a job, which is what §1 says the word means; and it gates through
+  # `CI required` below, because a browser job that does not gate proves nothing about what is
+  # merged (ci-cd.md §5).
+  #
+  # Playwright's WebKit is a build of the engine, not Safari - the row says so rather than
+  # overclaiming. The browsers are pinned to the package's version and cached under it, so they
+  # move when the dependency is bumped and not when the runner image changes underneath.
+  engines:
+    name: The client runs in three engines
+    needs: changes
+    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - run: make tools-node
+      - run: echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      - id: playwright
+        run: echo "version=$(pnpm --filter @hubtask/webapp exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      # The three engines, keyed by the package version: a floating version would be a cache that
+      # misses and three browsers downloaded on every run (ADR-0048, consequences).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter @hubtask/webapp exec playwright install --with-deps chromium firefox webkit
+      # The system packages the engines need are installed either way; only the browsers are
+      # cached.
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter @hubtask/webapp exec playwright install-deps chromium firefox webkit
+      - run: pnpm --filter "@hubtask/webapp^..." build
+      - run: pnpm --filter @hubtask/webapp build
+      - run: pnpm --filter @hubtask/webapp test:engines
+
   tokens-drift:
     name: Design tokens are in step with the core
     needs: changes
@@ -645,6 +695,7 @@ jobs:
       - data
       - docs
       - node
+      - engines
       - tokens-drift
       - api-client-drift
     runs-on: ubuntu-latest

@@ -19,7 +19,7 @@
 
   import type { Snippet } from 'svelte';
 
-  import { anchorTo, type Placement } from './positioning.ts';
+  import { anchorTo, type Placement } from './anchor.ts';
 
   interface Props {
     /** The description. Resolved text (ADR-0011), and short: this is not a place for a paragraph. */
