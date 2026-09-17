@@ -49,6 +49,8 @@
   import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
+  import { celebration } from '../celebration.svelte.ts';
+  import CelebrationSlot from './CelebrationSlot.svelte';
   import { acceptsChild, childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
@@ -255,6 +257,19 @@
   }
 
   const rows = $derived(flatten(items.inCollection(collectionId), 0, null, isReadOnly));
+
+  /** The moment standing, and which row of this level carries it (F6-13). */
+  const moment = $derived(celebration.current);
+  const slotRowId = $derived.by(() => {
+    if (!moment) return undefined;
+    if (moment.tier === 2 && moment.reason === 'parent' && moment.item.parent_id
+      && rows.some((row) => row.item.id === moment.item.parent_id)) {
+      return moment.item.parent_id;
+    }
+    return moment.item.id;
+  });
+  // Leaving the screen lets the moment go: a slot nobody is looking at is not a moment.
+  $effect(() => () => celebration.dismiss());
 
   /**
    * The entries on screen, in the order they are drawn.
@@ -743,7 +758,7 @@
     try {
       // Re-read rather than predicted: with `completionPolicy = ROLLUP` a parent completes when its
       // children do (I-W5), and that is a change this client learns by asking.
-      await items.setCompleted(item.id, !item.completion?.is_completed, crypto.randomUUID());
+      const answered = await items.setCompleted(item.id, !item.completion?.is_completed, crypto.randomUUID());
       // The checkbox that changed keeps focus, but its name did not change and a screen reader
       // hears nothing else (4.1.3).
       announcer.say(
@@ -751,6 +766,8 @@
           title: item.title,
         }),
       );
+      // The moment, if it is one (§7): decided from the copy, mounted at the tier the table says.
+      if (answered.completion?.is_completed) void celebration.celebrate(answered);
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
@@ -820,10 +837,15 @@
            an effect rather than bound here, because a `<div>` with an `onkeydown` is a static
            element with an interaction and Svelte is right to warn about one. -->
       <div class="level" bind:this={level}>
+        {#if moment && moment.tier === 3}
+          <!-- The rare one takes the level: a slot no taller than the token, at its foot. -->
+          <CelebrationSlot current={moment} />
+        {/if}
         {#each rows as row (row.item.id)}
           <div
             class="row"
             data-row={row.item.id}
+            data-celebrating={moment && moment.tier !== 3 && slotRowId === row.item.id ? '' : undefined}
             data-archived={row.archival !== 'active' ? '' : undefined}
             data-dragging={drag.id === row.item.id ? '' : undefined}
             data-drop={drag.id !== null &&
@@ -859,6 +881,11 @@
             <span class="grip" data-grip aria-hidden="true">
               <Icon name="grip-vertical" size="sm" />
             </span>
+            {#if moment && moment.tier !== 3 && slotRowId === row.item.id}
+              <!-- Tier 1 on the completed row, tier 2 across the parent's - or the completed row
+                   where the parent is not on this screen. -->
+              <CelebrationSlot current={moment} />
+            {/if}
             <TaskRow
               type={row.item.type}
               title={row.item.title}
@@ -1087,6 +1114,10 @@
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   .row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  /* The rows and the level are the slots a moment sits over (F6-13). */
+  .level { position: relative; }
+  .row[data-celebrating] { position: relative; }
 
   /* The badge beside it is what *says* archived; this only makes the row recede, so what can be
      acted on reads first. Rule 3 is kept by the badge, not by this. */
