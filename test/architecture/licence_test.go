@@ -22,7 +22,7 @@ const (
 
 // apacheParts are exactly the paths that are Apache-2.0 (ADR-0059 §6 and its amendment of
 // 2026-09-17, deciding ADR-0057; licensing-editions.md §9): the three SDKs, the contract, and
-// the n8n connector package. Each is a directory, relative to the repository root, and each
+// the two connector packages. Each is a directory, relative to the repository root, and each
 // carries the Apache-2.0 text as its own LICENSE so that a reader of the directory - and a
 // package registry - needs no repository to know the terms. Everything else is BUSL-1.1.
 // Widening this list is a licence decision, not a test fix.
@@ -32,6 +32,7 @@ var apacheParts = []string{
 	"sdk/typescript",
 	"api",
 	"packages/n8n-nodes-hubtask",
+	"packages/zapier-app",
 }
 
 // TestEverySourceFileCarriesItsLicence keeps the claim in licensing-editions.md §9 true.
