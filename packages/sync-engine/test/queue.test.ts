@@ -293,3 +293,51 @@ test('sync.device_revoked on a push clears the store and forgets the device', as
   const again = await engine.attach(storage, { platform: 'web', displayName: 'test' });
   assert.notEqual(again.id, before, 'a new device is minted');
 });
+
+test('forgetting another device refuses its next push, and that device starts over (F6-07, N-03)', async () => {
+  // One fake server, two devices of one account: A and B, each with a store of its own.
+  const forgotten = new Set<string>();
+  class Server extends PushingTransport {
+    override async send<T>(method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', path: string, body: unknown, options: RequestOptions): Promise<Response<T>> {
+      const match = /^\/sync\/devices\/([^/]+)$/.exec(path);
+      if (method === 'DELETE' && match?.[1]) {
+        forgotten.add(match[1]);
+        return { status: 204, body: undefined as T };
+      }
+      if (path === '/sync:push' && forgotten.has((body as { device_id: string }).device_id)) {
+        throw new TransportError('problem', { status: 403, code: 'forbidden', detailCode: 'sync.device_revoked' });
+      }
+      return super.send<T>(method, path, body, options);
+    }
+  }
+  const server = new Server().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
+  server.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
+  server.answer('/sync/devices', []);
+
+  const a = new SyncEngine({ transport: server, clock: new FixedClock(), mutationFor });
+  await a.attach(new MemoryStorage(), { platform: 'web', displayName: 'A' });
+  const b = new SyncEngine({ transport: server, clock: new FixedClock(), mutationFor });
+  const storageB = new MemoryStorage();
+  const deviceB = await b.attach(storageB, { platform: 'web', displayName: 'B' });
+  const stopB = b.listen({ pathsFor });
+  await settle();
+  stopB();
+
+  // B makes a change while away; meanwhile A forgets B from its device list.
+  server.down = true;
+  await b.mutate('PATCH', `/items/${ITEM}`, { title: 'from B' });
+  server.down = false;
+  await a.mutate('DELETE', `/sync/devices/${deviceB.id}`, undefined, { invalidates: ['/sync/devices'] });
+  assert.ok(forgotten.has(deviceB.id));
+
+  // B's next push is refused: its store is emptied, the device forgotten, and a fresh attach
+  // mints a new identity the server has never seen.
+  await b.push();
+  assert.equal(b.queueState.count, 0);
+  assert.equal(b.queueState.rejected[0]?.code, 'sync.device_revoked', 'what B had not sent is kept as refused, not lost');
+  assert.deepEqual(b.queueState.rejected[0]?.local, { title: 'from B' });
+  assert.equal(await storageB.get('meta', 'device'), undefined);
+  const again = await b.attach(storageB, { platform: 'web', displayName: 'B' });
+  assert.notEqual(again.id, deviceB.id);
+  assert.ok(!forgotten.has(again.id));
+});

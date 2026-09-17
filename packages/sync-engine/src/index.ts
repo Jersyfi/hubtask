@@ -137,6 +137,7 @@ export type {
   RejectedMutation,
   ConflictRecord,
   SetName,
+  SyncDevice,
   SyncMutation,
   SyncMutationResult,
   Problem,
