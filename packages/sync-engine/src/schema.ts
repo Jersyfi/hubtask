@@ -443,3 +443,8 @@ export type AccountPreferences = components['schemas']['AccountPreferences'];
 export type NotificationPreference = components['schemas']['NotificationPreference'];
 export type NotificationPreferenceList = components['schemas']['NotificationPreferenceList'];
 export type NotificationPreferenceUpdate = components['schemas']['NotificationPreferenceUpdate'];
+
+/** An import from another system (P-08): the kinds the contract names, the request, and the run with its report. */
+export type ImportKind = components['schemas']['ImportKind'];
+export type ImportRequest = components['schemas']['ImportRequest'];
+export type ImportRun = components['schemas']['ImportRun'];
