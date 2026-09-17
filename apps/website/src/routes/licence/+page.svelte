@@ -40,8 +40,8 @@
     <p class="narrow">
       What you do get is the whole source, a readable history, the right to run it, read it, change
       it, and contribute to it — and a dated, automatic conversion to a genuine open source licence.
-      The SDKs, the API contract and the n8n node are Apache-2.0 outright, so a product of yours may
-      build on them today.
+      The SDKs, the API contract and the n8n and Zapier connectors are Apache-2.0 outright, so a
+      product of yours may build on them today.
     </p>
     <Proof href="{repo}/LICENSE" label="LICENSE · the text, with the parameters filled in" />
   </div>

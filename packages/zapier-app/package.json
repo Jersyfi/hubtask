@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "The Zapier app for Hubtask, generated from the OpenAPI contract into dist/ - which carries the manifest that would be published (ADR-0058).",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "node scripts/generate.mjs",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",

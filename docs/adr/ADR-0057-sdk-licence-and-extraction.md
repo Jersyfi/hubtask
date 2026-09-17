@@ -137,6 +137,13 @@ else.
 any SDK is extracted into a repository of its own. Nothing is created for either; B remains the
 fallback it was.
 
+Later the same day the owner closed the one boundary this left ragged: the TypeScript client
+moved out of `packages/api-client` into `sdk/typescript/`, a workspace member that generates its
+own types from the document and depends on no first-party package — the regeneration the
+consequence above described for an extraction, done in place — and the Zapier app joined the n8n
+node under Apache-2.0 (ADR-0059, amendment of 2026-09-17). Every SDK now sits under `sdk/`, as
+option A first imagined.
+
 ## Notes
 
 Related: [ADR-0027](./ADR-0027-monorepo-structure.md) (the deferral), [ADR-0013](./ADR-0013-licensing.md)

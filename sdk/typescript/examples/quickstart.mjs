@@ -6,7 +6,7 @@
 // `node` alone (Node 24 strips the types):
 //
 //   HUBTASK_URL=https://hubtask.example/api/v1 HUBTASK_TOKEN=hbt_pat_… HUBTASK_HUB=<hub-id> \
-//     node packages/api-client/examples/quickstart.mjs
+//     node sdk/typescript/examples/quickstart.mjs
 
 import { HubtaskClient, ProblemError } from '../src/client.gen.ts';
 

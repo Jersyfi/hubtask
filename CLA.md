@@ -11,7 +11,7 @@ for inclusion in Hubtask — code, documentation, tests, configuration, translat
 
 Hubtask is published under the Business Source License 1.1, separately for each version, and
 every version converts to Apache-2.0 three years after its release; parts of the repository — the
-SDKs, the API contract, the n8n package — are Apache-2.0 outright. Two things depend on the
+SDKs, the API contract, the connector packages — are Apache-2.0 outright. Two things depend on the
 Licensor holding sufficient rights in every line of the codebase:
 
 * **The conversion to Apache-2.0 must actually happen.** If a contribution could not be

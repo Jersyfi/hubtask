@@ -145,16 +145,19 @@ hubtask/
 │   ├── n8n-nodes-hubtask/          # the n8n community node, generated from the document into
 │   │                               # dist/ with the manifest that would be published (ADR-0058)
 │   └── zapier-app/                 # the Zapier app, generated the same way (ADR-0058)
-├── pnpm-workspace.yaml             # apps/* and packages/*
+├── pnpm-workspace.yaml             # apps/*, packages/* and sdk/typescript
 ├── package.json                    # workspace root: private, scripts and packageManager only
 ├── .nvmrc
 │
-├── sdk/                            # the client SDKs, generated from api/openapi.yaml (ADR-0057)
+├── sdk/                            # the client SDKs, generated from api/openapi.yaml; Apache-2.0,
+│   │                               # each with a LICENSE of its own (ADR-0057, ADR-0059 §6)
 │   ├── go/hubtask/                 # client.gen.go (make generate, sdk/go/oapi-codegen.yaml) and
 │   │                               # hubtask.go, the few hand-written lines beside it
-│   └── python/hubtask/             # client.py and types.py (make generate, tools/sdkgen), and
-│                                   # __init__.py, pyproject.toml beside them. The TypeScript
-│                                   # client lives in packages/api-client/src/client.gen.ts
+│   ├── python/hubtask/             # client.py and types.py (make generate, tools/sdkgen), and
+│   │                               # __init__.py, pyproject.toml beside them
+│   └── typescript/                 # src/client.gen.ts (make generate, tools/sdkgen); a workspace
+│                                   # member that generates its own types from the document and
+│                                   # depends on no other member
 ├── locales/                        # en.json (source), de.json, … (ICU MessageFormat)
 ├── test/
 │   ├── integration/                # Testcontainers PostgreSQL
@@ -209,7 +212,13 @@ apps/website → packages/design-system, packages/api-client (the document, at b
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
              n8n-nodes-hubtask, zapier-app → api-client (the document, at build time; ADR-0058)
+sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/* (ADR-0059 §6)
 ```
+
+`sdk/typescript` is a workspace member so that the Node lane builds, typechecks and tests it —
+and an island on the map: it is Apache-2.0 and what a third party takes, so it depends on no
+first-party member (it generates its own types from `api/openapi.yaml`), and no first-party
+member depends on it (the apps' fetch layer is the engine's port, below).
 
 `apps/webapp` reaches the contract *through* the engine rather than beside it: `sync-engine`
 re-exports the types it needs, and a component that imported `@hubtask/api-client` directly would
@@ -226,6 +235,9 @@ Forbidden:
   shared package, it is that application with an extra directory in the path.
 * **`apps/*` depending on `apps/*`.** The two clients have nothing in common that is not a
   package; the webapp is a task manager and the website is a brochure.
+* **An edge between `sdk/*` and the rest of the workspace, in either direction.** An SDK that
+  imports a first-party package carries its licence and its release cadence; a first-party app
+  that imports the SDK reaches past the sync engine's seam.
 * **Any Go code under `apps/` or `packages/`.** Nothing there is importable from Go, and no `.go`
   file is committed under either. The traffic runs the other way: the design system *generates*
   one Go file into the core (§6).
@@ -331,7 +343,7 @@ for a reason that is about a build that lacks one half of the toolchain:
 | `presentation/webui/dist/index.html` | a placeholder, replaced by the container build | `//go:embed all:dist` refuses to compile against a directory that does not exist, so without it `go build ./...` would need a frontend build ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
 | `core/domain/model/shared/LabelTokens.go` | `make tokens`, from `packages/design-system/tokens/tokens.json` | the domain validates a `colorToken` against it, and committing it keeps `go build ./...` working without Node — and turns a drift between the design system and the domain into a diff ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
 | `api/openapi.json` | `make generate`, through `tools/openapijson`, from `api/openapi.yaml` | the mirror image: the website's reference and the SDK generators read the contract as JSON and ship no YAML parser, and the Node lanes that build them have no Go — so the document is committed in the encoding they read, and `make generate`'s no-diff check keeps it the same document (P-01) |
-| `packages/api-client/src/client.gen.ts`, `sdk/python/hubtask/client.py` and `types.py` | `make generate`, through `tools/sdkgen`, from `api/openapi.yaml` | the same reason from the other side: the generator is Go, the lanes that typecheck and test its output have none, and a committed generated file is what lets both halves be checked where each can be (P-03) |
+| `sdk/typescript/src/client.gen.ts`, `sdk/python/hubtask/client.py` and `types.py` | `make generate`, through `tools/sdkgen`, from `api/openapi.yaml` | the same reason from the other side: the generator is Go, the lanes that typecheck and test its output have none, and a committed generated file is what lets both halves be checked where each can be (P-03) |
 
 **None of them may be edited by hand.** `LabelTokens.go` carries the `// Code generated … DO NOT EDIT.`
 line, and CI regenerates it and `api/openapi.json` and fails on any difference. It holds the *names* of the ten label
@@ -339,5 +351,5 @@ colours and never a colour value: the core stays colour-blind while sharing one 
 the frontend, which is what `domain-model.md` §4 asks for when it stores a token instead of a hex.
 
 Everything else the workspace produces — `packages/design-system/dist/`,
-`packages/api-client/dist/`, `apps/*/dist/` — is ignored, and reproducible from the source plus
+`packages/api-client/dist/`, `sdk/typescript/dist/`, `apps/*/dist/` — is ignored, and reproducible from the source plus
 the pnpm lockfile.

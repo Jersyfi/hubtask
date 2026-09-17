@@ -1,9 +1,11 @@
-# The workspace of ADR-0027: two first-party clients and the packages they share.
-# Nothing here is importable from Go, and nothing under packages/ may depend on anything
-# under apps/.
+# The workspace of ADR-0027: two first-party clients, the packages they share, and the TypeScript
+# SDK - a member so that the Node lane checks it, and an island on the map (project-structure.md
+# §2.1): it depends on nothing here and nothing here depends on it. Nothing in the workspace is
+# importable from Go, and nothing under packages/ may depend on anything under apps/.
 packages:
   - apps/*
   - packages/*
+  - sdk/typescript
 
 # `cookie` below 0.7.0 accepts out-of-bounds characters in a cookie name, path or domain
 # (GHSA-pxg6-pf52-xh8x). It reaches the tree through @sveltejs/kit, which still asks for ^0.6.0 in

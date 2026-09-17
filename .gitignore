@@ -25,6 +25,7 @@ node_modules/
 # is not under any of these paths at all (ADR-0029).
 apps/*/dist/
 packages/*/dist/
+sdk/typescript/dist/
 .svelte-kit/
 .vite/
 *.tsbuildinfo

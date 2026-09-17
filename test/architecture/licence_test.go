@@ -20,21 +20,20 @@ const (
 	apache = "SPDX-License-Identifier: Apache-2.0"
 )
 
-// apacheParts are exactly the paths that are Apache-2.0 (ADR-0059 §6, deciding ADR-0057;
-// licensing-editions.md §9). A path is a directory or a single file, relative to the repository
-// root. Everything else is BUSL-1.1. Widening this list is a licence decision, not a test fix.
+// apacheParts are exactly the paths that are Apache-2.0 (ADR-0059 §6 and its amendment of
+// 2026-09-17, deciding ADR-0057; licensing-editions.md §9): the three SDKs, the contract, and
+// the two connector packages. Each is a directory, relative to the repository root, and each
+// carries the Apache-2.0 text as its own LICENSE so that a reader of the directory - and a
+// package registry - needs no repository to know the terms. Everything else is BUSL-1.1.
+// Widening this list is a licence decision, not a test fix.
 var apacheParts = []string{
 	"sdk/go",
 	"sdk/python",
+	"sdk/typescript",
 	"api",
 	"packages/n8n-nodes-hubtask",
-	"packages/api-client/src/client.gen.ts",
-	"packages/api-client/examples",
+	"packages/zapier-app",
 }
-
-// apacheLicenceFiles are the directories that carry the Apache-2.0 text as their own LICENSE, so
-// that a reader of the directory - and a package registry - needs no repository to know the terms.
-var apacheLicenceFiles = []string{"sdk/go", "sdk/python", "api", "packages/n8n-nodes-hubtask"}
 
 // TestEverySourceFileCarriesItsLicence keeps the claim in licensing-editions.md §9 true.
 //
@@ -91,8 +90,10 @@ func TestEverySourceFileCarriesItsLicence(t *testing.T) {
 // non-Go files the test above cannot parse - and holds every source file in them to the Apache
 // header, and every part to its own LICENSE file. The contract's JSON files are the one kind
 // that cannot carry a comment; `api/LICENSE` and `info.license` in the document cover them.
+// The SDK's generated types under sdk/typescript/dist are skipped with every other dist/: they
+// are build output, and the banner their generator writes carries the identifier anyway.
 func TestTheApachePartsCarryTheirLicence(t *testing.T) {
-	for _, dir := range apacheLicenceFiles {
+	for _, dir := range apacheParts {
 		text, err := os.ReadFile(filepath.Join("../..", dir, "LICENSE"))
 		if err != nil {
 			t.Errorf("%s has no LICENSE file of its own (ADR-0059 §6): %v", dir, err)
@@ -148,7 +149,7 @@ func TestTheApachePartsCarryTheirLicence(t *testing.T) {
 // elsewhere in the workspace that claims Apache-2.0 widens the boundary without the decision.
 func TestNoApacheHeaderOutsideTheApacheParts(t *testing.T) {
 	var checked int
-	for _, root := range []string{"../../apps", "../../packages", "../../tools", "../../scripts", "../../deploy", "../../k8s"} {
+	for _, root := range []string{"../../apps", "../../packages", "../../sdk", "../../tools", "../../scripts", "../../deploy", "../../k8s"} {
 		if _, err := os.Stat(root); os.IsNotExist(err) {
 			continue
 		}
