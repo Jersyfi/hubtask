@@ -12,10 +12,11 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Inline, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Banner, Button, Inline, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
+  import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
 
   import { announcer } from '../announce.svelte.ts';
@@ -196,21 +197,12 @@
       {/if}
       <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
       <HealthNotice />
-      <!-- Whether what is on screen may be seconds old. A `Badge` rather than a component of its
-           own: `SyncStatus` belongs to F6, with the offline states that give it meaning, and
-           building half of one now would be building the wrong half. It never takes focus — it is
-           a fact about the page, not a control. -->
-      {#if session.isSignedIn}
-        <div class="live" title={live.state === 'off' ? t('app.live.off_reason') : undefined}>
-          {#if live.state === 'live'}
-            <Badge tone="success">{t('app.live.live')}</Badge>
-          {:else if live.state === 'reconnecting'}
-            <Badge icon="loader-circle">{t('app.live.reconnecting')}</Badge>
-          {:else}
-            <Badge>{t('app.live.off')}</Badge>
-          {/if}
-        </div>
-      {/if}
+      <!-- The copy and the server, on every route (F6-06): connected, reconnecting or offline;
+           what waits to be sent and what the server refused; when the copy last synchronised.
+           `SyncLine` feeds `SyncStatus` from the stream's state and the engine's queue. -->
+      <div class="live">
+        <SyncLine />
+      </div>
     </Stack>
   </div>
 
