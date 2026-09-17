@@ -217,8 +217,8 @@ editor and the three commands above are the whole toolchain.
 ## Licence and CLA
 
 Contributions are published under the project licence ([LICENSE](LICENSE), BSL 1.1, converting to
-Apache-2.0 three years after each release; the SDKs, the contract and the n8n package are
-Apache-2.0 outright). Contributors sign a [Contributor License Agreement](CLA.md) on their first
+Apache-2.0 three years after each release; the SDKs, the contract and the connector packages
+are Apache-2.0 outright). Contributors sign a [Contributor License Agreement](CLA.md) on their first
 pull request; a bot posts the link automatically. It exists because the conversion to Apache-2.0
 and, from Licensing Start, the sale of commercial licences both require the Licensor to hold
 sufficient rights in the whole codebase. You keep full ownership of your work, and the Licensor

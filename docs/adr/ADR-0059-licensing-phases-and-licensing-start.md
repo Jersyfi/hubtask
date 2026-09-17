@@ -186,7 +186,7 @@ Recorded, not re-weighed:
   tracks them.
 * **The roadmap** loses its licence and commercial items from version-bound milestones; they
   sit under a "Licensing Start" horizon that has no version.
-* **The SDKs, the contract and the n8n package** are Apache-2.0 from this merge. A third party
+* **The SDKs, the contract and the connector packages** are Apache-2.0 from this merge. A third party
   may build on them today, in a product it sells, without touching the Licensed Work's terms.
   Publication of any package stays a separate owner action, as ADR-0057 says.
 * **The `0.x` declaration** loosens what was published under ADR-0013; it withdraws nothing.
@@ -245,7 +245,7 @@ Additional Use Grant: You may use, copy, modify, redistribute, and self-host the
                       users, does not thereby make such an offering.
 ```
 
-## Appendix B — the boundary in `packages/api-client`
+## Appendix B — the boundary in `packages/api-client` (superseded by the amendment of 2026-09-17)
 
 The package is one workspace member that holds both first-party output and an SDK, and
 ADR-0057's consequence draws the line per file: "the TypeScript *types* stay `BUSL-1.1` and
@@ -268,13 +268,40 @@ package has two licences: that is the open point the pull request describes rath
 and it is one the publication decision — a package that is cut for a registry is cut from the
 Apache-2.0 files alone — makes moot.
 
+## Amendment — 2026-09-17, the owner's answers to the three points the pull request left open
+
+The pull request that merged this record (#734) described three things rather than deciding
+them. The owner answered the same day:
+
+1. **`packages/api-client` no longer holds two licences.** The TypeScript client and its example
+   move to `sdk/typescript/`, a workspace member of its own beside `sdk/go` and `sdk/python`,
+   Apache-2.0 throughout with a `LICENSE` of its own. It generates its **own** `operations`
+   types from the Apache-2.0 contract with `openapi-typescript` — the "regeneration rather than
+   a copy" ADR-0057 foresaw for an extraction, done in place — so nothing first-party sits in
+   the client's import path, and it is an island on the workspace map: it depends on no other
+   member and no member depends on it (`project-structure.md` §2.1, enforced by the map lint).
+   `packages/api-client` returns to types only, first-party, `BUSL-1.1`; its manifest and its
+   `LICENSE` question are moot. Appendix B below is superseded by this paragraph and kept as the
+   record of what the question was.
+2. **`api/` is Apache-2.0 as a directory**, the server generator's configuration beside the
+   contract included. A twenty-line configuration has nothing to protect, and "everything under
+   `api/` is the contract and its tooling" is a rule a reader keeps without looking it up.
+3. **The Zapier app is Apache-2.0 too.** ADR-0058 treats the two connector packages as twins —
+   same generator, same source, same publication logic — and the sentence that decided the n8n
+   node ("a connector a company may not ship is a connector nobody ships") decides this one.
+
+§6 above therefore reads, in full: Apache-2.0 for `sdk/go`, `sdk/python`, `sdk/typescript`,
+`api/`, `packages/n8n-nodes-hubtask` and `packages/zapier-app`; `BUSL-1.1` everywhere else,
+`packages/api-client` included. Package names and extraction into repositories of their own
+stay open, as before; the workspace name `@hubtask/sdk-typescript` is not a publication name.
+
 ## Notes
 
 Supersedes [ADR-0013](./ADR-0013-licensing.md), whose context and options remain the record of
 why BSL 1.1 with a Change Date was chosen; only the Additional Use Grant, the "all versions"
 parameter and the "revisit before `1.0.0`" are replaced. Accepts the licence part of
 [ADR-0057](./ADR-0057-sdk-licence-and-extraction.md). Related:
-[ADR-0058](./ADR-0058-connector-packages.md) (the n8n package),
+[ADR-0058](./ADR-0058-connector-packages.md) (the connector packages),
 [ADR-0035](./ADR-0035-one-product-version.md) (one version, which "per version" terms attach to),
 [`licensing-editions.md`](../architecture/licensing-editions.md) (the model as implemented, the
 `0.x` declaration, the prerequisites), [`CLA.md`](../../CLA.md),

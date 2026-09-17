@@ -226,7 +226,7 @@ Details: [LICENSE](./LICENSE) · [ADR-0059](./docs/adr/ADR-0059-licensing-phases
 [licensing-editions.md](./docs/architecture/licensing-editions.md) ·
 [TRADEMARK.md](./TRADEMARK.md). Licensing enquiries: licensing@hubtask.eu.
 
-The SDKs, the API contract and the n8n package are **Apache-2.0** — see `NOTICE`.
+The SDKs, the API contract and the connector packages are **Apache-2.0** — see `NOTICE`.
 
 This is source-available software, not OSI open source, and the project does not claim otherwise.
 Donations fund the work — see [the funding section](./docs/architecture/licensing-editions.md#7-funding-and-what-happens-if-it-does-not-work)
