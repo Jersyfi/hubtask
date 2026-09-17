@@ -16,7 +16,8 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node ../design-system/build/lint-no-literals.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.ts"
+    "test": "node --test test/*.test.ts",
+    "conformance": "node conformance/main.ts"
   },
   "dependencies": {
     "@hubtask/api-client": "workspace:*"
