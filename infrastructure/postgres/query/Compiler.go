@@ -62,7 +62,7 @@ const (
 		`wi.bucket_id, wi.order_key, wi.assignee_id, ` +
 		`wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone, ` +
 		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, ` + visibleCustomFields + `, ` +
-		`wi.content_language, ` +
+		`wi.content_language, wi.calendar_uid, ` +
 		`wi.retention_pending_until, wi.retention_rule_id, wi.retention_action, ` +
 		`wi.retention_blocked_by, ` +
 		`wi.archived_at, wi.deleted_at, ` +
@@ -72,7 +72,7 @@ const (
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, notes, ` +
 		`is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id, ` +
 		`start_at, due_at, due_date_only, due_time_zone, ` +
-		`cover_kind, cover_color_token, cover_media_id, custom_fields, content_language, ` +
+		`cover_kind, cover_color_token, cover_media_id, custom_fields, content_language, calendar_uid, ` +
 		`retention_pending_until, retention_rule_id, retention_action, retention_blocked_by, ` +
 		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )

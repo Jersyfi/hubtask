@@ -373,7 +373,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
   -- because §6's point is that the object itself says what is coming.
@@ -410,6 +411,7 @@ type FindWorkItemRow struct {
 	CoverMediaID          pgtype.UUID
 	CustomFields          []byte
 	ContentLanguage       *string
+	CalendarUid           *string
 	RecurrenceRuleID      pgtype.UUID
 	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
@@ -456,6 +458,124 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CoverMediaID,
 		&i.CustomFields,
 		&i.ContentLanguage,
+		&i.CalendarUid,
+		&i.RecurrenceRuleID,
+		&i.RecurrenceSourceID,
+		&i.OriginJumbleID,
+		&i.RetentionPendingUntil,
+		&i.RetentionRuleID,
+		&i.RetentionAction,
+		&i.RetentionBlockedBy,
+		&i.ArchivedAt,
+		&i.DeletedAt,
+		&i.TrashBatchID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findWorkItemByCalendarUID = `-- name: FindWorkItemByCalendarUID :one
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = $1::text
+`
+
+type FindWorkItemByCalendarUIDRow struct {
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	AssigneeID            pgtype.UUID
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	ContentLanguage       *string
+	CalendarUid           *string
+	RecurrenceRuleID      pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
+	OriginJumbleID        pgtype.UUID
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
+	RetentionBlockedBy    *string
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+// The entry a calendar client's UID names (P-07, issue #721). The same columns as FindWorkItem,
+// so the adapter maps both through one function; the same rule about the trash, for the same
+// reason. The tenant is the transaction's, through row level security and through the partial
+// unique index the lookup uses - one UID is one entry per workspace and nothing across two.
+func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid string) (FindWorkItemByCalendarUIDRow, error) {
+	row := q.db.QueryRow(ctx, findWorkItemByCalendarUID, calendarUid)
+	var i FindWorkItemByCalendarUIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.CollectionID,
+		&i.Type,
+		&i.ParentID,
+		&i.Path,
+		&i.Depth,
+		&i.Title,
+		&i.Notes,
+		&i.IsCompleted,
+		&i.CompletedAt,
+		&i.CompletedBy,
+		&i.BucketID,
+		&i.OrderKey,
+		&i.AssigneeID,
+		&i.StartAt,
+		&i.DueAt,
+		&i.DueDateOnly,
+		&i.DueTimeZone,
+		&i.CoverKind,
+		&i.CoverColorToken,
+		&i.CoverMediaID,
+		&i.CustomFields,
+		&i.ContentLanguage,
+		&i.CalendarUid,
 		&i.RecurrenceRuleID,
 		&i.RecurrenceSourceID,
 		&i.OriginJumbleID,
@@ -524,14 +644,15 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 const insertWorkItem = `-- name: InsertWorkItem :exec
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  bucket_id, order_key, start_at, content_language, created_by, created_at, updated_at, version
+  bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
+  updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   normalize($7::text, NFC),
   $8, $9, $10,
   $11, $12, $13,
-  $14, $14, 1
+  $14, $15, $15, 1
 )
 `
 
@@ -548,6 +669,7 @@ type InsertWorkItemParams struct {
 	OrderKey        string
 	StartAt         pgtype.Timestamptz
 	ContentLanguage *string
+	CalendarUid     *string
 	CreatedBy       pgtype.UUID
 	CreatedAt       pgtype.Timestamptz
 }
@@ -564,6 +686,9 @@ type InsertWorkItemParams struct {
 // that own them, and their columns carry NULL until then. The due date a create declares reaches
 // the row through that writer in the same transaction (D-01), exactly as an assignee does; the
 // start is the create's own, a plain attribute beside the notes.
+//
+// The calendar UID is the create's own too, and only the create's: it is the address a calendar
+// client chose for the entry (P-07, issue #721), set once here and by no other statement.
 func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
 	_, err := q.db.Exec(ctx, insertWorkItem,
 		arg.ID,
@@ -578,6 +703,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.OrderKey,
 		arg.StartAt,
 		arg.ContentLanguage,
+		arg.CalendarUid,
 		arg.CreatedBy,
 		arg.CreatedAt,
 	)
@@ -890,7 +1016,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -950,6 +1077,7 @@ type ListWorkItemsRow struct {
 	CoverMediaID          pgtype.UUID
 	CustomFields          []byte
 	ContentLanguage       *string
+	CalendarUid           *string
 	RecurrenceRuleID      pgtype.UUID
 	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
@@ -1019,6 +1147,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CoverMediaID,
 			&i.CustomFields,
 			&i.ContentLanguage,
+			&i.CalendarUid,
 			&i.RecurrenceRuleID,
 			&i.RecurrenceSourceID,
 			&i.OriginJumbleID,
@@ -1777,7 +1906,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -1821,6 +1951,7 @@ type SubtreeOfWorkItemRow struct {
 	CoverMediaID          pgtype.UUID
 	CustomFields          []byte
 	ContentLanguage       *string
+	CalendarUid           *string
 	RecurrenceRuleID      pgtype.UUID
 	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
@@ -1892,6 +2023,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.CoverMediaID,
 			&i.CustomFields,
 			&i.ContentLanguage,
+			&i.CalendarUid,
 			&i.RecurrenceRuleID,
 			&i.RecurrenceSourceID,
 			&i.OriginJumbleID,

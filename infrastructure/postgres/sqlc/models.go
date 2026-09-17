@@ -1445,4 +1445,5 @@ type WorkItem struct {
 	DeletedByID           pgtype.UUID
 	RecurrenceSourceID    pgtype.UUID
 	SearchConfiguration   *string
+	CalendarUid           *string
 }

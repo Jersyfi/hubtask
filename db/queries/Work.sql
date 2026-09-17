@@ -263,7 +263,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
   -- because §6's point is that the object itself says what is coming.
@@ -300,17 +301,48 @@ LIMIT 1;
 -- that own them, and their columns carry NULL until then. The due date a create declares reaches
 -- the row through that writer in the same transaction (D-01), exactly as an assignee does; the
 -- start is the create's own, a plain attribute beside the notes.
+--
+-- The calendar UID is the create's own too, and only the create's: it is the address a calendar
+-- client chose for the entry (P-07, issue #721), set once here and by no other statement.
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  bucket_id, order_key, start_at, content_language, created_by, created_at, updated_at, version
+  bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
+  updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
   normalize(sqlc.arg('title')::text, NFC),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
-  sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.arg('created_by'),
-  sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
+  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
+
+-- name: FindWorkItemByCalendarUID :one
+-- The entry a calendar client's UID names (P-07, issue #721). The same columns as FindWorkItem,
+-- so the adapter maps both through one function; the same rule about the trash, for the same
+-- reason. The tenant is the transaction's, through row level security and through the partial
+-- unique index the lookup uses - one UID is one entry per workspace and nothing across two.
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = sqlc.arg('calendar_uid')::text;
 
 -- name: SubtreeOfWorkItem :many
 -- Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
@@ -348,7 +380,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -440,7 +473,8 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
