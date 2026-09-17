@@ -299,3 +299,89 @@ test('a stamp is the device\'s clock, and survives a reload through the store', 
   const third = await b.engine.stamp();
   assert.ok((third ?? '') > (second ?? ''), 'a new engine over the same store continues, never stamps backwards');
 });
+
+// ---------------------------------------------------------------------------------------------
+// Reads answered by the replica (F6-04).
+// ---------------------------------------------------------------------------------------------
+
+/** The application's `storeFor`, as small as one is: one entry by its path, nothing else. */
+const storeFor = async (request: { path: string }, storage: { get<T>(c: string, id: string): Promise<T | undefined> }) => {
+  const match = /^\/items\/([^/?]+)$/.exec(request.path);
+  if (!match?.[1]) return undefined;
+  return (await storage.get<StoredRecord<unknown>>('items', match[1]))?.document;
+};
+
+test('a transport that stops answering leaves an answered path ready from the replica and another failed', async () => {
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
+  const clock = new FixedClock(1_700_000_000_000);
+  const storage = new MemoryStorage();
+  const engine = new SyncEngine({ transport, clock, storeFor });
+  await engine.attach(storage, { platform: 'web', displayName: 'test' });
+  const stop = engine.listen({ pathsFor });
+  await settle();
+  stop();
+  clock.advance(60_000);
+
+  // The server goes away: every read fails to reach it.
+  transport.fail(`/items/${ITEM}`, new TransportError('offline'));
+  transport.fail(`/items/${ITEM}/activity`, new TransportError('offline'));
+
+  const fromCopy = await engine.refresh<{ title: string }>({ path: `/items/${ITEM}` });
+  assert.equal(fromCopy.status, 'ready');
+  if (fromCopy.status !== 'ready') return;
+  assert.equal(fromCopy.source, 'replica');
+  assert.equal(fromCopy.data.title, 'Buy milk');
+  assert.equal(fromCopy.etag, undefined, 'a replica state states no version');
+  assert.equal(fromCopy.at, 1_700_000_000_000, 'as of the store\'s last synchronisation, not now');
+
+  const unanswered = await engine.refresh({ path: `/items/${ITEM}/activity` });
+  assert.equal(unanswered.status, 'failed');
+  if (unanswered.status !== 'failed') return;
+  assert.equal(unanswered.error.kind, 'offline');
+  assert.equal(unanswered.error.detailCode, 'sync.needs_connection', 'named as what the copy does not hold');
+});
+
+test('a refusal the server answered is never replaced by the copy', async () => {
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
+  const engine = new SyncEngine({ transport, clock: new FixedClock(), storeFor });
+  await engine.attach(new MemoryStorage(), { platform: 'web', displayName: 'test' });
+  const stop = engine.listen({ pathsFor });
+  await settle();
+  stop();
+  transport.fail(`/items/${ITEM}`, new TransportError('problem', { status: 403, code: 'forbidden' }));
+  const state = await engine.refresh({ path: `/items/${ITEM}` });
+  assert.equal(state.status, 'failed');
+  if (state.status === 'failed') assert.equal(state.error.status, 403);
+});
+
+test('the first server answer after a reconnect replaces the replica\'s state', async () => {
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
+  const engine = new SyncEngine({ transport, clock: new FixedClock(), storeFor });
+  await engine.attach(new MemoryStorage(), { platform: 'web', displayName: 'test' });
+  const first = engine.listen({ pathsFor });
+  await settle();
+  first();
+
+  // The server goes away: the read is answered from the copy.
+  transport.fail(`/items/${ITEM}`, new TransportError('offline'));
+  const seen: string[] = [];
+  engine.subscribe<{ title: string }>({ path: `/items/${ITEM}` }, (state) => {
+    if (state.status === 'ready') seen.push(`${state.source}:${state.data.title}`);
+  });
+  await settle();
+  assert.deepEqual(seen, ['replica:Buy milk']);
+
+  // The server comes back: the loop's next turn pulls, and what the screen shows from the copy is
+  // read again - once, on the reconnect, not on every render.
+  transport.recover(`/items/${ITEM}`);
+  transport.answer(`/items/${ITEM}`, { id: ITEM, title: 'Buy milk (server)' });
+  const reads = transport.calls.filter((c) => c.path === `/items/${ITEM}`).length;
+  const second = engine.listen({ pathsFor, wait: async () => {} });
+  await settle(20);
+  second();
+  assert.equal(seen.at(-1), 'server:Buy milk (server)');
+  assert.equal(transport.calls.filter((c) => c.path === `/items/${ITEM}`).length - reads, 1, 'read again exactly once');
+});
