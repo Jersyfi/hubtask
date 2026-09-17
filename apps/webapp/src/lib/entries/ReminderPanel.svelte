@@ -226,6 +226,7 @@
             selected={chosenRecipients}
             selection="multiple"
             filterLabel={t('app.bulk.assignee_filter')}
+            locale={messages.locale}
             emptyLabel={t('app.bulk.assignee_empty')}
             noMatchLabel={t('app.bulk.assignee_no_match')}
             chosenLabel={t('app.bulk.assignee_chosen')}

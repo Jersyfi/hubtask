@@ -1613,6 +1613,7 @@
   "app.fields.values_none": "Kein eigenes Feld gilt für diese Art von Eintrag.",
   "app.fields.unknown_kind": "Dieses Feld ist von einer Art, die diese Version nicht bearbeiten kann. Ein neuerer Client wird es können.",
   "app.fields.empty_value": "Nicht gesetzt",
+  "app.fields.number_invalid": "Keine Zahl. Schreib sie mit Ziffern und „{separator}“ für die Nachkommastellen.",
   "app.fields.deciding": "Es wird gelesen, was diese Art trägt…",
   "app.fields.saved": "Gespeichert.",
   "app.fields.pick_person": "Wen dieses Feld nennt",

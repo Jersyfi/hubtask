@@ -70,6 +70,19 @@
     unknownKindLabel: string;
     /** What "no value" reads as, where a value is only shown rather than edited. */
     emptyValueLabel: string;
+    /**
+     * How a `NUMBER` is written and read in the reader's locale, handed in by the application
+     * (i18n-l10n.md §6 line 10): `1,5` under `de` is `1.5` to the contract. Absent, the field is
+     * a native number input and the browser's own parsing applies. `parse` answers `null` for an
+     * empty field and `undefined` for text that is not a number, which is shown as such rather
+     * than sent.
+     */
+    numbers?: {
+      readonly format: (value: number) => string;
+      readonly parse: (text: string) => number | null | undefined;
+      /** What the field says beside itself while the text is not a number. Resolved text. */
+      readonly invalidLabel: string;
+    };
     onChange?: (value: FieldValue) => void;
   }
 
@@ -80,12 +93,25 @@
     unknownKindLabel,
     emptyValueLabel,
     disabledReason,
+    numbers,
     onChange,
   }: Props = $props();
+
 
   const options = $derived((definition.options ?? []).map((option) => ({ value: option, label: option })));
   const chosen = $derived(Array.isArray(value) ? (value as readonly string[]) : []);
   const text = $derived(value === null || value === undefined ? '' : String(value));
+
+  // A number is shown as the locale writes it and parsed back before it leaves; the text the
+  // reader is typing is held here so that an unparsable draft is not overwritten by the value
+  // it failed to become.
+  let numberDraft = $state<string | undefined>(undefined);
+  const numberText = $derived(
+    numberDraft ?? (typeof value === 'number' && numbers ? numbers.format(value) : text),
+  );
+  const numberInvalid = $derived(
+    numbers !== undefined && numberDraft !== undefined && numbers.parse(numberDraft) === undefined,
+  );
 
   const KNOWN = new Set(['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL']);
   /** A `USER` field with no picker is as undrawable as a kind nobody has heard of, so it is one. */
@@ -155,6 +181,30 @@
     </p>
     {@render user?.({ value })}
   </div>
+{:else if definition.kind === 'NUMBER' && numbers}
+  <!-- A text field with a decimal keypad rather than a native number input, so that the mark the
+       reader writes with is the one the field accepts on every engine - and the value that leaves
+       is the contract's. -->
+  <Input
+    label={definition.label}
+    hint={definition.hint}
+    isRequired={definition.isRequired}
+    type="text"
+    inputmode="decimal"
+    value={numberText}
+    error={numberInvalid ? numbers.invalidLabel : undefined}
+    {disabledReason}
+    oninput={(event) => {
+      const raw = (event.currentTarget as HTMLInputElement).value;
+      numberDraft = raw;
+      const parsed = numbers.parse(raw);
+      if (parsed !== undefined) onChange?.(parsed);
+    }}
+    onblur={() => {
+      // A draft that became a number is shown as the locale writes it; one that did not stays.
+      if (!numberInvalid) numberDraft = undefined;
+    }}
+  />
 {:else}
   <Input
     label={definition.label}

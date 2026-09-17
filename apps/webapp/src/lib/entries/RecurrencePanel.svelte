@@ -31,10 +31,12 @@
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { supports } from '../data/capability.svelte.ts';
   import { series } from '../data/reminders.svelte.ts';
   import { belongsToSeries, occurrenceSourceOf, splitEnd, withEnd } from '../data/reminders.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { weekStartKeyOf } from '../i18n/week.ts';
   import { renderProblem } from '../problem.ts';
 
   const { item }: { item: WorkItem } = $props();
@@ -108,9 +110,7 @@
     SU: t('app.recurrence.weekday_SU'),
   });
 
-  const weekStart = $derived(
-    actor.weekStart === 'SUNDAY' ? 'SU' : actor.weekStart === 'SATURDAY' ? 'SA' : 'MO',
-  );
+  const weekStart = $derived(weekStartKeyOf(actor.weekStart, messages.locale, manifest.supportedLocales));
 
   async function attempt(work: () => Promise<unknown>): Promise<void> {
     isSaving = true;

@@ -45,7 +45,7 @@
     replaceAt,
     walk,
   } from '../data/templates.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
   import type { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -200,6 +200,7 @@
             selected={node.assignee_id ? [node.assignee_id] : []}
             selection="single"
             filterLabel={t('app.bulk.assignee_filter')}
+            locale={messages.locale}
             emptyLabel={t('app.bulk.assignee_empty')}
             noMatchLabel={t('app.bulk.assignee_no_match')}
             chosenLabel={t('app.bulk.assignee_chosen')}

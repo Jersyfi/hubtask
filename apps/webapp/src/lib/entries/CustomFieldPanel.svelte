@@ -30,10 +30,22 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { definitionsFor, valueFor } from '../data/customfields.ts';
   import { people, type Path } from '../data/people.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { decimalSeparatorOf, formatDecimal, parseDecimal } from '../i18n/number.ts';
   import { renderProblem } from '../problem.ts';
 
   const { item, path }: { item: WorkItem; path: Path } = $props();
+
+  // A NUMBER field is written and read the way the reader's locale writes numbers (F5-09):
+  // the decimal mark is the manifest's for the resolved locale, else Intl's, and the text is
+  // parsed before it reaches the contract.
+  const separator = $derived(decimalSeparatorOf(messages.locale, manifest.supportedLocales));
+  const numbers = $derived({
+    format: (value: number) => formatDecimal(value, messages.locale),
+    parse: (text: string) => parseDecimal(text, separator),
+    invalidLabel: t('app.fields.number_invalid', { separator }),
+  });
 
   const capability = $derived(supports(item.type, 'CUSTOM_FIELDS'));
 
@@ -102,6 +114,7 @@
             value={(values[definition.key] ?? null) as FieldValue}
             unknownKindLabel={t('app.fields.unknown_kind')}
             emptyValueLabel={t('app.fields.empty_value')}
+            {numbers}
             disabledReason={savingKey === definition.key ? t('app.workspace.saving') : undefined}
             onChange={(next) => write(definition, next)}
           >
@@ -112,6 +125,7 @@
                 selected={typeof value === 'string' && value !== '' ? [value] : []}
                 selection="single"
                 filterLabel={t('app.fields.pick_filter')}
+                locale={messages.locale}
                 emptyLabel={t('app.fields.pick_empty')}
                 noMatchLabel={t('app.fields.pick_no_match')}
                 chosenLabel={t('app.fields.pick_chosen')}

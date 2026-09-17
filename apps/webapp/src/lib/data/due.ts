@@ -135,8 +135,10 @@ export function firstWeekday(weekStart: string | null | undefined): number {
  * `week_start` is what the account field has been for since F1, and this is the first thing that
  * reads it: a week that always began on Monday would be a week this client had decided on.
  */
-export function weekOf(date: string, weekStart: string | null | undefined): Window {
-  const first = firstWeekday(weekStart);
+export function weekOf(date: string, weekStart: string | number | null | undefined): Window {
+  // A weekday number is the answer `lib/i18n/week.ts` gives - the account's day, else the
+  // manifest's, else the locale's (F5-09); the account's word alone is what callers passed before.
+  const first = typeof weekStart === 'number' ? weekStart : firstWeekday(weekStart);
   const back = (weekdayOf(date) - first + 7) % 7;
   const from = addDays(date, -back);
   return { from, to: addDays(from, 6) };
