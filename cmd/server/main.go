@@ -2647,6 +2647,9 @@ func run() error {
 			// The poll interval stays what it was. This shortens the wait when the notification
 			// arrives and changes nothing when it does not (ADR-0007).
 			Woken: jobListener.Woken(),
+			// A failed statement's constraint and SQLSTATE beside the code, never its message
+			// (issue 692).
+			Diagnose: postgres.Diagnostics,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}
