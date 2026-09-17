@@ -172,6 +172,17 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 		Resume: backupdomain.Restore{Progress: run.Progress, Report: run.Report},
 		Report: in.Report,
 	})
+	// What the source carried and the product has no place for is counted with the rest of
+	// what did not land, by reason, so that the person reads one report rather than two.
+	for what, n := range result.Unmapped {
+		if n == 0 {
+			continue
+		}
+		if report.Withheld == nil {
+			report.Withheld = map[string]int{}
+		}
+		report.Withheld["unmapped_"+what] += n
+	}
 	return report, result.Refused, err
 }
 

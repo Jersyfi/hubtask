@@ -155,10 +155,18 @@ being built.
 
 The convergence milestone is where these become true and the sentences above are rewritten forward
 again: the desktop and mobile clients with their signed installers and store listings, full offline
-operation and `hubctl sync-conformance`, the published SDKs and the n8n and Zapier nodes, the
-localisation surface, and the formal accessibility statement. That is also the milestone
-[`roadmap.md`](../roadmap.md) already assigns the website's 1.0 content to, so this list is a
-checklist for a task that exists rather than a new one.
+operation, the localisation surface, and the formal accessibility statement. That is also the
+milestone [`roadmap.md`](../roadmap.md) already assigns the website's 1.0 content to, so this list
+is a checklist for a task that exists rather than a new one.
+
+Checked again after `0.9.0` (P-17): three of the list's items are now *built and waiting on a
+publication* rather than absent. `hubctl sync-conformance` exists and runs in the e2e session
+(`0.8.5`, N-13). The three SDKs exist under `sdk/` and `packages/api-client`, each with an example
+that runs against the product, but none is published to a registry and their licence waits on
+[ADR-0057](../adr/ADR-0057-sdk-licence-and-extraction.md). The n8n node and the Zapier app exist
+under `packages/` and are complete by test, but neither is on its marketplace
+([ADR-0058](../adr/ADR-0058-connector-packages.md)). The site may say "exists, not yet published"
+for each; it may not say "available" until the publication has happened.
 
 ### 5.3 Checked, and true today
 

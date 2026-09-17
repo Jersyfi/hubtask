@@ -255,6 +255,9 @@ const (
 	// and the bytes are not: an object whose content is gone is the honest outcome, and refusing
 	// a whole restore over one missing file would be the wrong trade on the day it is being used.
 	WithheldMediaMissing = "media_missing"
+	// WithheldOrphaned is a row whose parent in its own table is in neither the archive nor the
+	// target (#693): a child the restore cannot point at anything.
+	WithheldOrphaned = "orphaned"
 )
 
 // Count records one decision about one object: the rule that decided it, and whether there was

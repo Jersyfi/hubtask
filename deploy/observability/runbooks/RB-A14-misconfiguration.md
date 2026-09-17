@@ -25,7 +25,6 @@ The codes and what they cost:
 * `config.smtp_missing_with_reminders` — reminders are on and there is no mail server: they
   fire into nothing. The most urgent of the set.
 * `config.base_url_missing` — links in mails and CloudEvents name the wrong origin.
-* `config.oidc_missing_in_multi_tenancy` — multi-tenant mode without SSO configured.
 * `config.egress_allowlist_missing` / `config.egress_private_networks_allowed` — the outbound
   guard is wider than it should be (T-07).
 
@@ -47,4 +46,6 @@ question, not a preference; treat that one as a finding for the security review.
 
 An installation that runs for weeks with a warning it means to keep (say, no SMTP on a dev
 stack) should silence A-14 in its Alertmanager rather than here: the shipped rule states the
-intended posture.
+intended posture. An environment that exists to mirror production is the other case: there the
+warning is telling you where the mirror is wrong, and the answer is the configuration, not the
+route — that is how the integration environment got its mail server (#310).

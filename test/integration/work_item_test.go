@@ -96,6 +96,33 @@ func TestAnItemIsWrittenAndReadBack(t *testing.T) {
 	}
 }
 
+// An identifier the workspace already holds is a conflict the caller can act on - a CalDAV client
+// PUTting to an address it remembers (issue 720), a device repeating a create - and not a
+// dependency failure. Only the primary key is translated; every other unique violation stays what
+// it is.
+func TestInsertingATakenIdentifierIsAConflict(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	repo := itemRepo()
+
+	id := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Once", "a0"))
+	}); err != nil {
+		t.Fatalf("writing the task: %v", err)
+	}
+
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Twice", "a1"))
+	})
+	if !errors.Is(err, shared.ErrConflict) {
+		t.Fatalf("the second insert under the same identifier: %v, want a conflict", err)
+	}
+	if got := shared.AsError(err).DetailCode; got != "items.id_taken" {
+		t.Errorf("detail code %q, want items.id_taken", got)
+	}
+}
+
 // A subtree survives the round trip, and the paths still nest - which is what every later subtree
 // query rests on.
 func TestASubtreeIsWrittenAtEveryLevel(t *testing.T) {

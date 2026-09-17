@@ -100,6 +100,20 @@ func (s *conformingServer) handle(w http.ResponseWriter, r *http.Request, body s
 			changes = append(changes, map[string]any{"seq": 3, "entity": "container", "entity_id": stubHub, "op": "ACCESS_REVOKED", "container_id": stubHub, "actor_id": stubAccount})
 		}
 		write(200, map[string]any{"changes": changes, "cursor": "c-" + cursor, "has_more": false})
+	case r.Method == http.MethodPost && path == syncSnapshotPath:
+		// The snapshot is the walk as one stream: the same two containers, the cursor last -
+		// unless broken into cutting one record, or the cursor line, short.
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		w.WriteHeader(http.StatusOK)
+		lines := []string{
+			`{"entity":"container","entity_id":"` + stubHub + `","op":"UPSERT","container_id":"` + stubHub + `"}`,
+			`{"entity":"container","entity_id":"` + stubCollection + `","op":"UPSERT","container_id":"` + stubCollection + `"}`,
+			`{"cursor":"c-snapshot"}`,
+		}
+		if s.broken[4] {
+			lines = lines[:1]
+		}
+		_, _ = w.Write([]byte(strings.Join(lines, "\n") + "\n"))
 	case r.Method == http.MethodPost && path == syncPushPath:
 		var in struct {
 			Mutations []map[string]any `json:"mutations"`
