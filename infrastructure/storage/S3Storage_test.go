@@ -53,6 +53,37 @@ func TestTheTwoAddressingStylesBuildTheRightURLs(t *testing.T) {
 	}
 }
 
+// The origin the interface's policy names (ADR-0047) is the origin the presigned URLs carry:
+// the endpoint's under path-style addressing, the bucket's subdomain under virtual-hosted, AWS
+// itself when no endpoint is configured, and no origin at all under local.
+func TestTheMediaOriginIsWhereThePresignedURLsPoint(t *testing.T) {
+	s3 := func(endpoint string, pathStyle bool) env.StorageConfig {
+		return env.StorageConfig{
+			Kind: env.StorageS3, Endpoint: endpoint, Region: "eu-central-1", Bucket: "hubtask-media",
+			AccessKey: secret.New("access"), SecretKey: secret.New("secret"), UsePathStyle: pathStyle,
+		}
+	}
+	for name, tc := range map[string]struct {
+		cfg  env.StorageConfig
+		want string
+	}{
+		"local":                  {env.StorageConfig{Kind: env.StorageLocal, LocalPath: "/var/lib/hubtask/media"}, ""},
+		"path-style with a port": {s3("http://minio.internal:9000", true), "http://minio.internal:9000"},
+		"path-style with a path": {s3("https://storage.example/s3/", true), "https://storage.example"},
+		"virtual-hosted":         {s3("https://s3.example", false), "https://hubtask-media.s3.example"},
+		"aws by region":          {s3("", false), "https://hubtask-media.s3.eu-central-1.amazonaws.com"},
+	} {
+		got, err := MediaOrigin(tc.cfg)
+		if err != nil || got != tc.want {
+			t.Errorf("%s: origin = %q (%v), want %q", name, got, err, tc.want)
+		}
+	}
+
+	if _, err := MediaOrigin(s3("not an origin", true)); shared.AsError(err).DetailCode != "config.s3_incomplete" {
+		t.Errorf("a malformed endpoint: %v, want config.s3_incomplete", err)
+	}
+}
+
 func TestTheAnswersMapToTheSharedErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

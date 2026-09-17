@@ -155,6 +155,17 @@ the parameter on `webui.NewHandler`, the test that holds the `local` policy to t
 byte, the sentence in `security.md` §9, and the CORS rule in the operator's checklist in
 `deployment.md`. It has no milestone yet; the owner schedules it.
 
+## Amendment — 2026-09-17, on implementation: the bucket's origin, not the endpoint's
+
+Built in F6-01. One thing the decision spelled as "the endpoint" turned out to be two origins,
+depending on addressing style: under path-style addressing (`HUBTASK_S3_USE_PATH_STYLE=true`, the
+self-hosting default) the presigned URLs carry the endpoint's origin, and under virtual-hosted
+addressing they carry the bucket's subdomain of it — `https://<bucket>.s3.<region>.amazonaws.com`
+for AWS — which is a different origin from the endpoint's, and the one the browser is asked to
+reach. `storage.MediaOrigin` therefore shapes the origin the way the adapter shapes a URL, from the
+same configuration. Everything else stands: exactly one origin, two directives, the `local` policy
+held to the constant by a test that compares rather than contains.
+
 ## Notes
 
 Related: [ADR-0028](./ADR-0028-embedded-web-ui.md) (the policy this amends, and why every source in
