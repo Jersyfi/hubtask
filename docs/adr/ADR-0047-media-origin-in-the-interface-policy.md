@@ -1,6 +1,6 @@
 # ADR-0047 — The interface's policy names the installation's media origin
 
-**Status:** proposed · **Date:** 2026-09-08
+**Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
 
 ## Context
 
@@ -130,9 +130,30 @@ differently. Naming it precisely is what this project can do about it.
   attachment is still served as a download and is still never rendered by this application, and the
   cover is still drawn only from the download URL the server answers for a `READY` object, which is
   the one path where the sniffed inline allowlist (C-05) has already judged the bytes.
-* Until this is accepted, the client surface F3-09 builds is proved against `local` only. Nothing in
+* Until this is built, the client surface F3-09 builds is proved against `local` only. Nothing in
   it is conditional on the decision: the same three steps run against a presigned URL the moment the
   browser is allowed to reach it.
+
+## Amendment — 2026-09-17, on acceptance: decided, and not yet built
+
+The decision is accepted as written. Nothing of it exists in code: `ContentSecurityPolicy` in
+`presentation/webui/Handler.go` is still the constant ADR-0028 wrote, `webui.NewHandler` takes no
+origin, and no test compares a computed policy against it. That matters more than it did on
+2026-09-08, because of two facts this record should carry:
+
+* **`k8s/values.yaml` defaults `storage.kind: s3`.** A chart installation that keeps the default
+  therefore has covers and attachments that cannot be uploaded from the browser, and the interface
+  reports it as a network failure. The Compose reference (`local`) and the integration environment
+  (`local`, `deploy/integration/values.yaml`) do not show it, which is why no walk has found it.
+* **`milestone-F4.md` read this record as done** ("ADR-0047 added the media origin to the policy")
+  and built F4's export screens on that premise. The premise was corrected on acceptance; the
+  conclusion F4 drew from it — a backup target is not the media origin and the policy is not
+  widened a second time — holds either way.
+
+The implementation is one task: the origin derived from `StorageConfig` in the composition root,
+the parameter on `webui.NewHandler`, the test that holds the `local` policy to the constant byte for
+byte, the sentence in `security.md` §9, and the CORS rule in the operator's checklist in
+`deployment.md`. It has no milestone yet; the owner schedules it.
 
 ## Notes
 

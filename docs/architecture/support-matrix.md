@@ -96,8 +96,8 @@ CI job runs the software on it", and there is no browser job of any kind — the
 it does not claim anyone has **looked**. Turning it into `supported` needs a browser job, which is a
 separate decision ADR-0044 names and leaves open.
 
-That job now has a proposal: [ADR-0048](../adr/ADR-0048-browser-job-driver.md) chooses the driver it
-would need. Until that is accepted and the job exists, these three rows stay `best effort` — a row
+That job has its driver: [ADR-0048](../adr/ADR-0048-browser-job-driver.md), accepted on
+2026-09-17, chooses Playwright. Until the job exists, these three rows stay `best effort` — a row
 may not be promoted by a decision to build something, only by the thing being built.
 
 What the client needs is small and unexotic — `<dialog>`, `inert`, `:has()`, `popover`, logical

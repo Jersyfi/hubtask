@@ -756,18 +756,18 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0044 | Which browsers a Hubtask client is required to work in | accepted |
 | 0045 | The master key stays in the environment | accepted |
 | 0046 | Production runs in a platform namespace, and the platform's operator does PITR | accepted |
-| 0047 | The interface's policy names the installation's media origin | proposed |
-| 0048 | The browser job's driver: Playwright, pinned, in one workflow job | proposed |
-| 0049 | The AI provider surface: two adapters, no dependency, prompts as files | proposed |
-| 0050 | pgvector is a capability, not a requirement | proposed |
-| 0051 | An MCP resource is a catalogue read with a URI for an argument | proposed |
+| 0047 | The interface's policy names the installation's media origin | accepted |
+| 0048 | The browser job's driver: Playwright, pinned, in one workflow job | accepted |
+| 0049 | The AI provider surface: two adapters, no dependency, prompts as files | accepted |
+| 0050 | pgvector is a capability, not a requirement | accepted |
+| 0051 | An MCP resource is a catalogue read with a URI for an argument | accepted |
 | 0052 | Managed PostgreSQL is supported, and migration 0002 is corrected to allow it | accepted |
 | 0053 | The TOTP QR code: a dependency, an encoder, or neither | accepted |
-| 0054 | An embedding narrower than the index is padded, and a wider one is refused | proposed |
+| 0054 | An embedding narrower than the index is padded, and a wider one is refused | accepted |
 | 0055 | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted |
 | 0056 | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted |
 | 0057 | The SDKs: which packages, under which licence, extracted or not | proposed |
-| 0058 | The connector packages: generated, dependency-free here, typed there | proposed |
+| 0058 | The connector packages: generated, dependency-free here, typed there | accepted |
 
 ---
 

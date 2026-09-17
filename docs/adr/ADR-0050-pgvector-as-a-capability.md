@@ -1,6 +1,6 @@
 # ADR-0050 — pgvector is a capability, not a requirement
 
-**Status:** proposed · **Date:** 2026-09-09
+**Status:** accepted · **Date:** 2026-09-09 · **Accepted:** 2026-09-17
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0049 — The AI provider surface: two adapters, no dependency, prompts as files
 
-**Status:** proposed · **Date:** 2026-09-08
+**Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
 
 ## Context
 

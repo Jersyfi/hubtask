@@ -1,6 +1,6 @@
 # ADR-0058 — The connector packages: generated, dependency-free here, typed there
 
-**Status:** proposed · **Date:** 2026-09-16
+**Status:** accepted · **Date:** 2026-09-16 · **Accepted:** 2026-09-17
 
 ## Context
 
@@ -94,6 +94,21 @@ optional ones in a collection, the query parameters in another, `If-Match` as a 
 credential too; the trigger is the one hand-written node, because a webhook subscription is
 procedural in n8n's model and the twenty lines it takes are the same for every event type. The
 schema in `scripts/schema.mjs` is the typecheck A promised and a selftest proves it can fail.
+
+## Amendment — 2026-09-17, on acceptance: the open question is closed, and closed as A
+
+Option A is accepted in the shape the amendment above describes — a workspace manifest naming no
+platform library, and a generated `dist/package.json` that names it for the platform — which is A's
+intent kept against a package manager that would have undone it. The question this record left
+for the owner, `n8n-workflow` as a development dependency of one package, is answered **no**, on
+what P-17's walk showed rather than on principle: loading the generated node into a real n8n found
+[#723](https://github.com/Jersyfi/hubtask/issues/723) (a delivery body lost to a content type n8n
+does not parse) and the Zapier CLI found [#722](https://github.com/Jersyfi/hubtask/issues/722)
+(forty-six descriptions failing the platform's own check). Neither is a defect a `.d.ts` would have
+caught, and both are what the walk exists to catch. A renamed property in a future n8n release — the
+one case B was better at — is found by the same walk one milestone later, which is the cost A named
+and the owner accepts. Should that cost turn out to be paid often, B is one pull request with a
+lockfile change and this record gains a second amendment; nothing else moves.
 
 ## Notes
 

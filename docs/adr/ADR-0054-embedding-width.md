@@ -1,6 +1,6 @@
 # ADR-0054 — An embedding narrower than the index is padded, and a wider one is refused
 
-**Status:** proposed · **Date:** 2026-09-11
+**Status:** accepted · **Date:** 2026-09-11 · **Accepted:** 2026-09-17
 
 ## Context
 

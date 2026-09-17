@@ -53,15 +53,15 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0044](./ADR-0044-browser-support-row.md) | Which browsers a Hubtask client is required to work in | accepted | Clients, design system, support scope |
 | [0045](./ADR-0045-master-key-in-the-environment.md) | The master key stays in the environment | accepted | Security, operations, crypto |
 | [0046](./ADR-0046-production-on-a-platform-namespace.md) | Production runs in a platform namespace, and the platform's operator does PITR | accepted | Deployment, operations, backup |
-| [0047](./ADR-0047-media-origin-in-the-interface-policy.md) | The interface's policy names the installation's media origin | proposed | Security, clients, storage |
-| [0048](./ADR-0048-browser-job-driver.md) | The browser job's driver: Playwright, pinned, in one workflow job | proposed | Clients, tooling, supply chain |
-| [0049](./ADR-0049-ai-provider-surface.md) | The AI provider surface: two adapters, no dependency, prompts as files | proposed | AI, supply chain, ports |
-| [0050](./ADR-0050-pgvector-as-a-capability.md) | pgvector is a capability, not a requirement | proposed | Search, persistence, deployment |
-| [0051](./ADR-0051-mcp-resources-are-catalogue-reads.md) | An MCP resource is a catalogue read with a URI for an argument | proposed | Agent interface, MCP |
+| [0047](./ADR-0047-media-origin-in-the-interface-policy.md) | The interface's policy names the installation's media origin | accepted | Security, clients, storage |
+| [0048](./ADR-0048-browser-job-driver.md) | The browser job's driver: Playwright, pinned, in one workflow job | accepted | Clients, tooling, supply chain |
+| [0049](./ADR-0049-ai-provider-surface.md) | The AI provider surface: two adapters, no dependency, prompts as files | accepted | AI, supply chain, ports |
+| [0050](./ADR-0050-pgvector-as-a-capability.md) | pgvector is a capability, not a requirement | accepted | Search, persistence, deployment |
+| [0051](./ADR-0051-mcp-resources-are-catalogue-reads.md) | An MCP resource is a catalogue read with a URI for an argument | accepted | Agent interface, MCP |
 | [0052](./ADR-0052-managed-postgresql-support.md) | Managed PostgreSQL is supported, and migration 0002 is corrected to allow it | accepted | Persistence, deployment, multi-tenancy |
 | [0053](./ADR-0053-totp-qr-code.md) | The TOTP QR code: a dependency, an encoder, or neither | accepted | Clients, security, supply chain |
-| [0054](./ADR-0054-embedding-width.md) | An embedding narrower than the index is padded, and a wider one is refused | proposed | AI, search, persistence |
+| [0054](./ADR-0054-embedding-width.md) | An embedding narrower than the index is padded, and a wider one is refused | accepted | AI, search, persistence |
 | [0055](./ADR-0055-translation-process.md) | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted | i18n, process, operations |
 | [0056](./ADR-0056-golang-x-text-and-idna.md) | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted | i18n, supply chain, ports |
 | [0057](./ADR-0057-sdk-licence-and-extraction.md) | The SDKs: which packages, under which licence, extracted or not | proposed | licensing, ecosystem, sdk |
-| [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | proposed | ecosystem, supply chain, automation |
+| [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | accepted | ecosystem, supply chain, automation |

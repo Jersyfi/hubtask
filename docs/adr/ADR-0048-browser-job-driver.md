@@ -1,6 +1,6 @@
 # ADR-0048 — The browser job's driver: Playwright, pinned, in one workflow job
 
-**Status:** proposed · **Date:** 2026-09-08
+**Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
 
 ## Context
 
@@ -116,4 +116,32 @@ option D), [ADR-0039](./ADR-0039-overlay-positioning.md) (the fallback whose lif
 [`support-matrix.md`](../architecture/support-matrix.md) §1 and §5 (the definition this satisfies),
 `ci-cd.md` §5 (what makes a job a required check).
 
-Nothing here is implemented: the dependency is the decision, and it waits.
+## Amendment — 2026-09-17, on acceptance: what waited, and one consequence the record lacked
+
+The decision is accepted as written: Playwright, pinned, a `devDependency` of `apps/webapp` and of
+nothing shipped, one job over the built bundle, required through `CI required`. It is the new
+third-party dependency `CLAUDE.md` reserves to the owner, and the owner's review of 2026-09-17 is
+where it was taken. Three things the record should carry from that day:
+
+* **Nothing is built.** `pnpm-lock.yaml` carries no Playwright, `support-matrix.md` §5 still says
+  `best effort` for all three engines, and `packages/design-system/src/positioning.ts` still holds
+  ADR-0039's fallback. The row may not move until the job exists (§5's own rule), and the fallback
+  goes in the commit after the job proves it unreachable.
+* **F5 made its accessibility claim without this job, and said so.** The website's statement
+  reads *partially conformant, assessed by the makers*, on keyboard and tree walks in one Chromium.
+  `1.0.0`'s prerequisite 16 — WCAG 2.2 AA *demonstrated* — is a claim against a set of browsers,
+  and this job is what turns the sentence from an assessment into a demonstration.
+* **The Tauri shells will need a second driver, and that is not a reason to choose differently
+  here.** F6's webview smoke matrix (`1.0.0` prerequisite 18: WebView2, WKWebView, WebKitGTK) runs
+  inside a Tauri window, which Playwright does not drive; that matrix goes through `tauri-driver`,
+  a WebDriver bridge, on a runner per platform. Option B above would have been one driver for both —
+  and it was rejected for needing a macOS runner for one of *these* engines, which the shell matrix
+  needs anyway. So the two jobs share nothing but the assertions, and the assertions are what
+  decision 4 keeps small enough to write twice. F6 decides its driver when it gets there; this
+  record is the browser row's only.
+
+The implementation is one task, as F3-19 already shaped it: the dependency, the static server over
+`dist/`, the assertions of ADR-0044's table in three engines, the job in `ci.yml` under `CI
+required`, the row in `support-matrix.md` §5 — and, in its own commit, the deletion of the fallback
+and its test. It has no milestone yet; the owner schedules it, and before `0.9.5` is where it earns
+its keep, because that is where the conformance claim is made.
