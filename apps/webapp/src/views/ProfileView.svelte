@@ -37,7 +37,6 @@
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import {
     WEEK_STARTS,
-    canBeCleared,
     categoriesOf,
     channelsOf,
     clearedOr,
@@ -45,6 +44,7 @@
     zoneOptions,
     localesOf,
     preferenceFor,
+    withWorkspaceChoice,
   } from '../lib/data/preferences.ts';
   import { mfa } from '../lib/data/mfa.svelte.ts';
   import { consent } from '../lib/data/consent.svelte.ts';
@@ -53,6 +53,7 @@
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { session } from '../lib/session.svelte.ts';
 
@@ -113,15 +114,12 @@
     failure = undefined;
     notice = undefined;
     try {
-      const clearedWeek = clearedOr(weekStart) === '';
       await preferences.setAccount(accountId, {
-        // The empty string, not null: a present-but-nil entry reads as "not sent" and the value
-        // stays. Walked against a running server, both ways round.
+        // The empty string, not null: it is what every server version clears on, where a null
+        // was read as "not sent" before 0.9.0 (issue 709).
         locale: clearedOr(locale),
         time_zone: clearedOr(zone),
-        // …except this one, which cannot be cleared at all — so an empty choice sends nothing
-        // rather than sending something that is refused.
-        ...(clearedWeek ? {} : { week_start: clearedOr(weekStart) as never }),
+        week_start: clearedOr(weekStart) as never,
       });
       notice = t('app.profile.saved');
       // The frame applies the language itself once the account re-reads; this only says it landed.
@@ -215,8 +213,10 @@
           label={t('app.profile.language')}
           hint={t('app.profile.language_hint')}
           bind:value={locale}
-          placeholder={t('app.profile.use_workspace')}
-          options={locales.map((each) => ({ value: each.locale, label: each.locale }))}
+          options={withWorkspaceChoice(
+            locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
+            t('app.profile.use_workspace'),
+          )}
         />
       {:else}
         <!-- An installation that declares no locales has none to choose between, and an empty
@@ -232,8 +232,10 @@
           label={t('app.profile.zone')}
           hint={t('app.profile.zone_hint')}
           bind:value={zone}
-          placeholder={t('app.profile.use_workspace')}
-          options={zones.map((each) => ({ value: each, label: each }))}
+          options={withWorkspaceChoice(
+            zones.map((each) => ({ value: each, label: each })),
+            t('app.profile.use_workspace'),
+          )}
         />
       {:else}
         <!-- A browser that will not list the zones still lets somebody type one, and the server
@@ -241,17 +243,14 @@
         <Input label={t('app.profile.zone')} hint={t('app.profile.zone_free')} bind:value={zone} />
       {/if}
 
-      <!-- The empty choice is offered only while there is nothing to clear. Once a day is chosen
-           this version cannot un-choose it — `""` is refused and `null` reads as "not sent" — and a
-           control that offered the choice would be offering one that quietly does nothing. -->
       <Select
         label={t('app.profile.week_start')}
-        hint={weekStart === '' || canBeCleared('week_start')
-          ? t('app.profile.week_start_hint')
-          : t('app.profile.week_start_fixed')}
+        hint={t('app.profile.week_start_hint')}
         bind:value={weekStart}
-        placeholder={weekStart === '' ? t('app.profile.use_workspace') : undefined}
-        options={WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) }))}
+        options={withWorkspaceChoice(
+          WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
+          t('app.profile.use_workspace'),
+        )}
       />
 
       {#if failure}<p class="failure">{failure.message}</p>{/if}

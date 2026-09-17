@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -29,9 +30,10 @@ import (
 // warns about.
 
 const (
-	syncPullPath    = "/sync:pull"
-	syncPushPath    = "/sync:push"
-	syncDevicesPath = "/sync/devices"
+	syncPullPath     = "/sync:pull"
+	syncSnapshotPath = "/sync:snapshot"
+	syncPushPath     = "/sync:push"
+	syncDevicesPath  = "/sync/devices"
 
 	// syncPushBatch is how many mutations one push carries, the contract's maximum.
 	syncPushBatch = 500
@@ -51,6 +53,13 @@ func syncGroup() group {
 				usage:   "[--cursor <cursor>] [--scope <container-id>[:SELF|SUBTREE]]... [--all] [--limit <n>] [--device <id>]",
 				summary: "pull the changes since a cursor - or everything, from nothing - as JSON lines, the cursor last",
 				run:     syncPull,
+			},
+			{
+				name:    "snapshot",
+				usage:   "[--out <file>] [--scope <container-id>[:SELF|SUBTREE]]... [--device <id>] [--apply] [--wait <d>]",
+				summary: "the initial synchronisation as one stream, written to a file or standard output; --apply keeps its cursor in the profile",
+				run:     syncSnapshot,
+				waits:   true,
 			},
 			{
 				name:    "push",
@@ -75,6 +84,7 @@ func syncPull(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "sync", "pull",
 		"[--cursor <cursor>] [--scope <container-id>[:SELF|SUBTREE]]... [--all] [--limit <n>] [--device <id>]")
 	cursor := flags.String("cursor", "", "continue from this cursor; unset starts an initial synchronisation")
+	fromProfile := flags.Bool("continue", false, "continue from the cursor the profile keeps - the one `sync snapshot --apply` kept")
 	var scopes scopeFlags
 	flags.Var(&scopes, "scope", "hold this container, to its depth (repeatable)")
 	all := flags.Bool("all", false, "keep paging until there is no more")
@@ -85,6 +95,15 @@ func syncPull(ctx context.Context, cli *CLI, args []string) error {
 	}
 	if flags.NArg() > 0 {
 		return usagef("unexpected argument %q: hubctl sync pull takes only flags", flags.Arg(0))
+	}
+	if *fromProfile {
+		if *cursor != "" {
+			return usagef("--continue and --cursor name two cursors: hubctl sync pull takes one")
+		}
+		if cli.Profile.Cursor == "" {
+			return usagef("the profile keeps no cursor yet: hubctl sync snapshot --apply keeps one")
+		}
+		*cursor = cli.Profile.Cursor
 	}
 	device, err := cli.syncDevice(*deviceFlag)
 	if err != nil {
@@ -122,10 +141,109 @@ func syncPull(ctx context.Context, cli *CLI, args []string) error {
 			}
 		}
 		if !page.HasMore || !*all {
+			if *fromProfile {
+				// Continuing from the profile's cursor moves it: the next --continue starts
+				// where this one ended.
+				cli.Profile.Cursor = page.Cursor
+				if err := SaveProfile(cli.ProfilePath, cli.Profile); err != nil {
+					return err
+				}
+			}
 			return encoder.Encode(map[string]any{"cursor": page.Cursor, "has_more": page.HasMore})
 		}
 		request["cursor"] = page.Cursor
 	}
+}
+
+// syncSnapshot takes the initial synchronisation as one stream (SY-C, P-12) and writes it where
+// it is told - a file, or standard output - as it arrives, line for line. The stream ends in a
+// cursor line; `--apply` keeps that cursor in the profile, which is hubctl's store, so that
+// `hubctl sync pull --continue` takes the delta from where the snapshot left the device. A stream
+// that ends without the cursor line was cut short and is reported as such: nothing is kept, and
+// the device starts again.
+func syncSnapshot(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "sync", "snapshot",
+		"[--out <file>] [--scope <container-id>[:SELF|SUBTREE]]... [--device <id>] [--apply] [--wait <d>]")
+	out := flags.String("out", "", "write the stream here; unset writes it to standard output")
+	var scopes scopeFlags
+	flags.Var(&scopes, "scope", "hold this container, to its depth (repeatable)")
+	deviceFlag := flags.String("device", "", "act as this device; unset uses the one kept in the profile")
+	apply := flags.Bool("apply", false, "keep the cursor the stream ends on in the profile, for sync pull --continue")
+	wait := waitFlag(flags)
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if flags.NArg() > 0 {
+		return usagef("unexpected argument %q: hubctl sync snapshot takes only flags", flags.Arg(0))
+	}
+	device, err := cli.syncDevice(*deviceFlag)
+	if err != nil {
+		return err
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	request := map[string]any{"device_id": device.String(), "platform": syncPlatform}
+	if len(scopes) > 0 {
+		request["scopes"] = scopes.request()
+	}
+
+	sink := cli.Out
+	if *out != "" {
+		file, err := os.Create(*out)
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", *out, err)
+		}
+		defer func() { _ = file.Close() }()
+		sink = file
+	}
+
+	bounded, cancel := context.WithTimeout(ctx, *wait)
+	defer cancel()
+	response, err := client.OpenSnapshot(bounded, request)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = response.Body.Close() }()
+
+	written := bufio.NewWriter(sink)
+	defer func() { _ = written.Flush() }()
+	scanner := bufio.NewScanner(response.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), syncLineLimit)
+	records, cursor := 0, ""
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if _, err := written.Write(line); err != nil {
+			return err
+		}
+		if err := written.WriteByte('\n'); err != nil {
+			return err
+		}
+		var trailer struct {
+			Cursor string `json:"cursor"`
+			Entity string `json:"entity"`
+		}
+		if err := json.Unmarshal(line, &trailer); err == nil && trailer.Cursor != "" && trailer.Entity == "" {
+			cursor = trailer.Cursor
+			continue
+		}
+		records++
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("reading the snapshot: %w", err)
+	}
+	if cursor == "" {
+		return errors.New("the snapshot ended before its cursor line: it was cut short, and nothing is kept - start again")
+	}
+	if *apply {
+		cli.Profile.Cursor = cursor
+		if err := SaveProfile(cli.ProfilePath, cli.Profile); err != nil {
+			return err
+		}
+	}
+	printf(cli.Err, "hubctl: %d records, the cursor last\n", records)
+	return nil
 }
 
 // syncPush reads a file of mutations - one JSON object per line, the contract's SyncMutation -

@@ -64,6 +64,9 @@ func serveAuthenticated(
 	// The CalDAV tree beside the routes, as main.go mounts it: the one place Basic is taken.
 	routes := Mounted{Router: mux, Path: calendar.Prefix, Prefix: true,
 		Mount: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}
+	// And the discovery address in front of it, the one public path outside the contract.
+	routes = Mounted{Router: routes, Path: calendar.WellKnown,
+		Mount: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}
 
 	var seen appshared.ActorContext
 	reached := false
@@ -426,5 +429,33 @@ func TestBasicIsTakenOnTheCalDavTreeAndNowhereElse(t *testing.T) {
 	response, _, _ = serveAuthenticated(t, &authenticator{err: shared.ErrUnauthenticated.WithDetail("access.token_unknown")}, wrong)
 	if response.Code != http.StatusUnauthorized || !strings.HasPrefix(response.Header().Get("WWW-Authenticate"), "Basic ") {
 		t.Errorf("a refused token on the tree is a Basic challenge again: %d %q", response.Code, response.Header().Get("WWW-Authenticate"))
+	}
+}
+
+// The discovery address is asked before a client has presented anything (RFC 6764 §5) and by
+// some clients with the credential they were configured with, which is Basic: both reach the
+// redirect, a wrong Basic credential is a Basic challenge, and no lookup happens for the
+// anonymous ask (issue 719).
+func TestTheCalDavDiscoveryAddressNeedsNoCredentialAndTakesBasic(t *testing.T) {
+	auth := &authenticator{}
+	bare := httptest.NewRequestWithContext(t.Context(), http.MethodGet, calendar.WellKnown, nil)
+	response, actor, reached := serveAuthenticated(t, auth, bare)
+	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
+		t.Fatalf("an anonymous ask reaches the redirect without a lookup: %d, %d calls", response.Code, auth.calls)
+	}
+
+	auth = &authenticator{actor: authenticatedActor()}
+	basic := httptest.NewRequestWithContext(t.Context(), "PROPFIND", calendar.WellKnown, nil)
+	basic.SetBasicAuth("anna@example.org", credential)
+	response, actor, reached = serveAuthenticated(t, auth, basic)
+	if !reached || !actor.IsAuthenticated() || auth.command.Credential != credential {
+		t.Fatalf("Basic on the discovery address authenticates like the tree: %d %s", response.Code, response.Body)
+	}
+
+	wrong := httptest.NewRequestWithContext(t.Context(), http.MethodGet, calendar.WellKnown, nil)
+	wrong.SetBasicAuth("anna@example.org", "hbt_pat_wrong")
+	response, _, reached = serveAuthenticated(t, &authenticator{err: shared.ErrUnauthenticated.WithDetail("access.token_unknown")}, wrong)
+	if reached || response.Code != http.StatusUnauthorized || !strings.HasPrefix(response.Header().Get("WWW-Authenticate"), "Basic ") {
+		t.Errorf("a refused Basic credential is a Basic challenge here too: %d %q", response.Code, response.Header().Get("WWW-Authenticate"))
 	}
 }

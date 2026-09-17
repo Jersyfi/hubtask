@@ -17,6 +17,7 @@ import (
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 // Puller is the slice of the pull service this controller drives: one page in, one page out, and
@@ -44,6 +45,10 @@ type SyncController struct {
 	// Push serves `POST /sync:push` (N-04). Nil leaves the route answering the pending 404.
 	Push        Pusher
 	PushSignals PushSignals
+	// Registry admits a snapshot's connection beside the streams' (SY-C, P-12), and StreamSignals
+	// counts it with them. Nil leaves `POST /sync:snapshot` answering not wired.
+	Registry      *stream.Registry
+	StreamSignals StreamSignals
 }
 
 // SyncPull answers one page of the delta.

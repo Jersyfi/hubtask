@@ -2807,6 +2807,7 @@ const (
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
 	FIELDS        SuggestionKind = "FIELDS"
+	TEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionKind enum.
@@ -2817,6 +2818,8 @@ func (e SuggestionKind) Valid() bool {
 	case DUPLICATES:
 		return true
 	case FIELDS:
+		return true
+	case TEMPLATE:
 		return true
 	default:
 		return false
@@ -2972,19 +2975,40 @@ func (e SyncMutationResultResult) Valid() bool {
 
 // Defines values for SyncPullRequestScopesDepth.
 const (
-	CHILDREN SyncPullRequestScopesDepth = "CHILDREN"
-	SELF     SyncPullRequestScopesDepth = "SELF"
-	SUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
+	SyncPullRequestScopesDepthCHILDREN SyncPullRequestScopesDepth = "CHILDREN"
+	SyncPullRequestScopesDepthSELF     SyncPullRequestScopesDepth = "SELF"
+	SyncPullRequestScopesDepthSUBTREE  SyncPullRequestScopesDepth = "SUBTREE"
 )
 
 // Valid indicates whether the value is a known member of the SyncPullRequestScopesDepth enum.
 func (e SyncPullRequestScopesDepth) Valid() bool {
 	switch e {
-	case CHILDREN:
+	case SyncPullRequestScopesDepthCHILDREN:
 		return true
-	case SELF:
+	case SyncPullRequestScopesDepthSELF:
 		return true
-	case SUBTREE:
+	case SyncPullRequestScopesDepthSUBTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncSnapshotRequestScopesDepth.
+const (
+	SyncSnapshotRequestScopesDepthCHILDREN SyncSnapshotRequestScopesDepth = "CHILDREN"
+	SyncSnapshotRequestScopesDepthSELF     SyncSnapshotRequestScopesDepth = "SELF"
+	SyncSnapshotRequestScopesDepthSUBTREE  SyncSnapshotRequestScopesDepth = "SUBTREE"
+)
+
+// Valid indicates whether the value is a known member of the SyncSnapshotRequestScopesDepth enum.
+func (e SyncSnapshotRequestScopesDepth) Valid() bool {
+	switch e {
+	case SyncSnapshotRequestScopesDepthCHILDREN:
+		return true
+	case SyncSnapshotRequestScopesDepthSELF:
+		return true
+	case SyncSnapshotRequestScopesDepthSUBTREE:
 		return true
 	default:
 		return false
@@ -3598,6 +3622,21 @@ type AuditActor struct {
 // AuditActorType defines model for AuditActor.Type.
 type AuditActorType string
 
+// AuditAnchoring defines model for AuditAnchoring.
+type AuditAnchoring struct {
+	ConfiguredAt time.Time           `json:"configured_at"`
+	ConfiguredBy *openapi_types.UUID `json:"configured_by,omitempty"`
+
+	// TargetId The target anchoring writes to, or null where it is off.
+	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
+}
+
+// AuditAnchoringConfiguration defines model for AuditAnchoringConfiguration.
+type AuditAnchoringConfiguration struct {
+	// TargetId The workspace's backup target the daily anchor is written to; null switches anchoring off.
+	TargetId *openapi_types.UUID `json:"target_id"`
+}
+
 // AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
@@ -3890,9 +3929,12 @@ type BackupRun struct {
 	StartedAt  time.Time          `json:"started_at"`
 	Status     BackupRunStatus    `json:"status"`
 	TargetId   openapi_types.UUID `json:"target_id"`
-	Trigger    BackupRunTrigger   `json:"trigger"`
-	VerifiedAt *time.Time         `json:"verified_at,omitempty"`
-	VerifyOk   *bool              `json:"verify_ok,omitempty"`
+
+	// TrialRestore What the trial restore found (B-4, P-14): after a scheduled `FULL` run whose schedule has `trial_restore` on, the same job reads the archive back as an `INSPECT` restore - every member read, every checksum verified, every encrypted member decrypted with the key the schedule names - and records the difference report against the workspace here. Null where no trial ran. A trial that fails fails the run, with `backup.trial_restore_failed` as its `error_code` and the failure recorded here.
+	TrialRestore *BackupRunTrial  `json:"trial_restore,omitempty"`
+	Trigger      BackupRunTrigger `json:"trigger"`
+	VerifiedAt   *time.Time       `json:"verified_at,omitempty"`
+	VerifyOk     *bool            `json:"verify_ok,omitempty"`
 }
 
 // BackupRunMode defines model for BackupRun.Mode.
@@ -3903,6 +3945,25 @@ type BackupRunStatus string
 
 // BackupRunTrigger defines model for BackupRun.Trigger.
 type BackupRunTrigger string
+
+// BackupRunTrial defines model for BackupRunTrial.
+type BackupRunTrial struct {
+	// Failure What could not be read back, on a run that failed its trial.
+	Failure     *BackupRunTrialFailure `json:"failure,omitempty"`
+	InspectedAt time.Time              `json:"inspected_at"`
+
+	// Report What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable.
+	Report *RestoreReport `json:"report,omitempty"`
+}
+
+// BackupRunTrialFailure defines model for BackupRunTrialFailure.
+type BackupRunTrialFailure struct {
+	// Code The reader's message code.
+	Code string `json:"code"`
+
+	// Member The member at the target where it stopped.
+	Member *string `json:"member,omitempty"`
+}
 
 // BackupSchedule defines model for BackupSchedule.
 type BackupSchedule struct {
@@ -3924,6 +3985,9 @@ type BackupSchedule struct {
 	} `json:"scope"`
 	TargetId openapi_types.UUID `json:"target_id"`
 	Timezone *string            `json:"timezone,omitempty"`
+
+	// TrialRestore Follow every `FULL` run with an `INSPECT` restore of the archive it wrote, in the same job, and store the difference report on the run (B-4, P-14). A trial that fails fails the run - an archive the product cannot read back is not a backup - and `notify_on` covers it as it covers any failure. On for a new schedule; schedules made before this field existed keep it off, and say so.
+	TrialRestore *bool `json:"trial_restore,omitempty"`
 }
 
 // BackupScheduleMode defines model for BackupSchedule.Mode.
@@ -3946,9 +4010,10 @@ type BackupScheduleUpdate struct {
 	NotifyOn     *[]BackupScheduleUpdateNotifyOn `json:"notify_on,omitempty"`
 
 	// Retention The generation principle. `min_keep` prevents no backup being left at all.
-	Retention *BackupRetention `json:"retention,omitempty"`
-	Rrule     *string          `json:"rrule,omitempty"`
-	Timezone  *string          `json:"timezone,omitempty"`
+	Retention    *BackupRetention `json:"retention,omitempty"`
+	Rrule        *string          `json:"rrule,omitempty"`
+	Timezone     *string          `json:"timezone,omitempty"`
+	TrialRestore *bool            `json:"trial_restore,omitempty"`
 }
 
 // BackupScheduleUpdateMode defines model for BackupScheduleUpdate.Mode.
@@ -5761,7 +5826,7 @@ type RestoreReport struct {
 	// Skipped Objects left as they are.
 	Skipped *int `json:"skipped,omitempty"`
 
-	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`. An object rather than a total, so that a client can say why.
+	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`, `media_missing`, `orphaned` (a row whose parent is in neither the archive nor the target) - and, for an import, what the source carried that the product has no place for - `unmapped_members`. An object rather than a total, so that a client can say why.
 	Withheld *map[string]int `json:"withheld,omitempty"`
 }
 
@@ -6353,13 +6418,14 @@ type Suggestion struct {
 	Id        openapi_types.UUID  `json:"id"`
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -6393,6 +6459,7 @@ type SuggestionAcceptance struct {
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 // `DUPLICATES` is the one kind nothing accepts (K-04). It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -6580,6 +6647,23 @@ type SyncPushResponse struct {
 	ServerTime *time.Time           `json:"server_time,omitempty"`
 }
 
+// SyncSnapshotRequest What `:pull` takes for an initial synchronisation, without a cursor or a page size.
+type SyncSnapshotRequest struct {
+	// DeviceId The device asking, as on `:pull`; it registers by turning up.
+	DeviceId    openapi_types.UUID `json:"device_id"`
+	DisplayName *string            `json:"display_name,omitempty"`
+	Platform    *string            `json:"platform,omitempty"`
+
+	// Scopes What the device wants to hold, as on `:pull`; no scope means everything the caller may read.
+	Scopes *[]struct {
+		ContainerId *openapi_types.UUID             `json:"container_id,omitempty"`
+		Depth       *SyncSnapshotRequestScopesDepth `json:"depth,omitempty"`
+	} `json:"scopes,omitempty"`
+}
+
+// SyncSnapshotRequestScopesDepth defines model for SyncSnapshotRequest.Scopes.Depth.
+type SyncSnapshotRequestScopesDepth string
+
 // Template defines model for Template.
 type Template struct {
 	CreatedAt   time.Time          `json:"created_at"`
@@ -6600,6 +6684,15 @@ type Template struct {
 	ScopeType TemplateScope `json:"scope_type"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
+}
+
+// TemplateGeneration What to ask for, and where the template would belong.
+type TemplateGeneration struct {
+	// CollectionId The collection the template is drafted for and would be defined in. The draft's scope is `COLLECTION` and this container; a model names no destination.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Description What the template should produce, in the caller's own words — "onboarding a new colleague, with the accounts to create and the introductions in the first week". It travels to the provider as content, never as instruction.
+	Description string `json:"description"`
 }
 
 // TemplateInput defines model for TemplateInput.
@@ -7266,8 +7359,10 @@ type ListAuditEntriesParamsOutcome string
 
 // VerifyAuditChainJSONBody defines parameters for VerifyAuditChain.
 type VerifyAuditChainJSONBody struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	// Anchors Also read the last anchor back from the workspace's anchoring target and compare the chain end it holds with the chain at that sequence (A-2, P-13). A read of somebody else's machine, so it is asked for rather than always done; `anchored_until`, `anchor_agrees` and `anchor_error_code` answer it.
+	Anchors *bool     `json:"anchors,omitempty"`
+	From    time.Time `json:"from"`
+	To      time.Time `json:"to"`
 }
 
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
@@ -8065,6 +8160,12 @@ type InstantiateTemplateParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// AiGenerateTemplateParams defines parameters for AiGenerateTemplate.
+type AiGenerateTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // UpdateWorkspaceParams defines parameters for UpdateWorkspace.
 type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -8148,6 +8249,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
+
+// ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
+type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
 
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
@@ -8410,6 +8514,9 @@ type SyncPullJSONRequestBody = SyncPullRequest
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
 
+// SyncSnapshotJSONRequestBody defines body for SyncSnapshot for application/json ContentType.
+type SyncSnapshotJSONRequestBody = SyncSnapshotRequest
+
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = TemplateInput
 
@@ -8418,6 +8525,9 @@ type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation
+
+// AiGenerateTemplateJSONRequestBody defines body for AiGenerateTemplate for application/json ContentType.
+type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
@@ -8823,6 +8933,26 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /audit (the `ListAuditEntries` operationId).
 	ListAuditEntries(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureAuditAnchoringWithBody Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoringWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoring(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExportAuditTrailWithBody Export the audit trail over a period
 	//
@@ -11371,6 +11501,52 @@ type ClientInterface interface {
 	// Corresponds with POST /sync:push (the `SyncPush` operationId).
 	SyncPush(ctx context.Context, body SyncPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SyncSnapshotWithBody The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshotWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncSnapshot The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshot(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTemplates performs a GET /templates (the `ListTemplates` operationId) request.
 	//
 	// The templates the caller may use, newest first. Naming a container answers the ones defined along that container's path - the collection's, its hub's and the workspace-wide ones - because that is the set a person picking a template in a collection can choose from. Naming none answers the workspace-wide ones alone.
@@ -11423,6 +11599,26 @@ type ClientInterface interface {
 	// Stamps the template out into a collection: an entry tree whose relative dates have become absolute ones, anchored either at a date the request names or at the moment of the call. The anchor is a date rather than an instant - "+3 days for a project starting Monday" is about days - and it is read in the caller's own time zone.
 	// What the target collection cannot carry is reported rather than dropped silently: an assignee who cannot see it, a label it does not have. Idempotent under its Idempotency-Key.
 	InstantiateTemplate(ctx context.Context, templateId TemplateId, params *InstantiateTemplateParams, body InstantiateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AiGenerateTemplateWithBody Ask AI to draft a template from a description
+	//
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+	AiGenerateTemplateWithBody(ctx context.Context, params *AiGenerateTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AiGenerateTemplate Ask AI to draft a template from a description
+	//
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+	AiGenerateTemplate(ctx context.Context, params *AiGenerateTemplateParams, body AiGenerateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadWorkspace The workspace the caller is in, and how it is set up
 	//
@@ -12139,6 +12335,46 @@ func (c *Client) ConfigureAiProvider(ctx context.Context, body ConfigureAiProvid
 // Corresponds with GET /audit (the `ListAuditEntries` operationId).
 func (c *Client) ListAuditEntries(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAuditEntriesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureAuditAnchoringWithBody Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *Client) ConfigureAuditAnchoringWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureAuditAnchoringRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureAuditAnchoring Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *Client) ConfigureAuditAnchoring(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureAuditAnchoringRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -17586,6 +17822,72 @@ func (c *Client) SyncPush(ctx context.Context, body SyncPushJSONRequestBody, req
 	return c.Client.Do(req)
 }
 
+// SyncSnapshotWithBody The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *Client) SyncSnapshotWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncSnapshotRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SyncSnapshot The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *Client) SyncSnapshot(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncSnapshotRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListTemplates performs a GET /templates (the `ListTemplates` operationId) request.
 //
 // The templates the caller may use, newest first. Naming a container answers the ones defined along that container's path - the collection's, its hub's and the workspace-wide ones - because that is the set a person picking a template in a collection can choose from. Naming none answers the workspace-wide ones alone.
@@ -17719,6 +18021,46 @@ func (c *Client) InstantiateTemplateWithBody(ctx context.Context, templateId Tem
 // What the target collection cannot carry is reported rather than dropped silently: an assignee who cannot see it, a label it does not have. Idempotent under its Idempotency-Key.
 func (c *Client) InstantiateTemplate(ctx context.Context, templateId TemplateId, params *InstantiateTemplateParams, body InstantiateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewInstantiateTemplateRequest(c.Server, templateId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AiGenerateTemplateWithBody Ask AI to draft a template from a description
+//
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+func (c *Client) AiGenerateTemplateWithBody(ctx context.Context, params *AiGenerateTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAiGenerateTemplateRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AiGenerateTemplate Ask AI to draft a template from a description
+//
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+func (c *Client) AiGenerateTemplate(ctx context.Context, params *AiGenerateTemplateParams, body AiGenerateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAiGenerateTemplateRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -18912,6 +19254,46 @@ func NewListAuditEntriesRequest(server string, params *ListAuditEntriesParams) (
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewConfigureAuditAnchoringRequest calls the generic ConfigureAuditAnchoring builder with application/json body
+func NewConfigureAuditAnchoringRequest(server string, body ConfigureAuditAnchoringJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureAuditAnchoringRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConfigureAuditAnchoringRequestWithBody constructs an http.Request for the ConfigureAuditAnchoring method, with any body, and a specified content type
+func NewConfigureAuditAnchoringRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/audit/anchoring")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -28787,6 +29169,46 @@ func NewSyncPushRequestWithBody(server string, contentType string, body io.Reade
 	return req, nil
 }
 
+// NewSyncSnapshotRequest calls the generic SyncSnapshot builder with application/json body
+func NewSyncSnapshotRequest(server string, body SyncSnapshotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSyncSnapshotRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSyncSnapshotRequestWithBody constructs an http.Request for the SyncSnapshot method, with any body, and a specified content type
+func NewSyncSnapshotRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sync:snapshot")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTemplatesRequest constructs an http.Request for the ListTemplates method
 func NewListTemplatesRequest(server string, params *ListTemplatesParams) (*http.Request, error) {
 	var err error
@@ -29093,6 +29515,61 @@ func NewInstantiateTemplateRequestWithBody(server string, templateId TemplateId,
 	}
 
 	operationPath := fmt.Sprintf("/templates/%s:instantiate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewAiGenerateTemplateRequest calls the generic AiGenerateTemplate builder with application/json body
+func NewAiGenerateTemplateRequest(server string, params *AiGenerateTemplateParams, body AiGenerateTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAiGenerateTemplateRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewAiGenerateTemplateRequestWithBody constructs an http.Request for the AiGenerateTemplate method, with any body, and a specified content type
+func NewAiGenerateTemplateRequestWithBody(server string, params *AiGenerateTemplateParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/templates:generate")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -30087,6 +30564,26 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /audit (the `ListAuditEntries` operationId).
 	ListAuditEntriesWithResponse(ctx context.Context, params *ListAuditEntriesParams, reqEditors ...RequestEditorFn) (*ListAuditEntriesResult, error)
+
+	// ConfigureAuditAnchoringWithBodyWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoringWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error)
+
+	// ConfigureAuditAnchoringWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+	//
+	// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+	// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+	ConfigureAuditAnchoringWithResponse(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error)
 
 	// ExportAuditTrailWithBodyWithResponse Export the audit trail over a period
 	//
@@ -32923,6 +33420,52 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /sync:push (the `SyncPush` operationId).
 	SyncPushWithResponse(ctx context.Context, body SyncPushJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncPushResult, error)
 
+	// SyncSnapshotWithBodyWithResponse The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshotWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error)
+
+	// SyncSnapshotWithResponse The initial synchronisation as one stream
+	//
+	// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+	// the records of the initial synchronisation in the walk's order, one per line of
+	// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+	// read so that the first byte arrives before the last row is counted, and the delta cursor
+	// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+	// read before the first row, exactly as a page sequence's is. Permission is checked per
+	// record, a scope narrows the walk, and the device is registered by turning up.
+	//
+	// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+	// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+	// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+	// device that lost the connection before the last line has no cursor and starts again,
+	// which is what a page sequence offers it too; the difference is one request rather than a
+	// thousand. A connection that ends before the cursor line never learns the cursor - which is
+	// the point: a snapshot a device did not read whole is not one it may resume from.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+	SyncSnapshotWithResponse(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error)
+
 	// ListTemplatesWithResponse performs a GET /templates (the `ListTemplates` operationId) request.
 	//
 	// The templates the caller may use, newest first. Naming a container answers the ones defined along that container's path - the collection's, its hub's and the workspace-wide ones - because that is the set a person picking a template in a collection can choose from. Naming none answers the workspace-wide ones alone.
@@ -32987,6 +33530,26 @@ type ClientWithResponsesInterface interface {
 	// Stamps the template out into a collection: an entry tree whose relative dates have become absolute ones, anchored either at a date the request names or at the moment of the call. The anchor is a date rather than an instant - "+3 days for a project starting Monday" is about days - and it is read in the caller's own time zone.
 	// What the target collection cannot carry is reported rather than dropped silently: an assignee who cannot see it, a label it does not have. Idempotent under its Idempotency-Key.
 	InstantiateTemplateWithResponse(ctx context.Context, templateId TemplateId, params *InstantiateTemplateParams, body InstantiateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*InstantiateTemplateResult, error)
+
+	// AiGenerateTemplateWithBodyWithResponse Ask AI to draft a template from a description
+	//
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+	AiGenerateTemplateWithBodyWithResponse(ctx context.Context, params *AiGenerateTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AiGenerateTemplateResult, error)
+
+	// AiGenerateTemplateWithResponse Ask AI to draft a template from a description
+	//
+	// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+	// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+	AiGenerateTemplateWithResponse(ctx context.Context, params *AiGenerateTemplateParams, body AiGenerateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*AiGenerateTemplateResult, error)
 
 	// ReadWorkspaceWithResponse The workspace the caller is in, and how it is set up
 	//
@@ -34072,6 +34635,54 @@ func (r ListAuditEntriesResult) ContentType() string {
 	return ""
 }
 
+type ConfigureAuditAnchoringResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AuditAnchoring
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfigureAuditAnchoringResult) GetJSON200() *AuditAnchoring {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfigureAuditAnchoringResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfigureAuditAnchoringResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfigureAuditAnchoringResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfigureAuditAnchoringResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfigureAuditAnchoringResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ExportAuditTrailResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -34139,7 +34750,21 @@ type VerifyAuditChainResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
-		Checked *int `json:"checked,omitempty"`
+		// AnchorAgrees With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.
+		AnchorAgrees *bool `json:"anchor_agrees,omitempty"`
+
+		// AnchorErrorCode Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.
+		AnchorErrorCode *string `json:"anchor_error_code,omitempty"`
+
+		// AnchorSeq The sequence number the last anchor sealed, asked with anchors.
+		AnchorSeq *int `json:"anchor_seq,omitempty"`
+
+		// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
+		AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
+
+		// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+		AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
+		Checked             *int  `json:"checked,omitempty"`
 
 		// FirstBrokenSeq Where the first entry that does not hold sits. The first rather than all of them, because that is where an investigation starts.
 		FirstBrokenSeq *int `json:"first_broken_seq,omitempty"`
@@ -34150,7 +34775,7 @@ type VerifyAuditChainResult struct {
 		// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 		Gaps *[]int `json:"gaps,omitempty"`
 
-		// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+		// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 		SealedUntil *time.Time `json:"sealed_until,omitempty"`
 		Valid       *bool      `json:"valid,omitempty"`
 	}
@@ -34160,7 +34785,21 @@ type VerifyAuditChainResult struct {
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r VerifyAuditChainResult) GetJSON200() *struct {
-	Checked *int `json:"checked,omitempty"`
+	// AnchorAgrees With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.
+	AnchorAgrees *bool `json:"anchor_agrees,omitempty"`
+
+	// AnchorErrorCode Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.
+	AnchorErrorCode *string `json:"anchor_error_code,omitempty"`
+
+	// AnchorSeq The sequence number the last anchor sealed, asked with anchors.
+	AnchorSeq *int `json:"anchor_seq,omitempty"`
+
+	// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
+	AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
+
+	// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+	AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
+	Checked             *int  `json:"checked,omitempty"`
 
 	// FirstBrokenSeq Where the first entry that does not hold sits. The first rather than all of them, because that is where an investigation starts.
 	FirstBrokenSeq *int `json:"first_broken_seq,omitempty"`
@@ -34171,7 +34810,7 @@ func (r VerifyAuditChainResult) GetJSON200() *struct {
 	// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 	Gaps *[]int `json:"gaps,omitempty"`
 
-	// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+	// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 	SealedUntil *time.Time `json:"sealed_until,omitempty"`
 	Valid       *bool      `json:"valid,omitempty"`
 } {
@@ -44085,6 +44724,54 @@ func (r SyncPushResult) ContentType() string {
 	return ""
 }
 
+type SyncSnapshotResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SyncSnapshotResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r SyncSnapshotResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r SyncSnapshotResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SyncSnapshotResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SyncSnapshotResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SyncSnapshotResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTemplatesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -44381,6 +45068,54 @@ func (r InstantiateTemplateResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r InstantiateTemplateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AiGenerateTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AiGenerateTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r AiGenerateTemplateResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r AiGenerateTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AiGenerateTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AiGenerateTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AiGenerateTemplateResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -45453,6 +46188,38 @@ func (c *ClientWithResponses) ListAuditEntriesWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseListAuditEntriesResult(rsp)
+}
+
+// ConfigureAuditAnchoringWithBodyWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *ClientWithResponses) ConfigureAuditAnchoringWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error) {
+	rsp, err := c.ConfigureAuditAnchoringWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureAuditAnchoringResult(rsp)
+}
+
+// ConfigureAuditAnchoringWithResponse Name where the audit chain's end is anchored, or switch anchoring off
+//
+// External anchoring (A-2, audit.md §3): once a day a job reads this workspace's chain end - the last sequence number and its hash - and writes it as `hubtask-anchor-<tenant>-<YYYYMMDD>.json` to the backup target named here, recording the row `audit_anchor` with the target as its destination and the object's digest as its receipt. `:verify` with `anchors: true` reads the last copy back and compares it. A `null` target switches anchoring off; the anchors already written stay.
+// Needs `STRUCTURE` at the workspace - a workspace administrator - and is audited with the target before and after. The target is one of the workspace's own backup targets, so what is recommended for a tenant's target (object lock, a retention no shorter than the audit period) applies to it; an anchor is a few hundred bytes, so the lock can be long.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /audit/anchoring (the `ConfigureAuditAnchoring` operationId).
+func (c *ClientWithResponses) ConfigureAuditAnchoringWithResponse(ctx context.Context, body ConfigureAuditAnchoringJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureAuditAnchoringResult, error) {
+	rsp, err := c.ConfigureAuditAnchoring(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureAuditAnchoringResult(rsp)
 }
 
 // ExportAuditTrailWithBodyWithResponse Export the audit trail over a period
@@ -50024,6 +50791,64 @@ func (c *ClientWithResponses) SyncPushWithResponse(ctx context.Context, body Syn
 	return ParseSyncPushResult(rsp)
 }
 
+// SyncSnapshotWithBodyWithResponse The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *ClientWithResponses) SyncSnapshotWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error) {
+	rsp, err := c.SyncSnapshotWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncSnapshotResult(rsp)
+}
+
+// SyncSnapshotWithResponse The initial synchronisation as one stream
+//
+// What `:pull` with no cursor answers in pages, as one response (SY-C, offline-sync.md §3.1):
+// the records of the initial synchronisation in the walk's order, one per line of
+// `application/x-ndjson`, each the same `SyncChange` a page would carry, written as they are
+// read so that the first byte arrives before the last row is counted, and the delta cursor
+// as the last line in a record of its own - `{"cursor": "…"}` - minted from the log position
+// read before the first row, exactly as a page sequence's is. Permission is checked per
+// record, a scope narrows the walk, and the device is registered by turning up.
+//
+// The response is bounded the way the stream is: a deadline, a byte budget per connection,
+// and the connection counted with the streams' - refused with `503`, `sync.stream_unavailable`
+// and a `Retry-After` where a pod, a workspace or a credential holds its complement. A
+// device that lost the connection before the last line has no cursor and starts again,
+// which is what a page sequence offers it too; the difference is one request rather than a
+// thousand. A connection that ends before the cursor line never learns the cursor - which is
+// the point: a snapshot a device did not read whole is not one it may resume from.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sync:snapshot (the `SyncSnapshot` operationId).
+func (c *ClientWithResponses) SyncSnapshotWithResponse(ctx context.Context, body SyncSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncSnapshotResult, error) {
+	rsp, err := c.SyncSnapshot(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncSnapshotResult(rsp)
+}
+
 // ListTemplatesWithResponse performs a GET /templates (the `ListTemplates` operationId) request.
 //
 // The templates the caller may use, newest first. Naming a container answers the ones defined along that container's path - the collection's, its hub's and the workspace-wide ones - because that is the set a person picking a template in a collection can choose from. Naming none answers the workspace-wide ones alone.
@@ -50141,6 +50966,38 @@ func (c *ClientWithResponses) InstantiateTemplateWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseInstantiateTemplateResult(rsp)
+}
+
+// AiGenerateTemplateWithBodyWithResponse Ask AI to draft a template from a description
+//
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+func (c *ClientWithResponses) AiGenerateTemplateWithBodyWithResponse(ctx context.Context, params *AiGenerateTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AiGenerateTemplateResult, error) {
+	rsp, err := c.AiGenerateTemplateWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAiGenerateTemplateResult(rsp)
+}
+
+// AiGenerateTemplateWithResponse Ask AI to draft a template from a description
+//
+// Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to (P-11, `ai-first.md` §2). The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.
+// Asynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /templates:generate (the `AiGenerateTemplate` operationId).
+func (c *ClientWithResponses) AiGenerateTemplateWithResponse(ctx context.Context, params *AiGenerateTemplateParams, body AiGenerateTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*AiGenerateTemplateResult, error) {
+	rsp, err := c.AiGenerateTemplate(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAiGenerateTemplateResult(rsp)
 }
 
 // ReadWorkspaceWithResponse The workspace the caller is in, and how it is set up
@@ -51028,6 +51885,39 @@ func ParseListAuditEntriesResult(rsp *http.Response) (*ListAuditEntriesResult, e
 	return response, nil
 }
 
+// ParseConfigureAuditAnchoringResult parses an HTTP response from a ConfigureAuditAnchoringWithResponse call
+func ParseConfigureAuditAnchoringResult(rsp *http.Response) (*ConfigureAuditAnchoringResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfigureAuditAnchoringResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuditAnchoring
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseExportAuditTrailResult parses an HTTP response from a ExportAuditTrailWithResponse call
 func ParseExportAuditTrailResult(rsp *http.Response) (*ExportAuditTrailResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -51091,7 +51981,21 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
-			Checked *int `json:"checked,omitempty"`
+			// AnchorAgrees With `anchors: true`: whether the chain end the external copy holds is the chain end this database computes at that sequence - recomputed along the walk where the period covers it, so that a chain rewritten below the anchor is reported at the anchor as well as at the break. Null where there is no anchor, or the copy could not be read.
+			AnchorAgrees *bool `json:"anchor_agrees,omitempty"`
+
+			// AnchorErrorCode Why the external copy could not be read or compared, with `anchors: true` - `audit.anchor_unreadable` when the target did not answer or the object is gone, `audit.anchor_receipt_mismatch` when the object read back is not the one written. Null otherwise.
+			AnchorErrorCode *string `json:"anchor_error_code,omitempty"`
+
+			// AnchorSeq The sequence number the last anchor sealed, asked with anchors.
+			AnchorSeq *int `json:"anchor_seq,omitempty"`
+
+			// AnchoredUntil With `anchors: true`: the moment of the last anchor whose external copy was read back, and null where there is none or it could not be read.
+			AnchoredUntil *time.Time `json:"anchored_until,omitempty"`
+
+			// AnchoringConfigured Whether the workspace names an anchoring target at all (P-13).
+			AnchoringConfigured *bool `json:"anchoring_configured,omitempty"`
+			Checked             *int  `json:"checked,omitempty"`
 
 			// FirstBrokenSeq Where the first entry that does not hold sits. The first rather than all of them, because that is where an investigation starts.
 			FirstBrokenSeq *int `json:"first_broken_seq,omitempty"`
@@ -51102,7 +52006,7 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			// Gaps The missing sequence numbers, cut at a hundred. A chain with a hole of a million entries would otherwise answer with a million integers.
 			Gaps *[]int `json:"gaps,omitempty"`
 
-			// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was - which is every installation until external anchoring exists (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
+			// SealedUntil When this tenant's chain was last anchored outside the database, and null when it never was (audit.md §3). The check proves the chain intact *inside* the database; only an anchor says anything against somebody who can rewrite all of it.
 			SealedUntil *time.Time `json:"sealed_until,omitempty"`
 			Valid       *bool      `json:"valid,omitempty"`
 		}
@@ -58345,6 +59249,39 @@ func ParseSyncPushResult(rsp *http.Response) (*SyncPushResult, error) {
 	return response, nil
 }
 
+// ParseSyncSnapshotResult parses an HTTP response from a SyncSnapshotWithResponse call
+func ParseSyncSnapshotResult(rsp *http.Response) (*SyncSnapshotResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SyncSnapshotResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTemplatesResult parses an HTTP response from a ListTemplatesWithResponse call
 func ParseListTemplatesResult(rsp *http.Response) (*ListTemplatesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -58572,6 +59509,42 @@ func ParseInstantiateTemplateResult(rsp *http.Response) (*InstantiateTemplateRes
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAiGenerateTemplateResult parses an HTTP response from a AiGenerateTemplateWithResponse call
+func ParseAiGenerateTemplateResult(rsp *http.Response) (*AiGenerateTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AiGenerateTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 202:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 

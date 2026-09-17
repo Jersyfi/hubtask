@@ -65,7 +65,7 @@ func (c *RestController) UpdateBackupSchedule(
 	}
 	for name, value := range map[string]*bool{
 		"include_media": body.IncludeMedia, "include_audit": body.IncludeAudit,
-		"enabled": body.Enabled,
+		"trial_restore": body.TrialRestore, "enabled": body.Enabled,
 	} {
 		if value != nil {
 			in[name] = *value

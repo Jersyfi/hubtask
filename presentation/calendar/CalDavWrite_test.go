@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // recording performs nothing and remembers what it was asked, answering a version one higher
@@ -37,10 +39,30 @@ func (r *recording) Invoke(_ context.Context, name string, actor appshared.Actor
 	return usecase.Output{"version": r.version, "id": in.String("id")}, nil
 }
 
+// fakeItems answers the entries the view does not: by identifier, or with a refusal.
+type fakeItems struct {
+	items  map[shared.ID]workmodel.WorkItem
+	refuse error
+	asked  []shared.ID
+}
+
+func (f *fakeItems) Execute(_ context.Context, _ appshared.ActorContext, query work.GetWorkItemQuery) (workmodel.WorkItem, error) {
+	f.asked = append(f.asked, query.ItemID)
+	if f.refuse != nil {
+		return workmodel.WorkItem{}, f.refuse
+	}
+	item, ok := f.items[query.ItemID]
+	if !ok {
+		return workmodel.WorkItem{}, shared.ErrNotFound.WithDetail("items.not_found")
+	}
+	return item, nil
+}
+
 func writable() (*Controller, *recording) {
 	c, _ := controller()
 	rec := &recording{version: 3}
 	c.UseCases = rec
+	c.Items = &fakeItems{items: map[shared.ID]workmodel.WorkItem{}}
 	return c, rec
 }
 
@@ -189,6 +211,65 @@ func TestCreatingThroughPut(t *testing.T) {
 	// If-Match on an address that has no member is a lost race.
 	if w := put(t, c, memberPath(me, feedID.String(), "0192f000-0000-7000-8000-0000000000ab"), `"1"`, []byte(body)); w.Code != http.StatusPreconditionFailed {
 		t.Errorf("If-Match on a missing member is 412, got %d", w.Code)
+	}
+}
+
+// A todo the client completed leaves a view of open entries, and one sent back without a DUE is
+// no longer a moment the calendar shows; the client keeps the address and PUTs to it again. The
+// decision is the entry's, not the view's: an identifier an entry holds is an update, never a
+// creation (issue 720).
+func TestAPutToAnEntryOutsideTheViewIsAnUpdate(t *testing.T) {
+	c, rec := writable()
+	me := accountID.String()
+	completedAt := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	outsideID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")
+	// Completed and undated: outside every dated view, and outside the calendar's members.
+	c.Items.(*fakeItems).items[outsideID] = workmodel.WorkItem{
+		ID: outsideID, Title: "Book the venue", Version: 4,
+		Completion: workmodel.Completion{IsCompleted: true, CompletedAt: &completedAt},
+	}
+	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:x\r\nSUMMARY:Book the venue\r\nSTATUS:NEEDS-ACTION\r\nDUE;VALUE=DATE:20261001\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+	target := memberPath(me, feedID.String(), outsideID.String())
+
+	// Without If-Match it is the existing entry's rule, 428 - not a creation.
+	if w := put(t, c, target, "", []byte(body)); w.Code != http.StatusPreconditionRequired {
+		t.Fatalf("a PUT to an existing entry without If-Match is 428, got %d", w.Code)
+	}
+	if w := put(t, c, target, `"3"`, []byte(body)); w.Code != http.StatusPreconditionFailed {
+		t.Fatalf("a stale If-Match is 412, got %d", w.Code)
+	}
+	w := put(t, c, target, `"4"`, []byte(body))
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("PUT: %d %s", w.Code, w.Body.String())
+	}
+	// The diff against the entry as it is: redated and reopened, through the use cases.
+	if strings.Join(rec.calls, ",") != "SetDueDate,ReopenWorkItem" {
+		t.Fatalf("calls = %v", rec.calls)
+	}
+	if rec.inputs[0]["item_id"] != outsideID.String() || rec.inputs[0]["expected_version"] != 4 {
+		t.Errorf("SetDueDate input = %v", rec.inputs[0])
+	}
+
+	// The entry exists and the actor may not read it: the reader's refusal, not a creation
+	// under somebody else's identifier.
+	c.Items.(*fakeItems).refuse = shared.ErrForbidden.WithDetail("forbidden")
+	rec.calls = nil
+	if w := put(t, c, target, "", []byte(body)); w.Code != http.StatusForbidden || len(rec.calls) != 0 {
+		t.Errorf("a refused read is the refusal: %d %v", w.Code, rec.calls)
+	}
+}
+
+// A creation with an identifier the workspace holds is 409, the shape N-04's client identifiers
+// give a push - never a dependency failure.
+func TestACreationMeetingATakenIdentifierIs409(t *testing.T) {
+	c, rec := writable()
+	me := accountID.String()
+	c.Views.(*fakeViews).collection = shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	rec.refuse = shared.ErrConflict.WithDetail("items.id_taken")
+	body := "BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:x\r\nSUMMARY:Twice\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+	w := put(t, c, memberPath(me, feedID.String(), "0192f000-0000-7000-8000-0000000000ac"), "", []byte(body))
+	if w.Code != http.StatusConflict {
+		t.Errorf("a taken identifier is 409, got %d", w.Code)
 	}
 }
 

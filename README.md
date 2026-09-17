@@ -109,6 +109,8 @@ bin/hubctl watch                             # follow the change stream; Ctrl-C 
 bin/hubctl sync pull --all > state.jsonl     # the offline synchronisation, as a device: the cursor last
 bin/hubctl sync push --file queue.jsonl      # one mutation per line; one result per line back
 bin/hubctl sync devices ls                   # and `sync devices forget <id>`
+bin/hubctl sync snapshot --out state.ndjson --apply   # the initial synchronisation as one stream; the cursor is the last line
+bin/hubctl import trello board.json --hub "$HUB" --wait 5m   # also csv, google-tasks, microsoft-todo; the report on the run
 
 bin/hubctl due set "$ITEM" --at 2026-09-10   # a day; a timestamp is a moment instead
 bin/hubctl remind add "$ITEM" --at -PT30M    # half an hour before it is due
@@ -151,6 +153,7 @@ bin/hubctl backup target test "$TARGET"
 bin/hubctl backup run --target "$TARGET" --follow --wait 30m
 bin/hubctl backup ls --target "$TARGET"       # what is actually lying at the target
 bin/hubctl backup verify "$RUN" --follow      # fails the command if it does not verify
+bin/hubctl backup schedule set "$SCHEDULE" --trial   # every FULL run is followed by an INSPECT of its own archive
 
 bin/hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
 bin/hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply
