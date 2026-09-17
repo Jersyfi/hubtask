@@ -44,6 +44,7 @@
   import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
   import { isTerminal, mayCancel } from '../lib/data/jobs.ts';
   import { restores, type Asked, type Mode, type Run } from '../lib/data/restore.svelte.ts';
+  import RestoreReport from '../lib/restore/RestoreReport.svelte';
   import { isDestructive, MODES } from '../lib/data/restore.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
@@ -228,21 +229,6 @@
     });
   });
 
-  /** One line of a report, skipping the counts a mode cannot produce. */
-  function lines(run: Run): readonly { kind: string; count: number }[] {
-    const report = run.report ?? {};
-    return (
-      [
-        { kind: 'new', count: report.new ?? 0 },
-        { kind: 'overwritten', count: report.overwritten ?? 0 },
-        { kind: 'skipped', count: report.skipped ?? 0 },
-        { kind: 'duplicated', count: report.duplicated ?? 0 },
-        { kind: 'conflicts', count: report.conflicts ?? 0 },
-        { kind: 'deleted', count: report.deleted ?? 0 },
-        { kind: 'media', count: report.media ?? 0 },
-      ] as const
-    ).filter((line) => line.count > 0);
-  }
 </script>
 
 <div class="screen">
@@ -475,25 +461,8 @@
           </p>
 
           {#if rehearsal.status === 'SUCCEEDED'}
-            <ul class="report">
-              {#each lines(rehearsal) as line (line.kind)}
-                <li class="quiet small">
-                  {t(`app.restore.report_${line.kind}`, { count: String(line.count) })}
-                </li>
-              {:else}
-                <li class="quiet small">{t('app.restore.report_nothing')}</li>
-              {/each}
-            </ul>
+            <RestoreReport report={rehearsal.report} />
           {/if}
-
-          {#each Object.entries(rehearsal.report?.withheld ?? {}) as [reason, count] (reason)}
-            <!-- What the restore would deliberately not bring back, and why. -->
-            <p class="quiet small">
-              {messages.has(`app.restore.withheld_${reason}`)
-                ? t(`app.restore.withheld_${reason}`, { count: String(count) })
-                : t('app.restore.withheld_other', { reason, count: String(count) })}
-            </p>
-          {/each}
 
           <p class="quiet small">{t('app.restore.rehearsal_wrote_nothing')}</p>
 
@@ -522,13 +491,7 @@
             <h2 class="section">{t('app.restore.done_title')}</h2>
             <Badge tone={real.status === 'SUCCEEDED' ? 'success' : 'danger'}>{real.status}</Badge>
           </div>
-          <ul class="report">
-            {#each lines(real) as line (line.kind)}
-              <li class="quiet small">
-                {t(`app.restore.report_${line.kind}`, { count: String(line.count) })}
-              </li>
-            {/each}
-          </ul>
+          <RestoreReport report={real.report} />
           {#if real.safety_backup_run_id}
             <!-- The way back is a run identifier rather than a search at the target. -->
             <p class="quiet small">
@@ -593,5 +556,4 @@
     font-size: var(--fs-075);
   }
 
-  .report { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
 </style>

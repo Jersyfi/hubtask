@@ -125,6 +125,11 @@ class Containers {
     await engine.refresh<ContainerPage>({ path: HUBS });
   }
 
+  /** One hub's collections read again - what an import that landed under it calls (F6-09). */
+  async refreshLevel(hubId: string): Promise<void> {
+    await engine.refresh<ContainerPage>({ path: collectionsPath(hubId) });
+  }
+
   /** The `Idempotency-Key` is the caller's: pressing "create" twice is one intent, not two hubs. */
   async create(
     body: {
