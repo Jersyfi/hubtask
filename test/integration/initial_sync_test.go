@@ -139,3 +139,69 @@ func TestAMemberOfAnotherHubWalksNoneOfIt(t *testing.T) {
 		}
 	}
 }
+
+// The snapshot against the real database (SY-C, P-12): the same records as the page sequence in
+// the same order, and a cursor at its end that the delta accepts without a gap - a change landing
+// after the snapshot began is on the first delta, as it is after a walk in pages.
+func TestTheSnapshotAnswersThePageSequenceAndEndsOnACursorTheDeltaAccepts(t *testing.T) {
+	ctx := context.Background()
+	f := seedSnapshot(ctx, t)
+	member := memberOf(ctx, t, tenantA, f.hub, "MEMBER")
+	pull := pullFor(ctx, t)
+	actor := streamActor(tenantA, member)
+
+	var paged []syncservice.Record
+	request := syncservice.PullRequest{DeviceID: freshID(t), Limit: 7}
+	for pages := 0; ; pages++ {
+		page, err := pull.Pull(ctx, actor, request)
+		if err != nil {
+			t.Fatalf("pulling page %d: %v", pages, err)
+		}
+		paged = append(paged, page.Records...)
+		if !page.More {
+			break
+		}
+		request.Cursor = pull.Encode(page.Cursor)
+		if pages > 1000 {
+			t.Fatalf("the walk does not end")
+		}
+	}
+
+	var streamed []syncservice.Record
+	started := time.Now()
+	cursor, err := pull.WalkAll(ctx, actor, syncservice.SnapshotRequest{DeviceID: freshID(t)}, func(record syncservice.Record) error {
+		streamed = append(streamed, record)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("the snapshot: %v", err)
+	}
+	t.Logf("streamed %d records in %v, against %d in pages", len(streamed), time.Since(started), len(paged))
+	if len(streamed) != len(paged) {
+		t.Fatalf("the snapshot streamed %d records, the pages %d", len(streamed), len(paged))
+	}
+	for i := range streamed {
+		if streamed[i].Entity != paged[i].Entity || streamed[i].EntityID != paged[i].EntityID {
+			t.Errorf("record %d: the snapshot has %s %s, the pages %s %s", i,
+				streamed[i].Entity, streamed[i].EntityID, paged[i].Entity, paged[i].EntityID)
+		}
+	}
+	if cursor.Walking() {
+		t.Fatalf("the snapshot ended on a walk cursor: %+v", cursor)
+	}
+
+	edited := recordChange(ctx, t, tenantA, member, f.collection, "item")
+	delta, err := pull.Pull(ctx, actor, syncservice.PullRequest{DeviceID: request.DeviceID, Cursor: pull.Encode(cursor)})
+	if err != nil {
+		t.Fatalf("pulling the delta after the snapshot: %v", err)
+	}
+	found := false
+	for _, record := range delta.Records {
+		if record.EntityID == edited {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the change recorded after the snapshot is not on the first delta")
+	}
+}

@@ -476,8 +476,12 @@ ascending order with a stable cursor — deduplicable through `event_id`.
 | Auth phase 1 | A personal access token (header `Authorization: Bearer hbt_pat_…`) |
 | Auth phase 2 | OAuth2 authorization code + PKCE (a prerequisite for the Zapier marketplace) |
 
-Additionally planned (milestone 0.7+): an official **n8n community node** and a **Zapier app**, both
-generated from OpenAPI plus the capability manifest, so that they stay complete automatically.
+Both exist since `0.9.0` (P-04, P-05): the **n8n community node** (`packages/n8n-nodes-hubtask`)
+and the **Zapier app** (`packages/zapier-app`) are generated from the contract at build time — one
+operation per use case, one trigger per event type — and a test per package proves them complete
+against the document, so that a new use case reaches both without anybody remembering to add it
+([ADR-0058](../adr/ADR-0058-connector-packages.md) records their shape; neither is published to
+its marketplace yet, which is `0.9.5`'s). The table above is what they are generated *from*.
 
 ---
 

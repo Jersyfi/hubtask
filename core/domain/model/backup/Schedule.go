@@ -113,6 +113,9 @@ type Schedule struct {
 	FullRRULE    string
 	IncludeMedia bool
 	IncludeAudit bool
+	// TrialRestore follows every FULL run with an INSPECT restore of the archive it wrote, in
+	// the same job, and fails the run when the archive cannot be read back (B-4, P-14).
+	TrialRestore bool
 	Retention    Retention
 	NotifyOn     []Notification
 	Enabled      bool
@@ -134,6 +137,7 @@ type NewScheduleInput struct {
 	FullRRULE    string
 	IncludeMedia bool
 	IncludeAudit bool
+	TrialRestore bool
 	Retention    Retention
 	NotifyOn     []Notification
 	Now          time.Time
@@ -199,7 +203,7 @@ func NewSchedule(in NewScheduleInput) (Schedule, error) {
 		Scope: in.Scope, ScopeID: in.ScopeID,
 		RRULE: strings.TrimSpace(in.RRULE), TimeZone: strings.TrimSpace(in.TimeZone),
 		Mode: mode, FullRRULE: strings.TrimSpace(in.FullRRULE),
-		IncludeMedia: in.IncludeMedia, IncludeAudit: in.IncludeAudit,
+		IncludeMedia: in.IncludeMedia, IncludeAudit: in.IncludeAudit, TrialRestore: in.TrialRestore,
 		Retention: in.Retention, NotifyOn: notify,
 		Enabled: true, CreatedAt: in.Now, Version: 1,
 	}, nil
@@ -394,6 +398,10 @@ type Run struct {
 	ExpiresAt   time.Time
 	VerifiedAt  time.Time
 	VerifyOK    *bool
+	// TrialReport is what the trial restore found, encoded as the restore's report, and TrialAt
+	// when; both zero where no trial ran (B-4, P-14).
+	TrialReport []byte
+	TrialAt     time.Time
 }
 
 // Outcome is how a run ended, as the one statement that closes it takes it.
@@ -411,6 +419,9 @@ type Outcome struct {
 	// ErrorCode is the message code of the failure, never a message and never anything the run
 	// was working on (rules 8 and 10).
 	ErrorCode string
+	// TrialReport and TrialAt are the trial restore's, where one ran (B-4, P-14).
+	TrialReport []byte
+	TrialAt     time.Time
 }
 
 // Succeeded reports a run that left an archive behind.

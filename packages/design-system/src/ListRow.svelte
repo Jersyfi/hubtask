@@ -78,12 +78,12 @@
     font-size: var(--fs-100);
   }
 
-  .row[data-interactive]:hover { background: var(--bg-surface-raised); }
+  .row[data-interactive]:hover { background: var(--bg-surface-hover); }
 
   /* Rule 3: a selected row is not only tinted. It carries the rail as well, so the selection reads
      in greyscale and to a reader who does not perceive the accent. */
   .row[data-selected] {
-    background: var(--bg-surface-raised);
+    background: var(--bg-surface-pressed);
     box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
   }
 

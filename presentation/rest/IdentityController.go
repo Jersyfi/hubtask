@@ -96,18 +96,26 @@ func (c *RestController) GetAccount(w http.ResponseWriter, r *http.Request, acco
 func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		var body openapi.AccountPreferences
-		if err := decodeJSON(r, &body); err != nil {
+		present, err := decodeJSONWithPresence(r, &body)
+		if err != nil {
 			return nil, err
 		}
 		// The absent/empty distinction survives the mapping: a field the client omitted is absent
 		// from the input, and one it sent empty is present and empty. That is the difference
-		// between "leave my time zone" and "clear it".
-		return c.UseCases.Invoke(r.Context(), updateAccountPreferencesUseCase, actor, usecase.Input{
-			"account_id": accountID.String(),
-			"locale":     optionalStringField(body.Locale),
-			"time_zone":  optionalStringField(body.TimeZone),
-			"week_start": optionalWeekStart(body.WeekStart),
-		})
+		// between "leave my time zone" and "clear it". A null is the empty one: the contract
+		// declares it for all three, and the generated pointer cannot tell it from an omission,
+		// so presence is read from the bytes and a null is written as "" (issue 709).
+		in := usecase.Input{"account_id": accountID.String()}
+		if present["locale"] {
+			in["locale"] = stringOrEmpty(body.Locale)
+		}
+		if present["time_zone"] {
+			in["time_zone"] = stringOrEmpty(body.TimeZone)
+		}
+		if present["week_start"] {
+			in["week_start"] = weekStartOrEmpty(body.WeekStart)
+		}
+		return c.UseCases.Invoke(r.Context(), updateAccountPreferencesUseCase, actor, in)
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, accountResponse(out))
 	})
@@ -439,9 +447,9 @@ func optionalUUIDList(values *[]openapi_types.UUID) any {
 	return ids
 }
 
-func optionalWeekStart(value *openapi.AccountPreferencesWeekStart) any {
+func weekStartOrEmpty(value *openapi.AccountPreferencesWeekStart) string {
 	if value == nil {
-		return nil
+		return ""
 	}
 	return string(*value)
 }

@@ -6,11 +6,13 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -19,6 +21,11 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
+
+// workItemPrimaryKey is the constraint a client-minted identifier the workspace already holds
+// breaks. Named, for the reason containerNameIndex is: no other unique violation is a taken
+// identity.
+const workItemPrimaryKey = "work_item_pkey"
 
 // ItemRepository stores tasks, work packages and activities - one table for all three, because
 // they are one aggregate (ADR-0006).
@@ -777,10 +784,12 @@ func (r ItemRepository) LastOrderKey(ctx context.Context, collectionID, parentID
 
 // Insert writes the item.
 //
-// There is no uniqueness to translate here, and that is deliberate rather than an omission: two
-// items in one collection may share a title. A shopping list with "milk" on it twice is a list
-// somebody wrote that way, and a container's name is the thing that has to be unique because it
-// is how a person navigates.
+// One uniqueness is translated and one deliberately is not. The identity: a client that minted
+// its own (N-04, a CalDAV client's address in P-07) and presents one the workspace already holds
+// has to hear "taken" rather than "database error", because it is the one thing it can act on -
+// look the entry up and update it (issue 720). The title is not: two items in one collection may
+// share one. A shopping list with "milk" on it twice is a list somebody wrote that way, and a
+// container's name is the thing that has to be unique because it is how a person navigates.
 func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -831,6 +840,12 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		CreatedAt:       timestampOf(item.CreatedAt),
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == workItemPrimaryKey {
+			return shared.ErrConflict.
+				WithDetail("items.id_taken").
+				WithFields(shared.FieldError{Path: "/id", Code: "items.id_taken"})
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the work item: %w", err))
