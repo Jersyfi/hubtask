@@ -15,6 +15,7 @@
 import { FetchTransport, SyncEngine } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
+import { storeFor } from './replica.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -91,4 +92,7 @@ export const engine = new SyncEngine({
   token: () => platform.bearer(),
   onUnauthorized: () => onRefused(),
   onRefresh: renew,
+  // What the replica answers while the server cannot be reached (F6-04): this application's
+  // paths, mapped in `replica.ts` the way `live.ts` maps a record - the engine learns neither.
+  storeFor,
 });
