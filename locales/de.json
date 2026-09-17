@@ -2012,7 +2012,6 @@
   "app.profile.category_RETENTION": "Etwas, das ich halte, wird bald entfernt",
   "app.nav.profile": "Deine Einstellungen",
   "app.profile.no_locales": "Dieser Arbeitsbereich hat nicht gesagt, welche Sprachen er anbietet, darum gibt es nichts zu wählen. Er spricht die der Installation.",
-  "app.profile.week_start_fixed": "Ist ein erster Tag einmal gewählt, kann diese Version ihn nicht auf den des Arbeitsbereichs zurücksetzen. Wähle stattdessen einen anderen Tag.",
   "app.profile.notification_saved_announced": "Benachrichtigungseinstellung gespeichert.",
   "app.profile.device_section": "Auf diesem Gerät",
   "app.profile.device_hint": "Diese beiden gehören zum Gerät vor dir und nicht zu dir, deshalb behält jedes deiner Geräte seine eigenen (ADR-0043). Sie werden in diesem Browser gespeichert.",
