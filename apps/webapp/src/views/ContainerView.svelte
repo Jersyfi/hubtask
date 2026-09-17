@@ -36,6 +36,7 @@
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
+  import ImportDialog from '../lib/entries/ImportDialog.svelte';
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
@@ -45,6 +46,7 @@
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { holds } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -362,6 +364,9 @@
   let exporting = $state<SavedView | undefined>(undefined);
   let subscribing = $state<SavedView | undefined>(undefined);
   let isManagingMembers = $state(false);
+  let isImporting = $state(false);
+  /** `STRUCTURE` on the hub is what an import takes, because it creates collections there. */
+  const structure = $derived(holds(structureRole, 'STRUCTURE'));
 
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
@@ -577,6 +582,25 @@
               {t('app.fields.title')}
             </Button>
           {/if}
+          {#if container.type === 'HUB'}
+            <!-- Somebody else's file, landed as collections here (decision 15). Under STRUCTURE,
+                 because that is what creating a collection takes; the reason is shown, not the
+                 absence. -->
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isImporting = true)}
+              disabledReason={isReadOnly
+                ? t('app.workspace.archived')
+                : structure.status === 'permitted'
+                  ? undefined
+                  : structure.status === 'refused'
+                    ? t(structure.code, structure.params)
+                    : t('app.import.deciding')}
+            >
+              {t('app.import.open')}
+            </Button>
+          {/if}
           <!-- Who holds which role here. Offered on both a hub and a collection, because a
                membership applies downwards from wherever it was granted and both are scopes. -->
           <Button size="sm" tone="secondary" onclick={() => (isManagingMembers = true)}>
@@ -704,6 +728,7 @@
     parentId={container.id}
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
   />
+  <ImportDialog bind:isOpen={isImporting} hubId={container.id} {onnavigate} />
 {/if}
 
 <DuplicateDialog
