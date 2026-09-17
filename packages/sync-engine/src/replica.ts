@@ -24,6 +24,12 @@ import type { HlcReading } from './hlc.ts';
 
 /** The store's own collection: the cursor, the device, the clock. Never a server entity. */
 export const META = 'meta';
+/**
+ * The collections that are the device's rather than the server's: the store's own records, and
+ * the queue's three (queue.ts). A walk over the replica's entities skips them, and emptying the
+ * replica keeps them - what a device did offline is not stale because its copy is.
+ */
+export const OWN_COLLECTIONS: ReadonlySet<string> = new Set([META, 'queue', 'rejected', 'conflicts']);
 
 /** Where the delta left off, and what the server said beside it. */
 export interface SyncPosition {
@@ -209,8 +215,9 @@ export class Replica {
 
     const items = new Set<string>();
     for (const name of await this.#storage.collections()) {
-      if (name === META || name === 'containers') continue;
+      if (OWN_COLLECTIONS.has(name) || name === 'containers') continue;
       for (const held of await this.#storage.all<StoredRecord<Document>>(name)) {
+        if (!held.document) continue;
         const { collection_id: collectionId, container_id: containerId } = held.document;
         if ((typeof collectionId === 'string' && gone.has(collectionId)) || (typeof containerId === 'string' && gone.has(containerId))) {
           await this.#storage.delete(name, held.id);
@@ -225,8 +232,9 @@ export class Replica {
   async #deleteUnderItems(items: ReadonlySet<string>): Promise<void> {
     if (items.size === 0) return;
     for (const name of await this.#storage.collections()) {
-      if (name === META || name === 'items' || name === 'containers') continue;
+      if (OWN_COLLECTIONS.has(name) || name === 'items' || name === 'containers') continue;
       for (const held of await this.#storage.all<StoredRecord<Document>>(name)) {
+        if (!held.document) continue;
         const itemId = held.document.item_id;
         if (typeof itemId === 'string' && items.has(itemId)) await this.#storage.delete(name, held.id);
       }
@@ -234,14 +242,15 @@ export class Replica {
   }
 
   /**
-   * Empties the replica and forgets the position, and keeps the device: what
+   * Empties the replica and forgets the position, and keeps the device and the queue: what
    * `sync.cursor_too_old` asks for (§7, §9.4). The device is the same device - it is the copy
    * that is stale, not the identity - and a store that minted a new one on every resync would
-   * leave a row per resync in the server's list.
+   * leave a row per resync in the server's list. The queue is what the person did, and a stale
+   * copy is no reason to lose it.
    */
   async empty(): Promise<void> {
     for (const name of await this.#storage.collections()) {
-      if (name === META) continue;
+      if (OWN_COLLECTIONS.has(name)) continue;
       for (const held of await this.#storage.all<{ id: string }>(name)) await this.#storage.delete(name, held.id);
     }
     await this.#storage.delete(META, 'position');
