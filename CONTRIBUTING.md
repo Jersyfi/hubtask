@@ -193,7 +193,14 @@ file to its source, and both run in `make gate-architecture`:
 ```bash
 make locales                    # how complete each translation is, per family
 make gate-architecture          # what is wrong with it, by key
+pnpm --filter @hubtask/webapp test   # the browser's renderer parses every catalogue too
 ```
+
+The third command is the client's half of the gate: since the browser loads every catalogue
+(F5-07), `apps/webapp/src/lib/i18n/catalogue.test.ts` parses each file with the renderer that
+will show it, so a construct the client cannot draw fails there rather than in front of a reader.
+A key beginning with `_` is a note to translators and is never rendered — `_comment` at the top
+of a file is where the register and the decisions behind it are written down.
 
 The sentences use the ICU subset both renderers implement — simple arguments, `plural` with
 `offset:` and `=n`, `selectordinal`, `select`, `#`, nesting, and ICU's apostrophe rule (`''` is
@@ -205,7 +212,7 @@ Where the source phrases around a plural, a translation may pluralise if its gra
 A translation is a contribution like any other, so the [CLA](CLA.md) covers it. The layout is the
 one Weblate reads unchanged, and running an instance is a decision deferred until there is
 somebody to serve ([ADR-0055](docs/adr/ADR-0055-translation-process.md)); until then, a text
-editor and the two commands above are the whole toolchain.
+editor and the three commands above are the whole toolchain.
 
 ## Licence and CLA
 
