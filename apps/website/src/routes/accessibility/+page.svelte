@@ -84,6 +84,66 @@
 <section class="section">
   <div class="wrap">
     <div class="section-head">
+      <p class="kicker">The statement</p>
+      <h2>Standard, status, exceptions, and the date</h2>
+    </div>
+    <div class="two-up">
+      <div>
+        <h3>The standard</h3>
+        <p>
+          EN 301 549, the European standard the Accessibility Act refers to, which carries WCAG 2.2
+          level AA for web content. Level AAA is not claimed anywhere; there is no video, so no
+          sign-language or audio-description provision applies.
+        </p>
+        <h3>The status, as of 16 September 2026</h3>
+        <p>
+          <strong>Partially conformant, assessed by the makers.</strong> Every route of the web
+          interface has been walked by keyboard alone, in both writing directions, with text
+          spacing widened, and its accessibility tree read for names, roles, headings, lists,
+          tables, images and live regions; every finding of those walks was fixed before this
+          sentence was written. What has <em>not</em> been done is the pass with a screen reader —
+          VoiceOver, NVDA and Orca have not yet been run through the routes by a person listening —
+          and a claim of conformance for a reader nobody ran would be false. That pass is the next
+          assessment, and this page changes when it is done.
+        </p>
+      </div>
+      <div>
+        <h3>Known exceptions</h3>
+        <ul class="ticks">
+          <li>
+            <strong>Screen readers, 16 September 2026.</strong> Not yet walked with VoiceOver, NVDA
+            or Orca (see the status). The structure a reader consumes — names, roles, states,
+            headings, one live region — has been read from the accessibility tree instead.
+          </li>
+          <li>
+            <strong>Hover and selection lifts, 16 September 2026.</strong> Six components paint a
+            hovered or selected row with a background the design system does not define, so the
+            lift is missing until the token is added; the selected state is still carried by text,
+            an icon or <code>aria-current</code>, never by colour alone. Tracked as a defect.
+          </li>
+          <li>
+            <strong>Content you enter yourself.</strong> An image attachment without a description,
+            a colour used as the only distinction in a workspace's own labels — outside what the
+            software can guarantee. Where the product can help it does: a label is always a colour
+            and a name.
+          </li>
+        </ul>
+        <h3>Who assessed it, and how</h3>
+        <p>
+          The makers, by walking the interface (the evidence is in the repository under
+          <code>docs/evidence/</code>: the keyboard walk, the right-to-left audit and this pass) and
+          by the measurements every test run repeats. The formal statement is published with the
+          first stable release, once a screen-reader pass has been run; until then this page is the
+          assessment as it stands, dated, and updated whenever a walk is.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
       <p class="kicker">Scope and limits</p>
       <h2>What this statement covers, and what it does not</h2>
     </div>
@@ -103,13 +163,6 @@
         </p>
       </div>
       <div>
-        <h3>Known limitations</h3>
-        <p>
-          Content you enter yourself — an image attachment without a description, a colour used as
-          the only distinction in a workspace’s own labels — is outside what the software can
-          guarantee. Where the product can help it does: a label is always a colour and a name, never
-          a colour alone.
-        </p>
         <h3>Reporting a barrier</h3>
         <p>
           If something here or in the application cannot be reached, please say so. A barrier is a

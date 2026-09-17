@@ -1175,6 +1175,8 @@
   "app.dismiss": "Dismiss",
   "app.retry": "Try again",
   "app.nav.home": "Home",
+  "app.nav.label": "Sections",
+  "app.footer.accessibility": "Accessibility statement, on hubtask.eu",
   "app.skip_to_content": "Skip to the content",
   "app.entries.title": "Entries",
   "app.entries.none": "No entries in this collection yet.",

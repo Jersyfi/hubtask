@@ -154,7 +154,9 @@
     <!-- Signed out there is nowhere to go but the token screen, so the frame offers nothing that
          would land there under another name. -->
     {#if session.isSignedIn}
-      <nav aria-label={t('app.nav.home')}>
+      <!-- Named for what it is, not after its first link: a landmark called "Home" is a landmark
+           a reader of landmarks cannot tell from the link (F5-13). -->
+      <nav aria-label={t('app.nav.label')}>
         <ul>
           {#each links as link (link.path)}
             <li>
@@ -226,6 +228,16 @@
       {@render children()}
     </main>
   </div>
+
+  <!-- The one link out of the application (design-system.md §10, the statement): the accessibility
+       statement lives on the website, unversioned, so that what it says about a walk is not tied
+       to the build that shipped before the walk. A top-level navigation, which `connect-src` does
+       not govern; a new tab, because the application is what the reader was in the middle of. -->
+  <footer class="foot">
+    <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
+      {t('app.footer.accessibility')}
+    </a>
+  </footer>
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
        the prompt belongs to the frame rather than to whichever screen made the request (H-03). -->
@@ -308,6 +320,20 @@
   .who { color: var(--text-subtle); font-size: var(--fs-075); }
 
   .body { display: flex; flex: 1; gap: var(--sp-300); min-width: 0; }
+
+  .foot {
+    padding-block-start: var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    font-size: var(--fs-075);
+    color: var(--text-subtle);
+  }
+
+  .foot a { color: inherit; }
+
+  .foot a:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
 
   .sidebar {
     flex: none;
