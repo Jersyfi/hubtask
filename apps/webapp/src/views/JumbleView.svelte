@@ -93,11 +93,11 @@
     ),
   );
 
-  const filters = [
+  const filters = $derived([
     { value: 'NEW', label: t('app.jumble.filter_new') },
     { value: 'PROCESSED', label: t('app.jumble.filter_processed') },
     { value: 'DISMISSED', label: t('app.jumble.filter_dismissed') },
-  ];
+  ]);
 
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : t('app.jumble.unknown_time');

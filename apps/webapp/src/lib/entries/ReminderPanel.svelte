@@ -60,13 +60,13 @@
   const mayAdd = $derived(mayAddAnother(held.length, limit));
 
   /** The offsets this client has words for. A preset is a vocabulary; the offset is what travels. */
-  const PRESETS = [
+  const PRESETS = $derived([
     { value: 'REL:PT0S', label: t('app.reminders.preset_at_time') },
     { value: 'REL:-PT10M', label: t('app.reminders.preset_10m') },
     { value: 'REL:-PT1H', label: t('app.reminders.preset_1h') },
     { value: 'REL:-P1D', label: t('app.reminders.preset_1d') },
     { value: 'REL:-P1W', label: t('app.reminders.preset_1w') },
-  ];
+  ]);
 
   const channels = $derived(
     ((manifest.value?.notification_channels ?? ['EMAIL']) as readonly string[]).map((id) => id),

@@ -98,7 +98,7 @@
    * The order the editor draws them in is the reader's week, which it takes from `weekStart` — the
    * account's own, mapped to the two letters the rule uses.
    */
-  const WEEKDAYS = {
+  const WEEKDAYS = $derived({
     MO: t('app.recurrence.weekday_MO'),
     TU: t('app.recurrence.weekday_TU'),
     WE: t('app.recurrence.weekday_WE'),
@@ -106,7 +106,7 @@
     FR: t('app.recurrence.weekday_FR'),
     SA: t('app.recurrence.weekday_SA'),
     SU: t('app.recurrence.weekday_SU'),
-  };
+  });
 
   const weekStart = $derived(
     actor.weekStart === 'SUNDAY' ? 'SU' : actor.weekStart === 'SATURDAY' ? 'SA' : 'MO',

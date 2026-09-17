@@ -235,13 +235,16 @@ Forbidden:
   `presentation/webui/dist/index.html` is committed (ADR-0028) and why `make tokens` is a separate
   target from `make generate` (ADR-0029).
 
-One file is reached out of a member on purpose: **`locales/en.json`**, which
-`apps/webapp/src/lib/i18n/catalogue.ts` imports. It is the product's single catalogue of display
-text (`i18n-l10n.md` §3), it sits at the root because the Go binary embeds it — `locales/Embed.go`
-exists for that reason alone — and the client renders the same codes from the same file. The
-alternative is a copy under `apps/`, which is the one thing a source of truth must not have. The
-lint below carries the exception as exactly that one path, so an escape towards anything else,
-including anything else in `locales/`, is still refused.
+One place is reached out of a member on purpose: **the catalogues under `locales/`**, which
+`apps/webapp/src/lib/i18n/catalogue.ts` reads — `en.json` imported as the source, and the others
+through `import.meta.glob('locales/*.json')` since F5-07, one lazy chunk per file and none in the
+initial bundle. The source is the product's single catalogue of display text (`i18n-l10n.md` §3),
+it sits at the root because the Go binary embeds it — `locales/Embed.go` exists for that reason
+alone — and the client renders the same codes from the same files. The alternative is a copy under
+`apps/`, which is the one thing a source of truth must not have. The lint below carries the
+exception as exactly `locales/<name>.json` — a static import, a dynamic one or a glob, from that one
+module — so an escape towards anything else, including `locales/Embed.go` or a glob that reaches
+past the catalogues, is still refused, and its selftest plants both.
 
 Tooling: `build/lint-workspace-map.mjs` (root script `pnpm lint:workspace`), the pnpm counterpart
 of `gate-architecture`. It reads the manifests and the imports — a manifest cannot see a deep or

@@ -47,6 +47,62 @@ function withoutMetadata(entries: Readonly<Record<string, string>>): Catalogue {
 export const SOURCE: Catalogue = withoutMetadata(english);
 
 /**
+ * The other catalogues, lazily (F5-07, `milestone-F5.md` decision 5).
+ *
+ * `import.meta.glob` over the same directory: one chunk per file, none of them in the initial
+ * bundle, loaded when the resolved locale is not the source. Not a `fetch` of `/locales/<tag>.json`
+ * - the server serves no such route and `connect-src` names none - and not a second copy under
+ * `apps/`, which `i18n-l10n.md` §6 line 1 forbids by name. The path is the same ugly climb as
+ * the source's, and it appears exactly twice in this file.
+ *
+ * Outside Vite - the tests, the residue render - `import.meta.glob` does not exist and the call
+ * throws, and then there are no chunks: the source renders, which is what happens for a missing
+ * file too. The call is made rather than tested for, because Vite rewrites the *call* at build
+ * time and knows nothing of a `typeof` beside it.
+ */
+function chunksOf(): Record<string, () => Promise<unknown>> {
+  try {
+    return import.meta.glob('../../../../../locales/*.json', { import: 'default' });
+  } catch {
+    return {};
+  }
+}
+const chunks = chunksOf();
+
+/**
+ * The chunk for a locale. The glob's keys are the paths as Vite spells them - relative in a
+ * build, absolute under the dev server for a file outside the project root - so the match is on
+ * the tail every spelling shares, `/locales/<tag>.json`, rather than on one spelling.
+ */
+function chunkFor(locale: string): (() => Promise<unknown>) | undefined {
+  const tail = `/locales/${locale}.json`;
+  for (const [key, load] of Object.entries(chunks)) {
+    if (key.endsWith(tail)) return load;
+  }
+  return undefined;
+}
+
+/** Whether this build carries a catalogue for the locale, without loading it. */
+export function hasCatalogue(locale: string): boolean {
+  return locale === SOURCE_LOCALE || chunkFor(locale) !== undefined;
+}
+
+/**
+ * The catalogue for a locale, loaded on first use, or nothing where this build carries none.
+ *
+ * Nothing rather than a refusal: a locale the manifest lists and no file exists for is the
+ * source rendering, exactly as an untranslated code does (§3). The caller says so once, in
+ * development, and nowhere else.
+ */
+export async function loadCatalogue(locale: string): Promise<Catalogue | undefined> {
+  if (locale === SOURCE_LOCALE) return SOURCE;
+  const load = chunkFor(locale);
+  if (!load) return undefined;
+  const entries = (await load()) as Readonly<Record<string, string>>;
+  return withoutMetadata(entries);
+}
+
+/**
  * The pattern for a code, along the chain: the reader's locale first, then the source language.
  *
  * §3's fallback in one line, and the part that matters is what it does *not* do. A half-translated

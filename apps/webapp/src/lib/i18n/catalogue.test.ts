@@ -15,6 +15,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { SOURCE, SOURCE_LOCALE, patternFor } from './catalogue.ts';
 import { format, parse } from './format.ts';
@@ -56,4 +59,38 @@ test('a missing translation falls back to the source language, never to a key', 
   assert.equal(patternFor('errors.not_found', [german, SOURCE]), 'This entry does not exist.');
   assert.equal(patternFor('errors.invented', [german, SOURCE]), undefined);
   assert.equal(SOURCE_LOCALE, 'en');
+});
+
+// Every catalogue, not only the source (F5-07). A translator's ICU error fails the build here the
+// way M-02's gate fails it on the server; and the `_comment` prefix is skipped in every file, the
+// way the loader skips it, so a note to the translators is never a message anywhere.
+const LOCALES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', 'locales');
+
+test('every message of every catalogue is one this renderer can render', () => {
+  const files = fs.readdirSync(LOCALES).filter((name) => name.endsWith('.json'));
+  assert.ok(files.includes('en.json') && files.length >= 2, `the catalogues are ${files.join(', ')}`);
+  const failures: string[] = [];
+  for (const file of files) {
+    const entries = JSON.parse(fs.readFileSync(path.join(LOCALES, file), 'utf8')) as Record<string, string>;
+    for (const [code, pattern] of Object.entries(entries)) {
+      if (code.startsWith('_')) continue;
+      try {
+        parse(pattern);
+      } catch (error) {
+        failures.push(`${file} ${code}: ${(error as Error).message}`);
+      }
+    }
+  }
+  assert.deepEqual(failures, [], 'a catalogue carries a construct the client cannot render');
+});
+
+test('a code the second catalogue lacks falls back to the source, and one it has does not', () => {
+  const german = JSON.parse(fs.readFileSync(path.join(LOCALES, 'de.json'), 'utf8')) as Record<string, string>;
+  const withoutNotes = Object.fromEntries(Object.entries(german).filter(([code]) => !code.startsWith('_')));
+  const translated = Object.keys(withoutNotes).find((code) => SOURCE[code] !== undefined);
+  assert.ok(translated, 'de.json translates nothing the source has');
+  assert.equal(patternFor(translated, [withoutNotes, SOURCE]), withoutNotes[translated]);
+  const untranslated = Object.keys(SOURCE).find((code) => withoutNotes[code] === undefined);
+  assert.ok(untranslated, 'de.json is complete, so this test has nothing to fall back on');
+  assert.equal(patternFor(untranslated, [withoutNotes, SOURCE]), SOURCE[untranslated]);
 });

@@ -14,7 +14,7 @@
  * locales (`/meta/capabilities`, F1-10) arrive later and are handed to `adopt`.
  */
 
-import { SOURCE, SOURCE_LOCALE, type Catalogue } from './catalogue.ts';
+import { SOURCE, SOURCE_LOCALE, hasCatalogue, loadCatalogue, type Catalogue } from './catalogue.ts';
 import type { MessageParams } from './format.ts';
 import {
   applyDocumentLocale,
@@ -57,12 +57,16 @@ class ActiveMessages {
     return this.#messages.has(code);
   }
 
+  /** The locales this build has said nothing about yet, so that a missing file is said once. */
+  readonly #noticed = new Set<string>();
+
   /**
    * Take the locale the preferences and the manifest resolve to, and say so on the document.
    *
-   * The catalogues stay as they are until there is a second one to load: a locale this build
-   * cannot render is not chosen, because `resolveLocale` only ever answers with something the
-   * supported list contains.
+   * The catalogue follows (F5-07): the resolved locale's chunk is loaded when it is not the
+   * source and laid over the source in §3's chain when it arrives, the source rendering meanwhile
+   * rather than nothing. A load that lands after the locale moved on is dropped - the reader
+   * changed their mind faster than the network, and the later choice wins.
    */
   adopt(
     preferences: LocalePreferences,
@@ -73,7 +77,29 @@ class ActiveMessages {
     this.#locale = locale;
     this.#direction = directionOf(locale, supported);
     applyDocumentLocale(root, locale, this.#direction);
+    void this.#follow(locale);
     return locale;
+  }
+
+  async #follow(locale: string): Promise<void> {
+    if (locale === SOURCE_LOCALE) {
+      this.#catalogues = [SOURCE];
+      return;
+    }
+    if (!hasCatalogue(locale)) {
+      // The manifest lists a locale this build has no file for: the source renders, and in
+      // development the fact is said once so that a missing translation is not mistaken for a
+      // rendering bug.
+      if (import.meta.env?.DEV && !this.#noticed.has(locale)) {
+        this.#noticed.add(locale);
+        console.info(`no catalogue for ${locale} in this build; rendering the source language`);
+      }
+      this.#catalogues = [SOURCE];
+      return;
+    }
+    const catalogue = await loadCatalogue(locale);
+    if (this.#locale !== locale) return;
+    this.#catalogues = catalogue ? [catalogue, SOURCE] : [SOURCE];
   }
 }
 

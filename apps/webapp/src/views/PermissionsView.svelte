@@ -67,11 +67,11 @@
     })),
   );
 
-  const accessLabels = {
+  const accessLabels = $derived({
     ALL: t('app.permissions.access_all'),
     ASSIGNED: t('app.permissions.access_assigned'),
     NONE: t('app.permissions.access_none'),
-  };
+  });
 </script>
 
 <div class="screen">
