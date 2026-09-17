@@ -14,7 +14,9 @@ import (
 	"strings"
 )
 
-// ContentSecurityPolicy is the policy for the UI origin, decided in ADR-0028.
+// ContentSecurityPolicy is the policy for the UI origin, decided in ADR-0028 - as it stands for an
+// installation whose media is this server's own (`local`). PolicyFor widens exactly two of its
+// directives for an installation whose media lives on another origin (ADR-0047).
 //
 // security.md §9 specifies a `Content-Security-Policy` for the media origin and for nothing else,
 // because until now nothing served HTML. The API's own policy - `default-src 'none'` - is right
@@ -43,6 +45,26 @@ const ContentSecurityPolicy = "default-src 'none'; " +
 	"base-uri 'none'; " +
 	"form-action 'none'; " +
 	"frame-ancestors 'none'"
+
+// PolicyFor is the interface's policy for an installation whose media lives at mediaOrigin
+// (ADR-0047): the ADR-0028 policy with that one origin added to `connect-src` - the browser has
+// to PUT the bytes of an upload to a presigned URL there - and to `img-src` - a cover is drawn from
+// a presigned URL there - and to nothing else. An empty origin is the `local` installation, whose
+// media URLs are already 'self', and answers ContentSecurityPolicy byte for byte; a test holds it
+// there, which is what keeps this from quietly widening the default installation.
+//
+// The origin is trusted as given: scheme, host and port, derived by the composition root from the
+// storage configuration it parsed for the adapter, and never from anything a request carries.
+// Exactly one, never a list and never a wildcard - an installation has one storage configuration.
+func PolicyFor(mediaOrigin string) string {
+	if mediaOrigin == "" {
+		return ContentSecurityPolicy
+	}
+	policy := ContentSecurityPolicy
+	policy = strings.Replace(policy, "img-src 'self' data: blob:; ", "img-src 'self' data: blob: "+mediaOrigin+"; ", 1)
+	policy = strings.Replace(policy, "connect-src 'self'; ", "connect-src 'self' "+mediaOrigin+"; ", 1)
+	return policy
+}
 
 // Cache-Control for the two kinds of file a bundle contains.
 //
@@ -90,15 +112,20 @@ type Handler struct {
 	// etags maps a file to its entity tag. Computed once at construction, because the bundle is
 	// in the binary and therefore cannot change while the process runs.
 	etags map[string]string
+	// policy is the content security policy every answer carries, composed once at construction
+	// from the installation's media origin (ADR-0047), the way the entity tags are computed once.
+	policy string
 }
 
-// NewHandler reads the bundle once and computes an entity tag per file.
+// NewHandler reads the bundle once and computes an entity tag per file, and composes the policy
+// once from the installation's media origin - empty for an installation whose media is this
+// server's own, the storage endpoint's origin for one on object storage (ADR-0047).
 //
 // The tags are what make `no-cache` on the document cheap. Without a validator, "always
 // revalidate" degenerates into "always re-download": an embedded file has no modification time -
 // every byte of it was fixed when the binary was linked - so there would be nothing for the
 // browser to ask about. With one, a reload that changes nothing costs a 304.
-func NewHandler(files fs.FS, headers SecurityHeaderWriter) (Handler, error) {
+func NewHandler(files fs.FS, headers SecurityHeaderWriter, mediaOrigin string) (Handler, error) {
 	if files == nil {
 		return Handler{}, fmt.Errorf("webui: no bundle")
 	}
@@ -124,13 +151,13 @@ func NewHandler(files fs.FS, headers SecurityHeaderWriter) (Handler, error) {
 	if err != nil {
 		return Handler{}, fmt.Errorf("webui: reading the bundle: %w", err)
 	}
-	return Handler{Files: files, SecurityHeaders: headers, etags: etags}, nil
+	return Handler{Files: files, SecurityHeaders: headers, etags: etags, policy: PolicyFor(mediaOrigin)}, nil
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The policy is set before anything else, so that it is on the answer whatever happens below,
 	// including the 404 and the 405.
-	h.SecurityHeaders(w.Header(), ContentSecurityPolicy)
+	h.SecurityHeaders(w.Header(), h.policy)
 
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")

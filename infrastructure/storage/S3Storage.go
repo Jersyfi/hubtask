@@ -46,15 +46,11 @@ type S3Storage struct {
 
 var _ port.ObjectStore = (*S3Storage)(nil)
 
-// s3Dependency is the name the breaker, the metrics and the health probe share.
-const s3Dependency = "object_storage"
-
-// NewS3Storage builds the adapter from the validated configuration (the surface has existed
-// since A-02; with kind=s3 the bucket and both keys are mandatory at startup).
-func NewS3Storage(cfg env.StorageConfig, timeout time.Duration) (*S3Storage, error) {
+// resolveEndpoint is the storage endpoint the adapter talks to: the configured one, or AWS itself
+// when none is configured - everything else names its own.
+func resolveEndpoint(cfg env.StorageConfig) (*url.URL, error) {
 	endpoint := cfg.Endpoint
 	if endpoint == "" {
-		// No endpoint means AWS itself; everything else names its own.
 		endpoint = "https://s3." + cfg.Region + ".amazonaws.com"
 	}
 	base, err := url.Parse(endpoint)
@@ -62,6 +58,44 @@ func NewS3Storage(cfg env.StorageConfig, timeout time.Duration) (*S3Storage, err
 		return nil, shared.ErrInternal.
 			WithDetail("config.s3_incomplete").
 			WithCause(fmt.Errorf("the storage endpoint is not an origin"))
+	}
+	return base, nil
+}
+
+// MediaOrigin is the origin a browser reaches for this installation's media, for the interface's
+// content security policy (ADR-0047): scheme, host and port, with any path, query or trailing
+// slash removed, because a policy source with a path is one most of a browser ignores. Empty
+// under local, whose media URLs are this server's own.
+//
+// Resolved from the same configuration and the same way as the adapter's endpoint, and shaped
+// the way objectURL shapes a presigned URL, so that the origin the policy names is the origin
+// the URLs carry: the endpoint's own under path-style addressing, and the bucket's subdomain of
+// it under virtual-hosted addressing - which is a different origin, and the one the browser is
+// asked to reach. Still exactly one: an installation has one bucket.
+func MediaOrigin(cfg env.StorageConfig) (string, error) {
+	if cfg.Kind != env.StorageS3 {
+		return "", nil
+	}
+	base, err := resolveEndpoint(cfg)
+	if err != nil {
+		return "", err
+	}
+	host := base.Host
+	if !cfg.UsePathStyle {
+		host = cfg.Bucket + "." + host
+	}
+	return base.Scheme + "://" + host, nil
+}
+
+// s3Dependency is the name the breaker, the metrics and the health probe share.
+const s3Dependency = "object_storage"
+
+// NewS3Storage builds the adapter from the validated configuration (the surface has existed
+// since A-02; with kind=s3 the bucket and both keys are mandatory at startup).
+func NewS3Storage(cfg env.StorageConfig, timeout time.Duration) (*S3Storage, error) {
+	base, err := resolveEndpoint(cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	return &S3Storage{
