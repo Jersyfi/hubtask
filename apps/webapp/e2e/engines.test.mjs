@@ -50,9 +50,10 @@ const EMPTY_PAGE = { data: [], items: [], page: { next_cursor: null, has_more: f
 async function stub(route) {
   const url = new URL(route.request().url());
   if (url.pathname.endsWith('/api/v1/stream')) return route.abort();
-  // The initial synchronisation (F6-03): an empty workspace, and the cursor line that ends it.
+  // The initial synchronisation (F6-03): the hub, and the cursor line that ends it.
   if (url.pathname.endsWith('/api/v1/sync:snapshot')) {
-    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: '{"cursor":"c-e2e"}\n' });
+    const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB.id, container_id: null, payload: HUB });
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
   }
   if (url.pathname.endsWith('/api/v1/sync:pull')) {
     return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
@@ -203,6 +204,26 @@ for (const [name, engine] of Object.entries(ENGINES)) {
       };
     }), database);
     assert.equal(position?.cursor, 'c-e2e', `${name}: the cursor in the store is ${JSON.stringify(position)}`);
+
+    // Reads answered by the replica (F6-04): the server goes away, the tab reloads, and the tree
+    // is drawn from the copy with the one line that says so - as of the store's last
+    // synchronisation. What the copy does not hold is named `sync.needs_connection`.
+    await context.unroute('**/api/v1/**');
+    await context.route('**/api/v1/**', (route) => route.abort('connectionfailed'));
+    await page.reload();
+    const mark = page.getByRole('status').filter({ hasText: "Shown from this device's copy" });
+    await mark.first().waitFor({ state: 'visible', timeout: 15_000 })
+      .catch(() => assert.fail(`${name}: the tree was not drawn from the replica while the server was away`));
+    assert.equal(await page.getByRole('link', { name: 'Engines' }).count(), 1, `${name}: the hub in the copy is not in the tree`);
+
+    // The server comes back, and the copy's state is replaced by the server's - on the loop's
+    // reconnect, which is what the pause is for: long enough for the first attempt to have
+    // failed, so the replacement is the retry's and not the first attempt's luck.
+    await page.waitForTimeout(1_500);
+    await context.unroute('**/api/v1/**');
+    await context.route('**/api/v1/**', stub);
+    await page.waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => el.textContent?.includes("Shown from this device's copy")), null, { timeout: 30_000 })
+      .catch(() => assert.fail(`${name}: the replica's state was not replaced after the server came back`));
 
     // Sign-out deletes the database, not its rows.
     await page.getByRole('button', { name: 'Sign out' }).click();

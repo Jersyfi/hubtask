@@ -79,6 +79,9 @@ export const platform: Platform = {
     }
   },
 
+  rememberAccount: (id) => store.rememberAccount(id),
+  lastAccount: () => store.readAccount(),
+
   deviceName: browserName,
 
   saveFile: (bytes, fileName) => {

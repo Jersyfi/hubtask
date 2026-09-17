@@ -55,6 +55,10 @@ export interface SessionPair {
 }
 
 export interface TokenStore {
+  /** The account the pair belongs to, where a read has said which. */
+  readAccount(): string | undefined;
+  /** Remembers which account the pair belongs to. */
+  rememberAccount(id: string): void;
   /** The bearer, or `undefined` when nobody is signed in. */
   read(): string | undefined;
   /** The credential the exchange presents, or `undefined` when there is none to present. */
@@ -69,6 +73,12 @@ export interface TokenStore {
  */
 export const TOKEN_KEY = 'hubtask.bearer';
 export const REFRESH_KEY = 'hubtask.refresh';
+/**
+ * The account the pair belongs to, once `/accounts/me` has said. Kept beside the pair for one
+ * reason (F6-04): the replica is one store per account, and a tab that reloads while the server
+ * cannot be reached has no `/accounts/me` to learn the account from - only this, and the copy.
+ */
+export const ACCOUNT_KEY = 'hubtask.account';
 
 /**
  * A store over the storage given, or over nothing.
@@ -102,7 +112,19 @@ export function tokenStore(storage: TokenStorage | undefined): TokenStore {
     }
   };
 
+  let account: string | undefined;
+
   return {
+    readAccount(): string | undefined {
+      account = load(ACCOUNT_KEY, account);
+      return account;
+    },
+
+    rememberAccount(id: string): void {
+      account = id;
+      put(ACCOUNT_KEY, id);
+    },
+
     read(): string | undefined {
       access = load(TOKEN_KEY, access);
       return access;
@@ -123,7 +145,8 @@ export function tokenStore(storage: TokenStorage | undefined): TokenStore {
     clear(): void {
       access = undefined;
       refresh = undefined;
-      for (const key of [TOKEN_KEY, REFRESH_KEY]) {
+      account = undefined;
+      for (const key of [TOKEN_KEY, REFRESH_KEY, ACCOUNT_KEY]) {
         try {
           storage?.removeItem(key);
         } catch {

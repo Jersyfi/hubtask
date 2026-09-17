@@ -18,6 +18,7 @@
   import { Button, EmptyState, ErrorState, SideNav, Skeleton, Stack } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import ReplicaMark from './ReplicaMark.svelte';
 
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
@@ -111,6 +112,7 @@
     onRetry={() => containers.refresh()}
   />
 {:else if containers.hasNoHubs}
+  <ReplicaMark state={containers.hubsState} />
   <!-- `unused` and not `filtered`: nothing is filtering the sidebar, and voice-and-tone.md §4.2 is
        about a filter that excluded something. §4.1 is the other half of that rule - say what this
        place is for, and offer the one action. Before this the empty state was a dead end, and the
@@ -124,6 +126,7 @@
   </EmptyState>
 {:else}
   <Stack gap="100">
+    <ReplicaMark state={containers.hubsState} />
     <SideNav
       label={t('app.workspace.title')}
       {nodes}

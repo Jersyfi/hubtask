@@ -16,6 +16,7 @@
   import { ROUTES } from './lib/routes.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
+  import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
@@ -84,7 +85,9 @@
    */
   $effect(() => {
     if (!session.isSignedIn) return;
-    const accountId = actor.account?.id;
+    // The account from `/accounts/me`, or the one remembered beside the pair when the server
+    // cannot be reached: a tab reloading offline still opens its replica (F6-04).
+    const accountId = actor.account?.id ?? platform.lastAccount();
     if (!accountId) return;
     live.start(accountId);
     return () => live.stop();

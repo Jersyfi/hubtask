@@ -55,6 +55,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
+  import ReplicaMark from '../frame/ReplicaMark.svelte';
   import DuePanel from './DuePanel.svelte';
   import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
@@ -767,6 +768,7 @@
       onRetry={() => items.openCollection(collectionId)()}
     />
   {:else}
+    <ReplicaMark state={levelState} />
     {#if writeFailure}
       <p class="failure" role="alert">{writeFailure.message}</p>
     {/if}
