@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
+import type { Storage } from '@hubtask/sync-engine';
+
 import type { SessionPair } from './tokenStore.ts';
 
 /**
@@ -92,6 +94,23 @@ export interface Platform {
    * somebody reads is a hit they can act on — and never decides whether one happens.
    */
   preferredLanguages(): readonly string[];
+
+  /**
+   * The replica's store for one account, or nothing where this runtime has none to offer
+   * (ADR-0033 §4, F6-03).
+   *
+   * One store per API origin and account, opened here because the platform is what knows where a
+   * copy may live: the browser's IndexedDB - a best-effort cache, never the offline promise, and
+   * with no encryption of its own by decision - or a shell's SQLite under the platform keystore.
+   * Nothing under `apps/` touches IndexedDB itself; the package holds the store, this seam names it.
+   */
+  storageFor(accountId: string): Storage | undefined;
+
+  /**
+   * How this device introduces itself in the workspace's device list - "Firefox on Linux" -
+   * beside the platform, which is `web` here and a shell's own name there.
+   */
+  deviceName(): string;
 }
 
 export type { SessionPair } from './tokenStore.ts';

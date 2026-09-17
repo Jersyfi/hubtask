@@ -241,6 +241,9 @@ class ListingTransport implements Transport {
   stream(): never {
     throw new Error('not streamed here');
   }
+  snapshot(): never {
+    throw new Error('not synchronised here');
+  }
   transfer(): never {
     throw new Error('not transferred here');
   }
