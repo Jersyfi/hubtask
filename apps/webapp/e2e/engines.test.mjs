@@ -35,7 +35,11 @@ const ACCOUNT = {
   email: 'engines@example.invalid',
   status: 'ACTIVE',
   locale: 'en',
+  // Taken already, so that the walk below is not led through the tour (F6-14); the tour has a
+  // walk of its own at the end, as an account that never took it.
+  onboarding_completed_at: '2026-09-01T00:00:00Z',
 };
+const FRESH_ACCOUNT = { ...ACCOUNT, id: '01a0e2e0-0000-7000-8000-000000000009', onboarding_completed_at: null };
 const HUB = {
   id: '01a0e2e0-0000-7000-8000-000000000002',
   type: 'HUB',
@@ -230,5 +234,65 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.waitForFunction(async (name) => !(await indexedDB.databases()).some((d) => d.name === name), database, { timeout: 10_000 })
       .catch(() => assert.fail(`${name}: the replica's database survived the sign-out`));
     assert.deepEqual(failures, [], `${name}: the bundle threw during the walk`);
+
+    // The tour (F6-14): an account that never took it is led through on arrival. The spotlight's
+    // cut-out is positioned by CSS - anchor positioning gives it the element's box (ADR-0039) -
+    // so the engine, not a measurement, decides where it is: the computed `position-anchor`
+    // names the element's anchor, no inline offset is written, and the box is the element's with
+    // the air the stylesheet adds. Escape skips, and skipping writes `onboarding_completed_at`.
+    const fresh = await browser.newContext();
+    const written = [];
+    await fresh.route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: FRESH_ACCOUNT });
+      if (url.pathname.endsWith('/preferences') && route.request().method() === 'PATCH') {
+        written.push(route.request().postDataJSON());
+        return route.fulfill({ json: { ...FRESH_ACCOUNT, ...route.request().postDataJSON() } });
+      }
+      return stub(route);
+    });
+    await fresh.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const guided = await fresh.newPage();
+    guided.on('pageerror', (error) => failures.push(String(error)));
+    await guided.goto(`${served.origin}/`);
+    const spotlight = guided.locator('.spotlight');
+    await spotlight.waitFor({ state: 'attached', timeout: 15_000 })
+      .catch(() => assert.fail(`${name}: the tour did not start for an account that never took it`));
+    const cutout = await spotlight.evaluate((el) => {
+      const target = document.querySelector('[data-hbt-spotlit]');
+      const style = getComputedStyle(el);
+      const box = (node) => { const r = node.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); };
+      return {
+        anchor: style.positionAnchor,
+        inline: el.getAttribute('style') ?? '',
+        popover: el.getAttribute('popover'),
+        spot: box(el),
+        target: target ? box(target) : null,
+        tour: target?.getAttribute('data-tour'),
+      };
+    });
+    assert.match(cutout.anchor, /^--hbt-spot-/, `${name}: the cut-out's position-anchor is ${JSON.stringify(cutout.anchor)}`);
+    assert.equal(cutout.inline, '', `${name}: the cut-out carries an inline offset: ${cutout.inline}`);
+    assert.equal(cutout.popover, 'manual', `${name}: the cut-out is not in the top layer`);
+    assert.equal(cutout.tour, 'hubs', `${name}: the first step points at ${cutout.tour}`);
+    // The cut-out is the element's box grown by the air around it: within it on every side,
+    // and by less than the largest spacing step.
+    assert.ok(cutout.target && cutout.spot[0] <= cutout.target[0] && cutout.spot[1] <= cutout.target[1]
+      && cutout.spot[0] + cutout.spot[2] >= cutout.target[0] + cutout.target[2]
+      && cutout.spot[1] + cutout.spot[3] >= cutout.target[1] + cutout.target[3]
+      && cutout.target[0] - cutout.spot[0] < 32 && cutout.target[1] - cutout.spot[1] < 32,
+      `${name}: the cut-out ${JSON.stringify(cutout.spot)} does not sit on the element ${JSON.stringify(cutout.target)}`);
+    const coachMark = guided.getByRole('dialog', { name: 'Where work lives' });
+    await coachMark.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => assert.fail(`${name}: the coach mark is not a named dialog`));
+    assert.equal(await guided.evaluate(() => document.activeElement?.textContent?.trim()), 'Next', `${name}: focus did not move to the mark`);
+    await guided.keyboard.press('Escape');
+    await spotlight.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => assert.fail(`${name}: Escape did not skip the tour`));
+    await guided.waitForTimeout(500);
+    assert.ok(written.some((body) => typeof body?.onboarding_completed_at === 'string'), `${name}: skipping did not write onboarding_completed_at: ${JSON.stringify(written)}`);
+    await fresh.close();
+    assert.deepEqual(failures, [], `${name}: the bundle threw during the tour`);
   });
 }
