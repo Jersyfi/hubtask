@@ -1020,6 +1020,7 @@ class WorkItem(TypedDict, total=False):
     recurrence_source_id: str | None
     origin_jumble_id: str | None
     content_language: str | None
+    calendar_uid: str | None
     archived_at: str | None
     deleted_at: str | None
     retention: "RetentionState" | Any
@@ -1049,6 +1050,7 @@ class WorkItemCreate(TypedDict, total=False):
     cover: "Cover"
     custom_fields: dict[str, Any]
     content_language: str | None
+    calendar_uid: str | None
 
 class WorkItemUpdate(TypedDict, total=False):
     """JSON Merge Patch; null deletes a field."""
