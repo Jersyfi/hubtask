@@ -157,3 +157,12 @@ export function feedStateOf(feed: { revoked_at?: string | null; view_id?: string
   if (feed.revoked_at) return 'revoked';
   return feed.view_id ? 'active' : 'orphaned';
 }
+
+/**
+ * The feed as a CalDAV calendar (P-06, F6-11): `/caldav/calendars/<account>/<feed>/` at the
+ * origin that serves the API - the tree is mounted beside `/api/v1`, not under it. No credential
+ * travels in it: a calendar client presents a personal access token as the Basic password.
+ */
+export function caldavAddressOf(origin: string, accountId: string, feedId: string): string {
+  return `${origin.replace(/\/+$/, '')}/caldav/calendars/${accountId}/${feedId}/`;
+}
