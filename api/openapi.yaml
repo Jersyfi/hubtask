@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# The contract is Apache-2.0 (ADR-0059 §6): what every SDK is generated from carries the
+# licence the SDKs carry, and a third party may generate its own client from it.
 openapi: 3.1.0
 info:
   title: Hubtask API
@@ -18,7 +23,8 @@ info:
     reminders, recurrence, automation, webhooks, media, search, SSE. admin/tenants left the list
     with H-06: the control plane is part of the contract like everything else.
   license:
-    name: BUSL-1.1
+    name: Apache-2.0
+    identifier: Apache-2.0
 servers:
   - url: https://{host}/api/v1
     variables:

@@ -21,5 +21,10 @@ workspace's manifest names none, so this repository's lockfile carries no platfo
 `pnpm typecheck` validates the generated description against a schema of n8n's declarative
 format; `pnpm test` proves every operation and every event type of the contract is reachable.
 
+**Licence.** Apache-2.0 — the `LICENSE` file beside this README, copied into `dist/` with the
+manifest, and the header every file carries
+([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) §6). A node that a
+company may not ship is a node nobody ships.
+
 **Not published.** Publication to the community node registry is an account and a review the
 owner runs; until then the package is `private`.

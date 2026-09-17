@@ -27,11 +27,14 @@ specification is the source and the code is the result
 
 ## Why the constraint is this strict
 
-[ADR-0027](../../docs/adr/ADR-0027-monorepo-structure.md) defers a decision to before `1.0.0`:
+[ADR-0027](../../docs/adr/ADR-0027-monorepo-structure.md) deferred a decision to before `1.0.0`:
 whether the generated SDKs move to a separately licensed repository, because a client library
 under BSL 1.1 is one nobody may use in commercial production and therefore nobody builds on.
 Keeping this package free of hand-written code is what keeps that extraction a move rather than a
-rewrite.
+rewrite. The licence half is decided — `src/client.gen.ts` and `examples/` are Apache-2.0, the
+rest of the package first-party BUSL-1.1 ([ADR-0059](../../docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)
+Appendix B) — and the header test in `test/architecture` holds the boundary: an Apache-2.0
+header anywhere else in this package, or a BUSL-1.1 one in the client, fails it.
 
 ## How to check a change
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Generates the n8n node from the contract (P-04, ADR-0058).
@@ -272,7 +272,7 @@ export function publishedManifest() {
     license: own.license,
     keywords: ['n8n-community-node-package'],
     main: 'index.js',
-    files: ['nodes', 'credentials', 'index.js', 'README.md'],
+    files: ['nodes', 'credentials', 'index.js', 'README.md', 'LICENSE'],
     n8n: {
       n8nNodesApiVersion: 1,
       credentials: ['credentials/HubtaskApi.credentials.js'],
@@ -321,6 +321,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   fs.writeFileSync(path.join(dist, 'package.json'), JSON.stringify(publishedManifest(), null, 2) + '\n');
   fs.copyFileSync(path.join(packageRoot, 'index.js'), path.join(dist, 'index.js'));
   fs.copyFileSync(path.join(packageRoot, 'README.md'), path.join(dist, 'README.md'));
+  // The package is Apache-2.0 (ADR-0059 §6), and what is published carries its licence file.
+  fs.copyFileSync(path.join(packageRoot, 'LICENSE'), path.join(dist, 'LICENSE'));
   // The three loaders are hand-written and copied: n8n resolves the paths the manifest names.
   fs.copyFileSync(path.join(packageRoot, 'nodes', 'Hubtask', 'Hubtask.node.js'), path.join(dist, 'nodes', 'Hubtask', 'Hubtask.node.js'));
   fs.copyFileSync(path.join(packageRoot, 'nodes', 'HubtaskTrigger', 'HubtaskTrigger.node.js'), path.join(dist, 'nodes', 'HubtaskTrigger', 'HubtaskTrigger.node.js'));

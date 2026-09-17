@@ -16,13 +16,17 @@ address, and survives a repository move, which the previous URL did not. */ -}}
 # Third-party licences
 
 Hubtask itself is licensed under BUSL-1.1 (see [LICENSE](./LICENSE)) and converts to Apache-2.0
-three years after each version's first public distribution ([ADR-0013](./docs/adr/ADR-0013-licensing.md)).
+three years after each version's first public distribution ([ADR-0013](./docs/adr/ADR-0013-licensing.md),
+[ADR-0059](./docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)).
 
 The dependencies below are what the binaries link. None of them carries a copyleft licence, which
 is what the `gate-licenses` build gate enforces on every pull request: a GPL or AGPL dependency
 would make both the commercial licence and the promised conversion impossible.
 
-This file is generated - run `make licenses` rather than editing it.
+This file is generated - run `make licenses` rather than editing it. The Go SDK under `sdk/go`
+carries an Apache-2.0 licence of its own ([ADR-0059](./docs/adr/ADR-0059-licensing-phases-and-licensing-start.md)
+§6), which `go-licenses` reads as a second licensed unit of this module; it is this project's own
+code, not a dependency, and is left out of the table below.
 
 ## Bundled assets
 
@@ -55,5 +59,5 @@ itself a fork of Feather (MIT), and its LICENSE carries both notices.
 
 | Dependency | Licence |
 |---|---|
-{{ range . }}{{ if ne .Name "github.com/Jersyfi/hubtask" }}| [{{ .Name }}](https://pkg.go.dev/{{ .Name }}?tab=licenses) | {{ .LicenseName }} |
+{{ range . }}{{ if and (ne .Name "github.com/Jersyfi/hubtask") (ne .Name "github.com/Jersyfi/hubtask/sdk/go") }}| [{{ .Name }}](https://pkg.go.dev/{{ .Name }}?tab=licenses) | {{ .LicenseName }} |
 {{ end }}{{ end }}
