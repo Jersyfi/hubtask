@@ -59,6 +59,7 @@
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
+  import ConflictStrip from '../lib/entries/ConflictStrip.svelte';
   import SuggestionStrip from '../lib/entries/SuggestionStrip.svelte';
   import TranslatePanel from '../lib/entries/TranslatePanel.svelte';
   import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
@@ -382,6 +383,7 @@
 {:else}
   <Stack gap="300">
     <ReplicaMark state={entry.state} />
+    <ConflictStrip itemId={item.id} />
     {#if isEditing}
       <!-- The form takes the place of the control that opened it, so it takes the focus too (2.4.3). -->
       <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="entry-edit"]' })}>

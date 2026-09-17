@@ -16,6 +16,8 @@
 
   import type { Snippet } from 'svelte';
 
+  import Icon from './Icon.svelte';
+
   interface Props {
     title: string;
     href?: string;
@@ -30,11 +32,14 @@
     /** Labels, a badge, a count. */
     footer?: Snippet;
     children?: Snippet;
+    /** A change on its way to the server (F6-06): the `pending` role beside a word. Resolved text. */
+    pendingLabel?: string;
   }
 
   const {
     title,
     href,
+    pendingLabel,
     isCompleted = false,
     coverKind,
     coverColorToken,
@@ -49,7 +54,7 @@
   );
 </script>
 
-<article class="card" data-completed={isCompleted ? '' : undefined}>
+<article class="card" data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
   {#if hasCover}
     {#if coverKind === 'IMAGE'}
       <!-- `alt` is the caller's: a cover that means something is described, and one that is
@@ -65,6 +70,9 @@
       <a class="title" {href}>{title}</a>
     {:else}
       <span class="title">{title}</span>
+    {/if}
+    {#if pendingLabel !== undefined}
+      <span class="pending"><span class="pending-mark" aria-hidden="true"><Icon name="cloud-upload" size="sm" /></span>{pendingLabel}</span>
     {/if}
     {#if children}<div class="detail">{@render children()}</div>{/if}
     {#if footer}<div class="footer">{@render footer()}</div>{/if}
@@ -84,6 +92,32 @@
   }
 
   .card:hover { border-color: var(--border-default); }
+
+  /* A change waiting to be sent (F6-06): the `pending` role on the mark, opacity only, stilled
+     under reduced motion; the word carries it too (rule 3). */
+  .pending {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
+
+  .pending-mark {
+    display: inline-flex;
+    animation: breathe var(--motion-pending-duration) var(--motion-pending-easing) infinite alternate;
+  }
+
+  @keyframes breathe {
+    from { opacity: 1; }
+    to { opacity: 0.4; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pending-mark { animation: none; }
+  }
+
+  :global([data-motion='reduced']) .pending-mark { animation: none; }
 
   /* Rule 3: a completed card is not told apart by a tint. The title is struck as well. */
   .card[data-completed] .title { color: var(--text-subtle); text-decoration: line-through; }
