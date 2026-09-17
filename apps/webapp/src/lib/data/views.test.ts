@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  caldavAddressOf,
   exportFileName,
   feedStateOf,
   isTruncated,
@@ -93,4 +94,12 @@ test('a feed that was revoked is revoked, whatever became of its view', () => {
   assert.equal(feedStateOf({ view_id: null }), 'orphaned');
   assert.equal(feedStateOf({ view_id: null, revoked_at: '2026-09-01T00:00:00Z' }), 'revoked');
   assert.equal(feedStateOf({ view_id: 'v-1', revoked_at: '2026-09-01T00:00:00Z' }), 'revoked');
+});
+
+test('the CalDAV address is the calendar at the origin, beside the API rather than under it', () => {
+  assert.equal(
+    caldavAddressOf('https://hub.example.org/', 'acc-1', 'feed-1'),
+    'https://hub.example.org/caldav/calendars/acc-1/feed-1/',
+  );
+  assert.equal(caldavAddressOf('http://localhost:8080', 'a', 'f'), 'http://localhost:8080/caldav/calendars/a/f/');
 });
