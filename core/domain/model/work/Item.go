@@ -397,22 +397,28 @@ const MaxCalendarUIDLength = 255
 // the way out and reads back differently on the way in. Refused by name rather than escaped, so
 // that the client hears why (calendar.uid_unaddressable in the tree's error condition).
 func checkCalendarUID(uid string) error {
-	if uid == "" {
+	if uid == "" || ValidCalendarUID(uid) {
 		return nil
 	}
-	invalid := shared.ErrValidation.
+	return shared.ErrValidation.
 		WithDetail("items.calendar_uid_invalid").
 		WithParams(map[string]string{"maximum": strconv.Itoa(MaxCalendarUIDLength)}).
 		WithFields(shared.FieldError{Path: "/calendar_uid", Code: "items.calendar_uid_invalid"})
-	if len(uid) > MaxCalendarUIDLength {
-		return invalid
+}
+
+// ValidCalendarUID reports whether a string is one the tree could answer an entry at: one to
+// MaxCalendarUIDLength bytes of the alphabet checkCalendarUID describes. Exported for the tree,
+// which asks it of an address before spending a read on it.
+func ValidCalendarUID(uid string) bool {
+	if uid == "" || len(uid) > MaxCalendarUIDLength {
+		return false
 	}
 	for i := 0; i < len(uid); i++ {
 		if !calendarUIDByte(uid[i]) {
-			return invalid
+			return false
 		}
 	}
-	return nil
+	return true
 }
 
 // calendarUIDByte is one byte of RFC 3986's pchar, percent-encoding excluded.

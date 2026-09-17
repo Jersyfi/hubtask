@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
+	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // CalDAV, the write half (P-07).
@@ -140,16 +141,17 @@ func (c *Controller) put(w http.ResponseWriter, r *http.Request, actor appshared
 // outsideTheView reads the entry at an address the calendar does not answer, as the actor. Not
 // found is the one answer that says the address is free; a refusal says the entry exists and the
 // caller may not touch it, which is the same refusal the update would meet.
+//
+// An address is a client's UID first and an identifier second (issue #721): an entry made
+// through the tree lives at the UID its client chose, and the identifier is where every other
+// entry lives. Two reads at most, and the second only for an address that could be an
+// identifier at all.
 func (c *Controller) outsideTheView(ctx context.Context, actor appshared.ActorContext, calendar calendarView, address string) (member, bool, error) {
-	id, err := shared.ParseID(address)
-	if err != nil || c.Items == nil {
+	if c.Items == nil {
 		return member{}, false, nil
 	}
-	item, err := c.Items.Execute(ctx, actor, work.GetWorkItemQuery{ItemID: id})
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return member{}, false, nil
-		}
+	item, found, err := c.entryAt(ctx, actor, address)
+	if err != nil || !found {
 		return member{}, false, err
 	}
 	var stamp time.Time
@@ -160,12 +162,35 @@ func (c *Controller) outsideTheView(ctx context.Context, actor appshared.ActorCo
 	return c.memberOf(actor.AccountID.String(), calendar.feed.ID.String(), item, zone, nil, stamp), true, nil
 }
 
+// entryAt answers the entry an address names, if any: by the UID a calendar client chose, then by
+// identifier. An address a UID could not be - one the domain would refuse - is not looked up as
+// one, so the read spends no round trip on it.
+func (c *Controller) entryAt(ctx context.Context, actor appshared.ActorContext, address string) (workmodel.WorkItem, bool, error) {
+	queries := make([]work.GetWorkItemQuery, 0, 2)
+	if workmodel.ValidCalendarUID(address) {
+		queries = append(queries, work.GetWorkItemQuery{CalendarUID: address})
+	}
+	if id, err := shared.ParseID(address); err == nil {
+		queries = append(queries, work.GetWorkItemQuery{ItemID: id})
+	}
+	for _, query := range queries {
+		item, err := c.Items.Execute(ctx, actor, query)
+		if err == nil {
+			return item, true, nil
+		}
+		if !errors.Is(err, shared.ErrNotFound) {
+			return workmodel.WorkItem{}, false, err
+		}
+	}
+	return workmodel.WorkItem{}, false, nil
+}
+
 // apply performs the differences between the todo the client sent and the entry, each through
 // its use case, and answers the version the entry is at afterwards.
 func (c *Controller) apply(ctx context.Context, actor appshared.ActorContext, existing member, parsed ParsedTodo) (int, error) {
 	version := existing.version
 	invoke := func(name string, in usecase.Input) error {
-		in["item_id"] = existing.id
+		in["item_id"] = existing.itemID
 		in["expected_version"] = version
 		out, err := c.UseCases.Invoke(ctx, name, actor, in)
 		if err != nil {
@@ -229,15 +254,21 @@ func dueInput(parsed ParsedTodo, actor appshared.ActorContext) usecase.Input {
 // create answers a PUT to an address the calendar has no member at: a todo made in the client.
 //
 // The address a client chooses is its UID, and the entry created has to live at that address
-// afterwards or the client will find its todo gone and make it again. CreateWorkItem takes a
-// client identifier when it is a UUIDv7 (N-04, offline-sync.md §9); a client whose UIDs are
-// anything else is refused by name, and creates its todos in the application instead. The
-// collection is the view's, where the view names exactly one - a todo made in a calendar has to
-// land somewhere the person meant.
+// afterwards or the client will find its todo gone and make it again. So the server mints the
+// identifier, as it does for every creation, and keeps the client's UID as the entry's calendar
+// address (issue #721) - what every CalDAV server does, and what lets Reminders, Thunderbird and
+// every client following RFC 4791's advice of a random UID make a todo here. The UID inside the
+// document has to be the address: a client keys its todo by the UID it wrote, and one that put
+// a different UID at the address would read back a todo it does not recognise. The collection is
+// the view's, where the view names exactly one - a todo made in a calendar has to land somewhere
+// the person meant.
 func (c *Controller) create(w http.ResponseWriter, r *http.Request, actor appshared.ActorContext, calendar calendarView, address string, parsed ParsedTodo) {
-	id, err := shared.ParseID(address)
-	if err != nil || !isUUIDv7(id) {
-		writeError(w, http.StatusForbidden, "creation-needs-uuidv7", address)
+	if uid := strings.TrimSpace(parsed.UID); uid != "" && uid != address {
+		writeError(w, http.StatusForbidden, "uid-must-match-address", uid)
+		return
+	}
+	if !workmodel.ValidCalendarUID(address) {
+		writeError(w, http.StatusForbidden, "uid-not-addressable", address)
 		return
 	}
 	collection, ok := singleCollection(calendar.view)
@@ -246,7 +277,7 @@ func (c *Controller) create(w http.ResponseWriter, r *http.Request, actor appsha
 		return
 	}
 	in := usecase.Input{
-		"id": id.String(), "type": "TASK", "collection_id": collection.String(), "title": parsed.Summary,
+		"calendar_uid": address, "type": "TASK", "collection_id": collection.String(), "title": parsed.Summary,
 	}
 	if parsed.StartSet {
 		in["start_at"] = parsed.Start.UTC().Format(time.RFC3339)
@@ -264,7 +295,7 @@ func (c *Controller) create(w http.ResponseWriter, r *http.Request, actor appsha
 	version := out.Int("version")
 	if parsed.Completed {
 		done, err := c.UseCases.Invoke(r.Context(), completeWorkItemUseCase, actor,
-			usecase.Input{"item_id": id.String(), "expected_version": version})
+			usecase.Input{"item_id": out.String("id"), "expected_version": version})
 		if err != nil {
 			c.refuse(w, err)
 			return
@@ -287,12 +318,6 @@ func singleCollection(saved view.SavedView) (shared.ID, bool) {
 		return saved.ScopeID, true
 	}
 	return shared.ID(""), false
-}
-
-// isUUIDv7 reads the version nibble.
-func isUUIDv7(id shared.ID) bool {
-	s := id.String()
-	return len(s) == 36 && s[14] == '7'
 }
 
 func (c *Controller) delete(w http.ResponseWriter, r *http.Request, actor appshared.ActorContext, target resource) {
@@ -319,7 +344,7 @@ func (c *Controller) delete(w http.ResponseWriter, r *http.Request, actor appsha
 		writeStatus(w, http.StatusNotFound)
 		return
 	}
-	in := usecase.Input{"item_id": existing.id}
+	in := usecase.Input{"item_id": existing.itemID}
 	if ifMatch := strings.TrimSpace(r.Header.Get("If-Match")); ifMatch != "" && ifMatch != "*" {
 		if ifMatch != existing.etag {
 			writeStatus(w, http.StatusPreconditionFailed)
