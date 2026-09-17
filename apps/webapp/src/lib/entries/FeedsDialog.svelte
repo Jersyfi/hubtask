@@ -18,8 +18,9 @@
   import { Badge, Button, Dialog, Inline, Input, Stack } from '@hubtask/design-system/components';
   import type { CalendarFeed, SavedView } from '@hubtask/sync-engine';
 
+  import { actor } from '../data/account.svelte.ts';
   import { feeds, views } from '../data/views.svelte.ts';
-  import { feedStateOf } from '../data/views.ts';
+  import { caldavAddressOf, feedStateOf } from '../data/views.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -45,7 +46,17 @@
    * there is one place it exists, and this is it.
    */
   let secret = $state<string | undefined>(undefined);
+  /** The feed the address belongs to, for its CalDAV address beside it. */
+  let minted = $state<CalendarFeed | undefined>(undefined);
   let copied = $state(false);
+
+  /**
+   * The same feed as a CalDAV calendar (P-06, F6-11): the address carries no credential, so it
+   * is shown beside every feed rather than once. The origin is this one's, because the API and
+   * the interface come from one origin (ADR-0028).
+   */
+  const caldavOf = (feed: CalendarFeed) =>
+    actor.account ? caldavAddressOf(window.location.origin, actor.account.id, feed.id) : undefined;
   let revoking = $state<CalendarFeed | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<string | undefined>(undefined);
@@ -54,6 +65,7 @@
     if (isOpen) return;
     // Closing forgets it. Nothing else does, which is why this is here rather than in a handler.
     secret = undefined;
+    minted = undefined;
     copied = false;
   });
 
@@ -82,6 +94,7 @@
     void attempt(async () => {
       const made = await feeds.create({ view_id: view.id }, crypto.randomUUID());
       secret = made.url;
+      minted = made;
       copied = false;
     }, t('app.feeds.created_announced'));
   }
@@ -120,6 +133,11 @@
           {#if copied}<span class="quiet">{t('app.feeds.copied')}</span>{/if}
           <Button onclick={() => (secret = undefined)}>{t('app.feeds.done')}</Button>
         </Inline>
+        {#if minted && caldavOf(minted)}
+          <!-- The other way in: the same feed as a CalDAV calendar, no credential in the address. -->
+          <Input label={t('app.feeds.caldav_url')} value={caldavOf(minted)} readonly />
+          <p class="quiet">{t('app.feeds.caldav_how', { user: actor.account?.email ?? '' })} <a href="/profile/tokens">{t('app.feeds.caldav_tokens')}</a></p>
+        {/if}
       </Stack>
     {:else}
       {#if view}
@@ -133,6 +151,7 @@
       {#if held.length === 0}
         <p class="quiet">{t('app.feeds.none')}</p>
       {:else}
+        <p class="quiet">{t('app.feeds.caldav_how', { user: actor.account?.email ?? '' })} <a href="/profile/tokens">{t('app.feeds.caldav_tokens')}</a></p>
         <ul class="list">
           {#each held as feed (feed.id)}
             {@const state = feedStateOf(feed)}
@@ -143,6 +162,9 @@
                   <span class="meta">
                     {t('app.feeds.made', { when: formatDateTime(feed.created_at, messages.locale) })}
                   </span>
+                  {#if state !== 'revoked' && caldavOf(feed)}
+                    <code class="address">{caldavOf(feed)}</code>
+                  {/if}
                 </div>
                 <Inline gap="050">
                   {#if state === 'revoked'}
@@ -199,6 +221,12 @@
   .name { display: block; font-weight: var(--fw-semibold); }
 
   .meta { display: block; color: var(--text-secondary); font-size: var(--fs-075); }
+
+  .address { display: block; font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; user-select: all; }
+
+  .quiet a { color: var(--text-brand); }
+
+  .quiet a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
 
   .warning { margin: 0; color: var(--text-warning); max-width: 64ch; }
 
