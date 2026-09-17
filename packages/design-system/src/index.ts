@@ -39,6 +39,8 @@ export { default as ParameterTable, type Parameter } from './ParameterTable.svel
 export { default as PermissionMatrix, type MatrixRole } from './PermissionMatrix.svelte';
 export { default as OneTimeSecret } from './OneTimeSecret.svelte';
 export { default as RunStatusBadge, type RunStatus } from './RunStatusBadge.svelte';
+export { default as SyncStatus, type Connection, type QueuedChange, type RefusedChange } from './SyncStatus.svelte';
+export { default as ConflictResolver } from './ConflictResolver.svelte';
 export { default as AutomationRuleCard, type RuleFact } from './AutomationRuleCard.svelte';
 export { default as JumbleInboxItem, type JumbleStatus } from './JumbleInboxItem.svelte';
 export { default as AISuggestion, type SuggestionState } from './AISuggestion.svelte';
