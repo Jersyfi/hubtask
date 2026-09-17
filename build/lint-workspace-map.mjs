@@ -9,6 +9,11 @@
 //   apps/*     → packages/*                      never another app (the website: the design
 //                                                system, and the api-client for its document)
 //   packages/* → other packages/*, acyclically   never an app
+//   sdk/*      → nothing in the workspace         and nothing in the workspace → sdk/*: the SDK
+//                                                is Apache-2.0 and what a third party takes
+//                                                (ADR-0059 §6), so it carries no first-party
+//                                                package and no first-party app reaches past
+//                                                the sync engine's seam into it
 //
 // The Go side has gate-architecture; until this script the workspace half of the map held by
 // convention alone. It reads the manifests first, and then the imports - because a manifest
@@ -24,8 +29,8 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The two kinds the map talks about, derived from the directory - not from naming convention. */
-const KINDS = { apps: 'app', packages: 'package' };
+/** The three kinds the map talks about, derived from the directory - not from naming convention. */
+const KINDS = { apps: 'app', packages: 'package', sdk: 'sdk' };
 // `.svelte-kit` is SvelteKit's own generated output, and its imports are SvelteKit's rather than
 // ours: they reach into node_modules by relative path, which is exactly the edge this refuses.
 // CI never saw it because the lint runs before anything is installed or built; a contributor
@@ -72,7 +77,12 @@ export function manifestViolations(members) {
     for (const dependency of member.dependencies) {
       const target = byName.get(dependency);
       if (!target) continue; // a real third-party dependency; the map has nothing to say
-      if (target.kind === 'app') {
+      if (member.kind === 'sdk' || target.kind === 'sdk') {
+        problems.push(
+          `${member.dir}: depends on ${target.dir} - an SDK is an island on the map ` +
+            (member.kind === 'sdk' ? '(it carries no first-party package)' : '(a first-party member does not reach into the SDK)'),
+        );
+      } else if (target.kind === 'app') {
         problems.push(
           `${member.dir}: depends on ${target.dir} - nothing may depend on an app ` +
             (member.kind === 'app' ? '(apps share packages, never each other)' : '(a package that knows an app is that app)'),
@@ -148,7 +158,9 @@ export function importViolations(member, members, relativeFile, source) {
       : specifier.split('/')[0];
     const target = byName.get(packageName);
     if (!target || target.name === member.name) continue;
-    if (target.kind === 'app') {
+    if (member.kind === 'sdk' || target.kind === 'sdk') {
+      problems.push(`${relativeFile}: imports ${target.dir} - an SDK is an island on the map`);
+    } else if (target.kind === 'app') {
       problems.push(`${relativeFile}: imports ${target.dir} - nothing may depend on an app`);
     } else if (!member.dependencies.includes(target.name)) {
       problems.push(`${relativeFile}: imports ${target.name} without declaring it in package.json`);
@@ -190,11 +202,18 @@ function selftest() {
     { name: '@x/website', kind: 'app', dir: 'apps/website', dependencies: deps.website ?? [] },
     { name: '@x/a', kind: 'package', dir: 'packages/a', dependencies: deps.a ?? [] },
     { name: '@x/b', kind: 'package', dir: 'packages/b', dependencies: deps.b ?? [] },
+    { name: '@x/sdk', kind: 'sdk', dir: 'sdk/typescript', dependencies: deps.sdk ?? [] },
   ];
   const cases = [
     ['an app depending on an app', () => manifestViolations(fixture({ webapp: ['@x/website'] }))],
     ['a package depending on an app', () => manifestViolations(fixture({ a: ['@x/webapp'] }))],
     ['a cycle between packages', () => manifestViolations(fixture({ a: ['@x/b'], b: ['@x/a'] }))],
+    ['an SDK depending on a package', () => manifestViolations(fixture({ sdk: ['@x/a'] }))],
+    ['a package depending on an SDK', () => manifestViolations(fixture({ a: ['@x/sdk'] }))],
+    [
+      'an import of an SDK from an app',
+      () => importViolations(fixture({})[0], fixture({}), 'apps/webapp/src/x.ts', "import y from '@x/sdk'"),
+    ],
     [
       'an import of an app',
       () =>

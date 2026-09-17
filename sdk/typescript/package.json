@@ -1,26 +1,25 @@
 {
-  "name": "@hubtask/api-client",
+  "name": "@hubtask/sdk-typescript",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "TypeScript types generated from api/openapi.yaml. Generated output only - never hand-edited; the client is sdk/typescript.",
-  "license": "BUSL-1.1",
+  "description": "The TypeScript client for the Hubtask API, generated from api/openapi.yaml (P-03, ADR-0059). Apache-2.0; the npm name is not decided.",
+  "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts",
-    "./schema": "./dist/schema.d.ts",
-    "./openapi.json": "./dist/openapi.json",
-    "./events.json": "./dist/events.json"
+    ".": "./src/client.gen.ts",
+    "./schema": "./dist/schema.d.ts"
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "LICENSE"
   ],
   "scripts": {
     "build": "node scripts/generate.js",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node scripts/check-generated.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-generated.js"
+    "test": "node scripts/check-generated.js && node --test scripts/*.test.js"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",
