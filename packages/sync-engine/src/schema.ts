@@ -17,7 +17,7 @@ import type { components } from '@hubtask/api-client';
 
 /** The collections the store holds. A string union rather than free strings: a typo is a silent
  *  empty collection, and an empty collection looks exactly like a synced-but-empty one. */
-export type Collection = 'containers' | 'items' | 'buckets' | 'labels' | 'comments';
+export type Collection = 'containers' | 'items' | 'buckets' | 'labels' | 'comments' | (string & {});
 
 /**
  * How a record is held locally: the server's document, plus the little the client needs to know
@@ -31,6 +31,15 @@ export interface StoredRecord<T> {
   readonly version: number;
   /** When this client last saw it, by the injected Clock rather than by the machine's. */
   readonly seenAt: number;
+  /**
+   * The sets the entry carries - labels, members, watchers, attachments - as element
+   * identifiers, kept beside the document rather than in it: the server sends an entry's document
+   * without them and its sets element by element (`offline-sync.md` §4.2), so a whole object
+   * arriving later replaces the document and leaves the sets where they are.
+   */
+  readonly sets?: Readonly<Record<string, readonly string[]>>;
+  /** The clock of the last record that touched this copy, for a device comparing its own. */
+  readonly hlc?: string;
   /**
    * A record the server has told us is gone. Kept rather than removed until the next full pull
    * confirms it, because a deletion that arrives before the write that caused it would otherwise
@@ -218,13 +227,13 @@ export type WorkItemPage = components['schemas']['WorkItemPage'];
 export type ItemQueryResult = components['schemas']['ItemQueryResult'];
 
 /**
- * One change record, as `/stream` sends it and as `:pull` returns it.
+ * One change record, as `/stream` sends it, as `:pull` returns it and as `:snapshot` writes it.
  *
- * It is a **signal to re-read**, never data to apply: applying `payload` to local state would be a
- * merge, and merging is the server's (ADR-0021, `offline-sync.md` §4). The engine reads `entity`,
- * `entity_id`, `container_id` and `op`, hands them to the application's path mapping, and drops
- * the rest — the stream also carries ordering and audit fields (`seq`, `occurred_at`, `actor_id`)
- * that no client decision depends on.
+ * It is the server's decision, already taken, and the engine transcribes it to the replica
+ * (`replica.ts`, F6-03) — a whole object, one field, a set element, a tombstone, a revocation —
+ * and hands it to the application's path mapping as a signal to re-read. Nothing in it is merged
+ * with anything: merging is the server's (ADR-0021, `offline-sync.md` §4). The stream also carries
+ * ordering and audit fields (`seq`, `occurred_at`, `actor_id`) that no client decision depends on.
  */
 export type ChangeRecord = components['schemas']['SyncChange'];
 
