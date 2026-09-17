@@ -41,10 +41,20 @@ from the same commit and cannot be a version apart.
   preference for it** ([ADR-0043](../../docs/adr/ADR-0043-theme-per-device.md)): language, time
   zone and week start are properties of the person and resolve through the account, the theme is
   the one that is legitimately different per screen. The switch for it is on the profile (F5-12)
-  and keeps its choice in this browser's storage until the local persistence port ADR-0033 defers
-  arrives; reduced motion is the same shape beside it — `src/lib/motion.ts` owns `data-motion`,
-  `src/lib/device.svelte.ts` holds both choices, and the media query is honoured whatever is
-  chosen, because there is no "full" over a device that asked for less.
+  and keeps its choice in this browser's `localStorage` — deliberately not in the replica, which
+  is the account's copy and is deleted at sign-out; reduced motion is the same shape beside it —
+  `src/lib/motion.ts` owns `data-motion`, `src/lib/device.svelte.ts` holds both choices, and the
+  media query is honoured whatever is chosen, because there is no "full" over a device that asked
+  for less. The celebrations switch beside them is **not** the device's (F6-12, F6-13): it is the
+  account's `celebrations` preference, and so is when the tour ended (`onboarding_completed_at`),
+  because a person who switched the moments off or took the tour did so everywhere.
+* **The copy, the queue and the moments are the frame's.** `lib/data/engine.ts` attaches the
+  replica per API origin and account through the platform seam (F6-03), `lib/data/replica.ts`
+  supplies `storeFor` and `mutationFor` (F6-04, F6-05) — the engine is product-agnostic and only
+  the application knows which path is which record and which write is which mutation kind — and
+  `SyncLine` in the header shows the copy and the server on every route (F6-06). `lib/celebration.ts`
+  decides a completion's tier from the copy and `lib/tour.ts` names the tour's steps (F6-13,
+  F6-14); both read the hierarchy the replica holds and add nothing to the backend.
 * **No sentence in a component.** The server delivers a code and parameters, never display text
   (ADR-0011, [`i18n-l10n.md`](../../docs/architecture/i18n-l10n.md) §1), and the client is the half
   that turns the pair into words: `src/lib/i18n/` holds the ICU renderer, the locale resolution of
