@@ -1868,6 +1868,12 @@ func run() error {
 					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
 					Clock: clockadapter.System{},
 				},
+				// The entry behind an address the view no longer answers (issue 720): the same
+				// read the API performs, so the permission is the same one.
+				Items: work.GetWorkItem{
+					Items: items, ItemLabels: itemLabels, Containers: containers,
+					Authorizer: authorizer, UnitOfWork: unitOfWork,
+				},
 				BaseURL: cfg.BaseURL,
 				Now:     clockadapter.System{}.Now,
 				// The writes (P-07): a completion, a date, a name, a deletion, each the

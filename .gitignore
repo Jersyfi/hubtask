@@ -12,6 +12,7 @@
 /hubtask-migrate
 /restore-drill
 /hubctl
+/server
 
 # Dependencies
 /vendor/
