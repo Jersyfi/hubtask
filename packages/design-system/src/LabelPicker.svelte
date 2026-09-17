@@ -154,7 +154,7 @@
     cursor: pointer;
   }
 
-  .option:hover { background: var(--bg-surface-raised); }
+  .option:hover { background: var(--bg-surface-hover); }
 
   .option:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);

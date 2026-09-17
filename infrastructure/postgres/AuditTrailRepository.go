@@ -37,7 +37,10 @@ func NewAuditTrailRepository(cursors security.CursorCodec) AuditTrailRepository 
 	return AuditTrailRepository{cursors: cursors}
 }
 
-var _ repository.Trail = AuditTrailRepository{}
+var (
+	_ repository.Trail   = AuditTrailRepository{}
+	_ repository.Anchors = AuditTrailRepository{}
+)
 
 // Query answers one page of the trail, newest first.
 func (r AuditTrailRepository) Query(
@@ -161,7 +164,65 @@ func (r AuditTrailRepository) LatestAnchor(ctx context.Context) (repository.Anch
 
 	return repository.Anchor{
 		AnchoredAt: timeFrom(row.AnchoredAt), LastSeq: row.LastSeq, ChainHash: row.ChainHash,
+		Destination: textFrom(row.Destination), Receipt: textFrom(row.Receipt),
 	}, nil
+}
+
+// ChainEnd answers the tail of this tenant's chain, the same read the sink continues from.
+func (r AuditTrailRepository) ChainEnd(ctx context.Context) (repository.ChainEnd, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.ChainEnd{}, err
+	}
+	tail, err := queries.LastAuditEntry(ctx)
+	switch {
+	case IsNoRows(err):
+		return repository.ChainEnd{}, nil
+	case err != nil:
+		return repository.ChainEnd{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the chain's end: %w", err))
+	}
+	return repository.ChainEnd{LastSeq: tail.Seq, Hash: tail.Hash}, nil
+}
+
+// HashAt answers the stored hash at one sequence number.
+func (r AuditTrailRepository) HashAt(ctx context.Context, seq int64) ([]byte, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hash, err := queries.AuditHashAt(ctx, seq)
+	switch {
+	case IsNoRows(err):
+		return nil, shared.ErrNotFound.WithDetail("audit.entry_not_found")
+	case err != nil:
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a hash of the chain: %w", err))
+	}
+	return hash, nil
+}
+
+// Record writes one anchor (P-13). A second anchor of the same sequence number is refused by the
+// primary key and answered as a conflict, which the job reads as "nothing new to anchor".
+func (r AuditTrailRepository) Record(ctx context.Context, anchor repository.Anchor) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.RecordAuditAnchor(ctx, sqlc.RecordAuditAnchorParams{
+		AnchoredAt: timestampOf(anchor.AnchoredAt), LastSeq: anchor.LastSeq, ChainHash: anchor.ChainHash,
+		Destination: optionalText(anchor.Destination), Receipt: optionalText(anchor.Receipt),
+	}); err != nil {
+		if isUniqueViolation(err) {
+			return shared.ErrConflict.WithDetail("audit.anchor_exists")
+		}
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording an anchor: %w", err))
+	}
+	return nil
 }
 
 // auditQueryParams turns the filter into bound parameters, one per condition.

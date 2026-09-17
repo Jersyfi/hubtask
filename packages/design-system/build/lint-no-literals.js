@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { undefinedCustomProperties } from './lint-custom-properties.js';
+
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 /** The trees this applies to. The Go core is not one of them: it holds no colour at all. */
@@ -96,4 +98,17 @@ if (problems.length > 0) {
   );
   process.exit(1);
 }
-console.log('design system: no colour outside tokens.json, and no bare length or duration in application code');
+
+// The other half: a token that is named has to exist. Checked after the literals rather than
+// with them, because a value that should have been a token and a token that is not one are two
+// different mistakes with two different fixes.
+const dangling = undefinedCustomProperties({ repositoryRoot, roots: ROOTS, tokens: ALLOWED[0] });
+if (dangling.length > 0) {
+  for (const problem of dangling) console.error(problem);
+  console.error(
+    `\n${dangling.length} reference(s) to a custom property nothing defines.\n` +
+      'Name a token tokens.json generates, or add the value there (ADR-0029, issue 711).',
+  );
+  process.exit(1);
+}
+console.log('design system: no colour outside tokens.json, no bare length or duration in application code, and every var(--x) defined');

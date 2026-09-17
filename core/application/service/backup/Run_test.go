@@ -60,6 +60,7 @@ func (s *runStore) Finish(_ context.Context, outcome domain.Outcome) error {
 	run.Status, run.ArchivePath, run.FinishedAt = outcome.Status, outcome.ArchivePath, outcome.FinishedAt
 	run.SizeBytes, run.ItemCount, run.MediaCount = outcome.SizeBytes, outcome.ItemCount, outcome.MediaCount
 	run.SnapshotAt, run.ErrorCode, run.Checksum = outcome.SnapshotAt, outcome.ErrorCode, outcome.Checksum
+	run.TrialReport, run.TrialAt = outcome.TrialReport, outcome.TrialAt
 	s.stored[outcome.ID] = run
 	return nil
 }

@@ -531,6 +531,9 @@ func (a Applier) apply(ctx context.Context, p plan) (domain.Report, error) {
 		if err := a.applyEntity(ctx, p, state, entity); err != nil {
 			return state.report, err
 		}
+		if err := state.settleDeferred(ctx, entity); err != nil {
+			return state.report, err
+		}
 		if p.report != nil {
 			p.report(float64(index+1) / float64(len(entities)))
 		}
@@ -600,6 +603,13 @@ type state struct {
 	// commit.
 	pending []staged
 	media   []transfer
+	// landed is what this restore has written or found in place, by table and identity as
+	// written, so that a row whose parent is in an earlier batch is told so without a query.
+	landed map[string]map[string]bool
+	// deferred is what could not be written yet because its parent in the same table is neither
+	// in the target nor written so far - a child the export ordered before its parent (#693). By
+	// entity name, in the order staged, each with the position it was read at.
+	deferred map[string][]staged
 }
 
 // transfer is one attachment on its way back into the object store: the content address it is
@@ -609,10 +619,12 @@ type transfer struct {
 	key  string
 }
 
-// staged is one record on its way into a transaction, with the entity it belongs to.
+// staged is one record on its way into a transaction, with the entity it belongs to and the
+// position it was read at, which is what a resumed attempt counts by.
 type staged struct {
-	entity archive.Entity
-	record archive.Record
+	entity   archive.Entity
+	record   archive.Record
+	position int
 }
 
 // prepare reads what the restore has to know before it writes anything: the deletions it may not
@@ -624,6 +636,8 @@ func (a Applier) prepare(ctx context.Context, p plan) (*state, error) {
 		remap:    map[string]string{},
 		live:     map[string]bool{},
 		decided:  map[string]int{},
+		landed:   map[string]map[string]bool{},
+		deferred: map[string][]staged{},
 		passed:   map[string]int{},
 		// What an earlier attempt got through, and the report it had counted by then. A resumed
 		// restore continues both rather than starting either again (BK-7).
@@ -814,11 +828,95 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 		return nil
 	}
 
-	s.pending = append(s.pending, staged{entity: entity, record: record})
+	s.pending = append(s.pending, staged{entity: entity, record: record, position: s.decided[entity.Name]})
 	if len(s.pending) < s.batch() {
 		return nil
 	}
 	return s.flush(ctx)
+}
+
+// settleDeferred writes what the entity's stream left behind: the children that arrived before
+// their parents (#693). In rounds, because a chain of three levels may need three; a round that
+// settles nothing is a parent that is in neither the archive nor the target, and what points at
+// it is withheld the way a row pointing at a journalled deletion is.
+func (s *state) settleDeferred(ctx context.Context, entity archive.Entity) error {
+	// The stream's tail is still pending, and a deferral happens at write time, so it goes in
+	// first: only then is what waited known, a round holds nothing but deferred rows, and the
+	// entity is whole before the next one's rows point at it.
+	if err := s.flush(ctx); err != nil {
+		return err
+	}
+	for len(s.deferred[entity.Name]) > 0 {
+		waiting := s.deferred[entity.Name]
+		s.deferred[entity.Name] = nil
+		s.pending = append(s.pending, waiting...)
+		if err := s.flush(ctx); err != nil {
+			return err
+		}
+		if len(s.deferred[entity.Name]) < len(waiting) {
+			continue
+		}
+		for _, item := range s.deferred[entity.Name] {
+			s.withhold(entity.Table, item.record.ID)
+			s.report.Withhold(domain.WithheldOrphaned)
+		}
+		s.deferred[entity.Name] = nil
+		// The cut the last batch recorded ended before the first orphan; now that they are
+		// decided, the progress says so, or a resumed attempt would withhold them a second time.
+		if err := s.recordProgress(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// settled is the progress a resumed attempt may trust: each entity's decided count, cut back to
+// the position of its first deferred record where one is still waiting, so that a crash between
+// the deferral and the settling re-reads the child rather than skipping it.
+func (s *state) settled() map[string]int {
+	out := maps.Clone(s.decided)
+	for name, waiting := range s.deferred {
+		if len(waiting) > 0 && waiting[0].position-1 < out[name] {
+			// The position is one-based - the count after the record was staged - so the
+			// settled prefix ends just before it.
+			out[name] = waiting[0].position - 1
+		}
+	}
+	return out
+}
+
+// parentLanded answers whether a same-table parent the row names is there to point at: written
+// by this restore, or already in the target. Only for a table that references itself.
+func (s *state) parentLanded(ctx context.Context, entity archive.Entity, data map[string]any) (bool, error) {
+	for _, reference := range entity.References {
+		if reference.Table != entity.Table {
+			continue
+		}
+		parent, named := data[reference.Field].(string)
+		if !named || parent == "" {
+			continue
+		}
+		if s.landed[entity.Table][parent] {
+			continue
+		}
+		held, err := s.applier.Import.Holds(ctx, entity.Table, map[string]any{"id": parent})
+		if err != nil {
+			return false, err
+		}
+		if !held {
+			return false, nil
+		}
+		s.land(entity.Table, parent)
+	}
+	return true, nil
+}
+
+// land remembers a row that is now there to be pointed at.
+func (s *state) land(table, id string) {
+	if s.landed[table] == nil {
+		s.landed[table] = map[string]bool{}
+	}
+	s.landed[table][id] = true
 }
 
 // skip answers whether this record was already decided by an earlier attempt.
@@ -927,22 +1025,30 @@ func (s *state) flush(ctx context.Context) error {
 		// the row's target tenant, which for NEW_TENANT is the same minted identity the batch
 		// lands in and exactly the scope the row is invisible from.
 		if s.plan.scope.TenantID == s.plan.asker && s.plan.progress != nil {
-			return s.plan.progress(ctx, s.report, s.decided)
+			return s.plan.progress(ctx, s.report, s.settled())
 		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	if !s.plan.dry && s.plan.scope.TenantID != s.plan.asker && s.plan.progress != nil {
-		err = s.applier.UnitOfWork.Within(ctx, s.plan.asking(), func(ctx context.Context) error {
-			return s.plan.progress(ctx, s.report, s.decided)
-		})
-		if err != nil {
+	if s.plan.scope.TenantID != s.plan.asker {
+		if err := s.recordProgress(ctx); err != nil {
 			return err
 		}
 	}
 	return s.transferMedia(ctx)
+}
+
+// recordProgress writes the settled progress from the asking tenant, in a transaction of its own:
+// the batch that landed elsewhere has committed, or nothing was written at all.
+func (s *state) recordProgress(ctx context.Context) error {
+	if s.plan.dry || s.plan.progress == nil {
+		return nil
+	}
+	return s.applier.UnitOfWork.Within(ctx, s.plan.asking(), func(ctx context.Context) error {
+		return s.plan.progress(ctx, s.report, s.settled())
+	})
 }
 
 // write settles one record against the conflict rule and puts it in.
@@ -1006,6 +1112,20 @@ func (s *state) write(ctx context.Context, item staged) error {
 	if err := s.remapReferences(ctx, item.entity, data); err != nil {
 		return err
 	}
+	// A child whose parent is not there yet waits for it (#693): the export orders rows by when
+	// they changed, and a parent edited after its child - or a tree imported in one instant -
+	// arrives after it. Deferred rather than written, because the foreign key is immediate and
+	// a batch that fails is a restore that fails.
+	if !s.plan.dry {
+		landed, err := s.parentLanded(ctx, item.entity, data)
+		if err != nil {
+			return err
+		}
+		if !landed {
+			s.deferred[item.entity.Name] = append(s.deferred[item.entity.Name], item)
+			return nil
+		}
+	}
 
 	rule := ruleOf(s.plan.restore)
 	outcome := domain.ConflictSkip
@@ -1038,6 +1158,9 @@ func (s *state) write(ctx context.Context, item staged) error {
 		for _, blob := range item.record.Blobs {
 			s.media = append(s.media, transfer{blob: blob, key: storageKey})
 		}
+	}
+	if id, named := data["id"].(string); named && (written || collided) {
+		s.land(item.entity.Table, id)
 	}
 	return nil
 }

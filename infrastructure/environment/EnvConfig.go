@@ -245,9 +245,9 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 	if cfg.BaseURL == "" {
 		w = append(w, env.Warning{Code: "config.base_url_missing", Severity: "warn"})
 	}
-	if cfg.Tenancy == env.TenancyMulti && os.Getenv("HUBTASK_OIDC_ISSUER") == "" {
-		w = append(w, env.Warning{Code: "config.oidc_missing_in_multi_tenancy", Severity: "warn"})
-	}
+	// No warning about a missing identity provider: since H-04 a provider is configured per
+	// tenant, in the database, and a multi-tenant installation whose workspaces sign in with
+	// passwords and TOTP is a posture rather than an omission (#310).
 	// In provider operation an egress allowlist is mandatory (security.md §T-07). It cannot be
 	// an error - an installation that refuses to start because a list is empty is worse than
 	// one that says so - but it belongs in /meta/health where the operator will see it.

@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
+	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
@@ -78,8 +79,20 @@ func translateFixture(provider *translator) (AiTranslate, *sink, *authorizer) {
 			Items: store, Containers: containerStore, Authorizer: guard, UnitOfWork: &unitOfWork{},
 		},
 		Providers: translatorResolver{provider: provider}, Prompts: translatePrompts{},
-		Audit: audit, Clock: clock.Fixed(now),
+		Audit: transactionalSink{sink: audit}, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}, audit, guard
+}
+
+// transactionalSink is the real store's one demand, made of the double: an entry is appended in a
+// transaction or not at all. `postgres.no_transaction_in_context` is what the first person to
+// ask for a translation met (#703), and a sink that took anything could not have said so.
+type transactionalSink struct{ sink *sink }
+
+func (t transactionalSink) Append(ctx context.Context, entry audit.Entry) error {
+	if ctx.Value(inTransaction{}) == nil {
+		return shared.ErrInternal.WithDetail("postgres.no_transaction_in_context")
+	}
+	return t.sink.Append(ctx, entry)
 }
 
 func germanActor() appshared.ActorContext {

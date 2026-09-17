@@ -197,3 +197,99 @@ func TestDevicesAreListedAndForgotten(t *testing.T) {
 		t.Errorf("the profile still holds device %q and clock %q", stored.Device, stored.Clock)
 	}
 }
+
+// The snapshot is written as it arrives, the cursor line last; --apply keeps the cursor in the
+// profile, and --continue takes the delta from it (SY-C, P-12).
+func TestASnapshotIsWrittenToAFileAndItsCursorKeptForTheDelta(t *testing.T) {
+	var stub *installation
+	var requests []map[string]any
+	stub = serve(t, func(w http.ResponseWriter, r *http.Request) {
+		var request map[string]any
+		_ = json.Unmarshal([]byte(stub.body), &request)
+		requests = append(requests, request)
+		if strings.HasSuffix(r.URL.Path, ":snapshot") {
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			_, _ = w.Write([]byte(`{"entity":"container","entity_id":"` + collectionID + `","op":"UPSERT"}` + "\n" +
+				`{"entity":"item","entity_id":"` + itemID + `","op":"UPSERT"}` + "\n" +
+				`{"cursor":"snap-1"}` + "\n"))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"changes":[],"cursor":"delta-2","has_more":false}`))
+	})
+	dir := t.TempDir()
+	profile := filepath.Join(dir, "profile.json")
+	env := signedIn(stub)
+	env[envProfile] = profile
+	file := filepath.Join(dir, "snapshot.ndjson")
+
+	code, out, errOut := invokeAgainst(t, stub, env, "", "sync", "snapshot", "--out", file, "--scope", collectionID, "--apply")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if out != "" {
+		t.Errorf("something went to standard output with --out: %q", out)
+	}
+	written, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(written)), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[0], `"container"`) || lines[2] != `{"cursor":"snap-1"}` {
+		t.Errorf("the file holds %q", string(written))
+	}
+	if !strings.Contains(errOut, "2 records") {
+		t.Errorf("the summary is %q", errOut)
+	}
+	if scopes, _ := requests[0]["scopes"].([]any); len(scopes) != 1 || requests[0]["device_id"] == nil {
+		t.Errorf("the request carries %v", requests[0])
+	}
+	stored, err := LoadProfile(profile)
+	if err != nil || stored.Cursor != "snap-1" {
+		t.Fatalf("the profile keeps %q (%v), want the snapshot's cursor", stored.Cursor, err)
+	}
+
+	// The delta continues from it, and moves it.
+	code, out, errOut = invokeAgainst(t, stub, env, "", "sync", "pull", "--continue")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if requests[1]["cursor"] != "snap-1" {
+		t.Errorf("the pull did not continue from the snapshot's cursor: %v", requests[1])
+	}
+	if !strings.Contains(out, `"cursor":"delta-2"`) {
+		t.Errorf("the pull answered %q", out)
+	}
+	if stored, _ = LoadProfile(profile); stored.Cursor != "delta-2" {
+		t.Errorf("the profile keeps %q after the delta, want delta-2", stored.Cursor)
+	}
+}
+
+// A stream that ends before the cursor line was cut short: reported, and nothing kept.
+func TestASnapshotCutShortKeepsNothing(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		_, _ = w.Write([]byte(`{"entity":"item","entity_id":"` + itemID + `","op":"UPSERT"}` + "\n"))
+	})
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	env := signedIn(stub)
+	env[envProfile] = profile
+
+	code, _, errOut := invokeAgainst(t, stub, env, "", "sync", "snapshot", "--apply")
+	if code == exitOK || !strings.Contains(errOut, "cut short") {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stored, _ := LoadProfile(profile); stored.Cursor != "" {
+		t.Errorf("a cut snapshot kept a cursor: %q", stored.Cursor)
+	}
+	// And a refusal before the first byte is a problem document.
+	stub = serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"type":"about:blank","title":"unavailable","status":503,"code":"dependency_unavailable","detail_code":"sync.stream_unavailable"}`))
+	})
+	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "sync", "snapshot")
+	if code == exitOK || !strings.Contains(errOut, "another live connection") {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+}

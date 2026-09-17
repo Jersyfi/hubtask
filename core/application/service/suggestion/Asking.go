@@ -6,6 +6,7 @@ package suggestion
 import (
 	"context"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -57,10 +58,16 @@ type Ask struct {
 // The target type travels because K-05 gave the shape a second one: a collection's status is a
 // question about a container, and everything else about asking it - the permission, the
 // availability, the read that proves it exists, the job, the audit entry - is the same.
+//
+// `text` is what a question is asked *with*, where it has no material of its own to read: a
+// template is drafted from a description that exists in no row the workspace holds (P-11). It is
+// held under row level security for the job that will read it, and the job's payload names the
+// row - the queue carries references and nothing else. Empty for every question that reads its
+// material from the target.
 func (a Ask) queue(
 	ctx context.Context, actor appshared.ActorContext,
 	targetType domain.TargetType, targetID shared.ID,
-	action audit.Action, kind domain.Kind, promptID string, apply bool,
+	action audit.Action, kind domain.Kind, promptID string, apply bool, text string,
 ) error {
 	if _, asked := AsksAbout(promptID, targetType, kind); !asked {
 		// Before the permission, the consent and the audit entry, because those are what a
@@ -121,6 +128,18 @@ func (a Ask) queue(
 			// the default this whole milestone is built around.
 			payload["apply"] = true
 		}
+		if text != "" {
+			if c.Requests == nil || c.IDs == nil {
+				return shared.ErrInternal.WithDetail("suggestions.requests_not_wired")
+			}
+			requestID := c.IDs.NewID()
+			if err := c.Requests.Put(ctx, repository.Request{
+				ID: requestID, AskedBy: actor.AccountID, Text: text, CreatedAt: c.Clock.Now(),
+			}); err != nil {
+				return err
+			}
+			payload["request_id"] = requestID.String()
+		}
 		if _, err := a.Queue.Enqueue(ctx, queue.Request{
 			Kind: queue.KindAiSuggest, TenantID: actor.TenantID, Payload: payload,
 		}); err != nil {
@@ -173,7 +192,7 @@ func (h SuggestDecomposition) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) error {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		DecompositionAskedAction, domain.KindDecomposition, "decompose", false)
+		DecompositionAskedAction, domain.KindDecomposition, "decompose", false, "")
 }
 
 // aiUnavailable is the port's one refusal, spelled here so that this package does not import the

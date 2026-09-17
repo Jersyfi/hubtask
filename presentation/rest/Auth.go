@@ -72,6 +72,11 @@ var PublicRoutes = map[string]bool{
 	// The mail door, on the same credential and the same trust model (G-11). What arrives here is
 	// a message somebody else's bridge forwarded, and the token is the whole of what says it may.
 	http.MethodPost + " " + APIBasePath + "/jumble/mail/{token}": true,
+	// The CalDAV discovery address is outside the contract - it is the mount's own path, as
+	// Mounted labels it - and public because RFC 6764 §5 has a client ask it before it has
+	// presented anything: the answer is a redirect into the tree, which asks for the credential
+	// itself (issue 719). The contract test cannot see this entry and does not need to.
+	calendar.WellKnown: true,
 }
 
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.
@@ -87,6 +92,10 @@ const basicScheme = "basic"
 // the mount's path (Mounted.Handler).
 var BasicRoutes = map[string]bool{
 	calendar.Prefix: true,
+	// And the discovery address in front of it, for the client that sends its credential from
+	// the first request on: refusing the scheme there would end the discovery before the tree
+	// was ever asked.
+	calendar.WellKnown: true,
 }
 
 // TokenAuthenticator is the slice of the authentication use case this middleware needs. An
