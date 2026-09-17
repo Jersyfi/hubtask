@@ -21,6 +21,7 @@
   import { feeds, views } from '../data/views.svelte.ts';
   import { feedStateOf } from '../data/views.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -61,11 +62,14 @@
     return known.find((each) => each.id === feed.view_id)?.name ?? t('app.feeds.unknown_view');
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     isWorking = true;
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     } finally {
@@ -79,7 +83,7 @@
       const made = await feeds.create({ view_id: view.id }, crypto.randomUUID());
       secret = made.url;
       copied = false;
-    });
+    }, t('app.feeds.created_announced'));
   }
 
   function copy() {
@@ -100,7 +104,7 @@
     void attempt(async () => {
       await feeds.revoke(target.id);
       revoking = undefined;
-    });
+    }, t('app.feeds.revoked_announced'));
   }
 </script>
 
@@ -163,7 +167,7 @@
       {/if}
     {/if}
 
-    {#if failure}<p class="failure">{failure}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
 </Dialog>
 
@@ -176,7 +180,7 @@
   >
     <Stack gap="150">
       <p class="quiet">{t('app.feeds.revoke_explains')}</p>
-      {#if failure}<p class="failure">{failure}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={confirmRevoke}>
           {t('app.feeds.revoke')}

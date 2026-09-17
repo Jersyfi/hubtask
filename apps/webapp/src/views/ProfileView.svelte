@@ -27,6 +27,7 @@
     EmptyState,
     ErrorState,
     Input,
+    Radio,
     Select,
     Skeleton,
     Stack,
@@ -50,6 +51,7 @@
   import { consent } from '../lib/data/consent.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { device } from '../lib/device.svelte.ts';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -146,7 +148,10 @@
     event.preventDefault();
     const password = disablePassword;
     disablePassword = '';
-    if (await mfa.disable(password)) mfaNotice = t('app.mfa.disabled');
+    if (await mfa.disable(password)) {
+      mfaNotice = t('app.mfa.disabled');
+      announcer.say(mfaNotice);
+    }
   }
 
   /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
@@ -166,6 +171,7 @@
     try {
       await sessions.end(id);
       if (isCurrent) await session.signOut();
+      else announcer.say(t('app.sessions.ended_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     }
@@ -176,6 +182,7 @@
     failure = undefined;
     try {
       await sessions.endAll();
+      announcer.say(t('app.sessions.ended_all_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     }
@@ -195,10 +202,32 @@
         enabled: next.enabled ?? current?.enabled ?? true,
         include_title: next.include_title ?? current?.include_title ?? false,
       });
+      announcer.say(t('app.profile.notification_saved_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     }
   }
+
+  const THEMES = ['system', 'light', 'dark'] as const;
+  const MOTIONS = ['system', 'reduced'] as const;
+
+  /** The radio groups' bound values; the device store is told when they move, and says so. */
+  let themeChoice = $state<string>(device.theme);
+  let motionChoice = $state<string>(device.motion);
+
+  $effect(() => {
+    const choice = THEMES.find((each) => each === themeChoice) ?? 'system';
+    if (choice === untrack(() => device.theme)) return;
+    device.setTheme(choice);
+    announcer.say(t('app.profile.theme_changed_announced', { choice: t(`app.profile.theme_${choice}`) }));
+  });
+
+  $effect(() => {
+    const choice = MOTIONS.find((each) => each === motionChoice) ?? 'system';
+    if (choice === untrack(() => device.motion)) return;
+    device.setMotion(choice);
+    announcer.say(t('app.profile.motion_changed_announced', { choice: t(`app.profile.motion_${choice}`) }));
+  });
 </script>
 
 {#if !account}
@@ -253,7 +282,7 @@
         )}
       />
 
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       {#if notice}<p class="quiet">{notice}</p>{/if}
 
       <div>
@@ -269,7 +298,12 @@
            inferring it from a sign-in that did not ask for a code would be inferring from an
            absence. So the panel offers enrolment, and the server refuses one that is already
            armed — in its own words, which is the honest answer rather than a guess. -->
-      <TotpEnrollment onarmed={() => (mfaNotice = t('app.mfa.armed'))} />
+      <TotpEnrollment
+        onarmed={() => {
+          mfaNotice = t('app.mfa.armed');
+          announcer.say(mfaNotice);
+        }}
+      />
 
       {#if mfaNotice}<p class="quiet">{mfaNotice}</p>{/if}
 
@@ -362,11 +396,24 @@
       {/if}
     </Stack>
 
+    <!-- The two preferences that belong to the device rather than to the account (ADR-0043): the
+         theme, and reduced motion beside it (F5-12, §10 row 2.3.3). Each applies at once and is
+         kept in this browser; the account is not asked, because there is nothing above the device
+         to resolve to. A radio group rather than a select: three words, all visible, one press. -->
     <Stack gap="150">
-      <h2 class="section">{t('app.profile.theme')}</h2>
-      <!-- Not a control. ADR-0043 put the theme on the device, and a reader who looks for it here
-           learns where it is rather than finding nothing. -->
-      <p class="quiet">{t('app.profile.theme_elsewhere')}</p>
+      <h2 class="section">{t('app.profile.device_section')}</h2>
+      <p class="quiet">{t('app.profile.device_hint')}</p>
+      <Radio
+        label={t('app.profile.theme')}
+        bind:value={themeChoice}
+        options={THEMES.map((each) => ({ value: each, label: t(`app.profile.theme_${each}`) }))}
+      />
+      <Radio
+        label={t('app.profile.motion')}
+        hint={t('app.profile.motion_hint')}
+        bind:value={motionChoice}
+        options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
+      />
     </Stack>
 
     <Stack gap="150">
@@ -433,7 +480,7 @@
     <Stack gap="150">
       <h2 class="section">{t('app.grants.title')}</h2>
       <p class="quiet">{t('app.grants.intro')}</p>
-      {#if grantFailure}<p class="failure">{grantFailure}</p>{/if}
+      {#if grantFailure}<p class="failure" role="alert">{grantFailure}</p>{/if}
       <ul class="rows">
         {#each consent.grants as grant (grant.id)}
           <li class="row">

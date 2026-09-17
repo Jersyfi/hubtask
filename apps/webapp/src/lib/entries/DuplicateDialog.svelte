@@ -21,6 +21,7 @@
 
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -78,6 +79,7 @@
       dropped = result.dropped_references ?? [];
       copied = result.copied;
       copyId = result.item?.id;
+      announcer.say(t('app.duplicate.copied', { count: result.copied }));
       // Nothing was left behind, so there is nothing to read: go to the copy at once. With a report
       // the reader is shown it first and opens the copy themselves.
       if (dropped.length === 0 && copyId) onopened(copyId);
@@ -105,7 +107,7 @@
       options={collections.map((collection) => ({ value: collection.id, label: collection.name }))}
     />
 
-    {#if failure}<p class="failure">{failure}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     {#if copied !== undefined}
       <p class="hint">{t('app.duplicate.copied', { count: String(copied) })}</p>

@@ -17,6 +17,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { suggestions } from '../data/suggestions.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -50,6 +51,7 @@
     failure = undefined;
     try {
       answer = await suggestions.translate(item.id, target);
+      announcer.say(t('app.translate.done_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -77,7 +79,7 @@
     </Button>
   </div>
   {#if failure}
-    <p class="failure">{failure.message}</p>
+    <p class="failure" role="alert">{failure.message}</p>
   {/if}
   {#if answer}
     <AISuggestion

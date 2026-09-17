@@ -28,6 +28,7 @@
   import { media } from '../data/media.svelte.ts';
   import { acceptFor, coverImageIdOf, imageCover, isWithinUploadLimit, uploadLimitOf } from '../data/media.ts';
   import { formatBytes } from '../i18n/bytes.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -81,6 +82,7 @@
         onProgress: (moved) => (sent = moved),
       });
       await media.setCover(item.id, imageCover(object.id), item.version);
+      announcer.say(t('app.cover.set_announced'));
       chosen = undefined;
     } catch (error) {
       failure = abort.signal.aborted
@@ -95,6 +97,7 @@
     failure = undefined;
     try {
       await media.clearCover(item.id, item.version);
+      announcer.say(t('app.cover.cleared_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     }
@@ -135,7 +138,7 @@
       onCancel={() => controller?.abort()}
     />
 
-    {#if failure}<p class="failure">{failure}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     {#if imageId || isColour}
       <div>

@@ -49,6 +49,7 @@
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -96,6 +97,16 @@
   const targets = $derived(backup.all);
   const archives = $derived(targetId ? backup.archivesAt(targetId) : { status: 'idle' as const });
   const watch = $derived<Watch | undefined>(watchedJob ? jobs.of(watchedJob) : undefined);
+
+  // A restore finishing is a status change nobody focused (4.1.3): said once, when it ends.
+  $effect(() => {
+    const ended = watch;
+    if (!ended || ended.watching) return;
+    if (ended.job.status === 'SUCCEEDED') announcer.say(t('app.restore.finished_announced'));
+    else if (ended.job.status === 'FAILED' || ended.job.status === 'CANCELLED') {
+      announcer.say(sentence(ended.job.error_code) ?? t('app.restore.failed'));
+    }
+  });
   /** Everything a request is made of, as one comparable value. */
   const signature = $derived(
     [targetId, archiveId, mode, conflictRule, [...chosen].sort().join(','), String(safetyBackup)].join('|'),
@@ -138,11 +149,14 @@
       : undefined,
   );
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -198,7 +212,7 @@
       const accepted = await stepUp.around((token) => restores.start(request, false, token));
       realId = restores.idOf(accepted) ?? '';
       watchedJob = accepted.job_id;
-    });
+    }, t('app.restore.started_announced'));
   }
 
   // A finished job means the report has arrived. Read it once, rather than polling for it: the
@@ -299,7 +313,7 @@
               {/if}
             {/if}
           {:else if archives.status === 'failed'}
-            <p class="failure">{renderProblem(archives.error, messages).message}</p>
+            <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>
           {/if}
         {/if}
 
@@ -423,16 +437,16 @@
                 <Button
                   size="sm"
                   tone="secondary"
-                  onclick={() => void attempt(() => jobs.cancel(watch!.job.job_id))}
+                  onclick={() => void attempt(() => jobs.cancel(watch!.job.job_id), t('app.jobs.cancel_asked_announced'))}
                 >
                   {t('app.restore.cancel')}
                 </Button>
               </div>
             {/if}
           {:else if watch.unreachable}
-            <p class="failure">{sentence(watch.unreachable)}</p>
+            <p class="failure" role="alert">{sentence(watch.unreachable)}</p>
           {:else if watch.job.status !== 'SUCCEEDED'}
-            <p class="failure">
+            <p class="failure" role="alert">
               {sentence(watch.job.error_code) ?? t('app.restore.failed')}
             </p>
           {/if}
@@ -522,7 +536,7 @@
             </p>
           {/if}
           {#if real.error_code}
-            <p class="failure">{sentence(real.error_code)}</p>
+            <p class="failure" role="alert">{sentence(real.error_code)}</p>
           {/if}
         </Stack>
       </section>

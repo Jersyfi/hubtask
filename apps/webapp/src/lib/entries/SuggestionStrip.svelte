@@ -40,6 +40,7 @@
     type Operation,
   } from '../data/suggestions.ts';
   import { formatDateTime, formatDue } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -72,6 +73,23 @@
   );
 
   const asking = $derived(suggestions.askingOf(item.id));
+
+  // A proposal arriving is a job finishing that nobody focused (4.1.3): said once, at the moment
+  // the strip shows it - and a wait that ended empty is said the same way, since the note it
+  // leaves is as silent as the proposal would have been.
+  let announcedFor = $state<string | undefined>(undefined);
+  $effect(() => {
+    const now = asking;
+    if (!now || now.outcome === 'following' || announcedFor === now.askedAt) return;
+    announcedFor = now.askedAt;
+    announcer.say(
+      now.outcome === 'arrived'
+        ? t('app.suggestions.arrived_announced')
+        : now.outcome === 'gave_up'
+          ? t('app.suggestions.gave_up')
+          : t('app.suggestions.nothing_near'),
+    );
+  });
 
   /** The code each operation's menu item reads. */
   const OPERATION_CODE: Record<Operation, string> = {
@@ -114,6 +132,7 @@
     try {
       if (how === 'accept') await suggestions.accept(suggestion);
       else await suggestions.dismiss(suggestion);
+      announcer.say(t(how === 'accept' ? 'app.suggestions.accepted_announced' : 'app.suggestions.dismissed_announced'));
     } catch (error) {
       decideFailure = { id: suggestion.id, problem: renderProblem(error as never, messages) };
     } finally {
@@ -158,7 +177,7 @@
       <p class="note">{t('app.suggestions.nothing_near')}</p>
     {/if}
     {#if askFailure}
-      <p class="failure">{askFailure.message}</p>
+      <p class="failure" role="alert">{askFailure.message}</p>
     {/if}
   </div>
 
@@ -167,7 +186,7 @@
   {/if}
 
   {#if listingFailure}
-    <p class="failure">{listingFailure.message}</p>
+    <p class="failure" role="alert">{listingFailure.message}</p>
   {:else if listing.state.status === 'loading' || listing.state.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else if open.length === 0 && asking?.outcome !== 'following'}
@@ -242,7 +261,7 @@
         <p class="line">{t('app.suggestions.unknown_hint')}</p>
       {/if}
       {#if decideFailure?.id === suggestion.id}
-        <p class="failure">{decideFailure.problem.message}</p>
+        <p class="failure" role="alert">{decideFailure.problem.message}</p>
       {/if}
 
       {#snippet actions()}

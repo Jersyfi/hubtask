@@ -46,6 +46,7 @@
     type Request,
   } from '../lib/data/privacy.svelte.ts';
   import { formatDateTime, formatRelative } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -109,11 +110,14 @@
     request.subject_email ??
     t('app.privacy.subject_unknown');
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -135,7 +139,7 @@
       draftEmail = '';
       draftAccount = '';
       draftNotes = '';
-    });
+    }, t('app.privacy.recorded_announced'));
   }
 
   const targetName = (id: string | null | undefined) =>
@@ -263,7 +267,7 @@
                         privacy.change(request.id, {
                           erasure_mode: (event.currentTarget as HTMLSelectElement)
                             .value as ErasureMode,
-                        }),
+                        }), t('app.privacy.mode_changed_announced')
                       )}
                   />
                   <p class="quiet small">
@@ -281,7 +285,7 @@
                       isBusy={isWorking}
                       busyLabel={t('app.privacy.starting')}
                       onclick={() =>
-                        void attempt(() => privacy.change(request.id, { status: 'IN_PROGRESS' }))}
+                        void attempt(() => privacy.change(request.id, { status: 'IN_PROGRESS' }), t('app.privacy.started_announced'))}
                     >
                       {t('app.privacy.start')}
                     </Button>
@@ -292,7 +296,7 @@
                       isBusy={isWorking}
                       busyLabel={t('app.privacy.completing')}
                       onclick={() =>
-                        void attempt(() => privacy.change(request.id, { status: 'COMPLETED' }))}
+                        void attempt(() => privacy.change(request.id, { status: 'COMPLETED' }), t('app.privacy.completed_announced'))}
                     >
                       {t('app.privacy.complete')}
                     </Button>
@@ -334,7 +338,7 @@
                           });
                           rejecting = '';
                           rejectReason = '';
-                        })}
+                        }, t('app.privacy.rejected_announced'))}
                     >
                       {t('app.privacy.reject_confirm')}
                     </Button>
@@ -419,7 +423,7 @@
             await privacy.restrict(restrictAccount.trim(), true, restrictReason.trim() || undefined);
             restrictAccount = '';
             restrictReason = '';
-          });
+          }, t('app.privacy.restricted_announced'));
         }}
       >
         <Stack gap="150">
@@ -450,7 +454,7 @@
             await privacy.withdraw(withdrawPurpose.trim(), withdrawAccount.trim() || undefined);
             withdrawPurpose = '';
             withdrawAccount = '';
-          });
+          }, t('app.privacy.withdrawn_announced'));
         }}
       >
         <Stack gap="150">

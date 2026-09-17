@@ -44,6 +44,7 @@
     reminderLimitOf,
   } from '../data/reminders.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -112,11 +113,14 @@
     isComposing = true;
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     isSaving = true;
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
       isComposing = false;
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
@@ -136,11 +140,11 @@
       };
       if (current) await reminders.edit(item.id, current, body);
       else await reminders.add(item.id, body, crypto.randomUUID());
-    });
+    }, t('app.reminders.saved_announced'));
   }
 
   function remove(reminder: Reminder) {
-    void attempt(() => reminders.remove(item.id, reminder));
+    void attempt(() => reminders.remove(item.id, reminder), t('app.reminders.removed_announced'));
   }
 
   /** When it will fire, or the sentence for a relative one whose entry has no date. */
@@ -240,7 +244,7 @@
       </ReminderEditor>
       </div>
 
-      {#if failure}<p class="failure">{failure}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
       <div class="actions">
         <Button
@@ -267,7 +271,7 @@
           {t('app.reminders.add')}
         </Button>
       </div>
-      {#if failure}<p class="failure">{failure}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
     {/if}
   </Stack>
 </CapabilityGate>

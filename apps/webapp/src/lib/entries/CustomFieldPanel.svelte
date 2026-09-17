@@ -31,6 +31,7 @@
   import { definitionsFor, valueFor } from '../data/customfields.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { decimalSeparatorOf, formatDecimal, parseDecimal } from '../i18n/number.ts';
   import { renderProblem } from '../problem.ts';
@@ -77,6 +78,7 @@
           valueFor(definition.kind, next),
           item.version,
         );
+        announcer.say(t('app.fields.value_saved_announced', { key: definition.key }));
       } catch (error) {
         failedKey = definition.key;
         failure = renderProblem(error as never, messages).message;
@@ -135,7 +137,7 @@
             {/snippet}
           </CustomFieldRenderer>
           {#if failedKey === definition.key && failure}
-            <p class="failure">{failure}</p>
+            <p class="failure" role="alert">{failure}</p>
           {/if}
         </div>
       {/each}

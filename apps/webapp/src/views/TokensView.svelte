@@ -29,6 +29,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { tokens, type MintedToken } from '../lib/data/tokens.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -102,6 +103,7 @@
         expiresAt: `${expiresAt}T23:59:59Z`,
         accountId,
       });
+      announcer.say(t('app.tokens.minted_announced'));
       name = '';
       expiresAt = '';
       chosen = [];
@@ -173,9 +175,12 @@
                 isBusy={isWorking}
                 busyLabel={t('app.tokens.working')}
                 onclick={() =>
-                  void tokens.revoke(token.id).catch((cause) => {
-                    failure = renderProblem(cause as never, messages);
-                  })}
+                  void tokens
+                    .revoke(token.id)
+                    .then(() => announcer.say(t('app.tokens.revoked_announced')))
+                    .catch((cause) => {
+                      failure = renderProblem(cause as never, messages);
+                    })}
               >
                 {t('app.tokens.revoke')}
               </Button>

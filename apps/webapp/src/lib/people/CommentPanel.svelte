@@ -30,6 +30,7 @@
   import { people, type Path } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -89,11 +90,14 @@
     };
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     writeFailure = undefined;
     isSending = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       writeFailure = renderProblem(error as never, messages).message;
     }
@@ -109,7 +113,7 @@
       replyTo = undefined;
       editing = undefined;
       await page.refresh();
-    });
+    }, editing ? t('app.comments.edited_announced') : t('app.comments.posted_announced'));
   }
 
   function startReply(id: string) {
@@ -139,7 +143,7 @@
     void attempt(async () => {
       await comments.remove(item.id, target);
       await page.refresh();
-    });
+    }, t('app.comments.removed_announced'));
   }
 </script>
 
@@ -150,7 +154,7 @@
 >
   <Stack gap="200">
     {#if failure}
-      <p class="failure">{failure.message}</p>
+      <p class="failure" role="alert">{failure.message}</p>
     {/if}
 
     <CommentThread
@@ -180,7 +184,7 @@
         rows={3}
         error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
       />
-      {#if writeFailure}<p class="failure">{writeFailure}</p>{/if}
+      {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
       <div class="actions">
         <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
           {editing ? t('app.workspace.save') : t('app.comments.send')}

@@ -169,6 +169,7 @@
         removed: pass.removed,
         blocked: (pass.blocked ?? {}) as Record<string, number>,
       };
+      announcer.say(t('app.trash.summary', { removed: pass.removed, matched: pass.matched }));
       isEmptying = false;
     } catch (error) {
       failure = renderProblem(error as never, messages);
@@ -181,7 +182,7 @@
 <Stack gap="300">
   <h1 class="name">{t('app.trash.title')}</h1>
 
-  {#if failure}<p class="failure">{failure.message}</p>{/if}
+  {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
   {#if summary}
     <div class="summary">

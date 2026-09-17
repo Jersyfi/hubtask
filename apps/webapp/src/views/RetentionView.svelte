@@ -44,6 +44,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { policies, type Policy, type RetentionAction } from '../lib/data/policies.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -116,11 +117,14 @@
       ? t('app.retention.scope_workspace')
       : containerName(policy.scope.id);
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -153,7 +157,7 @@
         written.action === asked ? undefined : { policyId: written.id, asked };
       draftJustification = '';
       await policies.preview(written.id);
-    });
+    }, t('app.retention.written_announced'));
   }
 </script>
 
@@ -277,7 +281,7 @@
                     busyLabel={t('app.retention.arming')}
                     disabledReason={preview ? undefined : t('app.retention.preview_first')}
                     onclick={() =>
-                      void attempt(() => policies.update(policy.id, { enabled: true }))}
+                      void attempt(() => policies.update(policy.id, { enabled: true }), t('app.retention.armed_announced'))}
                   >
                     {t('app.retention.arm')}
                   </Button>
@@ -288,7 +292,7 @@
                     isBusy={isWorking}
                     busyLabel={t('app.retention.saving')}
                     onclick={() =>
-                      void attempt(() => policies.update(policy.id, { enabled: false }))}
+                      void attempt(() => policies.update(policy.id, { enabled: false }), t('app.retention.disarmed_announced'))}
                   >
                     {t('app.retention.disarm')}
                   </Button>
@@ -298,7 +302,7 @@
                   tone="subtle"
                   isBusy={isWorking}
                   busyLabel={t('app.retention.withdrawing')}
-                  onclick={() => void attempt(() => policies.withdraw(policy.id))}
+                  onclick={() => void attempt(() => policies.withdraw(policy.id), t('app.retention.withdrawn_announced'))}
                 >
                   {t('app.retention.withdraw')}
                 </Button>
@@ -435,7 +439,7 @@
                       await policies.release(hold.id, releaseReason.trim());
                       releasing = '';
                       releaseReason = '';
-                    })}
+                    }, t('app.retention.released_announced'))}
                 >
                   {t('app.retention.release_confirm')}
                 </Button>
@@ -474,7 +478,7 @@
             );
             holdReason = '';
             holdTarget = '';
-          });
+          }, t('app.retention.placed_announced'));
         }}
       >
         <Stack gap="150">

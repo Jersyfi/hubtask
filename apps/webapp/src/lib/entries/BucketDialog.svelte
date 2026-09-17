@@ -14,6 +14,7 @@
   import { Button, Dialog, Input, Stack, Switch } from '@hubtask/design-system/components';
 
   import { buckets } from '../data/buckets.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -82,6 +83,7 @@
           crypto.randomUUID(),
         );
       }
+      announcer.say(t('app.buckets.saved_announced'));
       isOpen = false;
     } catch (error) {
       failure = renderProblem(error as never, messages);
@@ -105,7 +107,7 @@
       error={limitProblem}
     />
     <Switch label={t('app.board.is_done_column')} hint={t('app.board.done_bucket')} bind:checked={isDone} />
-    {#if failure}<p class="failure">{failure.message}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
   </Stack>
 
   {#snippet actions()}

@@ -39,6 +39,7 @@
   import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
   import { isTerminal } from '../lib/data/jobs.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -120,11 +121,14 @@
   const severityTone = (entry: Entry) =>
     entry.severity === 'CRITICAL' ? 'danger' : entry.severity === 'WARNING' ? 'warning' : 'neutral';
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -381,7 +385,7 @@
                 target_id: exportTarget,
               });
               exportJob = accepted.job_id;
-            })}
+            }, t('app.audit.export_started_announced'))}
         >
           {t('app.audit.export')}
         </Button>
@@ -411,9 +415,9 @@
             </Stack>
           </Banner>
         {:else if watch.unreachable}
-          <p class="failure">{sentence(watch.unreachable)}</p>
+          <p class="failure" role="alert">{sentence(watch.unreachable)}</p>
         {:else if watch.job.status !== 'SUCCEEDED'}
-          <p class="failure">{sentence(watch.job.error_code) ?? t('app.audit.export_failed')}</p>
+          <p class="failure" role="alert">{sentence(watch.job.error_code) ?? t('app.audit.export_failed')}</p>
         {/if}
       {/if}
     </Stack>

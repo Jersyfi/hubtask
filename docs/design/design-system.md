@@ -493,20 +493,20 @@ rule is the proof; where it needs a walk, the walk is evidence in `docs/evidence
 | 1.4.3 / 1.4.11 Contrast | Text 4.5:1, controls and the focus ring 3:1, in both modes, against every surface | `test/contrast.test.js` on every `pnpm test` (§1) |
 | 1.4.4 Resize text | 200 % through page zoom without loss, the trade §3 records | The workbench's zoom axis |
 | 1.4.10 Reflow | 320 CSS px without horizontal scrolling for content that does not require it | The workbench's five breakpoints |
-| 1.4.12 Text spacing | Nothing breaks when spacing is widened | Checked in the screen-reader pass with the text-spacing bookmarklet |
+| 1.4.12 Text spacing | Nothing breaks when spacing is widened | Walked on every route with the text-spacing bookmarklet at `F5-12`: no overflow, nothing clipped |
 | 2.1.1 / 2.1.2 Keyboard | Everything operable by keyboard, no trap; `Dialog` traps focus and returns it | Rule 5; the tab-order walk; `layers.ts` (§6) |
 | 2.4.3 Focus order | The order of the DOM is the order that makes sense | The tab-order walk |
 | 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6) |
 | 2.5.7 Dragging movements | Every drag has a keyboard or button alternative — ordering by drag and drop is also ordering by a menu | `F2`'s ordering surfaces; walked at `F5` |
 | 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§9) and its token test |
-| 2.3.3 Animation from interactions | Reduced motion honoured from the media query and from the product's own preference | Rule 6; `[data-motion="reduced"]` (ADR-0037) |
+| 2.3.3 Animation from interactions | Reduced motion honoured from the media query and from the product's own preference — the switch on the profile, kept on the device (`F5-12`) | Rule 6; `[data-motion="reduced"]` (ADR-0037); `lib/motion.ts` |
 | 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry rendered in another language (`content_language`) | `i18n-l10n.md` §6, lines 1 and 9 |
 | 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | Reviewed per story |
 | 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and says what would be accepted — the problem document's `fields[]`, rendered from codes | `F1-07`'s problem-details rendering |
-| 3.3.7 Redundant entry | Nothing asks twice for what it already has in the same flow | Reviewed per flow at `F5` |
+| 3.3.7 Redundant entry | Nothing asks twice for what it already has in the same flow; a second proof for a second privileged action is the security exception, by the contract's one-grant-one-action rule | Reviewed per flow at `F5-12` |
 | 3.3.8 Accessible authentication | No cognitive test at sign-in; the TOTP code may be pasted | The sign-in and step-up surfaces (`F4`) |
 | 4.1.2 Name, role, value | Every control has a name, a role and a state the accessibility tree exposes — native elements first, ARIA only where nothing native exists | The workbench's tab-order walk; the screen-reader pass |
-| 4.1.3 Status messages | A change that is not focused is announced — `HealthBanner`, a save, a sync status — through a live region | The components named; walked at `F5` |
+| 4.1.3 Status messages | A change that is not focused is announced — a save, a job ending, a proposal arriving, the health banner, a bulk action's count — through the frame's one live region; a refusal beside its form is an alert | Every write in `lib/data/` audited at `F5-12`; `announce.svelte.ts` |
 
 **Two walks, filed as evidence.** A screen-reader pass with VoiceOver (macOS and iOS), NVDA
 (Windows) and Orca (GNOME), through every route in the capability manifest, filed as

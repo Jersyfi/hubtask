@@ -40,6 +40,7 @@
     type Sharing,
     type ViewScope,
   } from '../data/views.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -99,11 +100,14 @@
     editing ? sharingRefusal(sharing, editing.scope_type as string) : undefined,
   );
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     isSaving = true;
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -127,7 +131,7 @@
         crypto.randomUUID(),
       );
       reset();
-    });
+    }, t('app.views.saved_announced'));
   }
 
   function apply(view: SavedView) {
@@ -143,7 +147,7 @@
     void attempt(async () => {
       await views.update(view.id, { name }, view.version);
       reset();
-    });
+    }, t('app.views.renamed_announced'));
   }
 
   /** Replaces the view's query with what the editor currently holds. */
@@ -159,7 +163,7 @@
         view.version,
       );
       reset();
-    });
+    }, t('app.views.query_replaced_announced'));
   }
 
   function decideSharing(view: SavedView) {
@@ -167,7 +171,7 @@
     void attempt(async () => {
       await views.share(view.id, sharing, view.version, crypto.randomUUID());
       reset();
-    });
+    }, t('app.views.shared_announced'));
   }
 
   function confirmDelete() {
@@ -176,7 +180,7 @@
     void attempt(async () => {
       await views.remove(target.id, target.version);
       deleting = undefined;
-    });
+    }, t('app.views.removed_announced'));
   }
 </script>
 
@@ -242,7 +246,7 @@
           <p class="quiet">{t(shareRefusal)}</p>
         {/if}
 
-        {#if failure && !failure.fields.get('/name')}<p class="failure">{failure.message}</p>{/if}
+        {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={() => rename(current)}>
@@ -269,7 +273,7 @@
           bind:value={scope}
           options={VIEW_SCOPES.map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
         />
-        {#if failure && !failure.fields.get('/name')}<p class="failure">{failure.message}</p>{/if}
+        {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
         <div>
           <Button
             isBusy={isSaving}
@@ -294,7 +298,7 @@
   >
     <Stack gap="150">
       <p class="quiet">{t('app.views.delete_explains')}</p>
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
           {t('app.views.delete')}

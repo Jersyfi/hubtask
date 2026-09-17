@@ -35,6 +35,7 @@
   import { type Path } from '../data/people.svelte.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import TemplateEditor from './TemplateEditor.svelte';
@@ -134,11 +135,14 @@
     anchor = todayIn(actor.zone);
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     isSaving = true;
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -170,7 +174,7 @@
         );
       }
       reset();
-    });
+    }, current ? t('app.templates.saved_announced') : t('app.templates.defined_announced'));
   }
 
   function confirmDelete() {
@@ -179,7 +183,7 @@
     void attempt(async () => {
       await templates.remove(target.id, target.version);
       deleting = undefined;
-    });
+    }, t('app.templates.removed_announced'));
   }
 
   function instantiate() {
@@ -200,7 +204,7 @@
       madeRoot = made.root_item_id;
       // Nothing was left behind, so there is nothing to read: go to what it made.
       if (dropped.length === 0 && madeRoot) onopened(madeRoot);
-    });
+    }, t('app.templates.used_announced'));
   }
 </script>
 
@@ -212,7 +216,7 @@
         <Input label={t('app.templates.anchor')} type="date" hint={t('app.templates.anchor_hint')} bind:value={anchor} />
         <Input label={t('app.templates.root_title')} hint={t('app.templates.root_title_hint')} bind:value={rootTitle} />
 
-        {#if failure}<p class="failure">{failure.message}</p>{/if}
+        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
         {#if created !== undefined}
           <p class="quiet">{t('app.templates.created', { count: String(created) })}</p>
         {/if}
@@ -271,7 +275,7 @@
           onnodes={(next) => (nodes = next)}
         />
 
-        {#if failure && !failure.fields.get('/name')}<p class="failure">{failure.message}</p>{/if}
+        {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
           <Button
@@ -320,7 +324,7 @@
         </ul>
       {/if}
 
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
       <CapabilityGate
         status={structure.status}
@@ -346,7 +350,7 @@
   >
     <Stack gap="150">
       <p class="quiet">{t('app.templates.delete_explains')}</p>
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
           {t('app.templates.delete')}

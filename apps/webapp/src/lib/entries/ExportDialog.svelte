@@ -93,7 +93,7 @@
     {#if truncated}
       <p class="warning">{t('app.export.truncated', { maximum: String(cap ?? '') })}</p>
     {/if}
-    {#if failure}<p class="failure">{failure}</p>{/if}
+    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     <Inline gap="100">
       <Button isBusy={isExporting} busyLabel={t('app.workspace.saving')} onclick={() => void run()}>

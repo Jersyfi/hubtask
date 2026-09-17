@@ -15,6 +15,7 @@
   import { suggestions, suggestionsPath } from '../data/suggestions.svelte.ts';
   import { shapeOf } from '../data/suggestions.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -34,6 +35,23 @@
   );
   const asking = $derived(suggestions.askingOf(containerId));
 
+  // A proposal arriving is a job finishing that nobody focused (4.1.3): said once, at the moment
+  // the strip shows it - and a wait that ended empty is said the same way, since the note it
+  // leaves is as silent as the proposal would have been.
+  let announcedFor = $state<string | undefined>(undefined);
+  $effect(() => {
+    const now = asking;
+    if (!now || now.outcome === 'following' || announcedFor === now.askedAt) return;
+    announcedFor = now.askedAt;
+    announcer.say(
+      now.outcome === 'arrived'
+        ? t('app.suggestions.arrived_announced')
+        : now.outcome === 'gave_up'
+          ? t('app.suggestions.gave_up')
+          : t('app.suggestions.nothing_near'),
+    );
+  });
+
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let dismissing = $state<string | undefined>(undefined);
 
@@ -51,6 +69,7 @@
     failure = undefined;
     try {
       await suggestions.dismiss(suggestion);
+      announcer.say(t('app.suggestions.dismissed_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -88,7 +107,7 @@
     </Button>
   </div>
   {#if failure}
-    <p class="failure">{failure.message}</p>
+    <p class="failure" role="alert">{failure.message}</p>
   {/if}
   {#if asking?.outcome === 'following'}
     <AISuggestion heading={t('app.workspace.summary')} state="pending" pendingLabel={t('app.suggestions.pending')} />

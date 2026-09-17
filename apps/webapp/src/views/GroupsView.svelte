@@ -24,6 +24,7 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -72,11 +73,14 @@
       .map((id) => ({ value: id, label: nameFor(id) }));
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWriting = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     } finally {
@@ -88,21 +92,21 @@
     event.preventDefault();
     const name = newName.trim();
     if (!name) return;
-    await attempt(() => groups.create(name));
+    await attempt(() => groups.create(name), t('app.groups.created_announced'));
     newName = '';
   }
 
   async function rename(groupId: string): Promise<void> {
     const name = renamed.trim();
     if (!name) return;
-    await attempt(() => groups.update(groupId, { name }));
+    await attempt(() => groups.update(groupId, { name }), t('app.groups.renamed_announced'));
     renaming = undefined;
     renamed = '';
   }
 
   /** Adding and removing are the same call: the list as it should be afterwards. */
   async function setMembers(groupId: string, members: readonly string[]): Promise<void> {
-    await attempt(() => groups.update(groupId, { members }));
+    await attempt(() => groups.update(groupId, { members }), t('app.groups.members_announced'));
   }
 </script>
 
@@ -201,7 +205,7 @@
                     void attempt(async () => {
                       await groups.remove(group.id);
                       removing = undefined;
-                    })}
+                    }, t('app.groups.removed_announced'))}
                 >
                   {t('app.groups.delete_now')}
                 </Button>

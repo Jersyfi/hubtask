@@ -40,8 +40,11 @@ from the same commit and cannot be a version apart.
   looks broken at once. Components never read or set the theme themselves. **There is no account
   preference for it** ([ADR-0043](../../docs/adr/ADR-0043-theme-per-device.md)): language, time
   zone and week start are properties of the person and resolve through the account, the theme is
-  the one that is legitimately different per screen. A switch for it keeps its choice on the
-  device, and waits for the local persistence port ADR-0033 defers.
+  the one that is legitimately different per screen. The switch for it is on the profile (F5-12)
+  and keeps its choice in this browser's storage until the local persistence port ADR-0033 defers
+  arrives; reduced motion is the same shape beside it — `src/lib/motion.ts` owns `data-motion`,
+  `src/lib/device.svelte.ts` holds both choices, and the media query is honoured whatever is
+  chosen, because there is no "full" over a device that asked for less.
 * **No sentence in a component.** The server delivers a code and parameters, never display text
   (ADR-0011, [`i18n-l10n.md`](../../docs/architecture/i18n-l10n.md) §1), and the client is the half
   that turns the pair into words: `src/lib/i18n/` holds the ICU renderer, the locale resolution of

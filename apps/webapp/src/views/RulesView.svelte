@@ -31,6 +31,7 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { rules, type DraftAction, type Rule, type RuleAction } from '../lib/data/rules.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -134,11 +135,14 @@
       }));
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
     isWorking = true;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -178,7 +182,7 @@
       actions = [];
       maxRuns = '';
       dedupe = '';
-    });
+    }, t('app.rules.written_announced'));
   }
 
   /** What a card says about a rule, in words rather than tokens. */
@@ -231,17 +235,17 @@
             <div class="row">
               {#if rule.enabled}
                 <Button size="sm" tone="secondary" isBusy={isWorking} busyLabel={t('app.rules.working')}
-                  onclick={() => void attempt(() => rules.disable(rule.id))}>
+                  onclick={() => void attempt(() => rules.disable(rule.id), t('app.rules.disabled_announced'))}>
                   {t('app.rules.disable')}
                 </Button>
               {:else}
                 <Button size="sm" tone="primary" isBusy={isWorking} busyLabel={t('app.rules.working')}
-                  onclick={() => void attempt(() => rules.enable(rule.id))}>
+                  onclick={() => void attempt(() => rules.enable(rule.id), t('app.rules.enabled_announced'))}>
                   {t('app.rules.enable')}
                 </Button>
               {/if}
               <Button size="sm" tone="subtle" isBusy={isWorking} busyLabel={t('app.rules.working')}
-                onclick={() => void attempt(() => rules.remove(rule.id))}>
+                onclick={() => void attempt(() => rules.remove(rule.id), t('app.rules.removed_announced'))}>
                 {t('app.rules.delete')}
               </Button>
             </div>

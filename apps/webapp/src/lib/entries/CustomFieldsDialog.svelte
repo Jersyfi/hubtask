@@ -35,6 +35,7 @@
   import { holds, typesWith } from '../data/capability.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
   import { isValidKey, isWorkspaceWide, takesOptions } from '../data/customfields.ts';
+  import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -107,11 +108,14 @@
       .filter((line) => line !== '');
   }
 
-  async function attempt(work: () => Promise<unknown>): Promise<void> {
+  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     isSaving = true;
     failure = undefined;
     try {
       await work();
+      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
+      // see the screen is told the same thing once, through the one live region.
+      if (said) announcer.say(said);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -147,7 +151,7 @@
         );
       }
       reset();
-    });
+    }, current ? t('app.fields.saved_announced') : t('app.fields.defined_announced'));
   }
 
   function confirmDelete() {
@@ -156,7 +160,7 @@
     void attempt(async () => {
       await customFields.remove(target.id, target.version);
       deleting = undefined;
-    });
+    }, t('app.fields.removed_announced'));
   }
 
   const kindLabel = (value: string) => t(`app.fields.kind_${value}`);
@@ -272,11 +276,11 @@
             </Inline>
           {/if}
           {#if chosen.length === 0}
-            <p class="failure">{t('app.fields.applies_to_empty')}</p>
+            <p class="failure" role="alert">{t('app.fields.applies_to_empty')}</p>
           {/if}
         </fieldset>
 
-        {#if failure}<p class="failure">{failure.message}</p>{/if}
+        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
@@ -300,7 +304,7 @@
   >
     <Stack gap="150">
       <p class="hint">{t('app.fields.delete_explains')}</p>
-      {#if failure}<p class="failure">{failure.message}</p>{/if}
+      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       <Inline gap="100">
         <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
           {t('app.fields.delete')}

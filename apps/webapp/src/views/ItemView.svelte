@@ -71,6 +71,7 @@
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
   import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
   import { textLanguages } from '../lib/data/query.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -311,6 +312,11 @@
     childFailure = undefined;
     try {
       await items.setCompleted(child.id, !child.completion?.is_completed, crypto.randomUUID());
+      announcer.say(
+        t(child.completion?.is_completed ? 'app.entries.reopened_announced' : 'app.entries.completed_announced', {
+          title: child.title,
+        }),
+      );
     } catch (error) {
       childFailure = renderProblem(error as never, messages);
     }
@@ -348,6 +354,7 @@
       // Both the entry and its history come back on their own: the write invalidates `/items`, and
       // the engine matches by prefix — so `/items/{id}` and `/items/{id}/activity` are re-read
       // without either being asked for here. A refresh would be a second read of what is arriving.
+      announcer.say(t('app.entries.saved_announced'));
       isEditing = false;
     } catch (error) {
       const problem = error as { detailCode?: string };
@@ -395,7 +402,7 @@
              conflict is the ordinary case here, and nothing about the title is wrong when the
              entry moved underneath the reader. -->
         {#if writeFailure && !isTitleFailure}
-          <p class="failure">{writeFailure.message}</p>
+          <p class="failure" role="alert">{writeFailure.message}</p>
         {/if}
         <Inline gap="100">
           <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
@@ -466,7 +473,7 @@
           </div>
         {/if}
         {#if childFailure}
-          <p class="failure">{childFailure.message}</p>
+          <p class="failure" role="alert">{childFailure.message}</p>
         {/if}
       </Stack>
     {/if}
