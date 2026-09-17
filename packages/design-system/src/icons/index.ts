@@ -8,7 +8,7 @@
 // know which set an icon came from - which is exactly the thing this file exists to hide. Where a
 // mark moves from one to the other, nothing at a call site changes.
 
-import { BASE_ICONS } from './base.ts';
+import { BASE_ICONS, BASE_MIRRORED } from './base.ts';
 import { CUSTOM_ICONS } from './custom.ts';
 import type { IconNode } from './node.ts';
 
@@ -31,6 +31,14 @@ export const ICONS = { ...BASE_ICONS, ...CUSTOM_ICONS } as Record<string, readon
 export type IconName = keyof typeof BASE_ICONS | keyof typeof CUSTOM_ICONS;
 
 export const ICON_NAMES = Object.keys(ICONS).sort() as IconName[];
+
+/**
+ * The icons that turn round with the writing direction: the base set's arrows and chevrons, and
+ * the two marks that draw a flow - an automation runs from its trigger to its action, a
+ * dependency hangs off what it waits for - which reads the other way in Arabic. A clock, a
+ * check, a calendar and every noun stay as drawn (i18n-l10n.md §6 line 6, F5-10).
+ */
+export const MIRRORED: ReadonlySet<IconName> = new Set<IconName>([...BASE_MIRRORED, 'automation', 'dependency']);
 
 export { BASE_ICONS, CUSTOM_ICONS };
 export type { IconNode };

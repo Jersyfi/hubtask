@@ -145,7 +145,7 @@
 
   .dropped { color: var(--text-secondary); font-size: var(--fs-075); }
 
-  .dropped ul { margin: var(--sp-050) 0 0; padding-left: var(--sp-200); }
+  .dropped ul { margin: var(--sp-050) 0 0; padding-inline-start: var(--sp-200); }
 
   .failure { margin: 0; color: var(--text-danger); }
 </style>

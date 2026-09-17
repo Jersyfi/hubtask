@@ -121,8 +121,6 @@
 
   .mark { color: var(--text-subtle); }
 
-  :global([dir='rtl']) .twist { transform: scaleX(-1); }
-
   .title { overflow-wrap: anywhere; }
 
   /* Rule 3: a completed entry is not told apart by colour alone — the mark is filled and the words

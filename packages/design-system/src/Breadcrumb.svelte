@@ -100,15 +100,13 @@
     min-width: 0;
   }
 
-  /* `start`/`end` and never left/right: the separator points the way the text runs, and the icon
-     is mirrored by the document direction rather than by a second glyph. */
+  /* `start`/`end` and never left/right: the separator points the way the text runs, and the
+     chevron turns round with the direction by itself (`Icon`'s mirrored set, F5-10). */
   .separator {
     display: inline-flex;
     flex: none;
     color: var(--text-subtle);
   }
-
-  :global([dir='rtl']) .separator { transform: scaleX(-1); }
 
   .link,
   .current {

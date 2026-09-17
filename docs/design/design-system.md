@@ -115,7 +115,15 @@ fails at the typeface.
 Font files ship with the product, they are not loaded from Google Fonts. A self-hosted Hubtask
 must not contact a foreign domain on load.
 
-Alignment is `start`/`end` only, never `left`/`right` — anything else breaks RTL.
+Alignment is `start`/`end` only, never `left`/`right` — anything else breaks RTL. Since F5-10 that
+is a gate over every client tree, not a convention: `build/lint-direction.js` refuses a physical
+inline side — a `padding-left`, a bare `left:`, a `float: right`, a physical corner radius, a
+signed `translateX` — in every `.svelte` and `.css` file under `apps/` and `packages/`, and
+`conventions.test.js` runs its selftest before trusting it. A line that has to name a side carries
+`design-system-lint-ignore` with its reason. And an icon that points the way the text runs — an
+arrow, a chevron, the two marks that draw a flow — turns round with it by itself: `Icon` reads the
+mirrored set `build/icons.js` declares and flips the glyph under `:dir(rtl)`, so no call site has
+to know the direction.
 
 The scale is in `px` rather than `rem`, which is a decision and not an oversight: the steps are a
 type scale rather than a set of multiples, and a `rem` scale would move all eight of them the
