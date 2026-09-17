@@ -195,8 +195,44 @@ test('DUPLICATES is links and nothing to accept', () => {
   assert.equal(acceptCodeOf(shape), undefined);
 });
 
+test('a TEMPLATE is a named draft with its root type and its tree, parent before children (F6-10)', () => {
+  const shape = shapeOf(
+    suggestion({
+      kind: 'TEMPLATE',
+      payload: {
+        scope_type: 'COLLECTION',
+        name: 'Onboarding',
+        description: 'A new colleague\'s first week',
+        root_type: 'TASK',
+        nodes: [
+          { type: 'WORK_PACKAGE', title: 'Accounts', children: [{ type: 'ACTIVITY', title: 'Create the mailbox', notes: 'IT does this' }] },
+          { type: 'WORK_PACKAGE', title: 'Introductions' },
+        ],
+      },
+    }),
+    undefined,
+  );
+  assert.equal(shape.shape, 'template');
+  if (shape.shape !== 'template') return;
+  assert.equal(shape.name, 'Onboarding');
+  assert.equal(shape.description, 'A new colleague\'s first week');
+  assert.equal(shape.rootType, 'TASK');
+  assert.deepEqual(
+    shape.nodes.map((n) => [n.depth, n.type, n.title, n.notes]),
+    [
+      [0, 'WORK_PACKAGE', 'Accounts', undefined],
+      [1, 'ACTIVITY', 'Create the mailbox', 'IT does this'],
+      [0, 'WORK_PACKAGE', 'Introductions', undefined],
+    ],
+  );
+  assert.equal(headingCodeOf(shape), 'app.suggestions.kind_template');
+  assert.equal(acceptCodeOf(shape), 'app.suggestions.accept_template');
+  // A draft without a name is nothing CreateTemplate could make: unknown, not an empty heading.
+  assert.equal(shapeOf(suggestion({ kind: 'TEMPLATE', payload: { nodes: [] } }), undefined).shape, 'unknown');
+});
+
 test('a kind this version has never met is unknown rather than braces', () => {
-  const shape = shapeOf(suggestion({ kind: 'TEMPLATE' as never, payload: { nodes: [] } }), item());
+  const shape = shapeOf(suggestion({ kind: 'LATER_KIND' as never, payload: { nodes: [] } }), item());
   assert.equal(shape.shape, 'unknown');
   assert.equal(headingCodeOf(shape), 'app.suggestions.kind_unknown');
   assert.equal(acceptCodeOf(shape), undefined);
