@@ -24,6 +24,7 @@
   import {
     Button,
     Checkbox,
+    Dialog,
     EmptyState,
     ErrorState,
     Input,
@@ -49,6 +50,7 @@
   } from '../lib/data/preferences.ts';
   import { mfa } from '../lib/data/mfa.svelte.ts';
   import { consent } from '../lib/data/consent.svelte.ts';
+  import { devices } from '../lib/data/devices.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
@@ -71,6 +73,7 @@
   // The sessions are the account's own and take no parameter, so the read starts with the screen
   // rather than with an identifier arriving.
   $effect(() => untrack(() => sessions.open()));
+  $effect(() => untrack(() => devices.open()));
   // The grants sit beside the sessions because they are the same question asked about apps:
   // what is currently able to act as me, and how do I stop it.
   $effect(() => untrack(() => consent.openGrants()));
@@ -172,6 +175,23 @@
       await sessions.end(id);
       if (isCurrent) await session.signOut();
       else announcer.say(t('app.sessions.ended_announced'));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    }
+  }
+
+  /** The device a forget is being confirmed for, and the forgetting itself (F6-07). */
+  let forgetting = $state<string | undefined>(undefined);
+  const heldDevices = $derived(devices.state);
+
+  async function forgetDevice(): Promise<void> {
+    const id = forgetting;
+    forgetting = undefined;
+    if (!id) return;
+    failure = undefined;
+    try {
+      await devices.forget(id);
+      announcer.say(t('app.devices.forgotten_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
     }
@@ -395,6 +415,69 @@
         </div>
       {/if}
     </Stack>
+
+    <!-- The devices that hold a copy (F6-07): the sibling list of things that can be ended. A
+         forgotten device is blocked, not erased (N-03), and the row says so rather than going. -->
+    <Stack gap="150">
+      <h2 class="section">{t('app.devices.title')}</h2>
+      <p class="quiet">{t('app.devices.intro')}</p>
+
+      {#if heldDevices === undefined || heldDevices.status === 'loading' || heldDevices.status === 'idle'}
+        <div aria-busy="true"><Skeleton lines={2} /></div>
+      {:else if heldDevices.status === 'failed'}
+        <ErrorState
+          title={renderProblem(heldDevices.error, messages).message}
+          retryLabel={t('app.retry')}
+          onRetry={() => devices.open()}
+        />
+      {:else if devices.all.length === 0}
+        <p class="quiet">{t('app.devices.none')}</p>
+      {:else}
+        <ul class="rows">
+          {#each devices.all as device (device.id)}
+            <li>
+              <div class="row">
+                <div>
+                  <span class="category">
+                    {device.display_name || t('app.devices.unnamed')}
+                    {#if device.platform} · {device.platform}{/if}
+                    {#if devices.isThisDevice(device.id)} · {t('app.devices.this_device')}{/if}
+                    {#if device.blocked} · {t('app.devices.forgotten')}{/if}
+                  </span>
+                  <span class="meta">
+                    {#if device.last_seen_at}
+                      {t('app.devices.last_seen')} {when(device.last_seen_at)}
+                    {:else}
+                      {t('app.devices.never_seen')}
+                    {/if}
+                  </span>
+                </div>
+                {#if !device.blocked && !devices.isThisDevice(device.id)}
+                  <div class="switches">
+                    <Button tone="danger" size="sm" onclick={() => (forgetting = device.id)}>
+                      {t('app.devices.forget')}
+                    </Button>
+                  </div>
+                {/if}
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </Stack>
+
+    <Dialog
+      title={t('app.devices.confirm_title')}
+      isOpen={forgetting !== undefined}
+      dismissLabel={t('app.devices.cancel')}
+      onClose={() => (forgetting = undefined)}
+    >
+      {#snippet actions()}
+        <Button onclick={() => (forgetting = undefined)}>{t('app.devices.cancel')}</Button>
+        <Button tone="danger" onclick={() => void forgetDevice()}>{t('app.devices.confirm')}</Button>
+      {/snippet}
+      {t('app.devices.confirm_body')}
+    </Dialog>
 
     <!-- The two preferences that belong to the device rather than to the account (ADR-0043): the
          theme, and reduced motion beside it (F5-12, §10 row 2.3.3). Each applies at once and is

@@ -47,6 +47,12 @@
     onToggleExpand?: () => void;
     /** Labels, a badge, a menu. Not part of the row's own activation. */
     trailing?: Snippet;
+    /**
+     * A change this device made and the server has not yet confirmed (F6-06): the row carries
+     * the `pending` motion role beside a word, so it reads without motion too. Resolved text -
+     * "Waiting to be sent" - and absent for an entry the server has.
+     */
+    pendingLabel?: string;
   }
 
   const {
@@ -62,6 +68,7 @@
     onToggleComplete,
     onToggleExpand,
     trailing,
+    pendingLabel,
   }: Props = $props();
 
   /**
@@ -79,7 +86,7 @@
   const mark = $derived(MARKS[type] ?? 'circle-check');
 </script>
 
-<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined}>
+<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
   <ListRow {href} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
@@ -108,6 +115,10 @@
     {/snippet}
 
     <span class="title">{title}</span>
+    {#if pendingLabel !== undefined}
+      <!-- The change is on its way: the mark turns with the `pending` role, the word says why. -->
+      <span class="pending"><span class="pending-mark" aria-hidden="true"><Icon name="cloud-upload" size="sm" /></span>{pendingLabel}</span>
+    {/if}
   </ListRow>
 </div>
 
@@ -122,6 +133,34 @@
   .mark { color: var(--text-subtle); }
 
   .title { overflow-wrap: anywhere; }
+
+  /* A change waiting to be sent: the `pending` role on the mark - a continuous indicator with
+     no end - and the word beside it, because a pulse alone is a colour argument (rule 3) and is
+     stilled under reduced motion (rule 6). Opacity only. */
+  .pending {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    margin-inline-start: var(--sp-100);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
+
+  .pending-mark {
+    display: inline-flex;
+    animation: breathe var(--motion-pending-duration) var(--motion-pending-easing) infinite alternate;
+  }
+
+  @keyframes breathe {
+    from { opacity: 1; }
+    to { opacity: 0.4; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pending-mark { animation: none; }
+  }
+
+  :global([data-motion='reduced']) .pending-mark { animation: none; }
 
   /* Rule 3: a completed entry is not told apart by colour alone — the mark is filled and the words
      are struck, so it reads in greyscale. */
