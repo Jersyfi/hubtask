@@ -244,6 +244,7 @@
   "items.expand_not_supported": "This installation cannot include related entries in that response yet.",
   "items.parent_not_in_collection": "That entry is in another collection.",
   "items.not_found": "That entry does not exist.",
+  "items.id_taken": "An entry with that identifier already exists.",
   "items.collection_contradicts_parent": "That collection is not the one the chosen parent belongs to.",
   "items.before_item_not_in_level": "That entry is not in the list this one is being moved into.",
   "items.bucket_not_at_top_level": "Only entries directly in a collection sit on its board.",
