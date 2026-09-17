@@ -722,7 +722,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0010 | Multi-tenancy through a shared schema and RLS | accepted |
 | 0011 | i18n through message codes, no server-side display text | accepted |
 | 0012 | AI first through an MCP server and an AI port | accepted |
-| 0013 | The licence model (BSL 1.1 → Apache-2.0) | accepted |
+| 0013 | The licence model (BSL 1.1 → Apache-2.0) | superseded |
 | 0014 | One image, several roles | accepted |
 | 0015 | Security as an enforced baseline with CI gates | accepted |
 | 0016 | Self-diagnosis, controlled degradation, SLOs | accepted |
@@ -766,8 +766,9 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0054 | An embedding narrower than the index is padded, and a wider one is refused | accepted |
 | 0055 | The translation process: pull requests in a layout Weblate reads, no instance yet | accepted |
 | 0056 | `golang.org/x/text` and `golang.org/x/net/idna` as direct dependencies, confined to adapters | accepted |
-| 0057 | The SDKs: which packages, under which licence, extracted or not | proposed |
+| 0057 | The SDKs: which packages, under which licence, extracted or not | accepted |
 | 0058 | The connector packages: generated, dependency-free here, typed there | accepted |
+| 0059 | Licensing phases and Licensing Start | proposed |
 
 ---
 

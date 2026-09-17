@@ -1,6 +1,12 @@
 # ADR-0013 — BSL 1.1 with a conversion to Apache-2.0
 
-**Status:** accepted · **Date:** 2026-08-16 · **Supersedes:** the proposed draft of 2026-08-14
+**Status:** superseded · **Date:** 2026-08-16 · **Supersedes:** the proposed draft of 2026-08-14 ·
+**Superseded by:** [ADR-0059](./ADR-0059-licensing-phases-and-licensing-start.md) on 2026-09-17
+
+> The revisit before `1.0.0` that the last paragraph of *Consequences* asks for has happened: it is
+> ADR-0059. The context, the options and the reasoning below are kept as they were written; what
+> ADR-0059 replaces is the Additional Use Grant, the "all versions" parameter, and the freelancer
+> line.
 
 ## Context
 
