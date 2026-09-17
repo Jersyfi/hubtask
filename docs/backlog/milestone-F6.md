@@ -265,7 +265,7 @@ is recorded in a pull request)
 
 ## F6-03 — The replica, and the initial synchronisation **[L]**
 
-*Depends on: nothing. The task the offline chain stands on.*
+*Depends on: nothing. The task the offline chain stands on. Issue #738.*
 
 Decisions 3, 6, 8, 9 and 10. `packages/sync-engine` gains what its header has promised since F1,
 in this order:
@@ -329,7 +329,7 @@ in `milestone-0.8.5.md`; P-12 in `milestone-0.9.0.md`; `hubctl sync snapshot` in
 
 ## F6-04 — Reads answered by the replica **[L]**
 
-*Depends on: F6-03.*
+*Depends on: F6-03. Issue #739.*
 
 Decisions 3, 4, 7 and 10. `lib/data/replica.ts` gains `storeFor`: for `/containers` and
 `/containers/{id}` the tree and one node; for `/items` by `container_id`, `parent_id` and the
@@ -375,7 +375,7 @@ failure are)
 
 ## F6-05 — The queue, the clock, and `:push` **[L]**
 
-*Depends on: F6-04.*
+*Depends on: F6-04. Issue #740.*
 
 Decisions 3, 5, 6 and 10. `lib/data/replica.ts` gains `mutationFor`: `POST /items` becomes
 `ITEM_CREATE` with an `item_id` the client mints (§9.1 — the identity is final; the direct path
@@ -422,7 +422,7 @@ reference framer); `core/application/service/sync/` (the appliers, for the exact
 
 ## F6-06 — `SyncStatus` and `ConflictResolver` **[L]**
 
-*Depends on: F6-05.*
+*Depends on: F6-05. Issue #741.*
 
 The wave-3 row `design-system.md` §4 has carried since the first week — *offline operation,
 "concurrent changes are never lost"* — built. Two components, with stories:
@@ -460,7 +460,7 @@ typecheck test` green; `make gate-docs` green.
 
 ## F6-07 — The devices **[L]**
 
-*Depends on: F6-03.*
+*Depends on: F6-03. Issue #742.*
 
 `GET /sync/devices` and `DELETE /sync/devices/{deviceId}`, called by nothing under `apps/` today.
 The profile gains a *Devices* section: every device of the account — platform, name, last contact,
@@ -481,7 +481,7 @@ things that can be ended)
 
 ## F6-08 — The engine's conformance run **[L]**
 
-*Depends on: F6-05.*
+*Depends on: F6-05. Issue #743.*
 
 `1.0.0` prerequisite 17: `hubctl sync-conformance` passed by `packages/sync-engine` against a real
 instance. The runner N-13 built drives *the server* as two devices; what the criterion asks is the
@@ -513,7 +513,7 @@ before it was green; §9 and `ci-cd.md` name it; `make verify` green.
 
 ## F6-09 — Import: the wizard and the report **[L]**
 
-*Depends on: nothing.*
+*Depends on: nothing. Issue #744.*
 
 Decision 15. A hub's container screen gains *Import…* under `STRUCTURE`: a dialog in four steps
 that are one component. The kind, from the contract's `ImportKind` (`CSV`, `TRELLO`,
@@ -543,7 +543,7 @@ F5-12); `pnpm -r build lint typecheck test` green.
 
 ## F6-10 — Template generation **[L]**
 
-*Depends on: nothing.*
+*Depends on: nothing. Issue #745.*
 
 The last row of `ai-first.md` §2 reaches a screen. `TemplatesDialog` gains *Generate from a
 description…* when the manifest's `ai_suggestions` is on (F5's decision 4: absence is absence): a
@@ -569,7 +569,7 @@ closes it; `shapeOf`'s test covers `TEMPLATE`; the German catalogue carries the 
 
 ## F6-11 — The CalDAV address **[L]**
 
-*Depends on: nothing.*
+*Depends on: nothing. Issue #746.*
 
 P-06 serves every calendar feed as a `VTODO` calendar at
 `/caldav/calendars/<account>/<feed>/`, under HTTP Basic with a personal access token as the
@@ -591,7 +591,7 @@ was pointed at it)
 
 ## F6-12 — The account remembers its moments **[L]**
 
-*Depends on: nothing. The one core task, and the one F6-13 and F6-14 hang from.*
+*Depends on: nothing. The one core task, and the one F6-13 and F6-14 hang from. Issue #747.*
 
 Decision 11. `AccountPreferences` gains two optional fields, additive and specification first
 (ADR-0004): `celebrations` (`boolean`, absent means on — §7's default) and `onboarding_completed_at`
@@ -618,7 +618,7 @@ theme is not)
 
 ## F6-13 — The celebration kit **[L]**
 
-*Depends on: F6-12, F6-04.*
+*Depends on: F6-12, F6-04. Issue #748.*
 
 Decisions 12 and 13. Three pieces:
 
@@ -662,7 +662,7 @@ paragraph); `voice-and-tone.md`; `tokens.json` (`motion.celebration`, `duration.
 
 ## F6-14 — The onboarding tour **[L]**
 
-*Depends on: F6-13.*
+*Depends on: F6-13. Issue #749.*
 
 Decision 14. Two pieces:
 
@@ -698,7 +698,7 @@ ADR-0039 (overlay positioning), ADR-0044; `Dialog.svelte`, `Popover.svelte`, `la
 
 ## F6-15 — The coverage report, the walk, and the documents current **[L]**
 
-*Depends on: everything above.*
+*Depends on: everything above. Issue #750.*
 
 Decision 16, and the milestone's own acceptance. Three halves, in this order:
 
