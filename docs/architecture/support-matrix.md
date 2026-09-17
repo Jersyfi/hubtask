@@ -85,26 +85,23 @@ whatever browser the reader has. Which browsers that is, is
 
 | Engine | Versions | Status | Proven by |
 |---|---|---|---|
-| Chromium (Chrome, Edge) | current and previous major | `best effort` | — no browser job runs in CI |
-| Gecko (Firefox) | current and previous major | `best effort` | — no browser job runs in CI |
-| WebKit (Safari) | current and previous major | `best effort` | — no browser job runs in CI |
+| Chromium (Chrome, Edge) | current and previous major | `supported` | `engines` job in `ci.yml`: Playwright's Chromium at the pinned package version, the built bundle loaded and ADR-0044's feature table asserted (F6-02) |
+| Gecko (Firefox) | current and previous major | `supported` | `engines` job: Playwright's Firefox, the same assertions |
+| WebKit (Safari) | current and previous major | `supported` | `engines` job: Playwright's **WebKit build**, the same assertions. That is the engine and not Safari — a Linux build of WebKit, without Safari's shell, its settings or its release cadence — so what the job proves is that the client runs in the engine Safari is made of, at roughly Safari's current version |
 | Anything older | — | `unsupported` | — the client uses `<dialog>`, `inert` and `:has()`, and none of the three has a fallback |
 
-**Why `best effort` and not `supported`, when the scope is decided.** §1 defines `supported` as "a
-CI job runs the software on it", and there is no browser job of any kind — the client's gates are
-`build`, `lint`, `typecheck` and `node --test`. The row above says where a defect will be **fixed**;
-it does not claim anyone has **looked**. Turning it into `supported` needs a browser job, which is a
-separate decision ADR-0044 names and leaves open.
-
-That job has its driver: [ADR-0048](../adr/ADR-0048-browser-job-driver.md), accepted on
-2026-09-17, chooses Playwright. Until the job exists, these three rows stay `best effort` — a row
-may not be promoted by a decision to build something, only by the thing being built.
+**What `supported` stands on here.** §1 defines it as "a CI job runs the software on it", and the
+`engines` job is that job ([ADR-0048](../adr/ADR-0048-browser-job-driver.md), built in F6-02): the
+bundle that ships, served the way the binary serves it, loaded in the three engines, with each fact
+the client is built on asserted in each — not a journey. It gates through `CI required`, which is
+what makes a job count (`ci-cd.md` §3.2). The versions the job runs are the ones Playwright's
+pinned release bundles, which track the current major; the previous major is not run and stays on
+the row on the strength of the features being years old in every engine.
 
 What the client needs is small and unexotic — `<dialog>`, `inert`, `:has()`, `popover`, logical
-properties — and every engine in the row has all of it. That is what makes A affordable: nothing had
-to be built to reach it. One feature, CSS Anchor Positioning, carries a fallback this project owns
-([ADR-0039](../adr/ADR-0039-overlay-positioning.md)); under this row it is no longer reachable by a
-supported engine, and removing it waits for the browser job rather than happening on its own.
+properties, CSS Anchor Positioning — and the job asks each engine for each. The fallback
+[ADR-0039](../adr/ADR-0039-overlay-positioning.md) kept for the last of them is gone with this
+row: unreachable by any engine on it, and proven so by the job rather than assumed.
 
 ## 6. Maintaining this table
 
