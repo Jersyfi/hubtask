@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**229 use cases, 200 distinct action codes, 164 of them recorded on every call.** A use case that
+**231 use cases, 202 distinct action codes, 166 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -59,12 +59,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.summary_asked` | AiSummarize | `ai_suggestion` | NOTICE | Every time |
 | `ai.summary_asked` | AiSummarizeContainer | `ai_suggestion` | NOTICE | Every time |
 | `ai.summary_asked` | AiSummarizeThread | `ai_suggestion` | NOTICE | Every time |
+| `ai.template_asked` | AiGenerateTemplate | `ai_suggestion` | NOTICE | Every time |
 | `ai.translation_asked` | AiTranslate | `item` | NOTICE | Every time |
 
 ## Audit of the audit
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `audit.anchoring_configured` | ConfigureAuditAnchoring | `audit_anchoring` | NOTICE | Every time |
 | `audit.chain_broken` | VerifyAuditChain | `audit_trail` | CRITICAL | When refused |
 | `audit.exported` | ExportAuditTrail | `audit_trail` | WARNING | Every time |
 | `audit.read` | ListAuditEntries | `audit_trail` | INFO | When refused |

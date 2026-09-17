@@ -83,7 +83,10 @@ keep out. Marking the peer optional did not stop it either. So the workspace's m
 registry read is a *second* one, generated into `dist/package.json` by the build: the registry's
 unscoped `n8n-nodes-hubtask` name, the `n8n` block naming the node and credential files, and
 `n8n-workflow` as the peer. What is published is `dist/`; what the workspace installs is the
-api-client link. The same shape applies to the Zapier app (P-05).
+api-client link. The Zapier app (P-05) has the same shape with one difference the platform
+imposes: the CLI requires `zapier-platform-core` as a *dependency* at the exact version it
+pins, so the generated `dist/package.json` names it as one — and the workspace's manifest still
+names nothing.
 
 The description is generated whole — a resource per tag, an operation per identifier with its
 routing, a property per path parameter, a field per body property with `send: body`, the

@@ -16,6 +16,7 @@ import (
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 // AiTranslateName is the catalogue name (domain-model.md §5).
@@ -60,7 +61,11 @@ type AiTranslate struct {
 	Providers AiProviders
 	Prompts   aiprovider.Prompts
 	Audit     audit.Sink
-	Clock     clock.Clock
+	// UnitOfWork opens the transaction the audit entry is written in. The asking use cases
+	// record theirs inside one; this one recorded it outside and met
+	// `postgres.no_transaction_in_context` the first time a person asked (#703).
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
 	// Timeout bounds the provider call. Zero takes the default above.
 	Timeout time.Duration
 }
@@ -135,15 +140,21 @@ func (h AiTranslate) Execute(
 
 	// Recorded before the call rather than after it, for the reason the asking use cases record
 	// theirs: what is auditable is that content was sent, and a call that timed out sent it.
-	if err := h.Audit.Append(ctx, audit.Entry{
-		TenantID: actor.TenantID, OccurredAt: h.Clock.Now(),
-		Action: TranslationAskedAction, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityNotice,
-		ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
-		TargetType: itemTarget, TargetID: item.ID,
-		Changes: audit.Changes(
-			audit.Change{Field: "target_locale", Classification: audit.Open, To: target},
-		),
-	}); err != nil {
+	if h.UnitOfWork == nil {
+		return Translation{}, shared.ErrInternal.WithDetail("rest.use_case_not_wired")
+	}
+	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return h.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: h.Clock.Now(),
+			Action: TranslationAskedAction, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityNotice,
+			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
+			TargetType: itemTarget, TargetID: item.ID,
+			Changes: audit.Changes(
+				audit.Change{Field: "target_locale", Classification: audit.Open, To: target},
+			),
+		})
+	})
+	if err != nil {
 		return Translation{}, err
 	}
 

@@ -70,6 +70,9 @@ type Result struct {
 	// an order a restore can apply - a parent before its children.
 	Records map[string][]archive.Record
 	Refused []domain.Refusal
+	// Unmapped counts what the source carried and the product has no place for - a Trello
+	// member's assignment - by name, so that the report can say what was lost.
+	Unmapped map[string]int
 }
 
 // Converter turns one kind of file into records.

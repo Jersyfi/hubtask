@@ -25,6 +25,7 @@ const (
 	aiSummarizeThreadUseCase    = "AiSummarizeThread"
 	aiSummarizeContainerUseCase = "AiSummarizeContainer"
 	aiTranslateUseCase          = "AiTranslate"
+	aiGenerateTemplateUseCase   = "AiGenerateTemplate"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -157,6 +158,33 @@ func (c *RestController) SuggestDecomposition(
 	if _, err := c.UseCases.Invoke(
 		r.Context(), suggestDecompositionUseCase, actorOf(r),
 		usecase.Input{"item_id": itemID.String()},
+	); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// AiGenerateTemplate answers POST /templates:generate (P-11).
+//
+// 202 and no body, for the decomposition's reason: the provider has not been asked yet. The
+// description travels as the use case's input and nothing else is read from the body.
+func (c *RestController) AiGenerateTemplate(
+	w http.ResponseWriter, r *http.Request, _ openapi.AiGenerateTemplateParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.TemplateGeneration
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if _, err := c.UseCases.Invoke(
+		r.Context(), aiGenerateTemplateUseCase, actorOf(r),
+		usecase.Input{"collection_id": body.CollectionId.String(), "description": body.Description},
 	); err != nil {
 		WriteProblem(w, err, requestID)
 		return

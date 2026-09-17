@@ -142,8 +142,9 @@ hubtask/
 ├── packages/                       # what the clients share (ADR-0027), and the connectors
 │   ├── design-system/              # tokens/tokens.json + the CSS layer (ADR-0029)
 │   ├── api-client/                 # generated from api/openapi.yaml; generated output only
-│   └── n8n-nodes-hubtask/          # the n8n community node, generated from the document into
-│                                   # dist/ with the manifest that would be published (ADR-0058)
+│   ├── n8n-nodes-hubtask/          # the n8n community node, generated from the document into
+│   │                               # dist/ with the manifest that would be published (ADR-0058)
+│   └── zapier-app/                 # the Zapier app, generated the same way (ADR-0058)
 ├── pnpm-workspace.yaml             # apps/* and packages/*
 ├── package.json                    # workspace root: private, scripts and packageManager only
 ├── .nvmrc
@@ -207,7 +208,7 @@ apps/webapp  → packages/design-system, packages/sync-engine
 apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
-             n8n-nodes-hubtask → api-client (the document, at build time; ADR-0058)
+             n8n-nodes-hubtask, zapier-app → api-client (the document, at build time; ADR-0058)
 ```
 
 `apps/webapp` reaches the contract *through* the engine rather than beside it: `sync-engine`
