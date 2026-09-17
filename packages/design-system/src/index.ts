@@ -112,16 +112,7 @@ export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from 
 
 export type { Align, Justify, Space } from './space.ts';
 
-export {
-  anchorTo,
-  logicalRect,
-  positionArea,
-  resolve,
-  supportsAnchor,
-  type Alignment,
-  type Placement,
-  type Side,
-} from './positioning.ts';
+export { anchorTo, positionArea, raiseToTopLayer, type Alignment, type Placement, type Side } from './anchor.ts';
 
 export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 

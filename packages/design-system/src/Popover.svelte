@@ -16,7 +16,7 @@
 
   import { focusReturn, focusables } from './focus.ts';
   import { openOverlay } from './overlay.ts';
-  import type { Placement } from './positioning.ts';
+  import type { Placement } from './anchor.ts';
 
   interface Props {
     /** What the surface is called, for the reader who arrives on it without seeing the trigger. */

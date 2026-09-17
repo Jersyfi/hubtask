@@ -26,7 +26,7 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   wave 0 is the worked example.
 * **No `z-index` written at a call site.** It comes from `primitive.layer` in `tokens.json`, and
   what `Escape` reaches comes from `src/layers.ts` — one register, not one per overlay. Where an
-  overlay is *drawn* comes from `src/positioning.ts`
+  overlay is *drawn* comes from `src/anchor.ts`
   ([ADR-0039](../../docs/adr/ADR-0039-overlay-positioning.md)): no component measures an anchor
   itself, and neither path writes an inline style, because the CSP refuses one.
 * **No component without a story.** A `<Name>.svelte` in `src/` needs a `<Name>.stories.ts` beside
