@@ -614,6 +614,9 @@ func (h DuplicateWorkItem) copyOf(
 	// recurring task gives somebody a task like it rather than a second template. The
 	// materialisation is the one caller that says otherwise, for the root it creates (D-05).
 	copied.RecurrenceRuleID, copied.RecurrenceSourceID = noID, noID
+	// Nor a calendar address: the UID is the client's name for the one entry it made, and the
+	// workspace holds each UID once (issue #721). The copy statement does not carry the column.
+	copied.CalendarUID = ""
 
 	switch {
 	case isRoot:

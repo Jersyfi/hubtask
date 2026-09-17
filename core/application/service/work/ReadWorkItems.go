@@ -40,6 +40,11 @@ type GetWorkItem struct {
 // GetWorkItemQuery is the input, typed.
 type GetWorkItemQuery struct {
 	ItemID shared.ID
+	// CalendarUID names the entry by the address a calendar client knows it by instead of by
+	// its identifier (P-07, issue #721) - the tree's question when a PUT arrives at an address
+	// the view does not answer. Read when ItemID is empty; the permission is decided the same
+	// way, because the entry found is the same entry.
+	CalendarUID string
 	// ExpandLabels asks for the labels the entry carries.
 	//
 	// Asked for rather than always included, which is what `expand` is for (api-guidelines.md §4):
@@ -64,7 +69,15 @@ func (h GetWorkItem) Execute(
 	)
 
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		found, err := h.Items.Find(ctx, query.ItemID)
+		var (
+			found domain.WorkItem
+			err   error
+		)
+		if query.ItemID.IsZero() && query.CalendarUID != "" {
+			found, err = h.Items.FindByCalendarUID(ctx, query.CalendarUID)
+		} else {
+			found, err = h.Items.Find(ctx, query.ItemID)
+		}
 		if err != nil {
 			return err
 		}

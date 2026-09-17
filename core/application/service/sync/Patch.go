@@ -49,7 +49,7 @@ var (
 		"id": true, "type": true, work.FieldCollectionID: true, "path": true, "depth": true,
 		"version": true, "updated_at": true, "created_at": true, "created_by": true,
 		"recurrence_rule_id": true, "recurrence_source_id": true, "origin_jumble_id": true,
-		"retention": true, "archived_at": true, "deleted_at": true, "trash_batch_id": true,
+		work.FieldCalendarUID: true, "retention": true, "archived_at": true, "deleted_at": true, "trash_batch_id": true,
 		"search_document": true, "search_configuration": true,
 	}
 )

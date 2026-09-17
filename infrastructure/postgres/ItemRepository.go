@@ -27,6 +27,10 @@ import (
 // identity.
 const workItemPrimaryKey = "work_item_pkey"
 
+// workItemCalendarUIDIndex is the partial unique index a calendar UID the workspace already holds
+// breaks (migration 0092, issue #721): the other taken identity, one a calendar client chose.
+const workItemCalendarUIDIndex = "wi_calendar_uid_uq"
+
 // ItemRepository stores tasks, work packages and activities - one table for all three, because
 // they are one aggregate (ADR-0006).
 //
@@ -67,6 +71,28 @@ func (r ItemRepository) Find(ctx context.Context, id shared.ID) (work.WorkItem, 
 			WithCause(fmt.Errorf("reading the work item: %w", err))
 	}
 	return itemFrom(row)
+}
+
+// FindByCalendarUID returns the item a calendar client's UID names (P-07, issue #721).
+//
+// Not found is the whole of what a miss says, exactly as in Find: the partial unique index is
+// per tenant and the transaction's tenant is the only one the statement can see, so an address
+// another workspace's client chose is one this workspace does not hold.
+func (r ItemRepository) FindByCalendarUID(ctx context.Context, uid string) (work.WorkItem, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
+	row, err := queries.FindWorkItemByCalendarUID(ctx, uid)
+	if err != nil {
+		if IsNoRows(err) {
+			return work.WorkItem{}, shared.ErrNotFound.WithDetail("items.not_found")
+		}
+		return work.WorkItem{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the work item by its calendar UID: %w", err))
+	}
+	return itemFrom(sqlc.FindWorkItemRow(row))
 }
 
 // List returns one page of one level of one collection, in the items' manual order.
@@ -836,15 +862,25 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		OrderKey:        item.OrderKey,
 		StartAt:         optionalTimestamp(item.StartAt),
 		ContentLanguage: optionalText(item.ContentLanguage),
+		CalendarUid:     optionalText(item.CalendarUID),
 		CreatedBy:       createdBy,
 		CreatedAt:       timestampOf(item.CreatedAt),
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == workItemPrimaryKey {
-			return shared.ErrConflict.
-				WithDetail("items.id_taken").
-				WithFields(shared.FieldError{Path: "/id", Code: "items.id_taken"})
+		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+			switch pgErr.ConstraintName {
+			case workItemPrimaryKey:
+				return shared.ErrConflict.
+					WithDetail("items.id_taken").
+					WithFields(shared.FieldError{Path: "/id", Code: "items.id_taken"})
+			case workItemCalendarUIDIndex:
+				// The same answer for the same reason: a calendar client whose UID the
+				// workspace already holds has an entry to look up, not an error to retry.
+				return shared.ErrConflict.
+					WithDetail("items.calendar_uid_taken").
+					WithFields(shared.FieldError{Path: "/calendar_uid", Code: "items.calendar_uid_taken"})
+			}
 		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -1139,6 +1175,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		Cover:              cover,
 		CustomFields:       customFields,
 		ContentLanguage:    stringFrom(row.ContentLanguage),
+		CalendarUID:        stringFrom(row.CalendarUid),
 		RecurrenceRuleID:   recurrenceRuleID,
 		RecurrenceSourceID: recurrenceSourceID,
 		OriginJumbleID:     originJumbleID,

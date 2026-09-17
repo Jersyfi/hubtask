@@ -67,6 +67,9 @@ type itemDouble struct{}
 func (itemDouble) Find(context.Context, shared.ID) (work.WorkItem, error) {
 	return work.WorkItem{}, shared.ErrNotFound
 }
+func (itemDouble) FindByCalendarUID(context.Context, string) (work.WorkItem, error) {
+	return work.WorkItem{}, shared.ErrNotFound
+}
 func (itemDouble) List(context.Context, ItemQuery) (ItemPage, error) { return ItemPage{}, nil }
 func (itemDouble) ChildCompletion(context.Context, shared.ID) (work.ChildCompletion, error) {
 	return work.ChildCompletion{}, nil

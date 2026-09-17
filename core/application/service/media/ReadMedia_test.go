@@ -407,6 +407,10 @@ func (i *workItems) Find(_ context.Context, id shared.ID) (work.WorkItem, error)
 	return item, nil
 }
 
+func (i *workItems) FindByCalendarUID(context.Context, string) (work.WorkItem, error) {
+	return work.WorkItem{}, shared.ErrNotFound
+}
+
 func (i *workItems) List(context.Context, workrepo.ItemQuery) (workrepo.ItemPage, error) {
 	return workrepo.ItemPage{}, nil
 }
