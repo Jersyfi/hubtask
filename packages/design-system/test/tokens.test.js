@@ -95,6 +95,25 @@ test('every motion role names both a duration and an easing', () => {
   }
 });
 
+// §7's guardrails as tokens (F6-13): a duration per tier, each longer than the one before and
+// none as long as a breath, and the two limits of the slot as dimensions.
+test('the celebration role carries a duration per tier within its guardrails, and the two limits of the slot', () => {
+  const role = source.motion.celebration;
+  const ms = (value) => Number(String(value).replace(/ms$/, ''));
+  const tier1 = ms(source.primitive.duration.celebrate.$value);
+  const tier2 = ms(role.tier2.duration.$value);
+  const tier3 = ms(role.tier3.duration.$value);
+  assert.ok(tier1 < tier2 && tier2 < tier3, `the tiers must lengthen: ${tier1} < ${tier2} < ${tier3}`);
+  assert.ok(tier3 <= 1500, `tier 3 is ${tier3}ms; a celebration is short (§7)`);
+  assert.equal(role.area.$type, 'dimension');
+  assert.equal(role.travel.$type, 'dimension');
+  assert.ok(role.tier2.easing?.$value && role.tier3.easing?.$value, 'each tier names its easing');
+  const css = read(packageRoot, 'dist', 'tokens.css');
+  for (const name of ['tier2-duration', 'tier3-duration', 'area', 'travel']) {
+    assert.match(css, new RegExp(`--motion-celebration-${name}:`), `the CSS declares --motion-celebration-${name}`);
+  }
+});
+
 // SC 2.5.8 asks for 24x24 CSS px, and `compact` sits exactly on it. A step below would be a
 // conformance failure rather than a preference, so it fails here rather than in an audit.
 test('no density mode puts a control below the minimum target size', () => {
