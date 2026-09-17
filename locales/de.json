@@ -1919,7 +1919,6 @@
   "app.profile.category_RETENTION": "Etwas, das ich halte, wird bald entfernt",
   "app.nav.profile": "Deine Einstellungen",
   "app.profile.no_locales": "Dieser Arbeitsbereich hat nicht gesagt, welche Sprachen er anbietet, darum gibt es nichts zu wählen. Er spricht die der Installation.",
-  "app.profile.week_start_fixed": "Ist ein erster Tag einmal gewählt, kann diese Version ihn nicht auf den des Arbeitsbereichs zurücksetzen. Wähle stattdessen einen anderen Tag.",
   "app.search.widened": "In deiner Sprache hat nichts gepasst, darum wurden auch die anderen Sprachen durchsucht, in denen dieser Arbeitsbereich schreibt.",
   "app.search.found_under": "Gefunden unter {language}",
   "app.search.widened_none": "Nichts passt auf diese Wörter, in keiner Sprache, in der dieser Arbeitsbereich schreibt.",
