@@ -22,6 +22,7 @@
     Inline,
     SearchField,
     Select,
+    Switch,
     Skeleton,
     Stack,
     TaskRow,
@@ -33,7 +34,8 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
   import { textLanguages } from '../lib/data/query.ts';
-  import { search } from '../lib/data/search.svelte.ts';
+  import { health } from '../lib/data/health.svelte.ts';
+  import { search, type SearchMode } from '../lib/data/search.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -42,6 +44,17 @@
   let language = $state('');
 
   const languages = $derived(textLanguages(manifest.value));
+
+  // Words and meaning, or words only (F5-04). The switch exists only where the manifest says
+  // meaning is available here: `semantic_search` is answered for the caller's workspace, and an
+  // installation without it has a search by words that never mentioned the other (decision 4).
+  // Where the feature is *degraded* - a provider configured and unreachable - the switch stays and
+  // is gated with the reason `/meta/health` names, which is decision 4's one exception: a feature
+  // the reader was shown and is now refused says why.
+  const hasMeaning = $derived(manifest.value?.features?.semantic_search === true);
+  const meaningDegraded = $derived(health.degradations.find((d) => d.feature === 'semantic_search'));
+  let byMeaning = $state(true);
+  const mode = $derived<SearchMode | undefined>(hasMeaning ? (byMeaning ? 'AUTO' : 'LEXICAL') : undefined);
 
   /**
    * The search is run a beat after the typing stops, not on every keystroke.
@@ -61,6 +74,7 @@
   const asked = $derived({
     q: term,
     language: language || undefined,
+    mode,
     readerLocale: actor.locale ?? messages.locale,
     textLanguages: languages,
     // What the browser says this reader reads. It goes through the platform seam for the reason
@@ -133,6 +147,13 @@
         options={languages.map((tag) => ({ value: tag, label: tag }))}
       />
     {/if}
+    {#if hasMeaning}
+      <Switch
+        label={t('app.search.by_meaning')}
+        bind:checked={byMeaning}
+        disabledReason={meaningDegraded ? t('app.search.meaning_degraded', { reason: t(meaningDegraded.reasonCode) }) : undefined}
+      />
+    {/if}
   </Inline>
 
   <p class="hint">{t('app.search.hint')}</p>
@@ -177,6 +198,11 @@
     </Stack>
   {:else}
     <Stack gap="050">
+      {#if hasMeaning}
+        <!-- Which ranking answered. The page carries no `ranking` of its own (the contract answers
+             a WorkItemPage), so this says what was asked: words and meaning, or words only. -->
+        <p class="hint">{t(mode === 'LEXICAL' ? 'app.search.ranked_by_words' : 'app.search.ranked_by_meaning')}</p>
+      {/if}
       {#if search.didWiden}
         <!-- Said once, above the results, rather than inferred from the labels: the reader asked a
              question that found nothing and got an answer to a wider one, and that is worth a

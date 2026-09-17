@@ -40,8 +40,17 @@ const MAX_PAGES = 10;
 
 const PAGE_SIZE = 50;
 
+/** How much of the search to use (J-10): words and, where the installation has it, meaning; or words only. */
+export type SearchMode = 'AUTO' | 'LEXICAL';
+
 export interface SearchAsked {
   readonly q: string;
+  /**
+   * `AUTO` by default, which is the contract's own. Sent only when the reader chose, so that an
+   * installation without meaning is never asked for a mode it could not promise - there is
+   * deliberately no `SEMANTIC`.
+   */
+  readonly mode?: SearchMode;
   /** BCP-47, from `text_languages`. Empty means the caller's own locale, which is the default. */
   readonly language?: string;
   /** A hub or a collection to look in. Omitted searches everything the caller may see. */
@@ -277,6 +286,7 @@ class Search {
           // question. Neither ever reaches a URL — this is a `POST` because a search term is
           // content and a query string travels through access logs (security.md §9).
           ...(language ?? asked.language ? { language: language ?? asked.language } : {}),
+          ...(asked.mode ? { mode: asked.mode } : {}),
           ...(asked.containerId ? { container_id: asked.containerId } : {}),
           page: { size: PAGE_SIZE, ...(cursor ? { cursor } : {}) },
         },

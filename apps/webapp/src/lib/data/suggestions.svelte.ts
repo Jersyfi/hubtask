@@ -30,7 +30,7 @@ export type { SuggestionPage };
 
 /** What the strip shows while an ask is being followed, or after it stopped. */
 export interface Asking {
-  readonly operation: Operation | 'jumble';
+  readonly operation: Operation | 'jumble' | 'container';
   readonly askedAt: string;
   /** `following` while the listing is re-read; the other three are how it ended. */
   readonly outcome: 'following' | 'arrived' | 'gave_up' | 'nothing_near';
@@ -122,6 +122,34 @@ class Suggestions {
   }
 
   /**
+   * Asks how a collection stands (K-05) - what is open, what moved, what is overdue - and follows
+   * the listing. Nothing accepts the answer: a collection has nowhere to put a status summary, so
+   * it is read and dismissed.
+   */
+  async askContainer(containerId: string): Promise<void> {
+    const askedAt = new Date().toISOString();
+    this.#put(containerId, { operation: 'container', askedAt, outcome: 'following' });
+    await engine.mutate<void>('POST', `/containers/${containerId}:summarize`, undefined, {
+      idempotencyKey: crypto.randomUUID(),
+      timeoutMs: ASK_TIMEOUT_MS,
+      invalidates: [],
+    });
+    const token = Symbol('container');
+    this.#follows.set(containerId, token);
+    const outcome = await followArrival(
+      engine,
+      containerId,
+      askedAt,
+      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      () => this.#follows.get(containerId) === token,
+      'CONTAINER',
+    );
+    if (outcome === 'left') return;
+    this.#follows.delete(containerId);
+    this.#put(containerId, { operation: 'container', askedAt, outcome });
+  }
+
+  /**
    * Accepts, as the person's own write. The overrides are what they changed before accepting,
    * laid over the proposal by the server (`SuggestionAcceptance`) - for a jumble entry the
    * destination collection, which a model never chooses.
@@ -147,7 +175,8 @@ class Suggestions {
 
   /** Dismisses. A state, not a deletion; the listing narrows to what still stands. */
   async dismiss(suggestion: Suggestion): Promise<Suggestion> {
-    const target = suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : 'WORK_ITEM';
+    const target: Target =
+      suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : suggestion.target_type === 'CONTAINER' ? 'CONTAINER' : 'WORK_ITEM';
     return engine.mutate<Suggestion>('POST', `/suggestions/${suggestion.id}:dismiss`, {}, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: touches(suggestion.target_id, target),
