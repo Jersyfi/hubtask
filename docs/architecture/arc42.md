@@ -136,7 +136,7 @@ automated proof that breaks the build ([security.md](./security.md) §13,
 | ID | Constraint |
 |---|---|
 | C-10 | The source is public; self-hosting by private individuals is unrestricted and free of charge |
-| C-11 | Commercial production use requires a commercial licence; the licence model is decided and recorded in [ADR-0013](../adr/ADR-0013-licensing.md) and [licensing-editions.md](./licensing-editions.md) |
+| C-11 | The licence applies per version and is never tightened for a published version. Until Licensing Start any use is free, commercial production use included, with the provider case as the one reservation; from the first release after Licensing Start, production use by organisations of five persons or more requires a commercial licence. Decided and recorded in [ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md) and [licensing-editions.md](./licensing-editions.md); until Licensing Start the project makes no maintenance commitment |
 | C-12 | GDPR conformance from the ground up (Art. 25): access, export, rectification, erasure, restriction, processing on behalf, data residency — the concept is in [data-protection.md](./data-protection.md), the record of processing activities in [../privacy/data-catalog.md](../privacy/data-catalog.md) |
 | C-13 | No feature crippling of the self-hosted variant → monetisation through licence law plus optional add-ons, not through removed core features |
 | C-14 | The frontend stack and feature distribution are decided ([ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](../adr/ADR-0033-shared-client-architecture.md)); the original core of this constraint stands unchanged: the backend makes no assumptions about clients, and the API stays client-blind |
@@ -244,7 +244,7 @@ graph LR
 | Multi-tenancy | Shared schema + RLS, shard routing later | [ADR-0010](../adr/ADR-0010-multi-tenancy.md) |
 | i18n | Server-side only message codes; ICU MessageFormat, `golang.org/x/text`, CLDR | [ADR-0011](../adr/ADR-0011-i18n-message-codes.md) |
 | AI access | An MCP server as a presentation adapter, the AI provider behind a port | [ADR-0012](../adr/ADR-0012-ai-first-mcp.md) |
-| Licence | BSL 1.1 with an additional use grant, change licence Apache-2.0 | [ADR-0013](../adr/ADR-0013-licensing.md) |
+| Licence | BSL 1.1 per version with an additional use grant that changes at Licensing Start, change licence Apache-2.0; the SDKs, the contract and the n8n package Apache-2.0 | [ADR-0059](../adr/ADR-0059-licensing-phases-and-licensing-start.md), [ADR-0013](../adr/ADR-0013-licensing.md) |
 
 ---
 
@@ -839,7 +839,7 @@ Quality
 | ID | Risk / debt | Impact | Countermeasure |
 |---|---|---|---|
 | R-01 | The generalised `WorkItem` becomes a "god object" | Hard to maintain, unclear invariants | Capability profiles plus type-specific domain policies, architecture tests against field sprawl, ADR-0006 reviewed regularly |
-| R-02 | The licence model (BSL) deters community adoption or inclusion in distributions | Less reach | A short Change Date to Apache-2.0 (three years), transparency about the model not being OSI open source, no-cost commercial licences for non-profit and educational use; the alternative AGPL-3.0 + CLA is documented in ADR-0013 |
+| R-02 | The licence model (BSL) deters community adoption or inclusion in distributions | Less reach | A short Change Date to Apache-2.0 (three years), transparency about the model not being OSI open source, any use free until Licensing Start and a grant that stays free for non-profits, education and organisations under five persons after it (ADR-0059); the alternative AGPL-3.0 + CLA is documented in ADR-0013 |
 | R-03 | PostgreSQL as the queue/bus hits limits under high load | Latency, vacuum pressure | The adapter boundary exists → the NATS JetStream adapter can be enabled; load test from milestone 0.6 |
 | R-04 | Frontend requirements later contradict the generic API | Rework on the API | The query DSL plus the capability manifest are deliberately UI-agnostic; an early prototype (a reference client) against the API |
 | R-05 | RLS becomes ineffective through faulty setting of the tenant context | Data leaks | Central transaction middleware, a test of the connection pool boundaries, a role without `BYPASSRLS`, negative tests in CI |

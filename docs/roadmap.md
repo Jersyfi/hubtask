@@ -321,7 +321,7 @@ Prerequisites for `1.0.0`:
 4. Load test results against the target figures published.
 5. A security review including an external pentest or code audit of the tenant boundary and the webhook/SSRF paths (open point S-1); the threat model T-01…T-20 complete with test evidence; every gate SG-1…SG-12 permanently green.
 6. The upgrade path from `0.x` documented and tested.
-7. Trademark registration for the name and logo completed (the licence itself is settled, [ADR-0013](./adr/ADR-0013-licensing.md)).
+7. ~~Trademark registration for the name and logo completed~~ — moved to the Licensing Start horizon below; the licence itself is settled ([ADR-0059](./adr/ADR-0059-licensing-phases-and-licensing-start.md)), and `1.0.0` ships under its interim grant without waiting for a registration.
 8. Operating documentation complete: backup, restore (with a logged drill), monitoring, the alert catalogue with a runbook per alert, an SLO report over at least 30 days, resilience tests RT-1…RT-12 green, `hubtask_panics_recovered_total` at 0 over the period.
 9. Reference deployments (Compose and Helm) tested reproducibly.
 10. The data catalogue `docs/privacy/data-catalog.md` and the DPA template in place (open point S-3).
@@ -336,6 +336,31 @@ Prerequisites for `1.0.0`:
 19. The clients distributed: signed installers for Windows, macOS and Linux, live store listings for iOS and Android, and one updater run exercised end to end from a released version to its successor.
 20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
 21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
+
+---
+
+## The Licensing Start horizon — not a version
+
+[ADR-0059](./adr/ADR-0059-licensing-phases-and-licensing-start.md) separates the licence from the
+version number: until **Licensing Start** — a date the owner announces at least sixty days ahead —
+every release carries the interim grant, any use is free, and nothing about maintenance or
+continuation is promised. `1.0.0` ships in that phase. Everything commercial therefore leaves the
+version-bound milestones and sits here, on a horizon with no version and no issue:
+
+| Item | Owner | Where it is written down |
+|---|---|---|
+| Legal review of the interim grant and of the draft commercial grant | The owner | [licensing-editions.md](./architecture/licensing-editions.md) §8 |
+| The commercial contract: German law, CISG excluded, a liability clause that holds, English binding with a German translation | The owner | §8 |
+| Pricing per organisation size and per major; the fairness rules costed; no price in the repository | The owner | §5, §8 |
+| Payment handling and VAT — reverse charge, OSS, possibly a merchant of record | The owner | §8 |
+| CRA manufacturer processes: ENISA reporting, a disclosure policy, a declared support period per licensed major, the SBOM | The owner | §8, [data-protection.md](./architecture/data-protection.md) §7 |
+| Trademark registration at the EUIPO | The owner | §8 (was `1.0.0` prerequisite 7) |
+| Sponsorship tiers with no consideration in return, for as long as nothing is sold | The owner | §8 |
+| The licence key, metering and billing code; the hosted edition's billing | The project, **after** Licensing Start is announced | licensing-editions.md §10; the "not ready" row below |
+
+None of these is a task in `docs/backlog/`, and none blocks a release. When Licensing Start is
+announced, the first three become the content of the release that follows it, and the last row
+becomes a milestone.
 
 ---
 
@@ -518,9 +543,10 @@ applies to it before it applies to anything else.
 * positioning and messaging: what the site claims the product is, and for whom;
 * the page structure and how much of the roadmap is shown in public;
 * visual direction beyond the tokens, and the wordmark F1 produces;
-* what may be promised about dates, editions and price
-  ([licensing-editions.md](./architecture/licensing-editions.md) describes the model; what is
-  advertised from it is a separate decision);
+* what may be promised about dates, editions and price — settled by
+  [ADR-0059](./adr/ADR-0059-licensing-phases-and-licensing-start.md): the intended model may be
+  described, no price and no maintenance commitment before Licensing Start
+  ([licensing-editions.md](./architecture/licensing-editions.md) §5, §6);
 * whether there is a waiting list, a newsletter or an early-access signup — each collects personal
   data and therefore needs a data-catalogue entry with a legal basis and a deletion path
   ([data-protection.md](./architecture/data-protection.md)), and consent for anything
@@ -584,4 +610,4 @@ there is a first implementation to describe. What was settled in preparation and
 | Backup and restore | The target abstraction, archive format, schedules, retention, and restore modes are decided ([backup-restore.md](./architecture/backup-restore.md)) |
 | Offline synchronisation | The protocol, conflict handling, and data model prerequisites are decided; the client requirements are settled ([offline-sync.md](./architecture/offline-sync.md)) |
 | Observability and resilience | The health model, metric and alert catalogue, resilience patterns, and the test series RT-1…RT-12 are decided ([observability-reliability.md](./architecture/observability-reliability.md)) |
-| **Not ready** | The concrete billing model, SAML/SCIM details, master key management in provider operation (S-2), and the capacity model from real load data (O-2). The frontend stack is decided (ADR-0030…ADR-0033); its visual design beyond the design system emerges with the component layer |
+| **Not ready** | The concrete billing model — deliberately, until Licensing Start is announced (the horizon above) — SAML/SCIM details, master key management in provider operation (S-2), and the capacity model from real load data (O-2). The frontend stack is decided (ADR-0030…ADR-0033); its visual design beyond the design system emerges with the component layer |

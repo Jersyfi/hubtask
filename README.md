@@ -199,24 +199,38 @@ Which platforms the binary is supported on is in
 
 ## Licence
 
-Hubtask is published under the **Business Source License 1.1**. Each version converts to
-**Apache-2.0** three years after it is first published.
+Hubtask is published under the **Business Source License 1.1**, separately for each version. Each
+version converts to **Apache-2.0** three years after it is first published, and the terms a version
+is published under are never tightened afterwards.
 
-**Free, with the complete feature set, for non-commercial use** — private individuals,
-households, non-profits, teaching, research, and evaluation or development by anyone. Self-hosting
-is unrestricted: there is no feature gate, no licence key, no telemetry.
+**Until Licensing Start, any use is free** — private and household use, non-profits, teaching and
+research, evaluation and development, *and* commercial production use by companies, organisations
+of every kind, and freelancers in their professional practice. The full feature set, no feature
+gate, no licence key, no telemetry. Nobody has to pay today. The one exception: offering Hubtask
+itself, or a service substantially based on it, to third parties on a hosted, managed, embedded or
+white-label basis — that is reserved. Using Hubtask to serve your own clients, including inviting
+them into your instance, is not that exception.
 
-**Commercial production use requires a commercial licence.** That includes companies running it
-for their own operations, offering it as a service, and freelancers using it in their professional
-practice. No-cost licences for non-profits, schools, and public bodies are granted on request.
+**Licensing Start** is a date the owner will announce at least 60 days in advance. From the first
+release after it, production use by organisations of five persons or more will need a commercial
+licence; every version published before that date keeps the free terms it went out with, until its
+Change Date. The draft of those terms, the intended model and what has to happen first are in
+[licensing-editions.md](./docs/architecture/licensing-editions.md).
 
-Details: [LICENSE](./LICENSE) · [ADR-0013](./docs/adr/ADR-0013-licensing.md) ·
+**Until Licensing Start, Hubtask is provided as is**: no support period, no service levels, no
+response deadlines, no roadmap commitment, and the project may be archived at any time. Security
+fixes are best effort. If the project is archived, the code stays public and every version becomes
+Apache-2.0 on its Change Date.
+
+Details: [LICENSE](./LICENSE) · [ADR-0059](./docs/adr/ADR-0059-licensing-phases-and-licensing-start.md) ·
 [licensing-editions.md](./docs/architecture/licensing-editions.md) ·
 [TRADEMARK.md](./TRADEMARK.md). Licensing enquiries: licensing@hubtask.eu.
 
+The SDKs, the API contract and the n8n package are **Apache-2.0** — see `NOTICE`.
+
 This is source-available software, not OSI open source, and the project does not claim otherwise.
-Donations keep it free for private use — see [the funding section](./docs/architecture/licensing-editions.md#7-funding-and-what-happens-if-it-does-not-work)
-for what happens if they stop covering maintenance.
+Donations fund the work — see [the funding section](./docs/architecture/licensing-editions.md#7-funding-and-what-happens-if-it-does-not-work)
+for what they are for and what happens if they do not cover maintenance.
 
 ---
 

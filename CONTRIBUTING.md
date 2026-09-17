@@ -217,11 +217,14 @@ editor and the three commands above are the whole toolchain.
 ## Licence and CLA
 
 Contributions are published under the project licence ([LICENSE](LICENSE), BSL 1.1, converting to
-Apache-2.0 three years after each release). Contributors sign a
-[Contributor License Agreement](CLA.md) on their first pull request; a bot posts the link
-automatically. It exists because the conversion to Apache-2.0 and the sale of commercial licences
-both require the Licensor to hold sufficient rights in the whole codebase. You keep full ownership
-of your work. The reasoning, and what it costs you, is in [ADR-0013](docs/adr/ADR-0013-licensing.md).
+Apache-2.0 three years after each release; the SDKs, the contract and the n8n package are
+Apache-2.0 outright). Contributors sign a [Contributor License Agreement](CLA.md) on their first
+pull request; a bot posts the link automatically. It exists because the conversion to Apache-2.0
+and, from Licensing Start, the sale of commercial licences both require the Licensor to hold
+sufficient rights in the whole codebase. You keep full ownership of your work, and the Licensor
+commits in the CLA that your contribution is never placed retroactively under stricter terms and
+always receives its Change Date. The reasoning, and what it costs you, is in
+[ADR-0013](docs/adr/ADR-0013-licensing.md) and [ADR-0059](docs/adr/ADR-0059-licensing-phases-and-licensing-start.md).
 
 ## Security
 

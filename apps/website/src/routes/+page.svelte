@@ -33,8 +33,9 @@
       <a class="cta-quiet" href="/product/">See what it does</a>
     </p>
     <p class="hero-fineprint">
-      Free for private use, for non-profits and for evaluation. Source available under BSL 1.1, and
-      every version becomes Apache-2.0 three years after it is published.
+      Free for any use until Licensing Start — private, non-profit, and commercial alike. Source
+      available under BSL 1.1, and every version becomes Apache-2.0 three years after it is
+      published.
       <a href="/licence/">What that means</a>
     </p>
 

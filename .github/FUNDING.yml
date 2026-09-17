@@ -1,4 +1,5 @@
-# Donations keep Hubtask free for private and non-commercial use.
-# See docs/architecture/licensing-editions.md section 6 for what the money is for
+# Donations fund the work on Hubtask. Until Licensing Start nothing is sold, and a sponsorship
+# buys no consideration in return - no support, no priority, no feature (ADR-0059).
+# See docs/architecture/licensing-editions.md sections 7 and 8 for what the money is for
 # and what happens if it does not cover maintenance.
 github: [Jersyfi]

@@ -182,8 +182,8 @@ service level objectives; the support matrix rows; and every statement on `/lice
 ### 5.4 Deliberately absent
 
 No price, no date for a price, no load-test figures (they stay internal by decision), no claim of
-“open source”, no comparison table naming a competitor, and no promise that free private use is
-permanent without the condition `licensing-editions.md` §5 attaches to it.
+“open source”, no comparison table naming a competitor, no statement that anybody has to pay today,
+and no maintenance or support commitment before Licensing Start (`licensing-editions.md` §6).
 
 ---
 

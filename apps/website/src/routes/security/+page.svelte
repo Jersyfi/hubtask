@@ -222,9 +222,9 @@
 
     <div class="callout section-gap">
       <p>
-        <strong>Reporting a vulnerability.</strong> The path, the response deadlines and the advisory
-        process are in <code>SECURITY.md</code> in the repository. Please use it rather than an
-        issue.
+        <strong>Reporting a vulnerability.</strong> The path, the response aims — best effort until
+        Licensing Start, not deadlines — and the advisory process are in <code>SECURITY.md</code>
+        in the repository. Please use it rather than an issue.
       </p>
       <Proof href="https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md" label="SECURITY.md" />
     </div>

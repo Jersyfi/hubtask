@@ -196,7 +196,9 @@ docker compose -f deploy/docker/compose.yaml up -d
           latency, and point-in-time recovery with a verified restore.
         </p>
         <p>
-          Running it for other people commercially needs a paid licence.
+          Running it for your own organisation or your own clients is free, today and for every
+          version published before Licensing Start. Offering Hubtask itself to other people as a
+          hosted or managed service is the one case the licence reserves.
           <a href="/licence/">The terms, and what is still open</a>
         </p>
       </div>

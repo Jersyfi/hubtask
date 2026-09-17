@@ -138,9 +138,10 @@ hubctl item complete "$ITEM"</code></pre>
   <div class="wrap">
     <div class="callout">
       <p>
-        <strong>Running it for a business?</strong> That is the case the licence reserves. What a
-        commercial licence costs is being settled before 1.0, and it will be published before
-        anybody is asked to pay. <a href="/licence/">The terms as they stand</a>
+        <strong>Running it for a business?</strong> Free, with everything, until Licensing Start —
+        and every version published before that day keeps its terms. Only offering Hubtask itself to
+        third parties as a service is reserved. No price exists, and none is asked.
+        <a href="/licence/">The terms as they stand</a>
       </p>
     </div>
   </div>

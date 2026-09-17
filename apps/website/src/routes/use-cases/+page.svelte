@@ -42,10 +42,11 @@
           the full feature set and nothing withheld.
         </p>
         <p>
-          <strong>Free, and free with a condition stated out loud.</strong> Private and household use
-          is covered by the licence’s use grant, with no feature gate and no licence key. And if the
-          project stops tomorrow, every version you are running becomes Apache-2.0 three years after
-          it was published. That is written into the licence rather than promised in a blog post.
+          <strong>Free, and free with the condition stated out loud.</strong> Private and household use
+          is covered by the licence’s use grant, with no feature gate and no licence key — and the
+          project makes no promise about maintenance until it sells something. If it stops tomorrow,
+          every version you are running becomes Apache-2.0 three years after it was published. That
+          is written into the licence rather than promised in a blog post.
         </p>
         <a href="/licence/">Read the licence terms</a>
       </div>
@@ -98,8 +99,9 @@
     </div>
     <div class="callout">
       <p>
-        <strong>Running it commercially needs a paid licence.</strong> This is the case the licence
-        reserves, and the terms are being settled before 1.0.
+        <strong>Running it commercially is free until Licensing Start</strong> — a date announced at
+        least sixty days ahead, after which organisations of five persons or more need a licence for
+        new versions. What you run before that day keeps its terms.
         <a href="/licence/">What is decided and what is not</a>
       </p>
     </div>
