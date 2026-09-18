@@ -212,14 +212,16 @@ test('§9.5: a REJECTED result is kept with its code and removed only by dismiss
 
 test('§9.3, §7: a sync.gone is discarded, the copy goes, and the local text is offered back', async () => {
   const { transport, engine, storage } = await synced();
-  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id, error: { code: 'sync.gone' } });
+  // The shape the server answers: the category as `code`, the message code beside it.
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id, error: { code: 'gone', message_code: 'sync.gone' } });
   transport.down = true;
   await engine.mutate('PATCH', `/items/${ITEM}`, { notes: 'written to a purged entry' });
   transport.down = false;
   await engine.push();
 
   assert.equal(await item(storage), undefined, 'the copy of a purged entry goes');
-  assert.equal(engine.queueState.rejected[0]?.code, 'sync.gone');
+  assert.equal(engine.queueState.rejected[0]?.code, 'gone');
+  assert.equal(engine.queueState.rejected[0]?.messageCode, 'sync.gone');
   assert.deepEqual(engine.queueState.rejected[0]?.local, { notes: 'written to a purged entry' });
 });
 

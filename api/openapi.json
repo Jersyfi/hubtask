@@ -19249,6 +19249,20 @@
               "type": "string"
             }
           },
+          "completion_policies": {
+            "type": "array",
+            "description": "The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.\n",
+            "items": {
+              "$ref": "#/components/schemas/CompletionPolicy"
+            }
+          },
+          "auto_assign_strategies": {
+            "type": "array",
+            "description": "The values an auto-assign policy's `strategy` may take, in `domain-model.md` §3.6's order, for the reason the completion policies are listed.\n",
+            "items": {
+              "$ref": "#/components/schemas/AutoAssignStrategy"
+            }
+          },
           "query_fields": {
             "type": "array",
             "description": "What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.\n",

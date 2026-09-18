@@ -10,7 +10,7 @@
 import type { ConflictRecord, MutationKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { t } from '../i18n/i18n.svelte.ts';
+import { messages, t } from '../i18n/i18n.svelte.ts';
 
 /** The message code for a mutation kind, and for a patch the field that moved. */
 export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
@@ -107,7 +107,7 @@ class QueueView {
         what: whatOf(record.kind),
         where: await whereOf(record.itemId),
         href: `/items/${record.itemId}`,
-        reason: t(reasonCodeOf(record.code)),
+        reason: reasonOf(record),
         record,
       });
     }
@@ -125,12 +125,21 @@ class QueueView {
   }
 }
 
-/** The two codes §6 and §7 name are rendered by name; any other through the catalogue's floor. */
-function reasonCodeOf(code: string): string {
-  if (code === 'sync.gone') return 'app.sync.refused.gone';
-  if (code === 'forbidden') return 'app.sync.refused.forbidden';
-  if (code === 'sync.device_revoked') return 'app.sync.refused.device_revoked';
-  return 'app.sync.refused.other';
+/**
+ * The sentence for a refusal. The two codes §6 and §7 name are rendered by name; any other
+ * through the server's own message code where the catalogue has it - a validation the applier
+ * answered (`items.collection_or_parent_required`) reads as what it is rather than as "not
+ * accepted" (issue 777) - and through the floor where it does not.
+ */
+function reasonOf(record: RejectedMutation): string {
+  const code = record.messageCode ?? record.code;
+  if (code === 'sync.gone') return t('app.sync.refused.gone');
+  if (code === 'access.forbidden' || record.code === 'forbidden') return t('app.sync.refused.forbidden');
+  if (code === 'sync.device_revoked') return t('app.sync.refused.device_revoked');
+  if (record.messageCode && messages.has(record.messageCode)) {
+    return t('app.sync.refused.named', { reason: t(record.messageCode) });
+  }
+  return t('app.sync.refused.other');
 }
 
 export const queue = new QueueView();
