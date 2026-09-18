@@ -30,7 +30,7 @@ export type { SuggestionPage };
 
 /** What the strip shows while an ask is being followed, or after it stopped. */
 export interface Asking {
-  readonly operation: Operation | 'jumble' | 'container';
+  readonly operation: Operation | 'jumble' | 'container' | 'template';
   readonly askedAt: string;
   /** `following` while the listing is re-read; the other three are how it ended. */
   readonly outcome: 'following' | 'arrived' | 'gave_up' | 'nothing_near';
@@ -152,6 +152,40 @@ class Suggestions {
   }
 
   /**
+   * Asks for a template drafted from a description (P-11, F6-10), and follows the collection's
+   * listing the way the status summary is followed: the draft appears there as a `TEMPLATE`
+   * suggestion with the collection as its target, and accepting it is `CreateTemplate`.
+   */
+  async generateTemplate(collectionId: string, description: string): Promise<void> {
+    const askedAt = new Date().toISOString();
+    await engine.mutate<void>('POST', '/templates:generate', { collection_id: collectionId, description }, {
+      idempotencyKey: crypto.randomUUID(),
+      timeoutMs: ASK_TIMEOUT_MS,
+      invalidates: [],
+    });
+    // Answered once the ask is accepted, not once the draft lands: the dialog that asked closes,
+    // and the follow's outcome is the strip's to show.
+    this.#put(collectionId, { operation: 'template', askedAt, outcome: 'following' });
+    void this.#followTemplate(collectionId, askedAt);
+  }
+
+  async #followTemplate(collectionId: string, askedAt: string): Promise<void> {
+    const token = Symbol('template');
+    this.#follows.set(collectionId, token);
+    const outcome = await followArrival(
+      engine,
+      collectionId,
+      askedAt,
+      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      () => this.#follows.get(collectionId) === token,
+      'CONTAINER',
+    );
+    if (outcome === 'left') return;
+    this.#follows.delete(collectionId);
+    this.#put(collectionId, { operation: 'template', askedAt, outcome });
+  }
+
+  /**
    * Reads the entry in another language (M-11). Synchronous and stored nowhere: the answer is
    * handed back and held by nothing here - it is the caller's to show and to drop.
    */
@@ -170,7 +204,8 @@ class Suggestions {
    * destination collection, which a model never chooses.
    */
   async accept(suggestion: Suggestion, overrides?: Readonly<Record<string, unknown>>): Promise<Suggestion> {
-    const target = suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : 'WORK_ITEM';
+    const target: Target =
+      suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : suggestion.target_type === 'CONTAINER' ? 'CONTAINER' : 'WORK_ITEM';
     return engine.mutate<Suggestion>(
       'POST',
       `/suggestions/${suggestion.id}:accept`,
@@ -180,10 +215,14 @@ class Suggestions {
         // The entry changed - its fields, or the children under it - so every read of it is stale,
         // and the engine matches by prefix: `/items/{id}`, its activity, its children. A jumble
         // acceptance is a conversion, so the inbox and the containers a board reads are stale too.
+        // A container's suggestion is a template (P-11): accepting it is `CreateTemplate`, so the
+        // templates that apply here are what changed.
         invalidates:
           target === 'JUMBLE_ENTRY'
             ? [...touches(suggestion.target_id, target), '/jumble/entries', '/items', '/containers']
-            : [...touches(suggestion.target_id), '/items'],
+            : target === 'CONTAINER'
+              ? [...touches(suggestion.target_id, target), '/templates']
+              : [...touches(suggestion.target_id), '/items'],
       },
     );
   }

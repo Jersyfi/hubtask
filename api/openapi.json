@@ -10000,6 +10000,21 @@
               "SATURDAY",
               null
             ]
+          },
+          "celebrations": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the moments are marked for this person (design-system.md §7). Absent or null means the default, which is on.\n"
+          },
+          "onboarding_completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.\n"
           }
         }
       },
@@ -10091,7 +10106,7 @@
       },
       "AccountPreferences": {
         "type": "object",
-        "description": "Every field is optional, and an empty string clears the preference rather than setting it\nto nothing — the workspace default applies again.\n",
+        "description": "Every field is optional, and an empty string clears the preference rather than setting it\nto nothing — the workspace default applies again. The two the client writes for itself\n(F6-12, decision 11) clear the same way, with `null`: `celebrations` back to the default,\nwhich is on; `onboarding_completed_at` back to \"not taken\", which runs the tour again.\n",
         "properties": {
           "locale": {
             "type": [
@@ -10116,6 +10131,21 @@
               "SATURDAY",
               null
             ]
+          },
+          "celebrations": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the moments are marked. `null` clears it; the default is on."
+          },
+          "onboarding_completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the tour ended or was skipped, written by the client. `null` clears it, which is how the tour is asked for again.\n"
           }
         }
       },

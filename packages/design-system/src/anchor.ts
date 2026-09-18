@@ -139,3 +139,40 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
     delete overlay.dataset.hbtAnchored;
   };
 }
+
+/**
+ * Lays a spotlight over an element: the cut-out takes the element's box, by the same mechanism
+ * `anchorTo` uses and with no measuring - `anchor()` for its edges and `anchor-size()` for its
+ * size, resolved by the engine during layout, so the cut-out follows the element through a
+ * resize or a scroll without a listener (ADR-0039; the onboarding tour, F6-14). The air around
+ * the element is the caller's stylesheet's, as a margin on the cut-out.
+ *
+ * Raised to the top layer like every overlay, and first: the coach mark that is anchored to the
+ * cut-out has to come after it in the top layer for the anchor to be acceptable.
+ */
+export function spotlightTo(target: HTMLElement, cutout: HTMLElement): () => void {
+  const id = `hbt-spot-${++sequence}`;
+  target.dataset.hbtSpotlit = id;
+  cutout.dataset.hbtSpotlight = id;
+
+  const sheet = stylesheet();
+  const targetRule = ruleFor(sheet, `[data-hbt-spotlit='${id}']`);
+  const cutoutRule = ruleFor(sheet, `[data-hbt-spotlight='${id}']`);
+  const lower = raiseToTopLayer(cutout);
+
+  targetRule.style.setProperty('anchor-name', `--${id}`);
+  cutoutRule.style.setProperty('position-anchor', `--${id}`);
+  cutoutRule.style.setProperty('inset', 'auto');
+  cutoutRule.style.setProperty('top', `anchor(--${id} top)`);
+  cutoutRule.style.setProperty('left', `anchor(--${id} left)`);
+  cutoutRule.style.setProperty('width', `anchor-size(--${id} width)`);
+  cutoutRule.style.setProperty('height', `anchor-size(--${id} height)`);
+
+  return () => {
+    lower();
+    drop(sheet, targetRule);
+    drop(sheet, cutoutRule);
+    delete target.dataset.hbtSpotlit;
+    delete cutout.dataset.hbtSpotlight;
+  };
+}

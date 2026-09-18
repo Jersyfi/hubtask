@@ -231,5 +231,13 @@ func accountOutput(account domain.Account) usecase.Output {
 			out[field] = value
 		}
 	}
+	// The moments (F6-12): a boolean and an instant, absent while the default applies - the same
+	// distinction as above, kept in the types the contract gives them.
+	if account.Celebrations != nil {
+		out["celebrations"] = *account.Celebrations
+	}
+	if account.OnboardingCompletedAt != nil {
+		out["onboarding_completed_at"] = *account.OnboardingCompletedAt
+	}
 	return out
 }

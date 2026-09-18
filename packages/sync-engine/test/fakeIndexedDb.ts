@@ -17,10 +17,75 @@ class FakeRequest<T> {
   onerror: Listener = null;
   onupgradeneeded: Listener = null;
   onblocked: Listener = null;
+  readonly #transaction: FakeTransaction | undefined;
+
+  constructor(transaction?: FakeTransaction) {
+    this.#transaction = transaction;
+  }
 
   succeed(result: T): void {
     this.result = result;
-    queueMicrotask(() => this.onsuccess?.());
+    this.#transaction?.issued();
+    queueMicrotask(() => {
+      this.#transaction?.delivering();
+      this.onsuccess?.();
+      this.#transaction?.delivered();
+    });
+  }
+}
+
+/**
+ * The part of a transaction's life the store depends on. A transaction is active in the task
+ * that created it and in each request's success continuation - microtasks included, which is how
+ * one `await` chains a thousand puts on one transaction - and inactive once such a task has
+ * ended. When it goes inactive with no request outstanding it is finished: a request issued on it
+ * throws `TransactionInactiveError`, `objectStore()` still answers, and `oncomplete` fires a
+ * task later. That last window is what the store must survive (issue 776).
+ */
+class FakeTransaction {
+  #active = true;
+  #outstanding = 0;
+  #finished = false;
+  oncomplete: Listener = null;
+  onabort: Listener = null;
+  onerror: Listener = null;
+  readonly #database: FakeDatabase;
+
+  constructor(database: FakeDatabase) {
+    this.#database = database;
+    this.#deactivateLater();
+  }
+
+  #deactivateLater(): void {
+    setTimeout(() => {
+      this.#active = false;
+      if (this.#outstanding === 0 && !this.#finished) {
+        this.#finished = true;
+        setTimeout(() => this.oncomplete?.(), 0);
+      }
+    }, 0);
+  }
+
+  issued(): void {
+    if (!this.#active) {
+      throw new DOMException('the transaction is not active', 'TransactionInactiveError');
+    }
+    this.#outstanding += 1;
+  }
+
+  delivering(): void {
+    this.#outstanding -= 1;
+    this.#active = true;
+  }
+
+  delivered(): void {
+    this.#deactivateLater();
+  }
+
+  objectStore(name: string): FakeObjectStore {
+    const held = this.#database.stores.get(name);
+    if (!held) throw new Error(`no store ${name}`);
+    return new FakeObjectStore(held.rows, held.keyPath, held.indexes, this);
   }
 }
 
@@ -30,20 +95,22 @@ const keyOf = (key: unknown): string => JSON.stringify(key);
 class FakeIndex {
   readonly #rows: Map<string, Record<string, unknown>>;
   readonly #field: string;
+  readonly #transaction: FakeTransaction | undefined;
 
-  constructor(rows: Map<string, Record<string, unknown>>, field: string) {
+  constructor(rows: Map<string, Record<string, unknown>>, field: string, transaction: FakeTransaction | undefined) {
     this.#rows = rows;
     this.#field = field;
+    this.#transaction = transaction;
   }
 
   getAll(value: unknown): FakeRequest<unknown[]> {
-    const request = new FakeRequest<unknown[]>();
+    const request = new FakeRequest<unknown[]>(this.#transaction);
     request.succeed([...this.#rows.values()].filter((row) => row[this.#field] === value).map((row) => structuredClone(row)));
     return request;
   }
 
   openKeyCursor(_range: null, direction: string): FakeRequest<{ key: unknown; continue(): void } | null> {
-    const request = new FakeRequest<{ key: unknown; continue(): void } | null>();
+    const request = new FakeRequest<{ key: unknown; continue(): void } | null>(this.#transaction);
     const keys = [...new Set([...this.#rows.values()].map((row) => row[this.#field]))].sort();
     if (direction !== 'nextunique') throw new Error('the fake supports nextunique only');
     let at = 0;
@@ -64,11 +131,18 @@ class FakeObjectStore {
   readonly #rows: Map<string, Record<string, unknown>>;
   readonly #keyPath: string[];
   readonly #indexes: Map<string, string>;
+  readonly #transaction: FakeTransaction | undefined;
 
-  constructor(rows: Map<string, Record<string, unknown>>, keyPath: string[], indexes: Map<string, string>) {
+  constructor(
+    rows: Map<string, Record<string, unknown>>,
+    keyPath: string[],
+    indexes: Map<string, string>,
+    transaction: FakeTransaction | undefined,
+  ) {
     this.#rows = rows;
     this.#keyPath = keyPath;
     this.#indexes = indexes;
+    this.#transaction = transaction;
   }
 
   createIndex(name: string, field: string): void {
@@ -78,11 +152,11 @@ class FakeObjectStore {
   index(name: string): FakeIndex {
     const field = this.#indexes.get(name);
     if (!field) throw new Error(`no index ${name}`);
-    return new FakeIndex(this.#rows, field);
+    return new FakeIndex(this.#rows, field, this.#transaction);
   }
 
   get(key: unknown): FakeRequest<unknown> {
-    const request = new FakeRequest<unknown>();
+    const request = new FakeRequest<unknown>(this.#transaction);
     // A fresh object per read, as the real store deserialises one.
     const held = this.#rows.get(keyOf(key));
     request.succeed(held === undefined ? undefined : structuredClone(held));
@@ -93,16 +167,17 @@ class FakeObjectStore {
     const key = this.#keyPath.map((part) => row[part]);
     // Structured clone, as the real store serialises: a caller mutating what it put must not
     // mutate what is held.
-    this.#rows.set(keyOf(key), structuredClone(row));
-    const request = new FakeRequest<unknown>();
+    const request = new FakeRequest<unknown>(this.#transaction);
+    // Issued first: on an inactive transaction the request throws, and nothing is written.
     request.succeed(key);
+    this.#rows.set(keyOf(key), structuredClone(row));
     return request;
   }
 
   delete(key: unknown): FakeRequest<undefined> {
-    this.#rows.delete(keyOf(key));
-    const request = new FakeRequest<undefined>();
+    const request = new FakeRequest<undefined>(this.#transaction);
     request.succeed(undefined);
+    this.#rows.delete(keyOf(key));
     return request;
   }
 }
@@ -120,18 +195,12 @@ class FakeDatabase {
   createObjectStore(name: string, options: { keyPath: string[] }): FakeObjectStore {
     const store = { rows: new Map(), keyPath: options.keyPath, indexes: new Map<string, string>() };
     this.stores.set(name, store);
-    return new FakeObjectStore(store.rows, store.keyPath, store.indexes);
+    return new FakeObjectStore(store.rows, store.keyPath, store.indexes, undefined);
   }
 
-  transaction(name: string, _mode: string): { objectStore(name: string): FakeObjectStore } {
-    if (this.closed) throw new Error('InvalidStateError: the database is closed');
-    return {
-      objectStore: (store) => {
-        const held = this.stores.get(store);
-        if (!held) throw new Error(`no store ${store}`);
-        return new FakeObjectStore(held.rows, held.keyPath, held.indexes);
-      },
-    };
+  transaction(_name: string, _mode: string): FakeTransaction {
+    if (this.closed) throw new DOMException('the database is closed', 'InvalidStateError');
+    return new FakeTransaction(this);
   }
 
   close(): void {

@@ -40,6 +40,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Email address | `account` | `PERSONAL_BASIC` | Sign-in, invitation, notification. Stored lower-cased with the domain in its ASCII (Punycode) form, so that two spellings of one mailbox are one row (`i18n-l10n.md` §7, M-10); an address stored before `0.8.0` keeps its form and is matched by it | Contract | The lifetime of the account | `CASCADE` |
 | Password hash | `account` | `SECRET` | Authentication | Contract | The lifetime of the account | `HASH_ONLY`, `CASCADE` |
 | Locale, time zone, start of week | `account` | `PERSONAL_BASIC` | Localisation | Contract | The lifetime of the account | `CASCADE` |
+| Celebrations switch, when the first-run tour ended (`celebrations`, `onboarding_completed_at`) | `account` | `PERSONAL_BASIC` | How the product speaks to the person: whether its moments are marked, and whether the tour runs again (F6-12) | Contract | The lifetime of the account | `CASCADE` |
 | MFA secret (sealed), recovery codes (hashed) | `account_mfa`, `account_recovery_code` | `SECRET` | Two-factor authentication (H-02) | Contract / legal obligation | The lifetime of the enrolment | `CASCADE` |
 | Two-step sign-in pending credential (hash, user agent, IP class) | `auth_pending` | `PERSONAL_TECHNICAL` | Completing a two-step sign-in | Legitimate interest | Minutes; swept with the sessions | `RETENTION`, `CASCADE` |
 | External identity (OIDC `sub`, issuer) | `account_identity` | `PERSONAL_BASIC` | Single sign-on | Contract | The lifetime of the link | `CASCADE` |

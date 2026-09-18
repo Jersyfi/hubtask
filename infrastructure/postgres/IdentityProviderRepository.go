@@ -228,7 +228,7 @@ func (ExternalAccountRepository) FindBySubject(
 			WithCause(fmt.Errorf("reading an account by its provider subject: %w", err))
 	}
 	return accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
-		row.Locale, row.TimeZone, row.WeekStart)
+		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
 func (ExternalAccountRepository) LinkSubject(

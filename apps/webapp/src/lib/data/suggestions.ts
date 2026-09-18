@@ -141,6 +141,14 @@ export type Shape =
     }
   | { readonly shape: 'breakdown'; readonly nodes: readonly ProposedNode[] }
   | { readonly shape: 'duplicates'; readonly neighbours: readonly Neighbour[] }
+  /** A template drafted for the collection (P-11): a `TemplateInput`, its tree flattened the way a breakdown is. */
+  | {
+      readonly shape: 'template';
+      readonly name: string;
+      readonly description?: string;
+      readonly rootType: string;
+      readonly nodes: readonly ProposedNode[];
+    }
   | { readonly shape: 'unknown' };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -212,6 +220,22 @@ export function shapeOf(
       flatten(payload.children, 0, nodes);
       return { shape: 'breakdown', nodes };
     }
+    case 'TEMPLATE': {
+      // A draft with no name is a draft nothing could create: `CreateTemplate` requires one, and
+      // the server stores no answer without it - so the shape is unknown rather than a tree with
+      // an empty heading.
+      const name = text(payload.name);
+      if (name === undefined) return { shape: 'unknown' };
+      const nodes: ProposedNode[] = [];
+      flatten(payload.nodes, 0, nodes);
+      return {
+        shape: 'template',
+        name,
+        description: text(payload.description),
+        rootType: typeof payload.root_type === 'string' ? payload.root_type : '',
+        nodes,
+      };
+    }
     case 'DUPLICATES': {
       const neighbours = (Array.isArray(payload.duplicates) ? payload.duplicates : [])
         .filter(isRecord)
@@ -260,6 +284,8 @@ export function headingCodeOf(shape: Shape): string {
       return 'app.suggestions.kind_breakdown';
     case 'duplicates':
       return 'app.suggestions.kind_duplicates';
+    case 'template':
+      return 'app.suggestions.kind_template';
     default:
       return 'app.suggestions.kind_unknown';
   }
@@ -281,6 +307,8 @@ export function acceptCodeOf(shape: Shape): string | undefined {
     }
     case 'breakdown':
       return 'app.suggestions.accept_breakdown';
+    case 'template':
+      return 'app.suggestions.accept_template';
     default:
       return undefined;
   }

@@ -131,7 +131,8 @@
 </script>
 
 <div class="panel">
-  <div class="bar">
+  <!-- `data-tour`: where the tour points for "the same entries, two ways" (F6-14). -->
+  <div class="bar" data-tour="layouts">
     <ViewSwitcher label={t('app.view.label')} {views} selected={layout} onselect={onlayout} />
     <button type="button" class="toggle" aria-expanded={isOpen} onclick={() => (isOpen = !isOpen)}>
       {isOpen ? t('app.query.hide') : t('app.query.show')}

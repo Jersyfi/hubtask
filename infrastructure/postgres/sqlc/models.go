@@ -332,24 +332,26 @@ type AccessToken struct {
 }
 
 type Account struct {
-	ID                  pgtype.UUID
-	TenantID            pgtype.UUID
-	Kind                AccountKind
-	Email               *string
-	DisplayName         string
-	ExternalSubject     *string
-	PasswordHash        *string
-	Locale              *string
-	TimeZone            *string
-	WeekStart           *string
-	Status              AccountStatus
-	AiConsent           bool
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
-	DeletedAt           pgtype.Timestamptz
-	Version             int32
-	RedemptionTokenHash []byte
-	RedemptionExpiresAt pgtype.Timestamptz
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	Kind                  AccountKind
+	Email                 *string
+	DisplayName           string
+	ExternalSubject       *string
+	PasswordHash          *string
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Status                AccountStatus
+	AiConsent             bool
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	Version               int32
+	RedemptionTokenHash   []byte
+	RedemptionExpiresAt   pgtype.Timestamptz
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
 }
 
 type AccountGroup struct {

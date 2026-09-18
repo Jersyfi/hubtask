@@ -162,6 +162,56 @@ func TestANullPreferenceClearsAndAnOmittedOneIsLeftAlone(t *testing.T) {
 	}
 }
 
+// The moments (F6-12) reach the use case as the words it reads - a boolean as "true"/"false", an
+// instant as RFC 3339 - and a null as the empty one; and an account that has them answers them in
+// the contract's own types.
+func TestTheMomentsTravelAsWordsAndAnswerInTheirTypes(t *testing.T) {
+	registry := &catalogue{out: ownAccount()}
+	body := `{"celebrations": false, "onboarding_completed_at": "2026-09-17T10:00:00+02:00"}`
+	recorder := identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", body)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if got := registry.in["celebrations"]; got != "false" {
+		t.Errorf("celebrations = %v, want the word false", got)
+	}
+	if got := registry.in["onboarding_completed_at"]; got != "2026-09-17T08:00:00Z" {
+		t.Errorf("onboarding_completed_at = %v, want the instant in UTC", got)
+	}
+
+	registry = &catalogue{out: ownAccount()}
+	recorder = identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", `{"celebrations": null, "onboarding_completed_at": null}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	for _, field := range []string{"celebrations", "onboarding_completed_at"} {
+		if got, ok := registry.in[field]; !ok || got != "" {
+			t.Errorf("a null %s is present and empty, got %v (present %v)", field, got, ok)
+		}
+	}
+
+	answered := ownAccount()
+	answered["celebrations"] = false
+	answered["onboarding_completed_at"] = time.Date(2026, 9, 17, 8, 0, 0, 0, time.UTC)
+	recorder = identityRequest(t, &catalogue{out: answered}, http.MethodGet, "/accounts/me")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	var read struct {
+		Celebrations          *bool   `json:"celebrations"`
+		OnboardingCompletedAt *string `json:"onboarding_completed_at"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &read); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if read.Celebrations == nil || *read.Celebrations {
+		t.Errorf("celebrations = %v, want false", read.Celebrations)
+	}
+	if read.OnboardingCompletedAt == nil || !strings.HasPrefix(*read.OnboardingCompletedAt, "2026-09-17T08:00:00") {
+		t.Errorf("onboarding_completed_at = %v", read.OnboardingCompletedAt)
+	}
+}
+
 // `me` is a reserved segment and not a possible identifier - identifiers are UUIDs - so the two
 // routes cannot collide. Asserted rather than assumed, because the day somebody widens the
 // AccountId schema to a plain string is the day this stops being true silently.

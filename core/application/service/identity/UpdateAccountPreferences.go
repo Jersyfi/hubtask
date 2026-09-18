@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -42,6 +43,10 @@ type UpdateAccountPreferencesCommand struct {
 	Locale    *string
 	TimeZone  *string
 	WeekStart *string
+	// The moments (F6-12), under the same rule: "true"/"false" and an RFC 3339 instant, empty
+	// clears. Strings rather than a bool and a time so that the one rule holds for all five.
+	Celebrations          *string
+	OnboardingCompletedAt *string
 }
 
 // UpdateAccountPreferences sets how the product speaks to one account: its locale, its time zone
@@ -94,9 +99,11 @@ func (h UpdateAccountPreferences) Execute(
 
 		before := account
 		account, err = account.WithPreferences(domain.Preferences{
-			Locale:    valueOr(cmd.Locale, before.Locale),
-			TimeZone:  valueOr(cmd.TimeZone, before.TimeZone),
-			WeekStart: valueOr(cmd.WeekStart, before.WeekStart),
+			Locale:                valueOr(cmd.Locale, before.Locale),
+			TimeZone:              valueOr(cmd.TimeZone, before.TimeZone),
+			WeekStart:             valueOr(cmd.WeekStart, before.WeekStart),
+			Celebrations:          valueOr(cmd.Celebrations, celebrationsWord(before.Celebrations)),
+			OnboardingCompletedAt: valueOr(cmd.OnboardingCompletedAt, instantWord(before.OnboardingCompletedAt)),
 		})
 		if err != nil {
 			return err
@@ -125,6 +132,22 @@ func valueOr(given *string, current string) string {
 	return *given
 }
 
+// celebrationsWord and instantWord spell the held moments the way the command carries them, so
+// that "leave it" leaves exactly what was there.
+func celebrationsWord(held *bool) string {
+	if held == nil {
+		return ""
+	}
+	return strconv.FormatBool(*held)
+}
+
+func instantWord(held *time.Time) string {
+	if held == nil {
+		return ""
+	}
+	return held.UTC().Format(time.RFC3339)
+}
+
 func (h UpdateAccountPreferences) recordAudit(
 	ctx context.Context, before, after domain.Account, actor appshared.ActorContext, now time.Time,
 ) error {
@@ -135,6 +158,8 @@ func (h UpdateAccountPreferences) recordAudit(
 		audit.Change{Field: "locale", Classification: audit.Open, From: before.Locale, To: after.Locale},
 		audit.Change{Field: "time_zone", Classification: audit.Open, From: before.TimeZone, To: after.TimeZone},
 		audit.Change{Field: "week_start", Classification: audit.Open, From: before.WeekStart, To: after.WeekStart},
+		audit.Change{Field: "celebrations", Classification: audit.Open, From: celebrationsWord(before.Celebrations), To: celebrationsWord(after.Celebrations)},
+		audit.Change{Field: "onboarding_completed_at", Classification: audit.Open, From: instantWord(before.OnboardingCompletedAt), To: instantWord(after.OnboardingCompletedAt)},
 	)
 
 	return h.Audit.Append(ctx, audit.Entry{
@@ -157,9 +182,9 @@ func (h UpdateAccountPreferences) recordAudit(
 func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: UpdateAccountPreferencesName,
-		Summary: "Sets the locale, the time zone and the first day of the week for an account. " +
-			"Omitting a field leaves it; sending it empty clears it, so the workspace default " +
-			"applies again.",
+		Summary: "Sets the locale, the time zone and the first day of the week for an account, " +
+			"and its moments - whether celebrations are marked, and when the first-run tour ended. " +
+			"Omitting a field leaves it; sending it empty clears it, so the default applies again.",
 		SideEffects: "Writes the account's preferences and an audit entry.",
 		TokenScope:  accountRead,
 		Input: []usecase.Field{
@@ -180,6 +205,15 @@ func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 				Enum:        []string{"MONDAY", "SUNDAY", "SATURDAY"},
 				Description: "Which day a calendar week starts on. Empty clears it.",
 			},
+			{
+				Name: "celebrations", Kind: usecase.KindString,
+				Enum:        []string{"true", "false"},
+				Description: "Whether the moments are marked for this person. Empty clears it, and the default is on.",
+			},
+			{
+				Name: "onboarding_completed_at", Kind: usecase.KindString,
+				Description: "When the first-run tour ended or was skipped, as an RFC 3339 date and time. Empty clears it, which runs the tour again.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: AccountPreferencesChangedAction, TargetType: accountTarget,
@@ -198,10 +232,12 @@ func (h UpdateAccountPreferences) invoke(
 	}
 
 	account, err := h.Execute(ctx, actor, UpdateAccountPreferencesCommand{
-		AccountID: accountID,
-		Locale:    in.OptionalString("locale"),
-		TimeZone:  in.OptionalString("time_zone"),
-		WeekStart: in.OptionalString("week_start"),
+		AccountID:             accountID,
+		Locale:                in.OptionalString("locale"),
+		TimeZone:              in.OptionalString("time_zone"),
+		WeekStart:             in.OptionalString("week_start"),
+		Celebrations:          in.OptionalString("celebrations"),
+		OnboardingCompletedAt: in.OptionalString("onboarding_completed_at"),
 	})
 	if err != nil {
 		return nil, err

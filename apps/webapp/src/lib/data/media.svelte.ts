@@ -43,6 +43,11 @@ export interface UploadOptions {
   readonly signal?: AbortSignal;
   /** Told the staged object as soon as there is one, so a cancel can say what it left behind. */
   readonly onStaged?: (object: MediaObject) => void;
+  /**
+   * The type to claim instead of the file's own. An import claims the kind's type (F6-09): what
+   * a browser guesses for a `.csv` differs by platform, and the server judges the bytes anyway.
+   */
+  readonly contentType?: string;
 }
 
 class Media {
@@ -115,13 +120,14 @@ class Media {
    * is passed on as a claim — the server judges from the bytes at confirmation and answers
    * `media.type_mismatch` when the two disagree, which is a sentence the reader gets to read.
    */
-  async upload(file: File, usage: 'COVER' | 'ATTACHMENT', options: UploadOptions): Promise<MediaObject> {
+  async upload(file: File, usage: 'COVER' | 'ATTACHMENT' | 'IMPORT', options: UploadOptions): Promise<MediaObject> {
+    const contentType = options.contentType ?? file.type;
     const staged = await engine.mutate<MediaObject>(
       'POST',
       '/media',
       {
         file_name: file.name || null,
-        content_type: file.type || null,
+        content_type: contentType || null,
         size: file.size,
         usage,
       },
@@ -140,7 +146,7 @@ class Media {
       url: target.url,
       method: 'PUT',
       body: file,
-      contentType: file.type || undefined,
+      contentType: contentType || undefined,
       timeoutMs: transferTimeoutFor(file.size),
       signal: options.signal,
       onProgress: options.onProgress,

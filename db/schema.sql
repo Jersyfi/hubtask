@@ -145,6 +145,10 @@ CREATE TABLE account (
   week_start        text,
   status            account_status NOT NULL DEFAULT 'ACTIVE',
   ai_consent        boolean NOT NULL DEFAULT false,
+  -- The account's moments (F6-12): NULL is "the default, on" for the first and "the tour has not
+  -- been taken" for the second (migration 0093).
+  celebrations      boolean,
+  onboarding_completed_at timestamptz,
   -- The redemption token the invitation mints (H-01): hashed under its own purpose label, shown
   -- once, dead on redemption. One open invitation per invited account, so it lives on the row.
   redemption_token_hash bytea,

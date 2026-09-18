@@ -168,4 +168,23 @@
     color: var(--text-subtle);
     text-decoration: line-through;
   }
+
+  /* Tier 1 of §7, every completion: the type mark settles with the `celebration` role - a
+     satisfying micro-animation, part of the normal motion system, in transform and opacity alone.
+     Under reduced motion the struck title above is the acknowledgement (rule 6). */
+  .task-row[data-completed] .mark {
+    animation: settle var(--motion-celebration-duration) var(--motion-celebration-easing) both;
+  }
+
+  @keyframes settle {
+    0% { opacity: 0.4; transform: scale(0.7); }
+    60% { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .task-row[data-completed] .mark { animation: none; }
+  }
+
+  :global([data-motion='reduced']) .task-row[data-completed] .mark { animation: none; }
 </style>

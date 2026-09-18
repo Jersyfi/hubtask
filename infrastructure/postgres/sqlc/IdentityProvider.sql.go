@@ -76,21 +76,24 @@ func (q *Queries) DeleteIdentityProvider(ctx context.Context) (int64, error) {
 }
 
 const findAccountByExternalSubject = `-- name: FindAccountByExternalSubject :one
-SELECT id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE external_subject = $1 AND deleted_at IS NULL
 `
 
 type FindAccountByExternalSubjectRow struct {
-	ID          pgtype.UUID
-	TenantID    pgtype.UUID
-	Kind        AccountKind
-	Email       *string
-	DisplayName string
-	Status      AccountStatus
-	Locale      *string
-	TimeZone    *string
-	WeekStart   *string
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	Kind                  AccountKind
+	Email                 *string
+	DisplayName           string
+	Status                AccountStatus
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
 }
 
 // The subject the provider vouched for, under the unique index that makes it one account per
@@ -109,6 +112,8 @@ func (q *Queries) FindAccountByExternalSubject(ctx context.Context, externalSubj
 		&i.Locale,
 		&i.TimeZone,
 		&i.WeekStart,
+		&i.Celebrations,
+		&i.OnboardingCompletedAt,
 	)
 	return i, err
 }
