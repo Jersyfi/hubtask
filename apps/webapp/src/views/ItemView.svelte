@@ -51,6 +51,7 @@
   import { childTypes } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { entryEditOf, type EntryDraft } from '../lib/data/edits.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { media } from '../lib/data/media.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -271,6 +272,8 @@
   let draftNotes = $state('');
   /** The entry's language as the editor holds it; empty is "none stated". */
   let draftLanguage = $state('');
+  /** What the entry held when the form opened, so that the write names only what moved (`edits.ts`). */
+  let opened: EntryDraft = { title: '', notes: '', language: '' };
   const languages = $derived(textLanguages(manifest.value));
 
   // The language the entry is written in, where it differs from the page's, so that a screen
@@ -326,9 +329,10 @@
 
   function startEditing() {
     if (!item) return;
-    draftTitle = item.title;
-    draftNotes = item.notes ?? '';
-    draftLanguage = item.content_language ?? '';
+    opened = { title: item.title, notes: item.notes ?? '', language: item.content_language ?? '' };
+    draftTitle = opened.title;
+    draftNotes = opened.notes;
+    draftLanguage = opened.language;
     writeFailure = undefined;
     isTitleFailure = false;
     isEditing = true;
@@ -336,23 +340,19 @@
 
   async function save() {
     if (!item || draftTitle.trim() === '' || isSaving) return;
+    // Only what moved since the form opened (issue 779, offline-sync.md §4.2): a field repeated
+    // unchanged would be queued with a fresh clock and win a merge it never entered.
+    const body = entryEditOf(opened, { title: draftTitle, notes: draftNotes, language: draftLanguage });
+    if (Object.keys(body).length === 0) {
+      // Nothing moved: no write, and no clock stamped on a value nobody changed.
+      isEditing = false;
+      return;
+    }
     isSaving = true;
     writeFailure = undefined;
     isTitleFailure = false;
     try {
-      // Empty notes clear them rather than setting them to the empty string: the contract's null
-      // is "there are none", and a note of zero characters is not a note somebody wrote.
-      await items.update(
-        item.id,
-        {
-          title: draftTitle.trim(),
-          notes: draftNotes.trim() === '' ? null : draftNotes,
-          // Sent only when it moved: null clears a stated language, and a language the
-          // installation cannot index is stored all the same (the contract's tolerance).
-          ...(draftLanguage !== (item.content_language ?? '') ? { content_language: draftLanguage || null } : {}),
-        },
-        item.version,
-      );
+      await items.update(item.id, body, item.version);
       // Both the entry and its history come back on their own: the write invalidates `/items`, and
       // the engine matches by prefix — so `/items/{id}` and `/items/{id}/activity` are re-read
       // without either being asked for here. A refresh would be a second read of what is arriving.
