@@ -38,8 +38,11 @@
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people, type Path, type Scope } from '../data/people.svelte.ts';
+  import { ownershipOf, type Holder } from '../data/people.ts';
+  import RevokeDialog from './RevokeDialog.svelte';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -80,6 +83,25 @@
   $effect(() => {
     if (isOpen) people.openScope(scope);
   });
+
+  /** The row a revoke is being confirmed for (issue 778); the dialog is open while there is one. */
+  let revoking = $state<Holder | undefined>(undefined);
+  const revokingOwnership = $derived(
+    revoking ? ownershipOf(holders, revoking.membershipId, actor.account?.id, (id) => people.membersOf(id)) : 'other',
+  );
+  /** The place the role applies to, in the catalogue's words. */
+  const where = $derived(t(`app.people.at_${scope.scopeType.toLowerCase()}`));
+
+  function nameOf(holder: Holder): string {
+    return holder.accountId ? (accounts.nameOf(holder.accountId) ?? t('app.people.unnamed')) : t('app.people.a_group');
+  }
+
+  function revoke() {
+    const holder = revoking;
+    revoking = undefined;
+    if (!holder) return;
+    void attempt(() => people.revoke(holder.membershipId, scope), t('app.people.revoked_announced'));
+  }
 
   async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
@@ -128,11 +150,13 @@
               <Badge tone="neutral">{t('app.people.inherited')}</Badge>
             {/if}
 
+            <!-- Asks first (issue 778): a single keystroke on a focused control must not end
+                 somebody's access. -->
             <Button
               size="sm"
               tone="secondary"
               disabledReason={holder.isHere ? undefined : t('app.people.granted_elsewhere')}
-              onclick={() => void attempt(() => people.revoke(holder.membershipId, scope), t('app.people.revoked_announced'))}
+              onclick={() => (revoking = holder)}
             >
               {t('app.people.revoke')}
             </Button>
@@ -169,6 +193,16 @@
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
 </Dialog>
+
+<RevokeDialog
+  holder={revoking}
+  ownership={revokingOwnership}
+  who={revoking ? nameOf(revoking) : ''}
+  {where}
+  isBusy={isWriting}
+  onConfirm={revoke}
+  onCancel={() => (revoking = undefined)}
+/>
 
 <style>
   .rows { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }

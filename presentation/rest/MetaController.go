@@ -140,6 +140,18 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		viewLayouts = append(viewLayouts, string(layout))
 	}
 
+	// The two closed sets a collection's policies are validated against (issue 773), always
+	// arrays for the reason the layouts are: a form that read nothing here would offer values of
+	// its own.
+	completionPolicies := make([]openapi.CompletionPolicy, 0, len(source.CompletionPolicies))
+	for _, policy := range source.CompletionPolicies {
+		completionPolicies = append(completionPolicies, openapi.CompletionPolicy(policy))
+	}
+	autoAssignStrategies := make([]openapi.AutoAssignStrategy, 0, len(source.AutoAssignStrategies))
+	for _, strategy := range source.AutoAssignStrategies {
+		autoAssignStrategies = append(autoAssignStrategies, openapi.AutoAssignStrategy(strategy))
+	}
+
 	// Every type this build emits, and therefore every type a subscription may name (F4-15). An
 	// array rather than absent, for the same reason: a client that read nothing here would offer
 	// a picker of its own, and the server refuses a type it does not emit.
@@ -238,6 +250,8 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		ItemTypes:              &itemTypes,
 		QueryFields:            &queryFields,
 		ViewLayouts:            &viewLayouts,
+		CompletionPolicies:     &completionPolicies,
+		AutoAssignStrategies:   &autoAssignStrategies,
 		EventTypes:             &eventTypes,
 		Automation:             &automationManifest,
 		RetentionDataKinds:     &dataKinds,

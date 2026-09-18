@@ -43,6 +43,7 @@
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
+  import PoliciesDialog from '../lib/workspace/PoliciesDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -359,6 +360,8 @@
   let isManagingFields = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
+  /** The collection's policies (issue 773): how it works, as opposed to what it is called. */
+  let isManagingPolicies = $state(false);
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
@@ -581,6 +584,16 @@
             >
               {t('app.fields.title')}
             </Button>
+            <!-- How the collection works - the completion roll-up and the assignment policy -
+                 as opposed to what it is called (issue 773). A hub carries none. -->
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isManagingPolicies = true)}
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+            >
+              {t('app.policies.title')}
+            </Button>
           {/if}
           {#if container.type === 'HUB'}
             <!-- Somebody else's file, landed as collections here (decision 15). Under STRUCTURE,
@@ -746,6 +759,12 @@
   <CustomFieldsDialog
     bind:isOpen={isManagingFields}
     collectionId={container.id}
+    role={structureRole}
+  />
+  <PoliciesDialog
+    bind:isOpen={isManagingPolicies}
+    {container}
+    path={containerPath}
     role={structureRole}
   />
   <ViewsPanel

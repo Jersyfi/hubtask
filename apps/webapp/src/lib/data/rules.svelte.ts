@@ -73,7 +73,16 @@ export interface Rule {
   readonly on_error: string;
   readonly failure_count: number;
   readonly next_run_at?: string | null;
+  /** When an `INBOUND_WEBHOOK` rule's address was last minted; the moment and nothing else. */
+  readonly inbound_rotated_at?: string | null;
   readonly version: number;
+}
+
+/** A freshly minted inbound address, for the only time the token exists outside the server's hash. */
+export interface InboundToken {
+  readonly rule_id: string;
+  readonly token: string;
+  readonly rotated_at: string;
 }
 
 interface RulePage {
@@ -136,6 +145,18 @@ class Rules {
 
   async remove(ruleId: string): Promise<void> {
     await engine.mutate('DELETE', `${PATH}/${ruleId}`, undefined, { invalidates: [PATH] });
+  }
+
+  /**
+   * Mints the address an `INBOUND_WEBHOOK` rule answers on, and answers the token once. Rotating
+   * is revoking: the replacement happens in one statement, so the old address stops at this
+   * moment (`automation.md` §1.1). The listing is re-read for `inbound_rotated_at`.
+   */
+  async rotateInbound(ruleId: string): Promise<InboundToken> {
+    return engine.mutate<InboundToken>('POST', `${PATH}/${ruleId}:rotate-inbound-token`, {}, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [PATH],
+    });
   }
 }
 
