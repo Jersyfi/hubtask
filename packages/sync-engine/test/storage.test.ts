@@ -110,3 +110,25 @@ test('IndexedDbStorage: the database name is the origin and the account, so two 
 test('IndexedDbStorage: a runtime with no IndexedDB is refused at construction, not at first use', () => {
   assert.throws(() => new IndexedDbStorage('x', undefined), TypeError);
 });
+
+// The window issue 776 found: the writing transaction is kept for the next request, and between its
+// last request's completion and its `complete` event it is finished but still held. A request
+// issued on it from a later task throws `TransactionInactiveError`; the store answers from a
+// fresh transaction rather than reporting the copy empty.
+test('IndexedDbStorage: a read or write after the writing transaction finished is answered, not thrown (issue 776)', async () => {
+  const { factory } = fakeIndexedDb();
+  const storage = new IndexedDbStorage(databaseNameFor('https://hubtask.example', 'account-2'), factory);
+  await storage.put('items', 'i1', { title: 'first' });
+
+  // A task later: the transaction has gone inactive, and its `complete` has not yet fired.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(await storage.get('items', 'i1'), { title: 'first' });
+
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  await storage.put('items', 'i2', { title: 'second' });
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(await storage.all('items'), [{ title: 'first' }, { title: 'second' }]);
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  await storage.delete('items', 'i1');
+  assert.deepEqual(await storage.all('items'), [{ title: 'second' }]);
+});
