@@ -4,6 +4,7 @@
 package rest
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -123,5 +124,28 @@ func TestAMalformedAcceptanceIsRefused(t *testing.T) {
 	}
 	if registry.name != "" {
 		t.Errorf("a malformed body reached the use case as %q", registry.name)
+	}
+}
+
+// What the narrowing dropped travels on the answer (issue 767), so that a client can say a draft
+// is not the whole of what the provider answered.
+func TestTheAnswerCarriesWhatTheNarrowingDropped(t *testing.T) {
+	out := acceptedSuggestion()
+	out["kind"] = "TEMPLATE"
+	out["dropped_nodes"] = 3
+	registry := &catalogue{out: out}
+
+	recorder := suggestionRequest(t, registry, "/suggestions/"+decidedSuggestion+":dismiss", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	var body struct {
+		DroppedNodes *int `json:"dropped_nodes"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if body.DroppedNodes == nil || *body.DroppedNodes != 3 {
+		t.Errorf("dropped_nodes = %v, want 3", body.DroppedNodes)
 	}
 }

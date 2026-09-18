@@ -523,8 +523,9 @@ func (h Produce) ask(
 			Model: answer.Model, PromptID: answer.PromptID,
 			PromptVersion: answer.PromptVersion, ProducedAt: answer.ProducedAt,
 		},
-		InputDigest: material.Digest,
-		Now:         h.Clock.Now(),
+		InputDigest:  material.Digest,
+		DroppedNodes: dropped,
+		Now:          h.Clock.Now(),
 	})
 	if err != nil {
 		return Outcome{}, err
