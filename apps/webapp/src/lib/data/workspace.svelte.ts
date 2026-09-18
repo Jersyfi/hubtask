@@ -31,6 +31,8 @@ export interface Workspace {
   readonly default_locale: string;
   readonly default_time_zone: string;
   readonly require_admin_totp: boolean;
+  /** The backup target the audit chain's end is anchored to once a day; null or absent is off. */
+  readonly audit_anchor_target_id?: string | null;
   readonly created_at: string;
   readonly updated_at?: string | null;
   readonly version: number;
