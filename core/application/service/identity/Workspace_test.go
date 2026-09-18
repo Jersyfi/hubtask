@@ -270,4 +270,13 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 	if _, held := out["settings"]; held {
 		t.Error("the answer carries the settings document, which is the adapter's shape")
 	}
+	// The anchoring target is the second modelled setting the answer carries (issue 774): absent
+	// while anchoring is off, the identifier once it is on.
+	if _, held := out["audit_anchor_target_id"]; held {
+		t.Error("anchoring is off and the answer names a target")
+	}
+	read.Settings.AuditAnchorTargetID = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	if got := workspaceOutput(read)["audit_anchor_target_id"]; got != "0192f000-0000-7000-8000-0000000000b1" {
+		t.Errorf("the answer names %v as the anchoring target", got)
+	}
 }

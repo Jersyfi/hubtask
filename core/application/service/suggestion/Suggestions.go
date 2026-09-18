@@ -825,6 +825,7 @@ func suggestionOutput(proposal domain.Suggestion) usecase.Output {
 		"produced_at":    proposal.ProducedAt,
 		"created_at":     proposal.CreatedAt,
 		"version":        proposal.Version,
+		"dropped_nodes":  proposal.DroppedNodes,
 	}
 	if !proposal.DecidedAt.IsZero() {
 		out["decided_at"] = proposal.DecidedAt

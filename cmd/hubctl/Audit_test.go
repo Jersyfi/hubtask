@@ -134,3 +134,60 @@ func TestExportingTheTrailSendsThePeriodAndTheTarget(t *testing.T) {
 		t.Errorf("output %q", out)
 	}
 }
+
+// Anchoring is the workspace administrator's (audit.md §3): without a flag the command reads
+// where the chain's end goes, and with one it names a target or switches anchoring off.
+func TestAnchoringIsShownFromTheWorkspaceAndSetThroughTheAnchoringRoute(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"id":"`+itemID+`","slug":"acme","display_name":"Acme",
+	  "status":"ACTIVE","default_locale":"en","default_time_zone":"UTC","require_admin_totp":false,
+	  "audit_anchor_target_id":"`+targetID+`","created_at":"2026-01-02T03:04:05Z","version":4}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "audit", "anchor")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.Method != http.MethodGet || stub.request.URL.Path != APIPath+workspacePath {
+		t.Errorf("%s %s", stub.request.Method, stub.request.URL.Path)
+	}
+	if !strings.Contains(out, "on") || !strings.Contains(out, targetID) {
+		t.Errorf("output %q", out)
+	}
+
+	stub = serveJSON(t, http.StatusOK, `{"target_id":"`+targetID+`","configured_at":"2026-08-27T09:00:00Z","configured_by":null}`)
+	code, out, errOut = invokeAgainst(t, stub, signedIn(stub), "", "audit", "anchor", "--target", targetID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.Method != http.MethodPut || stub.request.URL.Path != APIPath+auditAnchoringPath {
+		t.Errorf("%s %s", stub.request.Method, stub.request.URL.Path)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if sent["target_id"] != targetID {
+		t.Errorf("target_id = %v", sent["target_id"])
+	}
+	if !strings.Contains(out, "on") || !strings.Contains(out, targetID) {
+		t.Errorf("output %q", out)
+	}
+
+	// Off sends an explicit null: the contract's word for "switch it off", and a body without
+	// the key would be refused as incomplete.
+	stub = serveJSON(t, http.StatusOK, `{"target_id":null,"configured_at":"2026-08-27T09:00:00Z","configured_by":null}`)
+	code, out, errOut = invokeAgainst(t, stub, signedIn(stub), "", "audit", "anchor", "--off")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"target_id":null`) {
+		t.Errorf("body %q", stub.body)
+	}
+	if !strings.Contains(out, "off") {
+		t.Errorf("output %q", out)
+	}
+
+	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "audit", "anchor", "--off", "--target", targetID)
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
+	}
+}

@@ -38,10 +38,15 @@ type Suggestion struct {
 	Provenance
 	// InputDigest is the fingerprint of what the suggestion was made from.
 	InputDigest []byte
-	CreatedAt   time.Time
-	DecidedAt   time.Time
-	DecidedBy   shared.ID
-	Version     int
+	// DroppedNodes is how many parts of the provider's answer the narrowing dropped before the
+	// payload was stored - for a template, the nodes the profile refused, each with its subtree
+	// (issue 767). Recorded here rather than left in the job's result, because the suggestion is
+	// what a client renders and a draft that is not the whole answer should say so.
+	DroppedNodes int
+	CreatedAt    time.Time
+	DecidedAt    time.Time
+	DecidedBy    shared.ID
+	Version      int
 }
 
 // Provenance is where a proposal came from, and it is the reason a suggestion is stored at all
@@ -158,7 +163,9 @@ type NewInput struct {
 	Payload     map[string]any
 	Provenance  Provenance
 	InputDigest []byte
-	Now         time.Time
+	// DroppedNodes is what the narrowing left out of the payload; zero where nothing was.
+	DroppedNodes int
+	Now          time.Time
 }
 
 // New validates a proposal and records it as PROPOSED.
@@ -185,6 +192,8 @@ func New(in NewInput) (Suggestion, error) {
 		// Without it, staleness cannot be judged, and a suggestion nobody can call stale is one
 		// that will eventually be applied to something it was not made from.
 		return Suggestion{}, shared.ErrInternal.WithDetail("suggestions.input_digest_required")
+	case in.DroppedNodes < 0:
+		return Suggestion{}, shared.ErrInternal.WithDetail("suggestions.incomplete")
 	}
 
 	provenance := in.Provenance
@@ -209,7 +218,8 @@ func New(in NewInput) (Suggestion, error) {
 		TargetType: in.TargetType, TargetID: in.TargetID,
 		Kind: in.Kind, Status: StatusProposed, Payload: in.Payload,
 		Provenance: provenance, InputDigest: slices.Clone(in.InputDigest),
-		CreatedAt: in.Now.UTC(), Version: 1,
+		DroppedNodes: in.DroppedNodes,
+		CreatedAt:    in.Now.UTC(), Version: 1,
 	}, nil
 }
 

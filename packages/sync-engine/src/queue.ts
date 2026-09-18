@@ -189,13 +189,16 @@ export class Queue {
         return;
       case 'REJECTED': {
         const code = result.error?.code ?? 'rejected';
+        const messageCode = result.error?.message_code;
         await this.#storage.put<RejectedMutation>(REJECTED, pending.id, {
           id: pending.id, kind: pending.kind, itemId: pending.itemId, code,
-          ...(result.error?.message_code ? { messageCode: result.error.message_code } : {}),
+          ...(messageCode ? { messageCode } : {}),
           local: localOf(pending.mutation),
           at,
         });
-        if (code === 'sync.gone') {
+        // The server answers the category as `code` (`gone`) and the message code beside it
+        // (`sync.gone`); either names §7's purge.
+        if (code === 'sync.gone' || messageCode === 'sync.gone') {
           // The object was purged (§7): the copy goes with it, and what the person wrote is in
           // the rejected record for safekeeping.
           await this.#replica.apply(record('DELETE', entity, entityId));

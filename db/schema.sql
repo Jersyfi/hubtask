@@ -1962,6 +1962,9 @@ CREATE TABLE ai_suggestion (
   decided_at    timestamptz,
   decided_by    uuid,
   version       integer NOT NULL DEFAULT 1,
+  -- How many parts of the provider's answer the narrowing dropped before the payload was stored:
+  -- for TEMPLATE the nodes the profile refused, each with its subtree (0094, issue 767).
+  dropped_nodes integer NOT NULL DEFAULT 0 CHECK (dropped_nodes >= 0),
   CONSTRAINT ai_suggestion_decision CHECK (
     (status = 'PROPOSED' AND decided_at IS NULL AND decided_by IS NULL) OR
     (status <> 'PROPOSED' AND decided_at IS NOT NULL)

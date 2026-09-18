@@ -25,8 +25,8 @@ import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import { AUDIT, auditPath, type Entry, type Query, type Verification } from './audit.ts';
 
-export { auditPath, readVerification } from './audit.ts';
-export type { Actor, Change, Entry, Finding, Query, Verification } from './audit.ts';
+export { auditPath, readAnchor, readVerification } from './audit.ts';
+export type { Actor, AnchorFinding, Change, Entry, Finding, Query, Verification } from './audit.ts';
 
 /** One page of the trail, as the listing answers it. */
 interface Page {
@@ -86,10 +86,21 @@ class Audit {
    * A clean check records nothing and a break records a critical entry of its own — the server's
    * doing, and the reason the screen says a break has been noticed rather than only shown.
    */
-  async verify(from: string, to: string): Promise<Verification> {
-    const answer = await engine.mutate<Verification>('POST', `${AUDIT}:verify`, { from, to });
+  async verify(from: string, to: string, anchors = false): Promise<Verification> {
+    // The read-back of the anchor is asked for rather than always done: it is a read of
+    // somebody else's machine (the contract's own words).
+    const answer = await engine.mutate<Verification>('POST', `${AUDIT}:verify`, { from, to, ...(anchors ? { anchors: true } : {}) });
     this.#verification = answer;
     return answer;
+  }
+
+  /**
+   * Names the backup target the chain's end is anchored to once a day, or `null` to switch
+   * anchoring off (issue 774, audit.md §3). The workspace is re-read, because that is where the
+   * target is read back from.
+   */
+  async configureAnchoring(targetId: string | null): Promise<void> {
+    await engine.mutate('PUT', `${AUDIT}/anchoring`, { target_id: targetId }, { invalidates: ['/tenant'] });
   }
 
   /**

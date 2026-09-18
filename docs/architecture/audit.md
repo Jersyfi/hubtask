@@ -89,7 +89,12 @@ and since P-13 (`0.9.0`, A-2) it is built rather than promised:
 * **The configuration point** is `PUT /audit/anchoring` (`ConfigureAuditAnchoring`): a workspace
   names one of its own backup targets, or `null` to switch anchoring off. It needs `STRUCTURE` at
   the workspace and is audited with the target before and after (`audit.anchoring_configured`).
-  The setting lives in the workspace's settings document (`audit_anchor_target_id`).
+  The setting lives in the workspace's settings document (`audit_anchor_target_id`) and is read
+  back on the workspace resource (`GET /tenant`), because a screen that sets a value it cannot
+  read back is guessing. **The controls are the workspace administrator's**, not the operator's
+  ([#774](https://github.com/Jersyfi/hubtask/issues/774)): the audit screen's *Anchoring outside
+  this database* section, and `hubctl audit anchor [--target <id> | --off]`. An operator has no
+  say in it, for the reason the target is the workspace's own: nothing crosses a workspace here.
 * **The job** (`audit.anchor`) is per tenant and self-seeded — the configuration's write seeds it,
   each round reschedules itself to shortly after the next midnight UTC, and a workspace that names
   no target lets it finish — because nothing in this system may enumerate tenants. Once a day,

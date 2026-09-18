@@ -79,7 +79,9 @@ func proposalFor(t *testing.T, id, tenantID shared.ID, at time.Time) domain.Sugg
 			ProducedAt: at.Add(-time.Minute),
 		},
 		InputDigest: domain.Digest("Buy milk", ""),
-		Now:         at,
+		// And what the narrowing dropped (issue 767), which the client reads off the row.
+		DroppedNodes: 2,
+		Now:          at,
 	})
 	if err != nil {
 		t.Fatalf("building the suggestion: %v", err)
@@ -155,6 +157,9 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 		}
 		if found.Payload["title"] != "Buy oat milk" {
 			t.Errorf("the payload came back as %v", found.Payload)
+		}
+		if found.DroppedNodes != 2 {
+			t.Errorf("dropped_nodes came back as %d, want 2", found.DroppedNodes)
 		}
 		titles, held := found.Payload["subtasks"].([]any)
 		if !held || len(titles) != 2 || titles[0] != "Check the fridge" {
