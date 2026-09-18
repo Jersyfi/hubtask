@@ -1889,6 +1889,8 @@ class Capabilities(TypedDict, total=False):
     tenancy_mode: Literal["single", "multi"]
     item_types: list[dict[str, Any]]
     view_layouts: list[str]
+    completion_policies: list["CompletionPolicy"]
+    auto_assign_strategies: list["AutoAssignStrategy"]
     query_fields: list["QueryField"]
     text_languages: list[str]
     supported_locales: list[dict[str, Any]]
