@@ -41,6 +41,16 @@ function settled<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+/**
+ * A request that could not be issued because the transaction it was issued on is no longer
+ * active - finished between its last request and its `complete` event (issue 776), or aborted
+ * meanwhile. The remedy is the same for both: a fresh transaction.
+ */
+function isInactive(cause: unknown): boolean {
+  const name = (cause as { name?: unknown } | null)?.name;
+  return name === 'TransactionInactiveError' || name === 'InvalidStateError';
+}
+
 /** The name a database is opened under: the origin and the account, and nothing that could collide. */
 export function databaseNameFor(apiOrigin: string, accountId: string): string {
   return `hubtask:${apiOrigin}:${accountId}`;
@@ -99,16 +109,16 @@ export class IndexedDbStorage implements Storage {
    * stays alive as long as a request is issued from a request's own completion, which is how
    * the replica writes: one put resolves, the next is issued in its continuation. When nothing
    * follows it, the transaction commits on its own and the next write opens a fresh one.
+   *
+   * The request is issued here, not by the caller, because a finished transaction is only found
+   * out at that moment: `objectStore()` still answers between the last request's completion and
+   * the `complete` event, and it is the request that throws (issue 776). Then the held transaction is
+   * dropped and the request goes on a fresh one - the reuse is only ever for a request issued
+   * from a continuation, and that one never lands in the window.
    */
-  async #writer(): Promise<IDBObjectStore> {
-    if (this.#writing) {
-      try {
-        return this.#writing.objectStore(STORE);
-      } catch {
-        // Finished or aborted in between - the guard below missed it. Open a new one.
-        this.#writing = undefined;
-      }
-    }
+  async #write<T>(issue: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+    const reused = this.#reuse(issue);
+    if (reused) return reused;
     const database = await this.#open();
     const transaction = database.transaction(STORE, 'readwrite');
     const done = () => {
@@ -118,41 +128,48 @@ export class IndexedDbStorage implements Storage {
     transaction.onabort = done;
     transaction.onerror = done;
     this.#writing = transaction;
-    return transaction.objectStore(STORE);
+    return settled(issue(transaction.objectStore(STORE)));
   }
 
   /**
-   * A store to read from: the writing transaction while one is alive - a read on the same
-   * transaction keeps it alive for the write that follows it, which is the replica's whole
-   * pattern (read the copy, write it back) - and a fresh readonly one otherwise.
+   * A read: on the writing transaction while one is alive - a read on the same transaction keeps
+   * it alive for the write that follows it, which is the replica's whole pattern (read the copy,
+   * write it back) - and on a fresh readonly one otherwise.
    */
-  async #reader(): Promise<IDBObjectStore> {
-    if (this.#writing) {
-      try {
-        return this.#writing.objectStore(STORE);
-      } catch {
-        this.#writing = undefined;
-      }
+  async #read<T>(issue: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+    const reused = this.#reuse(issue);
+    if (reused) return reused;
+    return settled(issue(await this.#store('readonly')));
+  }
+
+  /** Issues the request on the held writing transaction; nothing when there is none or it is gone. */
+  #reuse<T>(issue: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> | undefined {
+    if (!this.#writing) return undefined;
+    try {
+      return settled(issue(this.#writing.objectStore(STORE)));
+    } catch (cause) {
+      if (!isInactive(cause)) throw cause;
+      this.#writing = undefined;
+      return undefined;
     }
-    return this.#store('readonly');
   }
 
   async get<T>(collection: string, id: string): Promise<T | undefined> {
-    const row = await settled((await this.#reader()).get([collection, id]));
+    const row = await this.#read((store) => store.get([collection, id]));
     return (row as Row | undefined)?.value as T | undefined;
   }
 
   async put<T>(collection: string, id: string, value: T): Promise<void> {
     const row: Row = { collection, id, value };
-    await settled((await this.#writer()).put(row));
+    await this.#write((store) => store.put(row));
   }
 
   async delete(collection: string, id: string): Promise<void> {
-    await settled((await this.#writer()).delete([collection, id]));
+    await this.#write((store) => store.delete([collection, id]));
   }
 
   async all<T>(collection: string): Promise<readonly T[]> {
-    const rows = await settled((await this.#reader()).index(BY_COLLECTION).getAll(collection));
+    const rows = await this.#read((store) => store.index(BY_COLLECTION).getAll(collection));
     return (rows as Row[]).map((row) => row.value as T);
   }
 
