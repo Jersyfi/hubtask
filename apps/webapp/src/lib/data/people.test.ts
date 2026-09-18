@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, scopesAlong } from './people.ts';
+import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, ownershipOf, scopesAlong } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -97,4 +97,43 @@ test('a workspace row is granted here when the workspace is what is being looked
   // `null` and "absent" are the same scope here, and treating them differently would make the one
   // scope that has no identifier the one scope nobody can revoke at.
   assert.equal(rows[0]?.isHere, true);
+});
+
+test('a revocation is somebody else\'s, the reader\'s own, or the reader\'s last (issue 778)', () => {
+  const here = { scopeType: 'TENANT' } as const;
+  const holders = holdersOf(
+    [
+      grant({ id: 'm-amelie-admin', scope_type: 'TENANT', role: 'ADMIN', account_id: AMELIE }),
+      grant({ id: 'm-amelie-auditor', scope_type: 'TENANT', role: 'AUDITOR', account_id: AMELIE }),
+      grant({ id: 'm-jonas', scope_type: 'TENANT', role: 'MEMBER', account_id: JONAS }),
+      grant({ id: 'm-fitters', scope_type: 'TENANT', role: 'VIEWER', group_id: FITTERS }),
+    ],
+    here,
+  );
+  const nobody = () => [];
+  const fitters = (groupId: string) => (groupId === FITTERS ? [JONAS] : []);
+
+  // Somebody else's role, and nobody signed in.
+  assert.equal(ownershipOf(holders, 'm-jonas', AMELIE, nobody), 'other');
+  assert.equal(ownershipOf(holders, 'm-jonas', undefined, nobody), 'other');
+  assert.equal(ownershipOf(holders, 'm-unknown', AMELIE, nobody), 'other');
+  // One of two: the other remains.
+  assert.equal(ownershipOf(holders, 'm-amelie-admin', AMELIE, nobody), 'own');
+  // The only one.
+  assert.equal(ownershipOf(holders, 'm-jonas', JONAS, nobody), 'last');
+  // A role through a group reaches the reader too - so Jonas keeps one, and the group\'s is his own.
+  assert.equal(ownershipOf(holders, 'm-jonas', JONAS, fitters), 'own');
+  assert.equal(ownershipOf(holders, 'm-fitters', JONAS, fitters), 'own');
+  assert.equal(ownershipOf(holders, 'm-fitters', AMELIE, fitters), 'other');
+});
+
+test('a role inherited from above counts as one that remains', () => {
+  const holders = holdersOf(
+    [
+      grant({ id: 'm-workspace', scope_type: 'TENANT', role: 'MEMBER', account_id: AMELIE }),
+      grant({ id: 'm-hub', scope_type: 'HUB', scope_id: HUB, role: 'ADMIN', account_id: AMELIE }),
+    ],
+    { scopeType: 'HUB', scopeId: HUB },
+  );
+  assert.equal(ownershipOf(holders, 'm-hub', AMELIE, () => []), 'own');
 });
