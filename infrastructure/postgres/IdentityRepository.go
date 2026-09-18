@@ -59,7 +59,7 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 			WithCause(fmt.Errorf("reading account %s: %w", accountID, err))
 	}
 	return accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
-		row.Locale, row.TimeZone, row.WeekStart)
+		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
 func (r AccountRepository) FindByEmail(ctx context.Context, email string) (identity.Account, error) {
@@ -80,7 +80,7 @@ func (r AccountRepository) FindByEmail(ctx context.Context, email string) (ident
 			WithCause(fmt.Errorf("reading an account by address: %w", err))
 	}
 	return accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
-		row.Locale, row.TimeZone, row.WeekStart)
+		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
 // ListOfKind answers the tenant's accounts of one kind, newest first. Its one caller is the
@@ -104,7 +104,7 @@ func (r AccountRepository) ListOfKind(
 	accounts := make([]identity.Account, 0, len(rows))
 	for _, row := range rows {
 		account, err := accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
-			row.Locale, row.TimeZone, row.WeekStart)
+			row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -203,11 +203,13 @@ func (r AccountRepository) UpdatePreferences(
 	}
 
 	affected, err := queries.UpdateAccountPreferences(ctx, sqlc.UpdateAccountPreferencesParams{
-		Locale:    optionalText(account.Locale),
-		TimeZone:  optionalText(account.TimeZone),
-		WeekStart: optionalText(account.WeekStart),
-		UpdatedAt: timestampOf(at),
-		ID:        id,
+		Locale:                optionalText(account.Locale),
+		TimeZone:              optionalText(account.TimeZone),
+		WeekStart:             optionalText(account.WeekStart),
+		Celebrations:          account.Celebrations,
+		OnboardingCompletedAt: optionalTimestamp(account.OnboardingCompletedAt),
+		UpdatedAt:             timestampOf(at),
+		ID:                    id,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
@@ -227,21 +229,28 @@ func (r AccountRepository) UpdatePreferences(
 func accountFrom(
 	id pgtype.UUID, kind sqlc.AccountKind, email *string, displayName string,
 	status sqlc.AccountStatus, locale, timeZone, weekStart *string,
+	celebrations *bool, onboardingCompletedAt pgtype.Timestamptz,
 ) (identity.Account, error) {
 	accountID, err := idFrom(id)
 	if err != nil {
 		return identity.Account{}, err
 	}
-	return identity.Account{
-		ID:          accountID,
-		Kind:        identity.AccountKind(kind),
-		Email:       stringFrom(email),
-		DisplayName: displayName,
-		Status:      identity.AccountStatus(status),
-		Locale:      stringFrom(locale),
-		TimeZone:    stringFrom(timeZone),
-		WeekStart:   stringFrom(weekStart),
-	}, nil
+	account := identity.Account{
+		ID:           accountID,
+		Kind:         identity.AccountKind(kind),
+		Email:        stringFrom(email),
+		DisplayName:  displayName,
+		Status:       identity.AccountStatus(status),
+		Locale:       stringFrom(locale),
+		TimeZone:     stringFrom(timeZone),
+		WeekStart:    stringFrom(weekStart),
+		Celebrations: celebrations,
+	}
+	if onboardingCompletedAt.Valid {
+		at := timeFrom(onboardingCompletedAt)
+		account.OnboardingCompletedAt = &at
+	}
+	return account, nil
 }
 
 // GroupRepository is the group table and its member links.

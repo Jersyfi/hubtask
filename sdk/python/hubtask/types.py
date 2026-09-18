@@ -57,6 +57,8 @@ class Account(TypedDict, total=False):
     locale: str | None
     time_zone: str | None
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
+    celebrations: bool | None
+    onboarding_completed_at: str | None
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""
@@ -79,6 +81,8 @@ class AccountPreferences(TypedDict, total=False):
     locale: str | None
     time_zone: str | None
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
+    celebrations: bool | None
+    onboarding_completed_at: str | None
 
 class NotificationPreference(TypedDict, total=False):
     category: Required[str]

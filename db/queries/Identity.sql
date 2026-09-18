@@ -106,14 +106,16 @@ WHERE m.scope_type = 'ITEM'
 -- rather than forbidden (ADR-0010, multi-tenancy.md §2).
 
 -- name: FindAccount :one
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
 -- name: FindAccountByEmail :one
 -- Compared lower case, the way the uniqueness index does - two spellings of one address are two
 -- accounts for one person otherwise (account_email_uq).
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower(sqlc.arg('email')) AND deleted_at IS NULL;
 
@@ -126,12 +128,14 @@ VALUES (
 );
 
 -- name: UpdateAccountPreferences :execrows
--- Three columns and no others. An update that could write any column is one that can write the
--- status by accident, and the status is what decides whether an account may act at all.
+-- The preference columns and no others. An update that could write any column is one that can
+-- write the status by accident, and the status is what decides whether an account may act at all.
 UPDATE account SET
   locale     = sqlc.narg('locale'),
   time_zone  = sqlc.narg('time_zone'),
   week_start = sqlc.narg('week_start'),
+  celebrations = sqlc.narg('celebrations'),
+  onboarding_completed_at = sqlc.narg('onboarding_completed_at'),
   updated_at = sqlc.arg('updated_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -255,7 +259,8 @@ WHERE id = sqlc.arg('id') AND revoked_at IS NULL;
 --
 -- Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
 -- cursor over a handful is machinery nobody reads.
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE kind = sqlc.arg('kind') AND deleted_at IS NULL
 ORDER BY id DESC;

@@ -72,7 +72,8 @@ WHERE id IN (
 -- The subject the provider vouched for, under the unique index that makes it one account per
 -- workspace. Deleted accounts are excluded: an arriving subject whose account was deleted is a
 -- first arrival, not a resurrection.
-SELECT id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start
+SELECT id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
 FROM account
 WHERE external_subject = sqlc.arg('external_subject') AND deleted_at IS NULL;
 

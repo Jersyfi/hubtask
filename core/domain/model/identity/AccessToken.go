@@ -253,6 +253,13 @@ type Account struct {
 	Locale    string
 	TimeZone  string
 	WeekStart string
+	// Celebrations and OnboardingCompletedAt are the account's moments (F6-12, milestone-F6.md
+	// decision 11), written by the client for itself: whether design-system.md §7's celebrations
+	// are marked - nil is the default, which is on - and when the first-run tour ended, nil while
+	// it has not or was asked for again. The account's rather than the device's for the reason
+	// ADR-0043 gives: a person who has seen the tour has seen it on every screen.
+	Celebrations          *bool
+	OnboardingCompletedAt *time.Time
 }
 
 // Verify decides whether the account may act.
