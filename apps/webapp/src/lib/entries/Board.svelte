@@ -42,6 +42,8 @@
   import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
+  import { celebration } from '../celebration.svelte.ts';
+  import CelebrationSlot from './CelebrationSlot.svelte';
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
@@ -192,6 +194,10 @@
 
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
+  /** The moment standing (F6-13): on the card that was completed, whichever tier. */
+  const moment = $derived(celebration.current);
+  $effect(() => () => celebration.dismiss());
+
   // Managing the columns themselves. `buckets` has had `create`, `update`, `remove` and `reorder`
   // since F2-11 and no caller, so a collection's board could only be set up outside the
   // application - including `wip_limit` and `is_done_bucket`, both of which this board reads and
@@ -261,6 +267,8 @@
       const target = columns.find((column) => column.id === bucketId);
       if (target?.is_done_bucket && !moved.completion?.is_completed) {
         moved = await items.setCompleted(moved.id, true, crypto.randomUUID());
+        // A card dropped into the done column is a completion, and a completion may be a moment.
+        void celebration.celebrate(moved);
       }
       announcer.say(
         t('app.board.moved', {
@@ -579,6 +587,7 @@
                 class="card"
                 data-card={card.id}
                 data-column={bucket?.id ?? 'none'}
+                data-celebrating={moment && moment.item.id === card.id ? '' : undefined}
                 data-dragging={drag.id === card.id ? '' : undefined}
                 data-drop={drag.id !== null &&
                 drag.id !== card.id &&
@@ -611,6 +620,9 @@
                 <span class="grip" data-grip aria-hidden="true">
                   <Icon name="grip-vertical" size="sm" />
                 </span>
+                {#if moment && moment.item.id === card.id}
+                  <CelebrationSlot current={moment} />
+                {/if}
                 <WorkItemCard
                   title={card.title}
                   href={`/items/${card.id}`}
@@ -707,6 +719,9 @@
   /* The card's wrapper carries what the two paths read — the identity a key press finds, and the
      state a drag draws. The card itself is the design system's. */
   .card { display: flex; align-items: start; gap: var(--sp-050); }
+
+  /* A card is the slot a moment sits over (F6-13); a column too, for the rare one. */
+  .card[data-celebrating] { position: relative; }
 
   .card > :global(*:last-child) { flex: 1; min-width: 0; }
 

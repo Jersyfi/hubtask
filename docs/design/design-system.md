@@ -248,6 +248,7 @@ structural, not reviewed.
 | `OneTimeSecret` | The five values in this product that are shown for the only time — a minted token, a webhook signing secret, a TOTP secret with its recovery codes, an inbound trigger address, a jumble intake address. Reveal, copy, and an acknowledgement the caller may require before the value can be dismissed. It renders no value it was not handed, writes to no storage, and holds nothing once it is gone |
 | `QrCode` | The TOTP provisioning URI as a picture an authenticator scans, beside the same secret written out (ADR-0053, option B). Built: an encoder in `qr.ts` — byte mode, level M, versions 1 to 13, held to the standard's published vectors and to a real decoder — and an SVG of one path. **Dark on light in both modes**, because a camera is not a reader of the theme and not every authenticator reads an inverted code; the payload is drawn and never written into the DOM as text, so a screen reader is not read the secret and a copy-all does not take it |
 | `SyncStatus` + `ConflictResolver` | Offline operation, "concurrent changes are never lost". Built (F6-06). `SyncStatus` is one line in the frame's header: the connection state as a mark and a word (rule 3), the count of changes waiting and the moment of the oldest, when the copy last synchronised — fed by `engine.queue()` and the stream's state, and rendering **no sentence of its own**. The state is a `status` live region (F5-12): losing the server is announced once, when it happens, and a count that moves is not, because a heartbeat is not news. The count opens the list — every waiting change as *what* and *where*, the kind in the catalogue's words and the entry in the reader's — and every refused one with its reason and a dismiss: a rejection is shown, never swallowed (`offline-sync.md` §9.5), `sync.gone` and `forbidden` by name. `TaskRow` and `WorkItemCard` take a `pendingLabel` and carry the `pending` motion role beside the word, in opacity alone, stilled under reduced motion. `ConflictResolver` is a dialog for the one case §5 leaves to the person, a `CONFLICT` on the notes: both versions side by side as text, never markup — theirs already in place, mine already a system comment the dialog links to — and two ways out: keep theirs, which dismisses, or write mine again, which is the caller's ordinary `PATCH` of the field from the current version. **Never a merge of the two texts and never an automatic retry**; a merge here would be the client deciding what the server decides (ADR-0021). It opens from the frame's list and from the entry's own strip |
+| `Celebration` | §7's slot as one component (F6-13): `tier` 1, 2 or 3, an asset per tier within the tokens' guardrails — a ring that settles on the row, a sweep of the signature colour across the parent row, marks in both brand colours rising no further than `--motion-celebration-travel` in a slot no taller than `--motion-celebration-area`. Built. **Never blocking**: the slot is `inert` and off the tree, the caller unmounts it on `onDone` and the next completion is not delayed; the one sentence beside it is a `status` region heard once, resolved by the caller in the voice §7 asks for. Under `data-motion="reduced"` every tier is rule 6's colour change for the tier's duration. Which animation carries which tier is an asset and may change; the tiers, the tokens and the triggers may not |
 | `HealthBanner` | Controlled degradation instead of a crash, fed from `/meta/health` |
 | `AISuggestion` | Must be visually separable — AI is switchable off, and then this component disappears without residue. Built (F5-01): the separation is the `ai.*` tokens — a surface at the neutrals' luminance that differs by hue, and the border that carries the boundary because rule 3 says a hue never stands alone — and this component is their only consumer, so switching AI off leaves no value behind. One component for every kind: the heading names the kind and says it is a proposal, the payload is the caller's slot rendered with the editor the product has for its shape, accept and dismiss are the caller's buttons, and the provenance is one line collapsed by default (`voice-and-tone.md` §7). `pending` is the job still running and `stale` the target having moved — set by the caller so the strip says so before the server refuses. It arrives as the `attach` role, in opacity alone |
 
@@ -333,7 +334,7 @@ layer is only meaningful if something knows which one. Where an overlay is *draw
 
 ---
 
-## 7. Rewarding interactions
+## 7. Rewarding interactions — built (F6-13)
 
 Relevant actions feel rewarding — through moments a user experiences when completing work that
 matters, not through classic gamification. **Levels, points, badges, streaks and leaderboards are
@@ -383,6 +384,18 @@ document. Which animation carries which moment is deliberately **not** specified
 Trigger evaluation runs **client-side**, from the domain events and hierarchy state the client
 already holds — completing the last activity of a work package is visible in data the sync layer
 delivers anyway. Nothing is added to the backend for this.
+
+**What the build decided (F6-13).** The guardrails are tokens under the `celebration` motion role:
+a duration per tier (tier 1 the role's pair, tiers 2 and 3 longer and still short) and the two
+limits of the slot, `area` and `travel`, as dimensions. The tier is decided in
+`apps/webapp/src/lib/celebration.ts` from the completion the client just performed and the
+entries the replica holds — every completion is 1; every sibling under the parent complete is 2;
+a collection or a hub with nothing open, the last entry due today across what the copy holds,
+or a completion while the account's `onboarding_completed_at` is null is 3 — with the daily cap
+kept in the store's own metadata and the fallback to 2 when it is spent. Nothing heuristic,
+nothing random: the function is a table over hierarchies. The switch is the account's
+`celebrations` preference (F6-12), on the profile beside the theme's and motion's, and off
+mounts no component at all.
 
 Documented as a growth path, not implemented: the CEL rule engine
 ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)) can later gain a `celebrate` action type,

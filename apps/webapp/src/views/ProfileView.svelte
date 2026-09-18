@@ -32,6 +32,7 @@
     Select,
     Skeleton,
     Stack,
+    Switch,
   } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -241,6 +242,33 @@
     device.setTheme(choice);
     announcer.say(t('app.profile.theme_changed_announced', { choice: t(`app.profile.theme_${choice}`) }));
   });
+
+  /**
+   * The celebrations switch writes the account's preference (F6-12) and says so. Its position is
+   * the account's, re-seeded when the account arrives or changes - and put back when a write is
+   * refused, so the control never shows a choice the server did not take.
+   */
+  let isSavingCelebrations = $state(false);
+  let celebrationsOn = $state(true);
+  $effect(() => {
+    celebrationsOn = account?.celebrations !== false;
+  });
+  async function setCelebrations(isOn: boolean) {
+    if (!accountId) return;
+    isSavingCelebrations = true;
+    failure = undefined;
+    try {
+      // `true` is written as the default's own value rather than cleared: what the person chose
+      // is a choice, and "on" is not the same fact as "never decided".
+      await preferences.setAccount(accountId, { celebrations: isOn });
+      announcer.say(t(isOn ? 'app.profile.celebrations_on_announced' : 'app.profile.celebrations_off_announced'));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+      celebrationsOn = account?.celebrations !== false;
+    } finally {
+      isSavingCelebrations = false;
+    }
+  }
 
   $effect(() => {
     const choice = MOTIONS.find((each) => each === motionChoice) ?? 'system';
@@ -496,6 +524,16 @@
         hint={t('app.profile.motion_hint')}
         bind:value={motionChoice}
         options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
+      />
+      <!-- The one switch of design-system.md §7, beside the theme's and motion's - and unlike
+           them the account's (ADR-0043, F6-12): a person who switched the moments off has
+           switched them off everywhere. Absent means on. -->
+      <Switch
+        label={t('app.profile.celebrations')}
+        hint={t('app.profile.celebrations_hint')}
+        bind:checked={celebrationsOn}
+        disabledReason={isSavingCelebrations ? t('app.workspace.saving') : undefined}
+        onchange={() => void setCelebrations(celebrationsOn)}
       />
     </Stack>
 
