@@ -444,6 +444,7 @@ type AiSuggestion struct {
 	DecidedAt     pgtype.Timestamptz
 	DecidedBy     pgtype.UUID
 	Version       int32
+	DroppedNodes  int32
 }
 
 type AuditAnchor struct {

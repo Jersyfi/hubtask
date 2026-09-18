@@ -6430,7 +6430,10 @@ type Suggestion struct {
 
 	// DecidedBy Who accepted or dismissed it. A suggestion is decided by a person.
 	DecidedBy *openapi_types.UUID `json:"decided_by,omitempty"`
-	Id        openapi_types.UUID  `json:"id"`
+
+	// DroppedNodes How many parts of the provider's answer the narrowing dropped before the payload was stored, so that a client can say the draft is not the whole answer. For `TEMPLATE` it is the nodes the collection's profile refused under their parent, each counted with its subtree (`ai-first.md` §2); zero for every other kind, whose narrowing drops what it drops without a count. Absent on a row written before the count existed, which reads as zero.
+	DroppedNodes *int               `json:"dropped_nodes,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets (P-11): its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
