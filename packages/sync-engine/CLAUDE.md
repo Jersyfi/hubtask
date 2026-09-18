@@ -55,8 +55,9 @@ state and keeps both values in `conflicts` for the resolver, `REJECTED` takes th
 and keeps it with its code in `rejected` until dismissed (`sync.gone` also takes the copy of the
 purged entry; the local text stays in the rejected record for safekeeping). The push's cursor
 advances the store's. A push that fails to reach the server leaves the queue as it was;
-`sync.device_revoked` empties the store and forgets the device, and the next attach mints a new
-one. `queue()` is a subscription like `subscribe` — the count, the oldest moment, the rejected
+`sync.device_revoked` empties the copy and forgets the device, and the next attach mints a new
+one — what the queue held is kept as refused under the code rather than discarded with the copy
+(F6-07). `queue()` is a subscription like `subscribe` — the count, the oldest moment, the rejected
 and the conflicts — which is what `SyncStatus` renders. The order keys a reorder needs offline
 are minted by `ordering.ts`, the server's scheme branch for branch, with the server's cases as
 its test.
@@ -186,5 +187,9 @@ node build/lint-workspace-map.mjs             # from the repository root: the ed
 ```
 
 `test/fakes.ts` is exported from the test directory rather than inlined in one file on purpose: the
-same fake `Transport` and fixed `Clock` will drive the conformance run when F6 brings the protocol,
-and a fake only one file can reach is a fake that gets rewritten.
+same fake `Transport` and fixed `Clock` drive the §9 harness, and a fake only one file can reach is
+a fake that gets rewritten. The conformance run itself is `conformance/` (F6-08):
+`pnpm --filter @hubtask/sync-engine conformance --base-url … --token …` plays §9's eight points
+through the engine's own API against a real instance and is held to its claims by
+`test/conformance.test.ts` against `test/fakeServer.ts` — a wrong engine fails exactly the point it
+breaks. CI runs it against the Compose stack (`engine-session`).

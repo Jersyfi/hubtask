@@ -30,7 +30,12 @@ on the first sign-in and the delta from the held cursor on every start after —
 cache with no encryption of its own, deleted whole at sign-out, and never the offline promise
 (ADR-0031); the **shells** hold the same replica in SQLite under the platform keystore, and that is
 where the promise lives. `packages/sync-engine` is the one implementation of both, behind the
-`Storage` port.
+`Storage` port. What the browser offers offline today is exactly what the push frame carries
+(milestone-F6.md decision 8): an entry created, edited, completed, moved and sorted, its labels,
+members and watchers, a comment. The rest of the left-hand column — reminders, recurrence, a
+template applied, an attachment captured — is direct while the server answers and refused with
+`sync.needs_connection` while it does not; carrying those kinds in the frame is F7's core task,
+because the offline *promise* is the installed clients' (ADR-0031).
 
 ---
 

@@ -295,9 +295,12 @@ shape, which is why the rule lives in
 
 Not a feature milestone. It holds exactly the work that can be done neither earlier nor later:
 
-* **The coverage report.** Every use case of the catalogue, where it is reachable in each client,
-  and every deliberate omission with its reason — written to `docs/evidence/` and reviewed, in the
-  manner of the resilience evidence already there. The capability matrix
+* **The coverage report, completed.** Every use case of the catalogue, where it is reachable in
+  each client, and every deliberate omission with its reason — written to `docs/evidence/` and
+  reviewed, in the manner of the resilience evidence already there. The web column exists since
+  F6-15 ([COVERAGE-2026-09-18.md](./evidence/COVERAGE-2026-09-18.md), 231 rows, held to the
+  catalogue by `tools/checkdocs`); this milestone adds the two shells' columns to the same table
+  and closes the three rows that name an issue. The capability matrix
   ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)) is either met or amended by supersede;
   it is not quietly missed.
 * **The maturity stage goes to `stable`.** The preview banner comes off, and from that moment a
@@ -518,22 +521,41 @@ language is a file on both sides. The maturity stage stays `preview`; `stable` i
 when criterion 16's walks are repeated for a release and the statement is published rather than
 dated.
 
-**F6 is cut**, and its backlog is [`backlog/milestone-F6.md`](./backlog/milestone-F6.md) —
-fifteen tasks, F6-01…F6-15, building the surface for `0.8.5` and `0.9.0`. Cutting it settled the
-question the table above had left open since the shells were named in it: the client track reaches
-convergence through the browser, and the shells wait for their own milestone (F7) rather than
-holding the offline half hostage to a signing certificate. Cutting it found **one core task**, the
-smallest of the track: a celebration is *one preference, all tiers* and the tour runs *on first
-start*, and neither fact is knowable from a client — two additive fields on `AccountPreferences`,
-specification first, in F1-08's shape. Four things it settled that the table could not: the engine
-stays product-agnostic and the application supplies `storeFor` and `mutationFor` beside the
-`pathsFor` F3-04 introduced; reads go through to the server while it answers and the replica answers
-only when it does not, marked *as of*; a write is direct while nothing is queued and queued or
-refused otherwise, with no rollback ever invented; and the browser offers offline exactly what the
-push frame carries, with the missing kinds a core task of F7's. What it deliberately leaves to
-`0.9.5`: the `stable` stage, the statement's publication, and the coverage report's other two
-columns — F6-15 writes the web column and gives `tools/checkdocs` the check that holds it to the
-catalogue.
+**F6 is done**, and its backlog is [`backlog/milestone-F6.md`](./backlog/milestone-F6.md) —
+fifteen tasks, F6-01…F6-15, building the surface for `0.8.5` and `0.9.0`, merged between
+2026-09-17 and 2026-09-18. **Cutting** it settled the question the table above had left open
+since the shells were named in it: the client track reaches convergence through the browser, and
+the shells wait for their own milestone (F7) rather than holding the offline half hostage to a
+signing certificate. Cutting it found **one core task**, the smallest of the track: a
+celebration is *one preference, all tiers* and the tour runs *on first start*, and neither fact
+is knowable from a client — two additive fields on `AccountPreferences`, specification first, in
+F1-08's shape (F6-12). Four things it settled that the table could not: the engine stays
+product-agnostic and the application supplies `storeFor` and `mutationFor` beside the `pathsFor`
+F3-04 introduced; reads go through to the server while it answers and the replica answers only
+when it does not, marked *as of*; a write is direct while nothing is queued and queued or refused
+otherwise, with no rollback ever invented; and the browser offers offline exactly what the push
+frame carries, with the missing kinds a core task of F7's. **Building** it found what cutting
+could not. In the engine: a browser that cannot negotiate a streamed upload over HTTP/1.1 sends
+the body whole (#756 → #757, found by the F6-01 proof against a real object store); the replica
+is one object store keyed by collection and identifier, and a subtree deletion walks it under
+one transaction because a transaction per record was the whole of the cost (F6-03); a plain
+question of `/items:query` — a collection's entries, no filter — is one the replica can answer,
+and the copy answers it (F6-04); a device forgotten from another screen keeps what its queue held
+as refused rather than losing it with the copy (F6-07, refining F6-05); and the engine's own
+conformance run passed against a real server on its first run and went red on point 3 alone when
+one line of the replica was made wrong, which is what makes the job evidence (F6-08). On the
+screens: a second CSV into a hub that already holds *Imported* fails the job on a unique name
+rather than being refused with a code (#766); the count of nodes a template draft dropped lives
+only in the job's result and no client can reach it (#767); the first-ever moment claims itself
+once — after the day's tier 3 is spent, "that was your first" is not said of the second — and the
+tour asks the server rather than the copy which collection to point at, because on the first
+sign-in the copy is not yet synchronised (F6-13, F6-14). And the coverage report found three use
+cases nobody built a control for — a collection's policies, audit anchoring, the rotation of a
+rule's inbound token (#773, #774, #775) — each a row that names its issue rather than a reason.
+The walk of F6-15 was made against the Compose image rather than the integration environment's
+`demo` workspace, for the reason [F6-2026-09-18.md](./evidence/F6-2026-09-18.md) gives. What it
+deliberately leaves to `0.9.5`: the `stable` stage, the statement's publication, and the
+coverage report's other two columns.
 
 ### The website: a pre-release site from the `0.4.0` window
 
