@@ -307,6 +307,11 @@ export async function mutationFor(
  * and whatever sits above it - with the server's own scheme, so that two devices inserting into
  * one list keep both insertions (§4.2). A destination the copy does not hold cannot name a rank,
  * and the write then goes directly.
+ *
+ * The payload always names the collection (issue 777): the server's applier requires a destination -
+ * a collection or a parent - and a reorder at a collection's top level is a move to the same
+ * place, which only the collection can name. A move names the collection it was asked for; a
+ * reorder names the one the entry is in, which its parent's, where it has one, agrees with.
  */
 async function moveOf(
   itemId: string, verb: 'move' | 'reorder', body: Record<string, unknown>, storage: Storage,
@@ -340,7 +345,5 @@ async function moveOf(
   } catch {
     return undefined;
   }
-  const payload: Record<string, unknown> = { parent_id: parentId, order_key: orderKey };
-  if (verb === 'move' && typeof body.target_collection_id === 'string') payload.collection_id = body.target_collection_id;
-  return { kind: 'MOVE', itemId, payload };
+  return { kind: 'MOVE', itemId, payload: { parent_id: parentId, collection_id: collectionId, order_key: orderKey } };
 }

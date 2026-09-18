@@ -151,14 +151,18 @@ test('ITEM_PATCH: an edit, a completion, an assignment, a due date, a custom fie
 test('MOVE: a reorder mints its rank between the neighbours the copy knows, a move names its destination', async () => {
   const storage = await workspace();
   const h = helpers(storage);
-  // i-2 (a1) moved before i-1 (a0): a key below a0, at the top of the level.
-  assert.deepEqual(await mutationFor('POST', '/items/i-2:reorder', { before_item_id: 'i-1' }, h), { kind: 'MOVE', itemId: 'i-2', payload: { parent_id: null, order_key: 'Zz' } });
+  // i-2 (a1) moved before i-1 (a0): a key below a0, at the top of the level. The collection
+  // travels with a reorder (issue 777): the server refuses a MOVE that names no destination, and a
+  // rank-only move is a move to the same place.
+  assert.deepEqual(await mutationFor('POST', '/items/i-2:reorder', { before_item_id: 'i-1' }, h), { kind: 'MOVE', itemId: 'i-2', payload: { parent_id: null, collection_id: COLLECTION, order_key: 'Zz' } });
   // i-1 moved to the end: after i-2's a1.
-  assert.deepEqual(await mutationFor('POST', '/items/i-1:reorder', { before_item_id: null }, h), { kind: 'MOVE', itemId: 'i-1', payload: { parent_id: null, order_key: 'a2' } });
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:reorder', { before_item_id: null }, h), { kind: 'MOVE', itemId: 'i-1', payload: { parent_id: null, collection_id: COLLECTION, order_key: 'a2' } });
+  // A reorder under a parent names the parent and the collection the parent is in.
+  assert.deepEqual(await mutationFor('POST', '/items/i-1-a:reorder', { before_item_id: null }, h), { kind: 'MOVE', itemId: 'i-1-a', payload: { parent_id: 'i-1', collection_id: COLLECTION, order_key: 'a0' } });
   // i-9 moved under i-1, into its collection, as the first child - before i-1-a (a0).
   assert.deepEqual(
     await mutationFor('POST', '/items/i-9:move', { target_parent_id: 'i-1', target_collection_id: COLLECTION, before_item_id: 'i-1-a' }, h),
-    { kind: 'MOVE', itemId: 'i-9', payload: { parent_id: 'i-1', order_key: 'Zz', collection_id: COLLECTION } },
+    { kind: 'MOVE', itemId: 'i-9', payload: { parent_id: 'i-1', collection_id: COLLECTION, order_key: 'Zz' } },
   );
   // A destination the copy does not hold cannot name a rank: the write goes directly.
   assert.equal(await mutationFor('POST', '/items/i-1:reorder', { before_item_id: 'nope' }, h), undefined);

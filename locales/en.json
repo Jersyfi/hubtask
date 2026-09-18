@@ -3126,6 +3126,7 @@
   "app.sync.refused.gone": "That entry was deleted for good while you were away. What you wrote is kept here until you dismiss it.",
   "app.sync.refused.forbidden": "You may not change this any more. What you wrote is kept here until you dismiss it.",
   "app.sync.refused.other": "The server did not accept this change. What you wrote is kept here until you dismiss it.",
+  "app.sync.refused.named": "{reason} What you wrote is kept here until you dismiss it.",
   "app.sync.refused.device_revoked": "This device was forgotten, and starts over with a fresh copy. What you wrote here is kept until you dismiss it.",
   "app.sync.conflict.title": "Two versions of the notes",
   "app.sync.conflict.field": "Somebody else changed the notes while you were away. Theirs is in place; yours was kept as a comment on the entry.",
