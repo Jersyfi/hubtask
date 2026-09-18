@@ -227,6 +227,13 @@ test('a TEMPLATE is a named draft with its root type and its tree, parent before
   );
   assert.equal(headingCodeOf(shape), 'app.suggestions.kind_template');
   assert.equal(acceptCodeOf(shape), 'app.suggestions.accept_template');
+  // A row written before the count existed says nothing was dropped (issue 767).
+  assert.equal(shape.dropped, 0);
+  const narrowed = shapeOf(
+    suggestion({ kind: 'TEMPLATE', payload: { name: 'Onboarding', root_type: 'TASK', nodes: [] }, dropped_nodes: 3 }),
+    undefined,
+  );
+  assert.equal(narrowed.shape === 'template' ? narrowed.dropped : undefined, 3);
   // A draft without a name is nothing CreateTemplate could make: unknown, not an empty heading.
   assert.equal(shapeOf(suggestion({ kind: 'TEMPLATE', payload: { nodes: [] } }), undefined).shape, 'unknown');
 });

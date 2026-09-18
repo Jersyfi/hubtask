@@ -161,6 +161,11 @@
             </li>
           {/each}
         </ul>
+        {#if shape.dropped > 0}
+          <!-- The draft is not the whole answer (issue 767): a step this collection's profile
+               does not allow was left out, with everything under it, and the count says so. -->
+          <p class="text">{t('app.suggestions.template_dropped', { count: shape.dropped })}</p>
+        {/if}
         {#snippet actions()}
           {#if accepts}
             <Button
