@@ -15,9 +15,13 @@ import (
 )
 
 const (
-	auditPath       = "/audit"
-	auditVerifyPath = "/audit:verify"
-	auditExportPath = "/audit:export"
+	auditPath          = "/audit"
+	auditVerifyPath    = "/audit:verify"
+	auditExportPath    = "/audit:export"
+	auditAnchoringPath = "/audit/anchoring"
+	// workspacePath is where the anchoring target is read back from: the workspace carries it
+	// as its second modelled setting (issue 774).
+	workspacePath = "/tenant"
 )
 
 func auditGroup() group {
@@ -44,8 +48,79 @@ func auditGroup() group {
 				run:     auditExport,
 				waits:   true,
 			},
+			{
+				name:    "anchor",
+				usage:   "[--target <id> | --off]",
+				summary: "where the chain's end is anchored once a day: show it, name a backup target, or switch it off",
+				run:     auditAnchor,
+			},
 		},
 	}
+}
+
+// anchoringTarget is the half of the workspace this command reads.
+type anchoringTarget struct {
+	TargetID *string `json:"audit_anchor_target_id"`
+}
+
+// auditAnchor shows or sets external anchoring (audit.md §3, A-2). Without a flag it reads the
+// workspace and says where the chain's end goes; `--target` names one of the workspace's own
+// backup targets; `--off` switches anchoring off and leaves the anchors already written where
+// they are. Naming both is a usage error rather than a guess about which was meant.
+func auditAnchor(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "audit", "anchor", "[--target <id> | --off]")
+	target := flags.String("target", "", "the backup target the daily anchor is written to")
+	off := flags.Bool("off", false, "switch anchoring off; the anchors already written stay")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *target != "" && *off {
+		return usagef("audit anchor takes --target or --off, not both")
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+
+	if *target == "" && !*off {
+		var workspace anchoringTarget
+		if err := client.Get(ctx, workspacePath, nil, &workspace); err != nil {
+			return err
+		}
+		return cli.Emit(workspace, Table{
+			Columns: []string{"anchoring", "target"},
+			Rows:    [][]string{anchoringRow(workspace.TargetID)},
+		})
+	}
+
+	body := map[string]any{"target_id": nil}
+	if *target != "" {
+		parsed, err := cli.parseID("--target", *target)
+		if err != nil {
+			return err
+		}
+		body["target_id"] = parsed.String()
+	}
+	var configured openapi.AuditAnchoring
+	if err := client.Put(ctx, auditAnchoringPath, body, &configured); err != nil {
+		return err
+	}
+	var named *string
+	if configured.TargetId != nil {
+		id := configured.TargetId.String()
+		named = &id
+	}
+	return cli.Emit(configured, Table{
+		Columns: []string{"anchoring", "target", "configured"},
+		Rows:    [][]string{append(anchoringRow(named), shortTime(&configured.ConfiguredAt))},
+	})
+}
+
+func anchoringRow(target *string) []string {
+	if target == nil || *target == "" {
+		return []string{"off", "-"}
+	}
+	return []string{"on", *target}
 }
 
 // auditEntries is the answer to `GET /audit`: an inline schema in the contract, so the generator
