@@ -103,8 +103,12 @@
     { id: 'actions', label: t('app.people.actions'), isLabelHidden: true },
   ]);
 
-  /** The workspace is the only scope here, so every badge says the same thing about reach. */
-  const scopeLabel = t('app.people.at_workspace');
+  /**
+   * The workspace is the only scope here, so every badge says the same thing about reach. Derived
+   * rather than read once: the reader's catalogue arrives after the first render, and a label
+   * fixed before it would stay in the source language beside translated sentences.
+   */
+  const scopeLabel = $derived(t('app.people.at_workspace'));
 
   function statusOf(accountId: string | undefined): string | undefined {
     return accountId ? accounts.statusOf(accountId) : undefined;
