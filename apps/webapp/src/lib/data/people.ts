@@ -130,3 +130,31 @@ export function holdersOf(
       (membership.scope_id ?? undefined) === here.scopeId,
   }));
 }
+
+/**
+ * Whose role a revocation would end, from the reader's side: somebody else's, the reader's own,
+ * or the reader's own and last one in force at this place.
+ *
+ * The distinction is what the confirmation says before the revoke (issue 778): a role of one's
+ * own ends the reader's reach along with the subject's, and the last one ends it entirely -
+ * the server allows that, because an owner may hand over and leave, so the client is the half
+ * that says what it costs. A role held through a group counts as the reader's own, and a role
+ * inherited from above counts as one that remains, because both decide what the reader can still
+ * read afterwards.
+ */
+export type Ownership = 'other' | 'own' | 'last';
+
+export function ownershipOf(
+  holders: readonly Holder[],
+  membershipId: string,
+  me: string | undefined,
+  membersOf: (groupId: string) => readonly string[],
+): Ownership {
+  if (!me) return 'other';
+  const reaches = (holder: Holder): boolean =>
+    holder.accountId === me || (holder.groupId !== undefined && membersOf(holder.groupId).includes(me));
+  const revoked = holders.find((holder) => holder.membershipId === membershipId);
+  if (!revoked || !reaches(revoked)) return 'other';
+  const remaining = holders.some((holder) => holder.membershipId !== membershipId && reaches(holder));
+  return remaining ? 'own' : 'last';
+}
