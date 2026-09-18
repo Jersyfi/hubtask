@@ -53,6 +53,13 @@ type Capabilities struct {
 	// consulted, which is what makes new frontend views possible without a backend change
 	// (api-guidelines.md §3).
 	ViewLayouts []view.Layout
+	// CompletionPolicies and AutoAssignStrategies are the closed sets a collection's policies are
+	// validated against (issue 773). Read from the domain, which has offered both lists "for
+	// /meta/capabilities" since the policies were built and which nothing answered from until
+	// now: a policies form built from a copy of the enum would offer a value the installation
+	// refuses on the day the domain gains one.
+	CompletionPolicies   []work.CompletionPolicy
+	AutoAssignStrategies []work.AutoAssignStrategy
 	// EventTypes is every type this build emits, and therefore every type a webhook subscription
 	// may name (F4-15). Read from the domain rather than restated here, for the reason the roles
 	// are: `SubscribedTypes` refuses a type this build does not emit, so a client offering a list
@@ -271,6 +278,8 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		ItemTypes:              profiles,
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
+		CompletionPolicies:     work.CompletionPolicies(),
+		AutoAssignStrategies:   work.AutoAssignStrategies(),
 		EventTypes:             event.Types(),
 		AutomationTriggers:     automation.TriggerKinds(),
 		AutomationActions:      g.Actions,

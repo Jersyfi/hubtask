@@ -44,6 +44,8 @@ func manifest() usecase.Capabilities {
 		}},
 		QueryFields:            view.Fields(),
 		ViewLayouts:            view.Layouts(),
+		CompletionPolicies:     work.CompletionPolicies(),
+		AutoAssignStrategies:   work.AutoAssignStrategies(),
 		EventTypes:             event.Types(),
 		RetentionDataKinds:     lifecycle.Catalogue(),
 		TextLanguages:          []string{"de", "en"},
@@ -73,9 +75,11 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 			Sortable  bool     `json:"sortable"`
 			Groupable bool     `json:"groupable"`
 		} `json:"query_fields"`
-		ViewLayouts        []string `json:"view_layouts"`
-		EventTypes         []string `json:"event_types"`
-		RetentionDataKinds []struct {
+		ViewLayouts          []string `json:"view_layouts"`
+		CompletionPolicies   []string `json:"completion_policies"`
+		AutoAssignStrategies []string `json:"auto_assign_strategies"`
+		EventTypes           []string `json:"event_types"`
+		RetentionDataKinds   []struct {
 			DataKind string   `json:"data_kind"`
 			Actions  []string `json:"actions"`
 			MaxDays  *int     `json:"max_days"`
@@ -95,6 +99,24 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 	for index, layout := range view.Layouts() {
 		if body.ViewLayouts[index] != string(layout) {
 			t.Errorf("layout %d is %q, want %q", index, body.ViewLayouts[index], layout)
+		}
+	}
+	// The two closed sets a collection's policies are validated against (issue 773), published
+	// verbatim and in the domain's order: a policies form is built from them.
+	if len(body.CompletionPolicies) != len(work.CompletionPolicies()) {
+		t.Fatalf("%d completion policies published, %d defined", len(body.CompletionPolicies), len(work.CompletionPolicies()))
+	}
+	for index, policy := range work.CompletionPolicies() {
+		if body.CompletionPolicies[index] != string(policy) {
+			t.Errorf("completion policy %d is %q, want %q", index, body.CompletionPolicies[index], policy)
+		}
+	}
+	if len(body.AutoAssignStrategies) != len(work.AutoAssignStrategies()) {
+		t.Fatalf("%d strategies published, %d defined", len(body.AutoAssignStrategies), len(work.AutoAssignStrategies()))
+	}
+	for index, strategy := range work.AutoAssignStrategies() {
+		if body.AutoAssignStrategies[index] != string(strategy) {
+			t.Errorf("strategy %d is %q, want %q", index, body.AutoAssignStrategies[index], strategy)
 		}
 	}
 	// Every type this build emits, published verbatim, because a subscription may name exactly
