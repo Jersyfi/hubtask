@@ -1688,7 +1688,6 @@
   "app.policies.intro": "Wie diese Sammlung arbeitet, im Unterschied dazu, wie sie heißt. Speichern schreibt alles auf einmal: Ein Wert, der auf seiner Voreinstellung bleibt, ist die Voreinstellung.",
   "app.policies.completion": "Wenn das letzte Kind erledigt wird",
   "app.policies.completion_hint": "Ob das Erledigen eines Kindes den Elterneintrag erledigt und das Wiedereröffnen ihn wieder öffnet.",
-  "app.policies.completion_default": "Der Elterneintrag bleibt unberührt (Voreinstellung)",
   "app.policies.completion_manual": "Der Elterneintrag bleibt unberührt",
   "app.policies.completion_rollup": "Der Elterneintrag wird mit seinen Kindern erledigt und wieder geöffnet",
   "app.policies.assign": "Neue Einträge verteilen",

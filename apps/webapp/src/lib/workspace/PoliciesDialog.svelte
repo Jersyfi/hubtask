@@ -83,10 +83,9 @@
   const draft = $derived({ completion, strategy, candidates, enabled });
 
   /** The installation's values, in its order — never a list compiled in here. */
-  const completionOptions = $derived([
-    { value: '', label: t('app.policies.completion_default') },
-    ...(manifest.value?.completion_policies ?? []).map((value) => ({ value, label: wordFor('completion', value) })),
-  ]);
+  const completionOptions = $derived(
+    (manifest.value?.completion_policies ?? []).map((value) => ({ value, label: wordFor('completion', value) })),
+  );
   const strategyOptions = $derived([
     { value: '', label: t('app.policies.assign_none') },
     ...(manifest.value?.auto_assign_strategies ?? []).map((value) => ({ value, label: wordFor('strategy', value) })),
@@ -181,7 +180,8 @@
               {#each candidates as candidate, index (candidate.id)}
                 <li class="candidate">
                   <span class="who">{nameOf(candidate)}</span>
-                  {#if strategy === 'ROUND_ROBIN'}
+                  <!-- The order matters to the round robin, and only once there is an order. -->
+                  {#if strategy === 'ROUND_ROBIN' && candidates.length > 1}
                     <IconButton icon="chevron-up" label={t('app.rank.up')} size="sm"
                       onclick={() => (candidates = moved(candidates, index, -1))}
                       disabledReason={index === 0 ? t('app.rank.already_first') : undefined} />
@@ -211,7 +211,8 @@
         {/if}
       </Stack>
 
-      {#if problem}<p class="failure" role="alert">{t(problem.code, problem.params)}</p>{/if}
+      <!-- The prediction is on the save control, which carries it as its reason; only the server's
+           refusal lands here. -->
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
     </Stack>
   </CapabilityGate>

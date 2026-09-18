@@ -2759,7 +2759,6 @@
   "app.policies.intro": "How this collection works, as opposed to what it is called. Saving writes the whole of it: a value left at its default is the default.",
   "app.policies.completion": "When the last child is completed",
   "app.policies.completion_hint": "Whether completing a child completes its parent, and reopening one reopens it.",
-  "app.policies.completion_default": "The parent is left alone (the default)",
   "app.policies.completion_manual": "The parent is left alone",
   "app.policies.completion_rollup": "The parent completes and reopens with its children",
   "app.policies.assign": "Handing out new entries",
