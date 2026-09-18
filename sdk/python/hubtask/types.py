@@ -264,6 +264,7 @@ class Workspace(TypedDict, total=False):
     default_locale: Required[str]
     default_time_zone: Required[str]
     require_admin_totp: Required[bool]
+    audit_anchor_target_id: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]

@@ -7842,6 +7842,15 @@ components:
             Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role
             holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0`
             and, until this operation, was writable by nothing.
+        audit_anchor_target_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The workspace's backup target the audit chain's end is anchored to once a day, or
+            null where anchoring is off (audit.md §3, A-2). Read here, because a screen that sets
+            a value it cannot read back is guessing; written through `PUT /audit/anchoring` and
+            nowhere else, which is where the write is audited with the target before and after.
+            A body naming it on the `PATCH` is refused as an unknown field.
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
         version:

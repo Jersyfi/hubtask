@@ -7182,7 +7182,9 @@ type WorkItemUpdate struct {
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
-	CreatedAt time.Time `json:"created_at"`
+	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off (audit.md §3, A-2). Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
+	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
+	CreatedAt           time.Time           `json:"created_at"`
 
 	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation (i18n-l10n.md §2).
 	DefaultLocale string `json:"default_locale"`
