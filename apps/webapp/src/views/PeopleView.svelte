@@ -24,9 +24,12 @@
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { ownershipOf, type Holder } from '../lib/data/people.ts';
+  import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -54,6 +57,26 @@
   );
 
   const holders = $derived(people.holders({}, TENANT));
+
+  /** The row a revoke is being confirmed for (issue 778); the dialog is open while there is one. */
+  let revoking = $state<Holder | undefined>(undefined);
+  const revokingOwnership = $derived(
+    revoking ? ownershipOf(holders, revoking.membershipId, actor.account?.id, (id) => people.membersOf(id)) : 'other',
+  );
+
+  function nameOf(holder: Holder): string {
+    if (holder.groupId) {
+      return t('app.people.group_named', { name: groups.nameOf(holder.groupId) ?? t('app.people.unnamed_group') });
+    }
+    return accounts.nameOf(holder.accountId) ?? t('app.people.unnamed');
+  }
+
+  async function revoke(): Promise<void> {
+    const holder = revoking;
+    revoking = undefined;
+    if (!holder) return;
+    await attempt(() => people.revoke(holder.membershipId, TENANT), t('app.people.revoked_announced'));
+  }
 
   /** The installation's roles, in the order it reports them — never a list compiled in here. */
   const roles = $derived(
@@ -153,15 +176,9 @@
         {#each holders as holder (holder.membershipId)}
           <tr>
             <th scope="row" class="who">
-              {#if holder.groupId}
-                <!-- A membership granted to a group reaches the people in it. The group's own
-                     screen is where that list lives; here it is named as what it is. -->
-                {t('app.people.group_named', {
-                  name: groups.nameOf(holder.groupId) ?? t('app.people.unnamed_group'),
-                })}
-              {:else}
-                {accounts.nameOf(holder.accountId) ?? t('app.people.unnamed')}
-              {/if}
+              <!-- A membership granted to a group reaches the people in it. The group's own
+                   screen is where that list lives; here it is named as what it is. -->
+              {nameOf(holder)}
             </th>
             <td>
               <RoleBadge
@@ -179,12 +196,14 @@
               {/if}
             </td>
             <td>
+              <!-- Asks first (issue 778): a single keystroke on a focused control must not end
+                   somebody's access. -->
               <Button
                 size="sm"
                 tone="subtle"
                 isBusy={isWriting}
                 busyLabel={t('app.people.working')}
-                onclick={() => void attempt(() => people.revoke(holder.membershipId, TENANT), t('app.people.revoked_announced'))}
+                onclick={() => (revoking = holder)}
               >
                 {t('app.people.revoke')}
               </Button>
@@ -193,6 +212,16 @@
         {/each}
       </Table>
     {/if}
+
+    <RevokeDialog
+      holder={revoking}
+      ownership={revokingOwnership}
+      who={revoking ? nameOf(revoking) : ''}
+      where={scopeLabel}
+      isBusy={isWriting}
+      onConfirm={() => void revoke()}
+      onCancel={() => (revoking = undefined)}
+    />
 
     <Stack gap="150">
       <h2 class="section">{t('app.people.invite_title')}</h2>
