@@ -658,6 +658,14 @@ case "$IMPORTED_JSON" in
 	*'"new": 0'*) ;;
 	*) echo "FAILED: the same file a third time created something: $IMPORTED_JSON"; exit 1 ;;
 esac
+# The collection is named after the file (issue 766), and a *different* file under the same name
+# is a refusal in the import's own words rather than a retried database error: the run fails with
+# its code, and the job that carried it is over.
+expect_contains "import csv names the collection after the file" "$(hubctl container ls --parent "$HUB_ID")" "tasks"
+printf 'title\nA different file under the same name\n' > "$WORK_DIR/tasks.csv"
+collided="$(hubctl import csv "$WORK_DIR/tasks.csv" --hub "$HUB_ID" --wait 2m)"
+expect_contains "import csv, a different file under a taken name" "$collided" "FAILED"
+expect_contains "import csv, a different file under a taken name" "$collided" "imports.collection_exists"
 
 echo "--- a Trello board, imported under the hub (P-09) ---"
 cat > "$WORK_DIR/board.json" <<'BOARD'

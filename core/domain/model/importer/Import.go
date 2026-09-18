@@ -111,4 +111,8 @@ const (
 	CodeRowParentUnknown = "imports.row_parent_unknown"
 	CodeMappingUnknown   = "imports.mapping_unknown"
 	CodeEncodingInvalid  = "imports.encoding_invalid"
+	// CodeCollectionExists is a collection the file would create colliding, by name, with one the
+	// hub already holds (issue 766). A refusal recorded on the run rather than a retried database
+	// error: the next attempt would meet the same name.
+	CodeCollectionExists = "imports.collection_exists"
 )

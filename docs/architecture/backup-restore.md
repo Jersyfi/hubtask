@@ -506,7 +506,13 @@ media flow with `usage: IMPORT` and the hub the collections land under; a conver
 the hub and the source's own identity — the file's digest for a CSV, the board's identifier for
 a Trello export — so that the same source imported into the same hub twice produces the same
 identifiers, and the applier (`Applier.Ingest`) lands them in `MERGE` mode with `skip`, which
-makes the second import a no-op. The run's row (`import_run`) carries the report in §8.2's shape
+makes the second import a no-op. A CSV names its collection after the file (`errands.csv` →
+*errands*; a `collection` column overrides it per row), so two files are two collections
+([#766](https://github.com/Jersyfi/hubtask/issues/766)); a *different* file whose collection
+meets a name the hub already holds is refused on the run with `imports.collection_exists` and
+lands nothing — the applier answers a unique index's refusal as the conflict it is
+(`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would
+retry into the same name. The run's row (`import_run`) carries the report in §8.2's shape
 and the rows the converter refused by number; the file is deleted when the job ends; and the
 workspace's synchronisation epoch advances as after a `MERGE` restore, because the rows land
 without change log entries (§12 B-5). `hubctl import <kind> <file> --hub <id>` is the verb.

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
@@ -84,7 +85,7 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 		if err != nil {
 			return err
 		}
-		object = mediaObject{key: stored.StorageKey, size: stored.ByteSize}
+		object = mediaObject{key: stored.StorageKey, size: stored.ByteSize, name: stored.FileName}
 		return nil
 	})
 	if err != nil {
@@ -107,6 +108,19 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 type mediaObject struct {
 	key  string
 	size int64
+	// name is the file's name as it arrived - user content, handed to the converter and never
+	// to a log (rule 10).
+	name string
+}
+
+// stem is the file's name without its extension, for a converter that names a collection after
+// it: `errands.csv` is *errands*. Nothing else is read into it - a name is a name.
+func stem(fileName string) string {
+	name := strings.TrimSpace(fileName)
+	if dot := strings.LastIndex(name, "."); dot > 0 {
+		name = name[:dot]
+	}
+	return strings.TrimSpace(name)
 }
 
 // perform is the fallible middle: the file, the conversion, the archive, the apply. What it
@@ -142,7 +156,7 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 
 	now := r.Clock.Now()
 	result, err := converter.Convert(ctx, repository.Source{
-		Content: bytes.NewReader(raw), Hub: run.HubID, Digest: hex.EncodeToString(digest[:]),
+		Content: bytes.NewReader(raw), Hub: run.HubID, Name: stem(object.name), Digest: hex.EncodeToString(digest[:]),
 		Mapping: run.Mapping, Now: now, Actor: run.RequestedBy, Zone: run.Zone, Language: run.Language,
 	})
 	if err != nil {
@@ -172,6 +186,12 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 		Resume: backupdomain.Restore{Progress: run.Progress, Report: run.Report},
 		Report: in.Report,
 	})
+	if err != nil && shared.AsError(err).DetailCode == "containers.name_taken" {
+		// A collection the file would create meets one the hub already holds, by name. The run's
+		// outcome, in the import's own words (issue 766): the applier says what collided, and the
+		// person reading the run needs to know what to do about it - rename, or another hub.
+		err = shared.ErrConflict.WithDetail(domain.CodeCollectionExists).WithCause(err)
+	}
 	// What the source carried and the product has no place for is counted with the rest of
 	// what did not land, by reason, so that the person reads one report rather than two.
 	for what, n := range result.Unmapped {
