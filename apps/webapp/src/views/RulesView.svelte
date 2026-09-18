@@ -22,16 +22,18 @@
 
   import { untrack } from 'svelte';
 
-  import { AutomationRuleCard, Banner, Button, Input, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { AutomationRuleCard, Banner, Button, Input, OneTimeSecret, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import ActionList from '../lib/automation/ActionList.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { rules, type DraftAction, type Rule, type RuleAction } from '../lib/data/rules.svelte.ts';
+  import { rules, type DraftAction, type InboundToken, type Rule, type RuleAction } from '../lib/data/rules.svelte.ts';
+  import { inboundAddressOf } from '../lib/data/rules.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -185,6 +187,23 @@
     }, t('app.rules.written_announced'));
   }
 
+  /**
+   * The inbound address (issue 775). An `INBOUND_WEBHOOK` rule is reached at a token-protected
+   * URL that is minted rather than shown - the token is stored hashed, and the listing carries
+   * only when it was minted - so the control here makes a new one, says first that the one in
+   * use stops at that moment, and answers the address once through `OneTimeSecret`, as the
+   * jumble's intake does. `rotating` is the rule whose cost is being read; `minted` the answer.
+   */
+  let rotating = $state<string | undefined>(undefined);
+  let minted = $state<InboundToken | undefined>(undefined);
+
+  async function rotateInbound(ruleId: string): Promise<void> {
+    await attempt(async () => {
+      minted = await rules.rotateInbound(ruleId);
+      rotating = undefined;
+    }, t('app.rules.rotated_announced'));
+  }
+
   /** What a card says about a rule, in words rather than tokens. */
   function triggerWord(rule: Rule): string {
     const code = `app.rules.trigger_${rule.trigger.kind.toLowerCase()}`;
@@ -249,6 +268,46 @@
                 {t('app.rules.delete')}
               </Button>
             </div>
+            {#if rule.trigger.kind === 'INBOUND_WEBHOOK'}
+              <Stack gap="100">
+                {#if minted?.rule_id === rule.id}
+                  <OneTimeSecret
+                    value={inboundAddressOf(window.location.origin, minted.token)}
+                    label={t('app.rules.inbound_address')}
+                    hint={t('app.rules.inbound_minted_hint')}
+                    revealLabel={t('app.jumble.reveal')}
+                    hideLabel={t('app.jumble.hide')}
+                    copyLabel={t('app.jumble.copy')}
+                    copiedLabel={t('app.jumble.copied')}
+                    acknowledgementLabel={t('app.jumble.kept')}
+                    notAcknowledgedReason={t('app.jumble.keep_first')}
+                    dismissLabel={t('app.jumble.done')}
+                    onDismiss={() => (minted = undefined)}
+                  />
+                {:else if rotating === rule.id}
+                  <!-- Said before the button: whatever posts to the current address stops at this moment. -->
+                  <Banner tone="warning">{t(rule.inbound_rotated_at ? 'app.rules.rotate_cost' : 'app.rules.rotate_first')}</Banner>
+                  <div class="row">
+                    <Button tone={rule.inbound_rotated_at ? 'danger' : 'primary'} size="sm" isBusy={isWorking} busyLabel={t('app.rules.rotating')}
+                      onclick={() => void rotateInbound(rule.id)}>
+                      {t('app.rules.rotate_now')}
+                    </Button>
+                    <Button tone="subtle" size="sm" onclick={() => (rotating = undefined)}>{t('app.rules.cancel')}</Button>
+                  </div>
+                {:else}
+                  <div class="row">
+                    <span class="quiet small">
+                      {rule.inbound_rotated_at
+                        ? t('app.rules.inbound_minted', { moment: formatDateTime(rule.inbound_rotated_at, messages.locale) })
+                        : t('app.rules.inbound_none')}
+                    </span>
+                    <Button size="sm" tone="secondary" onclick={() => (rotating = rule.id)}>
+                      {t(rule.inbound_rotated_at ? 'app.rules.rotate' : 'app.rules.mint')}
+                    </Button>
+                  </div>
+                {/if}
+              </Stack>
+            {/if}
           </Stack>
         {:else}
           <p class="quiet">{t('app.rules.none')}</p>
