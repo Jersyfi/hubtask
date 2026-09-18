@@ -418,7 +418,8 @@
         </Inline>
       </Stack>
     {:else}
-      <Stack gap="150">
+      <!-- `data-tour`: where the tour points for "what an entry carries" (F6-14). -->
+      <Stack gap="150" data-tour="entry">
         <h1 class="name" lang={entryLang}>{item.title}</h1>
         <div class="marks">
           <Badge>{item.type}</Badge>

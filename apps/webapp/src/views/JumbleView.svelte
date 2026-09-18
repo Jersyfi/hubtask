@@ -162,8 +162,11 @@
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.jumble.title')}</h1>
-    <p class="quiet">{t('app.jumble.intro')}</p>
+    <!-- `data-tour`: where the tour points for "where things arrive before they are work". -->
+    <div data-tour="jumble">
+      <h1>{t('app.jumble.title')}</h1>
+      <p class="quiet">{t('app.jumble.intro')}</p>
+    </div>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
     {#if askFailure}<Banner tone="danger">{askFailure}</Banner>{/if}

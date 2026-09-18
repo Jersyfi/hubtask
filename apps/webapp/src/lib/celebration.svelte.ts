@@ -23,6 +23,7 @@ import { momentOf, type HeldContainer, type HeldEntry, type Moment } from './cel
 import { actor } from './data/account.svelte.ts';
 import { engine } from './data/engine.ts';
 import { todayIn } from './i18n/zone.ts';
+import { tour } from './tour.svelte.ts';
 
 /** The store's own record of the last tier-3 moment: one per copy, under `meta`. */
 const CAP_KEY = 'celebration';
@@ -58,7 +59,12 @@ class Celebration {
    * copy and shows the moment; answers what it decided, or nothing while the switch is off.
    */
   async celebrate(item: WorkItem): Promise<Current | undefined> {
-    if (!this.isOn || !item.completion?.is_completed) return undefined;
+    if (!item.completion?.is_completed) return undefined;
+    // The tour's end and the first moment coincide (§8, F6-14): the first completion of an
+    // account that has not taken the tour writes `onboarding_completed_at` - whether or not the
+    // moments are marked, because the tour ended either way.
+    if (!actor.account?.onboarding_completed_at) void tour.complete();
+    if (!this.isOn) return undefined;
     const token = ++this.#next;
     const moment = await this.#momentOf(item);
     if (token !== this.#next) return undefined;
