@@ -217,6 +217,12 @@ func workspaceOutput(workspace domain.Workspace) usecase.Output {
 	if !workspace.UpdatedAt.IsZero() {
 		out["updated_at"] = workspace.UpdatedAt
 	}
+	// The anchoring target is read here and written by ConfigureAuditAnchoring (issue 774): a
+	// screen that sets a value it cannot read back is guessing. Absent, not null, where anchoring
+	// is off, so that the adapter answers the contract's null from one place.
+	if !workspace.Settings.AuditAnchorTargetID.IsZero() {
+		out["audit_anchor_target_id"] = workspace.Settings.AuditAnchorTargetID.String()
+	}
 	return out
 }
 

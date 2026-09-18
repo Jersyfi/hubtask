@@ -166,6 +166,18 @@ class Containers {
   }
 
   /**
+   * Replaces a collection's policies - the way it works, as opposed to what it is called (issue
+   * 773). A PUT: the whole document travels, and a key that is not sent falls back to its
+   * default. `ifMatch` is the version the reader had when the form opened (ADR-0025).
+   */
+  async setPolicies(id: string, policies: Container['policies'], version: number): Promise<Container> {
+    return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
    * Ranks a container within its own level.
    *
    * A **hub** has no other way: it sits in nothing, so `:move` — whose `target_parent_id` is

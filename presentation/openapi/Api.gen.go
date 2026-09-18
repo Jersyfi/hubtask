@@ -4229,6 +4229,9 @@ type CalendarFeedSecret struct {
 type Capabilities struct {
 	ApiVersion *string `json:"api_version,omitempty"`
 
+	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, in `domain-model.md` §3.6's order, for the reason the completion policies are listed.
+	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
+
 	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more (automation.md §1).
 	Automation *struct {
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
@@ -4237,7 +4240,10 @@ type Capabilities struct {
 		// Triggers Every way a rule may be started, as `RuleTrigger.kind` names them.
 		Triggers *[]string `json:"triggers,omitempty"`
 	} `json:"automation,omitempty"`
-	EventTypes *[]string `json:"event_types,omitempty"`
+
+	// CompletionPolicies The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.
+	CompletionPolicies *[]CompletionPolicy `json:"completion_policies,omitempty"`
+	EventTypes         *[]string           `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
@@ -7185,7 +7191,9 @@ type WorkItemUpdate struct {
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
-	CreatedAt time.Time `json:"created_at"`
+	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off (audit.md §3, A-2). Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
+	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
+	CreatedAt           time.Time           `json:"created_at"`
 
 	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation (i18n-l10n.md §2).
 	DefaultLocale string `json:"default_locale"`

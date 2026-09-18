@@ -67,6 +67,41 @@ export interface Verification {
   readonly gap_count?: number;
   /** When the chain was last anchored outside the database, and null when it never was. */
   readonly sealed_until?: string | null;
+  /** Whether the workspace names an anchoring target at all. */
+  readonly anchoring_configured?: boolean;
+  /** With `anchors: true`: the moment of the last anchor whose external copy was read back. */
+  readonly anchored_until?: string | null;
+  readonly anchor_seq?: number | null;
+  /** With `anchors: true`: whether the copy agrees with the chain; null where none could be read. */
+  readonly anchor_agrees?: boolean | null;
+  /** Why the copy could not be read or compared, as the server's code. */
+  readonly anchor_error_code?: string | null;
+}
+
+/**
+ * What the read-back of the anchor found (issue 774), as the three facts it can be: the copy
+ * agrees, the copy disagrees - which is the finding anchoring exists to produce - or no copy
+ * could be read, with the server's reason. Nothing where the check was not asked for, or the
+ * workspace anchors nowhere.
+ */
+export type AnchorFinding =
+  | { readonly kind: 'agrees'; readonly until: string; readonly seq?: number }
+  | { readonly kind: 'disagrees'; readonly until?: string; readonly seq?: number }
+  | { readonly kind: 'unreadable'; readonly code: string };
+
+export function readAnchor(answer: Verification): AnchorFinding | undefined {
+  if (answer.anchor_agrees === true && answer.anchored_until) {
+    return { kind: 'agrees', until: answer.anchored_until, ...(typeof answer.anchor_seq === 'number' ? { seq: answer.anchor_seq } : {}) };
+  }
+  if (answer.anchor_agrees === false) {
+    return {
+      kind: 'disagrees',
+      ...(answer.anchored_until ? { until: answer.anchored_until } : {}),
+      ...(typeof answer.anchor_seq === 'number' ? { seq: answer.anchor_seq } : {}),
+    };
+  }
+  if (answer.anchor_error_code) return { kind: 'unreadable', code: answer.anchor_error_code };
+  return undefined;
 }
 
 /**

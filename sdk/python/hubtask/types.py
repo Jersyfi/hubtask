@@ -265,6 +265,7 @@ class Workspace(TypedDict, total=False):
     default_locale: Required[str]
     default_time_zone: Required[str]
     require_admin_totp: Required[bool]
+    audit_anchor_target_id: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
@@ -1890,6 +1891,8 @@ class Capabilities(TypedDict, total=False):
     tenancy_mode: Literal["single", "multi"]
     item_types: list[dict[str, Any]]
     view_layouts: list[str]
+    completion_policies: list["CompletionPolicy"]
+    auto_assign_strategies: list["AutoAssignStrategy"]
     query_fields: list["QueryField"]
     text_languages: list[str]
     supported_locales: list[dict[str, Any]]

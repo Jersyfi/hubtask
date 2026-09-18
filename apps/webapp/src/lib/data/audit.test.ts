@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { auditPath, readVerification } from './audit.ts';
+import { auditPath, readAnchor, readVerification } from './audit.ts';
 
 test('an unfiltered query is the bare path', () => {
   assert.equal(auditPath(), '/audit');
@@ -99,4 +99,22 @@ test('the anchor is reported only when there is one', () => {
   assert.equal(anchored.kind === 'holds' ? anchored.sealedUntil : undefined, '2026-09-01T00:00:00Z');
   const never = readVerification({ valid: true, checked: 1, sealed_until: null });
   assert.equal(never.kind === 'holds' ? never.sealedUntil : 'set', undefined);
+});
+
+test('the anchor read-back is one of three facts, and nothing where it was not asked for (issue 774)', () => {
+  assert.equal(readAnchor({ valid: true, checked: 34 }), undefined);
+  assert.equal(readAnchor({ valid: true, checked: 34, anchoring_configured: true, anchor_agrees: null }), undefined);
+  assert.deepEqual(
+    readAnchor({ valid: true, checked: 34, anchored_until: '2026-09-17T00:05:00Z', anchor_seq: 1200, anchor_agrees: true }),
+    { kind: 'agrees', until: '2026-09-17T00:05:00Z', seq: 1200 },
+  );
+  // The copy disagreeing is the finding anchoring exists to produce, whatever the walk said.
+  assert.deepEqual(
+    readAnchor({ valid: true, checked: 34, anchored_until: '2026-09-17T00:05:00Z', anchor_seq: 1200, anchor_agrees: false }),
+    { kind: 'disagrees', until: '2026-09-17T00:05:00Z', seq: 1200 },
+  );
+  assert.deepEqual(
+    readAnchor({ valid: true, checked: 34, anchor_agrees: null, anchor_error_code: 'audit.anchor_unreadable' }),
+    { kind: 'unreadable', code: 'audit.anchor_unreadable' },
+  );
 });
