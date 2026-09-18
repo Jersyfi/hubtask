@@ -26,6 +26,7 @@
     Badge,
     Banner,
     Button,
+    Checkbox,
     Input,
     ProgressBar,
     Select,
@@ -34,8 +35,9 @@
   } from '@hubtask/design-system/components';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { audit, readVerification, type Entry, type Query } from '../lib/data/audit.svelte.ts';
+  import { audit, readAnchor, readVerification, type Entry, type Query } from '../lib/data/audit.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
   import { isTerminal } from '../lib/data/jobs.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -63,6 +65,17 @@
 
   let verifyFrom = $state('');
   let verifyTo = $state('');
+  /** Whether the check also reads the last anchor back from the target (issue 774). */
+  let verifyAnchors = $state(false);
+
+  // Where the chain's end is anchored, read from the workspace - the one place it is read back
+  // from - and written through the audit's own route, which audits the change.
+  $effect(() => untrack(() => workspace.open()));
+  const anchorTargetId = $derived(workspace.workspace?.audit_anchor_target_id ?? null);
+  const anchorTargetName = $derived(
+    anchorTargetId ? (backup.all.find((target) => target.id === anchorTargetId)?.name ?? anchorTargetId) : undefined,
+  );
+  let anchorChoice = $state('');
 
   let exportFormat = $state('JSONL');
   let exportTarget = $state('');
@@ -83,6 +96,7 @@
   // Read into a finding rather than branched on in the template: a break is not an error, and
   // which of the two facts an answer is deserves a test that a `{#if}` cannot have.
   const finding = $derived(audit.verification ? readVerification(audit.verification) : undefined);
+  const anchorFinding = $derived(audit.verification ? readAnchor(audit.verification) : undefined);
   const watch = $derived<Watch | undefined>(exportJob ? jobs.of(exportJob) : undefined);
 
   // The names behind the identifiers, asked for once each.
@@ -296,6 +310,10 @@
         <Input label={t('app.audit.from')} type="datetime-local" bind:value={verifyFrom} />
         <Input label={t('app.audit.to')} type="datetime-local" bind:value={verifyTo} />
       </div>
+      {#if anchorTargetId}
+        <!-- Asked for rather than always done: a read of somebody else's machine. -->
+        <Checkbox label={t('app.audit.verify_anchors')} hint={t('app.audit.verify_anchors_hint')} bind:checked={verifyAnchors} />
+      {/if}
       <div>
         <Button
           tone="secondary"
@@ -304,7 +322,7 @@
           disabledReason={verifyFrom && verifyTo ? undefined : t('app.audit.period_first')}
           onclick={() =>
             void attempt(() =>
-              audit.verify(new Date(verifyFrom).toISOString(), new Date(verifyTo).toISOString()),
+              audit.verify(new Date(verifyFrom).toISOString(), new Date(verifyTo).toISOString(), verifyAnchors && anchorTargetId !== null),
             )}
         >
           {t('app.audit.verify')}
@@ -342,6 +360,62 @@
           </Stack>
         </Banner>
       {/if}
+      {#if anchorFinding?.kind === 'agrees'}
+        <Banner tone="success" title={t('app.audit.anchor_agrees')}>
+          {t('app.audit.anchor_read', { at: when(anchorFinding.until) ?? '', seq: String(anchorFinding.seq ?? '') })}
+        </Banner>
+      {:else if anchorFinding?.kind === 'disagrees'}
+        <!-- The finding anchoring exists to produce: the copy outside says the chain was not
+             this. Rendered as a finding, whatever the walk inside the database said. -->
+        <Banner tone="danger" title={t('app.audit.anchor_disagrees')}>
+          {t('app.audit.anchor_disagrees_explains')}
+        </Banner>
+      {:else if anchorFinding?.kind === 'unreadable'}
+        <Banner tone="warning" title={t('app.audit.anchor_unreadable')}>
+          {sentence(anchorFinding.code)}
+        </Banner>
+      {/if}
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.audit.anchoring_title')}</h2>
+      <p class="quiet small">{t('app.audit.anchoring_intro')}</p>
+      {#if anchorTargetId}
+        <p class="small"><strong>{t('app.audit.anchoring_on', { target: anchorTargetName ?? '' })}</strong></p>
+      {:else}
+        <p class="small"><strong>{t('app.audit.anchoring_off')}</strong></p>
+      {/if}
+      <p class="quiet small">{t('app.audit.anchoring_target_hint')}</p>
+      <div class="fields">
+        <Select
+          label={t('app.audit.anchoring_target')}
+          bind:value={anchorChoice}
+          placeholder={t('app.audit.choose_target')}
+          options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
+        />
+      </div>
+      <div class="row">
+        <Button
+          tone="primary"
+          isBusy={isWorking}
+          busyLabel={t('app.audit.anchoring_saving')}
+          disabledReason={anchorChoice && anchorChoice !== anchorTargetId ? undefined : t('app.audit.anchoring_choose_first')}
+          onclick={() => void attempt(() => audit.configureAnchoring(anchorChoice), t('app.audit.anchoring_on_announced'))}
+        >
+          {t('app.audit.anchor_here')}
+        </Button>
+        {#if anchorTargetId}
+          <Button
+            tone="secondary"
+            isBusy={isWorking}
+            busyLabel={t('app.audit.anchoring_saving')}
+            onclick={() => void attempt(() => audit.configureAnchoring(null), t('app.audit.anchoring_off_announced'))}
+          >
+            {t('app.audit.anchoring_switch_off')}
+          </Button>
+        {/if}
+      </div>
+      <p class="quiet small">{t('app.audit.anchoring_is_audited')}</p>
     </Stack>
 
     <Stack gap="150">

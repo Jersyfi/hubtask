@@ -90,6 +90,40 @@ func TestReadingTheWorkspaceAnswersItsConfigurationAndAnETag(t *testing.T) {
 	}
 }
 
+// The anchoring target is read on the workspace (issue 774) - null where anchoring is off, the
+// identifier where it is on - and written nowhere but PUT /audit/anchoring.
+func TestTheWorkspaceAnswersItsAnchoringTarget(t *testing.T) {
+	registry := &catalogue{out: storedWorkspace()}
+	recorder := workspaceRequest(t, registry, http.MethodGet, "", "")
+	var off map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &off); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if target, held := off["audit_anchor_target_id"]; held && target != nil {
+		t.Errorf("anchoring off answered %v", target)
+	}
+
+	out := storedWorkspace()
+	out["audit_anchor_target_id"] = "0192f000-0000-7000-8000-0000000000b1"
+	registry = &catalogue{out: out}
+	recorder = workspaceRequest(t, registry, http.MethodGet, "", "")
+	var on struct {
+		Target *string `json:"audit_anchor_target_id"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &on); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if on.Target == nil || *on.Target != "0192f000-0000-7000-8000-0000000000b1" {
+		t.Errorf("anchoring on answered %v", on.Target)
+	}
+
+	recorder = workspaceRequest(t, registry, http.MethodPatch,
+		`{"audit_anchor_target_id": "0192f000-0000-7000-8000-0000000000b1"}`, "")
+	if recorder.Code == http.StatusOK {
+		t.Errorf("the PATCH accepted the anchoring target, which PUT /audit/anchoring owns")
+	}
+}
+
 // A merge-patch sends only what moves, and only what it sent reaches the catalogue: a key the
 // client left out must not arrive as an empty string, or the workspace loses its locale on a
 // rename.

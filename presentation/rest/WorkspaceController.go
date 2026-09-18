@@ -87,5 +87,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if updated, held := out["updated_at"].(time.Time); held && !updated.IsZero() {
 		answer.UpdatedAt = &updated
 	}
+	if target := out.String("audit_anchor_target_id"); target != "" {
+		id := uuidValue(target)
+		answer.AuditAnchorTargetId = &id
+	}
 	return answer
 }
