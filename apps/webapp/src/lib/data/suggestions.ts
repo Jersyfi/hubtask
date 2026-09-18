@@ -148,6 +148,8 @@ export type Shape =
       readonly description?: string;
       readonly rootType: string;
       readonly nodes: readonly ProposedNode[];
+      /** The nodes the collection's profile refused, absent from the tree and counted (issue 767). */
+      readonly dropped: number;
     }
   | { readonly shape: 'unknown' };
 
@@ -209,7 +211,7 @@ function currentOf(
  * other reader of the contract has.
  */
 export function shapeOf(
-  suggestion: Pick<Suggestion, 'kind' | 'payload'>,
+  suggestion: Pick<Suggestion, 'kind' | 'payload' | 'dropped_nodes'>,
   item: Pick<WorkItem, 'title' | 'notes' | 'due_at'> | undefined,
 ): Shape {
   const payload: Record<string, unknown> = isRecord(suggestion.payload) ? suggestion.payload : {};
@@ -234,6 +236,8 @@ export function shapeOf(
         description: text(payload.description),
         rootType: typeof payload.root_type === 'string' ? payload.root_type : '',
         nodes,
+        // A row written before the count existed carries none, which reads as nothing dropped.
+        dropped: typeof suggestion.dropped_nodes === 'number' && suggestion.dropped_nodes > 0 ? suggestion.dropped_nodes : 0,
       };
     }
     case 'DUPLICATES': {

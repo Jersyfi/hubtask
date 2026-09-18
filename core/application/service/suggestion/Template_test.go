@@ -255,6 +255,11 @@ func TestANodeTheProfileRefusesIsDroppedAndCounted(t *testing.T) {
 		t.Errorf("outcome = %+v, want three nodes dropped", outcome)
 	}
 	for _, recorded := range world.store.proposals {
+		// The count is on the row as well as in the outcome (issue 767): the suggestion is what
+		// a client renders, and the job's result reaches none.
+		if recorded.DroppedNodes != 3 {
+			t.Errorf("the suggestion records %d dropped nodes, want 3", recorded.DroppedNodes)
+		}
 		root := recorded.Payload["nodes"].([]any)[0].(map[string]any)
 		children := root["children"].([]any)
 		if len(children) != 1 || children[0].(map[string]any)["title"] != "Build" {

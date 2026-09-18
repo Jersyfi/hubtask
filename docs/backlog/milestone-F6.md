@@ -554,7 +554,8 @@ F5-04 built; `shapeOf` learns `TEMPLATE` — the payload is a `Template`, drawn 
 (`app.suggestions.kind_template`, `app.suggestions.accept_template`), and accepting is
 `:accept`, after which the template is in the dialog's list because `CreateTemplate` put it
 there. A node the profile refused is absent from the payload and the job's result count says so;
-the strip shows the count.
+the strip shows the count — since [#767](https://github.com/Jersyfi/hubtask/issues/767) read off
+the suggestion's own `dropped_nodes`, because the job's result reaches no client.
 
 **Acceptance:** the control is present exactly when AI is on; the job is followed and the
 suggestion rendered as a tree; accepting creates the template and the list shows it; dismissing

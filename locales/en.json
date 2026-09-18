@@ -3280,6 +3280,7 @@
   "app.suggestions.kind_duplicates": "Entries that look like this one",
   "app.suggestions.kind_unknown": "A suggestion this version cannot show",
   "app.suggestions.kind_template": "Suggested template",
+  "app.suggestions.template_dropped": "Not in the draft: {count} of the steps the provider proposed, each with everything under it, because this collection does not allow them where they were put.",
   "app.suggestions.unknown_hint": "It was made by a newer Hubtask than this screen. Dismiss it, or read it through the API.",
   "app.suggestions.field_title": "Title",
   "app.suggestions.field_notes": "Notes",

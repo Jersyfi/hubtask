@@ -7,17 +7,18 @@
 -- name: RecordSuggestion :exec
 INSERT INTO ai_suggestion
   (id, tenant_id, target_type, target_id, kind, status, payload,
-   source, model, prompt_id, prompt_version, produced_at, input_digest, created_at)
+   source, model, prompt_id, prompt_version, produced_at, input_digest, created_at, dropped_nodes)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('target_type'), sqlc.arg('target_id'),
   sqlc.arg('kind'), 'PROPOSED', sqlc.arg('payload'), sqlc.arg('source'), sqlc.arg('model'),
   sqlc.arg('prompt_id'), sqlc.arg('prompt_version'), sqlc.arg('produced_at'),
-  sqlc.arg('input_digest'), sqlc.arg('created_at')
+  sqlc.arg('input_digest'), sqlc.arg('created_at'), sqlc.arg('dropped_nodes')
 );
 
 -- name: FindSuggestion :one
 SELECT id, target_type, target_id, kind, status, payload, source, model, prompt_id,
-       prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version
+       prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version,
+       dropped_nodes
 FROM ai_suggestion
 WHERE id = sqlc.arg('id');
 
@@ -26,7 +27,8 @@ WHERE id = sqlc.arg('id');
 -- boundary that repeats a row or skips one is what an offset does when a suggestion is recorded
 -- while somebody is reading.
 SELECT id, target_type, target_id, kind, status, payload, source, model, prompt_id,
-       prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version
+       prompt_version, produced_at, input_digest, created_at, decided_at, decided_by, version,
+       dropped_nodes
 FROM ai_suggestion
 WHERE target_type = sqlc.arg('target_type')
   AND target_id = sqlc.arg('target_id')

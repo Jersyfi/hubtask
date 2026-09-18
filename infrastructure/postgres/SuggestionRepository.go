@@ -59,6 +59,8 @@ func (r SuggestionRepository) Record(ctx context.Context, proposal domain.Sugges
 		PromptID: proposal.PromptID, PromptVersion: proposal.PromptVersion,
 		ProducedAt: timestampOf(proposal.ProducedAt), InputDigest: proposal.InputDigest,
 		CreatedAt: timestampOf(proposal.CreatedAt),
+		//nolint:gosec // G115: a count of nodes in one answer, bounded by the tree the narrowing kept
+		DroppedNodes: int32(proposal.DroppedNodes),
 	}); err != nil {
 		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("recording a suggestion: %w", err))
@@ -89,7 +91,7 @@ func (r SuggestionRepository) Find(
 	return suggestionFrom(
 		row.ID, row.TargetType, row.TargetID, row.Kind, row.Status, row.Payload,
 		row.Source, row.Model, row.PromptID, row.PromptVersion, row.ProducedAt,
-		row.InputDigest, row.CreatedAt, row.DecidedAt, row.DecidedBy, row.Version,
+		row.InputDigest, row.CreatedAt, row.DecidedAt, row.DecidedBy, row.Version, row.DroppedNodes,
 	)
 }
 
@@ -132,7 +134,7 @@ func (r SuggestionRepository) List(
 		proposal, err := suggestionFrom(
 			row.ID, row.TargetType, row.TargetID, row.Kind, row.Status, row.Payload,
 			row.Source, row.Model, row.PromptID, row.PromptVersion, row.ProducedAt,
-			row.InputDigest, row.CreatedAt, row.DecidedAt, row.DecidedBy, row.Version,
+			row.InputDigest, row.CreatedAt, row.DecidedAt, row.DecidedBy, row.Version, row.DroppedNodes,
 		)
 		if err != nil {
 			return repository.Page{}, err
@@ -326,7 +328,7 @@ func suggestionFrom(
 	id pgtype.UUID, targetType string, targetID pgtype.UUID, kind, status string,
 	payload []byte, source, model, promptID, promptVersion string,
 	producedAt pgtype.Timestamptz, digest []byte, createdAt, decidedAt pgtype.Timestamptz,
-	decidedBy pgtype.UUID, version int32,
+	decidedBy pgtype.UUID, version int32, droppedNodes int32,
 ) (domain.Suggestion, error) {
 	suggestionID, err := idFrom(id)
 	if err != nil {
@@ -350,10 +352,11 @@ func suggestionFrom(
 			PromptID: promptID, PromptVersion: promptVersion,
 			ProducedAt: producedAt.Time.UTC(),
 		},
-		InputDigest: digest,
-		CreatedAt:   createdAt.Time.UTC(),
-		DecidedAt:   decidedAt.Time.UTC(),
-		Version:     int(version),
+		InputDigest:  digest,
+		DroppedNodes: int(droppedNodes),
+		CreatedAt:    createdAt.Time.UTC(),
+		DecidedAt:    decidedAt.Time.UTC(),
+		Version:      int(version),
 	}
 	if decidedBy.Valid {
 		decider, err := idFrom(decidedBy)

@@ -191,6 +191,7 @@ class Suggestion(TypedDict, total=False):
     created_at: Required[str]
     decided_at: str | None
     decided_by: str | None
+    dropped_nodes: int
     version: Required[int]
 
 class AiTranslateRequest(TypedDict, total=False):

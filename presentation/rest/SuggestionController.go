@@ -339,6 +339,8 @@ func suggestionResponse(out usecase.Output) openapi.Suggestion {
 	if payload, held := out["payload"].(map[string]any); held {
 		answer.Payload = payload
 	}
+	dropped := out.Int("dropped_nodes")
+	answer.DroppedNodes = &dropped
 	if produced, held := out["produced_at"].(time.Time); held {
 		answer.ProducedAt = produced
 	}
