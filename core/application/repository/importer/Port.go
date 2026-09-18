@@ -45,6 +45,11 @@ type Source struct {
 	Content io.Reader
 	// Hub is the hub the collections land under; the converter writes its containers beneath it.
 	Hub shared.ID
+	// Name is what the file was called when it arrived, without its extension, or empty where
+	// nothing is known. A source that names nothing of its own - a CSV - names its collection
+	// after it (issue 766): two files are then two collections, where a constant name met the
+	// hub's unique name on the second import.
+	Name string
 	// Digest is the file's SHA-256, lower hex. A converter whose source carries no identity of
 	// its own - a CSV - derives every identity from it and the hub, so that the same file
 	// imported into the same hub twice produces the same identifiers and the second import

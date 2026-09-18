@@ -56,6 +56,19 @@ func TestACsvBecomesOneCollectionWithItsTree(t *testing.T) {
 	if collection["type"] != "COLLECTION" || collection["parent_id"] != hub.String() || collection["name"] != "Imported" {
 		t.Errorf("collection = %v", collection)
 	}
+	// Named after the file where one is known (issue 766): two files are two collections.
+	named := source(t, sample, nil)
+	named.Name = "errands"
+	fromFile, err := CSV{}.Convert(context.Background(), named)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fromFile.Records["containers"][0].Data["name"]; got != "errands" {
+		t.Errorf("the collection is named %v, want the file's name", got)
+	}
+	if fromFile.Records["containers"][0].ID == result.Records["containers"][0].ID {
+		t.Error("a collection named differently is a different collection")
+	}
 	items := result.Records["work_items"]
 	first, second, third := items[0].Data, items[1].Data, items[2].Data
 	if first["title"] != "Write the reference" || first["notes"] != `With a comma, and "quotes"` {

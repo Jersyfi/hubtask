@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -58,6 +59,31 @@ func TestAnImportedRowLandsInTheTenantOfTheTransaction(t *testing.T) {
 
 	if name := containerName(ctx, t, tenantA, id); name != "Imported" {
 		t.Fatalf("the container came back as %q", name)
+	}
+}
+
+// A row that collides with a living one by name rather than by identity - a second collection
+// called what the hub already holds - is a conflict in the container's own words, never a
+// database error the queue would retry into the same name (issue 766). The index is per tenant and
+// parent, case- and accent-insensitive; two hubs at the top level meet it as two collections under
+// one hub would.
+func TestASecondCollectionUnderATakenNameIsAConflict(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	first, second := freshID(t), freshID(t)
+
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := importRepo().Write(ctx, "container", containerRow(first, authorA, "Errands"), false); err != nil {
+			return err
+		}
+		_, err := importRepo().Write(ctx, "container", containerRow(second, authorA, "errands"), false)
+		return err
+	})
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "containers.name_taken" {
+		t.Fatalf("the second write answered %v, want the container's own conflict", err)
+	}
+	if got := shared.AsError(err).Params["name"]; got != "errands" {
+		t.Errorf("the conflict names %q, want the colliding name", got)
 	}
 }
 

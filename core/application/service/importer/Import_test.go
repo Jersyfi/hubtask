@@ -168,8 +168,13 @@ func (c converter) Convert(_ context.Context, source repository.Source) (reposit
 	}
 	raw, _ := io.ReadAll(source.Content)
 	collection := backupdomain.DuplicateID(source.Hub, "import", source.Digest)
+	// Named after the file where one is known, as the CSV converter names its own (issue 766).
+	name := source.Name
+	if name == "" {
+		name = "Imported"
+	}
 	result := repository.Result{Records: map[string][]archive.Record{
-		"containers": {{ID: collection.String(), Op: archive.OpUpsert, UpdatedAt: source.Now, Data: map[string]any{"id": collection.String(), "type": "COLLECTION", "parent_id": source.Hub.String(), "name": "Imported", "order_key": "a", "created_by": source.Actor.String(), "version": 1}}},
+		"containers": {{ID: collection.String(), Op: archive.OpUpsert, UpdatedAt: source.Now, Data: map[string]any{"id": collection.String(), "type": "COLLECTION", "parent_id": source.Hub.String(), "name": name, "order_key": "a", "created_by": source.Actor.String(), "version": 1}}},
 	}}
 	for i, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
 		if line == "" {
@@ -219,6 +224,16 @@ func (r *importRepo) Write(_ context.Context, table string, data map[string]any,
 	if _, exists := r.rows[table][id]; exists && !overwrite {
 		return false, nil
 	}
+	// The container's unique name per parent, as the index refuses it and the adapter answers it
+	// (issue 766): a second collection under the same name is a conflict, never a database error.
+	if table == "container" {
+		for other, row := range r.rows[table] {
+			if other != id && row["parent_id"] == data["parent_id"] && row["name"] == data["name"] {
+				return false, shared.ErrConflict.WithDetail("containers.name_taken").
+					WithParams(map[string]string{"name": data["name"].(string)})
+			}
+		}
+	}
 	r.rows[table][id] = data
 	return true, nil
 }
@@ -246,7 +261,7 @@ func actor() appshared.ActorContext {
 }
 
 func readyObject() media.Object {
-	return media.Object{ID: mediaID, TenantID: tenantID, StorageKey: "t/" + mediaID.String(), Usage: media.UsageImport, Status: media.StatusReady, CreatedBy: accountID, ByteSize: 12}
+	return media.Object{ID: mediaID, TenantID: tenantID, StorageKey: "t/" + mediaID.String(), FileName: "errands.csv", Usage: media.UsageImport, Status: media.StatusReady, CreatedBy: accountID, ByteSize: 12}
 }
 
 func acceptor(auth *authorizer, run *runs, object media.Object, hub work.Container, queued *jobs) importer.ImportEntries {
@@ -442,6 +457,13 @@ func TestTheRunnerLandsTheFileAndFinishesTheRun(t *testing.T) {
 	if len(landed.rows["work_item"]) != 2 || len(landed.rows["container"]) != 2 {
 		t.Errorf("landed = %v", landed.rows)
 	}
+	// The converter was told the file's name without its extension, and the collection carries
+	// it (issue 766).
+	for id, row := range landed.rows["container"] {
+		if id != hubID.String() && row["name"] != "errands" {
+			t.Errorf("the collection is named %v, want the file's name", row["name"])
+		}
+	}
 	if len(stored.deleted) != 1 || stored.deleted[0] != mediaID {
 		t.Error("the file is marked for deletion when the job ends")
 	}
@@ -511,5 +533,42 @@ func TestTheRunnerRecordsAFileThatIsNotItsKindAndRetriesTheStoreBeingAway(t *tes
 	r.Store = objectStore{files: map[string][]byte{object.StorageKey: []byte("x")}}
 	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil || run.rows[runID].ErrorCode != domain.CodeKindUnsupported {
 		t.Errorf("a kind without a converter: %v %+v", err, run.rows[runID])
+	}
+}
+
+// A second, different file into a hub that already holds a collection of the same name is the
+// run's outcome in the import's own words, not a retried database error (issue 766): nothing of
+// the batch lands, the file goes, and the epoch stands.
+func TestASecondFileUnderATakenNameIsRefusedWithACode(t *testing.T) {
+	run := newRuns()
+	run.rows[runID] = pendingRun()
+	object := readyObject()
+	r, landed, stored, epoch := runner(run, object, map[string][]byte{object.StorageKey: []byte("one\n")}, converter{})
+	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil {
+		t.Fatal(err)
+	}
+	if run.rows[runID].Status != domain.StatusSucceeded {
+		t.Fatalf("the first run = %+v", run.rows[runID])
+	}
+
+	// A different file - a different digest, and therefore different identities - under the same
+	// name.
+	second := shared.MustParseID("0192f000-0000-7000-8000-0000000000f3")
+	again := pendingRun()
+	again.ID = second
+	run.rows[second] = again
+	r.Store = objectStore{files: map[string][]byte{object.StorageKey: []byte("one\ntwo\n")}}
+	if err := r.Run(context.Background(), importer.RunInput{ImportID: second, TenantID: tenantID}); err != nil {
+		t.Fatalf("a name collision is the run's outcome, not the job's: %v", err)
+	}
+	got := run.rows[second]
+	if got.Status != domain.StatusFailed || got.ErrorCode != domain.CodeCollectionExists {
+		t.Errorf("the second run = %+v, want a refusal under %s", got, domain.CodeCollectionExists)
+	}
+	if len(landed.rows["container"]) != 2 || len(landed.rows["work_item"]) != 1 {
+		t.Errorf("the second file landed something: %v", landed.rows)
+	}
+	if epoch.advanced != 1 || len(stored.deleted) != 2 {
+		t.Error("the epoch stood and the second file went")
 	}
 }

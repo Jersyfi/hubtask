@@ -6,7 +6,10 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -65,10 +68,36 @@ func (r BackupImportRepository) Write(
 	}
 	written, err := entity.write(ctx, queries, payload, overwrite)
 	if err != nil {
+		if conflict := rowConflict(err, table, data); conflict != nil {
+			return false, conflict
+		}
 		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
 	}
 	return written > 0, nil
+}
+
+// rowConflict turns a unique index refusing an archive's row into the conflict it is, rather
+// than into a database error the queue retries (issue 766): the next attempt meets the same row.
+// A container's name is the one collision with words of its own - the same code CreateContainer
+// answers, so that one fact has one sentence - and any other index is named by its constraint,
+// which is the schema's vocabulary and not content.
+func rowConflict(err error, table string, data map[string]any) error {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != uniqueViolation {
+		return nil
+	}
+	if pgErr.ConstraintName == containerNameIndex {
+		name, _ := data["name"].(string)
+		return shared.ErrConflict.
+			WithDetail("containers.name_taken").
+			WithParams(map[string]string{"name": name}).
+			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
+	}
+	return shared.ErrConflict.
+		WithDetail("backup.row_conflicts").
+		WithParams(map[string]string{"constraint": pgErr.ConstraintName}).
+		WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
 }
 
 // Clear empties one table within the tenant.
