@@ -31,7 +31,7 @@ export { default as Input } from './Input.svelte';
 export { default as Menu } from './Menu.svelte';
 export { default as Popover } from './Popover.svelte';
 export { default as Radio } from './Radio.svelte';
-export { default as Select } from './Select.svelte';
+export { default as Select, type Option as SelectOption, type OptionGroup as SelectOptionGroup } from './Select.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as RoleBadge } from './RoleBadge.svelte';

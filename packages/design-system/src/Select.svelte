@@ -19,9 +19,21 @@
     readonly disabledReason?: string;
   }
 
+  /** Options under one heading. The native `<optgroup>`, which every platform's picker draws. */
+  export interface OptionGroup {
+    readonly label: string;
+    readonly options: readonly Option[];
+  }
+
   interface Props extends Omit<HTMLSelectAttributes, 'disabled' | 'size'>, Disableable {
     label: string;
     options: readonly Option[];
+    /**
+     * Options arranged under headings, drawn after `options`. For a list long enough that a person
+     * scans by what the entries are about before reading them - forty event types, say. A group
+     * with no options is not drawn.
+     */
+    groups?: readonly OptionGroup[];
     hint?: string;
     error?: string;
     isRequired?: boolean;
@@ -40,6 +52,7 @@
     isRequired = false,
     size = 'md',
     placeholder,
+    groups = [],
     value = $bindable(''),
     ...rest
   }: Props = $props();
@@ -65,6 +78,17 @@
           <option value={option.value} disabled={option.disabledReason !== undefined}>
             {option.label}
           </option>
+        {/each}
+        {#each groups as group (group.label)}
+          {#if group.options.length > 0}
+            <optgroup label={group.label}>
+              {#each group.options as option (option.value)}
+                <option value={option.value} disabled={option.disabledReason !== undefined}>
+                  {option.label}
+                </option>
+              {/each}
+            </optgroup>
+          {/if}
         {/each}
       </select>
       <!-- Decoration only: the native control already has its own affordance on some platforms,
