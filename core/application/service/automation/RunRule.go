@@ -633,27 +633,37 @@ func (h RunRule) act(
 ) ([]domain.ActionResult, bool, *suspension) {
 	w := &walk{
 		engine: h, actor: actor, rule: rule, occasion: cmd.occasion(), values: values,
-		replay: prior, supplied: cmd.supplied(),
+		replay: prior, supplied: cmd.supplied(values),
 	}
 	w.list(ctx, rule.Actions, "")
 	return w.results, w.halted, w.pending
 }
 
-// supplied is what the run knows and a rule cannot carry (automation.md §2.2): today, the event
-// the run is about. The dispatcher merges these only into fields the action's use case declares
-// and the rule left unset.
-func (c Command) supplied() map[string]any {
-	values := map[string]any{}
+// supplied is what the run knows and a rule cannot carry (automation.md §2.2): the event the run
+// is about, and the entry - `item_id` for ADD_LABEL, COMPLETE_ITEM and every other action that
+// takes the entry an event was about, which arrives after the rule is written. The dispatcher
+// merges these only into fields the action's use case declares and the rule left unset, so a rule
+// that names an entry outright keeps its choice.
+//
+// The entry is read from the same place the conditions read it (condition.Values.EntryID), so the
+// gate and the chain of one run cannot be about two different entries. Before F8's walk nothing
+// supplied it, and every entry action on an event rule failed at the run with
+// `usecase.input_invalid` - the one input the registry validates in full, missing.
+func (c Command) supplied(values condition.Values) map[string]any {
+	supplied := map[string]any{}
 	if !c.EventID.IsZero() {
-		values["event_id"] = c.EventID.String()
+		supplied["event_id"] = c.EventID.String()
+	}
+	if entry := values.EntryID(); !entry.IsZero() {
+		supplied["item_id"] = entry.String()
 	}
 	if c.Trigger == domain.TriggerJumbleEntry && !c.SubjectID.IsZero() {
 		// The entry a JUMBLE_ENTRY run is about, for CONVERT_JUMBLE_ENTRY and
 		// DISMISS_JUMBLE_ENTRY (G-10): not a value a rule can carry, because the entry arrives
 		// after the rule is written.
-		values["entry_id"] = c.SubjectID.String()
+		supplied["entry_id"] = c.SubjectID.String()
 	}
-	return values
+	return supplied
 }
 
 // replay is what a resumed run already knows: the results its row recorded, and the WAIT it

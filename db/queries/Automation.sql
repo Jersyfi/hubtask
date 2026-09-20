@@ -26,7 +26,7 @@ INSERT INTO automation_rule (
 );
 
 -- name: FindAutomationRule :one
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -38,7 +38,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- The `enabled` filter is a nullable argument rather than two queries: NULL means "either", which
 -- is what an absent query parameter means, and a second statement differing in one predicate is a
 -- second place for the `deleted_at` guard to be forgotten.
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -76,7 +76,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expecte
 -- The rows a re-seal visits (ADR-0045): a rule with an HTTP_REQUEST action - at any depth of a
 -- branch - whose sealed header secret names a key other than the current one. The path walks the
 -- document so that the query does not have to know the action tree's shape.
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -253,7 +253,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true;
 -- The scope is not in the predicate. A rule scoped to a hub matches an event in that hub's
 -- collections, and the event carries a subject rather than a path - so the narrowing is the
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -274,7 +274,7 @@ ORDER BY id;
 -- deliberately absent: the pass runs inside one tenant's own poller, of which there is one job, and
 -- the poller holds a row lock on that job before it reads - so two passes for one tenant cannot
 -- overlap, and a lock here would be a second answer to a question the queue has answered.
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -352,7 +352,7 @@ SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence;
 -- The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
 -- asks. The scope is not in the predicate, for RulesForEventType's reason: the narrowing is the
 -- producer's, against what it can resolve.
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -381,7 +381,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- token names inside itself - the only honest source of one on a route with no authentication
 -- (multi-tenancy.md §2.2). The hash is unique across the installation, so a token rewritten to
 -- quote another tenant matches nothing.
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
