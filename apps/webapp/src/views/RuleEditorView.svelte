@@ -25,6 +25,9 @@
 
   import RuleCanvas from '../lib/automation/RuleCanvas.svelte';
   import RuleInspector from '../lib/automation/RuleInspector.svelte';
+  import RuleProbe from '../lib/automation/RuleProbe.svelte';
+  import RuleRuns from '../lib/automation/RuleRuns.svelte';
+  import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
@@ -39,7 +42,7 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { rules, type InboundToken } from '../lib/data/rules.svelte.ts';
   import { inboundAddressOf } from '../lib/data/rules.ts';
-  import { runs } from '../lib/data/runs.svelte.ts';
+  import { runs, type Run } from '../lib/data/runs.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { webhooks } from '../lib/data/webhooks.svelte.ts';
@@ -71,6 +74,11 @@
   });
 
   const stored = $derived(isNew ? undefined : rules.all.find((rule) => rule.id === id));
+  $effect(() => {
+    if (isNew) return;
+    return untrack(() => runs.open({ ruleId: id }));
+  });
+  const ruleRuns = $derived(isNew ? [] : runs.of({ ruleId: id }));
   const reading = $derived(rules.state);
 
   /** The draft, taken once from the stored rule when it arrives; edits never re-read it. */
@@ -391,6 +399,67 @@
   }
 
   const palette = $derived([...grouped(actionKinds), { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] }]);
+
+  /* ---------- The probe, drawn onto the canvas (decision 9) ---------- */
+
+  let verdicts = $state<Map<string, Verdict>>(new Map());
+  let drawn = $state(false);
+  let outcome = $state<Outcome | undefined>(undefined);
+  let isProbing = $state(false);
+  let drawing: ReturnType<typeof setTimeout> | undefined;
+
+  /** One frame every beat, the arm a branch takes shown, the outcome last. Reduced motion: all at once. */
+  function draw(frames: readonly Frame[], result: Outcome): void {
+    clearTimeout(drawing);
+    verdicts = new Map();
+    drawn = false;
+    outcome = undefined;
+    const reduced = typeof matchMedia === 'function' && (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'reduced');
+    const step = (at: number): void => {
+      if (at >= frames.length) {
+        drawn = true;
+        outcome = result;
+        announcer.say(t('app.flow.probe_announced'));
+        return;
+      }
+      const frame = frames[at]!;
+      verdicts = new Map([...verdicts, [frame.key, frame.verdict]]);
+      if (frame.verdict.code === 'app.flow.verdict_then' || frame.verdict.code === 'app.flow.verdict_otherwise') {
+        pickArm(frame.key, frame.verdict.state === 'yes' ? 'then' : 'else');
+      }
+      if (reduced) step(at + 1);
+      else drawing = setTimeout(() => step(at + 1), 260);
+    };
+    step(0);
+  }
+
+  function clearDrawing(): void {
+    clearTimeout(drawing);
+    verdicts = new Map();
+    drawn = false;
+    outcome = undefined;
+  }
+
+  async function probe(sample: { type: string; subject?: string; payload?: Record<string, unknown> }): Promise<void> {
+    isProbing = true;
+    clearDrawing();
+    try {
+      const result = await runs.dryRunDraft(toRuleDraft(draft, shownName), { type: sample.type, subject: sample.subject }, sample.payload);
+      failure = undefined;
+      const { frames, outcome: ended } = framesOfTest(draft.actions, result);
+      draw(frames, ended);
+    } catch (cause) {
+      failure = renderProblem(cause as never, messages);
+    } finally {
+      isProbing = false;
+    }
+  }
+
+  function drawRun(run: Run): void {
+    const { frames, outcome: ended } = framesOfRun(draft.actions, run);
+    draw(frames, ended);
+    if (narrow) sheetOpen = false;
+  }
 </script>
 
 <div class="editor">
@@ -522,6 +591,8 @@
           segmented={narrow}
           {armChoice}
           onpickarm={pickArm}
+          {verdicts}
+          dimUnvisited={drawn}
         />
       </section>
 
@@ -575,9 +646,19 @@
             onstart={stored?.trigger.kind === 'MANUAL' ? start : undefined}
           />
         {:else if tab === 'probe'}
-          <p class="quiet panel">{t('app.flow.probe_later')}</p>
+          <RuleProbe
+            {eventTypes}
+            defaultType={draft.trigger.event_type ?? ''}
+            takesPayload={draft.trigger.kind === 'INBOUND_WEBHOOK'}
+            isRunning={isProbing}
+            {outcome}
+            onrun={probe}
+            onclear={clearDrawing}
+          />
+        {:else if stored}
+          <RuleRuns ruleId={stored.id} enabled={stored.enabled} findings={stored.findings ?? []} runs={ruleRuns} ondraw={drawRun} />
         {:else}
-          <p class="quiet panel">{t('app.flow.runs_later')}</p>
+          <p class="quiet panel">{t('app.flow.runs_none')}</p>
         {/if}
     {/snippet}
 

@@ -30,7 +30,7 @@ const RULE = {
   id: '01a0e2e0-0000-7000-8000-000000000010',
   name: 'Escalate overdue approvals',
   scope: { type: 'HUB', id: HUB.id },
-  enabled: false,
+  enabled: true,
   run_as: SERVICE_ACCOUNT.id,
   trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.overdue.v1' },
   conditions: [{ expr: "item.type == 'TASK'" }],
@@ -71,8 +71,33 @@ const MANIFEST = {
 };
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 
+const ITEM = { id: '01a0e2e0-0000-7000-8000-000000000020', type: 'TASK', title: 'Campaign approval Q4', collection_id: COLLECTION.id, order_key: 'a0', version: 1 };
+
+/**
+ * What the dry run answers for a sample about the entry, for the definition the probe sends - the
+ * canvas's, with the webhook moved up: the gate held, the branch went the other way.
+ */
+const TEST_HELD = {
+  matched: true,
+  condition_results: [{ index: 0, matched: true }],
+  actions: [
+    { path: '0', kind: 'ADD_LABEL', would_run: true },
+    { path: '1', kind: 'SEND_WEBHOOK', would_run: true },
+    { path: '2', kind: 'BRANCH', would_run: true, matched: false },
+    { path: '2/then/0', kind: 'ADD_COMMENT', would_run: false },
+    { path: '2/else/0', kind: 'WAIT', would_run: true },
+    { path: '2/else/1', kind: 'STOP', would_run: true },
+  ],
+};
+const TEST_NOT_HELD = { matched: false, condition_results: [{ index: 0, matched: false }], actions: [] };
+const RUNS = [
+  { id: '01a0e2e0-0000-7000-8000-000000000031', rule_id: RULE.id, trigger: 'EVENT', status: 'SUCCEEDED', started_at: '2026-09-20T14:32:00Z', causation_depth: 1, condition_results: [{ index: 0, matched: true }], action_results: [{ index: 0, kind: 'ADD_LABEL', path: '0', status: 'SUCCEEDED' }, { index: 1, kind: 'BRANCH', path: '1', matched: true, status: 'SUCCEEDED' }, { index: 2, kind: 'ADD_COMMENT', path: '1/then/0', status: 'SUCCEEDED' }, { index: 3, kind: 'SEND_WEBHOOK', path: '2', status: 'SUCCEEDED' }] },
+  { id: '01a0e2e0-0000-7000-8000-000000000032', rule_id: RULE.id, trigger: 'EVENT', status: 'FAILED', started_at: '2026-09-20T13:05:00Z', causation_depth: 1, condition_results: [{ index: 0, matched: true }], action_results: [{ index: 0, kind: 'ADD_LABEL', path: '0', status: 'FAILED', error_code: 'labels.not_found' }] },
+  { id: '01a0e2e0-0000-7000-8000-000000000033', rule_id: RULE.id, trigger: 'EVENT', status: 'SKIPPED', started_at: '2026-09-19T20:16:00Z', causation_depth: 1, condition_results: [{ index: 0, matched: false }], action_results: [] },
+];
+
 /** The API at the network edge, and a place the last write's body is kept for the assertions. */
-function stubFor(written) {
+function stubFor(written, tested = TEST_HELD) {
   return async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -96,6 +121,12 @@ function stubFor(written) {
       return route.fulfill({ json: { ...RULE, ...request.postDataJSON(), version: RULE.version + written.length } });
     }
     if (path.endsWith('/api/v1/automation/rules')) return route.fulfill({ json: { ...PAGE, data: [RULE] } });
+    if (path.endsWith('/api/v1/automation/rules:test')) {
+      written.push(request.postDataJSON());
+      return route.fulfill({ json: tested });
+    }
+    if (path.endsWith('/api/v1/automation/runs')) return route.fulfill({ json: { ...PAGE, data: RUNS } });
+    if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [ITEM], items: [ITEM], page: { next_cursor: null, has_more: false } } });
     return route.fulfill({ json: PAGE });
   };
 }
@@ -103,9 +134,9 @@ function stubFor(written) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, written, viewport) {
+async function open(browser, written, viewport, tested) {
   const context = await browser.newContext({ viewport });
-  await context.route('**/api/v1/**', stubFor(written));
+  await context.route('**/api/v1/**', stubFor(written, tested));
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
@@ -182,4 +213,55 @@ test('chromium: at phone width the details come as a sheet and a branch shows on
   assert.ok(await sheet.getByText('Add a label').first().isVisible());
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+});
+
+test('chromium: the probe runs the canvas\'s definition through the dry run and draws the answer', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 1200 });
+
+  // An unsaved change first, so that what is tested is the canvas and not the stored rule.
+  await page.locator('[data-card="2"] button[aria-label="Move up"]').focus();
+  await page.keyboard.press('Enter');
+
+  await page.getByRole('tab', { name: 'Probe' }).click();
+  await page.getByRole('button', { name: 'Run it through' }).click();
+  await page.locator('[data-card="trigger"] .verdict').waitFor();
+  await page.getByText('4 steps would run.').waitFor();
+
+  // The definition that left is the canvas's, and the sample names the event.
+  const test = written.find((body) => body.rule);
+  assert.ok(test, 'the dry run took a definition');
+  assert.deepEqual(test.rule.actions.map((action) => action.kind), ['ADD_LABEL', 'SEND_WEBHOOK', 'BRANCH']);
+  assert.equal(test.sample_event.type, RULE.trigger.event_type);
+
+  // The drawing: the gate held, the branch went the other way, the arm not taken is skipped.
+  assert.equal(await page.locator('[data-card="conditions/0"] .verdict').textContent(), 'held');
+  assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'would run');
+  assert.ok(await page.locator('[data-card="2"].no').count());
+  assert.equal(await page.locator('[data-card="2/then/0"].faded').count(), 1);
+  assert.equal(await page.locator('[data-card="2/else/1"] .verdict').textContent(), 'ends the run');
+});
+
+test('chromium: a sample the gate refuses stops at the gate, and a recorded run is drawn from its log', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 1200 }, TEST_NOT_HELD);
+
+  await page.getByRole('tab', { name: 'Probe' }).click();
+  await page.getByRole('button', { name: 'Run it through' }).click();
+  await page.locator('[data-card="conditions/0"] .verdict').waitFor();
+  assert.equal(await page.locator('[data-card="conditions/0"] .verdict').textContent(), 'did not hold');
+  await page.getByText('A condition did not hold').waitFor();
+  assert.equal(await page.locator('[data-card="0"].faded').count(), 1, 'the chain fades');
+
+  // The runs tab: the health from the last runs, and a run drawn onto the canvas.
+  await page.getByRole('tab', { name: 'Runs' }).click();
+  await page.getByText('Fails sometimes').waitFor();
+  await page.getByText('1 of 3 runs failed').waitFor();
+  await page.locator('.rows .row').nth(1).click();
+  await page.locator('[data-card="0"] .verdict').waitFor();
+  assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'failed');
+  await page.getByText('Failed', { exact: true }).first().waitFor();
 });
