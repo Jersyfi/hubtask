@@ -75,9 +75,59 @@ export function grouped(served: readonly string[]): { code: string; kinds: strin
     (group) => group.kinds.length > 0,
   );
   const placed = new Set(groups.flatMap((group) => group.kinds));
-  const rest = served.filter((kind) => !placed.has(kind)).sort();
-  if (rest.length > 0) groups.push({ code: 'app.flow.group_other', kinds: rest });
+  const others = served.filter((kind) => !placed.has(kind)).sort();
+  if (others.length > 0) groups.push({ code: 'app.flow.group_other', kinds: others });
   return groups;
+}
+
+/**
+ * The icon a kind is drawn with (decision 12), in the palette, the `+` menu and on its card. One
+ * table, so the three cannot disagree; a kind it does not name gets its group's, and a kind in
+ * no group a plain mark. The names are the design system's declared set and nothing else.
+ */
+export type KindIconName =
+  | 'tag' | 'calendar' | 'calendar-x' | 'square-check' | 'rotate-ccw' | 'arrow-right-left' | 'archive' | 'trash' | 'copy'
+  | 'image' | 'sliders-horizontal' | 'plus' | 'user-plus' | 'user-minus' | 'users' | 'user' | 'columns-3' | 'folder-plus'
+  | 'layout-template' | 'repeat' | 'skip-forward' | 'message-square' | 'inbox' | 'circle-x' | 'send' | 'globe' | 'sparkles'
+  | 'pause' | 'git-branch' | 'square' | 'check';
+
+const KIND_ICON: Readonly<Record<string, KindIconName>> = {
+  ADD_LABEL: 'tag', REMOVE_LABEL: 'tag', SET_DUE_DATE: 'calendar', CLEAR_DUE_DATE: 'calendar-x',
+  COMPLETE_WORK_ITEM: 'square-check', REOPEN_WORK_ITEM: 'rotate-ccw', MOVE_WORK_ITEM: 'arrow-right-left',
+  ARCHIVE_WORK_ITEM: 'archive', TRASH_WORK_ITEM: 'trash', DUPLICATE_WORK_ITEM: 'copy', SET_COVER: 'image',
+  SET_CUSTOM_FIELD: 'sliders-horizontal', CREATE_WORK_ITEM: 'plus',
+  ASSIGN_WORK_ITEM: 'user-plus', AUTO_ASSIGN_WORK_ITEM: 'users', UNASSIGN_WORK_ITEM: 'user-minus',
+  ADD_MEMBER: 'user-plus', REMOVE_MEMBER: 'user-minus',
+  CREATE_BUCKET: 'columns-3', CREATE_CONTAINER: 'folder-plus', INSTANTIATE_TEMPLATE: 'layout-template',
+  SET_RECURRENCE: 'repeat', SKIP_OCCURRENCE: 'skip-forward',
+  ADD_COMMENT: 'message-square', CONVERT_JUMBLE_ENTRY: 'inbox', DISMISS_JUMBLE_ENTRY: 'circle-x',
+  SEND_WEBHOOK: 'send', HTTP_REQUEST: 'globe',
+  AI_CLASSIFY: 'sparkles', AI_SUMMARIZE: 'sparkles', AI_SUGGEST_FIELDS: 'sparkles',
+  WAIT: 'pause', BRANCH: 'git-branch', STOP: 'square',
+};
+
+const GROUP_ICON: Readonly<Record<string, KindIconName>> = {
+  'app.flow.group_entries': 'check', 'app.flow.group_people': 'user', 'app.flow.group_structure': 'folder-plus',
+  'app.flow.group_content': 'message-square', 'app.flow.group_outbound': 'globe', 'app.flow.group_ai': 'sparkles',
+};
+
+/** The trigger kinds' icons, the same table on the card and in the palette. */
+export const TRIGGER_ICONS: Readonly<Record<string, 'zap' | 'clock' | 'calendar' | 'globe' | 'hand' | 'inbox'>> = {
+  EVENT: 'zap',
+  SCHEDULE: 'clock',
+  RELATIVE_DATE: 'calendar',
+  INBOUND_WEBHOOK: 'globe',
+  MANUAL: 'hand',
+  JUMBLE_ENTRY: 'inbox',
+};
+
+export function kindIcon(kind: string): KindIconName {
+  const own = KIND_ICON[kind];
+  if (own) return own;
+  const group = COMMON_GROUPS.find((each) => each.kinds.includes(kind));
+  if (group) return GROUP_ICON[group.code] ?? 'check';
+  if (kind.startsWith('AI_')) return 'sparkles';
+  return 'check';
 }
 
 /** One condition, as words: the sentence's subject and value, or "the expression holds". */

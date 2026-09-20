@@ -114,6 +114,23 @@ export const DECLARED = {
     'shield', // the account a rule runs as
     'fold-vertical', // a branch folded to one line, and unfolded
   ],
+  'The rule flow — F8-09': [
+    // A building block carries its icon (decision 12): one per action kind the palette and the
+    // + menu know, chosen in apps/webapp's words.ts; the group's icon stands in for the rest.
+    'calendar-x', // clear the due date
+    'rotate-ccw', // reopen
+    'arrow-right-left', // move
+    'user-plus', // add a member, assign
+    'user-minus', // remove a member, unassign
+    'columns-3', // a bucket
+    'folder-plus', // a hub or collection
+    'layout-template', // a template
+    'skip-forward', // skip an occurrence
+    'sliders-horizontal', // a custom field
+    'circle-x', // dismiss an inbox entry
+    'square-check', // complete
+    'send', // deliver to a webhook
+  ],
   'The AI treatment — F5-01': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
