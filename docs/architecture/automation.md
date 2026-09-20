@@ -468,7 +468,14 @@ deletion events** of labels, buckets and containers, through a subscriber that w
 `automation.check` job per tenant and nothing else, because a subscriber runs inside the
 dispatcher's transaction (§2.0). Never on a timer, and never across tenants. It does not re-run
 §2.1's three rights checks, which the enable asks and the run answers per action, and it repairs
-nothing: a finding is information, and repairing is the author's.
+nothing: a finding is information, and repairing is the author's. An **edit leaves the rule
+unchecked** - the findings described the definition the check read, so the update empties them
+and clears `checked_at` - and the web client asks for the check right after a save, so the writer
+learns at the card whether the repair held (issue 815).
+
+What the walk of F8-08 found is in [`F8-2026-09-20.md`](../evidence/F8-2026-09-20.md): the
+check's BROKEN path is blocked at its notification (issue 814), and a runner without a role is
+a finding the check does not yet make (issue 817).
 
 ## 3. External automation
 
