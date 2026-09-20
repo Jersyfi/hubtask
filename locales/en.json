@@ -2513,6 +2513,7 @@
   "app.flow.card_move_down": "Move down",
   "app.flow.insert_here": "Insert a step here",
   "app.flow.insert_search": "Search the steps",
+  "app.flow.insert_search_hint": "Type to find every step this installation serves, the ones not listed included.",
   "app.flow.event_address": "the rule's address",
   "app.flow.no_address": "no address yet — nothing can reach this rule",
   "app.flow.manual_hint": "a button, the API, or an MCP tool",

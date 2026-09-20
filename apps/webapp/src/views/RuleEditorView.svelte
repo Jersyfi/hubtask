@@ -403,7 +403,7 @@
     await attempt(() => runs.trigger(stored.id), t('app.flow.manual_started'));
   }
 
-  const palette = $derived([...grouped(actionKinds), { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] }]);
+  const palette = $derived([...grouped(actionKinds, 'folded'), { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] }]);
 
   /* ---------- The probe, drawn onto the canvas (decision 9) ---------- */
 

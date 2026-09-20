@@ -68,12 +68,17 @@ export const COMMON_GROUPS: readonly { code: string; kinds: readonly string[] }[
   { code: 'app.flow.group_ai', kinds: ['AI_CLASSIFY', 'AI_SUMMARIZE', 'AI_SUGGEST_FIELDS'] },
 ];
 
-/** The manifest's kinds arranged for the palette: the common groups, then everything else sorted. */
-export function grouped(served: readonly string[]): { code: string; kinds: string[] }[] {
+/**
+ * The manifest's kinds arranged for a menu: the common groups, then everything else sorted. The
+ * palette shows the groups alone (decision 12) - ninety names of which `Confirm TOTP` is one are
+ * not a palette - and the `+` menu's search is what finds the rest.
+ */
+export function grouped(served: readonly string[], rest: 'listed' | 'folded' = 'listed'): { code: string; kinds: string[] }[] {
   const have = new Set(served);
   const groups = COMMON_GROUPS.map((group) => ({ code: group.code, kinds: group.kinds.filter((kind) => have.has(kind)) })).filter(
     (group) => group.kinds.length > 0,
   );
+  if (rest === 'folded') return groups;
   const placed = new Set(groups.flatMap((group) => group.kinds));
   const others = served.filter((kind) => !placed.has(kind)).sort();
   if (others.length > 0) groups.push({ code: 'app.flow.group_other', kinds: others });

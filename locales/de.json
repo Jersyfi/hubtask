@@ -1440,6 +1440,7 @@
   "app.flow.card_move_down": "Nach unten",
   "app.flow.insert_here": "Hier einen Schritt einfügen",
   "app.flow.insert_search": "Schritte durchsuchen",
+  "app.flow.insert_search_hint": "Tippe, um jeden Schritt zu finden, den diese Installation anbietet – auch die nicht aufgeführten.",
   "app.flow.event_address": "die Adresse der Regel",
   "app.flow.no_address": "noch keine Adresse – nichts kann diese Regel erreichen",
   "app.flow.manual_hint": "ein Knopf, die API oder ein MCP-Werkzeug",
