@@ -14,7 +14,7 @@ export default {
 export const all: Story = {
   name: 'All seven, and why they are seven',
   about:
-    'SKIPPED is a condition that did not match — nothing went wrong, the rule did not apply. THROTTLED is the rule protecting the workspace from itself. ABORTED_LOOP is the causation depth stopping a rule that triggered itself. Drawing those three as “failed” would make the runs list lie, and send somebody looking for a defect that is the system working.',
+    'SKIPPED is a condition that did not match — nothing went wrong, the rule did not apply. THROTTLED is the rule protecting the workspace from itself. ABORTED_LOOP is the causation depth stopping a rule that triggered itself. Drawing those three as “failed” would make the runs list lie, and send somebody looking for a defect that is the system working. Two are bold (ADR-0061): FAILED and ABORTED_LOOP are the ones somebody has to act on, so in a list of twenty quiet rows they are the ones seen first.',
 };
 
 export const dryRun: Story = {

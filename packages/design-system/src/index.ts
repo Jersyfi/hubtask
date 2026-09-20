@@ -18,7 +18,7 @@ export { default as VisuallyHidden } from './VisuallyHidden.svelte';
 export { default as Avatar } from './Avatar.svelte';
 export { default as AvatarGroup } from './AvatarGroup.svelte';
 export { default as ApiEndpointCard, type Method } from './ApiEndpointCard.svelte';
-export { default as Badge } from './Badge.svelte';
+export { default as Badge, type BadgeEmphasis } from './Badge.svelte';
 export { default as Banner } from './Banner.svelte';
 export { default as Callout } from './Callout.svelte';
 export { default as CodeBlock } from './CodeBlock.svelte';
