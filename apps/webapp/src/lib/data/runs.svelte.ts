@@ -131,6 +131,16 @@ class Runs {
     this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
   }
 
+  /**
+   * Reads the first page again, in place. A run is recorded by the worker and no change record
+   * announces it, so a listing opened before the run happened would show the rule as never run
+   * until the page reloaded (F8's walk found it that way); the editor asks for this when its Runs
+   * tab is opened. The subscription `open` holds is what receives the answer.
+   */
+  async reload(filter: RunFilter = {}): Promise<void> {
+    await engine.refresh<RunPage>({ path: runsPath(filter) });
+  }
+
   async read(runId: string): Promise<void> {
     const state = await engine.refresh<Run>({ path: `${RUNS}/${runId}` });
     if (state.status === 'ready') this.#details = { ...this.#details, [runId]: state.data };
