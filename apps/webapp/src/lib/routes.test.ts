@@ -33,7 +33,7 @@ test('the administration area is exactly the screens F4 built, by name', () => {
   // The first test says the tag and the prefix agree; this one says what the set *is*. A screen
   // added under `/administration` later joins this list on purpose, or the walk that found it
   // missing is repeated. F4-21's walk is where the list was read off the running application;
-  // `ai` joined it on purpose in F5-05.
+  // `ai` joined it on purpose in F5-05; `rule` and `rule-new`, the editor, in F8-04.
   const built = ROUTES.filter((route) => route.area === 'administration')
     .map((route) => route.name)
     .sort();
@@ -51,6 +51,8 @@ test('the administration area is exactly the screens F4 built, by name', () => {
     'quotas',
     'restore',
     'retention',
+    'rule',
+    'rule-new',
     'rules',
     'runs',
     'service-accounts',

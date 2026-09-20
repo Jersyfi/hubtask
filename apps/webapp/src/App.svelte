@@ -41,6 +41,7 @@
   import AuditView from './views/AuditView.svelte';
   import PrivacyView from './views/PrivacyView.svelte';
   import RulesView from './views/RulesView.svelte';
+  import RuleEditorView from './views/RuleEditorView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
@@ -137,6 +138,12 @@
     <AppsView />
   {:else if route.name === 'rules'}
     <RulesView />
+  {:else if route.name === 'rule-new'}
+    <RuleEditorView id="new" onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'rule'}
+    {#key route.params.id}
+      <RuleEditorView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+    {/key}
   {:else if route.name === 'runs'}
     <RunsView />
   {:else if route.name === 'webhooks'}

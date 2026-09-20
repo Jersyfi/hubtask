@@ -29,6 +29,15 @@ export interface Names {
   changedField?: (field: string) => string;
 }
 
+/**
+ * An event type read as words: `de.hubtask.work.item.overdue.v1` is "item overdue". The catalogue
+ * has no word per event type - the webhooks screen shows the type itself - so the type is read
+ * without its namespace and version rather than shown as a namespace.
+ */
+export function eventWord(type: string): string {
+  return type.replace(/^de\.hubtask\./, '').replace(/\.v\d+$/, '').replace(/^work\./, '').replace(/[._]/g, ' ');
+}
+
 /** A kind's word, or the kind read as words. */
 export function kindWord(words: Catalogue, kind: string): string {
   const code = `app.flow.action.${kind.toLowerCase()}`;
@@ -79,7 +88,7 @@ export function conditionWords(words: Catalogue, names: Names, expr: string): st
 }
 
 export function sentenceWords(words: Catalogue, names: Names, sentence: Sentence): string {
-  const subject = words.t(`app.flow.subject_${sentence.subject}`);
+  const subject = words.t(`app.flow.in_sentence_subject_${sentence.subject}`);
   const op = words.t(`app.flow.op_${sentence.op}`);
   switch (sentence.subject) {
     case 'hour':
