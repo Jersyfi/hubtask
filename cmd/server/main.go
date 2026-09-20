@@ -1223,6 +1223,21 @@ func run() error {
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
+		// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
+		// the resolver for what a rule names, and the streak's own path to the author.
+		automationservice.CheckRules{
+			Rules:      postgres.NewAutomationRuleRepository(cursors),
+			References: postgres.NewAutomationReferenceRepository(),
+			Catalogue:  ruleCatalogue, Conditions: celexpression.New(),
+			Authorizer: authorizer, Audit: auditSink,
+			Owners: notification.RecordRuleDisabled{
+				Notifications: notifications, Accounts: accounts,
+				Preferences: notificationPreferences, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+			Signals:    metrics,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		automationservice.ReplayRuleRun{
 			Runs:  postgres.NewAutomationRunRepository(cursors),
 			Rules: postgres.NewAutomationRuleRepository(cursors),

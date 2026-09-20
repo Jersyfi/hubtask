@@ -329,7 +329,35 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 	if at, present := out["inbound_rotated_at"].(time.Time); present {
 		rule.InboundRotatedAt = &at
 	}
+	// What the check found (ADR-0060): always an array, and the moment only where there was one.
+	findings := findingsResponse(out["findings"])
+	rule.Findings = &findings
+	if at, present := out["checked_at"].(time.Time); present {
+		rule.CheckedAt = &at
+	}
 	return rule
+}
+
+func findingsResponse(value any) []openapi.RuleFinding {
+	rows, _ := value.([]any)
+	findings := make([]openapi.RuleFinding, 0, len(rows))
+	for _, row := range rows {
+		entry, _ := row.(map[string]any)
+		finding := openapi.RuleFinding{
+			Level: openapi.RuleFindingLevel(stringAt(entry, "level")),
+			Path:  stringAt(entry, "path"),
+			Code:  stringAt(entry, "code"),
+		}
+		if params, present := entry["params"].(map[string]string); present && len(params) > 0 {
+			copied := make(map[string]string, len(params))
+			for key, param := range params {
+				copied[key] = param
+			}
+			finding.Params = &copied
+		}
+		findings = append(findings, finding)
+	}
+	return findings
 }
 
 func scopeResponse(value any) openapi.RuleScope {
@@ -490,7 +518,22 @@ const (
 	httpRequestUseCase   = "HttpRequest"
 	testRuleUseCase      = "TestRule"
 	replayRuleRunUseCase = "ReplayRuleRun"
+	checkRulesUseCase    = "CheckRules"
 )
+
+// CheckRules answers POST /automation/rules:check (ADR-0060).
+func (c *RestController) CheckRules(w http.ResponseWriter, r *http.Request) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), checkRulesUseCase, actor, usecase.Input{})
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]usecase.Output)
+		rules := make([]openapi.AutomationRule, 0, len(rows))
+		for _, row := range rows {
+			rules = append(rules, ruleResponse(row))
+		}
+		writeJSON(w, r, http.StatusOK, map[string]any{"data": rules})
+	})
+}
 
 // TestRule answers POST /automation/rules:test.
 //

@@ -6129,7 +6129,7 @@ type RuleConditionResult struct {
 	Matched   bool    `json:"matched"`
 }
 
-// RuleFinding One thing the check found about a rule (ADR-0060). `path` names what it is about in the rule's own address space - `trigger`, `run_as`, `conditions/1`, `actions/2/then/0` - the same paths a run's log and a write-time refusal use, so an editor points at one place for all three. `code` is a message code and `params` its parameters (ADR-0011).
+// RuleFinding One thing the check found about a rule (ADR-0060). `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters (ADR-0011).
 type RuleFinding struct {
 	Code string `json:"code"`
 

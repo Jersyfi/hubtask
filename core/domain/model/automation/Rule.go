@@ -255,9 +255,9 @@ const (
 
 // Finding is one thing the check found about a rule.
 //
-// Path names what it is about in the rule's own address space - `trigger`, `run_as`,
-// `conditions/1`, `actions/2/then/0` - the same paths a run's log and a write-time refusal use,
-// so that an editor points at one place for all three. Code is a message code and Params its
+// Path is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`,
+// `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's
+// field errors carry, so that an editor pointing at a refused field points at a finding too. Code is a message code and Params its
 // parameters (ADR-0011): a finding is shown to a person and never carries a sentence.
 type Finding struct {
 	Level  FindingLevel
