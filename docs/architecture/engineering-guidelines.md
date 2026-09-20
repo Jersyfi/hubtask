@@ -46,6 +46,7 @@ injected.
 14. **Audit obligation** settled: is the operation security- or compliance-relevant? If so, enter the action in the `AuditableAction` registry.
 15. **Sync impact** settled: does the change produce change log entries, and how is the field merged on offline conflicts (LWW, OR-set, fractional index, server-side)? ([offline-sync.md](./offline-sync.md) §4)
 16. **Client availability** named: which area of the client capability matrix the feature belongs to (end-user, profile configuration, administration); a restriction beyond [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s matrix needs its justification recorded there via supersede.
+17. **No other product's name in the implementation** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md) decision 6): not in code, comments, identifiers, commit titles or bodies, pull request or issue text, the catalogue, the UI, the website, the workbench or a specification. An ADR may carry one sentence of context naming where a pattern is proven; a dependency is named where its licence requires; an import format carries the format's name.
 
 ## 3. Definition of Done
 
