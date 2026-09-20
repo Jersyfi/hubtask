@@ -617,7 +617,11 @@
         <Tabs
           label={t('app.flow.inspector')}
           selected={tab}
-          onselect={(next) => (tab = next)}
+          onselect={(next) => {
+            tab = next;
+            // What the rule has done since the editor opened: no record announces a run.
+            if (next === 'runs' && !isNew) void runs.reload({ ruleId: id });
+          }}
           tabs={[
             { id: 'piece', label: t('app.flow.tab_piece') },
             { id: 'probe', label: t('app.flow.tab_probe') },

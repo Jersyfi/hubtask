@@ -125,7 +125,10 @@ function stubFor(written, tested = TEST_HELD) {
       written.push(request.postDataJSON());
       return route.fulfill({ json: tested });
     }
-    if (path.endsWith('/api/v1/automation/runs')) return route.fulfill({ json: { ...PAGE, data: RUNS } });
+    if (path.endsWith('/api/v1/automation/runs')) {
+      written.push({ runs: Object.fromEntries(url.searchParams) });
+      return route.fulfill({ json: { ...PAGE, data: RUNS } });
+    }
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [ITEM], items: [ITEM], page: { next_cursor: null, has_more: false } } });
     return route.fulfill({ json: PAGE });
   };
@@ -172,9 +175,10 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   await page.getByRole('button', { name: 'Save the rule' }).click();
   await page.waitForFunction(() => document.querySelector('[data-canvas]') !== null);
   await page.waitForTimeout(500);
-  assert.equal(written.length, 1, 'one PATCH left');
-  assert.deepEqual(written[0].actions.map((action) => action.kind), ['BRANCH', 'SEND_WEBHOOK', 'ADD_LABEL']);
-  assert.deepEqual(written[0].actions[0].then.map((action) => action.kind), ['ADD_COMMENT']);
+  const patches = written.filter((body) => body.actions);
+  assert.equal(patches.length, 1, 'one PATCH left');
+  assert.deepEqual(patches[0].actions.map((action) => action.kind), ['BRANCH', 'SEND_WEBHOOK', 'ADD_LABEL']);
+  assert.deepEqual(patches[0].actions[0].then.map((action) => action.kind), ['ADD_COMMENT']);
 });
 
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {
@@ -247,7 +251,8 @@ test('chromium: the probe runs the canvas\'s definition through the dry run and 
 test('chromium: a sample the gate refuses stops at the gate, and a recorded run is drawn from its log', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const page = await open(browser, [], { width: 1400, height: 1200 }, TEST_NOT_HELD);
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 1200 }, TEST_NOT_HELD);
 
   await page.getByRole('tab', { name: 'Probe' }).click();
   await page.getByRole('button', { name: 'Run it through' }).click();
@@ -257,9 +262,13 @@ test('chromium: a sample the gate refuses stops at the gate, and a recorded run 
   assert.equal(await page.locator('[data-card="0"].faded').count(), 1, 'the chain fades');
 
   // The runs tab: the health from the last runs, and a run drawn onto the canvas.
+  // The runs tab reads the log again when it opens: a run recorded since the editor opened is
+  // announced by nothing, so the listing the editor subscribed to at its start would miss it.
+  const readBefore = written.filter((body) => body.runs).length;
   await page.getByRole('tab', { name: 'Runs' }).click();
   await page.getByText('Fails sometimes').waitFor();
   await page.getByText('1 of 3 runs failed').waitFor();
+  assert.equal(written.filter((body) => body.runs).length, readBefore + 1, 'the tab read the runs again');
   await page.locator('.rows .row').nth(1).click();
   await page.locator('[data-card="0"] .verdict').waitFor();
   assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'failed');
