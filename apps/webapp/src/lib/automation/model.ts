@@ -301,7 +301,7 @@ export const isAutomatic = (name: string, generated: string): boolean => name.tr
  *
  * The subjects are the fields the run's `item` document carries (`condition.ItemDocument`), the
  * actor, and the hour of `now`. Labels are not among them: the run's document has no `labels` key
- * today (#807), and a subject the run cannot answer would compile into a rule that fails.
+ * today (issue 807), and a subject the run cannot answer would compile into a rule that fails.
  */
 export type Subject = 'type' | 'completed' | 'due' | 'assignee' | 'bucket' | 'parent' | 'actor' | 'hour' | 'field';
 
