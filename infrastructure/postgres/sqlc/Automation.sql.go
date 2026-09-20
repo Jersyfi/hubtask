@@ -36,7 +36,7 @@ func (q *Queries) ActingAccountExists(ctx context.Context, id pgtype.UUID) (bool
 }
 
 const automationRulesSealedNotUnder = `-- name: AutomationRulesSealedNotUnder :many
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -49,6 +49,7 @@ ORDER BY id
 
 type AutomationRulesSealedNotUnderRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -85,6 +86,7 @@ func (q *Queries) AutomationRulesSealedNotUnder(ctx context.Context, keyID strin
 		var i AutomationRulesSealedNotUnderRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.ScopeType,
 			&i.ScopeID,
 			&i.Name,
@@ -316,7 +318,7 @@ func (q *Queries) DisableFailingRule(ctx context.Context, arg DisableFailingRule
 
 const dueAutomationRules = `-- name: DueAutomationRules :many
 
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -333,6 +335,7 @@ type DueAutomationRulesParams struct {
 
 type DueAutomationRulesRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -375,6 +378,7 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 		var i DueAutomationRulesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.ScopeType,
 			&i.ScopeID,
 			&i.Name,
@@ -407,7 +411,7 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 }
 
 const findAutomationRule = `-- name: FindAutomationRule :one
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -416,6 +420,7 @@ WHERE id = $1 AND deleted_at IS NULL
 
 type FindAutomationRuleRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -443,6 +448,7 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 	var i FindAutomationRuleRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.ScopeType,
 		&i.ScopeID,
 		&i.Name,
@@ -468,7 +474,7 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 }
 
 const findAutomationRuleByInboundToken = `-- name: FindAutomationRuleByInboundToken :one
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -477,6 +483,7 @@ WHERE inbound_token_hash = $1 AND deleted_at IS NULL
 
 type FindAutomationRuleByInboundTokenRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -508,6 +515,7 @@ func (q *Queries) FindAutomationRuleByInboundToken(ctx context.Context, tokenHas
 	var i FindAutomationRuleByInboundTokenRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.ScopeType,
 		&i.ScopeID,
 		&i.Name,
@@ -775,7 +783,7 @@ func (q *Queries) LabelExists(ctx context.Context, id pgtype.UUID) (bool, error)
 }
 
 const listAutomationRules = `-- name: ListAutomationRules :many
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -794,6 +802,7 @@ type ListAutomationRulesParams struct {
 
 type ListAutomationRulesRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -832,6 +841,7 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 		var i ListAutomationRulesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.ScopeType,
 			&i.ScopeID,
 			&i.Name,
@@ -1025,7 +1035,7 @@ func (q *Queries) RewrapAutomationRuleActions(ctx context.Context, arg RewrapAut
 }
 
 const rulesByTriggerKind = `-- name: RulesByTriggerKind :many
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -1037,6 +1047,7 @@ ORDER BY id
 
 type RulesByTriggerKindRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -1073,6 +1084,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 		var i RulesByTriggerKindRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.ScopeType,
 			&i.ScopeID,
 			&i.Name,
@@ -1105,7 +1117,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 }
 
 const rulesForEventType = `-- name: RulesForEventType :many
-SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
@@ -1118,6 +1130,7 @@ ORDER BY id
 
 type RulesForEventTypeRow struct {
 	ID               pgtype.UUID
+	TenantID         pgtype.UUID
 	ScopeType        string
 	ScopeID          pgtype.UUID
 	Name             string
@@ -1159,6 +1172,7 @@ func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]Ru
 		var i RulesForEventTypeRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.ScopeType,
 			&i.ScopeID,
 			&i.Name,

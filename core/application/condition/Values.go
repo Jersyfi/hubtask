@@ -105,6 +105,12 @@ func (v Values) entry() shared.ID {
 	return v.Subject
 }
 
+// EntryID is entry for a caller outside the expressions: the engine, which supplies the entry to
+// the actions beside the event (automation.md §2.2), so that the actions and the conditions of one
+// run cannot be about two different entries. Zero for a run that is about none - a container
+// event, a jumble arrival, a schedule.
+func (v Values) EntryID() shared.ID { return v.entry() }
+
 func (v Values) item(ctx context.Context) (any, bool, error) {
 	id := v.entry()
 	if id.IsZero() || v.Entries == nil {
