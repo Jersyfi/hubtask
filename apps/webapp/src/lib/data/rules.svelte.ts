@@ -145,6 +145,17 @@ class Rules {
     });
   }
 
+  /**
+   * The check (ADR-0060): every rule the caller may read, its references resolved against what
+   * exists now, the findings written on the rules and answered here. The list calls it when it
+   * opens, which is what makes "after an update, the rules that need attention are shown" true
+   * without anything enumerating tenants.
+   */
+  async check(): Promise<readonly Rule[]> {
+    const answer = await engine.mutate<{ data?: readonly Rule[] }>('POST', `${PATH}:check`, {}, { invalidates: [PATH] });
+    return answer.data ?? [];
+  }
+
   /** Two calls rather than a flag, so the trail says which of the two somebody did. */
   async enable(ruleId: string): Promise<void> {
     await engine.mutate('POST', `${PATH}/${ruleId}:enable`, {}, { invalidates: [PATH] });
