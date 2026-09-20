@@ -20,6 +20,7 @@
   // are left is arithmetic with a plural in it and plurals belong to the client's renderer.
 
   import Badge from './Badge.svelte';
+  import type { StatusTone } from './control.ts';
   import Icon from './Icon.svelte';
   import Stack from './Stack.svelte';
 
@@ -49,10 +50,24 @@
      * a card that said "0 failures" would be a card drawing attention to nothing.
      */
     failureLabel?: string;
+    /**
+     * How the rule is doing, in a word (F8-07): *works*, *needs attention*, *broken*. Resolved,
+     * with the tone the caller judged - the card knows no arithmetic. Absent shows nothing.
+     */
+    healthLabel?: string;
+    healthTone?: StatusTone | 'neutral';
+    /**
+     * The first thing the check found (ADR-0060), as a sentence, where it found anything: what
+     * a person scanning the list has to see before opening the rule. `isBroken` says the rule
+     * cannot run, which the card marks as danger rather than warning.
+     */
+    findingLabel?: string;
+    isBroken?: boolean;
   }
 
-  const { name, href, trigger, actions, runAs, isEnabled, stateLabel, failureLabel }: Props =
-    $props();
+  const {
+    name, href, trigger, actions, runAs, isEnabled, stateLabel, failureLabel, healthLabel, healthTone = 'neutral', findingLabel, isBroken = false,
+  }: Props = $props();
 </script>
 
 <article class="card">
@@ -69,6 +84,7 @@
            neutral and carries no mark, because nothing is wrong with a rule somebody switched
            off — it is a state, not a warning. -->
       <Badge tone={isEnabled ? 'success' : 'neutral'}>{stateLabel}</Badge>
+      {#if healthLabel}<Badge tone={healthTone}>{healthLabel}</Badge>{/if}
     </div>
 
     <dl class="facts">
@@ -84,6 +100,15 @@
       <p class="failures">
         <Icon name="triangle-alert" size="sm" />
         <span>{failureLabel}</span>
+      </p>
+    {/if}
+
+    <!-- Rule 3 once more: the sentence says what the check found, and the colour only repeats
+         whether the rule can still run. -->
+    {#if findingLabel}
+      <p class="finding" class:broken={isBroken}>
+        <Icon name={isBroken ? 'circle-alert' : 'triangle-alert'} size="sm" />
+        <span>{findingLabel}</span>
       </p>
     {/if}
   </Stack>
@@ -128,7 +153,7 @@
 
   .fact dd { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); min-width: 0; overflow-wrap: anywhere; }
 
-  .failures {
+  .failures, .finding {
     margin: 0;
     display: flex;
     align-items: center;
@@ -136,4 +161,6 @@
     color: var(--text-warning);
     font-size: var(--fs-075);
   }
+
+  .finding.broken { color: var(--text-danger); }
 </style>
