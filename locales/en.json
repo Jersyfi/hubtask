@@ -540,6 +540,8 @@
   "automation.writer_lacks_action_right": "This rule would do something you may not do yourself. You need {scope} to write it.",
   "automation.trigger_kind_required": "Say what starts this rule.",
   "automation.trigger_kind_unknown": "{kind} is not a way a rule can be started.",
+  "automation.run_window_malformed": "{field} is not an RFC 3339 instant.",
+  "automation.run_window_reversed": "The window ends before it starts.",
   "automation.trigger_field_not_for_kind": "That field does not belong to a {kind} trigger.",
   "automation.event_type_required": "Say which event this rule reacts to.",
   "automation.event_type_unknown": "{event_type} is not an event type this installation publishes.",
