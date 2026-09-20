@@ -18,6 +18,7 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import type { RuleDraft } from './rules.svelte.ts';
 import { runsPath, type RunFilter } from './runs.ts';
 
 export { runsPath, type RunFilter };
@@ -71,6 +72,9 @@ export interface TestAction {
   readonly path: string;
   readonly kind: string;
   readonly would_run: boolean;
+  /** How a `BRANCH`'s condition answered the sample; present only on a branch. */
+  readonly matched?: boolean;
+  readonly error_code?: string;
   readonly summary?: string;
 }
 
@@ -137,6 +141,23 @@ class Runs {
     return engine.mutate<TestResult>('POST', `${RULES}:test`, {
       rule_id: ruleId,
       sample_event: { type: event.type, ...(event.subject ? { subject: event.subject } : {}) },
+    });
+  }
+
+  /**
+   * Dry-runs a definition as it stands - the canvas's, not the stored rule's (F8-06, decision 9) -
+   * so that an unsaved change is what is tested. The same document a write takes, checked by the
+   * same validation; `payload` is what an inbound delivery would have carried.
+   */
+  async dryRunDraft(
+    rule: RuleDraft,
+    event: { type: string; subject?: string },
+    payload?: Record<string, unknown>,
+  ): Promise<TestResult> {
+    return engine.mutate<TestResult>('POST', `${RULES}:test`, {
+      rule,
+      sample_event: { type: event.type, ...(event.subject ? { subject: event.subject } : {}) },
+      ...(payload ? { payload } : {}),
     });
   }
 

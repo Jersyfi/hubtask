@@ -24,6 +24,7 @@
   import type { Draft, Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
   import { conditionWords, type Names } from './words.ts';
+  import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -55,12 +56,17 @@
     segmented: boolean;
     armChoice: ReadonlyMap<string, 'then' | 'else'>;
     onpickarm: (path: string, arm: 'then' | 'else') => void;
+    /** A run drawn onto the canvas (F8-06): what each card says, by its key; cards not in it fade once `dimUnvisited`. */
+    verdicts?: ReadonlyMap<string, Verdict>;
+    dimUnvisited?: boolean;
   }
 
   const {
     draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
-    onnudge, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm,
+    onnudge, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
+
+  const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
 
   const triggerTakes = $derived(drag?.src === 'trigger');
   const gateTakes = $derived(drag?.src === 'condition');
@@ -131,6 +137,8 @@
     class:target={triggerTakes}
     class:over={overTrigger}
     class:inert={drag !== undefined && !triggerTakes}
+    class:lit={verdicts?.has('trigger')}
+    class:yes={verdicts?.get('trigger')?.state === 'yes'}
     data-card="trigger"
     role="button"
     tabindex="0"
@@ -148,6 +156,7 @@
     }}
   >
     {#if triggerTakes}<span class="dropword">{t('app.flow.drop_trigger')}</span>{/if}
+    {#if verdicts?.get('trigger')}<span class="verdict yes"><Icon name="zap" size="sm" />{verdictWord(verdicts.get('trigger')!)}</span>{/if}
     <span class="mark trigger-mark"><Icon name={TRIGGER_ICON[draft.trigger.kind] ?? 'zap'} size="sm" /></span>
     <span class="body">
       <span class="kind">{t('app.flow.card_starts_on')}</span>
@@ -190,9 +199,14 @@
       <span class="hint">{draft.conditions.length > 0 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
     </span>
     {#each draft.conditions as expr, index (index)}
+      {@const verdict = verdicts?.get(`conditions/${index}`)}
       <div
         class="condition"
         class:selected={isSelected('condition', index)}
+        class:lit={verdict !== undefined}
+        class:yes={verdict?.state === 'yes'}
+        class:no={verdict?.state === 'no'}
+        class:faded={dimUnvisited && verdict === undefined}
         data-card={`conditions/${index}`}
         role="button"
         tabindex="0"
@@ -211,6 +225,7 @@
           <code class="expr">{expr}</code>
           {#if marks?.get(`conditions/${index}`)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(`conditions/${index}`)}</span>{/if}
         </span>
+        {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
       </div>
     {/each}
     <button
@@ -227,7 +242,7 @@
 
   <InsertMenu {kinds} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} />
+  <RuleCanvasList steps={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
   <!-- The guardrails: what bounds the rule, drawn as the end of the path. -->
   <div
@@ -287,6 +302,27 @@
   .card.over, .gate.over { background: var(--accent-primary-subtle); }
 
   .card.inert, .gate.inert { opacity: 0.35; }
+
+  /* A run drawn on: a lit card carries its word on a badge; what the run never reached fades. */
+  .card.lit, .condition.lit { box-shadow: 0 0 0 var(--sp-050) var(--accent-primary-subtle), var(--shadow-raised); }
+
+  .card.lit.yes, .condition.lit.yes { border-color: var(--success-500); }
+
+  .condition.lit.no { border-color: var(--warning-500); }
+
+  .condition.faded { opacity: 0.38; }
+
+  .verdict { position: absolute; inset-block-start: calc(-1 * var(--sp-150)); inset-inline-end: var(--sp-150); display: inline-flex; align-items: center; gap: var(--sp-050); padding: 0 var(--sp-100); min-height: var(--sp-250); border-radius: var(--r-full); font-size: var(--fs-050); font-weight: var(--fw-medium); background: var(--label-slate-bg); color: var(--label-slate-fg); animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both; }
+
+  .verdict.yes { background: var(--label-green-bg); color: var(--label-green-fg); }
+
+  .verdict.no { background: var(--label-amber-bg); color: var(--label-amber-fg); }
+
+  /* Rule 6: opacity and transform only. */
+  @keyframes arrive { from { opacity: 0; translate: 0 var(--sp-050); } to { opacity: 1; translate: none; } }
+
+  @media (prefers-reduced-motion: reduce) { .verdict { animation: none; } }
+  :global([data-motion='reduced']) .verdict { animation: none; }
 
   .dropword { position: absolute; inset-block-start: calc(-1 * var(--sp-150)); inset-inline-start: 50%; translate: -50% 0; padding: 0 var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); color: var(--text-inverse); font-size: var(--fs-050); font-weight: var(--fw-medium); white-space: nowrap; }
 

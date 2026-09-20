@@ -75,7 +75,18 @@ export interface Rule {
   readonly next_run_at?: string | null;
   /** When an `INBOUND_WEBHOOK` rule's address was last minted; the moment and nothing else. */
   readonly inbound_rotated_at?: string | null;
+  /** What the check found (ADR-0060), and when it last ran; empty and absent for a rule never checked. */
+  readonly findings?: readonly RuleFinding[];
+  readonly checked_at?: string | null;
   readonly version: number;
+}
+
+/** One thing the check found: a level, the pointer into the rule's document, a code and its parameters. */
+export interface RuleFinding {
+  readonly level: 'ATTENTION' | 'BROKEN';
+  readonly path: string;
+  readonly code: string;
+  readonly params?: Record<string, string>;
 }
 
 /** A freshly minted inbound address, for the only time the token exists outside the server's hash. */
