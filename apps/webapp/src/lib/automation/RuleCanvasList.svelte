@@ -131,10 +131,7 @@
       <button class="folded" type="button" onclick={() => onfold(path)}>
         <Icon name="git-branch" size="sm" />
         <span>
-          {t('app.flow.card_folded', {
-            then: t('app.flow.steps_count', { count: countSteps(step.then ?? []) }),
-            else: t('app.flow.steps_count', { count: countSteps(step.else ?? []) }),
-          })}
+          {t('app.flow.card_folded', { then: countSteps(step.then ?? []), else: countSteps(step.else ?? []) })}
         </span>
       </button>
     {:else}
