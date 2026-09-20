@@ -207,6 +207,8 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
   await page.getByText('A trigger can only be at the top.').waitFor();
   assert.equal(await page.locator('[data-card="trigger"] .title').textContent(), 'Something happens');
+  // The event in the words the sentence above the canvas uses, not its wire name.
+  assert.equal(await page.locator('[data-card="trigger"] .meta').textContent(), 'item overdue');
 
   // And on the trigger card it lands: the kind changes.
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('[data-card="trigger"]'));
@@ -269,7 +271,8 @@ test('chromium: the probe runs the canvas\'s definition through the dry run and 
 test('chromium: a sample the gate refuses stops at the gate, and a recorded run is drawn from its log', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const page = await open(browser, [], { width: 1400, height: 1200 }, TEST_NOT_HELD);
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 1200 }, TEST_NOT_HELD);
 
   await page.getByRole('tab', { name: 'Probe' }).click();
   await page.getByRole('button', { name: 'Run it through' }).click();
@@ -279,9 +282,13 @@ test('chromium: a sample the gate refuses stops at the gate, and a recorded run 
   assert.equal(await page.locator('[data-card="0"].faded').count(), 1, 'the chain fades');
 
   // The runs tab: the health from the last runs, and a run drawn onto the canvas.
+  // The runs tab reads the log again when it opens: a run recorded since the editor opened is
+  // announced by nothing, so the listing the editor subscribed to at its start would miss it.
+  const readBefore = written.filter((body) => body.runs).length;
   await page.getByRole('tab', { name: 'Runs' }).click();
   await page.getByText('Fails sometimes').waitFor();
   await page.getByText('1 of 3 runs failed').waitFor();
+  assert.equal(written.filter((body) => body.runs).length, readBefore + 1, 'the tab read the runs again');
   await page.locator('.rows .row').nth(1).click();
   await page.locator('[data-card="0"] .verdict').waitFor();
   assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'failed');
