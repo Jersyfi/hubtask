@@ -63,24 +63,27 @@
     align-items: start;
     gap: var(--sp-150);
     padding: var(--sp-150) var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
+    border: var(--bw-hairline) solid var(--banner-border);
     border-radius: var(--r-md);
-    background: var(--bg-surface);
+    background: var(--banner-surface);
     color: var(--text-primary);
     font-size: var(--fs-100);
     /* Rule 4: no fixed width. The banner is as wide as it is given and its text wraps inside it. */
     text-align: start;
   }
 
-  /* Rule 3: the mark carries the tone as well as the colour does, so the row still reads in
-     greyscale. The text stays the reading colour - a whole paragraph in red is harder to read and
-     says no more than the icon beside it already does. The colour is on the wrapper rather than on
-     the icon, so the dismiss button's own mark is not dragged into the tone with it. */
-  .mark { display: inline-flex; margin-block-start: var(--sp-025); }
-  .banner[data-tone='info'] .mark { color: var(--text-brand); }
-  .banner[data-tone='success'] .mark { color: var(--text-success); }
-  .banner[data-tone='warning'] .mark { color: var(--text-warning); }
-  .banner[data-tone='danger'] .mark { color: var(--text-danger); }
+  /* A status as a surface (ADR-0061): the tone's surface and border, and its accent on the mark.
+     The prose stays the reading colour - a whole paragraph in red is harder to read and says no
+     more than the surface and the icon already do. Rule 3 still holds: the mark carries the tone
+     as well as the colour does, so the row still reads in greyscale. */
+  .banner[data-tone='info'] { --banner-surface: var(--status-info-surface); --banner-border: var(--status-info-border); --banner-accent: var(--status-info-accent); }
+  .banner[data-tone='success'] { --banner-surface: var(--status-success-surface); --banner-border: var(--status-success-border); --banner-accent: var(--status-success-accent); }
+  .banner[data-tone='warning'] { --banner-surface: var(--status-warning-surface); --banner-border: var(--status-warning-border); --banner-accent: var(--status-warning-accent); }
+  .banner[data-tone='danger'] { --banner-surface: var(--status-danger-surface); --banner-border: var(--status-danger-border); --banner-accent: var(--status-danger-accent); }
+
+  /* The colour is on the wrapper rather than on the icon, so the dismiss button's own mark is not
+     dragged into the tone with it. */
+  .mark { display: inline-flex; margin-block-start: var(--sp-025); color: var(--banner-accent); }
 
   .body {
     display: flex;
