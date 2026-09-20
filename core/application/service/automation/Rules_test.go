@@ -124,6 +124,26 @@ func (s *ruleStore) Delete(_ context.Context, id shared.ID, at time.Time) (bool,
 	return true, nil
 }
 
+// RecordCheck and DisableBroken are the check's two writes (ADR-0060), kept as the real adapter
+// keeps them: the findings are written unguarded, the disable fires once while the rule is on.
+func (s *ruleStore) RecordCheck(_ context.Context, id shared.ID, findings []domain.Finding, at time.Time) error {
+	current, found := s.rows[id]
+	if !found || current.IsDeleted() {
+		return shared.ErrNotFound
+	}
+	s.rows[id] = current.Checked(findings, at)
+	return nil
+}
+
+func (s *ruleStore) DisableBroken(_ context.Context, id shared.ID, at time.Time) (bool, error) {
+	current, found := s.rows[id]
+	if !found || current.IsDeleted() || !current.Enabled {
+		return false, nil
+	}
+	s.rows[id] = current.Disable(at)
+	return true, nil
+}
+
 // accounts answers what a rule would run as.
 type accounts struct {
 	rows map[shared.ID]identity.Account

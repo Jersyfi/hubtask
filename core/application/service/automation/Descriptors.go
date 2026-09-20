@@ -457,6 +457,22 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	if !rule.InboundRotatedAt.IsZero() {
 		out["inbound_rotated_at"] = rule.InboundRotatedAt
 	}
+	// What the check found (ADR-0060): always a list, and the moment where there was a check.
+	findings := make([]any, 0, len(rule.Findings))
+	for _, finding := range rule.Findings {
+		entry := map[string]any{
+			"level": string(finding.Level), "path": finding.Path, "code": finding.Code,
+		}
+		if len(finding.Params) > 0 {
+			entry["params"] = finding.Params
+		}
+		findings = append(findings, entry)
+	}
+	out["findings"] = findings
+	out["checked_at"] = nil
+	if !rule.CheckedAt.IsZero() {
+		out["checked_at"] = rule.CheckedAt
+	}
 	return out
 }
 

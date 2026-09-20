@@ -2526,6 +2526,24 @@ func (e RuleActionResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuleFindingLevel.
+const (
+	ATTENTION RuleFindingLevel = "ATTENTION"
+	BROKEN    RuleFindingLevel = "BROKEN"
+)
+
+// Valid indicates whether the value is a known member of the RuleFindingLevel enum.
+func (e RuleFindingLevel) Valid() bool {
+	switch e {
+	case ATTENTION:
+		return true
+	case BROKEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuleRunTrigger.
 const (
 	RuleRunTriggerEVENT          RuleRunTrigger = "EVENT"
@@ -3826,6 +3844,9 @@ type AutomationActionFieldKind string
 type AutomationRule struct {
 	Actions []RuleAction `json:"actions"`
 
+	// CheckedAt When the check last ran over this rule, and absent for a rule it never has.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
 	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is (G-06).
 	Conditions []RuleCondition    `json:"conditions"`
 	CreatedAt  time.Time          `json:"created_at"`
@@ -3835,8 +3856,11 @@ type AutomationRule struct {
 	Enabled bool `json:"enabled"`
 
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
-	FailureCount int                `json:"failure_count"`
-	Id           openapi_types.UUID `json:"id"`
+	FailureCount int `json:"failure_count"`
+
+	// Findings What the last check found (ADR-0060): every reference of the rule resolved against what exists now. Empty for a rule with nothing wrong, and empty for a rule that has never been checked - `checked_at` tells the two apart. A `BROKEN` finding is one the check acted on: the rule is switched off. An `ATTENTION` finding is information.
+	Findings *[]RuleFinding     `json:"findings,omitempty"`
+	Id       openapi_types.UUID `json:"id"`
 
 	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
 	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
@@ -6158,6 +6182,19 @@ type RuleConditionResult struct {
 	Index     int     `json:"index"`
 	Matched   bool    `json:"matched"`
 }
+
+// RuleFinding One thing the check found about a rule (ADR-0060). `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters (ADR-0011).
+type RuleFinding struct {
+	Code string `json:"code"`
+
+	// Level `ATTENTION`: the rule runs, and one step would find nothing where it points. `BROKEN`: the rule cannot run, and the check has switched it off.
+	Level  RuleFindingLevel   `json:"level"`
+	Params *map[string]string `json:"params,omitempty"`
+	Path   string             `json:"path"`
+}
+
+// RuleFindingLevel `ATTENTION`: the rule runs, and one step would find nothing where it points. `BROKEN`: the rule cannot run, and the check has switched it off.
+type RuleFindingLevel string
 
 // RuleRun defines model for RuleRun.
 type RuleRun struct {
@@ -8787,6 +8824,9 @@ type ServerInterface interface {
 	// TriggerRuleManually Run a rule now
 	// (POST /automation/rules/{ruleId}:trigger)
 	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
+	// CheckRules Check every rule of the workspace against what exists now
+	// (POST /automation/rules:check)
+	CheckRules(w http.ResponseWriter, r *http.Request)
 	// TestRule Dry-run a rule against a sample event
 	// (POST /automation/rules:test)
 	TestRule(w http.ResponseWriter, r *http.Request)
@@ -10795,6 +10835,20 @@ func (siw *ServerInterfaceWrapper) TriggerRuleManually(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TriggerRuleManually(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckRules operation middleware
+func (siw *ServerInterfaceWrapper) CheckRules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckRules(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18411,6 +18465,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:check", wrapper.CheckRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)

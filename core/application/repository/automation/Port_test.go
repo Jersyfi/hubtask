@@ -31,6 +31,10 @@ func (double) SetEnabled(context.Context, shared.ID, bool, int, time.Time) error
 	return shared.ErrConflict
 }
 func (double) Delete(context.Context, shared.ID, time.Time) (bool, error) { return false, nil }
+func (double) RecordCheck(context.Context, shared.ID, []domain.Finding, time.Time) error {
+	return nil
+}
+func (double) DisableBroken(context.Context, shared.ID, time.Time) (bool, error) { return false, nil }
 
 var _ Rules = double{}
 

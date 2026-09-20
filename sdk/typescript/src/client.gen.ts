@@ -241,6 +241,11 @@ export class HubtaskClient {
     return this.call("POST", "/automation/rules/{ruleId}:disable", { "ruleId": ruleId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Check every rule of the workspace against what exists now */
+  checkRules(options: CallOptions = {}): Promise<operations["checkRules"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/automation/rules:check", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Dry-run a rule against a sample event */
   testRule(body: NonNullable<operations["testRule"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["testRule"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/automation/rules:test", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

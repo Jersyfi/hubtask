@@ -525,7 +525,16 @@ func (w Writer) authorizeRead(
 func (w Writer) permits(
 	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
 ) (bool, error) {
-	return w.Authorizer.Permits(ctx, actor, access.Request{
+	return permitsRead(ctx, w.Authorizer, actor, scope)
+}
+
+// permitsRead is the listing's quiet question, shared with the check (ADR-0060): may this caller
+// see rules at this scope - answered without an entry, because ninety withheld rows is nobody
+// trying anything.
+func permitsRead(
+	ctx context.Context, authorizer Authorizer, actor appshared.ActorContext, scope domain.Scope,
+) (bool, error) {
+	return authorizer.Permits(ctx, actor, access.Request{
 		Permission:  service.PermissionAutomation,
 		Alternative: service.PermissionReadConfiguration,
 		Path:        scope.Path(),

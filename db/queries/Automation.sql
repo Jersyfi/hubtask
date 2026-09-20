@@ -28,7 +28,7 @@ INSERT INTO automation_rule (
 -- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -40,7 +40,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- second place for the `deleted_at` guard to be forgotten.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND (sqlc.narg('enabled')::boolean IS NULL OR enabled = sqlc.narg('enabled')::boolean)
@@ -78,7 +78,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expecte
 -- document so that the query does not have to know the action tree's shape.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND jsonb_path_exists(
@@ -228,6 +228,22 @@ SET enabled = false, updated_at = sqlc.arg('at'), version = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
   AND failure_count >= sqlc.arg('threshold');
 
+-- name: RecordAutomationRuleCheck :exec
+-- What the check found (ADR-0060). Unguarded on the version: the findings are the check's
+-- assessment of the rule as it stood, not an edit of it, and a concurrent edit is re-checked by the
+-- next check rather than refused here.
+UPDATE automation_rule
+SET findings = sqlc.arg('findings'), checked_at = sqlc.arg('at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- name: DisableBrokenRule :execrows
+-- Switching a rule off because the check found it cannot run (ADR-0060). DisableFailingRule's
+-- shape: nobody read this rule in order to switch it off, so the guard is on the state - it fires
+-- once, while the rule is still on.
+UPDATE automation_rule
+SET enabled = false, updated_at = sqlc.arg('at'), version = version + 1
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true;
+
 -- name: RulesForEventType :many
 -- What the subscriber asks per event: the enabled rules whose trigger is this event type.
 --
@@ -239,7 +255,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -260,7 +276,7 @@ ORDER BY id;
 -- overlap, and a lock here would be a second answer to a question the queue has answered.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL AND enabled = true
   AND next_run_at IS NOT NULL AND next_run_at <= sqlc.arg('due')
@@ -338,7 +354,7 @@ SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence;
 -- producer's, against what it can resolve.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -367,6 +383,35 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- quote another tenant matches nothing.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE inbound_token_hash = sqlc.arg('token_hash') AND deleted_at IS NULL;
+
+-- The check's resolver (ADR-0060): does something a rule names still exist. One statement per kind
+-- rather than one over a table name, because a table name cannot be a parameter and a statement
+-- assembled from one would be the thing rule 9 forbids. Each answers under the tenant context, so
+-- another workspace's object is "no" rather than a leak; "exists" means what the kind's own reads
+-- mean by it - not deleted, and for an account, able to act.
+
+-- name: LabelExists :one
+SELECT EXISTS (SELECT 1 FROM label WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: BucketExists :one
+SELECT EXISTS (SELECT 1 FROM bucket WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: ContainerExists :one
+SELECT EXISTS (SELECT 1 FROM container WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: TemplateExists :one
+SELECT EXISTS (SELECT 1 FROM template WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: WebhookSubscriptionExists :one
+SELECT EXISTS (SELECT 1 FROM webhook_subscription WHERE id = sqlc.arg('id'));
+
+-- name: AccountGroupExists :one
+SELECT EXISTS (SELECT 1 FROM account_group WHERE id = sqlc.arg('id'));
+
+-- name: ActingAccountExists :one
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE id = sqlc.arg('id') AND status NOT IN ('DISABLED', 'ANONYMIZED')
+);
