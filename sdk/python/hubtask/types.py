@@ -748,10 +748,19 @@ class AutomationRule(TypedDict, total=False):
     failure_count: Required[int]
     next_run_at: str | None
     inbound_rotated_at: str | None
+    findings: list["RuleFinding"]
+    checked_at: str | None
     created_by: Required[str]
     created_at: Required[str]
     updated_at: Required[str]
     version: Required[int]
+
+class RuleFinding(TypedDict, total=False):
+    """One thing the check found about a rule (ADR-0060). `path` names what it is about in the rule's own address space - `trigger`, `run_as`, `conditions/1`, `actions/2/then/0` - the same paths a run's log and a write-time refusal use, so an editor points at one place for all three. `code` is a message code and `params` its parameters (ADR-0011)."""
+    level: Required[Literal["ATTENTION", "BROKEN"]]
+    path: Required[str]
+    code: Required[str]
+    params: dict[str, Any]
 
 class RuleCondition(TypedDict, total=False):
     expr: Required[str]

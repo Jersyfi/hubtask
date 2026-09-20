@@ -2496,6 +2496,24 @@ func (e RuleActionResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuleFindingLevel.
+const (
+	ATTENTION RuleFindingLevel = "ATTENTION"
+	BROKEN    RuleFindingLevel = "BROKEN"
+)
+
+// Valid indicates whether the value is a known member of the RuleFindingLevel enum.
+func (e RuleFindingLevel) Valid() bool {
+	switch e {
+	case ATTENTION:
+		return true
+	case BROKEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuleRunTrigger.
 const (
 	RuleRunTriggerEVENT          RuleRunTrigger = "EVENT"
@@ -3781,6 +3799,9 @@ type AutoAssignStrategy string
 type AutomationRule struct {
 	Actions []RuleAction `json:"actions"`
 
+	// CheckedAt When the check last ran over this rule, and absent for a rule it never has.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
 	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is (G-06).
 	Conditions []RuleCondition    `json:"conditions"`
 	CreatedAt  time.Time          `json:"created_at"`
@@ -3790,8 +3811,11 @@ type AutomationRule struct {
 	Enabled bool `json:"enabled"`
 
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
-	FailureCount int                `json:"failure_count"`
-	Id           openapi_types.UUID `json:"id"`
+	FailureCount int `json:"failure_count"`
+
+	// Findings What the last check found (ADR-0060): every reference of the rule resolved against what exists now. Empty for a rule with nothing wrong, and empty for a rule that has never been checked - `checked_at` tells the two apart. A `BROKEN` finding is one the check acted on: the rule is switched off. An `ATTENTION` finding is information.
+	Findings *[]RuleFinding     `json:"findings,omitempty"`
+	Id       openapi_types.UUID `json:"id"`
 
 	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
 	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
@@ -6110,6 +6134,19 @@ type RuleConditionResult struct {
 	Index     int     `json:"index"`
 	Matched   bool    `json:"matched"`
 }
+
+// RuleFinding One thing the check found about a rule (ADR-0060). `path` names what it is about in the rule's own address space - `trigger`, `run_as`, `conditions/1`, `actions/2/then/0` - the same paths a run's log and a write-time refusal use, so an editor points at one place for all three. `code` is a message code and `params` its parameters (ADR-0011).
+type RuleFinding struct {
+	Code string `json:"code"`
+
+	// Level `ATTENTION`: the rule runs, and one step would find nothing where it points. `BROKEN`: the rule cannot run, and the check has switched it off.
+	Level  RuleFindingLevel   `json:"level"`
+	Params *map[string]string `json:"params,omitempty"`
+	Path   string             `json:"path"`
+}
+
+// RuleFindingLevel `ATTENTION`: the rule runs, and one step would find nothing where it points. `BROKEN`: the rule cannot run, and the check has switched it off.
+type RuleFindingLevel string
 
 // RuleRun defines model for RuleRun.
 type RuleRun struct {
@@ -9460,6 +9497,14 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
 	TriggerRuleManually(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckRules Check every rule of the workspace against what exists now
+	//
+	// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+	// The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
+	//
+	// Corresponds with POST /automation/rules:check (the `CheckRules` operationId).
+	CheckRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// TestRuleWithBody Dry-run a rule against a sample event
 	//
@@ -13352,6 +13397,24 @@ func (c *Client) RotateInboundTrigger(ctx context.Context, ruleId RuleId, params
 // Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
 func (c *Client) TriggerRuleManually(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTriggerRuleManuallyRequest(c.Server, ruleId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckRules Check every rule of the workspace against what exists now
+//
+// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+// The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
+//
+// Corresponds with POST /automation/rules:check (the `CheckRules` operationId).
+func (c *Client) CheckRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckRulesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -20622,6 +20685,33 @@ func NewTriggerRuleManuallyRequest(server string, ruleId RuleId, params *Trigger
 			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewCheckRulesRequest constructs an http.Request for the CheckRules method
+func NewCheckRulesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/automation/rules:check")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -31118,6 +31208,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /automation/rules/{ruleId}:trigger (the `TriggerRuleManually` operationId).
 	TriggerRuleManuallyWithResponse(ctx context.Context, ruleId RuleId, params *TriggerRuleManuallyParams, reqEditors ...RequestEditorFn) (*TriggerRuleManuallyResult, error)
 
+	// CheckRulesWithResponse Check every rule of the workspace against what exists now
+	//
+	// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+	// The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /automation/rules:check (the `CheckRules` operationId).
+	CheckRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CheckRulesResult, error)
+
 	// TestRuleWithBodyWithResponse Dry-run a rule against a sample event
 	//
 	// The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
@@ -36195,6 +36295,58 @@ func (r TriggerRuleManuallyResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r TriggerRuleManuallyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckRulesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []AutomationRule `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckRulesResult) GetJSON200() *struct {
+	Data []AutomationRule `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckRulesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckRulesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckRulesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckRulesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckRulesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -47037,6 +47189,22 @@ func (c *ClientWithResponses) TriggerRuleManuallyWithResponse(ctx context.Contex
 	return ParseTriggerRuleManuallyResult(rsp)
 }
 
+// CheckRulesWithResponse Check every rule of the workspace against what exists now
+//
+// The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.
+// The rules screen calls this when it opens, which is what makes "after an update, the rules that need attention are shown" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /automation/rules:check (the `CheckRules` operationId).
+func (c *ClientWithResponses) CheckRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CheckRulesResult, error) {
+	rsp, err := c.CheckRules(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckRulesResult(rsp)
+}
+
 // TestRuleWithBodyWithResponse Dry-run a rule against a sample event
 //
 // The dry run automation.md §2 promises: a sample event in, which conditions matched and which actions *would* run out - and no side effects, with the restore's dry-run discipline behind the promise: nothing below this route opens a writing transaction. No action dispatches, nothing is queued, and the run log records nothing.
@@ -52959,6 +53127,41 @@ func ParseTriggerRuleManuallyResult(rsp *http.Response) (*TriggerRuleManuallyRes
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckRulesResult parses an HTTP response from a CheckRulesWithResponse call
+func ParseCheckRulesResult(rsp *http.Response) (*CheckRulesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckRulesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []AutomationRule `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

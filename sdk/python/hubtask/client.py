@@ -207,6 +207,10 @@ class Client:
         """Switch a rule off"""
         return self._call("POST", "/automation/rules/{ruleId}:disable", {"ruleId": rule_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
+    def check_rules(self) -> dict[str, Any]:
+        """Check every rule of the workspace against what exists now"""
+        return self._call("POST", "/automation/rules:check", {}, None, {}, None, "none", None, "json")
+
     def test_rule(self, body: "RuleTest") -> "RuleTestResult":
         """Dry-run a rule against a sample event"""
         return self._call("POST", "/automation/rules:test", {}, None, {}, body, "json", "application/json", "json")
