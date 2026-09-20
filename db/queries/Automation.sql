@@ -382,3 +382,32 @@ SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, act
        next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE inbound_token_hash = sqlc.arg('token_hash') AND deleted_at IS NULL;
+
+-- The check's resolver (ADR-0060): does something a rule names still exist. One statement per kind
+-- rather than one over a table name, because a table name cannot be a parameter and a statement
+-- assembled from one would be the thing rule 9 forbids. Each answers under the tenant context, so
+-- another workspace's object is "no" rather than a leak; "exists" means what the kind's own reads
+-- mean by it - not deleted, and for an account, able to act.
+
+-- name: LabelExists :one
+SELECT EXISTS (SELECT 1 FROM label WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: BucketExists :one
+SELECT EXISTS (SELECT 1 FROM bucket WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: ContainerExists :one
+SELECT EXISTS (SELECT 1 FROM container WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: TemplateExists :one
+SELECT EXISTS (SELECT 1 FROM template WHERE id = sqlc.arg('id') AND deleted_at IS NULL);
+
+-- name: WebhookSubscriptionExists :one
+SELECT EXISTS (SELECT 1 FROM webhook_subscription WHERE id = sqlc.arg('id'));
+
+-- name: AccountGroupExists :one
+SELECT EXISTS (SELECT 1 FROM account_group WHERE id = sqlc.arg('id'));
+
+-- name: ActingAccountExists :one
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE id = sqlc.arg('id') AND status NOT IN ('DISABLED', 'ANONYMIZED')
+);

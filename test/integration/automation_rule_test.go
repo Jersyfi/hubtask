@@ -567,3 +567,69 @@ func TestACheckIsRecordedOnTheRuleAndABrokenRuleIsSwitchedOffOnce(t *testing.T) 
 		t.Error("tenant B wrote findings on tenant A's rule")
 	}
 }
+
+// The check's resolver (ADR-0060): a live label, bucket, collection and acting account answer yes;
+// a deleted label answers no; and every one of them answers no to another tenant (SG-3) - the
+// resolver is a lookup by identifier, which is exactly the shape a tenant boundary has to hold.
+func TestTheResolverAnswersForThisWorkspaceOnly(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	label := seedLabel(ctx, t, tenantA, collection)
+	bucket := seedBucket(ctx, t, tenantA, collection, "a")
+	account := seedServiceAccount(ctx, t, tenantA)
+	gone := seedLabel(ctx, t, tenantA, collection)
+	deleted, _, err := gone.Deleted(changedAt)
+	if err != nil {
+		t.Fatalf("deleting the label: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return labelRepo().SetDeleted(ctx, deleted, 1)
+	}); err != nil {
+		t.Fatalf("writing the deletion: %v", err)
+	}
+
+	resolver := postgres.NewAutomationReferenceRepository()
+	ask := func(tenant shared.ID, kind repository.ReferenceKind, id shared.ID) bool {
+		t.Helper()
+		var exists bool
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			exists, err = resolver.Exists(ctx, kind, id)
+			return err
+		}); err != nil {
+			t.Fatalf("resolving %s %s as %s: %v", kind, id, tenant, err)
+		}
+		return exists
+	}
+
+	for _, ref := range []struct {
+		kind repository.ReferenceKind
+		id   shared.ID
+	}{
+		{repository.ReferenceLabel, label.ID},
+		{repository.ReferenceBucket, bucket.ID},
+		{repository.ReferenceContainer, collection},
+		{repository.ReferenceAccount, account},
+	} {
+		if !ask(tenantA, ref.kind, ref.id) {
+			t.Errorf("%s %s does not exist for its own tenant", ref.kind, ref.id)
+		}
+		if ask(tenantB, ref.kind, ref.id) {
+			t.Errorf("%s %s of tenant A exists for tenant B", ref.kind, ref.id)
+		}
+	}
+	if ask(tenantA, repository.ReferenceLabel, gone.ID) {
+		t.Error("a deleted label still exists")
+	}
+	if ask(tenantA, repository.ReferenceTemplate, freshID(t)) || ask(tenantA, repository.ReferenceGroup, freshID(t)) ||
+		ask(tenantA, repository.ReferenceSubscription, freshID(t)) {
+		t.Error("an identifier nobody wrote exists")
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := resolver.Exists(ctx, repository.ReferenceKind("planet"), label.ID)
+		return err
+	}); err == nil {
+		t.Error("a kind the resolver does not know answered rather than failing")
+	}
+}

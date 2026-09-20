@@ -11,6 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const accountGroupExists = `-- name: AccountGroupExists :one
+SELECT EXISTS (SELECT 1 FROM account_group WHERE id = $1)
+`
+
+func (q *Queries) AccountGroupExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, accountGroupExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const actingAccountExists = `-- name: ActingAccountExists :one
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE id = $1 AND status NOT IN ('DISABLED', 'ANONYMIZED')
+)
+`
+
+func (q *Queries) ActingAccountExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, actingAccountExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const automationRulesSealedNotUnder = `-- name: AutomationRulesSealedNotUnder :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
@@ -90,6 +114,17 @@ func (q *Queries) AutomationRulesSealedNotUnder(ctx context.Context, keyID strin
 		return nil, err
 	}
 	return items, nil
+}
+
+const bucketExists = `-- name: BucketExists :one
+SELECT EXISTS (SELECT 1 FROM bucket WHERE id = $1 AND deleted_at IS NULL)
+`
+
+func (q *Queries) BucketExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, bucketExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const bumpRuleFailure = `-- name: BumpRuleFailure :one
@@ -188,6 +223,17 @@ type ClearRuleFailureParams struct {
 func (q *Queries) ClearRuleFailure(ctx context.Context, arg ClearRuleFailureParams) error {
 	_, err := q.db.Exec(ctx, clearRuleFailure, arg.At, arg.ID)
 	return err
+}
+
+const containerExists = `-- name: ContainerExists :one
+SELECT EXISTS (SELECT 1 FROM container WHERE id = $1 AND deleted_at IS NULL)
+`
+
+func (q *Queries) ContainerExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, containerExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const countRunsSince = `-- name: CountRunsSince :one
@@ -709,6 +755,23 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 		arg.CausationDepth,
 	)
 	return err
+}
+
+const labelExists = `-- name: LabelExists :one
+
+SELECT EXISTS (SELECT 1 FROM label WHERE id = $1 AND deleted_at IS NULL)
+`
+
+// The check's resolver (ADR-0060): does something a rule names still exist. One statement per kind
+// rather than one over a table name, because a table name cannot be a parameter and a statement
+// assembled from one would be the thing rule 9 forbids. Each answers under the tenant context, so
+// another workspace's object is "no" rather than a leak; "exists" means what the kind's own reads
+// mean by it - not deleted, and for an account, able to act.
+func (q *Queries) LabelExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, labelExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listAutomationRules = `-- name: ListAutomationRules :many
@@ -1235,6 +1298,17 @@ func (q *Queries) SoftDeleteAutomationRule(ctx context.Context, arg SoftDeleteAu
 	return result.RowsAffected(), nil
 }
 
+const templateExists = `-- name: TemplateExists :one
+SELECT EXISTS (SELECT 1 FROM template WHERE id = $1 AND deleted_at IS NULL)
+`
+
+func (q *Queries) TemplateExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, templateExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const updateAutomationRule = `-- name: UpdateAutomationRule :execrows
 UPDATE automation_rule
 SET scope_type = $1,
@@ -1331,4 +1405,15 @@ func (q *Queries) UpsertRuleOccurrence(ctx context.Context, arg UpsertRuleOccurr
 		arg.FireAt,
 	)
 	return err
+}
+
+const webhookSubscriptionExists = `-- name: WebhookSubscriptionExists :one
+SELECT EXISTS (SELECT 1 FROM webhook_subscription WHERE id = $1)
+`
+
+func (q *Queries) WebhookSubscriptionExists(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, webhookSubscriptionExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
