@@ -278,6 +278,30 @@ change series (`SET_RECURRENCE`).
 
 ---
 
+### 1.5 What a rule editor is built from
+
+A client that writes rules builds its editor from the manifest and compiles nothing in
+(F8, [`milestone-F8.md`](../backlog/milestone-F8.md) decision 2). `GET /meta/capabilities`
+answers `automation.triggers`, `automation.actions` and - since F8-01 - `automation.action_fields`:
+for every kind, the fields its use case declares (`usecase.Field`: name, kind, required, enum,
+description), derived from the descriptor exactly as the MCP tool schema is and declared a second
+time nowhere. An action's form is rendered from that declaration by kind; a field of kind `id`
+whose name the reference table of §2.3 knows is offered as a picker over the client's own store
+of that kind, so that a rule names things by their identifier and a renamed label keeps working.
+An installation that serves one more use case therefore gets one more card without a release of
+the client, which is the whole reason the vocabulary is answered rather than assumed
+(issue 542's lesson, applied to the parameters).
+
+Three things the web client decided about the shape of a rule on screen, and every client may
+copy: the rule is drawn as a path - the trigger, a gate holding every condition, the chain of
+actions with `BRANCH` as a fork that rejoins and `STOP` as a terminus, the guardrails last -
+because §1's model is a list with nested branches and a free graph would draw freedoms the engine
+does not have; a condition is composed as a sentence over a bounded set of subjects and stored as
+the CEL of §1.2, read back by the shapes the composer writes and shown as an expression
+otherwise; and the name is generated from the trigger and the first steps until somebody owns it,
+with the sentence the whole rule reads as beside it. `POST /automation/rules:test` takes the
+definition as it stands, so a probe tests the canvas and not the stored rule.
+
 ## 2. Execution, security, observability
 
 | Aspect | Implementation |
@@ -415,6 +439,43 @@ Writing what a rule would do and letting it loose on the workspace are two decis
 acted the moment it was saved would give nobody the chance to read it back first.
 
 ---
+
+### 2.3 The check
+
+§2.2 refuses what cannot run at the write, and §2 switches a rule off after five failed runs in a
+row. Both speak after the moment they are about: a rule that was correct when written and names a
+label deleted a week later, or an action kind a later version no longer serves, is stored,
+enabled, and found by its own failures. **The check speaks before**
+([ADR-0060](../adr/ADR-0060-rule-check.md), F8-03).
+
+`CheckRules` resolves every reference a rule carries against what exists now - the trigger's
+event type against `event.Types()`, every action's kind against the catalogue and its parameter
+keys against the descriptor, every condition and branch condition against the compiler, the
+`run_as` account against the workspace's accounts, and every parameter of kind `id` whose name
+the reference table knows (`label_id`, `bucket_id`, `container_id`, `parent_id`, `collection_id`,
+`template_id`, `subscription_id`, `group_id`, `account_id`) against the store of its kind through
+one `References` port - and writes what it found **on the rule**: `findings`, a list of
+`{level, path, code, params}`, and `checked_at`. `path` is the JSON pointer a write-time refusal's
+field errors carry, so an editor points at one place for both. `ATTENTION` means the rule runs and
+one step would find nothing where it points; `BROKEN` means it cannot run, and the check switches
+it off through the streak's own path - the `automation.rule_disabled` audit entry with
+`reason: check`, the notification to the author, the metric counted by reason.
+
+It runs **on demand** - `POST /automation/rules:check`, which the rules screen calls when it
+opens, so that "after an update, the rules that need attention are shown" is true without
+anything enumerating tenants ([`multi-tenancy.md`](./multi-tenancy.md) §2.1) - and **on the
+deletion events** of labels, buckets and containers, through a subscriber that writes one
+`automation.check` job per tenant and nothing else, because a subscriber runs inside the
+dispatcher's transaction (§2.0). Never on a timer, and never across tenants. It does not re-run
+§2.1's three rights checks, which the enable asks and the run answers per action, and it repairs
+nothing: a finding is information, and repairing is the author's. An **edit leaves the rule
+unchecked** - the findings described the definition the check read, so the update empties them
+and clears `checked_at` - and the web client asks for the check right after a save, so the writer
+learns at the card whether the repair held (issue 815).
+
+What the walk of F8-08 found is in [`F8-2026-09-20.md`](../evidence/F8-2026-09-20.md): the
+check's BROKEN path is blocked at its notification (issue 814), and a runner without a role is
+a finding the check does not yet make (issue 817).
 
 ## 3. External automation
 
