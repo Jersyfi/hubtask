@@ -267,6 +267,16 @@ export function moveStep(actions: readonly Step[], from: Path, list: string, ind
   return insertAt(removeAt(actions, from), list, target, step);
 }
 
+/** The chain with the step at `path` moved one place up or down inside its own list; unchanged at the end. */
+export function nudge(actions: readonly Step[], path: Path, direction: -1 | 1): Step[] {
+  const { list, index } = parentOf(path);
+  const siblings = listAt(actions, list);
+  if (!siblings) return clone(actions);
+  const target = index + direction;
+  if (target < 0 || target >= siblings.length) return clone(actions);
+  return moveStep(actions, path, list, direction > 0 ? target + 1 : target) ?? clone(actions);
+}
+
 /** A fresh step of a kind, with a branch's two empty arms. */
 export function newStep(kind: string): Step {
   return kind === 'BRANCH' ? { kind, params: { condition: '' }, then: [], else: [] } : { kind, params: {} };

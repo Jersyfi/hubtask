@@ -13,6 +13,7 @@ import {
   insertAt,
   isAutomatic,
   moveStep,
+  nudge,
   nameSeed,
   newStep,
   pathOf,
@@ -119,6 +120,9 @@ test('inserting, removing and moving keep the chain a copy, and a branch never e
   const down = moveStep(actions, '0', '', 2);
   assert.equal(down?.map((step) => step.kind).join(','), 'BRANCH,ADD_LABEL,SEND_WEBHOOK');
 
+  assert.equal(nudge(actions, '0', 1).map((step) => step.kind).join(','), 'BRANCH,ADD_LABEL,SEND_WEBHOOK');
+  assert.equal(nudge(actions, '2', 1).map((step) => step.kind).join(','), 'ADD_LABEL,BRANCH,SEND_WEBHOOK', 'the last cannot go down');
+  assert.equal(nudge(actions, '1/else/1', -1)[1]?.else?.map((step) => step.kind).join(','), 'STOP,WAIT');
   assert.equal(moveStep(actions, '1', '1/then', 0), undefined, 'a branch into its own arm');
   assert.equal(moveStep(actions, '1', '1/else/0/then', 0), undefined, 'or deeper');
   assert.equal(moveStep(actions, '9', '', 0), undefined);
