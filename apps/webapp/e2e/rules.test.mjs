@@ -189,6 +189,8 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
   await page.getByText('A trigger can only be at the top.').waitFor();
   assert.equal(await page.locator('[data-card="trigger"] .title').textContent(), 'Something happens');
+  // The event in the words the sentence above the canvas uses, not its wire name.
+  assert.equal(await page.locator('[data-card="trigger"] .meta').textContent(), 'item overdue');
 
   // And on the trigger card it lands: the kind changes.
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('[data-card="trigger"]'));

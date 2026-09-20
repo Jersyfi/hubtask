@@ -242,7 +242,7 @@
     const trigger = draft.trigger;
     switch (trigger.kind) {
       case 'EVENT':
-        return trigger.event_type || t('app.rules.choose_event');
+        return trigger.event_type ? eventWord(trigger.event_type) : t('app.rules.choose_event');
       case 'SCHEDULE':
         return [trigger.rrule, trigger.timezone].filter(Boolean).join(' · ');
       case 'RELATIVE_DATE':
