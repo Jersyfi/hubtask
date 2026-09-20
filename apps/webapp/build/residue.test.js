@@ -203,6 +203,8 @@ async function views() {
     ['service-accounts', await load('ServiceAccountsView'), {}],
     ['apps', await load('AppsView'), {}],
     ['rules', await load('RulesView'), {}],
+    ['rule-new', await load('RuleEditorView'), { id: 'new', onnavigate: noop }],
+    ['rule', await load('RuleEditorView'), { id: ITEM, onnavigate: noop }],
     ['runs', await load('RunsView'), {}],
     ['webhooks', await load('WebhooksView'), {}],
     ['quotas', await load('QuotasView'), {}],

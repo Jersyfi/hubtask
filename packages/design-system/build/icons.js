@@ -99,6 +99,21 @@ export const DECLARED = {
     'cloud-off', // offline - the server cannot be reached
     'cloud-upload', // changes waiting to be pushed
   ],
+  'The rule flow — F8-04': [
+    // The cards of the rule editor, each with a shape beside its word (rule 3): what starts a
+    // rule, the six ways; and the three flow kinds the engine owns.
+    'zap', // an event
+    'hand', // somebody starts it
+    'inbox', // an arrival in the jumble
+    'globe', // a webhook, an outbound call
+    'mail', // an e-mail
+    'play', // the probe, and starting a manual rule
+    'pause', // WAIT
+    'git-branch', // BRANCH
+    'square', // STOP - a terminus
+    'shield', // the account a rule runs as
+    'fold-vertical', // a branch folded to one line, and unfolded
+  ],
   'The AI treatment — F5-01': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
