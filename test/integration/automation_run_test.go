@@ -520,6 +520,30 @@ func TestTheRunListingPagesAndFilters(t *testing.T) {
 		}
 	}
 
+	// The window (F8-02): half-open on started_at. Every run above started moments ago, so a
+	// window opening an hour ago holds them and one closing an hour ago holds none - and the two
+	// ends combine with the rule filter rather than replacing it.
+	hourAgo := time.Now().UTC().Add(-time.Hour)
+	var inWindow, beforeWindow repository.RunPage
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var listErr error
+		if inWindow, listErr = automationRuns().List(ctx,
+			repository.RunQuery{RuleID: rule.ID, From: &hourAgo, Size: 200}); listErr != nil {
+			return listErr
+		}
+		beforeWindow, listErr = automationRuns().List(ctx,
+			repository.RunQuery{RuleID: rule.ID, To: &hourAgo, Size: 200})
+		return listErr
+	}); err != nil {
+		t.Fatalf("listing with a window: %v", err)
+	}
+	if len(inWindow.Runs) != len(page.Runs) {
+		t.Errorf("a window opening an hour ago answers %d of the rule's %d runs", len(inWindow.Runs), len(page.Runs))
+	}
+	if len(beforeWindow.Runs) != 0 {
+		t.Errorf("a window closing an hour ago answers %d runs that started since", len(beforeWindow.Runs))
+	}
+
 	// Two pages of one, walked with the cursor, cover the rule's runs without repeating any.
 	seen := map[shared.ID]int{}
 	cursor := ""

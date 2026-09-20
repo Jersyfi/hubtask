@@ -173,10 +173,12 @@ func (r AutomationRunRepository) List(
 	// count over the same predicate.
 	size := boundedRulePage(query.Size)
 	rows, err := queries.ListRuleRuns(ctx, sqlc.ListRuleRunsParams{
-		RuleID:  ruleID,
-		Status:  optionalText(string(query.Status)),
-		Trigger: optionalText(string(query.Trigger)),
-		After:   after,
+		RuleID:   ruleID,
+		Status:   optionalText(string(query.Status)),
+		Trigger:  optionalText(string(query.Trigger)),
+		FromTime: optionalTimestamp(query.From),
+		ToTime:   optionalTimestamp(query.To),
+		After:    after,
 		//nolint:gosec // G115: boundedRulePage returns at most maxRulePage, which is 200
 		PageSize: int32(size + 1),
 	})
