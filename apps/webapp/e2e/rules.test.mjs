@@ -96,6 +96,20 @@ const RUNS = [
   { id: '01a0e2e0-0000-7000-8000-000000000033', rule_id: RULE.id, trigger: 'EVENT', status: 'SKIPPED', started_at: '2026-09-19T20:16:00Z', causation_depth: 1, condition_results: [{ index: 0, matched: false }], action_results: [] },
 ];
 
+/** A second rule, as the check found it: a label gone, and an action kind this version no longer serves. */
+const STALE = {
+  ...RULE,
+  id: '01a0e2e0-0000-7000-8000-000000000011',
+  name: 'Flag blocked work',
+  enabled: false,
+  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'ADD_ATTACHMENT_FROM_URL' }],
+  findings: [
+    { level: 'ATTENTION', path: '/actions/0/params/label_id', code: 'automation.finding.reference_gone', params: { kind: 'label', id: '01a0e2e0-0000-7000-8000-0000000000ff' } },
+    { level: 'BROKEN', path: '/actions/1/kind', code: 'automation.finding.action_unknown', params: { kind: 'ADD_ATTACHMENT_FROM_URL' } },
+  ],
+  checked_at: '2026-09-20T15:00:00Z',
+};
+
 /** The API at the network edge, and a place the last write's body is kept for the assertions. */
 function stubFor(written, tested = TEST_HELD) {
   return async (route) => {
@@ -120,7 +134,11 @@ function stubFor(written, tested = TEST_HELD) {
       written.push(request.postDataJSON());
       return route.fulfill({ json: { ...RULE, ...request.postDataJSON(), version: RULE.version + written.length } });
     }
-    if (path.endsWith('/api/v1/automation/rules')) return route.fulfill({ json: { ...PAGE, data: [RULE] } });
+    if (path.endsWith('/api/v1/automation/rules')) return route.fulfill({ json: { ...PAGE, data: [RULE, STALE] } });
+    if (path.endsWith('/api/v1/automation/rules:check')) {
+      written.push({ check: true });
+      return route.fulfill({ json: { data: [RULE, STALE] } });
+    }
     if (path.endsWith('/api/v1/automation/rules:test')) {
       written.push(request.postDataJSON());
       return route.fulfill({ json: tested });
@@ -275,4 +293,58 @@ test('chromium: a sample the gate refuses stops at the gate, and a recorded run 
   await page.locator('[data-card="0"] .verdict').waitFor();
   assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'failed');
   await page.getByText('Failed', { exact: true }).first().waitFor();
+});
+
+test('chromium: the list checks the rules when it opens and says what the check found', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  await context.route('**/api/v1/**', stubFor(written));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules`);
+
+  await page.getByText('The check found one rule that needs your attention.').waitFor();
+  assert.ok(written.some((body) => body.check), 'the list asked for the check');
+  await page.getByText('Broken', { exact: true }).waitFor();
+  await page.getByText('Step 0: The label this step points at no longer exists; the step would find nothing.').waitFor();
+  await page.getByText('Works', { exact: true }).waitFor();
+
+  // The rule itself: the findings at their cards, and the switch refused with the reason.
+  await page.getByRole('link', { name: 'Flag blocked work' }).click();
+  await page.locator('[data-card="1"] .flag').waitFor();
+  assert.match(await page.locator('[data-card="1"] .flag').textContent(), /no action ADD_ATTACHMENT_FROM_URL/);
+  assert.match(await page.locator('[data-card="0"] .flag').textContent(), /no longer exists/);
+  const enable = page.getByRole('button', { name: 'Switch it on' });
+  assert.equal(await enable.isDisabled(), true);
+});
+
+test('chromium: the runs page opens prefiltered on a rule and narrows to a window', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  await context.route('**/api/v1/**', stubFor(written));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/runs?rule_id=${RULE.id}`);
+  await page.locator('[data-strip]').waitFor();
+  await page.waitForFunction(() => document.querySelector('[data-strip] dd')?.textContent === '3');
+  assert.ok(written.some((body) => body.runs?.rule_id === RULE.id), 'the listing was asked for the rule');
+
+  await page.getByLabel('From').fill('2026-09-20T00:00');
+  await page.getByLabel('To').fill('2026-09-21T00:00');
+  await page.waitForFunction(() => performance.now() > 0);
+  await page.waitForTimeout(500);
+  const windowed = written.find((body) => body.runs?.from && body.runs?.to);
+  assert.ok(windowed, 'the listing was asked for the window');
+  assert.ok(windowed.runs.to > windowed.runs.from, `to ${windowed.runs.to} after from ${windowed.runs.from}`);
+  assert.equal(await page.locator('[data-strip] .stat').count(), 5);
 });

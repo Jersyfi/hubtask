@@ -32,6 +32,7 @@
   import { emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { eventWord, generatedName, grouped, kindWord, sentence, type Names } from '../lib/automation/words.ts';
+  import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { FLOW_KINDS } from '../lib/automation/model.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
@@ -320,9 +321,13 @@
 
   const errors = $derived(failure?.fields ?? new Map<string, string>());
 
-  /** A finding or refusal drawn at a card: the first refusal whose pointer names the card. */
+  /** What the check found (ADR-0060), and whether the rule can run at all. */
+  const findings = $derived(stored?.findings ?? []);
+  const isBroken = $derived(findings.some((finding) => finding.level === 'BROKEN'));
+
+  /** A finding or refusal drawn at a card: the check's findings first, a refusal over them. */
   const marks = $derived.by(() => {
-    const found = new Map<string, string>();
+    const found = marksOf(words, findings);
     for (const [pointer, message] of errors) {
       if (pointer.startsWith('/trigger')) found.set('trigger', message);
       const condition = /^\/conditions\/(\d+)/.exec(pointer);
@@ -483,10 +488,11 @@
         {:else}
           <Badge tone="neutral">{t('app.flow.state_new')}</Badge>
         {/if}
+        {#if isBroken}<Badge tone="danger" icon="circle-alert">{t('app.flow.health_broken')}</Badge>{:else if findings.length > 0}<Badge tone="warning" icon="triangle-alert">{t('app.flow.health_attention')}</Badge>{/if}
         {#if dirty}<Badge tone="warning">{t('app.flow.unsaved')}</Badge>{/if}
         <Button tone="primary" size="sm" isBusy={isWorking} busyLabel={t('app.flow.saving')} onclick={save}>{t('app.flow.save')}</Button>
         {#if stored}
-          <Button size="sm" tone={stored.enabled ? 'secondary' : 'primary'} isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={toggle}>
+          <Button size="sm" tone={stored.enabled ? 'secondary' : 'primary'} isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={toggle} disabledReason={!stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined}>
             {stored.enabled ? t('app.flow.disable') : t('app.flow.enable')}
           </Button>
           <Button size="sm" tone="subtle" icon="trash" onclick={() => (isDeleting = true)}>{t('app.flow.delete')}</Button>
@@ -517,6 +523,12 @@
       </div>
 
       {#if refusal}<Banner tone="warning" title={refusal} />{/if}
+      {#if findings.length > 0}
+        <Banner tone={isBroken ? 'danger' : 'warning'} title={isBroken ? t('app.flow.enable_refused_broken') : t('app.flow.health_attention')}>
+          {findings.map((finding) => findingWords(words, finding)).join(' · ')}
+          {#if stored?.checked_at}<span class="quiet small"> — {t('app.flow.checked_at', { moment: formatDateTime(stored.checked_at, messages.locale) })}</span>{/if}
+        </Banner>
+      {/if}
       {#if failure && !failure.fields.size}
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
