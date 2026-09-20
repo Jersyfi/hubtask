@@ -566,6 +566,26 @@ func TestACheckIsRecordedOnTheRuleAndABrokenRuleIsSwitchedOffOnce(t *testing.T) 
 	if len(stored.Findings) != 0 || !stored.CheckedAt.Equal(later) {
 		t.Error("tenant B wrote findings on tenant A's rule")
 	}
+
+	// An edit leaves the rule unchecked: the findings described the definition the check read,
+	// and this is another one. F8's walk repaired a step and watched the flag stay.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().RecordCheck(ctx, rule.ID, findings, later.Add(2*time.Minute))
+	}); err != nil {
+		t.Fatalf("recording again: %v", err)
+	}
+	readBack()
+	edited := stored
+	edited.Name = "repaired"
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Update(ctx, edited, stored.Version)
+	}); err != nil {
+		t.Fatalf("the edit: %v", err)
+	}
+	readBack()
+	if len(stored.Findings) != 0 || !stored.CheckedAt.IsZero() {
+		t.Errorf("after the edit the rule still carries %v checked at %v", stored.Findings, stored.CheckedAt)
+	}
 }
 
 // The check's resolver (ADR-0060): a live label, bucket, collection and acting account answer yes;
