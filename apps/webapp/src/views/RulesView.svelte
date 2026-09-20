@@ -31,6 +31,7 @@
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { eventWords } from '../lib/automation/words.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   const TENANT = { scopeType: 'TENANT' } as const;
@@ -95,7 +96,7 @@
   function triggerWord(rule: Rule): string {
     const code = `app.rules.trigger_${rule.trigger.kind.toLowerCase()}`;
     const said = messages.has(code) ? t(code) : rule.trigger.kind;
-    return rule.trigger.event_type ? `${said} · ${rule.trigger.event_type}` : said;
+    return rule.trigger.event_type ? `${said} · ${eventWords(words, rule.trigger.event_type).said}` : said;
   }
 
   const runnerName = (id: string) =>

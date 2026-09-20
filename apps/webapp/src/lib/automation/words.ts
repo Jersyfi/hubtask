@@ -30,12 +30,65 @@ export interface Names {
 }
 
 /**
- * An event type read as words: `de.hubtask.work.item.overdue.v1` is "item overdue". The catalogue
- * has no word per event type - the webhooks screen shows the type itself - so the type is read
- * without its namespace and version rather than shown as a namespace.
+ * An event type read as its segments: `de.hubtask.work.item.overdue.v1` is "item overdue". The
+ * fallback of `eventWords` for a type the verb table does not know, and what the type reads as
+ * without its namespace and version.
  */
 export function eventWord(type: string): string {
   return type.replace(/^de\.hubtask\./, '').replace(/\.v\d+$/, '').replace(/^work\./, '').replace(/[._]/g, ' ');
+}
+
+/** An event type, said in words (decision 13). */
+export interface EventWords {
+  /** The entity's segment: `item`, `container`, `rule_run` - what the group is keyed by. */
+  entity: string;
+  /** The heading the event sorts under: "Entries", "Hubs and collections". */
+  group: string;
+  /** The event as a clause, lower-case: "an entry is created". */
+  clause: string;
+  /** The same, capitalised, for an option or a card. */
+  said: string;
+}
+
+/**
+ * The words come from the type's own name: `de.hubtask.<area>.<entity>.<verb>.v1` gives the
+ * entity and the verb, and the catalogue has a word for each - `app.flow.event_entity_item`,
+ * `app.flow.event_verb_created` - so "an entry is created" is composed, never listed per type.
+ * Nothing is compiled in that the manifest does not serve: an entity or a verb the catalogue has
+ * no word for is said as its segment, never hidden, and sorts under "everything else".
+ */
+export function eventWords(words: Catalogue, type: string): EventWords {
+  const segments = type.replace(/^de\.hubtask\./, '').replace(/\.v\d+$/, '').split('.');
+  const verb = segments[segments.length - 1] ?? '';
+  const entity = segments[segments.length - 2] ?? '';
+  const entityCode = `app.flow.event_entity_${entity}`;
+  const verbCode = `app.flow.event_verb_${verb}`;
+  const groupCode = `app.flow.event_group_${entity}`;
+  const known = words.has(entityCode) && words.has(verbCode);
+  const clause = known ? `${words.t(entityCode)} ${words.t(verbCode)}` : eventWord(type);
+  return {
+    entity,
+    group: words.has(groupCode) ? words.t(groupCode) : words.t('app.flow.event_group_other'),
+    clause,
+    said: clause.charAt(0).toUpperCase() + clause.slice(1),
+  };
+}
+
+/** The order the groups are shown in: the entities a rule is most often about first. */
+const EVENT_GROUP_ORDER = ['item', 'container', 'bucket', 'label', 'comment', 'attachment', 'entry', 'recurrence', 'template', 'rule_run'];
+
+/** The manifest's event types arranged for a select: grouped by entity, said in words. */
+export function eventGroups(words: Catalogue, types: readonly string[]): { label: string; options: { value: string; label: string }[] }[] {
+  const byEntity = new Map<string, { label: string; options: { value: string; label: string }[] }>();
+  for (const type of types) {
+    const said = eventWords(words, type);
+    const key = words.has(`app.flow.event_group_${said.entity}`) ? said.entity : '';
+    const group = byEntity.get(key) ?? { label: said.group, options: [] };
+    group.options.push({ value: type, label: said.said });
+    byEntity.set(key, group);
+  }
+  const rank = (key: string): number => (key === '' ? EVENT_GROUP_ORDER.length : EVENT_GROUP_ORDER.indexOf(key) === -1 ? EVENT_GROUP_ORDER.length - 1 : EVENT_GROUP_ORDER.indexOf(key));
+  return [...byEntity.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)).map(([, group]) => group);
 }
 
 /** A kind's word, or the kind read as words. */

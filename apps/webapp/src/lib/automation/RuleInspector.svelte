@@ -14,7 +14,7 @@
   import Composer from './Composer.svelte';
   import { pointerOf, replaceAt, stepAt, type Draft } from './model.ts';
   import type { Selection } from './selection.ts';
-  import { kindWord } from './words.ts';
+  import { eventGroups, kindWord } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -118,11 +118,12 @@
     {#if draft.trigger.kind === 'EVENT'}
       <Select
         label={t('app.rules.event_type')}
-        hint={t('app.rules.event_type_hint')}
+        hint={draft.trigger.event_type ? t('app.flow.event_wire_name', { type: draft.trigger.event_type }) : t('app.rules.event_type_hint')}
         error={errors.get('/trigger/event_type')}
         placeholder={t('app.rules.choose_event')}
         value={draft.trigger.event_type ?? ''}
-        options={eventTypes.map((type) => ({ value: type, label: type }))}
+        options={[]}
+        groups={eventGroups(words, eventTypes)}
         onchange={(event: Event) => {
           const event_type = value(event);
           onupdate((current) => ({ ...current, trigger: { ...current.trigger, event_type, changed_fields: [] } }));

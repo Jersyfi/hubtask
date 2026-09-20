@@ -231,8 +231,14 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
   await page.getByText('A trigger can only be at the top.').waitFor();
   assert.equal(await page.locator('[data-card="trigger"] .title').textContent(), 'Something happens');
-  // The event in the words the sentence above the canvas uses, not its wire name.
-  assert.equal(await page.locator('[data-card="trigger"] .meta').textContent(), 'item overdue');
+  // The event in words composed from its own name, not the wire name; the select groups the
+  // manifest's types by what they are about and says them the same way.
+  assert.equal(await page.locator('[data-card="trigger"] .meta').textContent(), 'An entry becomes overdue');
+  await page.locator('[data-card="trigger"]').click();
+  const eventSelect = page.locator('aside.inspector select').nth(1);
+  assert.deepEqual(await eventSelect.locator('optgroup').evaluateAll((all) => all.map((group) => group.label)), ['Entries']);
+  assert.deepEqual(await eventSelect.locator('option').allTextContents().then((texts) => texts.map((text) => text.trim())), ['Choose an event', 'An entry is created', 'An entry becomes overdue']);
+  await page.getByText('On the wire: de.hubtask.work.item.overdue.v1').waitFor();
 
   // And on the trigger card it lands: the kind changes.
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('[data-card="trigger"]'));
