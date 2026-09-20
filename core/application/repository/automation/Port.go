@@ -66,6 +66,38 @@ type Rules interface {
 	// Delete stamps the rule and reports whether it changed anything. False means it was already
 	// deleted, which is not an error - the second call is somebody making sure.
 	Delete(ctx context.Context, id shared.ID, at time.Time) (bool, error)
+
+	// RecordCheck writes what the check found (ADR-0060) - the findings and the moment - and
+	// nothing else. Unguarded on the version: the findings are an assessment of the rule, not an
+	// edit of it, and a definition that changed underneath is re-checked by the next check.
+	RecordCheck(ctx context.Context, id shared.ID, findings []domain.Finding, at time.Time) error
+
+	// DisableBroken switches a rule off because the check found it cannot run, and reports
+	// whether it changed anything - false when it was already off, which is not an error.
+	// Failures.Disable's shape: nobody read the rule in order to switch it off, so the guard is
+	// on the state rather than on a version.
+	DisableBroken(ctx context.Context, id shared.ID, at time.Time) (bool, error)
+}
+
+// ReferenceKind is a kind of thing in the workspace a rule's parameter may name (ADR-0060).
+type ReferenceKind string
+
+const (
+	ReferenceLabel        ReferenceKind = "label"
+	ReferenceBucket       ReferenceKind = "bucket"
+	ReferenceContainer    ReferenceKind = "container"
+	ReferenceTemplate     ReferenceKind = "template"
+	ReferenceSubscription ReferenceKind = "subscription"
+	ReferenceGroup        ReferenceKind = "group"
+	ReferenceAccount      ReferenceKind = "account"
+)
+
+// References answers whether something a rule names still exists (ADR-0060). One question, per
+// kind, under the tenant context: a reference is a fact of this workspace, and the resolver can
+// answer nothing about another's. It judges nothing - what a missing reference means for the rule
+// is the check's question.
+type References interface {
+	Exists(ctx context.Context, kind ReferenceKind, id shared.ID) (bool, error)
 }
 
 // RunQuery narrows a listing of runs.

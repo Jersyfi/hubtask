@@ -469,3 +469,101 @@ func TestARuleCannotRunAsAnAccountOfAnotherTenant(t *testing.T) {
 		t.Logf("refused as %v", err)
 	}
 }
+
+// The check's two writes (ADR-0060): the findings and the moment survive the round trip through
+// the column, an empty check reads back as an empty list with a moment, and the disable fires once
+// while the rule is on. The columns are the workspace's: another tenant's check writes nothing.
+func TestACheckIsRecordedOnTheRuleAndABrokenRuleIsSwitchedOffOnce(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	runAs := seedServiceAccount(ctx, t, tenantA)
+
+	rule := ruleFixture(t, tenantA, runAs, authorA)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := automationRules().Insert(ctx, rule); err != nil {
+			return err
+		}
+		return automationRules().SetEnabled(ctx, rule.ID, true, 1, time.Now().UTC())
+	}); err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	findings := []domain.Finding{
+		{Level: domain.FindingAttention, Path: "actions/0", Code: "automation.finding.reference_gone",
+			Params: map[string]string{"kind": "label", "id": "018f"}},
+		{Level: domain.FindingBroken, Path: "actions/1", Code: "automation.finding.action_unknown",
+			Params: map[string]string{"kind": "ADD_ATTACHMENT_FROM_URL"}},
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().RecordCheck(ctx, rule.ID, findings, at)
+	}); err != nil {
+		t.Fatalf("recording the check: %v", err)
+	}
+
+	var stored domain.Rule
+	readBack := func() {
+		t.Helper()
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			var findErr error
+			stored, findErr = automationRules().Find(ctx, rule.ID)
+			return findErr
+		}); err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+	}
+	readBack()
+	if len(stored.Findings) != 2 || stored.Findings[1].Level != domain.FindingBroken ||
+		stored.Findings[0].Params["kind"] != "label" || !stored.CheckedAt.Equal(at) {
+		t.Fatalf("read back %+v at %v", stored.Findings, stored.CheckedAt)
+	}
+	if !stored.Enabled || stored.Version != 2 {
+		t.Fatalf("recording a check moved enabled=%v version=%d", stored.Enabled, stored.Version)
+	}
+
+	// The disable: once, and a second call changes nothing.
+	for round, want := range []bool{true, false} {
+		var changed bool
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			var err error
+			changed, err = automationRules().DisableBroken(ctx, rule.ID, time.Now().UTC())
+			return err
+		}); err != nil {
+			t.Fatalf("disabling, round %d: %v", round, err)
+		}
+		if changed != want {
+			t.Errorf("round %d changed %v, want %v", round, changed, want)
+		}
+	}
+	readBack()
+	if stored.Enabled || stored.Version != 3 {
+		t.Errorf("after the disable enabled=%v version=%d", stored.Enabled, stored.Version)
+	}
+
+	// An empty check clears the findings and keeps the moment.
+	later := at.Add(time.Minute)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().RecordCheck(ctx, rule.ID, nil, later)
+	}); err != nil {
+		t.Fatalf("recording the empty check: %v", err)
+	}
+	readBack()
+	if stored.Findings == nil || len(stored.Findings) != 0 || !stored.CheckedAt.Equal(later) {
+		t.Errorf("after the empty check %v at %v", stored.Findings, stored.CheckedAt)
+	}
+
+	// Another tenant's check reaches nothing here (SG-3).
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := automationRules().RecordCheck(ctx, rule.ID, findings, later.Add(time.Minute)); err != nil {
+			return err
+		}
+		_, err := automationRules().DisableBroken(ctx, rule.ID, time.Now().UTC())
+		return err
+	}); err != nil {
+		t.Fatalf("tenant B's writes: %v", err)
+	}
+	readBack()
+	if len(stored.Findings) != 0 || !stored.CheckedAt.Equal(later) {
+		t.Error("tenant B wrote findings on tenant A's rule")
+	}
+}

@@ -230,11 +230,61 @@ type Rule struct {
 	// value beside it would be a credential whose guessing space has been narrowed for whoever
 	// reads the listing.
 	InboundRotatedAt time.Time
-	CreatedBy        shared.ID
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	DeletedAt        *time.Time
-	Version          int
+	// Findings is what the last check found (ADR-0060): every reference resolved against what
+	// existed then. Empty for a rule with nothing wrong and for one never checked; CheckedAt
+	// tells the two apart, and is the zero time for a rule never checked. Neither is part of the
+	// definition an edit sends - they are the check's assessment of it.
+	Findings  []Finding
+	CheckedAt time.Time
+	CreatedBy shared.ID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time
+	Version   int
+}
+
+// FindingLevel is what a finding means for the rule (ADR-0060).
+type FindingLevel string
+
+const (
+	// FindingAttention: the rule runs, and one step would find nothing where it points.
+	FindingAttention FindingLevel = "ATTENTION"
+	// FindingBroken: the rule cannot run, and the check switches it off.
+	FindingBroken FindingLevel = "BROKEN"
+)
+
+// Finding is one thing the check found about a rule.
+//
+// Path names what it is about in the rule's own address space - `trigger`, `run_as`,
+// `conditions/1`, `actions/2/then/0` - the same paths a run's log and a write-time refusal use,
+// so that an editor points at one place for all three. Code is a message code and Params its
+// parameters (ADR-0011): a finding is shown to a person and never carries a sentence.
+type Finding struct {
+	Level  FindingLevel
+	Path   string
+	Code   string
+	Params map[string]string
+}
+
+// Broken reports whether any finding means the rule cannot run.
+func (r Rule) Broken() bool {
+	for _, finding := range r.Findings {
+		if finding.Level == FindingBroken {
+			return true
+		}
+	}
+	return false
+}
+
+// Checked records what a check found, at the moment it ran. A nil list is recorded as an empty
+// one: "nothing wrong" is a list with nothing in it, not the absence of a list.
+func (r Rule) Checked(findings []Finding, now time.Time) Rule {
+	if findings == nil {
+		findings = []Finding{}
+	}
+	r.Findings = findings
+	r.CheckedAt = now.UTC()
+	return r
 }
 
 // NewRuleInput is what writing a rule needs.

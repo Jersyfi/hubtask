@@ -250,6 +250,60 @@ func (r AutomationRuleRepository) SetEnabled(
 	return r.conflictUnless(ctx, changed, id, expectedVersion)
 }
 
+// RecordCheck writes the findings and the moment, and nothing else (ADR-0060).
+func (r AutomationRuleRepository) RecordCheck(
+	ctx context.Context, id shared.ID, findings []domain.Finding, at time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	documents := make([]findingDocument, 0, len(findings))
+	for _, finding := range findings {
+		documents = append(documents, findingDocument{
+			Level: string(finding.Level), Path: finding.Path, Code: finding.Code, Params: finding.Params,
+		})
+	}
+	raw, err := json.Marshal(documents)
+	if err != nil {
+		return shared.ErrInternal.WithDetail("automation.rule_unwritable").
+			WithCause(fmt.Errorf("encoding the findings of rule %s: %w", id, err))
+	}
+	if err := queries.RecordAutomationRuleCheck(ctx, sqlc.RecordAutomationRuleCheckParams{
+		ID: key, Findings: raw, At: timestampOf(at),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the check of rule %s: %w", id, err))
+	}
+	return nil
+}
+
+// DisableBroken switches a rule off because the check found it cannot run (ADR-0060).
+func (r AutomationRuleRepository) DisableBroken(
+	ctx context.Context, id shared.ID, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.DisableBrokenRule(ctx, sqlc.DisableBrokenRuleParams{ID: key, At: timestampOf(at)})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("disabling broken rule %s: %w", id, err))
+	}
+	return changed > 0, nil
+}
+
 func (r AutomationRuleRepository) Delete(
 	ctx context.Context, id shared.ID, at time.Time,
 ) (bool, error) {
@@ -333,6 +387,14 @@ type conditionDocument struct {
 type actionDocument struct {
 	Kind   string         `json:"kind"`
 	Params map[string]any `json:"params"`
+}
+
+// findingDocument is the stored shape of one finding (ADR-0060, migration 0095).
+type findingDocument struct {
+	Level  string            `json:"level"`
+	Path   string            `json:"path"`
+	Code   string            `json:"code"`
+	Params map[string]string `json:"params,omitempty"`
 }
 
 type throttleDocument struct {
@@ -505,6 +567,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	var conditions []conditionDocument
 	var actions []actionDocument
 	var throttle throttleDocument
+	var findings []findingDocument
 	for _, part := range []struct {
 		raw  []byte
 		into any
@@ -514,6 +577,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		{row.Conditions, &conditions, "conditions"},
 		{row.Actions, &actions, "actions"},
 		{row.Throttle, &throttle, "throttle"},
+		{row.Findings, &findings, "findings"},
 	} {
 		if len(part.raw) == 0 {
 			continue
@@ -548,6 +612,8 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		FailureCount:     int(row.FailureCount),
 		NextRunAt:        timeFrom(row.NextRunAt),
 		InboundRotatedAt: timeFrom(row.InboundRotatedAt),
+		Findings:         make([]domain.Finding, 0, len(findings)),
+		CheckedAt:        timeFrom(row.CheckedAt),
 		CreatedBy:        createdBy,
 		CreatedAt:        timeFrom(row.CreatedAt),
 		UpdatedAt:        timeFrom(row.UpdatedAt),
@@ -555,6 +621,12 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	}
 	for _, condition := range conditions {
 		rule.Conditions = append(rule.Conditions, domain.Condition{Expr: condition.Expr})
+	}
+	for _, finding := range findings {
+		rule.Findings = append(rule.Findings, domain.Finding{
+			Level: domain.FindingLevel(finding.Level), Path: finding.Path,
+			Code: finding.Code, Params: finding.Params,
+		})
 	}
 	for _, action := range actions {
 		params := action.Params

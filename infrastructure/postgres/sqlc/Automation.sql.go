@@ -14,7 +14,7 @@ import (
 const automationRulesSealedNotUnder = `-- name: AutomationRulesSealedNotUnder :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND jsonb_path_exists(
@@ -43,6 +43,8 @@ type AutomationRulesSealedNotUnderRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 // The rows a re-seal visits (ADR-0045): a rule with an HTTP_REQUEST action - at any depth of a
@@ -77,6 +79,8 @@ func (q *Queries) AutomationRulesSealedNotUnder(ctx context.Context, keyID strin
 			&i.Version,
 			&i.NextRunAt,
 			&i.InboundRotatedAt,
+			&i.Findings,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -215,6 +219,28 @@ func (q *Queries) CountRunsSince(ctx context.Context, arg CountRunsSinceParams) 
 	return count, err
 }
 
+const disableBrokenRule = `-- name: DisableBrokenRule :execrows
+UPDATE automation_rule
+SET enabled = false, updated_at = $1, version = version + 1
+WHERE id = $2 AND deleted_at IS NULL AND enabled = true
+`
+
+type DisableBrokenRuleParams struct {
+	At pgtype.Timestamptz
+	ID pgtype.UUID
+}
+
+// Switching a rule off because the check found it cannot run (ADR-0060). DisableFailingRule's
+// shape: nobody read this rule in order to switch it off, so the guard is on the state - it fires
+// once, while the rule is still on.
+func (q *Queries) DisableBrokenRule(ctx context.Context, arg DisableBrokenRuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, disableBrokenRule, arg.At, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const disableFailingRule = `-- name: DisableFailingRule :execrows
 UPDATE automation_rule
 SET enabled = false, updated_at = $1, version = version + 1
@@ -246,7 +272,7 @@ const dueAutomationRules = `-- name: DueAutomationRules :many
 
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL AND enabled = true
   AND next_run_at IS NOT NULL AND next_run_at <= $1
@@ -279,6 +305,8 @@ type DueAutomationRulesRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 // The SCHEDULE trigger (G-08, decision 5 of milestone-0.5.0). The same three statements
@@ -319,6 +347,8 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 			&i.Version,
 			&i.NextRunAt,
 			&i.InboundRotatedAt,
+			&i.Findings,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -333,7 +363,7 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 const findAutomationRule = `-- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -358,6 +388,8 @@ type FindAutomationRuleRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindAutomationRuleRow, error) {
@@ -383,6 +415,8 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 		&i.Version,
 		&i.NextRunAt,
 		&i.InboundRotatedAt,
+		&i.Findings,
+		&i.CheckedAt,
 	)
 	return i, err
 }
@@ -390,7 +424,7 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 const findAutomationRuleByInboundToken = `-- name: FindAutomationRuleByInboundToken :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE inbound_token_hash = $1 AND deleted_at IS NULL
 `
@@ -415,6 +449,8 @@ type FindAutomationRuleByInboundTokenRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 // What the unauthenticated route asks. The tenant is the transaction's, set from the tenant the
@@ -444,6 +480,8 @@ func (q *Queries) FindAutomationRuleByInboundToken(ctx context.Context, tokenHas
 		&i.Version,
 		&i.NextRunAt,
 		&i.InboundRotatedAt,
+		&i.Findings,
+		&i.CheckedAt,
 	)
 	return i, err
 }
@@ -676,7 +714,7 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 const listAutomationRules = `-- name: ListAutomationRules :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND ($1::boolean IS NULL OR enabled = $1::boolean)
@@ -711,6 +749,8 @@ type ListAutomationRulesRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the creation order.
@@ -747,6 +787,8 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 			&i.Version,
 			&i.NextRunAt,
 			&i.InboundRotatedAt,
+			&i.Findings,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -868,6 +910,26 @@ func (q *Queries) NextDueRuleOccurrence(ctx context.Context) (pgtype.Timestamptz
 	return fire_at, err
 }
 
+const recordAutomationRuleCheck = `-- name: RecordAutomationRuleCheck :exec
+UPDATE automation_rule
+SET findings = $1, checked_at = $2
+WHERE id = $3 AND deleted_at IS NULL
+`
+
+type RecordAutomationRuleCheckParams struct {
+	Findings []byte
+	At       pgtype.Timestamptz
+	ID       pgtype.UUID
+}
+
+// What the check found (ADR-0060). Unguarded on the version: the findings are the check's
+// assessment of the rule as it stood, not an edit of it, and a concurrent edit is re-checked by the
+// next check rather than refused here.
+func (q *Queries) RecordAutomationRuleCheck(ctx context.Context, arg RecordAutomationRuleCheckParams) error {
+	_, err := q.db.Exec(ctx, recordAutomationRuleCheck, arg.Findings, arg.At, arg.ID)
+	return err
+}
+
 const rewrapAutomationRuleActions = `-- name: RewrapAutomationRuleActions :execrows
 UPDATE automation_rule
 SET actions = $1
@@ -894,7 +956,7 @@ func (q *Queries) RewrapAutomationRuleActions(ctx context.Context, arg RewrapAut
 const rulesByTriggerKind = `-- name: RulesByTriggerKind :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -922,6 +984,8 @@ type RulesByTriggerKindRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 // The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
@@ -956,6 +1020,8 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 			&i.Version,
 			&i.NextRunAt,
 			&i.InboundRotatedAt,
+			&i.Findings,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -970,7 +1036,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 const rulesForEventType = `-- name: RulesForEventType :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at
+       next_run_at, inbound_rotated_at, findings, checked_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -999,6 +1065,8 @@ type RulesForEventTypeRow struct {
 	Version          int32
 	NextRunAt        pgtype.Timestamptz
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 // What the subscriber asks per event: the enabled rules whose trigger is this event type.
@@ -1038,6 +1106,8 @@ func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]Ru
 			&i.Version,
 			&i.NextRunAt,
 			&i.InboundRotatedAt,
+			&i.Findings,
+			&i.CheckedAt,
 		); err != nil {
 			return nil, err
 		}
