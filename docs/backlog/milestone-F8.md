@@ -346,6 +346,147 @@ issue of the milestone closed by its pull request.
 
 ---
 
+## The second round — from the owner's walk of the built editor
+
+The owner walked the built editor on 2026-09-21 against the concept and sent what the concept
+had and the build does not, and what the build does badly. Six more tasks, each one pull request
+in milestone 20, all client work but the words in the catalogue; the engine, the contract and
+the check stay as they are. Four more decisions:
+
+12. **A building block carries its icon.** The prototype drew one per kind and decision 10
+    reserved icons for the cards only; the palette and the `+` menu without them read as a list
+    of words. The icon is the card's (`FLOW_ICON`, the kind's group), chosen per kind in one
+    table in `words.ts`, declared in `build/icons.js` and nowhere else; a kind the table does not
+    know gets its group's icon. And the palette's *everything else* — every use case the
+    installation serves, ninety names of which `Confirm TOTP` and `Create backup target` are two
+    — is folded behind the `+` menu's search rather than listed: the curated groups are the
+    palette, the rest is found by typing.
+13. **An event is said in words, and the words come from the type's own name.** The manifest
+    answers forty-odd `de.hubtask.<area>.<entity>.<verb>.v1` names, and a select of forty wire
+    names is unreadable. The client derives the words from the segments — the entity's group
+    (*Entries*, *Hubs and collections*, *Comments*, *People*, *Labels*, *The inbox*, *Rules*,
+    *Integrations*, *Everything else*) and the verb in the person's language, from a small table
+    of verbs with the raw segment as the fallback — and every select of an event (the trigger's,
+    the probe's) is grouped by entity with the words, the wire name in the hint under it. Nothing
+    is compiled in that the manifest does not serve: an event the table has no verb for is
+    shown as its segments, never hidden.
+14. **`STOP` is a terminus and goes last.** A stop in the middle of a list would make every step
+    after it unreachable and the canvas cannot draw "unreachable" honestly. So a `STOP` may only
+    be inserted as the last step of a list — the chain or an arm — and the drop targets and the
+    `+` menu say so: while a stop is lifted only the last gap of each list lights, and the menu
+    offers *Stop* only from the last gap. After a stop the line ends (no gap, no `+`, no line to
+    the guardrails); a stored rule with steps after a stop — the server accepts one — draws them
+    faded with *never reached* on the first, and the check is not involved. A stop is moved by
+    the same rule: only to the end of a list.
+15. **A condition is a tree, and the tree is composed everywhere a condition is.** The gate and
+    a branch's condition both take the same composer, which now composes a *group* — *all of* /
+    *any of* / *none of* over sentences and nested groups — and compiles it to CEL with
+    parentheses (`(a && b) || !(c)`); the reader takes the composer's own shapes back apart by
+    the same grammar (parentheses, `&&`, `||`, a leading `!`) and anything else stays an
+    expression, as decision 3 says. The gate's rows stay the top-level *all of*: each row is a
+    sentence or a group, so `conditions[]` keeps its meaning on the server. The subjects gain
+    what the run's document answers and the prototype offered: *title* (contains, does not
+    contain, starts with), *notes* (is empty, is not empty, contains), *due date* (is before,
+    is after, is within the next N days, is set, is not set), *archived*, *depth* (is, is at
+    most), beside the existing *type*, *completed*, *assignee*, *bucket*, *parent*, *actor*,
+    *hour* and *custom field* — every one with *is* / *is not* where a value is compared.
+    Labels stay out until issue 807 is fixed.
+
+## F8-09 — Building blocks with their icons, and the rest behind the search **[L]**
+
+*Depends on: nothing. Issue #841.*
+
+Decision 12: an icon per kind in `words.ts` (one table, the group's icon as the fallback),
+drawn in the palette, the `+` menu and on the card; the icons the table needs declared in
+`packages/design-system/build/icons.js` — `tag`, `calendar`, `check`, `archive`, `trash`,
+`copy`, `image`, `users`, `user`, `message-square`, `inbox`, `repeat`, `globe`, `zap`,
+`sparkles`, `folder`, `columns-3`, `sliders-horizontal`, `arrow-right-left`, `rotate-ccw`,
+`user-plus`, `user-minus`, `skip-forward`, `layout-template`, `plus`, `x`, `undo-2` — whichever
+of those lucide has, and the declared set is what `pnpm build` checks. The palette shows the
+curated groups only; *everything else* goes: the `+` menu's search finds every served kind.
+
+**Acceptance:** every palette item and every menu item has an icon; a kind outside the curated
+groups is found by typing in the `+` menu and not listed in the palette; the Playwright walk
+inserts one that way; `pnpm -r …` green.
+
+## F8-10 — Events in words, grouped by what they are about **[L]**
+
+*Depends on: nothing. Issue #842.*
+
+Decision 13: `eventWords(type)` in `words.ts` answers `{ group, words }` from the segments and
+a verb table in the catalogue (`app.flow.event_verb_*`, `app.flow.event_group_*`); the trigger's
+event select and the probe's are grouped selects (`<optgroup>`, which `Select` gains as an
+optional `groups` prop) with the words as the option and the wire name shown once under the
+select; the trigger card, the sentence and the runs page say the words. `changed_fields` on an
+*updated* event keep their checkboxes.
+
+**Acceptance:** with the manifest's full list every option reads as words in a group; an event
+type the verb table does not know reads as its segments; the e2e asserts the grouping and the
+words on the card; `pnpm -r …` green, the catalogue complete in `en` and `de`.
+
+## F8-11 — Stop is a terminus **[L]**
+
+*Depends on: nothing. Issue #843.*
+
+Decision 14. `insertAt` and `moveStep` refuse a `STOP` anywhere but the end of a list (the
+refusal sentence `app.flow.refused_stop`); `gapTakes` answers only the last gap of each list
+for a lifted stop; the `+` menu lists *Stop* only from a last gap; after a stop no gap, no `+`,
+no line onward, and the guardrails stand apart; steps stored after a stop draw faded with the
+word on the first. The probe and a drawn run already skip them.
+
+**Acceptance:** a stop dragged to a middle gap is refused with its sentence and the canvas is
+unchanged; from the last gap it lands and the line ends; a fixture with a step after a stop
+draws it faded; the e2e covers all three; `pnpm -r …` green.
+
+## F8-12 — Drop targets you can read, and a hint that overlaps nothing **[L]**
+
+*Depends on: nothing. Issue #844.*
+
+The drag hint leaves the canvas: it becomes a line of its own between the header and the
+bench, reserved whether or not a piece is lifted, so nothing moves and nothing is covered. A
+gap that may take the piece widens into a pill that says *Insert here* on one line, centred on
+the line, the circle gone while it is a target; the trigger card and the gate, when they may
+take the piece, say *Replace the trigger* and *Add the condition* as a strip along their top
+edge inside the card rather than a badge over the line. The palette's group hints (*replaces
+the trigger*, *goes into the gate*, *goes into the chain*) stay.
+
+**Acceptance:** at 1400 px and at 375 px a lifted trigger, condition and step each show their
+targets with whole words, nothing clipped, nothing overlapping the trigger card; the e2e reads
+the hint's text from its own line; `pnpm -r …` green.
+
+## F8-13 — Conditions as a tree, everywhere **[L]**
+
+*Depends on: nothing. Issue #845.*
+
+Decision 15. `model.ts` gains the group (`{ mode: 'all' | 'any' | 'none', items: (Sentence |
+Group)[] }`), `compileGroup` and `readGroup` with tests over every shape — nesting two deep,
+`none` as `!(…)`, a sentence alone unchanged — and the new subjects and operators with their
+compile and read; `Composer.svelte` composes a group (a row per item, *and* / *or* / *not*
+chosen once per group, *add a sentence* / *add a group*, *edit as expression* on the whole);
+the gate's rows and the branch use it; `conditionWords` says a group as one sentence
+(*the type is TASK and (the due date is set or the entry is archived)*). The server compiles as
+before — nothing on it changes, and a group is one `expr`.
+
+**Acceptance:** `model.test.ts` round-trips every operator and every group shape; an expression
+the composer did not write is shown as an expression and stays editable; the e2e composes
+*any of* two sentences in the gate and one in a branch and asserts the compiled CEL on the
+write; `pnpm -r …` green, the catalogue complete.
+
+## F8-14 — The second walk, and the concept's leftovers **[L]**
+
+*Depends on: F8-09 to F8-13. Issue #846.*
+
+The editor walked again on a local server with the five above merged, the evidence appended to
+`docs/evidence/F8-2026-09-20.md` as a second section, and the concept read against the build
+one more time. What the concept had and the build does not, put to the owner by name rather
+than built: the list card's last runs as bars (decision 5 chose one word on the card), the
+runs page's link to *Limits* (the concept's "the week's number and a link"), and the check of
+the runner's rights (decision 6 promised it, ADR-0060 left it to the run, issue 817 asks for
+the role half).
+
+**Acceptance:** the evidence's second section exists; every issue of the round closed by its
+pull request; the leftovers named in the pull request body with a question each.
+
 ## The order at a glance
 
 ```
@@ -355,6 +496,12 @@ F8-02 ──┼───────────┘         (F8-06 needs F8-02) 
         │                                          │
 F8-03 ──┴─────────────────── F8-07 ────────────────┘
                      (F8-07 needs F8-04 and F8-02)
+
+F8-09 ─┐
+F8-10 ─┤
+F8-11 ─┼── F8-14          (the second round, after the owner's walk)
+F8-12 ─┤
+F8-13 ─┘
 ```
 
 Three tasks depend on nothing and can start at once: the three core tasks **F8-01**, **F8-02**
