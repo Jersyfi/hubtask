@@ -21,6 +21,7 @@
 
   import { Badge, Banner, Button, Input, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
   import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -32,8 +33,18 @@
   /** A run that says it is running and started this long ago is a crash, not progress. */
   const STALE_AFTER_MS = 15 * 60 * 1000;
 
-  let ruleFilter = $state('');
+  /**
+   * The rule's own screen links here prefiltered (F8-06): `?rule_id=` in the address is the
+   * filter's first value. Read once, at the open - the address is where the link put it, not a
+   * store this screen writes back into.
+   */
+  const asked = typeof location === 'object' ? new URLSearchParams(location.search) : new URLSearchParams();
+  let ruleFilter = $state(asked.get('rule_id') ?? '');
   let statusFilter = $state('');
+  let triggerFilter = $state('');
+  /* The window (F8-02): `from` inclusive, `to` exclusive, on the run's own moment. */
+  let from = $state('');
+  let to = $state('');
   let opened = $state<string | undefined>(undefined);
   let testing = $state('');
   let sampleType = $state('');
@@ -42,9 +53,13 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
 
+  const reversed = $derived(from !== '' && to !== '' && new Date(to).getTime() <= new Date(from).getTime());
   const filter = $derived({
     ...(ruleFilter ? { ruleId: ruleFilter } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
+    ...(triggerFilter ? { trigger: triggerFilter } : {}),
+    ...(from && !reversed ? { from: new Date(from).toISOString() } : {}),
+    ...(to && !reversed ? { to: new Date(to).toISOString() } : {}),
   });
 
   $effect(() => untrack(() => rules.open()));
@@ -60,6 +75,16 @@
   );
 
   const statuses = ['RUNNING', 'WAITING', 'SUCCEEDED', 'SKIPPED', 'FAILED', 'ABORTED_LOOP', 'THROTTLED'];
+  const triggers = $derived(manifest.value?.automation?.triggers ?? []);
+
+  /** The strip over the page (F8-07): what the filter shows, counted - not the workspace's totals. */
+  const counts = $derived({
+    runs: listed.length,
+    succeeded: listed.filter((run) => run.status === 'SUCCEEDED').length,
+    skipped: listed.filter((run) => run.status === 'SKIPPED').length,
+    throttled: listed.filter((run) => run.status === 'THROTTLED').length,
+    failed: listed.filter((run) => run.status === 'FAILED' || run.status === 'ABORTED_LOOP').length,
+  });
 
   const ruleName = (id: string) => rules.all.find((rule) => rule.id === id)?.name ?? id;
 
@@ -216,7 +241,23 @@
           placeholder={t('app.runs.all_statuses')}
           options={statuses.map((status) => ({ value: status, label: statusWord(status) }))}
         />
+        <Select
+          label={t('app.runs.filter_trigger')}
+          bind:value={triggerFilter}
+          placeholder={t('app.runs.all_triggers')}
+          options={triggers.map((kind) => ({ value: kind, label: messages.has(`app.rules.trigger_${kind.toLowerCase()}`) ? t(`app.rules.trigger_${kind.toLowerCase()}`) : kind }))}
+        />
+        <Input label={t('app.runs.filter_from')} type="datetime-local" bind:value={from} />
+        <Input label={t('app.runs.filter_to')} type="datetime-local" bind:value={to} error={reversed ? t('app.runs.window_reversed') : undefined} />
       </div>
+
+      <!-- What the filter shows, counted: a reader narrowing to one rule and a week reads the
+           week's numbers here, not the workspace's. -->
+      <dl class="strip" data-strip>
+        {#each [['runs', counts.runs], ['succeeded', counts.succeeded], ['skipped', counts.skipped], ['throttled', counts.throttled], ['failed', counts.failed]] as [key, value] (key)}
+          <div class="stat"><dd>{value}</dd><dt>{t(`app.runs.strip_${key}`)}</dt></div>
+        {/each}
+      </dl>
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="waiting"><Spinner label={t('app.runs.reading')} /> <span>{t('app.runs.reading')}</span></p>
@@ -365,6 +406,14 @@
   }
 
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+
+  .strip { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(12ch, 1fr)); gap: var(--sp-100); }
+
+  .stat { padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
+
+  .stat dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-400); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+
+  .stat dt { font-size: var(--fs-075); color: var(--text-subtle); }
 
   .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
