@@ -24,6 +24,13 @@ export const failing: Story = {
   args: { mode: 'failing' },
 };
 
+export const checked: Story = {
+  name: 'What the check found',
+  about:
+    'ADR-0060: a rule that a deletion or a later version would leave silently useless is found before it fails. The card carries the health in a word and the first finding as a sentence; the colour only repeats whether the rule can still run — attention is a step that would find nothing, danger is a rule that cannot run and has been switched off.',
+  args: { mode: 'checked' },
+};
+
 export const list: Story = {
   name: 'A stack of them',
   about:
