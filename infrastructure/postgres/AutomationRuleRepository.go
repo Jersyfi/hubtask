@@ -558,6 +558,13 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	if err != nil {
 		return domain.Rule{}, err
 	}
+	// The tenant, read back with the row: an update rebuilds the rule whole through NewRule, which
+	// refuses one without its tenant, and the audit entry names it. Every edit answered 500 from
+	// G-05 until F8's walk, because no test met the real mapper (the service tests use fakes).
+	tenantID, err := idFrom(row.TenantID)
+	if err != nil {
+		return domain.Rule{}, err
+	}
 	scopeID, err := optionalID(row.ScopeID)
 	if err != nil {
 		return domain.Rule{}, err
@@ -590,9 +597,10 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	}
 
 	rule := domain.Rule{
-		ID:    id,
-		Name:  row.Name,
-		Scope: domain.Scope{Type: domain.ScopeType(row.ScopeType), ID: scopeID},
+		ID:       id,
+		TenantID: tenantID,
+		Name:     row.Name,
+		Scope:    domain.Scope{Type: domain.ScopeType(row.ScopeType), ID: scopeID},
 		// Compared against the column rather than assigned from it, so that the two spellings of
 		// "off" - the flag and the tombstone - cannot disagree in a rule this reads back.
 		Enabled: row.Enabled,
