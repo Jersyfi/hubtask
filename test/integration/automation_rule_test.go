@@ -86,6 +86,12 @@ func TestARuleSurvivesTheColumnsItIsStoredIn(t *testing.T) {
 	if stored.Name != written.Name || stored.RunAs != runAs || stored.CreatedBy != authorA {
 		t.Errorf("read back %+v", stored)
 	}
+	// The tenant is part of what comes back: an update rebuilds the rule whole from the read, and
+	// NewRule refuses one without it. The mapper left it zero from G-05 to F8's walk, and every
+	// edit over the API answered 500 - a fake unit of work shows none of this.
+	if stored.TenantID != tenantA {
+		t.Errorf("read back tenant %q, want %q", stored.TenantID, tenantA)
+	}
 	if stored.Enabled {
 		t.Error("a rule was stored switched on")
 	}
