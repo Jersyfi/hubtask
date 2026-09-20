@@ -75,6 +75,9 @@ export { default as Table, type Column } from './Table.svelte';
 // Wave 5 - the shell (ADR-0061). The first half; the workbench carries it before the product does.
 export { default as AppBar, type NavigationToggle } from './AppBar.svelte';
 export { default as NavDrawer } from './NavDrawer.svelte';
+export { default as PageHeader, type PageAction } from './PageHeader.svelte';
+export { default as BottomBar, type Destination } from './BottomBar.svelte';
+export { default as DetailPane } from './DetailPane.svelte';
 
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
