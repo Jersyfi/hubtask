@@ -11,7 +11,7 @@
 
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
-  import type { Selection } from './selection.ts';
+  import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
   import { countSteps, depthOf, type Step } from './model.ts';
   import { conditionWords, kindWord, type Names } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -30,9 +30,32 @@
     oninsert: (list: string, index: number, kind: string) => void;
     onremove: (path: string) => void;
     onfold: (path: string) => void;
+    /** Move one place up or down inside its list - what the drag does, by keyboard (F8-05). */
+    onnudge: (path: string, direction: -1 | 1) => void;
+    /** The drag in flight, and what happens when it starts, ends, or lands on a gap. */
+    drag?: Drag;
+    ondragchange: (drag: Drag | undefined) => void;
+    ondrop: (list: string, index: number, drag: Drag) => void;
+    /** One arm at a time (decision 8): on a narrow screen, and from the second nesting depth. */
+    segmented: boolean;
+    armChoice: ReadonlyMap<string, 'then' | 'else'>;
+    onpickarm: (path: string, arm: 'then' | 'else') => void;
   }
 
-  const { steps, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold }: Props = $props();
+  const {
+    steps, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
+    onnudge, drag, ondragchange, ondrop, segmented, armChoice, onpickarm,
+  }: Props = $props();
+
+  /** Whether a card is inert while something is lifted: everything but the lifted card's own subtree. */
+  const inert = (path: string): boolean => drag !== undefined && !(drag.src === 'step' && (drag.path === path || path.startsWith(`${drag.path}/`)));
+
+  function liftStep(event: DragEvent, path: string): void {
+    if (!event.dataTransfer) return;
+    event.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ src: 'step', path }));
+    event.dataTransfer.effectAllowed = 'move';
+    ondragchange({ src: 'step', path });
+  }
 
   const words = { t, has: (code: string) => messages.has(code) };
 
@@ -69,6 +92,9 @@
   const endsInStop = (list: readonly Step[] | undefined): boolean => (list?.length ?? 0) > 0 && list?.[list.length - 1]?.kind === 'STOP';
 
   function onkey(event: KeyboardEvent, select: () => void): void {
+    // A key on a tool inside the card is the tool's, not the card's: the card's own handler
+    // would otherwise swallow the Enter that presses "move down".
+    if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       select();
@@ -83,12 +109,17 @@
     class="card"
     class:stop={step.kind === 'STOP'}
     class:selected={isSelected(path)}
+    class:inert={inert(path)}
+    class:lifted={drag?.src === 'step' && drag.path === path}
     data-card={path}
     data-depth={depthOf(prefix)}
     role="button"
     tabindex="0"
+    draggable="true"
     onclick={() => onselect({ kind: 'step', path })}
     onkeydown={(event) => onkey(event, () => onselect({ kind: 'step', path }))}
+    ondragstart={(event) => liftStep(event, path)}
+    ondragend={() => ondragchange(undefined)}
   >
     <span class="mark" class:flow={isFlow} class:ai={step.kind.startsWith('AI_')}><Icon name={iconOf(step.kind)} size="sm" /></span>
     <span class="body">
@@ -98,6 +129,30 @@
       {#if marks?.get(path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(path)}</span>{/if}
     </span>
     <span class="tools">
+      <button
+        class="tool"
+        type="button"
+        aria-label={t('app.flow.card_move_up')}
+        disabled={index === 0}
+        onclick={(event) => {
+          event.stopPropagation();
+          onnudge(path, -1);
+        }}
+      >
+        <Icon name="chevron-up" size="sm" />
+      </button>
+      <button
+        class="tool"
+        type="button"
+        aria-label={t('app.flow.card_move_down')}
+        disabled={index === steps.length - 1}
+        onclick={(event) => {
+          event.stopPropagation();
+          onnudge(path, 1);
+        }}
+      >
+        <Icon name="chevron-down" size="sm" />
+      </button>
       {#if step.kind === 'BRANCH'}
         <button
           class="tool"
@@ -135,21 +190,34 @@
         </span>
       </button>
     {:else}
-      <div class="arms" data-branch={path}>
-        {#each arms(step) as { arm, list } (arm)}
-          <div class="arm" data-arm={`${path}/${arm}`}>
-            <span class="stub"></span>
-            <span class="armlabel"><Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')}</span>
-            {#if list.length === 0}
-              <span class="empty">{t('app.flow.card_arm_empty')}</span>
-              <InsertMenu {kinds} list={`${path}/${arm}`} index={0} onpick={oninsert} />
-            {:else}
-              <RuleCanvasList steps={list} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} />
-            {/if}
-            {#if !endsInStop(list)}<span class="tail"></span>{/if}
+      {@const seg = segmented || depthOf(`${path}/then`) >= 2}
+      {@const shown = armChoice.get(path) ?? 'then'}
+      <div class="arms" class:seg data-branch={path}>
+        {#if seg}
+          <div class="seghead" role="tablist">
+            {#each arms(step) as { arm, list } (arm)}
+              <button type="button" role="tab" aria-selected={shown === arm} data-arm-pick={`${path}/${arm}`} onclick={() => onpickarm(path, arm)}>
+                <Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')} ({countSteps(list)})
+              </button>
+            {/each}
           </div>
+        {/if}
+        {#each arms(step) as { arm, list } (arm)}
+          {#if !seg || shown === arm}
+            <div class="arm" data-arm={`${path}/${arm}`}>
+              <span class="stub"></span>
+              {#if !seg}<span class="armlabel"><Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')}</span>{/if}
+              {#if list.length === 0}
+                <span class="empty">{t('app.flow.card_arm_empty')}</span>
+                <InsertMenu {kinds} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
+              {:else}
+                <RuleCanvasList steps={list} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} />
+              {/if}
+              {#if !endsInStop(list)}<span class="tail"></span>{/if}
+            </div>
+          {/if}
         {/each}
-        <span class="join"></span>
+        {#if !seg}<span class="join"></span>{/if}
       </div>
     {/if}
     <span class="stub"></span>
@@ -161,6 +229,8 @@
       list={prefix}
       index={index + 1}
       onpick={oninsert}
+      {drag}
+      {ondrop}
       caption={step.kind === 'WAIT'
         ? t('app.flow.card_wait_later', { duration: String(step.params.duration ?? '') })
         : step.kind === 'BRANCH'
@@ -218,6 +288,32 @@
   .tool:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
   .tool:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+
+  .tool[disabled] { opacity: 0.35; cursor: default; }
+
+  /* While a piece is lifted: the card being moved and its subtree stay, everything else fades. */
+  .card.inert { opacity: 0.35; }
+
+  .card.lifted { opacity: 0.6; }
+
+  /* A card is a thing to move, not text to select: a selection that began on its title would
+     otherwise be what the browser drags. */
+  .card { cursor: grab; user-select: none; }
+
+  /* One arm at a time: the fork's bars are gone, a switch names both arms with their counts. */
+  .arms.seg { display: flex; flex-direction: column; align-items: center; }
+
+  .arms.seg::before { display: none; }
+
+  .seghead { display: inline-flex; margin-block: var(--sp-050); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); overflow: hidden; background: var(--bg-surface); }
+
+  .seghead button { display: inline-flex; align-items: center; gap: var(--sp-050); padding: var(--sp-050) var(--sp-150); border: 0; background: transparent; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
+
+  .seghead button[aria-selected='true'] { background: var(--label-violet-bg); color: var(--label-violet-fg); }
+
+  .seghead button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--sp-025)); }
+
+  .arms.seg .arm { width: 100%; }
 
   .stub, .tail { width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); border-radius: var(--r-full); flex: 0 0 auto; }
 
@@ -285,9 +381,6 @@
 
   .folded:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
-  /* The second nesting depth narrows the columns to what two arms of an arm can hold; F8-05
-     replaces this with one arm at a time. */
-  .card[data-depth='2'] { width: 100%; }
 
   @media (prefers-reduced-motion: reduce) { .tools { transition: none; } }
   :global([data-motion='reduced']) .tools { transition: none; }

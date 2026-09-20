@@ -8,7 +8,7 @@
   import Input from './Input.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'end' }: { mode?: 'end' | 'start' | 'layered' } = $props();
+  const { mode = 'end' }: { mode?: 'end' | 'start' | 'bottom' | 'layered' } = $props();
 
   let isOpen = $state(false);
   let isDialogOpen = $state(false);
@@ -21,7 +21,7 @@
   <Drawer
     bind:isOpen
     title="Entry details"
-    edge={mode === 'start' ? 'inline-start' : 'inline-end'}
+    edge={mode === 'start' ? 'inline-start' : mode === 'bottom' ? 'block-end' : 'inline-end'}
     dismissLabel="Close the details"
   >
     <Stack gap="200">

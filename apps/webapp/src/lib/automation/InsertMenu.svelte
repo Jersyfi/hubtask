@@ -10,6 +10,7 @@
   import { Icon, Popover } from '@hubtask/design-system/components';
 
   import { FLOW_KINDS } from './model.ts';
+  import { gapTakes, type Drag } from './selection.ts';
   import { grouped, kindWord } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -22,9 +23,31 @@
     onpick: (list: string, index: number, kind: string) => void;
     /** A label above the slot, such as "a day later" under a WAIT. */
     caption?: string;
+    /** What is being dragged, while something is (F8-05): decides whether this gap is a target. */
+    drag?: Drag;
+    /** A piece let go on this gap. */
+    ondrop?: (list: string, index: number, drag: Drag) => void;
   }
 
-  const { kinds, list, index, onpick, caption }: Props = $props();
+  const { kinds, list, index, onpick, caption, drag, ondrop }: Props = $props();
+
+  const target = $derived(gapTakes(drag, list));
+  let over = $state(false);
+
+  function dragover(event: DragEvent): void {
+    if (!target) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = drag?.src === 'step' ? 'move' : 'copy';
+    over = true;
+  }
+
+  function drop(event: DragEvent): void {
+    over = false;
+    if (!target || !drag) return;
+    event.preventDefault();
+    event.stopPropagation();
+    ondrop?.(list, index, drag);
+  }
 
   let isOpen = $state(false);
   let query = $state('');
@@ -53,13 +76,24 @@
   }
 </script>
 
-<div class="gap" data-list={list} data-index={index}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="gap"
+  class:target
+  class:inert={drag !== undefined && !target}
+  class:over
+  data-list={list}
+  data-index={index}
+  ondragover={dragover}
+  ondragleave={() => (over = false)}
+  ondrop={drop}
+>
   <span class="line"></span>
   {#if caption}<span class="caption">{caption}</span>{/if}
   <Popover label={t('app.flow.insert_here')} bind:isOpen>
     {#snippet trigger(attributes)}
-      <button {...attributes} class="slot" type="button" aria-label={t('app.flow.insert_here')}>
-        <Icon name="plus" size="sm" />
+      <button {...attributes} class="slot" type="button" aria-label={t('app.flow.insert_here')} data-slot>
+        {#if target}<span class="word">{t('app.flow.drop_here')}</span>{:else}<Icon name="plus" size="sm" />{/if}
       </button>
     {/snippet}
     <div class="menu">
@@ -107,6 +141,16 @@
   .slot:hover, .slot[aria-expanded='true'] { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); transform: scale(1.15); }
 
   .slot:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* While a piece is lifted (decision 7): a gap that may take it widens into a labelled target,
+     one that may not fades and refuses; the one under the pointer fills. */
+  .target .slot { width: min(24ch, 90%); border-color: var(--accent-primary); color: var(--accent-primary); background: var(--accent-primary-subtle); transform: none; }
+
+  .over .slot { background: var(--accent-primary); color: var(--text-inverse); }
+
+  .inert { opacity: 0.35; }
+
+  .word { font-size: var(--fs-050); font-weight: var(--fw-medium); }
 
   .menu { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 28ch; max-block-size: 50vh; overflow: auto; padding: var(--sp-050); }
 

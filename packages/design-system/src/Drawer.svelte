@@ -15,7 +15,9 @@
   //
   // The **edge** is `inline-start`/`inline-end`, never left and right. A drawer that opened from
   // the left in Arabic would be a drawer opening from the far side of the reading direction, and
-  // that is what the direction axis exists to catch.
+  // that is what the direction axis exists to catch. `block-end` is the third edge (F8-05): a
+  // sheet that rises from the bottom over a canvas that stays where it was, for a screen too
+  // narrow to hold a panel beside it - the same one glass surface at a time (rule 2).
 
   import type { Snippet } from 'svelte';
 
@@ -28,7 +30,7 @@
     title: string;
     isOpen?: boolean;
     /** Which edge it comes from, in logical terms. */
-    edge?: 'inline-start' | 'inline-end';
+    edge?: 'inline-start' | 'inline-end' | 'block-end';
     /** The name of the close control. A drawer is always dismissible, so this is required. */
     dismissLabel: string;
     onClose?: () => void;
@@ -148,6 +150,21 @@
     --slide-from: -100%;
   }
 
+  /* The sheet: the full inline size, as tall as its content up to most of the screen, rising from
+     the bottom. `translate` takes the y here and no x, so the one keyframe set serves all three. */
+  .drawer[data-edge='block-end'] {
+    inline-size: 100%;
+    block-size: auto;
+    max-block-size: 78%;
+    margin-inline: 0;
+    margin-block: auto 0;
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    border-start-start-radius: var(--r-xl);
+    border-start-end-radius: var(--r-xl);
+    --slide-from: 0;
+    --slide-from-y: 100%;
+  }
+
   /* In RTL the same logical edge is the other physical side, so the sign flips. Without this a
      drawer at `inline-end` in Arabic sits on the left and slides in from the right, across the
      content it is meant to sit beside. */
@@ -186,7 +203,7 @@
 
   /* Rule 6: opacity and transform only. */
   @keyframes arrive {
-    from { opacity: 0; translate: var(--slide-from) 0; }
+    from { opacity: 0; translate: var(--slide-from) var(--slide-from-y, 0); }
     to { opacity: 1; translate: none; }
   }
 

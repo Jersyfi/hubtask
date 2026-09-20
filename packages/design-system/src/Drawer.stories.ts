@@ -24,6 +24,13 @@ export const start: Story = {
   args: { mode: 'start' },
 };
 
+export const bottom: Story = {
+  name: 'From the bottom edge',
+  about:
+    'The third edge (F8-05): a sheet that rises over a canvas that stays where it was, for a screen too narrow to hold a panel beside it. As tall as its content up to most of the screen, the same one glass surface at a time. Switch the width axis to a phone: this is the shape the rule editor’s inspector takes there.',
+  args: { mode: 'bottom' },
+};
+
 export const layered: Story = {
   name: 'A dialog opened from inside it',
   about:

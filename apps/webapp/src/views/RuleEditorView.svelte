@@ -21,13 +21,13 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Icon, OneTimeSecret, Spinner, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs } from '@hubtask/design-system/components';
 
   import RuleCanvas from '../lib/automation/RuleCanvas.svelte';
   import RuleInspector from '../lib/automation/RuleInspector.svelte';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { emptyDraft, fromRule, insertAt, isAutomatic, newStep, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
-  import type { Selection } from '../lib/automation/selection.ts';
+  import { emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
+  import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { eventWord, generatedName, grouped, kindWord, sentence, type Names } from '../lib/automation/words.ts';
   import { FLOW_KINDS } from '../lib/automation/model.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -95,6 +95,55 @@
 
   let selection = $state<Selection>({ kind: 'rule' });
   let tab = $state('piece');
+
+  /* ---------- Narrow: the inspector as a sheet, one arm at a time (F8-05, decision 8) ---------- */
+
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
+  const narrowQuery = typeof matchMedia === 'function' ? matchMedia('(max-width: 904px)') : undefined;
+  let narrow = $state(narrowQuery?.matches ?? false);
+  $effect(() => {
+    if (!narrowQuery) return;
+    const onchange = (event: MediaQueryListEvent) => (narrow = event.matches);
+    narrowQuery.addEventListener('change', onchange);
+    return () => narrowQuery.removeEventListener('change', onchange);
+  });
+  let sheetOpen = $state(false);
+  const select = (next: Selection): void => {
+    selection = next;
+    if (narrow) sheetOpen = true;
+  };
+  let armChoice = $state<Map<string, 'then' | 'else'>>(new Map());
+  const pickArm = (path: string, arm: 'then' | 'else'): void => {
+    armChoice = new Map([...armChoice, [path, arm]]);
+  };
+
+  /* ---------- Drag and drop (decision 7) ---------- */
+
+  let drag = $state<Drag | undefined>(undefined);
+  let refusal = $state<string | undefined>(undefined);
+  let refusalTimer: ReturnType<typeof setTimeout> | undefined;
+  function lift(event: DragEvent, piece: Drag): void {
+    if (!event.dataTransfer) return;
+    event.dataTransfer.setData(DRAG_TYPE, JSON.stringify(piece));
+    event.dataTransfer.effectAllowed = 'copy';
+    drag = piece;
+  }
+  function dropped(list: string, index: number, piece: Drag): void {
+    if (piece.src === 'action') insert(list, index, piece.kind);
+    else if (piece.src === 'step') {
+      const moved = moveStep(draft.actions, piece.path, list, index);
+      if (moved) {
+        update((current) => ({ ...current, actions: moved }));
+        select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
+      }
+    }
+    drag = undefined;
+  }
+  function refuse(piece: Drag): void {
+    refusal = t(`app.flow.refused_${piece.src}`);
+    clearTimeout(refusalTimer);
+    refusalTimer = setTimeout(() => (refusal = undefined), 6000);
+  }
   let sentenceOpen = $state(false);
   try {
     sentenceOpen = localStorage.getItem('hubtask.rule.sentence') === 'open';
@@ -218,12 +267,24 @@
 
   function insert(list: string, index: number, kind: string): void {
     update((current) => ({ ...current, actions: insertAt(current.actions, list, index, newStep(kind)) }));
-    selection = { kind: 'step', path: list ? `${list}/${index}` : String(index) };
+    select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
+  }
+
+  function nudgeStep(path: string, direction: -1 | 1): void {
+    const { list, index } = { list: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '', index: Number(path.slice(path.lastIndexOf('/') + 1)) };
+    const target = index + direction;
+    update((current) => ({ ...current, actions: nudge(current.actions, path, direction) }));
+    if (target >= 0) selection = { kind: 'step', path: list ? `${list}/${target}` : String(target) };
   }
 
   function remove(path: string): void {
     update((current) => ({ ...current, actions: removeAt(current.actions, path) }));
     selection = { kind: 'gate' };
+  }
+
+  function replaceTrigger(kind: string): void {
+    update((current) => ({ ...current, trigger: { kind, ...(kind === 'EVENT' ? { event_type: current.trigger.event_type ?? eventTypes[0] ?? '' } : {}) } }));
+    select({ kind: 'trigger' });
   }
 
   function fold(path: string): void {
@@ -234,7 +295,7 @@
 
   function addCondition(): void {
     update((current) => ({ ...current, conditions: [...current.conditions, "item.type == 'TASK'"] }));
-    selection = { kind: 'condition', index: draft.conditions.length - 1 };
+    select({ kind: 'condition', index: draft.conditions.length - 1 });
   }
 
   function removeCondition(index: number): void {
@@ -386,6 +447,7 @@
         </button>
       </div>
 
+      {#if refusal}<Banner tone="warning" title={refusal} />{/if}
       {#if failure && !failure.fields.size}
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
@@ -418,20 +480,20 @@
         <div class="pgroup">
           <span class="eyebrow">{t('app.flow.palette_starts')} <em>{t('app.flow.palette_starts_where')}</em></span>
           {#each triggers as kind (kind)}
-            <button class="pitem" type="button" onclick={() => { update((current) => ({ ...current, trigger: { kind, ...(kind === 'EVENT' ? { event_type: eventTypes[0] ?? '' } : {}) } })); selection = { kind: 'trigger' }; }}>
+            <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'trigger', kind })} ondragend={() => (drag = undefined)} onclick={() => { replaceTrigger(kind); }}>
               {messages.has(`app.rules.trigger_${kind.toLowerCase()}`) ? t(`app.rules.trigger_${kind.toLowerCase()}`) : kind}
             </button>
           {/each}
         </div>
         <div class="pgroup">
           <span class="eyebrow">{t('app.flow.palette_condition')} <em>{t('app.flow.palette_condition_where')}</em></span>
-          <button class="pitem" type="button" onclick={addCondition}>{t('app.flow.palette_condition_item')}</button>
+          <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'condition' })} ondragend={() => (drag = undefined)} onclick={addCondition}>{t('app.flow.palette_condition_item')}</button>
         </div>
         {#each palette as group (group.code)}
           <div class="pgroup">
             <span class="eyebrow">{t(group.code)} <em>{t('app.flow.palette_where')}</em></span>
             {#each group.kinds as kind (kind)}
-              <button class="pitem" type="button" onclick={() => insert('', draft.actions.length, kind)}>{kindWord(words, kind)}</button>
+              <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'action', kind })} ondragend={() => (drag = undefined)} onclick={() => insert('', draft.actions.length, kind)}>{kindWord(words, kind)}</button>
             {/each}
           </div>
         {/each}
@@ -446,15 +508,41 @@
           {triggerMeta}
           {marks}
           {describe}
-          onselect={(next) => (selection = next)}
+          onselect={select}
           oninsert={insert}
           onremove={remove}
           onfold={fold}
           onaddcondition={addCondition}
+          onnudge={nudgeStep}
+          {drag}
+          ondragchange={(next) => (drag = next)}
+          ondrop={dropped}
+          onreplacetrigger={replaceTrigger}
+          onrefuse={refuse}
+          segmented={narrow}
+          {armChoice}
+          onpickarm={pickArm}
         />
       </section>
 
-      <aside class="inspector" aria-label={t('app.flow.inspector')}>
+      {#if narrow}
+        <!-- Below the expanded breakpoint the details come to the canvas rather than the reader
+             scrolling to them: a sheet over it, one glass surface at a time (rule 2). -->
+        <Drawer bind:isOpen={sheetOpen} edge="block-end" title={t('app.flow.inspector')} dismissLabel={t('app.flow.sheet_close')}>
+          {@render inspector()}
+        </Drawer>
+        <div class="sheetbar">
+          <Button tone="primary" icon="settings" onclick={() => { tab = 'piece'; sheetOpen = true; }}>{t('app.flow.sheet_open')}</Button>
+          <Button icon="play" onclick={() => { tab = 'probe'; sheetOpen = true; }}>{t('app.flow.sheet_probe')}</Button>
+        </div>
+      {:else}
+        <aside class="inspector" aria-label={t('app.flow.inspector')}>
+          {@render inspector()}
+        </aside>
+      {/if}
+    </div>
+
+    {#snippet inspector()}
         <Tabs
           label={t('app.flow.inspector')}
           selected={tab}
@@ -491,8 +579,7 @@
         {:else}
           <p class="quiet panel">{t('app.flow.runs_later')}</p>
         {/if}
-      </aside>
-    </div>
+    {/snippet}
 
     {#if isDeleting && stored}
       <Dialog bind:isOpen={isDeleting} title={t('app.flow.delete_title')} dismissLabel={t('app.flow.cancel')}>
@@ -580,10 +667,14 @@
 
   /* Below the expanded breakpoint the palette is gone (the + is the way in) and the inspector
      follows the canvas; F8-05 makes it a sheet over it. */
+  .sheetbar { display: none; }
+
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
   @media (max-width: 904px) {
     .bench { grid-template-columns: minmax(0, 1fr); }
     .palette { display: none; }
-    .inspector { position: static; max-height: none; border-inline-start: 0; border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+    .canvas { padding-block-end: var(--sp-1600); }
+    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: var(--sp-200); z-index: var(--z-sticky); display: flex; gap: var(--sp-100); }
+    .sheetbar :global(button) { flex: 1 1 auto; justify-content: center; box-shadow: var(--shadow-overlay); }
   }
 </style>
