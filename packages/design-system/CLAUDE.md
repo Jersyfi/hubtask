@@ -37,7 +37,9 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   `pnpm build`, `pnpm -r build` does not depend on it, and nothing of it may reach `apps/webapp`'s
   bundle or the binary that embeds it (ADR-0028). Being published at `workbench.hubtask.eu`
   (ADR-0038) does not change any of that — but it does mean **the page is public**: nothing there
-  may promise anything about the product, contact a foreign domain, or carry a form.
+  may promise anything about the product, contact a foreign domain, or carry a form that submits
+  anything. A control that only narrows what is already on the page — the index filter — is not
+  one (ADR-0061).
 * **No pair below its floor.** `pnpm test` measures the WCAG 2.2 contrast of every pair
   `tokens.json` declares, in both modes: 4.5:1 for text, 3:1 for a control boundary and the focus
   ring. A new semantic colour token needs a role in `test/contrast.test.js` — an unclassified token

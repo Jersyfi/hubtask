@@ -111,6 +111,7 @@ fails at the typeface.
 | `caption` | Plex Sans | 12 / 1.50 | 400 | Helper text, metadata |
 | `data` | Plex Mono | 12 / 1.40 | 400 | IDs, timestamps, counters, `tabular-nums` |
 | `code` | Plex Mono | 13 / 1.60 | 400 | Documentation, API examples |
+| `label` | Plex Sans | 12 / 1.30 | 600 | Field names in a details column, group titles in a navigation — `text.subtle`, so the name reads as a name beside the value (F9-01) |
 
 Font files ship with the product, they are not loaded from Google Fonts. A self-hosted Hubtask
 must not contact a foreign domain on load.
@@ -269,6 +270,21 @@ rather than an asterisk, because a symbol alone is a convention some readers wer
 (rule 3), and a deprecated field marked and kept rather than hidden, because the reader of an
 old integration is the one who needs to find it. The other four wait for the 1.0 site.
 
+### Wave 5 — the shell (5) · cut in F9
+AppBar · NavDrawer · BottomBar · PageHeader · DetailPane
+
+The five that hold every page up, decided by [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)
+after the owner's walk found that nothing below `expanded` had an anatomy at all: the bar at the
+top, the navigation as a pinned `SideNav`, a `NavDrawer` or a `BottomBar` by width, a page head
+with **one** primary action and a menu for the rest, and the detail column `breakpoint.large`
+has described since v0.1. They arrive in two halves, and the first half is proven on the
+workbench before any product screen carries it — the tool that tests every component is the
+first thing built on these. What each of the five may and may not do is in the ADR's decision 2;
+the two rules worth repeating here are that `AppBar` carries **no page action and no search**
+(the search is a destination of the one navigation list, and a second entry to it is the
+duplication that list exists to prevent), and that `PageHeader` has no way to draw a fourth
+button — a caller with more actions hands them in as the menu's items.
+
 ---
 
 ## 5. Naming in code
@@ -332,6 +348,22 @@ inside a dialog is closed first, whatever order the two were opened in. `src/lay
 second order, and it is one register rather than one per component — `Escape` closing exactly one
 layer is only meaningful if something knows which one. Where an overlay is *drawn* is
 [ADR-0039](../adr/ADR-0039-overlay-positioning.md).
+
+**The five widths.** `primitive.breakpoint` carries five steps, each with a sentence saying what
+it is for; since [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md) the sentences are
+behaviour rather than intent, and the shell wave is what draws them:
+
+| Width | Navigation | Content | Detail |
+|---|---|---|---|
+| `compact` 0–599 | `NavDrawer` from ☰, the primary destinations in a `BottomBar` | one column, `density.spacious` | its own page |
+| `medium` 600–904 | `NavDrawer` | one column | its own page |
+| `expanded` 905–1239 | `SideNav` pinned, collapsible to a rail | one column | its own page |
+| `large` 1240–1599 | `SideNav` pinned | the list | `DetailPane` beside it |
+| `xlarge` ≥ 1600 | as `large` | capped at `layout.content.max`, centred | as `large` |
+
+Width is not platform. Whether a bar or a drawer appears is answered by a media query written out
+from the token, never by `src/lib/platform/`; the desktop shell dragged to 500 px behaves like a
+phone, and the phone shell is the web app's phone layout and nothing more.
 
 ---
 
@@ -441,6 +473,10 @@ teaches the screenshots.
   finished mark. It moved there with the page that used to hold it, because it was the only drawn
   record of it.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
+  Narrowed by [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md): the web app's phone
+  layout — the shell, the bottom bar, the one-column entry, the board one column at a time — is
+  F9's and no longer waits for a shell. What stays open is only what a shell can do: the
+  conventions of the installed clients, in F7.
 - ~~**A browser support row**~~ — closed by
   [ADR-0044](../adr/ADR-0044-browser-support-row.md): the current and the previous major of
   Chromium, Gecko and WebKit, in `support-matrix.md` §5. It was affordable because nothing had to be
