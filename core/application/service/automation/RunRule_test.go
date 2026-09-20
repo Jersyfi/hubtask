@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -1401,6 +1402,53 @@ func TestTheRunSuppliesTheEventBesideTheRulesParameters(t *testing.T) {
 	}
 	if _, carried := call.params["event_id"]; carried {
 		t.Error("the event leaked into the rule's own parameters")
+	}
+}
+
+// The entry an event is about is the other value a rule cannot carry: ADD_LABEL declares `item_id`
+// as required and the rule leaves it out (automation.md §2.2), so the run has to supply it - the
+// same entry the conditions read, from the event's subject. F8's walk found nothing did: every
+// entry action on an event rule failed at the run with `usecase.input_invalid`.
+func TestTheRunSuppliesTheEntryTheEventIsAbout(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{{
+		Kind:   "ADD_LABEL",
+		Params: map[string]any{"label_id": "01936f2a-7c1e-7000-8000-0000000000f8"},
+	}}
+	h := newEngine(t, rule)
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Fatalf("%d dispatches", len(h.dispatcher.calls))
+	}
+
+	call := h.dispatcher.calls[0]
+	if want := condition.ItemOf(itemEvent()).String(); call.supplied["item_id"] != want {
+		t.Errorf("the run supplied %v, want item_id %s", call.supplied, want)
+	}
+	if _, carried := call.params["item_id"]; carried {
+		t.Error("the entry leaked into the rule's own parameters")
+	}
+
+	// A run about no entry - a container event - supplies none rather than an empty one, which
+	// the registry would refuse as an identifier.
+	containerRule := enabledRule()
+	containerRule.Trigger = domain.Trigger{Kind: domain.TriggerEvent, EventType: event.ContainerCreated}
+	containerRule.Actions = []domain.Action{{Kind: "CREATE_BUCKET", Params: map[string]any{}}}
+	h = newEngine(t, containerRule)
+	about := itemEvent()
+	about.Type, about.Subject = event.ContainerCreated, "container/"+collectionID.String()
+	h.engine.Source = source{envelope: about}
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Fatalf("%d dispatches for the container run", len(h.dispatcher.calls))
+	}
+	if _, supplied := h.dispatcher.calls[0].supplied["item_id"]; supplied {
+		t.Error("a run about a container supplied an entry")
 	}
 }
 

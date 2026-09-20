@@ -434,6 +434,15 @@ is working).
 | A `SCHEDULE` whose **recurrence** this installation cannot expand | Refused at the write, with the field named. It would otherwise fail at a moment nobody is watching. A rule whose recurrence is merely *exhausted* is accepted and stored with no next moment: it may be perfectly good and simply over |
 | An **address** on a rule whose trigger is not `INBOUND_WEBHOOK` | Refused by name. A credential that opens nothing, handed out as though it worked, is the same failure as a condition that is stored and ignored |
 
+What the run supplies is exactly two things, and the dispatcher merges each only into a field the
+action's use case declares and the rule left unset, so a rule that names one outright keeps its
+choice: `event_id`, the event that started the run, and `item_id`, the entry the run is about —
+the event's subject where an event started it, the command's where a relative date did. A run
+about no entry (a container event, a schedule) supplies none rather than an empty one. A
+`JUMBLE_ENTRY` run supplies `entry_id` instead (§1.1). F8's walk is what found the second missing:
+until then every entry action on an event rule failed at the run, and nothing before the walk had
+run one end to end.
+
 A rule is created **switched off**, and enabling it is its own call with its own audit entry.
 Writing what a rule would do and letting it loose on the workspace are two decisions, and one that
 acted the moment it was saved would give nobody the chance to read it back first.
