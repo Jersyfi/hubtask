@@ -314,6 +314,11 @@ func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.Rul
 	notAvailable(w, r)
 }
 
+// CheckRules is overridden by RestController, for the reason given at CreateContainer.
+func (pending) CheckRules(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
+	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -211,6 +212,26 @@ func TestEveryDestructiveUseCaseIsClosedToAnAgent(t *testing.T) {
 		t.Fatal("no descriptor is marked destructive, so this test proved nothing")
 	}
 	t.Logf("%d destructive use cases are closed to an agent by default", destructive)
+}
+
+// The check's table from a parameter's name to what it names (ADR-0060) is held to the catalogue
+// in one direction: every name in it is a field some use case declares with kind `id`, so a
+// rename the table missed fails here by name rather than resolving nothing for ever. The other
+// direction is deliberately not asserted - most `id` fields are the run's to supply.
+func TestEveryReferenceFieldIsDeclaredAsAnIdentifierBySomeUseCase(t *testing.T) {
+	declared := map[string]bool{}
+	for _, descriptor := range catalogue.Descriptors() {
+		for _, field := range descriptor.Input {
+			if field.Kind == usecase.KindID {
+				declared[field.Name] = true
+			}
+		}
+	}
+	for name := range automationservice.ReferenceFields() {
+		if !declared[name] {
+			t.Errorf("the check would resolve %q, which no use case declares as an identifier", name)
+		}
+	}
 }
 
 // The fields the manifest publishes per action are the use case's own declaration (F8-01): one

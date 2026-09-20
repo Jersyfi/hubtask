@@ -756,10 +756,19 @@ class AutomationRule(TypedDict, total=False):
     failure_count: Required[int]
     next_run_at: str | None
     inbound_rotated_at: str | None
+    findings: list["RuleFinding"]
+    checked_at: str | None
     created_by: Required[str]
     created_at: Required[str]
     updated_at: Required[str]
     version: Required[int]
+
+class RuleFinding(TypedDict, total=False):
+    """One thing the check found about a rule (ADR-0060). `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters (ADR-0011)."""
+    level: Required[Literal["ATTENTION", "BROKEN"]]
+    path: Required[str]
+    code: Required[str]
+    params: dict[str, Any]
 
 class RuleCondition(TypedDict, total=False):
     expr: Required[str]

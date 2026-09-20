@@ -469,3 +469,167 @@ func TestARuleCannotRunAsAnAccountOfAnotherTenant(t *testing.T) {
 		t.Logf("refused as %v", err)
 	}
 }
+
+// The check's two writes (ADR-0060): the findings and the moment survive the round trip through
+// the column, an empty check reads back as an empty list with a moment, and the disable fires once
+// while the rule is on. The columns are the workspace's: another tenant's check writes nothing.
+func TestACheckIsRecordedOnTheRuleAndABrokenRuleIsSwitchedOffOnce(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	runAs := seedServiceAccount(ctx, t, tenantA)
+
+	rule := ruleFixture(t, tenantA, runAs, authorA)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := automationRules().Insert(ctx, rule); err != nil {
+			return err
+		}
+		return automationRules().SetEnabled(ctx, rule.ID, true, 1, time.Now().UTC())
+	}); err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	findings := []domain.Finding{
+		{Level: domain.FindingAttention, Path: "actions/0", Code: "automation.finding.reference_gone",
+			Params: map[string]string{"kind": "label", "id": "018f"}},
+		{Level: domain.FindingBroken, Path: "actions/1", Code: "automation.finding.action_unknown",
+			Params: map[string]string{"kind": "ADD_ATTACHMENT_FROM_URL"}},
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().RecordCheck(ctx, rule.ID, findings, at)
+	}); err != nil {
+		t.Fatalf("recording the check: %v", err)
+	}
+
+	var stored domain.Rule
+	readBack := func() {
+		t.Helper()
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			var findErr error
+			stored, findErr = automationRules().Find(ctx, rule.ID)
+			return findErr
+		}); err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+	}
+	readBack()
+	if len(stored.Findings) != 2 || stored.Findings[1].Level != domain.FindingBroken ||
+		stored.Findings[0].Params["kind"] != "label" || !stored.CheckedAt.Equal(at) {
+		t.Fatalf("read back %+v at %v", stored.Findings, stored.CheckedAt)
+	}
+	if !stored.Enabled || stored.Version != 2 {
+		t.Fatalf("recording a check moved enabled=%v version=%d", stored.Enabled, stored.Version)
+	}
+
+	// The disable: once, and a second call changes nothing.
+	for round, want := range []bool{true, false} {
+		var changed bool
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			var err error
+			changed, err = automationRules().DisableBroken(ctx, rule.ID, time.Now().UTC())
+			return err
+		}); err != nil {
+			t.Fatalf("disabling, round %d: %v", round, err)
+		}
+		if changed != want {
+			t.Errorf("round %d changed %v, want %v", round, changed, want)
+		}
+	}
+	readBack()
+	if stored.Enabled || stored.Version != 3 {
+		t.Errorf("after the disable enabled=%v version=%d", stored.Enabled, stored.Version)
+	}
+
+	// An empty check clears the findings and keeps the moment.
+	later := at.Add(time.Minute)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().RecordCheck(ctx, rule.ID, nil, later)
+	}); err != nil {
+		t.Fatalf("recording the empty check: %v", err)
+	}
+	readBack()
+	if stored.Findings == nil || len(stored.Findings) != 0 || !stored.CheckedAt.Equal(later) {
+		t.Errorf("after the empty check %v at %v", stored.Findings, stored.CheckedAt)
+	}
+
+	// Another tenant's check reaches nothing here (SG-3).
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := automationRules().RecordCheck(ctx, rule.ID, findings, later.Add(time.Minute)); err != nil {
+			return err
+		}
+		_, err := automationRules().DisableBroken(ctx, rule.ID, time.Now().UTC())
+		return err
+	}); err != nil {
+		t.Fatalf("tenant B's writes: %v", err)
+	}
+	readBack()
+	if len(stored.Findings) != 0 || !stored.CheckedAt.Equal(later) {
+		t.Error("tenant B wrote findings on tenant A's rule")
+	}
+}
+
+// The check's resolver (ADR-0060): a live label, bucket, collection and acting account answer yes;
+// a deleted label answers no; and every one of them answers no to another tenant (SG-3) - the
+// resolver is a lookup by identifier, which is exactly the shape a tenant boundary has to hold.
+func TestTheResolverAnswersForThisWorkspaceOnly(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	label := seedLabel(ctx, t, tenantA, collection)
+	bucket := seedBucket(ctx, t, tenantA, collection, "a")
+	account := seedServiceAccount(ctx, t, tenantA)
+	gone := seedLabel(ctx, t, tenantA, collection)
+	deleted, _, err := gone.Deleted(changedAt)
+	if err != nil {
+		t.Fatalf("deleting the label: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return labelRepo().SetDeleted(ctx, deleted, 1)
+	}); err != nil {
+		t.Fatalf("writing the deletion: %v", err)
+	}
+
+	resolver := postgres.NewAutomationReferenceRepository()
+	ask := func(tenant shared.ID, kind repository.ReferenceKind, id shared.ID) bool {
+		t.Helper()
+		var exists bool
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			exists, err = resolver.Exists(ctx, kind, id)
+			return err
+		}); err != nil {
+			t.Fatalf("resolving %s %s as %s: %v", kind, id, tenant, err)
+		}
+		return exists
+	}
+
+	for _, ref := range []struct {
+		kind repository.ReferenceKind
+		id   shared.ID
+	}{
+		{repository.ReferenceLabel, label.ID},
+		{repository.ReferenceBucket, bucket.ID},
+		{repository.ReferenceContainer, collection},
+		{repository.ReferenceAccount, account},
+	} {
+		if !ask(tenantA, ref.kind, ref.id) {
+			t.Errorf("%s %s does not exist for its own tenant", ref.kind, ref.id)
+		}
+		if ask(tenantB, ref.kind, ref.id) {
+			t.Errorf("%s %s of tenant A exists for tenant B", ref.kind, ref.id)
+		}
+	}
+	if ask(tenantA, repository.ReferenceLabel, gone.ID) {
+		t.Error("a deleted label still exists")
+	}
+	if ask(tenantA, repository.ReferenceTemplate, freshID(t)) || ask(tenantA, repository.ReferenceGroup, freshID(t)) ||
+		ask(tenantA, repository.ReferenceSubscription, freshID(t)) {
+		t.Error("an identifier nobody wrote exists")
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := resolver.Exists(ctx, repository.ReferenceKind("planet"), label.ID)
+		return err
+	}); err == nil {
+		t.Error("a kind the resolver does not know answered rather than failing")
+	}
+}

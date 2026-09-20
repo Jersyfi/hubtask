@@ -1046,6 +1046,23 @@ func run() error {
 		Authorizer: authorizer,
 	}
 
+	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
+	// the resolver for what a rule names, and the streak's own path to the author. One value,
+	// because the job a deletion seeds runs the same check the route serves.
+	ruleCheck := automationservice.CheckRules{
+		Rules:      postgres.NewAutomationRuleRepository(cursors),
+		References: postgres.NewAutomationReferenceRepository(),
+		Catalogue:  ruleCatalogue, Conditions: celexpression.New(),
+		Authorizer: authorizer, Audit: auditSink,
+		Owners: notification.RecordRuleDisabled{
+			Notifications: notifications, Accounts: accounts,
+			Preferences: notificationPreferences, Jobs: jobs,
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		},
+		Signals:    metrics,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1223,6 +1240,7 @@ func run() error {
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
+		ruleCheck.Descriptor(),
 		automationservice.ReplayRuleRun{
 			Runs:  postgres.NewAutomationRunRepository(cursors),
 			Rules: postgres.NewAutomationRuleRepository(cursors),
@@ -2171,6 +2189,9 @@ func run() error {
 		// an installation without a bus ends up with exactly the subscriber list it had before.
 		Subscribers: append([]eventbusport.Subscriber{
 			notify, webhookFanOut, matchRules, relativeDates,
+			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
+			// inside the dispatcher's transaction.
+			automationservice.CheckOnDeletion{Jobs: jobs},
 			// What asks for a workspace's vectors to be brought up to date (J-10). A seed rather
 			// than the work: one deduplicated job per workspace, and the pass behind it decides
 			// which entries actually owe an embedding.
@@ -2547,7 +2568,8 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindAutomationCheck: worker.AutomationCheck{Check: ruleCheck},
+		queueport.KindAuditExport:     worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport: worker.Import{
 			Runner: importservice.Runner{
 				Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,

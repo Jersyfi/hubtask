@@ -1127,6 +1127,42 @@
         }
       }
     },
+    "/automation/rules:check": {
+      "post": {
+        "tags": [
+          "automation"
+        ],
+        "operationId": "checkRules",
+        "summary": "Check every rule of the workspace against what exists now",
+        "description": "The check ADR-0060 describes: every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.\nThe rules screen calls this when it opens, which is what makes \"after an update, the rules that need attention are shown\" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.\n",
+        "responses": {
+          "200": {
+            "description": "The rules, each with what the check found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AutomationRule"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/automation/rules:test": {
       "post": {
         "tags": [
@@ -13281,6 +13317,21 @@
             "format": "date-time",
             "description": "When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.\n"
           },
+          "findings": {
+            "type": "array",
+            "description": "What the last check found (ADR-0060): every reference of the rule resolved against what exists now. Empty for a rule with nothing wrong, and empty for a rule that has never been checked - `checked_at` tells the two apart. A `BROKEN` finding is one the check acted on: the rule is switched off. An `ATTENTION` finding is information.\n",
+            "items": {
+              "$ref": "#/components/schemas/RuleFinding"
+            }
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the check last ran over this rule, and absent for a rule it never has."
+          },
           "created_by": {
             "type": "string",
             "format": "uuid"
@@ -13295,6 +13346,37 @@
           },
           "version": {
             "type": "integer"
+          }
+        }
+      },
+      "RuleFinding": {
+        "type": "object",
+        "description": "One thing the check found about a rule (ADR-0060). `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters (ADR-0011).\n",
+        "required": [
+          "level",
+          "path",
+          "code"
+        ],
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "ATTENTION",
+              "BROKEN"
+            ],
+            "description": "`ATTENTION`: the rule runs, and one step would find nothing where it points. `BROKEN`: the rule cannot run, and the check has switched it off.\n"
+          },
+          "path": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },

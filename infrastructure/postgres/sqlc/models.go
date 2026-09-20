@@ -585,6 +585,8 @@ type AutomationRule struct {
 	NextRunAt        pgtype.Timestamptz
 	InboundTokenHash []byte
 	InboundRotatedAt pgtype.Timestamptz
+	Findings         []byte
+	CheckedAt        pgtype.Timestamptz
 }
 
 type BackupRun struct {

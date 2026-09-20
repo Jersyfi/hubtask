@@ -1029,6 +1029,10 @@ CREATE TABLE automation_rule (
   -- it a listing may show.
   inbound_token_hash bytea,
   inbound_rotated_at timestamptz,
+  -- What the check found (ADR-0060, migration 0095): the findings as a document, empty for a
+  -- rule with nothing wrong and for one never checked, and the moment that tells the two apart.
+  findings   jsonb NOT NULL DEFAULT '[]'::jsonb,
+  checked_at timestamptz,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );

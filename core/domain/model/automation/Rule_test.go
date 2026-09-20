@@ -602,3 +602,38 @@ func TestARuleNameIsStoredInNormalFormC(t *testing.T) {
 		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }
+
+// What the check writes on a rule (ADR-0060): the findings and the moment, with a nil list recorded
+// as an empty one, and "cannot run" answered by any BROKEN finding and by nothing else.
+func TestACheckedRuleCarriesItsFindingsAndKnowsWhetherItIsBroken(t *testing.T) {
+	now := time.Date(2026, 9, 20, 17, 0, 0, 0, time.UTC)
+	for _, test := range []struct {
+		name     string
+		findings []automation.Finding
+		broken   bool
+		stored   int
+	}{
+		{"never anything wrong", nil, false, 0},
+		{"attention only", []automation.Finding{{Level: automation.FindingAttention, Path: "actions/0", Code: "automation.finding.reference_gone"}}, false, 1},
+		{"one broken among them", []automation.Finding{
+			{Level: automation.FindingAttention, Path: "actions/0", Code: "automation.finding.reference_gone"},
+			{Level: automation.FindingBroken, Path: "actions/1", Code: "automation.finding.action_unknown"},
+		}, true, 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			checked := automation.Rule{}.Checked(test.findings, now)
+			if checked.Findings == nil || len(checked.Findings) != test.stored {
+				t.Errorf("findings %v, want %d stored and never nil", checked.Findings, test.stored)
+			}
+			if !checked.CheckedAt.Equal(now) {
+				t.Errorf("checked at %v, want %v", checked.CheckedAt, now)
+			}
+			if checked.Broken() != test.broken {
+				t.Errorf("broken %v, want %v", checked.Broken(), test.broken)
+			}
+		})
+	}
+	if (automation.Rule{}).Broken() {
+		t.Error("a rule never checked reads as broken")
+	}
+}

@@ -260,6 +260,7 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.HttpRequest{}.Descriptor(),
 		automationservice.TestRule{}.Descriptor(),
 		automationservice.ReplayRuleRun{}.Descriptor(),
+		automationservice.CheckRules{}.Descriptor(),
 		jumbleservice.SubmitJumbleEntry{}.Descriptor(),
 		jumbleservice.ListJumbleEntries{}.Descriptor(),
 		jumbleservice.ConvertJumbleEntry{}.Descriptor(),

@@ -66,3 +66,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0057](./ADR-0057-sdk-licence-and-extraction.md) | The SDKs: which packages, under which licence, extracted or not | accepted | licensing, ecosystem, sdk |
 | [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | accepted | ecosystem, supply chain, automation |
 | [0059](./ADR-0059-licensing-phases-and-licensing-start.md) | Licensing phases and Licensing Start | proposed | Legal, product, process |
+| [0060](./ADR-0060-rule-check.md) | The check: a rule's references resolved before they fail | proposed | Automation, data model |
