@@ -36,10 +36,11 @@ function cssValue(token) {
 const isPrimitive = (t) => t.path[0] === 'primitive';
 const inMode = (mode) => (t) => t.path[0] === 'semantic' && t.path[1] === mode;
 const isMotion = (t) => t.path[0] === 'motion';
+const isLayout = (t) => t.path[0] === 'layout';
 const inDensity = (mode) => (t) => t.path[0] === 'density' && t.path[1] === mode;
 
 /** The density modes, in the order the stylesheet declares them. `comfortable` is also the default. */
-const DENSITY_MODES = ['comfortable', 'compact'];
+const DENSITY_MODES = ['comfortable', 'compact', 'spacious'];
 
 function declarations(tokens, indent = '  ') {
   return tokens.map((t) => `${indent}--${cssName(t.path)}: ${cssValue(t)};`).join('\n');
@@ -61,7 +62,7 @@ export const cssFormat = ({ dictionary }) => {
   const all = dictionary.allTokens;
   const [defaultDensity] = DENSITY_MODES;
   const blocks = [
-    `:root {\n${declarations([...all.filter(isPrimitive), ...all.filter(isMotion)])}\n}`,
+    `:root {\n${declarations([...all.filter(isPrimitive), ...all.filter(isMotion), ...all.filter(isLayout)])}\n}`,
     ...['light', 'dark'].map(
       (mode) => `[data-theme="${mode}"] {\n${declarations(all.filter(inMode(mode)))}\n}`,
     ),
@@ -126,7 +127,10 @@ export const tsFormat = ({ dictionary }) => {
     '/** What a movement is for. A component names a role; the duration and easing behind it are decided once. */',
     `export const motion = ${literal(nest(all.filter(isMotion), varOf, 1))} as const;`,
     '',
-    '/** How much air a region carries. Both modes declare one vocabulary; `data-density` chooses. */',
+    '/** The measures of the shell (ADR-0061): a bar, a navigation, a pane, the content cap. */',
+    `export const layout = ${literal(nest(all.filter(isLayout), varOf, 1))} as const;`,
+    '',
+    '/** How much air a region carries. Every mode declares one vocabulary; `data-density` chooses. */',
     `export const density = ${literal(nest(all.filter(inDensity(DENSITY_MODES[0])), varOf, 2))} as const;`,
     '',
     '/** Resolved literals per mode, for the few consumers that cannot use a custom property. */',

@@ -86,6 +86,19 @@ const ROLES = {
   'ai.text': 'body-text',
   'ai.accent': 'fill',
 
+  // A status as a surface (ADR-0061, F9-01): the four roles `ai.*` established, five times. Each
+  // surface is measured under every text like any tinted surface, and each text, border and
+  // accent against every surface - so `text.warning` is measured on `status.info.surface` as
+  // well as on its own, which is the pair a banner with a warning badge in it draws.
+  ...Object.fromEntries(
+    ['info', 'success', 'warning', 'danger', 'neutral'].flatMap((tone) => [
+      [`status.${tone}.surface`, 'tinted-surface'],
+      [`status.${tone}.border`, 'indicator'],
+      [`status.${tone}.text`, 'body-text'],
+      [`status.${tone}.accent`, 'fill'],
+    ]),
+  ),
+
   // Laid over the canvas as gradient stops, so they change what body text is read on rather than
   // being read themselves. Measured as a canvas variant, not as a pair of their own.
   'ambient.primary': 'canvas-tint',
