@@ -41,10 +41,16 @@
 </div>
 
 <style>
-  /* The one thing this adds to Drawer: the width is the shell's, so the tree is the same width
-     open over the page as it is pinned beside it. Inherited into the dialog's top layer. */
+  /* The one thing this adds to Drawer: the width is the shell's. Pinned, the navigation is
+     `layout.sidenav.width`; over a phone it takes most of the screen so that a name has room, and
+     it is never wider than one and a half times the pinned width, so a tablet does not get a
+     panel that is half the page. Inherited into the dialog's top layer. */
   .navdrawer {
     display: contents;
-    --drawer-inline-size: min(var(--layout-sidenav-width), 100%);
+    --drawer-inline-size: clamp(
+      var(--layout-sidenav-width),
+      85vw,
+      calc(var(--layout-sidenav-width) * 1.5)
+    );
   }
 </style>
