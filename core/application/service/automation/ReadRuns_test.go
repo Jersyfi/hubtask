@@ -23,9 +23,14 @@ var runID = shared.ID("01936f2a-7c1e-7000-8000-0000000008f1")
 type pagedRuns struct {
 	*runLog
 	page repository.RunPage
+	// asked remembers the last query, for the tests that check what reached the repository.
+	asked *repository.RunQuery
 }
 
-func (p pagedRuns) List(context.Context, repository.RunQuery) (repository.RunPage, error) {
+func (p pagedRuns) List(_ context.Context, query repository.RunQuery) (repository.RunPage, error) {
+	if p.asked != nil {
+		*p.asked = query
+	}
 	return p.page, nil
 }
 
@@ -46,7 +51,7 @@ func newReader(t *testing.T, page repository.RunPage, rules ...domain.Rule) (Rea
 
 	auth := &authorizer{}
 	return Reader{
-		Runs:  pagedRuns{runLog: newRunLog(), page: page},
+		Runs:  pagedRuns{runLog: newRunLog(), page: page, asked: &repository.RunQuery{}},
 		Rules: newRuleStore(rules...), Authorizer: auth, UnitOfWork: unitOfWork{},
 	}, auth
 }
@@ -233,6 +238,51 @@ func TestBothDescriptorsAreReadOnlyAndScoped(t *testing.T) {
 			}
 			if descriptor.Audit.TargetType != runTarget || descriptor.Audit.Required {
 				t.Errorf("audit declaration %+v", descriptor.Audit)
+			}
+		})
+	}
+}
+
+// The window (F8-02) reaches the repository as two instants, half-open as the contract says; an
+// end that is not after the start is refused with the field named rather than answered empty,
+// and an instant that does not parse is refused at its own field.
+func TestTheWindowIsPassedThroughAndAReversedOneIsRefused(t *testing.T) {
+	reader, _ := newReader(t, repository.RunPage{}, enabledRule())
+	log := reader.Runs.(pagedRuns)
+
+	_, err := (ListRuleRuns{Reader: reader}).invoke(context.Background(), writerActor(),
+		usecase.Input{"from": "2026-09-13T00:00:00Z", "to": "2026-09-20T00:00:00Z"})
+	if err != nil {
+		t.Fatalf("listing with a window: %v", err)
+	}
+	if log.asked.From == nil || log.asked.To == nil ||
+		!log.asked.From.Equal(time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC)) ||
+		!log.asked.To.Equal(time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("the repository was asked %+v", log.asked)
+	}
+
+	_, err = (ListRuleRuns{Reader: reader}).invoke(context.Background(), writerActor(),
+		usecase.Input{"from": "2026-09-20T00:00:00Z"})
+	if err != nil || log.asked.To != nil {
+		t.Errorf("one end alone: err %v, to %v", err, log.asked.To)
+	}
+
+	for name, input := range map[string]usecase.Input{
+		"reversed":  {"from": "2026-09-20T00:00:00Z", "to": "2026-09-13T00:00:00Z"},
+		"empty":     {"from": "2026-09-20T00:00:00Z", "to": "2026-09-20T00:00:00Z"},
+		"malformed": {"from": "yesterday"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := (ListRuleRuns{Reader: reader}).invoke(context.Background(), writerActor(), input)
+			if !errors.Is(err, shared.ErrValidation) {
+				t.Fatalf("error %v, want ErrValidation", err)
+			}
+			want := "automation.run_window_reversed"
+			if name == "malformed" {
+				want = "automation.run_window_malformed"
+			}
+			if code := detailOf(t, err); code != want {
+				t.Errorf("code %q, want %q", code, want)
 			}
 		})
 	}

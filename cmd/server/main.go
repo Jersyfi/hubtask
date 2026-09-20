@@ -1857,7 +1857,8 @@ func run() error {
 			Scopes: catalogue.Scopes(),
 			// And the action kinds, for the same reason: the rule writer validates against the
 			// catalogue this manifest would otherwise have to describe from a copy (issue 542).
-			Actions: catalogue.AutomationActions(),
+			Actions:      catalogue.AutomationActions(),
+			ActionFields: catalogue.AutomationActionFields(),
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and

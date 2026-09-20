@@ -548,6 +548,8 @@
   "automation.finding.condition_invalid": "The condition no longer compiles ({reason}), so the rule cannot run.",
   "automation.finding.account_gone": "The account the rule runs as is gone or can no longer act, so the rule cannot run.",
   "automation.finding.reference_gone": "The {kind} this step points at no longer exists; the step would find nothing.",
+  "automation.run_window_malformed": "{field} is not an RFC 3339 instant.",
+  "automation.run_window_reversed": "The window ends before it starts.",
   "automation.trigger_field_not_for_kind": "That field does not belong to a {kind} trigger.",
   "automation.event_type_required": "Say which event this rule reacts to.",
   "automation.event_type_unknown": "{event_type} is not an event type this installation publishes.",

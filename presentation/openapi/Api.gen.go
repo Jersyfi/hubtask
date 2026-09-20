@@ -450,6 +450,42 @@ func (e AutoAssignStrategy) Valid() bool {
 	}
 }
 
+// Defines values for AutomationActionFieldKind.
+const (
+	AutomationActionFieldKindAny     AutomationActionFieldKind = "any"
+	AutomationActionFieldKindBoolean AutomationActionFieldKind = "boolean"
+	AutomationActionFieldKindId      AutomationActionFieldKind = "id"
+	AutomationActionFieldKindIdList  AutomationActionFieldKind = "id_list"
+	AutomationActionFieldKindInteger AutomationActionFieldKind = "integer"
+	AutomationActionFieldKindList    AutomationActionFieldKind = "list"
+	AutomationActionFieldKindObject  AutomationActionFieldKind = "object"
+	AutomationActionFieldKindString  AutomationActionFieldKind = "string"
+)
+
+// Valid indicates whether the value is a known member of the AutomationActionFieldKind enum.
+func (e AutomationActionFieldKind) Valid() bool {
+	switch e {
+	case AutomationActionFieldKindAny:
+		return true
+	case AutomationActionFieldKindBoolean:
+		return true
+	case AutomationActionFieldKindId:
+		return true
+	case AutomationActionFieldKindIdList:
+		return true
+	case AutomationActionFieldKindInteger:
+		return true
+	case AutomationActionFieldKindList:
+		return true
+	case AutomationActionFieldKindObject:
+		return true
+	case AutomationActionFieldKindString:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AutomationRuleOnError.
 const (
 	AutomationRuleOnErrorCONTINUE AutomationRuleOnError = "CONTINUE"
@@ -1973,34 +2009,34 @@ func (e ProvisionedTenantStatus) Valid() bool {
 
 // Defines values for QueryFieldKind.
 const (
-	Boolean   QueryFieldKind = "boolean"
-	Enum      QueryFieldKind = "enum"
-	Id        QueryFieldKind = "id"
-	IdSet     QueryFieldKind = "id_set"
-	Integer   QueryFieldKind = "integer"
-	String    QueryFieldKind = "string"
-	Text      QueryFieldKind = "text"
-	Timestamp QueryFieldKind = "timestamp"
+	QueryFieldKindBoolean   QueryFieldKind = "boolean"
+	QueryFieldKindEnum      QueryFieldKind = "enum"
+	QueryFieldKindId        QueryFieldKind = "id"
+	QueryFieldKindIdSet     QueryFieldKind = "id_set"
+	QueryFieldKindInteger   QueryFieldKind = "integer"
+	QueryFieldKindString    QueryFieldKind = "string"
+	QueryFieldKindText      QueryFieldKind = "text"
+	QueryFieldKindTimestamp QueryFieldKind = "timestamp"
 )
 
 // Valid indicates whether the value is a known member of the QueryFieldKind enum.
 func (e QueryFieldKind) Valid() bool {
 	switch e {
-	case Boolean:
+	case QueryFieldKindBoolean:
 		return true
-	case Enum:
+	case QueryFieldKindEnum:
 		return true
-	case Id:
+	case QueryFieldKindId:
 		return true
-	case IdSet:
+	case QueryFieldKindIdSet:
 		return true
-	case Integer:
+	case QueryFieldKindInteger:
 		return true
-	case String:
+	case QueryFieldKindString:
 		return true
-	case Text:
+	case QueryFieldKindText:
 		return true
-	case Timestamp:
+	case QueryFieldKindTimestamp:
 		return true
 	default:
 		return false
@@ -3789,6 +3825,21 @@ type AutoAssignPolicy struct {
 // AutoAssignStrategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
 type AutoAssignStrategy string
 
+// AutomationActionField One declared parameter of an automation action, as the use case behind the kind declares it. `kind` is the catalogue's own vocabulary: `id` and `id_list` name entries of this workspace, and an editor offers a picker for them; `object`, `list` and `any` are documents whose shape another declaration decides, and an editor takes them as JSON.
+type AutomationActionField struct {
+	// Description Protocol documentation, in English, as the descriptions in this document are - never display text (ADR-0011).
+	Description *string `json:"description,omitempty"`
+
+	// Enum The closed set of values the field takes, where it takes one.
+	Enum     *[]string                 `json:"enum,omitempty"`
+	Kind     AutomationActionFieldKind `json:"kind"`
+	Name     string                    `json:"name"`
+	Required bool                      `json:"required"`
+}
+
+// AutomationActionFieldKind defines model for AutomationActionField.Kind.
+type AutomationActionFieldKind string
+
 // AutomationRule defines model for AutomationRule.
 type AutomationRule struct {
 	Actions []RuleAction `json:"actions"`
@@ -4258,6 +4309,9 @@ type Capabilities struct {
 
 	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more (automation.md §1).
 	Automation *struct {
+		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time (F8-01). A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest (automation.md §2.2), so `required` describes the call, not the rule.
+		ActionFields *map[string][]AutomationActionField `json:"action_fields,omitempty"`
+
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
 		Actions *[]string `json:"actions,omitempty"`
 
@@ -7506,6 +7560,12 @@ type ListRuleRunsParams struct {
 
 	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
 	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
+
+	// From The start of the window, inclusive, on `started_at` (F8-02). Named as the audit trail names its window, so that a client that has learned one has learned both.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To The end of the window, exclusive, on `started_at`. A window that ends before it starts is refused with the field named rather than answered empty.
+	To *time.Time `form:"to,omitempty" json:"to,omitempty"`
 }
 
 // ListRuleRunsParamsStatus defines parameters for ListRuleRuns.
@@ -10882,6 +10942,32 @@ func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.R
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trigger"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trigger", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
 		}
 		return
 	}

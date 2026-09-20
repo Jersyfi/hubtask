@@ -106,8 +106,11 @@ type RunQuery struct {
 	RuleID  shared.ID
 	Status  domain.RunStatus
 	Trigger domain.TriggerKind
-	Cursor  string
-	Size    int
+	// From and To bound started_at, inclusive and exclusive; nil is unbounded on that side (F8-02).
+	From   *time.Time
+	To     *time.Time
+	Cursor string
+	Size   int
 }
 
 // RunPage is one page of runs and where the walk stands.

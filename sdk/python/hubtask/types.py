@@ -724,6 +724,14 @@ class RuleTrigger(TypedDict, total=False):
     anchor: Literal["DUE_DATE", "CREATED_AT"]
     offset: str
 
+class AutomationActionField(TypedDict, total=False):
+    """One declared parameter of an automation action, as the use case behind the kind declares it. `kind` is the catalogue's own vocabulary: `id` and `id_list` name entries of this workspace, and an editor offers a picker for them; `object`, `list` and `any` are documents whose shape another declaration decides, and an editor takes them as JSON."""
+    name: Required[str]
+    kind: Required[Literal["string", "id", "boolean", "integer", "id_list", "object", "list", "any"]]
+    required: Required[bool]
+    enum: list[str]
+    description: str
+
 class RuleAction(TypedDict, total=False):
     """One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything."""
     kind: Required[str]

@@ -871,15 +871,19 @@ FROM rule_run
 WHERE ($1::uuid IS NULL OR rule_id = $1::uuid)
   AND ($2::text IS NULL OR status = $2::text)
   AND ($3::text IS NULL OR trigger = $3::text)
-  AND ($4::uuid IS NULL OR id < $4::uuid)
+  AND ($4::timestamptz IS NULL OR started_at >= $4::timestamptz)
+  AND ($5::timestamptz IS NULL OR started_at < $5::timestamptz)
+  AND ($6::uuid IS NULL OR id < $6::uuid)
 ORDER BY id DESC
-LIMIT $5
+LIMIT $7
 `
 
 type ListRuleRunsParams struct {
 	RuleID   pgtype.UUID
 	Status   *string
 	Trigger  *string
+	FromTime pgtype.Timestamptz
+	ToTime   pgtype.Timestamptz
 	After    pgtype.UUID
 	PageSize int32
 }
@@ -902,13 +906,17 @@ type ListRuleRunsRow struct {
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
-// in. The three filters are nullable arguments rather than eight statements, because a second
-// statement differing in one predicate is a second place for a predicate to be forgotten.
+// in. The five filters are nullable arguments rather than thirty-two statements, because a second
+// statement differing in one predicate is a second place for a predicate to be forgotten. The
+// window (F8-02) is on started_at - the run's own moment rather than the event's - half-open, as
+// the audit trail's is.
 func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]ListRuleRunsRow, error) {
 	rows, err := q.db.Query(ctx, listRuleRuns,
 		arg.RuleID,
 		arg.Status,
 		arg.Trigger,
+		arg.FromTime,
+		arg.ToTime,
 		arg.After,
 		arg.PageSize,
 	)

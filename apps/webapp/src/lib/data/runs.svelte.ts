@@ -18,8 +18,12 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { runsPath, type RunFilter } from './runs.ts';
+
+export { runsPath, type RunFilter };
 
 const RUNS = '/automation/runs';
+
 const RULES = '/automation/rules';
 
 /** How one condition answered, in the order the rule declares them. */
@@ -77,31 +81,21 @@ export interface TestResult {
   readonly actions: readonly TestAction[];
 }
 
-/** The listing's path for a filter. Built here so the store and its callers agree on one string. */
-export function runsPath(filter: { ruleId?: string; status?: string } = {}, cursor?: string): string {
-  const query = new URLSearchParams();
-  if (filter.ruleId) query.set('rule_id', filter.ruleId);
-  if (filter.status) query.set('status', filter.status);
-  if (cursor) query.set('cursor', cursor);
-  const written = query.toString();
-  return written ? `${RUNS}?${written}` : RUNS;
-}
-
 class Runs {
   #pages = $state<Record<string, ResourceState<RunPage>>>({});
   #held = $state<Record<string, readonly Run[]>>({});
   #cursors = $state<Record<string, string | undefined>>({});
   #details = $state<Record<string, Run>>({});
 
-  stateOf(filter: { ruleId?: string; status?: string }): ResourceState<RunPage> {
+  stateOf(filter: RunFilter): ResourceState<RunPage> {
     return this.#pages[runsPath(filter)] ?? { status: 'idle' };
   }
 
-  of(filter: { ruleId?: string; status?: string }): readonly Run[] {
+  of(filter: RunFilter): readonly Run[] {
     return this.#held[runsPath(filter)] ?? [];
   }
 
-  moreAfter(filter: { ruleId?: string; status?: string }): string | undefined {
+  moreAfter(filter: RunFilter): string | undefined {
     return this.#cursors[runsPath(filter)];
   }
 
@@ -111,7 +105,7 @@ class Runs {
   }
 
   /** Starts a listing. **From `untrack`**, for the reason every other store records. */
-  open(filter: { ruleId?: string; status?: string } = {}): () => void {
+  open(filter: RunFilter = {}): () => void {
     const key = runsPath(filter);
     return engine.subscribe<RunPage>({ path: key }, (next) => {
       this.#pages = { ...this.#pages, [key]: next };
@@ -123,7 +117,7 @@ class Runs {
   }
 
   /** The next page, appended. Cursor pagination, never page numbers. */
-  async more(filter: { ruleId?: string; status?: string } = {}): Promise<void> {
+  async more(filter: RunFilter = {}): Promise<void> {
     const key = runsPath(filter);
     const cursor = this.#cursors[key];
     if (!cursor) return;

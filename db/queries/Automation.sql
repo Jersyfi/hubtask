@@ -163,8 +163,10 @@ WHERE id = sqlc.arg('id');
 
 -- name: ListRuleRuns :many
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
--- in. The three filters are nullable arguments rather than eight statements, because a second
--- statement differing in one predicate is a second place for a predicate to be forgotten.
+-- in. The five filters are nullable arguments rather than thirty-two statements, because a second
+-- statement differing in one predicate is a second place for a predicate to be forgotten. The
+-- window (F8-02) is on started_at - the run's own moment rather than the event's - half-open, as
+-- the audit trail's is.
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
        condition_results, action_results, occasion, error_code, started_at, finished_at,
        causation_depth
@@ -172,6 +174,8 @@ FROM rule_run
 WHERE (sqlc.narg('rule_id')::uuid IS NULL OR rule_id = sqlc.narg('rule_id')::uuid)
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
   AND (sqlc.narg('trigger')::text IS NULL OR trigger = sqlc.narg('trigger')::text)
+  AND (sqlc.narg('from_time')::timestamptz IS NULL OR started_at >= sqlc.narg('from_time')::timestamptz)
+  AND (sqlc.narg('to_time')::timestamptz IS NULL OR started_at < sqlc.narg('to_time')::timestamptz)
   AND (sqlc.narg('after')::uuid IS NULL OR id < sqlc.narg('after')::uuid)
 ORDER BY id DESC
 LIMIT sqlc.arg('page_size');
