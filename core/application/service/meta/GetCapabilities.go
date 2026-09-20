@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -76,6 +77,10 @@ type Capabilities struct {
 	// the list; the contract says a client names those three itself.
 	AutomationTriggers []automation.TriggerKind
 	AutomationActions  []string
+	// AutomationActionFields is, per action kind, what its use case declares (F8-01): the same
+	// declaration the MCP tool schema is built from, so that an action's form is built from the
+	// manifest and never from a schema compiled into a client. Handed in with the actions.
+	AutomationActionFields map[string][]usecase.Field
 	// RetentionDataKinds is the catalogue of `data-retention.md` §3, and what this build can do to
 	// each (F4-18). The catalogue itself rather than a copy of it, for the reason the query fields
 	// are: the document says a new kind "is then immediately configurable through the API - with
@@ -193,8 +198,9 @@ type GetCapabilities struct {
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 	// Actions is every automation action kind that is a use case, handed in from the catalogue at
-	// composition for the reason Scopes is.
-	Actions []string
+	// composition for the reason Scopes is; ActionFields what each of them declares (F8-01).
+	Actions      []string
+	ActionFields map[string][]usecase.Field
 	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
 	// for the reason the field on Capabilities records.
 	Scopes []string
@@ -283,6 +289,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		EventTypes:             event.Types(),
 		AutomationTriggers:     automation.TriggerKinds(),
 		AutomationActions:      g.Actions,
+		AutomationActionFields: g.ActionFields,
 		RetentionDataKinds:     lifecycle.Catalogue(),
 		TextLanguages:          languages,
 		SupportedLocales:       supportedLocales,

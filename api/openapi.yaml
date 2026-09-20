@@ -9071,6 +9071,30 @@ components:
             `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for
             "24 hours before".
 
+    AutomationActionField:
+      type: object
+      description: >
+        One declared parameter of an automation action, as the use case behind the kind declares
+        it. `kind` is the catalogue's own vocabulary: `id` and `id_list` name entries of this
+        workspace, and an editor offers a picker for them; `object`, `list` and `any` are documents
+        whose shape another declaration decides, and an editor takes them as JSON.
+      required: [name, kind, required]
+      properties:
+        name: { type: string }
+        kind:
+          type: string
+          enum: [string, id, boolean, integer, id_list, object, list, any]
+        required: { type: boolean }
+        enum:
+          type: array
+          description: The closed set of values the field takes, where it takes one.
+          items: { type: string }
+        description:
+          type: string
+          description: >
+            Protocol documentation, in English, as the descriptions in this document are - never
+            display text (ADR-0011).
+
     RuleAction:
       type: object
       description: >
@@ -12360,6 +12384,21 @@ components:
                 rather than use cases and are in no catalogue, so a client names those three
                 itself.
               items: { type: string }
+            action_fields:
+              type: object
+              description: >
+                For every kind in `actions`, the parameters its use case declares - the same
+                fields the MCP tool schema for that use case is derived from, and derived here
+                from the same declaration rather than written a second time (F8-01). A rule
+                editor builds an action's form from this rather than from a schema compiled into
+                it: a client with its own would be wrong on the installation whose use case
+                grew a field. Always present, and a kind with no parameters maps to an empty
+                array. What a rule may leave out is not said here: a rule supplies some
+                parameters and the run supplies the rest (automation.md §2.2), so `required`
+                describes the call, not the rule.
+              additionalProperties:
+                type: array
+                items: { $ref: "#/components/schemas/AutomationActionField" }
         event_types:
           type: array
           items: { type: string }
