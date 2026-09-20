@@ -71,5 +71,11 @@
   .avatar[data-size='md'] { width: var(--sp-400); height: var(--sp-400); font-size: var(--fs-075); }
   .avatar[data-size='sm'] { width: var(--sp-300); height: var(--sp-300); font-size: var(--fs-050); }
 
+  /* Never wrapped: two ideographs are two full ems, which at the small size is a hair wider than
+     the content box, and between ideographs a line may break — the result was the initials stacked
+     and flush left, an accident of the box rather than anything the script asks for. One line, and
+     the flex centring above places it; what it exceeds the box by falls evenly into the border. */
+  .initials { white-space: nowrap; }
+
   .picture { width: 100%; height: 100%; object-fit: cover; }
 </style>
