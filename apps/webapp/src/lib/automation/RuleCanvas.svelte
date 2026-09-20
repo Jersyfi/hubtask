@@ -22,7 +22,7 @@
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import type { Draft, Step } from './model.ts';
-  import type { Selection } from './selection.ts';
+  import type { Drag, Selection } from './selection.ts';
   import { conditionWords, type Names } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -43,10 +43,58 @@
     onremove: (path: string) => void;
     onfold: (path: string) => void;
     onaddcondition: () => void;
+    onnudge: (path: string, direction: -1 | 1) => void;
+    /** The drag in flight (F8-05, decision 7), and where it may land. */
+    drag?: Drag;
+    ondragchange: (drag: Drag | undefined) => void;
+    ondrop: (list: string, index: number, drag: Drag) => void;
+    /** A trigger let go on the trigger card, a condition on the gate. */
+    onreplacetrigger: (kind: string) => void;
+    /** A piece let go where nothing takes it, with the drag that was refused. */
+    onrefuse: (drag: Drag) => void;
+    segmented: boolean;
+    armChoice: ReadonlyMap<string, 'then' | 'else'>;
+    onpickarm: (path: string, arm: 'then' | 'else') => void;
   }
 
-  const { draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition }: Props =
-    $props();
+  const {
+    draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
+    onnudge, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm,
+  }: Props = $props();
+
+  const triggerTakes = $derived(drag?.src === 'trigger');
+  const gateTakes = $derived(drag?.src === 'condition');
+  let overTrigger = $state(false);
+  let overGate = $state(false);
+
+  const hint = $derived.by(() => {
+    switch (drag?.src) {
+      case 'trigger':
+        return t('app.flow.drag_trigger');
+      case 'condition':
+        return t('app.flow.drag_condition');
+      case 'action':
+        return t('app.flow.drag_action');
+      case 'step':
+        return t('app.flow.drag_step');
+      default:
+        return '';
+    }
+  });
+
+  function allow(event: DragEvent, takes: boolean): void {
+    if (!takes) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  }
+
+  /** A drop on the canvas that no target took: refused with a reason, never silently nothing. */
+  function refuse(event: DragEvent): void {
+    if (!drag) return;
+    event.preventDefault();
+    onrefuse(drag);
+    ondragchange(undefined);
+  }
 
   const words = { t, has: (code: string) => messages.has(code) };
 
@@ -63,6 +111,9 @@
     selection.kind === kind && (kind !== 'condition' || (selection as { index: number }).index === index);
 
   function onkey(event: KeyboardEvent, select: () => void): void {
+    // A key on a tool inside the card is the tool's, not the card's: the card's own handler
+    // would otherwise swallow the Enter that presses "move down".
+    if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       select();
@@ -70,17 +121,33 @@
   }
 </script>
 
-<div class="flow" data-canvas>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="flow" data-canvas ondragover={(event) => { if (drag) event.preventDefault(); }} ondrop={refuse}>
+  {#if drag}<p class="draghint" role="status">{hint}</p>{/if}
   <!-- The trigger: the one card in the signature colour, because it is where the run comes from. -->
   <div
     class="card trigger"
     class:selected={isSelected('trigger')}
+    class:target={triggerTakes}
+    class:over={overTrigger}
+    class:inert={drag !== undefined && !triggerTakes}
     data-card="trigger"
     role="button"
     tabindex="0"
     onclick={() => onselect({ kind: 'trigger' })}
     onkeydown={(event) => onkey(event, () => onselect({ kind: 'trigger' }))}
+    ondragover={(event) => { allow(event, triggerTakes); overTrigger = triggerTakes; }}
+    ondragleave={() => (overTrigger = false)}
+    ondrop={(event) => {
+      overTrigger = false;
+      if (!triggerTakes || drag?.src !== 'trigger') return;
+      event.preventDefault();
+      event.stopPropagation();
+      onreplacetrigger(drag.kind);
+      ondragchange(undefined);
+    }}
   >
+    {#if triggerTakes}<span class="dropword">{t('app.flow.drop_trigger')}</span>{/if}
     <span class="mark trigger-mark"><Icon name={TRIGGER_ICON[draft.trigger.kind] ?? 'zap'} size="sm" /></span>
     <span class="body">
       <span class="kind">{t('app.flow.card_starts_on')}</span>
@@ -97,12 +164,26 @@
     class="gate"
     class:selected={isSelected('gate')}
     class:empty={draft.conditions.length === 0}
+    class:target={gateTakes}
+    class:over={overGate}
+    class:inert={drag !== undefined && !gateTakes}
     data-card="gate"
     role="button"
     tabindex="0"
     onclick={() => onselect({ kind: 'gate' })}
     onkeydown={(event) => onkey(event, () => onselect({ kind: 'gate' }))}
+    ondragover={(event) => { allow(event, gateTakes); overGate = gateTakes; }}
+    ondragleave={() => (overGate = false)}
+    ondrop={(event) => {
+      overGate = false;
+      if (!gateTakes) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onaddcondition();
+      ondragchange(undefined);
+    }}
   >
+    {#if gateTakes}<span class="dropword">{t('app.flow.drop_condition')}</span>{/if}
     <span class="ghead">
       <span class="mark condition-mark"><Icon name="funnel" size="sm" /></span>
       <span class="title">{t('app.flow.card_only_when')}</span>
@@ -144,14 +225,15 @@
     </button>
   </div>
 
-  <InsertMenu {kinds} list="" index={0} onpick={oninsert} />
+  <InsertMenu {kinds} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} />
+  <RuleCanvasList steps={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} />
 
   <!-- The guardrails: what bounds the rule, drawn as the end of the path. -->
   <div
     class="card guardrails"
     class:selected={isSelected('guardrails')}
+    class:inert={drag !== undefined}
     data-card="guardrails"
     role="button"
     tabindex="0"
@@ -172,7 +254,7 @@
 </div>
 
 <style>
-  .flow { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 92ch; margin-inline: auto; }
+  .flow { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 92ch; margin-inline: auto; }
 
   .stub { width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); border-radius: var(--r-full); flex: 0 0 auto; }
 
@@ -198,6 +280,19 @@
   .card.guardrails { border-style: dashed; box-shadow: none; background: var(--bg-surface-sunken); }
 
   .card.selected, .gate.selected, .condition.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
+
+  /* While a piece is lifted (decision 7): what may take it is ringed and labelled, what may not fades. */
+  .card.target, .gate.target { outline: var(--bw-ring) dashed var(--accent-primary); outline-offset: var(--sp-050); }
+
+  .card.over, .gate.over { background: var(--accent-primary-subtle); }
+
+  .card.inert, .gate.inert { opacity: 0.35; }
+
+  .dropword { position: absolute; inset-block-start: calc(-1 * var(--sp-150)); inset-inline-start: 50%; translate: -50% 0; padding: 0 var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); color: var(--text-inverse); font-size: var(--fs-050); font-weight: var(--fw-medium); white-space: nowrap; }
+
+  /* Out of the flow, in the canvas's own top padding: a hint that took space would move every
+     card under the pointer the moment a piece is lifted. */
+  .draghint { position: absolute; inset-block-start: calc(-1 * var(--sp-300)); inset-inline-start: 50%; translate: -50% 0; margin: 0; padding: var(--sp-050) var(--sp-150); border-radius: var(--r-full); background: var(--accent-primary); color: var(--text-inverse); font-size: var(--fs-075); font-weight: var(--fw-medium); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 
   .card:focus-visible, .gate:focus-visible, .condition:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
