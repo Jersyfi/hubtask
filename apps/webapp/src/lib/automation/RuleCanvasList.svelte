@@ -14,6 +14,7 @@
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
   import { countSteps, depthOf, type Step } from './model.ts';
   import { conditionWords, kindWord, type Names } from './words.ts';
+  import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -40,12 +41,16 @@
     segmented: boolean;
     armChoice: ReadonlyMap<string, 'then' | 'else'>;
     onpickarm: (path: string, arm: 'then' | 'else') => void;
+    verdicts?: ReadonlyMap<string, Verdict>;
+    dimUnvisited?: boolean;
   }
 
   const {
     steps, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
-    onnudge, drag, ondragchange, ondrop, segmented, armChoice, onpickarm,
+    onnudge, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
+
+  const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
 
   /** Whether a card is inert while something is lifted: everything but the lifted card's own subtree. */
   const inert = (path: string): boolean => drag !== undefined && !(drag.src === 'step' && (drag.path === path || path.startsWith(`${drag.path}/`)));
@@ -105,11 +110,16 @@
 {#each steps as step, index (pathOf(index))}
   {@const path = pathOf(index)}
   {@const isFlow = step.kind in FLOW_ICON}
+  {@const verdict = verdicts?.get(path)}
   <div
     class="card"
     class:stop={step.kind === 'STOP'}
     class:selected={isSelected(path)}
     class:inert={inert(path)}
+    class:lit={verdict !== undefined && verdict.state !== 'skipped'}
+    class:yes={verdict?.state === 'yes'}
+    class:no={verdict?.state === 'no'}
+    class:faded={(dimUnvisited && verdict === undefined) || verdict?.state === 'skipped'}
     class:lifted={drag?.src === 'step' && drag.path === path}
     data-card={path}
     data-depth={depthOf(prefix)}
@@ -128,6 +138,7 @@
       {#if meta(step)}<span class="meta">{meta(step)}</span>{/if}
       {#if marks?.get(path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(path)}</span>{/if}
     </span>
+    {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
     <span class="tools">
       <button
         class="tool"
@@ -211,7 +222,7 @@
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
                 <InsertMenu {kinds} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={list} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} />
+                <RuleCanvasList steps={list} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
               {#if !endsInStop(list)}<span class="tail"></span>{/if}
             </div>
@@ -295,6 +306,26 @@
   .card.inert { opacity: 0.35; }
 
   .card.lifted { opacity: 0.6; }
+
+  /* A run drawn on: a lit card carries its word; a skipped or never-reached one fades. */
+  .card.lit { box-shadow: 0 0 0 var(--sp-050) var(--accent-primary-subtle), var(--shadow-raised); }
+
+  .card.lit.yes { border-color: var(--success-500); }
+
+  .card.lit.no { border-color: var(--warning-500); }
+
+  .card.faded { opacity: 0.38; }
+
+  .verdict { position: absolute; inset-block-start: calc(-1 * var(--sp-150)); inset-inline-end: var(--sp-150); display: inline-flex; align-items: center; gap: var(--sp-050); padding: 0 var(--sp-100); min-height: var(--sp-250); border-radius: var(--r-full); font-size: var(--fs-050); font-weight: var(--fw-medium); background: var(--label-slate-bg); color: var(--label-slate-fg); animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both; }
+
+  .verdict.yes { background: var(--label-green-bg); color: var(--label-green-fg); }
+
+  .verdict.no { background: var(--label-amber-bg); color: var(--label-amber-fg); }
+
+  @keyframes arrive { from { opacity: 0; translate: 0 var(--sp-050); } to { opacity: 1; translate: none; } }
+
+  @media (prefers-reduced-motion: reduce) { .verdict { animation: none; } }
+  :global([data-motion='reduced']) .verdict { animation: none; }
 
   /* A card is a thing to move, not text to select: a selection that began on its title would
      otherwise be what the browser drags. */
