@@ -9,7 +9,7 @@
 
   import { Icon, Popover } from '@hubtask/design-system/components';
 
-  import { FLOW_KINDS } from './model.ts';
+  import { FLOW_KINDS, canPlace, type Step } from './model.ts';
   import { gapTakes, type Drag } from './selection.ts';
   import { grouped, kindIcon, kindWord } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -20,6 +20,8 @@
     /** Where the chosen kind goes: the list and the index the gap sits at. */
     list: string;
     index: number;
+    /** The whole chain, which decides what this gap may take (decision 14: a stop goes last). */
+    actions: readonly Step[];
     onpick: (list: string, index: number, kind: string) => void;
     /** A label above the slot, such as "a day later" under a WAIT. */
     caption?: string;
@@ -29,9 +31,9 @@
     ondrop?: (list: string, index: number, drag: Drag) => void;
   }
 
-  const { kinds, list, index, onpick, caption, drag, ondrop }: Props = $props();
+  const { kinds, list, index, actions, onpick, caption, drag, ondrop }: Props = $props();
 
-  const target = $derived(gapTakes(drag, list));
+  const target = $derived(gapTakes(drag, list, index, actions));
   let over = $state(false);
 
   function dragover(event: DragEvent): void {
@@ -58,7 +60,7 @@
   // else, so the palette can stay a palette.
   const groups = $derived([
     ...grouped(kinds, query.trim() === '' ? 'folded' : 'listed'),
-    { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] },
+    { code: 'app.flow.group_flow', kinds: FLOW_KINDS.filter((kind) => canPlace(actions, list, index, kind)) },
   ]);
   const shown = $derived(
     groups

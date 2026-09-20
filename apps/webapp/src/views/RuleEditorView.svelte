@@ -29,7 +29,7 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
+  import { canPlace, emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { TRIGGER_ICONS, eventWords, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
@@ -144,12 +144,15 @@
       if (moved) {
         update((current) => ({ ...current, actions: moved }));
         select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
+      } else {
+        refuse(piece);
       }
     }
     drag = undefined;
   }
   function refuse(piece: Drag): void {
-    refusal = t(`app.flow.refused_${piece.src}`);
+    const stop = (piece.src === 'action' && piece.kind === 'STOP') || (piece.src === 'step' && stepAt(draft.actions, piece.path)?.kind === 'STOP');
+    refusal = stop ? t('app.flow.refused_stop') : t(`app.flow.refused_${piece.src}`);
     clearTimeout(refusalTimer);
     refusalTimer = setTimeout(() => (refusal = undefined), 6000);
   }
@@ -275,6 +278,12 @@
   /* ---------- Edits ---------- */
 
   function insert(list: string, index: number, kind: string): void {
+    if (!canPlace(draft.actions, list, index, kind)) {
+      // A stop anywhere but last, or anything after one (decision 14): said, never silently
+      // dropped - the palette's click appends, which for a stop lands where it may.
+      refuse({ src: 'action', kind });
+      return;
+    }
     update((current) => ({ ...current, actions: insertAt(current.actions, list, index, newStep(kind)) }));
     select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
   }

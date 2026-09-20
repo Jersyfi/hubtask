@@ -5,25 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Rule } from '../data/rules.svelte.ts';
-import {
-  compileSentence,
-  countSteps,
-  depthOf,
-  fromRule,
-  insertAt,
-  isAutomatic,
-  moveStep,
-  nudge,
-  nameSeed,
-  newStep,
-  pathOf,
-  pointerOf,
-  readSentence,
-  removeAt,
-  stepAt,
-  toRuleDraft,
-  type Sentence,
-} from './model.ts';
+import { canPlace, compileSentence, countSteps, depthOf, fromRule, insertAt, isAutomatic, moveStep, nameSeed, newStep, nudge, pathOf, pointerOf, readSentence, removeAt, stepAt, toRuleDraft, unreachableFrom, type Sentence } from './model.ts';
 
 /** A stored rule with everything the old form could write, plus a branch, a wait and a stop. */
 const STORED: Rule = {
@@ -122,10 +104,28 @@ test('inserting, removing and moving keep the chain a copy, and a branch never e
 
   assert.equal(nudge(actions, '0', 1).map((step) => step.kind).join(','), 'BRANCH,ADD_LABEL,SEND_WEBHOOK');
   assert.equal(nudge(actions, '2', 1).map((step) => step.kind).join(','), 'ADD_LABEL,BRANCH,SEND_WEBHOOK', 'the last cannot go down');
-  assert.equal(nudge(actions, '1/else/1', -1)[1]?.else?.map((step) => step.kind).join(','), 'STOP,WAIT');
   assert.equal(moveStep(actions, '1', '1/then', 0), undefined, 'a branch into its own arm');
   assert.equal(moveStep(actions, '1', '1/else/0/then', 0), undefined, 'or deeper');
   assert.equal(moveStep(actions, '9', '', 0), undefined);
+});
+
+// A stop is a terminus and goes last (decision 14): it does not move up, nothing moves or is
+// inserted below it, and a gap is asked before anything lands.
+test('a stop stays the last step of its list', () => {
+  const { actions } = fromRule(STORED);
+  assert.equal(nudge(actions, '1/else/1', -1)[1]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'the stop does not move up');
+  assert.equal(nudge(actions, '1/else/0', 1)[1]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'nothing moves below it');
+  assert.equal(canPlace(actions, '1/else', 2, 'COMPLETE_ITEM'), false, 'nothing after a stop');
+  assert.equal(canPlace(actions, '1/else', 1, 'COMPLETE_ITEM'), true, 'before it is fine');
+  assert.equal(canPlace(actions, '', 1, 'STOP'), false, 'a stop in the middle');
+  assert.equal(canPlace(actions, '', 3, 'STOP'), true, 'a stop at the end');
+  assert.equal(canPlace(actions, '1/else', 2, 'STOP'), false, 'a second stop');
+  assert.equal(canPlace(actions, '7/then', 0, 'STOP'), false, 'a list that is not there');
+  assert.equal(moveStep(actions, '0', '1/else', 2), undefined, 'a move below a stop is refused');
+  assert.equal(moveStep(actions, '1/else/1', '', 1), undefined, 'a stop moved into the middle is refused');
+  assert.equal(moveStep(actions, '1/else/1', '', 3)?.map((step) => step.kind).join(','), 'ADD_LABEL,BRANCH,SEND_WEBHOOK,STOP', 'a stop moved to the end lands');
+  assert.equal(unreachableFrom(actions[1]?.else ?? []), -1, 'a stop that is last leaves nothing unreachable');
+  assert.equal(unreachableFrom([newStep('STOP'), newStep('WAIT'), newStep('WAIT')]), 1, 'what follows a stored stop');
 });
 
 test('the generated name is seeded by the trigger and the first two steps that are not branches', () => {

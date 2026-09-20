@@ -21,7 +21,7 @@
 
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
-  import type { Draft, Step } from './model.ts';
+  import { stepAt, type Draft, type Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
   import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
@@ -80,9 +80,9 @@
       case 'condition':
         return t('app.flow.drag_condition');
       case 'action':
-        return t('app.flow.drag_action');
+        return drag.kind === 'STOP' ? t('app.flow.drag_stop') : t('app.flow.drag_action');
       case 'step':
-        return t('app.flow.drag_step');
+        return stepAt(draft.actions, drag.path)?.kind === 'STOP' ? t('app.flow.drag_stop') : t('app.flow.drag_step');
       default:
         return '';
     }
@@ -233,13 +233,14 @@
     </button>
   </div>
 
-  <InsertMenu {kinds} list="" index={0} onpick={oninsert} {drag} {ondrop} />
+  <InsertMenu {kinds} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+  <RuleCanvasList steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
   <!-- The guardrails: what bounds the rule, drawn as the end of the path. -->
   <div
     class="card guardrails"
+    class:apart={draft.actions.length > 0 && draft.actions[draft.actions.length - 1]?.kind === 'STOP'}
     class:selected={isSelected('guardrails')}
     class:inert={drag !== undefined}
     data-card="guardrails"
@@ -286,6 +287,9 @@
   .card.trigger { border-color: var(--accent-signature); border-width: var(--bw-thick); }
 
   .card.guardrails { border-style: dashed; box-shadow: none; background: var(--bg-surface-sunken); }
+
+  /* After a stop the path has ended; the guardrails stand apart from it rather than hanging off nothing. */
+  .card.guardrails.apart { margin-block-start: var(--sp-300); }
 
   .card.selected, .gate.selected, .condition.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
 
