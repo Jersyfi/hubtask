@@ -16,7 +16,7 @@
   // the +40 % pseudo-locale, 200 % zoom and the reduced-motion axis - the matrix of ADR-0037,
   // applied to the foundations themselves.
 
-  import { labelTokens, primitive, tokens } from '../../dist/tokens.ts';
+  import { labelTokens, layout, primitive, tokens } from '../../dist/tokens.ts';
 
   interface Props {
     /** Which half of the foundations to show. One page holding all of it scrolls past reading. */
@@ -29,6 +29,8 @@
   const entries = (group: Record<string, string>) => Object.entries(group);
 
   const families = Object.entries(primitive.color) as [string, Record<string, string>][];
+  const statuses = Object.entries(tokens.status) as [string, Record<string, string>][];
+  const measures = Object.entries(layout) as [string, Record<string, string>][];
 
   /** The pairs a reader checks: text on a surface, and the surface it is read on. */
   const readingPairs = [
@@ -84,6 +86,30 @@
   </section>
 
   <section class="block">
+    <h2>A status as a surface</h2>
+    <p class="note">
+      Five meanings, four roles each (ADR-0061): the surface a badge or a banner sits on, the border
+      that carries the boundary (rule 3), the text on it, and the accent — the mark's colour and
+      the emphasised form's fill. The same custom properties in both panes; the test holds every
+      text to 4.5:1 on every surface and the border and the accent to 3:1.
+    </p>
+    <div class="statuses">
+      {#each statuses as [tone, roles] (tone)}
+        <div class="status-row">
+          <span class="status-name">{tone}</span>
+          <span class="status-chip" style:background={roles.surface} style:border-color={roles.border} style:color={roles.text}>
+            {tone} · subtle
+          </span>
+          <span class="status-chip bold" style:background={roles.accent} style:color={tokens.text.inverse}>
+            {tone} · bold
+          </span>
+          <span class="status-mark" style:color={roles.accent}>●</span>
+        </div>
+      {/each}
+    </div>
+  </section>
+
+  <section class="block">
     <h2>The ten label tokens</h2>
     <p class="note">
       What a label may be, and nothing else (ADR-0029). The core knows these ten names and not
@@ -110,6 +136,23 @@
         <span class="row-name">{step}</span>
         <span class="bar" style:inline-size={value}></span>
       </div>
+    {/each}
+  </section>
+
+  <section class="block">
+    <h2>The shell's measures</h2>
+    <p class="note">
+      What the frame used to compose out of space steps, because a width may not be written at a
+      call site (ADR-0061). A bar is the same height in the dark, so these sit beside motion rather
+      than under a mode.
+    </p>
+    {#each measures as [part, group] (part)}
+      {#each entries(group) as [name, value] (name)}
+        <div class="row">
+          <span class="row-name">{part}.{name}</span>
+          <span class="bar" style:inline-size={value}></span>
+        </div>
+      {/each}
     {/each}
   </section>
 
@@ -301,6 +344,18 @@
 
   .pair-sample { font-size: var(--fs-200); }
   .pair-name { font-family: var(--font-mono); font-size: var(--fs-050); opacity: 0.8; }
+
+  .statuses { display: flex; flex-direction: column; gap: var(--sp-100); }
+  .status-row { display: flex; align-items: center; gap: var(--sp-150); }
+  .status-name { font-family: var(--font-mono); font-size: var(--fs-075); min-inline-size: 8ch; color: var(--text-subtle); }
+  .status-chip {
+    padding: var(--sp-025) var(--sp-100);
+    border: var(--bw-hairline) solid transparent;
+    border-radius: var(--r-xs);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+  }
+  .status-mark { font-size: var(--fs-300); line-height: 1; }
 
   .labels { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 

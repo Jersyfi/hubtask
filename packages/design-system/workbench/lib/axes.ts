@@ -96,6 +96,11 @@ export const AXES: readonly Axis[] = [
         label: 'Compact',
         note: 'Sets data-density="compact". Nothing here may put a target below 24 px — WCAG 2.2 SC 2.5.8 is the floor, and `sm` sits exactly on it.',
       },
+      {
+        value: 'spacious',
+        label: 'Spacious',
+        note: 'Sets data-density="spacious" — the phone\'s step (ADR-0061): a 48 px control, which the frame chooses below `medium` and wherever the pointer is coarse.',
+      },
     ],
     fallback: 'comfortable',
   },
