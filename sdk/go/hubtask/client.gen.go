@@ -7529,6 +7529,12 @@ type ListRuleRunsParams struct {
 
 	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
 	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
+
+	// From The start of the window, inclusive, on `started_at` (F8-02). Named as the audit trail names its window, so that a client that has learned one has learned both.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To The end of the window, exclusive, on `started_at`. A window that ends before it starts is refused with the field named rather than answered empty.
+	To *time.Time `form:"to,omitempty" json:"to,omitempty"`
 }
 
 // ListRuleRunsParamsStatus defines parameters for ListRuleRuns.
@@ -20800,6 +20806,30 @@ func NewListRuleRunsRequest(server string, params *ListRuleRunsParams) (*http.Re
 		if params.Trigger != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "trigger", *params.Trigger, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.From != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", *params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date-time"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.To != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "to", *params.To, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date-time"}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

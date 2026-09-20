@@ -5,6 +5,7 @@ package automation
 
 import (
 	"context"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -206,6 +207,8 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 				Description: "Narrow to one way of starting. \"Did the schedule fire last night\" " +
 					"and \"did anybody press the button\" are two questions about the same rule.",
 			},
+			{Name: "from", Kind: usecase.KindString, Description: "The start of the window on started_at, inclusive. RFC 3339."},
+			{Name: "to", Kind: usecase.KindString, Description: "The end of the window on started_at, exclusive. RFC 3339."},
 			{Name: "cursor", Kind: usecase.KindString, Description: "Where the last page stopped."},
 			{Name: "size", Kind: usecase.KindInt, Description: "How many at most. Fifty by default, two hundred at most."},
 		},
@@ -262,6 +265,31 @@ func (h ListRuleRuns) invoke(
 			WithDetail("automation.trigger_kind_unknown").
 			WithParams(map[string]string{"kind": query.Trigger.String()}).
 			WithFields(shared.FieldError{Path: "/trigger", Code: "automation.trigger_kind_unknown"})
+	}
+	// The window (F8-02): each end parsed where it is named, and a window that ends before it
+	// starts refused rather than answered empty - an empty page reads as "nothing ran", which
+	// is not what a reversed window means.
+	for _, field := range []struct {
+		name string
+		into **time.Time
+	}{{"from", &query.From}, {"to", &query.To}} {
+		if !in.Present(field.name) {
+			continue
+		}
+		at, err := time.Parse(time.RFC3339, in.String(field.name))
+		if err != nil {
+			code := "automation.run_window_malformed"
+			return nil, shared.ErrValidation.
+				WithDetail(code).
+				WithParams(map[string]string{"field": field.name}).
+				WithFields(shared.FieldError{Path: "/" + field.name, Code: code})
+		}
+		*field.into = &at
+	}
+	if query.From != nil && query.To != nil && !query.To.After(*query.From) {
+		return nil, shared.ErrValidation.
+			WithDetail("automation.run_window_reversed").
+			WithFields(shared.FieldError{Path: "/to", Code: "automation.run_window_reversed"})
 	}
 
 	page, err := h.Execute(ctx, actor, query)

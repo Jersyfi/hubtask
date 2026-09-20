@@ -443,6 +443,12 @@ func (c *RestController) ListRuleRuns(
 		if params.Trigger != nil {
 			input["trigger"] = string(*params.Trigger)
 		}
+		if params.From != nil {
+			input["from"] = params.From.Format(time.RFC3339Nano)
+		}
+		if params.To != nil {
+			input["to"] = params.To.Format(time.RFC3339Nano)
+		}
 		if params.Cursor != nil {
 			input["cursor"] = *params.Cursor
 		}

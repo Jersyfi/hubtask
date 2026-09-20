@@ -1465,6 +1465,26 @@
                 "JUMBLE_ENTRY"
               ]
             }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "The start of the window, inclusive, on `started_at` (F8-02). Named as the audit trail names its window, so that a client that has learned one has learned both.\n",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "The end of the window, exclusive, on `started_at`. A window that ends before it starts is refused with the field named rather than answered empty.\n",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           }
         ],
         "responses": {
