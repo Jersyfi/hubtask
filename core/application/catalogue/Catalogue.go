@@ -322,6 +322,22 @@ func AutomationActions() []string {
 	return actions
 }
 
+// AutomationActionFields is, for every action kind AutomationActions names, the fields the use
+// case behind it declares - what the manifest answers so that a rule editor builds an action's
+// form from the declaration rather than from a schema compiled into it (F8-01). The same
+// []usecase.Field the MCP tool schema is derived from, read off the descriptor here and never
+// declared a second time; a kind with no fields maps to an empty slice rather than being absent,
+// because "no parameters" and "no such kind" are two different answers.
+func AutomationActionFields() map[string][]usecase.Field {
+	fields := make(map[string][]usecase.Field, len(Descriptors()))
+	for _, descriptor := range Descriptors() {
+		declared := make([]usecase.Field, len(descriptor.Input))
+		copy(declared, descriptor.Input)
+		fields[descriptor.AutomationAction()] = declared
+	}
+	return fields
+}
+
 // SessionScopes is what a session-authenticated person may exercise: every declared scope except
 // the control plane's. A session is the person themselves - but the admin surface is entered by
 // a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0

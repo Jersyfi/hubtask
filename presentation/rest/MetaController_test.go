@@ -12,6 +12,7 @@ import (
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	catalogueusecase "github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -432,5 +433,60 @@ func TestTheManifestPublishesTheSupportedLocales(t *testing.T) {
 	arabic := body.SupportedLocales[1]
 	if arabic.Locale != "ar" || arabic.Direction != "rtl" || arabic.WeekStart != "SATURDAY" || arabic.DecimalSeparator != "." {
 		t.Errorf("the Arabic row is %+v", arabic)
+	}
+}
+
+// A rule editor builds an action's form from the manifest (F8-01): every kind the manifest names
+// carries its declared fields - an empty array for a kind that takes none, never an absent key -
+// and a field is published as the use case declared it, enum and requirement included.
+func TestTheManifestPublishesEachActionsFields(t *testing.T) {
+	answer := manifest()
+	answer.AutomationActions = []string{"ARCHIVE_ITEM", "ASSIGN_ITEM"}
+	answer.AutomationActionFields = map[string][]catalogueusecase.Field{
+		"ARCHIVE_ITEM": {},
+		"ASSIGN_ITEM": {
+			{Name: "item_id", Kind: catalogueusecase.KindID, Required: true, Description: "the entry"},
+			{Name: "strategy", Kind: catalogueusecase.KindString, Enum: []string{"FIXED", "ROUND_ROBIN"}},
+		},
+	}
+
+	response := serveCapabilities(t, &capabilities{result: answer})
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+	}
+
+	var body struct {
+		Automation struct {
+			Actions      []string `json:"actions"`
+			ActionFields map[string][]struct {
+				Name        string   `json:"name"`
+				Kind        string   `json:"kind"`
+				Required    bool     `json:"required"`
+				Enum        []string `json:"enum"`
+				Description string   `json:"description"`
+			} `json:"action_fields"`
+		} `json:"automation"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("the manifest is not JSON: %v", err)
+	}
+	if body.Automation.ActionFields == nil {
+		t.Fatal("action_fields is absent; a form built from it cannot tell no fields from not answered")
+	}
+	for _, kind := range body.Automation.Actions {
+		if _, present := body.Automation.ActionFields[kind]; !present {
+			t.Errorf("%s is offered as an action and has no fields entry", kind)
+		}
+	}
+	if fields := body.Automation.ActionFields["ARCHIVE_ITEM"]; fields == nil || len(fields) != 0 {
+		t.Errorf("a kind with no parameters answers %v, want an empty array", fields)
+	}
+	assign := body.Automation.ActionFields["ASSIGN_ITEM"]
+	if len(assign) != 2 || assign[0].Name != "item_id" || assign[0].Kind != "id" || !assign[0].Required ||
+		assign[0].Description != "the entry" {
+		t.Errorf("the id field is published as %+v", assign)
+	}
+	if len(assign) == 2 && (assign[1].Required || len(assign[1].Enum) != 2 || assign[1].Enum[1] != "ROUND_ROBIN") {
+		t.Errorf("the enum field is published as %+v", assign[1])
 	}
 }

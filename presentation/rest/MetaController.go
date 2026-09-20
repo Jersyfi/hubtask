@@ -171,10 +171,35 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	if automationActions == nil {
 		automationActions = []string{}
 	}
+	// And what each action declares (F8-01): one entry per kind, always, with an empty array
+	// for a kind that takes nothing - a form built from this has to be able to tell "no fields"
+	// from "not answered".
+	actionFields := make(map[string][]openapi.AutomationActionField, len(source.AutomationActionFields))
+	for kind, declared := range source.AutomationActionFields {
+		fields := make([]openapi.AutomationActionField, 0, len(declared))
+		for _, field := range declared {
+			entry := openapi.AutomationActionField{
+				Name:     field.Name,
+				Kind:     openapi.AutomationActionFieldKind(field.Kind),
+				Required: field.Required,
+			}
+			if len(field.Enum) > 0 {
+				values := append([]string(nil), field.Enum...)
+				entry.Enum = &values
+			}
+			if field.Description != "" {
+				description := field.Description
+				entry.Description = &description
+			}
+			fields = append(fields, entry)
+		}
+		actionFields[kind] = fields
+	}
 	automationManifest := struct {
-		Actions  *[]string `json:"actions,omitempty"`
-		Triggers *[]string `json:"triggers,omitempty"`
-	}{Actions: &automationActions, Triggers: &triggers}
+		ActionFields *map[string][]openapi.AutomationActionField `json:"action_fields,omitempty"`
+		Actions      *[]string                                   `json:"actions,omitempty"`
+		Triggers     *[]string                                   `json:"triggers,omitempty"`
+	}{ActionFields: &actionFields, Actions: &automationActions, Triggers: &triggers}
 
 	// The catalogue of §3, with what this build can do to each. `actions` is always an array,
 	// including the empty one: a kind nothing removes is named here on purpose, and an absent key
