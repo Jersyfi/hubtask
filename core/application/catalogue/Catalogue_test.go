@@ -212,3 +212,48 @@ func TestEveryDestructiveUseCaseIsClosedToAnAgent(t *testing.T) {
 	}
 	t.Logf("%d destructive use cases are closed to an agent by default", destructive)
 }
+
+// The fields the manifest publishes per action are the use case's own declaration (F8-01): one
+// entry per action kind - the same key set as AutomationActions, so a client never meets a kind
+// it has no form for - and each entry equal to what the descriptor declares, which is also what
+// the MCP tool schema is derived from. A kind that takes nothing maps to an empty slice.
+func TestAutomationActionFieldsAreTheDescriptorsOwnInputs(t *testing.T) {
+	fields := catalogue.AutomationActionFields()
+	actions := catalogue.AutomationActions()
+	if len(fields) != len(actions) {
+		t.Fatalf("%d field entries for %d actions", len(fields), len(actions))
+	}
+	for _, action := range actions {
+		declared, present := fields[action]
+		if !present {
+			t.Errorf("%s has no fields entry", action)
+			continue
+		}
+		if declared == nil {
+			t.Errorf("%s maps to nil rather than an empty slice", action)
+		}
+	}
+	for _, descriptor := range catalogue.Descriptors() {
+		declared := fields[descriptor.AutomationAction()]
+		if len(declared) != len(descriptor.Input) {
+			t.Errorf("%s publishes %d fields, declares %d", descriptor.Name, len(declared), len(descriptor.Input))
+			continue
+		}
+		for index, field := range descriptor.Input {
+			if declared[index].Name != field.Name || declared[index].Kind != field.Kind ||
+				declared[index].Required != field.Required || !slices.Equal(declared[index].Enum, field.Enum) {
+				t.Errorf("%s field %d is published as %+v, declared %+v", descriptor.Name, index, declared[index], field)
+			}
+		}
+	}
+	// A copy, not the descriptor's own slice: a caller that sorted or appended must not reach into
+	// the catalogue.
+	first := catalogue.Descriptors()[0]
+	published := catalogue.AutomationActionFields()[first.AutomationAction()]
+	if len(published) > 0 {
+		published[0].Name = "changed"
+		if catalogue.Descriptors()[0].Input[0].Name == "changed" {
+			t.Error("the published fields alias the descriptor's declaration")
+		}
+	}
+}
