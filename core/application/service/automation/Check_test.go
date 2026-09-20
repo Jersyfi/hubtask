@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
@@ -273,5 +274,61 @@ func TestEveryReferenceFieldIsOneTheCatalogueDeclares(t *testing.T) {
 		if !known[kind] {
 			t.Errorf("%s maps to %q, which no resolver answers", name, kind)
 		}
+	}
+}
+
+// The installation's sweep checks every rule of the workspace - the system is not a caller with
+// a scope to be held to - and refuses to run for no tenant at all.
+func TestTheSweepChecksEveryRuleOfTheTenant(t *testing.T) {
+	h := newCheck(ruleNaming(ruleID, goneLabel), ruleNaming(otherRule, labelID))
+	h.auth.refuse = true // a person would see nothing; the installation is not a person
+
+	if err := h.check.Sweep(context.Background(), tenant); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	for _, id := range []shared.ID{ruleID, otherRule} {
+		stored, _ := h.rules.Find(context.Background(), id)
+		if stored.CheckedAt.IsZero() {
+			t.Errorf("%s was not checked by the sweep", id)
+		}
+	}
+	if len(h.audit.entries) != 1 || h.audit.entries[0].ActorKind != appshared.ActorSystem {
+		t.Errorf("the sweep's audit entry is %+v", h.audit.entries)
+	}
+	if err := h.check.Sweep(context.Background(), ""); err == nil {
+		t.Error("a sweep for no tenant ran")
+	}
+}
+
+// A deletion of anything a rule may name seeds one check for its tenant - deduplicated, so that a
+// bulk deletion is one job - and nothing else is written by the subscriber.
+func TestADeletionSeedsOneCheckForItsTenant(t *testing.T) {
+	jobs := &queued{}
+	subscriber := CheckOnDeletion{Jobs: jobs}
+
+	if !subscriber.Wants(event.LabelDeleted) || !subscriber.Wants(event.BucketDeleted) ||
+		!subscriber.Wants(event.ContainerDeleted) {
+		t.Error("a deletion of something a rule may name is not wanted")
+	}
+	if subscriber.Wants(event.ItemUpdated) || subscriber.Wants(event.CommentDeleted) {
+		t.Error("an event that takes nothing a rule names is wanted")
+	}
+	for range 3 {
+		if err := subscriber.Deliver(context.Background(), event.Envelope{
+			Type: event.LabelDeleted, TenantID: tenant, Subject: "label/" + goneLabel.String(),
+		}); err != nil {
+			t.Fatalf("delivering: %v", err)
+		}
+	}
+	if len(jobs.requests) != 3 {
+		t.Fatalf("%d jobs written", len(jobs.requests))
+	}
+	for _, request := range jobs.requests {
+		if request.Kind != "automation.check" || request.TenantID != tenant || request.DedupeKey != tenant.String() {
+			t.Errorf("the job is %+v", request)
+		}
+	}
+	if err := (CheckOnDeletion{}).Deliver(context.Background(), event.Envelope{Type: event.LabelDeleted, TenantID: tenant}); err != nil {
+		t.Errorf("without a queue: %v", err)
 	}
 }

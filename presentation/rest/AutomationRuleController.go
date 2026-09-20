@@ -522,6 +522,8 @@ const (
 )
 
 // CheckRules answers POST /automation/rules:check (ADR-0060).
+//
+//nolint:contextcheck // the closure carries the request's own context exactly as every sibling does
 func (c *RestController) CheckRules(w http.ResponseWriter, r *http.Request) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		return c.UseCases.Invoke(r.Context(), checkRulesUseCase, actor, usecase.Input{})

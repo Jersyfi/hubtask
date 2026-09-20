@@ -252,6 +252,12 @@ const (
 	// to - and a tenant with no scheduled rule has no row at all.
 	KindAutomationSchedule Kind = "automation.schedule"
 
+	// KindAutomationCheck is one workspace's check of its rules against what exists now
+	// (ADR-0060): seeded by the deletion of anything a rule may name, one job per tenant however
+	// many deletions arrive together, and never by a timer - the rules screen asks for the same
+	// check on demand, which is what makes "after an update" true without enumerating tenants.
+	KindAutomationCheck Kind = "automation.check"
+
 	// KindTenantExport writes one workspace's complete, documented archive to a configured
 	// backup target (H-07, tenant-export.md): the control plane's act, working for every
 	// lifecycle state - the suspended and the leaving are exactly who needs it. One job per

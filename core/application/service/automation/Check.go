@@ -112,7 +112,30 @@ func (h CheckRules) Execute(ctx context.Context, actor appshared.ActorContext) (
 	if err := actor.RequireScope(automationScope); err != nil {
 		return nil, err
 	}
+	return h.run(ctx, actor, func(ctx context.Context, rule domain.Rule) (bool, error) {
+		return h.permits(ctx, actor, rule.Scope)
+	})
+}
 
+// Sweep is the check as the installation runs it for one workspace - the job a deletion seeds
+// (ADR-0060). Every rule of the tenant, because the system is not a caller with a scope to be
+// held to; the audit entry names the installation, as the privacy performer's does.
+func (h CheckRules) Sweep(ctx context.Context, tenantID shared.ID) error {
+	if tenantID.IsZero() {
+		return shared.ErrInternal.WithDetail("automation.check_without_tenant")
+	}
+	actor := appshared.ActorContext{
+		Kind: appshared.ActorSystem, TenantID: tenantID, AccountName: "the installation",
+	}
+	_, err := h.run(ctx, actor, func(context.Context, domain.Rule) (bool, error) { return true, nil })
+	return err
+}
+
+// run walks the workspace's rules and checks the ones the filter admits.
+func (h CheckRules) run(
+	ctx context.Context, actor appshared.ActorContext,
+	admits func(context.Context, domain.Rule) (bool, error),
+) ([]domain.Rule, error) {
 	var checked []domain.Rule
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		now := h.Clock.Now()
@@ -123,7 +146,7 @@ func (h CheckRules) Execute(ctx context.Context, actor appshared.ActorContext) (
 				return err
 			}
 			for _, rule := range page.Rules {
-				allowed, err := h.permits(ctx, actor, rule.Scope)
+				allowed, err := admits(ctx, rule)
 				if err != nil {
 					return err
 				}
