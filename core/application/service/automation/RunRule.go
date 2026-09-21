@@ -649,6 +649,14 @@ func (h RunRule) act(
 // gate and the chain of one run cannot be about two different entries. Before F8's walk nothing
 // supplied it, and every entry action on an event rule failed at the run with
 // `usecase.input_invalid` - the one input the registry validates in full, missing.
+// suppliedFields is every name supplied ever writes: what a rule may leave unset and still run.
+// The check reads it to tell a parameter the run brings from one nothing brings (F8-19), and a
+// test holds supplied to it.
+var suppliedFields = map[string]bool{"event_id": true, "item_id": true, "entry_id": true}
+
+// SuppliedByRun says whether a run may supply the named parameter.
+func SuppliedByRun(name string) bool { return suppliedFields[name] }
+
 func (c Command) supplied(values condition.Values) map[string]any {
 	supplied := map[string]any{}
 	if !c.EventID.IsZero() {
