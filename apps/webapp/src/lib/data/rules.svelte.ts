@@ -24,28 +24,15 @@ import { engine } from './engine.ts';
 
 const PATH = '/automation/rules';
 
-/** One step of a run. `BRANCH` nests, because the contract nests. */
+/**
+ * One step of a rule, as `RuleAction` answers it: a kind and its parameters. `BRANCH` nests inside
+ * `params` - `then` and `else` are what the kind takes, beside `condition` - because that is where
+ * the domain reads them and where a finding's path points; the shape that put the arms beside
+ * `params` was refused on every write and read back empty (issue 853).
+ */
 export interface RuleAction {
   readonly kind: string;
   readonly params?: Record<string, unknown>;
-  readonly then?: readonly RuleAction[];
-  readonly else?: readonly RuleAction[];
-}
-
-/**
- * An action while it is being edited.
- *
- * Mutable, and separate from `RuleAction` on purpose: what the server answers is read-only, and a
- * form that edited the answer in place would be editing the cache. `paramsText` is the editor's
- * own — the parameters are typed as JSON and parsed on the way out, so that a half-typed object is
- * a thing the reader can still see rather than a parse error that ate their input.
- */
-export interface DraftAction {
-  kind: string;
-  params?: Record<string, unknown>;
-  paramsText?: string;
-  then?: DraftAction[];
-  else?: DraftAction[];
 }
 
 /** What starts a rule. Each kind takes its own fields and no others. */
