@@ -570,9 +570,16 @@ additive things, the check two findings. Eight decisions:
     at `/run_as`, drawn at the *Runs as* pill with `run_as_hint` saying what to do about it.
     Both inside ADR-0060's frame — the check names them, the run is untouched. The rest of
     §2.1 (the writer's rights, per-action permissions) stays with the run, as ADR-0060 says.
-23. **What stays put to the owner.** The list card's bars (the prototype drew the word plus
-    *last run*; decision 5 stands until he says otherwise), the runs page's link to *Limits*,
-    issue 814 (its own task after this round, before the third walk), and the deploy.
+23. **The owner's four answers, 2026-09-21.** *The list card:* the word stays, and under it one
+    line *last run* — when, and how it ended; the bars the concept drew were only the words,
+    coloured and side by side, and are not missed until somebody misses them. The rule carries
+    its last run (`last_run`, additive) so the list still costs one request. *The runs page:*
+    one line under the strip — this hour's runs against `automation_runs_per_hour` from
+    `GET /quotas`, with the link to *Limits*; no new endpoint. *Issue 814:* the notification
+    gets a subject of its own — `item_id` becomes optional beside a `rule_id`, exactly one set
+    (expand-only migration, check constraint), no pseudo-entry — as its own pull request before
+    the third walk. *The deploy:* not a decision — everything on `main` is on the integration
+    environment, and no release is being held back for it.
 
 ## F8-15 — The manifest says more about each action: summary, rule flag, format **[L]**
 
@@ -665,7 +672,7 @@ e2e sees both at their places; `make verify` green.
 
 ## F8-20 — The third walk **[L]**
 
-*Depends on: F8-15 to F8-19, and issue 814 fixed. Issue #868.*
+*Depends on: F8-15 to F8-19 and F8-21, and issue 814 fixed. Issue #868.*
 
 The editor walked a third time on a local server with the round merged and 814 fixed — this
 time the BROKEN path as well, since the notification no longer violates the key — and the
@@ -676,6 +683,22 @@ Definition of Done). Anything the walk finds is an issue.
 **Acceptance:** the third section exists with the BROKEN path walked; every issue of the round
 closed by its pull request; the leftovers of decision 23 restated with what the owner decided
 where he did.
+
+## F8-21 — The list card's last run, and the runs page's line to Limits **[L]**
+
+*Depends on: nothing. Issue #871.*
+
+Decision 23, the two small halves. `AutomationRule` gains `last_run` (`{ at, outcome }`,
+absent for a rule that never ran) — additive, read with the rule from the runs table's latest
+row, so the list keeps costing one request; the list card says it in one line under the word
+(`app.flow.last_run`, *never ran* when absent). The runs page draws one line under the strip:
+this hour's runs against `automation_runs_per_hour` from `GET /quotas` — *34 of 500 this hour*,
+*no limit* when the limit is null — and the link to *Limits* (`/administration/quotas`).
+
+**Acceptance:** `GET /automation/rules` answers `last_run` for a rule that ran and omits it for
+one that never did (contract and repository test); the card shows the line; the runs page shows
+the hour's number and the link, and the e2e reads both; `make verify` green, `make generate`
+clean, the catalogue complete.
 
 ## The order at a glance
 
@@ -695,7 +718,8 @@ F8-13 ─┘
 
 F8-15 ──── F8-16 ──── F8-18 ─┐
 F8-17 ──────────────────────┼── F8-20      (the third round; #814 before F8-20)
-F8-19 ──────────────────────┘
+F8-19 ──────────────────────┤
+F8-21 ──────────────────────┘
 ```
 
 Three tasks depend on nothing and can start at once: the three core tasks **F8-01**, **F8-02**
