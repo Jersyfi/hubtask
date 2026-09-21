@@ -181,8 +181,10 @@
     expanded = first.filter((item) => childTypes(item.type).length > 0).map((item) => item.id);
   });
   $effect(() => {
-    if (!expansionKey || !hasDefaultExpansion) return;
+    // Read first, so the effect follows `expanded` from its first run and not only once the
+    // default has been applied - an early return before the read would track nothing.
     const kept = JSON.stringify(expanded);
+    if (!expansionKey || !hasDefaultExpansion) return;
     try {
       sessionStorage.setItem(expansionKey, kept);
     } catch {
@@ -311,8 +313,11 @@
   // In a subtree every level is read whether or not it is shown, so that a closed row can say
   // "done of total" about what it hides; in the collection's list only an open row's level is read.
   const readIds = $derived(root ? rows.filter((row) => row.takesChildren).map((row) => row.item.id) : expanded);
+  // Keyed by the ids as one string: reading a level writes the store, the store rebuilds the rows,
+  // and a fresh array of the same ids would re-run this effect and re-read the level - forever.
+  const readKey = $derived(readIds.join(' '));
   $effect(() => {
-    const open = [...readIds];
+    const open = readKey === '' ? [] : readKey.split(' ');
     return untrack(() => {
       const stops = open.map((id) => items.openChildren(id));
       return () => {
@@ -380,8 +385,10 @@
    * subtree the name of what it adds, as the manifest names the type, because "+ Work package"
    * under a task says which level the reader is adding to.
    */
+  /** A type as words: the manifest's identifier, read as `humanise` reads a code ("Work package"). */
+  const typeName = (type: string) => humanise(type.toLowerCase());
   const addLabel = $derived(
-    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: humanise(topTypes()[0] ?? '') }) : t('app.entries.add'),
+    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: typeName(topTypes()[0] ?? '') }) : t('app.entries.add'),
   );
 
   /** The language a new entry is written in: the person's own, preselected, and changeable. */
@@ -1078,7 +1085,7 @@
                   <IconButton
                     icon="plus"
                     label={childTypes(row.item.type).length === 1
-                      ? t('app.entries.add_typed_inside', { type: humanise(childTypes(row.item.type)[0] ?? ''), title: row.item.title })
+                      ? t('app.entries.add_typed_inside', { type: typeName(childTypes(row.item.type)[0] ?? ''), title: row.item.title })
                       : t('app.entries.add_child', { title: row.item.title })}
                     size="sm"
                     onclick={() => startAdding(row.item.id)}
