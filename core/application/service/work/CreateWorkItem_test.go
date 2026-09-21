@@ -523,35 +523,41 @@ func systemProfiles() []domain.CapabilityProfile {
 }
 
 type itemHarness struct {
-	handler    CreateWorkItem
-	items      *items
-	containers *containers
-	profiles   *profiles
-	events     *events
-	changes    *changes
-	audit      *sink
-	history    *journal
-	authorizer *authorizer
-	uow        *unitOfWork
-	visibility *visibility
-	policies   *policyStore
+	handler     CreateWorkItem
+	items       *items
+	itemLabels  *itemLabels
+	labels      *labels
+	itemMembers *itemMembers
+	containers  *containers
+	profiles    *profiles
+	events      *events
+	changes     *changes
+	audit       *sink
+	history     *journal
+	authorizer  *authorizer
+	uow         *unitOfWork
+	visibility  *visibility
+	policies    *policyStore
 }
 
 func newItemHarness() *itemHarness {
 	store := &items{stored: map[shared.ID]domain.WorkItem{}}
 	containerStore := &containers{stored: map[shared.ID]domain.Container{}}
 	h := &itemHarness{
-		items:      store,
-		containers: containerStore,
-		profiles:   &profiles{rows: systemProfiles()},
-		events:     &events{},
-		changes:    &changes{},
-		audit:      &sink{},
-		history:    &journal{},
-		authorizer: &authorizer{},
-		uow:        &unitOfWork{},
-		visibility: newVisibility(assigneeID, accountID),
-		policies:   newPolicyStore(),
+		items:       store,
+		itemLabels:  newItemLabels(),
+		labels:      &labels{stored: map[shared.ID]domain.Label{}},
+		itemMembers: newItemMembers(),
+		containers:  containerStore,
+		profiles:    &profiles{rows: systemProfiles()},
+		events:      &events{},
+		changes:     &changes{},
+		audit:       &sink{},
+		history:     &journal{},
+		authorizer:  &authorizer{},
+		uow:         &unitOfWork{},
+		visibility:  newVisibility(assigneeID, accountID),
+		policies:    newPolicyStore(),
 	}
 	h.handler = CreateWorkItem{
 		Items: store, Containers: containerStore, Profiles: h.profiles,
@@ -577,6 +583,22 @@ func newItemHarness() *itemHarness {
 			Items: store, Containers: containerStore, Profiles: h.profiles,
 			Reminders:  newReminders(),
 			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		},
+		// The two set writers, over the same fakes (issue 878): the create path is their second
+		// caller.
+		Labels: ItemLabelWriter{
+			Items: store, ItemLabels: h.itemLabels, Labels: h.labels, Containers: containerStore,
+			Profiles: h.profiles, Authorizer: h.authorizer, Events: h.events, Changes: h.changes,
+			Audit:      h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		},
+		Members: ItemMemberWriter{
+			Items: store, ItemMembers: h.itemMembers, Containers: containerStore,
+			Profiles: h.profiles, Authorizer: h.authorizer, Visibility: h.visibility,
+			Events: h.events, Changes: h.changes, Audit: h.audit,
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
@@ -1165,13 +1187,15 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
 		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
-		"calendar_uid",
+		"calendar_uid", "label_ids", "member_ids",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	for _, later := range []string{"label_ids", "member_ids", "cover"} {
+	// The contract promises these on WorkItemCreate too, and no use case writes them at
+	// creation yet (issue 896); they are refused by name rather than accepted and dropped.
+	for _, later := range []string{"cover", "custom_fields", "before_item_id"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}
@@ -1179,9 +1203,15 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 
 	if err := descriptor.ValidateInput(map[string]any{
 		"type": "TASK", "title": "Buy milk",
-		"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
+		"cover": map[string]any{"kind": "COLOR", "color_token": "accent.red"},
 	}); err == nil {
 		t.Error("a field nothing writes was accepted rather than refused by name")
+	}
+	if err := descriptor.ValidateInput(map[string]any{
+		"type": "TASK", "title": "Buy milk",
+		"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
+	}); err != nil {
+		t.Errorf("member_ids, which the contract promises, was refused: %v", err)
 	}
 }
 
@@ -1349,5 +1379,129 @@ func TestAClientMintedIdentifierIsKeptAndHasToBeAUUIDv7(t *testing.T) {
 	if _, _, err := h.handler.Execute(context.Background(), itemActor(), cmd); err == nil ||
 		shared.AsError(err).DetailCode != "sync.id_not_uuidv7" {
 		t.Errorf("a v4 identifier was answered %v", err)
+	}
+}
+
+// setProfiles gives a task the two sets the contract's WorkItemCreate promises to fill.
+func setProfiles() []domain.CapabilityProfile {
+	rows := systemProfiles()
+	for i, row := range rows {
+		if row.Type == domain.ItemTask {
+			rows[i].Capabilities = append(row.Capabilities, domain.CapabilityLabels, domain.CapabilityMembers)
+		}
+	}
+	return rows
+}
+
+// Issue 878: `WorkItemCreate.label_ids` and `member_ids` are in the contract, and the catalogue
+// refused both by name. An entry created with them carries them at once, with the records the
+// standalone routes write - inside the one transaction.
+func TestAnEntryIsCreatedAlreadyCarryingItsLabelsAndMembers(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = setProfiles()
+	h.labels.stored[urgentLabel] = domain.Label{
+		ID: urgentLabel, TenantID: tenantID, CollectionID: collectionID, Name: "Urgent", ColorToken: "accent.red", Version: 1,
+	}
+	cmd := taskCommand()
+	cmd.LabelIDs = []shared.ID{urgentLabel, urgentLabel}
+	cmd.MemberIDs = []shared.ID{assigneeID}
+
+	created, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	carried, _ := h.itemLabels.List(context.Background(), created.ID)
+	if len(carried) != 1 || carried[0] != urgentLabel {
+		t.Errorf("labels carried = %v, want the one label once", carried)
+	}
+	members, _ := h.itemMembers.List(context.Background(), created.ID)
+	if len(members) != 1 || members[0] != assigneeID {
+		t.Errorf("members carried = %v, want the one account", members)
+	}
+	// The creation's records, then the label's and the member's: three events, three changes,
+	// three audit entries, three steps of the history - and the label named twice announced once.
+	types := make([]event.Type, 0, len(h.events.appended))
+	for _, envelope := range h.events.appended {
+		types = append(types, envelope.Type)
+	}
+	want := []event.Type{event.ItemCreated, event.ItemLabelAdded, event.ItemMemberAdded}
+	if len(types) != len(want) || types[0] != want[0] || types[1] != want[1] || types[2] != want[2] {
+		t.Errorf("events = %v, want %v", types, want)
+	}
+	if len(h.changes.recorded) != 3 || len(h.audit.entries) != 3 {
+		t.Errorf("changes = %d, audit entries = %d, want 3 and 3", len(h.changes.recorded), len(h.audit.entries))
+	}
+	if h.uow.writes != 1 {
+		t.Errorf("write transactions = %d, want the one the creation opened", h.uow.writes)
+	}
+}
+
+// A label from another collection refuses the creation whole, and the refusal names the element
+// of the list that carried it rather than a field the request never had.
+func TestALabelFromElsewhereRefusesTheWholeCreationByItsElement(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = setProfiles()
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000c9")
+	h.labels.stored[other] = domain.Label{
+		ID: other, TenantID: tenantID, CollectionID: shared.MustParseID("0192f000-0000-7000-8000-0000000000b9"),
+		Name: "Elsewhere", ColorToken: "accent.blue", Version: 1,
+	}
+	h.labels.stored[urgentLabel] = domain.Label{
+		ID: urgentLabel, TenantID: tenantID, CollectionID: collectionID, Name: "Urgent", ColorToken: "accent.red", Version: 1,
+	}
+	cmd := taskCommand()
+	cmd.LabelIDs = []shared.ID{urgentLabel, other}
+
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	var typed *shared.Error
+	if !errors.As(err, &typed) || !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("err = %v, want a validation error", err)
+	}
+	if len(typed.Fields) != 1 || typed.Fields[0].Path != "/label_ids/1" || typed.Fields[0].Code != "labels.not_in_collection" {
+		t.Errorf("fields = %+v, want labels.not_in_collection at /label_ids/1", typed.Fields)
+	}
+	// The reads before it commit on their own; the write is the one that rolled back.
+	if !h.uow.rolledBack {
+		t.Error("the write transaction was not rolled back with the refusal")
+	}
+}
+
+// A member who cannot see the entry is refused before the transaction, as the standalone route
+// refuses one - the visibility question opens transactions of its own.
+func TestAMemberWhoCannotSeeTheEntryIsRefusedBeforeTheTransaction(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = setProfiles()
+	cmd := taskCommand()
+	cmd.MemberIDs = []shared.ID{strangerID}
+
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	var typed *shared.Error
+	if !errors.As(err, &typed) || !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("err = %v, want a validation error", err)
+	}
+	if len(typed.Fields) != 1 || typed.Fields[0].Path != "/member_ids/0" || typed.Fields[0].Code != "items.account_without_access" {
+		t.Errorf("fields = %+v, want items.account_without_access at /member_ids/0", typed.Fields)
+	}
+	if h.uow.writes != 0 {
+		t.Errorf("write transactions = %d, want none", h.uow.writes)
+	}
+}
+
+// A type whose profile carries no LABELS refuses a label at creation, as it refuses one later.
+func TestALabelOnATypeWithoutLabelsRefusesTheCreation(t *testing.T) {
+	h := newItemHarness()
+	h.labels.stored[urgentLabel] = domain.Label{
+		ID: urgentLabel, TenantID: tenantID, CollectionID: collectionID, Name: "Urgent", ColorToken: "accent.red", Version: 1,
+	}
+	cmd := taskCommand()
+	cmd.LabelIDs = []shared.ID{urgentLabel}
+
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	var typed *shared.Error
+	if !errors.As(err, &typed) || !errors.Is(err, shared.ErrCapabilityNotSupported) {
+		t.Fatalf("err = %v, want capability_not_supported", err)
+	}
+	if len(typed.Fields) != 1 || typed.Fields[0].Path != "/label_ids/0" {
+		t.Errorf("fields = %+v, want the refusal at /label_ids/0", typed.Fields)
 	}
 }

@@ -219,6 +219,43 @@ func (w ItemMemberWriter) change(
 	return result, nil
 }
 
+// addWithin puts an account on the member list of an entry that is being created, inside the
+// creator's transaction (issue 878): the same guards and the same four records as
+// `PUT /items/{id}/members/{accountId}`, minus the permission question the creation has already
+// asked, and minus the visibility question, which opens transactions of its own and is therefore
+// asked by the creator before it opens this one (`ensureMembersCanSee`).
+func (w ItemMemberWriter) addWithin(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+	collection domain.Container, accountID shared.ID, position int, now time.Time,
+) error {
+	if err := w.ensureMembersAllowed(ctx, item); err != nil {
+		return atListElement(err, "/member_ids", position)
+	}
+	tag := setTag(ctx, domain.SetMembers, w.HLC)
+	cmd := MemberCommand{ItemID: item.ID, AccountID: accountID}
+	changed, err := w.apply(ctx, cmd, addingMember, tag)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return nil
+	}
+	return w.announce(ctx, actor, item, collection, accountID, addingMember, tag, now)
+}
+
+// ensureMembersCanSee asks, for every account a creation names as a member, what the standalone
+// route asks before its transaction: that the person can see the entry they are put on.
+func (w ItemMemberWriter) ensureMembersCanSee(
+	ctx context.Context, actor appshared.ActorContext, accountIDs []shared.ID, collection domain.Container,
+) error {
+	for position, accountID := range accountIDs {
+		if err := ensureAccountCanSee(ctx, w.Visibility, actor, accountID, collection); err != nil {
+			return atListElement(err, "/member_ids", position)
+		}
+	}
+	return nil
+}
+
 // apply writes the membership and the tag, and reports whether the set actually moved.
 func (w ItemMemberWriter) apply(
 	ctx context.Context, cmd MemberCommand, want memberDirection, tag shared.HLC,
