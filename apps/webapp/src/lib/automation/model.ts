@@ -154,7 +154,7 @@ export function toRuleDraft(draft: Draft, name: string): RuleDraft {
 /** A step's address: indices through the arms, `2/then/0`. A list's address is the same without the last index. */
 export type Path = string;
 
-const parentOf = (path: Path): { list: string; index: number } => {
+export const parentOf = (path: Path): { list: string; index: number } => {
   const at = path.lastIndexOf('/');
   return at < 0 ? { list: '', index: Number(path) } : { list: path.slice(0, at), index: Number(path.slice(at + 1)) };
 };
@@ -264,7 +264,9 @@ export function moveStep(actions: readonly Step[], from: Path, list: string, ind
   const source = parentOf(from);
   let target = index;
   if (source.list === list && source.index < index) target -= 1;
-  return insertAt(removeAt(actions, from), list, target, step);
+  const without = removeAt(actions, from);
+  if (!canPlace(without, list, target, step.kind)) return undefined;
+  return insertAt(without, list, target, step);
 }
 
 /** The chain with the step at `path` moved one place up or down inside its own list; unchanged at the end. */
@@ -274,7 +276,31 @@ export function nudge(actions: readonly Step[], path: Path, direction: -1 | 1): 
   if (!siblings) return clone(actions);
   const target = index + direction;
   if (target < 0 || target >= siblings.length) return clone(actions);
+  const step = siblings[index];
+  // A stop stays the terminus (decision 14): it does not move up past a step, and no step moves
+  // down past it.
+  if (step?.kind === 'STOP' || siblings[target]?.kind === 'STOP') return clone(actions);
   return moveStep(actions, path, list, direction > 0 ? target + 1 : target) ?? clone(actions);
+}
+
+/**
+ * Whether a step of `kind` may take the gap at `index` of `list` (decision 14): a stop only as
+ * the last step, and nothing after a stop - the run would never reach it, and the canvas cannot
+ * draw "never" honestly. A list the chain does not have takes nothing.
+ */
+export function canPlace(actions: readonly Step[], list: string, index: number, kind: string): boolean {
+  const target = listAt(actions, list);
+  if (!target) return false;
+  const at = Math.max(0, Math.min(index, target.length));
+  const endsInStop = target.length > 0 && target[target.length - 1]?.kind === 'STOP';
+  if (kind === 'STOP') return at === target.length && !endsInStop;
+  return !(endsInStop && at === target.length);
+}
+
+/** The first index of a list a run never reaches - the step after a stop - or -1 for none. */
+export function unreachableFrom(steps: readonly Step[]): number {
+  const stop = steps.findIndex((step) => step.kind === 'STOP');
+  return stop === -1 || stop === steps.length - 1 ? -1 : stop + 1;
 }
 
 /** A fresh step of a kind, with a branch's two empty arms. */

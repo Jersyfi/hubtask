@@ -103,10 +103,11 @@ const STALE = {
   id: '01a0e2e0-0000-7000-8000-000000000011',
   name: 'Flag blocked work',
   enabled: false,
-  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'ADD_ATTACHMENT_FROM_URL' }],
+  // A stop with a step stored after it: the server accepts the shape, the run never reaches it.
+  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'STOP' }, { kind: 'ADD_ATTACHMENT_FROM_URL' }],
   findings: [
     { level: 'ATTENTION', path: '/actions/0/params/label_id', code: 'automation.finding.reference_gone', params: { kind: 'label', id: '01a0e2e0-0000-7000-8000-0000000000ff' } },
-    { level: 'BROKEN', path: '/actions/1/kind', code: 'automation.finding.action_unknown', params: { kind: 'ADD_ATTACHMENT_FROM_URL' } },
+    { level: 'BROKEN', path: '/actions/2/kind', code: 'automation.finding.action_unknown', params: { kind: 'ADD_ATTACHMENT_FROM_URL' } },
   ],
   checked_at: '2026-09-20T15:00:00Z',
 };
@@ -221,6 +222,36 @@ test('chromium: every building block carries its icon, and a kind outside the gr
   await menu.locator('input[type="search"]').fill('access');
   await menu.locator('.item', { hasText: 'Create access token' }).click();
   assert.equal(await page.locator('[data-canvas] [data-card="0"] .title').textContent(), 'Create access token');
+});
+
+test('chromium: a stop goes last - refused in the middle, landing at the end, and a stored one draws what follows faded', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 1200 });
+  const titles = async () => page.locator('[data-canvas] [data-card="0"] .title, [data-canvas] [data-card="1"] .title, [data-canvas] [data-card="2"] .title, [data-canvas] [data-card="3"] .title').allTextContents();
+
+  // Into a middle gap: refused with the stop's own sentence, the chain unchanged.
+  await page.getByRole('button', { name: 'Stop', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
+  await page.getByText('A stop goes last.', { exact: false }).waitFor();
+  assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook']);
+
+  // The + menu of a middle gap does not offer it; the last gap does, and after it the line ends.
+  await page.locator('.gap[data-list=""][data-index="1"] [data-slot]').click();
+  assert.equal(await page.locator('.menu .item', { hasText: 'Stop' }).count(), 0);
+  await page.keyboard.press('Escape');
+  await page.locator('.gap[data-list=""][data-index="3"] [data-slot]').click();
+  await page.locator('.menu .item', { hasText: 'Stop' }).click();
+  assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook', 'Stop']);
+  assert.equal(await page.locator('.gap[data-list=""][data-index="4"]').count(), 0, 'no gap after the stop');
+  assert.equal(await page.locator('[data-card="3"] button[aria-label="Move up"]').isDisabled(), true, 'the stop does not move up');
+  assert.equal(await page.locator('[data-card="2"] button[aria-label="Move down"]').isDisabled(), true, 'nothing moves below it');
+
+  // A stored rule with a step after a stop: drawn faded, with the word once.
+  await page.goto(`${served.origin}/administration/rules/${STALE.id}`);
+  await page.locator('[data-card="2"]').waitFor();
+  assert.equal(await page.locator('.never').count(), 1);
+  assert.equal(await page.locator('[data-card="2"].unreachable').count(), 1);
+  assert.equal(await page.locator('[data-card="1"].unreachable').count(), 0);
 });
 
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {
@@ -346,8 +377,8 @@ test('chromium: the list checks the rules when it opens and says what the check 
 
   // The rule itself: the findings at their cards, and the switch refused with the reason.
   await page.getByRole('link', { name: 'Flag blocked work' }).click();
-  await page.locator('[data-card="1"] .flag').waitFor();
-  assert.match(await page.locator('[data-card="1"] .flag').textContent(), /no action ADD_ATTACHMENT_FROM_URL/);
+  await page.locator('[data-card="2"] .flag').waitFor();
+  assert.match(await page.locator('[data-card="2"] .flag').textContent(), /no action ADD_ATTACHMENT_FROM_URL/);
   assert.match(await page.locator('[data-card="0"] .flag').textContent(), /no longer exists/);
   const enable = page.getByRole('button', { name: 'Switch it on' });
   assert.equal(await enable.isDisabled(), true);

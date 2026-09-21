@@ -12,13 +12,15 @@
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
-  import { countSteps, depthOf, type Step } from './model.ts';
+  import { countSteps, depthOf, unreachableFrom, type Step } from './model.ts';
   import { conditionWords, kindIcon, kindWord, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     steps: readonly Step[];
+    /** The whole chain, for the gaps to know what they may take (decision 14). */
+    actions: readonly Step[];
     /** The list's own path: `''` for the chain, `2/then` for an arm. */
     prefix: string;
     kinds: readonly string[];
@@ -46,7 +48,7 @@
   }
 
   const {
-    steps, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
+    steps, actions, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
     onnudge, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
@@ -101,9 +103,16 @@
   {@const path = pathOf(index)}
   {@const isFlow = step.kind in FLOW_ICON}
   {@const verdict = verdicts?.get(path)}
+  {@const unreachable = unreachableFrom(steps) !== -1 && index >= unreachableFrom(steps)}
+  {#if unreachable && index === unreachableFrom(steps)}
+    <!-- A stored rule may hold steps after a stop (the server accepts one); the run never reaches
+         them, and the canvas says so once rather than drawing them as though it did (decision 14). -->
+    <span class="never" role="note">{t('app.flow.card_never_reached')}</span>
+  {/if}
   <div
     class="card"
     class:stop={step.kind === 'STOP'}
+    class:unreachable
     class:selected={isSelected(path)}
     class:inert={inert(path)}
     class:lit={verdict !== undefined && verdict.state !== 'skipped'}
@@ -134,7 +143,7 @@
         class="tool"
         type="button"
         aria-label={t('app.flow.card_move_up')}
-        disabled={index === 0}
+        disabled={index === 0 || step.kind === 'STOP'}
         onclick={(event) => {
           event.stopPropagation();
           onnudge(path, -1);
@@ -146,7 +155,7 @@
         class="tool"
         type="button"
         aria-label={t('app.flow.card_move_down')}
-        disabled={index === steps.length - 1}
+        disabled={index === steps.length - 1 || steps[index + 1]?.kind === 'STOP'}
         onclick={(event) => {
           event.stopPropagation();
           onnudge(path, 1);
@@ -210,9 +219,9 @@
               {#if !seg}<span class="armlabel"><Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')}</span>{/if}
               {#if list.length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
-                <InsertMenu {kinds} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
+                <InsertMenu {kinds} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={list} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
               {#if !endsInStop(list)}<span class="tail"></span>{/if}
             </div>
@@ -224,9 +233,10 @@
     <span class="stub"></span>
   {/if}
 
-  {#if step.kind !== 'STOP' || index < steps.length - 1}
+  {#if step.kind !== 'STOP'}
     <InsertMenu
       {kinds}
+      {actions}
       list={prefix}
       index={index + 1}
       onpick={oninsert}
@@ -305,6 +315,10 @@
   .card.lit.no { border-color: var(--warning-500); }
 
   .card.faded { opacity: 0.38; }
+
+  .card.unreachable { opacity: 0.38; }
+
+  .never { font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); padding: var(--sp-100) 0 var(--sp-050); }
 
   .verdict { position: absolute; inset-block-start: calc(-1 * var(--sp-150)); inset-inline-end: var(--sp-150); display: inline-flex; align-items: center; gap: var(--sp-050); padding: 0 var(--sp-100); min-height: var(--sp-250); border-radius: var(--r-full); font-size: var(--fs-050); font-weight: var(--fw-medium); background: var(--label-slate-bg); color: var(--label-slate-fg); animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both; }
 
