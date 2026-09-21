@@ -352,7 +352,7 @@ func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 				Description: "The item types that carry the field, replacing the list.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST.",
 			},
 		},
@@ -432,7 +432,7 @@ func (h DeleteCustomField) Descriptor() usecase.Descriptor {
 				Description: "The definition to take out of use.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST.",
 			},
 		},

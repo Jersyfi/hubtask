@@ -535,7 +535,7 @@ func (h CreateDataSubjectRequest) Descriptor() usecase.Descriptor {
 				Description: "Who asked, where there is no account behind the request.",
 			},
 			{
-				Name: "due_at", Kind: usecase.KindString,
+				Name: "due_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "The deadline, when it is not thirty days from receipt. RFC 3339.",
 			},
 			{
