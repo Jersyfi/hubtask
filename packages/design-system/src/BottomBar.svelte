@@ -159,8 +159,10 @@
 
   /* While a field has focus the keyboard has the bottom of the screen; the bar gives way. `:has`
      is on the browser row (ADR-0044). Opacity, not display: the bar is still there for the
-     reader who tabs out of the field, and nothing moves. */
-  :global(:root:has(input:focus, textarea:focus, select:focus)) .bar {
+     reader who tabs out of the field, and nothing moves. A checkbox, a radio or a button is an
+     input that raises no keyboard, so the bar stays for those - a reader ticking off entries on
+     a phone would otherwise lose the bar with every tick. */
+  :global(:root:has(input:not([type='checkbox'], [type='radio'], [type='button'], [type='submit'], [type='reset'], [type='range'], [type='color'], [type='file']):focus, textarea:focus, select:focus)) .bar {
     opacity: 0;
     pointer-events: none;
   }
