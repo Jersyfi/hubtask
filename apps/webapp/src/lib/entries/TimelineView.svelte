@@ -148,16 +148,20 @@
   {#if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else}
-    <Timeline
-      label={t('app.timeline.label')}
-      from={current.from}
-      to={current.to}
-      {rows}
-      {ticks}
-      undatedLabel={t('app.timeline.undated')}
-      emptyLabel={t('app.timeline.empty')}
-      onSelect={onopen}
-    />
+    <!-- The window the timeline scrolls in. On a phone it has an edge of its own, so a bar that
+         runs past the screen visibly ends at a frame rather than at the glass (ADR-0061). -->
+    <div class="window">
+      <Timeline
+        label={t('app.timeline.label')}
+        from={current.from}
+        to={current.to}
+        {rows}
+        {ticks}
+        undatedLabel={t('app.timeline.undated')}
+        emptyLabel={t('app.timeline.empty')}
+        onSelect={onopen}
+      />
+    </div>
   {/if}
 </div>
 
@@ -167,4 +171,16 @@
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
 
   .range { align-self: center; color: var(--text-secondary); font-size: var(--fs-075); }
+
+  .window { min-width: 0; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .window {
+      padding: var(--sp-100);
+      border: var(--bw-hairline) solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: var(--bg-surface);
+    }
+  }
 </style>
