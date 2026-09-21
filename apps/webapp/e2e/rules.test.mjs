@@ -37,10 +37,13 @@ const RULE = {
   actions: [
     { kind: 'ADD_LABEL', params: { label_id: LABELS[1].id } },
     {
+      // The arms inside params: what the kind takes, and where the domain reads them (issue 853).
       kind: 'BRANCH',
-      params: { condition: 'has(item.due_at)' },
-      then: [{ kind: 'ADD_COMMENT', params: { body: 'Overdue' } }],
-      else: [{ kind: 'WAIT', params: { duration: 'P1D' } }, { kind: 'STOP' }],
+      params: {
+        condition: 'has(item.due_at)',
+        then: [{ kind: 'ADD_COMMENT', params: { body: 'Overdue' } }],
+        else: [{ kind: 'WAIT', params: { duration: 'P1D' } }, { kind: 'STOP' }],
+      },
     },
     { kind: 'SEND_WEBHOOK', params: { subscription_id: '01a0e2e0-0000-7000-8000-000000000007' } },
   ],
@@ -198,7 +201,7 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   const patches = written.filter((body) => body.actions);
   assert.equal(patches.length, 1, 'one PATCH left');
   assert.deepEqual(patches[0].actions.map((action) => action.kind), ['BRANCH', 'SEND_WEBHOOK', 'ADD_LABEL']);
-  assert.deepEqual(patches[0].actions[0].then.map((action) => action.kind), ['ADD_COMMENT']);
+  assert.deepEqual(patches[0].actions[0].params.then.map((action) => action.kind), ['ADD_COMMENT']);
   // And the check right after it: the write leaves the rule unchecked, and the writer is told at
   // the card whether the repair held rather than at the next opening of the list.
   assert.ok(written.some((body) => body.check), 'the editor checked after the save');

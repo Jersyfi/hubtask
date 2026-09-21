@@ -43,9 +43,11 @@ const STORED: Rule = {
     { kind: 'ADD_LABEL', params: { label_id: 'l-1' } },
     {
       kind: 'BRANCH',
-      params: { condition: 'has(item.due_at)' },
-      then: [{ kind: 'NOTIFY_GROUP', params: { group_id: 'g-1' } }],
-      else: [{ kind: 'WAIT', params: { duration: 'P1D' } }, { kind: 'STOP' }],
+      params: {
+        condition: 'has(item.due_at)',
+        then: [{ kind: 'NOTIFY_GROUP', params: { group_id: 'g-1' } }],
+        else: [{ kind: 'WAIT', params: { duration: 'P1D' } }, { kind: 'STOP' }],
+      },
     },
     { kind: 'SEND_WEBHOOK', params: { subscription_id: 'w-1' } },
   ],
@@ -69,9 +71,11 @@ test('a stored rule opens on the canvas and closes back into the document it cam
       { kind: 'ADD_LABEL', params: { label_id: 'l-1' } },
       {
         kind: 'BRANCH',
-        params: { condition: 'has(item.due_at)' },
-        then: [{ kind: 'NOTIFY_GROUP', params: { group_id: 'g-1' } }],
-        else: [{ kind: 'WAIT', params: { duration: 'P1D' } }, { kind: 'STOP' }],
+        params: {
+          condition: 'has(item.due_at)',
+          then: [{ kind: 'NOTIFY_GROUP', params: { group_id: 'g-1' } }],
+          else: [{ kind: 'WAIT', params: { duration: 'P1D' } }, { kind: 'STOP' }],
+        },
       },
       { kind: 'SEND_WEBHOOK', params: { subscription_id: 'w-1' } },
     ],
