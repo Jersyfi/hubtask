@@ -259,6 +259,24 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   t.after(() => browser.close());
   const page = await open(browser, [], { width: 1400, height: 900 });
 
+  // While the piece is lifted: the hint on its own line, whole; the trigger card's strip inside
+  // the card; the gap's pill readable on one line (F8-12).
+  const dt = await page.evaluateHandle(() => new DataTransfer());
+  await page.dispatchEvent('aside.palette button:has-text("A schedule")', 'dragstart', { dataTransfer: dt });
+  assert.equal(await page.locator('.dragline').textContent(), 'A trigger goes at the top: let it go on the trigger card, and it replaces the one there.');
+  const strip = page.locator('[data-card="trigger"] .dropword');
+  assert.equal(await strip.textContent(), 'Replace the trigger');
+  const [card, badge] = await Promise.all([page.locator('[data-card="trigger"]').boundingBox(), strip.boundingBox()]);
+  assert.ok(badge.y >= card.y && badge.y + badge.height <= card.y + card.height, 'the strip sits inside the card');
+  await page.dispatchEvent('aside.palette button:has-text("A schedule")', 'dragend', { dataTransfer: dt });
+  await page.dispatchEvent('aside.palette button:has-text("Add a label")', 'dragstart', { dataTransfer: dt });
+  const pill = page.locator('.gap[data-list=""][data-index="1"] [data-slot]');
+  const pillBox = await pill.boundingBox();
+  assert.ok(pillBox.width > pillBox.height * 2, 'the pill is wide, not a circle with two lines in it');
+  assert.equal(await pill.evaluate((el) => el.scrollWidth <= el.clientWidth), true, 'nothing clipped');
+  await page.dispatchEvent('aside.palette button:has-text("Add a label")', 'dragend', { dataTransfer: dt });
+  assert.equal(await page.locator('.dragline').textContent(), '', 'the line stays and empties');
+
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
   await page.getByText('A trigger can only be at the top.').waitFor();
   assert.equal(await page.locator('[data-card="trigger"] .title').textContent(), 'Something happens');

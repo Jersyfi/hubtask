@@ -21,7 +21,7 @@
 
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
-  import { stepAt, type Draft, type Step } from './model.ts';
+  import type { Draft, Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
   import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
@@ -73,21 +73,6 @@
   let overTrigger = $state(false);
   let overGate = $state(false);
 
-  const hint = $derived.by(() => {
-    switch (drag?.src) {
-      case 'trigger':
-        return t('app.flow.drag_trigger');
-      case 'condition':
-        return t('app.flow.drag_condition');
-      case 'action':
-        return drag.kind === 'STOP' ? t('app.flow.drag_stop') : t('app.flow.drag_action');
-      case 'step':
-        return stepAt(draft.actions, drag.path)?.kind === 'STOP' ? t('app.flow.drag_stop') : t('app.flow.drag_step');
-      default:
-        return '';
-    }
-  });
-
   function allow(event: DragEvent, takes: boolean): void {
     if (!takes) return;
     event.preventDefault();
@@ -122,7 +107,6 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="flow" data-canvas ondragover={(event) => { if (drag) event.preventDefault(); }} ondrop={refuse}>
-  {#if drag}<p class="draghint" role="status">{hint}</p>{/if}
   <!-- The trigger: the one card in the signature colour, because it is where the run comes from. -->
   <div
     class="card trigger"
@@ -321,11 +305,15 @@
   @media (prefers-reduced-motion: reduce) { .verdict { animation: none; } }
   :global([data-motion='reduced']) .verdict { animation: none; }
 
-  .dropword { position: absolute; inset-block-start: calc(-1 * var(--sp-150)); inset-inline-start: 50%; translate: -50% 0; padding: 0 var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); color: var(--text-inverse); font-size: var(--fs-050); font-weight: var(--fw-medium); white-space: nowrap; }
+  /* A strip along the card's top edge, inside it: a badge over the line above covered the card
+     it was about and met the trigger's own mark. */
+  .dropword { position: absolute; inset-block-start: 0; inset-inline: 0; padding: var(--sp-025) var(--sp-100); border-start-start-radius: var(--r-lg); border-start-end-radius: var(--r-lg); background: var(--accent-primary); color: var(--text-inverse); font-size: var(--fs-050); font-weight: var(--fw-medium); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* Out of the flow, in the canvas's own top padding: a hint that took space would move every
-     card under the pointer the moment a piece is lifted. */
-  .draghint { position: absolute; inset-block-start: calc(-1 * var(--sp-300)); inset-inline-start: 50%; translate: -50% 0; margin: 0; padding: var(--sp-050) var(--sp-150); border-radius: var(--r-full); background: var(--accent-primary); color: var(--text-inverse); font-size: var(--fs-075); font-weight: var(--fw-medium); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  /* Room for the strip: the card's own padding plus one line of it. */
+  .card.target { padding-block-start: calc(var(--sp-150) + var(--sp-250)); }
+
+  .gate.target { padding-block-start: calc(var(--sp-100) + var(--sp-250)); }
+
 
   .card:focus-visible, .gate:focus-visible, .condition:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 

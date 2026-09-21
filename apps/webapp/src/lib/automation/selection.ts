@@ -42,3 +42,17 @@ export function gapTakes(drag: Drag | undefined, list: string, index: number, ac
 
 /** The drag payload as the browser carries it between dragstart and drop. */
 export const DRAG_TYPE = 'application/x-hubtask-rule-piece';
+
+/** The line that says where a lifted piece may go, with a stop's own words where the piece is one. */
+export function dragHint(drag: Drag, actions: readonly Step[], t: (code: string) => string): string {
+  switch (drag.src) {
+    case 'trigger':
+      return t('app.flow.drag_trigger');
+    case 'condition':
+      return t('app.flow.drag_condition');
+    case 'action':
+      return drag.kind === 'STOP' ? t('app.flow.drag_stop') : t('app.flow.drag_action');
+    case 'step':
+      return stepAt(actions, drag.path)?.kind === 'STOP' ? t('app.flow.drag_stop') : t('app.flow.drag_step');
+  }
+}

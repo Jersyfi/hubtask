@@ -30,7 +30,7 @@
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { canPlace, emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
-  import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
+  import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { TRIGGER_ICONS, eventWords, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { FLOW_KINDS } from '../lib/automation/model.ts';
@@ -569,6 +569,11 @@
       {/if}
     </header>
 
+    <!-- Where a lifted piece may go, on a line of its own that is there whether or not a piece is
+         lifted: a hint over the canvas covered the trigger card, and one that took space only
+         while dragging moved every card under the pointer the moment a piece was lifted. -->
+    <p class="dragline" role="status" class:lifted={drag !== undefined}>{drag ? dragHint(drag, draft.actions, t) : ''}</p>
+
     <div class="bench">
       <aside class="palette" aria-label={t('app.flow.palette')}>
         <h2>{t('app.flow.palette')}</h2>
@@ -768,6 +773,10 @@
   .pitem :global(svg) { color: var(--text-subtle); flex: none; }
 
   .pitem:hover { background: var(--bg-surface-hover); border-color: var(--border-subtle); }
+
+  .dragline { margin: 0; max-width: none; align-self: stretch; min-height: var(--sp-300); padding: var(--sp-050) var(--sp-200); font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-inverse); background: transparent; text-align: center; }
+
+  .dragline.lifted { background: var(--accent-primary); }
 
   .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow-x: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
 
