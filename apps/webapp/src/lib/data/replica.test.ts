@@ -72,6 +72,18 @@ test('a level: the plain question the list asks, in the manual order, labels and
     body: { scope: { item_id: 'i-1', include_descendants: false }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
   }, storage)) as { data: unknown[] };
   assert.deepEqual(ids(children.data), ['i-1-a']);
+
+  // The entry page's one read (issue 877): everything under the entry, the entry itself left out.
+  const subtree = (await storeFor({
+    path: '/items:query',
+    body: { scope: { item_id: 'i-1', include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
+  }, storage)) as { data: unknown[] };
+  assert.deepEqual(ids(subtree.data), ['i-1-a']);
+  // A whole collection at once is not a question the copy answers.
+  assert.equal(await storeFor({
+    path: '/items:query',
+    body: { scope: { container_id: COLLECTION, include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
+  }, storage), undefined);
 });
 
 test('the board: the same entries by column, the loose ones last', async () => {
@@ -138,7 +150,8 @@ test('ITEM_PATCH: an edit, a completion, an assignment, a due date, a custom fie
   assert.deepEqual(await mutationFor('PATCH', '/items/i-1', { title: 'renamed', notes: null }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { title: 'renamed', notes: null } });
   assert.deepEqual(await mutationFor('POST', '/items/i-1:complete', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { completion: { is_completed: true } } });
   assert.deepEqual(await mutationFor('POST', '/items/i-1:reopen', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { completion: { is_completed: false } } });
-  assert.deepEqual(await mutationFor('POST', '/items/i-1:assign', { assignee_id: 'acc-2' }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: 'acc-2' } });
+  // The body is the contract's `Assignment` - `account_id` - and the mutation sets the entry's `assignee_id` (issue 876).
+  assert.deepEqual(await mutationFor('POST', '/items/i-1:assign', { account_id: 'acc-2' }, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: 'acc-2' } });
   assert.deepEqual(await mutationFor('POST', '/items/i-1:unassign', undefined, h), { kind: 'ITEM_PATCH', itemId: 'i-1', fields: { assignee_id: null } });
   assert.deepEqual(
     await mutationFor('PUT', '/items/i-1/due', { due_at: '2026-12-24T00:00:00Z', due_date_only: true, due_time_zone: 'Europe/Berlin' }, h),

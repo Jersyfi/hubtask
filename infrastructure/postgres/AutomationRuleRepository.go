@@ -118,7 +118,52 @@ func (r AutomationRuleRepository) Find(ctx context.Context, id shared.ID) (domai
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading automation rule %s: %w", id, err))
 	}
-	return automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+	rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+	if err != nil {
+		return domain.Rule{}, err
+	}
+	rules := []domain.Rule{rule}
+	if err := withLastRuns(ctx, queries, rules); err != nil {
+		return domain.Rule{}, err
+	}
+	return rules[0], nil
+}
+
+// withLastRuns reads the most recent run of each rule in one statement and writes it on the rule
+// (F8-21): what a list of rules says under each word, at the cost of one query per page rather
+// than one per card. A rule that never ran keeps nil.
+func withLastRuns(ctx context.Context, queries *sqlc.Queries, rules []domain.Rule) error {
+	if len(rules) == 0 {
+		return nil
+	}
+	ids := make([]shared.ID, 0, len(rules))
+	for _, rule := range rules {
+		ids = append(ids, rule.ID)
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return err
+	}
+	rows, err := queries.LatestRuleRuns(ctx, keys)
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the rules' last runs: %w", err))
+	}
+	latest := make(map[shared.ID]domain.LastRun, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.RuleID)
+		if err != nil {
+			return err
+		}
+		latest[id] = domain.LastRun{At: timeFrom(row.StartedAt), Status: domain.RunStatus(row.Status)}
+	}
+	for i := range rules {
+		if last, ran := latest[rules[i].ID]; ran {
+			rules[i].LastRun = &last
+		}
+	}
+	return nil
 }
 
 func (r AutomationRuleRepository) List(
@@ -161,6 +206,9 @@ func (r AutomationRuleRepository) List(
 			return repository.Page{}, err
 		}
 		rules = append(rules, rule)
+	}
+	if err := withLastRuns(ctx, queries, rules); err != nil {
+		return repository.Page{}, err
 	}
 
 	page := repository.Page{Rules: rules, HasMore: hasMore}

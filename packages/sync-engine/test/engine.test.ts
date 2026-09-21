@@ -10,11 +10,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SyncEngine, type ResourceState } from '../src/SyncEngine.ts';
+import { SyncEngine, matchesPath, type ResourceState } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import { FakeTransport, FixedClock } from './fakes.ts';
 
 const ME = { path: '/accounts/me' };
+
+/** Lets every scheduled microtask and timer run before the assertions read the result. */
+async function settle(turns = 6): Promise<void> {
+  for (let i = 0; i < turns; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 /** Collects every state a subscriber is told about, in order. */
 function record<T>(engine: SyncEngine, path: string) {
@@ -156,6 +161,74 @@ test('a write invalidates what was read', async () => {
 
   await engine.mutate('POST', '/items', {});
   assert.equal(engine.peek(ME).status, 'idle', 'a stale read survived a write');
+});
+
+test('a name covers a path as a prefix, exactly with $, and one segment at a time with *', () => {
+  // The prefix, as it always was.
+  assert.equal(matchesPath('/items', '/items:query'), true);
+  assert.equal(matchesPath('/items', '/items/i-1/comments'), true);
+  assert.equal(matchesPath('/containers/c-1', '/containers/c-1/labels'), true);
+  assert.equal(matchesPath('/items', '/itemsets'), true, 'a prefix is a string prefix, not a segment');
+  // `$`: the path itself, with or without its query string, and nothing under it.
+  assert.equal(matchesPath('/items/i-1$', '/items/i-1'), true);
+  assert.equal(matchesPath('/items/i-1$', '/items/i-1?expand=labels'), true);
+  assert.equal(matchesPath('/items/i-1$', '/items/i-1/comments'), false);
+  assert.equal(matchesPath('/items/i-1$', '/items/i-10'), false);
+  assert.equal(matchesPath('/containers$', '/containers?type=HUB'), true);
+  assert.equal(matchesPath('/containers$', '/containers/c-1'), false);
+  // `*`: exactly one segment.
+  assert.equal(matchesPath('/items/*/comments', '/items/i-1/comments'), true);
+  assert.equal(matchesPath('/items/*/comments', '/items/i-1/comments?cursor=x'), true);
+  assert.equal(matchesPath('/items/*/comments', '/items/i-1/reminders'), false);
+  assert.equal(matchesPath('/items/*/comments', '/items/comments'), false);
+  assert.equal(matchesPath('/items/*$', '/items/i-1?expand=labels'), true);
+  assert.equal(matchesPath('/items/*$', '/items/i-1/activity'), false);
+  assert.equal(matchesPath('/items/*$', '/items:query'), false);
+});
+
+test('a write re-reads only what it names, and what hangs under a named document stays', async () => {
+  const transport = new FakeTransport()
+    .answer('/items/i-1?expand=labels', { id: 'i-1' })
+    .answer('/items/i-1/comments', { data: [] })
+    .answer('/items:query', { data: [] })
+    .answer('/items/i-1', { id: 'i-1' });
+  const engine = new SyncEngine({ transport });
+  engine.subscribe({ path: '/items/i-1?expand=labels' }, () => {});
+  engine.subscribe({ path: '/items/i-1/comments' }, () => {});
+  engine.subscribe({ path: '/items:query', body: { scope: {} } }, () => {});
+  await settle();
+  const before = transport.calls.length;
+
+  await engine.mutate('PATCH', '/items/i-1', { title: 'x' }, { invalidates: ['/items/i-1$', '/items:query'] });
+  await settle();
+  const reads = transport.calls.slice(before).filter((call) => call.method !== 'PATCH').map((call) => call.path).sort();
+  assert.deepEqual(reads, ['/items/i-1?expand=labels', '/items:query'], 'the thread was re-read for a title');
+});
+
+test('invalidations that arrive while a read is on its way become one read after it, not one each', async () => {
+  const transport = new FakeTransport().answer('/items/i-1', { id: 'i-1', title: 'one' }).answer('/items', {});
+  const engine = new SyncEngine({ transport });
+  const { seen } = record<{ title: string }>(engine, '/items/i-1');
+  await settle();
+  assert.equal(transport.calls.filter((c) => c.path === '/items/i-1').length, 1);
+
+  // The write answers, and three stream records for it land while the re-read is on its way.
+  transport.hold('/items/i-1');
+  await engine.mutate('PATCH', '/items', {}, { invalidates: ['/items/i-1$'] });
+  await engine.mutate('PATCH', '/items', {}, { invalidates: ['/items/i-1$'] });
+  await engine.mutate('PATCH', '/items', {}, { invalidates: ['/items/i-1$'] });
+  await engine.mutate('PATCH', '/items', {}, { invalidates: ['/items/i-1$'] });
+  assert.equal(transport.calls.filter((c) => c.path === '/items/i-1').length, 2, 'a second read went out while the first was in flight');
+  transport.answer('/items/i-1', { id: 'i-1', title: 'two' });
+  transport.release('/items/i-1');
+  await settle();
+  // One follow-up, because the read in flight may have been served before the change landed.
+  assert.equal(transport.calls.filter((c) => c.path === '/items/i-1').length, 3, 'the four invalidations were not folded into one follow-up');
+  const last = seen.at(-1);
+  assert.equal(last?.status === 'ready' && last.data.title, 'two');
+  // Quiet afterwards: nothing left marked stale.
+  await settle();
+  assert.equal(transport.calls.filter((c) => c.path === '/items/i-1').length, 3);
 });
 
 test('unsubscribing stops the listener and leaves the state', async () => {

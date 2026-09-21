@@ -18,11 +18,12 @@
 import type { Bucket, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ENTRY_LISTS } from './touches.ts';
 
 const bucketsPath = (collectionId: string) => `/containers/${collectionId}/buckets`;
 
 /** A bucket write changes the board's columns and where the entries sit in them. */
-const TOUCHES = ['/containers', '/items'];
+const TOUCHES = ['/containers', ENTRY_LISTS];
 
 class Buckets {
   #levels = $state<Record<string, ResourceState<readonly Bucket[]>>>({});

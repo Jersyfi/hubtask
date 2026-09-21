@@ -164,6 +164,13 @@ export interface MutateOptions {
    * A prefix matches a path, so `/containers` covers `/containers?cursor=…` and
    * `/containers/{id}` alike; the document half of a query key is not matched against, because a
    * write does not know which questions it changed the answer to.
+   *
+   * Two marks make a name precise where a prefix is too wide (issue 877 - a retitled entry
+   * re-read its comments, reminders, attachments and series, none of which had moved):
+   * a trailing `$` names the path itself and not what hangs under it - `/items/{id}$` is the
+   * entry's document, with or without a query string, and not `/items/{id}/comments` - and `*`
+   * stands for one segment, so a star in place of the id under `/items/` names every thread a
+   * screen holds open. See `matchesPath`.
    */
   readonly invalidates?: readonly string[];
 }
@@ -177,7 +184,10 @@ export interface MutateOptions {
  * a container, nothing at all for an entity this client does not read.
  */
 export interface ListenOptions {
-  /** What a record makes stale, as path prefixes. Empty means "this record changes nothing here". */
+  /**
+   * What a record makes stale, as path prefixes - with `$` and `*` as `MutateOptions.invalidates`
+   * takes them. Empty means "this record changes nothing here".
+   */
   readonly pathsFor: (record: ChangeRecord) => readonly string[];
   /** The stream's path. The contract's is `/stream`, and there is no reason to name another. */
   readonly path?: string;
@@ -791,9 +801,9 @@ export class SyncEngine {
           cursor = await this.#catchUp(options, signal);
           if (signal.aborted) return;
           // The server answered: what the queue holds is pushed, and whatever a screen is
-          // showing from the copy is read again.
+          // showing from the copy, or could not show at all, is read again.
           await this.push();
-          this.#replaceReplicaStates();
+          this.#recover();
         }
         const connection = await this.#transport.stream(path, {
           token: this.#token(),
@@ -802,8 +812,10 @@ export class SyncEngine {
           idleTimeoutMs: options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
           signal,
         });
-        // The connection was accepted, so whatever went wrong before is over.
+        // The connection was accepted, so whatever went wrong before is over - and without a
+        // store this is the first moment the engine knows it, so what failed is read again here.
         attempt = 0;
+        if (!this.#replica) this.#recover();
 
         for await (const event of connection.events) {
           if (event.retryMs !== undefined) suggested = event.retryMs;
@@ -913,6 +925,11 @@ export class SyncEngine {
    * after `SNAPSHOT_ATTEMPTS` such endings the engine walks `:pull` from nothing, page by page,
    * and keeps the cursor of the last page (offline-sync.md §3.1). The records of a cut-short
    * snapshot stay in the store: they are the server's, and the next attempt writes them again.
+   *
+   * What follows the synchronisation is `#recover`, not an invalidation of everything: the reads
+   * a screen made from the server while the snapshot ran are as fresh as the snapshot, and
+   * reading every one of them again doubled a first page load (issue 877). What the copy
+   * answered meanwhile, and what could not be answered at all, is read again.
    */
   async #initial(
     options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>,
@@ -932,7 +949,7 @@ export class SyncEngine {
       for await (const line of lines) {
         if (line.kind === 'cursor') {
           await replica.hold({ ...(await replica.position()), cursor: line.cursor });
-          this.#invalidate(undefined);
+          this.#recover();
           return line.cursor;
         }
         const record = recordOf(JSON.stringify(line.record));
@@ -953,7 +970,7 @@ export class SyncEngine {
       if (!page.has_more) break;
     }
     await replica.hold({ ...(await replica.position()), cursor });
-    this.#invalidate(undefined);
+    this.#recover();
     return cursor;
   }
 
@@ -1034,7 +1051,35 @@ export class SyncEngine {
     return entry;
   }
 
-  async #load<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
+  /**
+   * Reads the entry - once at a time. An ask that arrives while a read is on its way does not
+   * start a second one: it marks the entry stale and joins the read in flight, and when that one
+   * lands, one more read follows for everything that arrived meanwhile (issue 877). A write
+   * answers, its stream records land a moment later, and each names the same paths; before this,
+   * every one of them was a request of its own, and a title saved once was an entry read three
+   * times. The follow-up is not skipped, because the read in flight may have been served before
+   * the change was committed - what is skipped is the second and third of the same question.
+   * The promise answered is the follow-up's, so `refresh` resolves on a read that began after it
+   * was called.
+   */
+  #load<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
+    if (entry.loading) {
+      // One follow-up, shared by every ask that arrives during the flight; it starts when the
+      // read in flight lands, and an ask that arrives during the follow-up queues the next one.
+      // `#read` never rejects, so there is nothing to catch on the way.
+      entry.next ??= entry.loading.then(() => {
+        entry.next = undefined;
+        return this.#load(request, entry);
+      });
+      return entry.next;
+    }
+    entry.loading = this.#read(request, entry).finally(() => {
+      entry.loading = undefined;
+    });
+    return entry.loading;
+  }
+
+  async #read<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
     // A screen that holds data keeps it while the next answer is on its way (F5-11). Publishing
     // `loading` over a `ready` state tore every list down to its skeleton after every write - and
     // took the keyboard's focus to `body` with it, so a reorder by menu cost the reader the whole
@@ -1107,15 +1152,21 @@ export class SyncEngine {
   }
 
   /**
-   * Every entry a screen is showing from the replica, read from the server again: what the loop
-   * runs once the server answered a pull after a reconnect, so a replica state is replaced by
-   * the first server answer rather than retried on every render.
+   * Every entry a screen is showing from the replica, and every one the server could not answer,
+   * read from the server again: what the loop runs once the server answered after a reconnect,
+   * so a replica state is replaced by the first server answer rather than retried on every
+   * render - and a read that failed while the server was away is not left failed until the tab
+   * reloads (issue 881: the account, read once at start, stayed "You" after every reconnect).
+   *
+   * A failure the server *answered* - a 403, a 404 - is the server's answer and stays: retrying
+   * it would be asking for a better one. Only what could plausibly succeed now is asked again.
    */
-  #replaceReplicaStates(): void {
+  #recover(): void {
     for (const entry of this.#resources.values()) {
-      if (entry.state.status === 'ready' && entry.state.source === 'replica' && entry.listeners.size > 0) {
-        void this.#load(entry.request, entry);
-      }
+      if (entry.listeners.size === 0) continue;
+      const isCopy = entry.state.status === 'ready' && entry.state.source === 'replica';
+      const isUnanswered = entry.state.status === 'failed' && entry.state.error.isRetryable;
+      if (isCopy || isUnanswered) void this.#load(entry.request, entry);
     }
   }
 
@@ -1160,7 +1211,7 @@ export class SyncEngine {
    */
   #invalidate(prefixes: readonly string[] | undefined): void {
     const stale = [...this.#resources].filter(
-      ([, entry]) => prefixes === undefined || prefixes.some((prefix) => entry.path.startsWith(prefix)),
+      ([, entry]) => prefixes === undefined || prefixes.some((prefix) => matchesPath(prefix, entry.path)),
     );
 
     for (const [key, entry] of stale) {
@@ -1173,6 +1224,28 @@ export class SyncEngine {
       void this.#load(entry.request, entry);
     }
   }
+}
+
+/**
+ * Whether a name an invalidation carries covers a path an entry was read from.
+ *
+ * A plain name is a prefix, as it always was: `/items` covers `/items:query`, `/items/{id}` and
+ * `/items/{id}/comments` alike. Two marks narrow it. A trailing `$` ends the name at the path
+ * itself - the query string does not count, so `/items/{id}$` covers `/items/{id}?expand=labels`
+ * and not `/items/{id}/comments`. A `*` stands for exactly one segment - a star in place of the
+ * id under `/items/`, followed by `/reminders`, covers every entry's reminders, which is what a
+ * record that names the reminder and not the entry needs. Nothing else is special: a path of
+ * this API carries no `*` and no `$`.
+ */
+export function matchesPath(name: string, path: string): boolean {
+  const isExact = name.endsWith('$');
+  const pattern = isExact ? name.slice(0, -1) : name;
+  if (!isExact && !pattern.includes('*')) return path.startsWith(pattern);
+  const source = pattern
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^/?]+');
+  return new RegExp(`^${source}${isExact ? '(?:\\?.*)?$' : ''}`).test(path);
 }
 
 /** A failure that never reached the server: no answer at all, or none in time. */
@@ -1263,6 +1336,10 @@ interface ResourceEntry<T> {
   readonly request: ResourceRequest;
   state: ResourceState<T>;
   listeners: Set<Listener<T>>;
+  /** The read on its way, while one is - so a second ask joins it rather than racing it. */
+  loading?: Promise<void>;
+  /** The one read promised after it, when something changed while it was on its way. */
+  next?: Promise<void>;
   /** The tag the last successful read carried, so a write can state the version it saw. */
   etag?: string;
 }

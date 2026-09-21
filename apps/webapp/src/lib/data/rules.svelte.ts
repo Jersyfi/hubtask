@@ -65,6 +65,8 @@ export interface Rule {
   /** What the check found (ADR-0060), and when it last ran; empty and absent for a rule never checked. */
   readonly findings?: readonly RuleFinding[];
   readonly checked_at?: string | null;
+  /** The most recent run - when it started and how it ended - read beside the rule (F8-21); absent for a rule that never ran. */
+  readonly last_run?: { readonly at: string; readonly status: string } | null;
   readonly version: number;
 }
 

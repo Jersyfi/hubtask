@@ -782,6 +782,42 @@ func (q *Queries) LabelExists(ctx context.Context, id pgtype.UUID) (bool, error)
 	return exists, err
 }
 
+const latestRuleRuns = `-- name: LatestRuleRuns :many
+SELECT DISTINCT ON (rule_id) rule_id, status, started_at
+FROM rule_run
+WHERE rule_id = ANY($1::uuid[])
+ORDER BY rule_id, started_at DESC, id DESC
+`
+
+type LatestRuleRunsRow struct {
+	RuleID    pgtype.UUID
+	Status    string
+	StartedAt pgtype.Timestamptz
+}
+
+// The most recent run of each named rule (F8-21): what the list says under the rule's word
+// without a page of runs per card. One statement for a page of rules, on the rule index; DISTINCT
+// ON with the index's own order keeps the first row per rule the newest.
+func (q *Queries) LatestRuleRuns(ctx context.Context, ruleIds []pgtype.UUID) ([]LatestRuleRunsRow, error) {
+	rows, err := q.db.Query(ctx, latestRuleRuns, ruleIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestRuleRunsRow{}
+	for rows.Next() {
+		var i LatestRuleRunsRow
+		if err := rows.Scan(&i.RuleID, &i.Status, &i.StartedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAutomationRules = `-- name: ListAutomationRules :many
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,

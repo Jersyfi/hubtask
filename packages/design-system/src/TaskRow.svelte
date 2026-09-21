@@ -37,6 +37,13 @@
     depth?: number;
     expansion?: Expansion;
     href?: string;
+    /**
+     * What a plain press on the title does instead of following `href`: opening the entry beside
+     * the list (ADR-0061 decision 4). The link keeps its address for a new tab.
+     */
+    onOpen?: () => void;
+    /** Whether this row is the one open beside the list. Announced as current, not only tinted. */
+    isCurrent?: boolean;
     /** The name of the control that ticks it off. Required: it is a control, so it has a name. */
     completeLabel: string;
     /** Why completion is unavailable — archived, or a role that may not. There is no boolean. */
@@ -62,6 +69,8 @@
     depth = 0,
     expansion = 'leaf',
     href,
+    onOpen,
+    isCurrent = false,
     completeLabel,
     completeDisabledReason,
     expandLabel,
@@ -87,7 +96,7 @@
 </script>
 
 <div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
-  <ListRow {href} {trailing}>
+  <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
       <span class="twist">
