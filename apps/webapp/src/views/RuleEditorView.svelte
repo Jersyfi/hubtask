@@ -29,7 +29,7 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { canPlace, emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
+  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { TRIGGER_ICONS, eventWords, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
@@ -145,16 +145,33 @@
         update((current) => ({ ...current, actions: moved }));
         select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
       } else {
-        refuse(piece);
+        refuse(piece, list);
       }
     }
     drag = undefined;
   }
-  function refuse(piece: Drag): void {
+  /** Why a piece may not go where it was let go, said in the hint line (decision 20). */
+  function refuse(piece: Drag, list?: string): void {
     const stop = (piece.src === 'action' && piece.kind === 'STOP') || (piece.src === 'step' && stepAt(draft.actions, piece.path)?.kind === 'STOP');
-    refusal = stop ? t('app.flow.refused_stop') : t(`app.flow.refused_${piece.src}`);
+    const ended = list !== undefined && endsRun(listAt(draft.actions, list) ?? []);
+    refusal = stop ? t('app.flow.refused_stop') : ended ? t('app.flow.refused_after_end') : t(`app.flow.refused_${piece.src}`);
     clearTimeout(refusalTimer);
     refusalTimer = setTimeout(() => (refusal = undefined), 6000);
+  }
+
+  /** + Else if: a rung under the ladder, selected so the panel opens on its condition (decision 19). */
+  function addElseIf(path: string): void {
+    const before = stepAt(draft.actions, path);
+    if (!before || before.kind !== 'BRANCH') return;
+    update((current) => ({ ...current, actions: addRung(current.actions, path) }));
+    // The new rung is the last of the ladder: follow the else arms down to it.
+    let at = path;
+    let step = stepAt(draft.actions, at);
+    while (step && step.else?.length === 1 && step.else[0]?.kind === 'BRANCH') {
+      at = `${at}/else/0`;
+      step = step.else[0];
+    }
+    select({ kind: 'step', path: at });
   }
   let sentenceOpen = $state(false);
   try {
@@ -279,9 +296,9 @@
 
   function insert(list: string, index: number, kind: string): void {
     if (!canPlace(draft.actions, list, index, kind)) {
-      // A stop anywhere but last, or anything after one (decision 14): said, never silently
-      // dropped - the palette's click appends, which for a stop lands where it may.
-      refuse({ src: 'action', kind });
+      // An end anywhere but an arm's last place, or anything after an end (decision 19): said,
+      // never silently dropped.
+      refuse({ src: 'action', kind }, list);
       return;
     }
     update((current) => ({ ...current, actions: insertAt(current.actions, list, index, newStep(kind)) }));
@@ -537,7 +554,6 @@
         </button>
       </div>
 
-      {#if refusal}<Banner tone="warning" title={refusal} />{/if}
       {#if findings.length > 0}
         <Banner tone={isBroken ? 'danger' : 'warning'} title={isBroken ? t('app.flow.enable_refused_broken') : t('app.flow.health_attention')}>
           {findings.map((finding) => findingWords(words, finding)).join(' · ')}
@@ -569,10 +585,12 @@
       {/if}
     </header>
 
-    <!-- Where a lifted piece may go, on a line of its own that is there whether or not a piece is
-         lifted: a hint over the canvas covered the trigger card, and one that took space only
-         while dragging moved every card under the pointer the moment a piece was lifted. -->
-    <p class="dragline" role="status" class:lifted={drag !== undefined}>{drag ? dragHint(drag, draft.actions, t) : ''}</p>
+    <!-- Where a lifted piece may go, and why a drop was refused (decision 20): a line that takes
+         no room - it is zero height and its words overlay the canvas's top padding - so nothing
+         moves under the pointer when a piece is lifted, and sticky, so it is read while scrolling. -->
+    <p class="dragline" role="status" class:lifted={drag !== undefined} class:refused={drag === undefined && refusal !== undefined}>
+      {#if drag || refusal}<span>{drag ? dragHint(drag, draft.actions, t) : refusal}</span>{/if}
+    </p>
 
     <div class="bench">
       <aside class="palette" aria-label={t('app.flow.palette')}>
@@ -615,6 +633,7 @@
           onfold={fold}
           onaddcondition={addCondition}
           onnudge={nudgeStep}
+          onaddrung={addElseIf}
           {drag}
           ondragchange={(next) => (drag = next)}
           ondrop={dropped}
@@ -774,9 +793,11 @@
 
   .pitem:hover { background: var(--bg-surface-hover); border-color: var(--border-subtle); }
 
-  .dragline { margin: 0; max-width: none; align-self: stretch; min-height: var(--sp-300); padding: var(--sp-050) var(--sp-200); font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-inverse); background: transparent; text-align: center; }
+  .dragline { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); margin: 0; max-width: none; align-self: stretch; height: 0; overflow: visible; text-align: center; pointer-events: none; }
 
-  .dragline.lifted { background: var(--accent-primary); }
+  .dragline span { display: inline-block; max-width: 100%; padding: var(--sp-050) var(--sp-200); border-end-start-radius: var(--r-md); border-end-end-radius: var(--r-md); font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-inverse); background: var(--accent-primary); box-shadow: var(--shadow-raised); }
+
+  .dragline.refused span { background: var(--status-warning-text); }
 
   .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow-x: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
 

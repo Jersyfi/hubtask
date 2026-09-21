@@ -21,7 +21,7 @@
 
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
-  import type { Draft, Step } from './model.ts';
+  import { endsRun, unreachableFrom, type Draft, type Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
   import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
@@ -45,6 +45,7 @@
     onfold: (path: string) => void;
     onaddcondition: () => void;
     onnudge: (path: string, direction: -1 | 1) => void;
+    onaddrung: (path: string) => void;
     /** The drag in flight (F8-05, decision 7), and where it may land. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
@@ -63,7 +64,7 @@
 
   const {
     draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
-    onnudge, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
+    onnudge, onaddrung, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
   const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
@@ -219,12 +220,18 @@
 
   <InsertMenu {kinds} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+  <RuleCanvasList steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
-  <!-- The guardrails: what bounds the rule, drawn as the end of the path. -->
+  <!-- The run ends where the chain ends (decision 19): the end mark, unless the chain already
+       ended on every path above - where the list drew its own, or where a stored rule's steps
+       after the end are drawn as never reached. -->
+  {#if !endsRun(draft.actions) && unreachableFrom(draft.actions) === -1}
+    <span class="endcap" data-end=""><i></i>{t('app.flow.run_ends')}</span>
+  {/if}
+
+  <!-- The guardrails: what bounds the rule, standing apart from the path's end. -->
   <div
-    class="card guardrails"
-    class:apart={draft.actions.length > 0 && draft.actions[draft.actions.length - 1]?.kind === 'STOP'}
+    class="card guardrails apart"
     class:selected={isSelected('guardrails')}
     class:inert={drag !== undefined}
     data-card="guardrails"
@@ -272,8 +279,12 @@
 
   .card.guardrails { border-style: dashed; box-shadow: none; background: var(--bg-surface-sunken); }
 
-  /* After a stop the path has ended; the guardrails stand apart from it rather than hanging off nothing. */
+  /* The path has ended at the mark; the guardrails stand apart from it rather than hanging off nothing. */
   .card.guardrails.apart { margin-block-start: var(--sp-300); }
+
+  .endcap { display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-050); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
+
+  .endcap i { display: block; width: var(--sp-150); height: var(--sp-150); border-radius: var(--r-xs); background: var(--border-strong); }
 
   .card.selected, .gate.selected, .condition.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
 

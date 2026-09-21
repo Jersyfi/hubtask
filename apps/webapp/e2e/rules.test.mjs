@@ -227,34 +227,52 @@ test('chromium: every building block carries its icon, and a kind outside the gr
   assert.equal(await page.locator('[data-canvas] [data-card="0"] .title').textContent(), 'Create access token');
 });
 
-test('chromium: a stop goes last - refused in the middle, landing at the end, and a stored one draws what follows faded', async (t) => {
+test('chromium: End the run belongs at the end of an arm, a branch ending on every path ends the chain, and + Else if adds a rung', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const page = await open(browser, [], { width: 1400, height: 1200 });
   const titles = async () => page.locator('[data-canvas] [data-card="0"] .title, [data-canvas] [data-card="1"] .title, [data-canvas] [data-card="2"] .title, [data-canvas] [data-card="3"] .title').allTextContents();
 
-  // Into a middle gap: refused with the stop's own sentence, the chain unchanged.
-  await page.getByRole('button', { name: 'Stop', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
-  await page.getByText('A stop goes last.', { exact: false }).waitFor();
+  // Into the chain: refused with its own sentence in the hint line, the chain unchanged.
+  await page.getByRole('button', { name: 'End the run', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
+  await page.locator('.dragline span', { hasText: 'goes at the end of an arm' }).waitFor();
   assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook']);
+  await page.getByRole('button', { name: 'End the run', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="3"]'));
+  assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook'], 'the chain ends the run anyway');
 
-  // The + menu of a middle gap does not offer it; the last gap does, and after it the line ends.
-  await page.locator('.gap[data-list=""][data-index="1"] [data-slot]').click();
-  assert.equal(await page.locator('.menu .item', { hasText: 'Stop' }).count(), 0);
-  await page.keyboard.press('Escape');
+  // The + menu of the chain's last gap does not offer it; the last gap of an arm does. The else
+  // arm already ends; once the then arm ends too, the branch ends on every path: no gap after it,
+  // the end mark says so, and the step stored after it is never reached.
   await page.locator('.gap[data-list=""][data-index="3"] [data-slot]').click();
-  await page.locator('.menu .item', { hasText: 'Stop' }).click();
-  assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook', 'Stop']);
-  assert.equal(await page.locator('.gap[data-list=""][data-index="4"]').count(), 0, 'no gap after the stop');
-  assert.equal(await page.locator('[data-card="3"] button[aria-label="Move up"]').isDisabled(), true, 'the stop does not move up');
-  assert.equal(await page.locator('[data-card="2"] button[aria-label="Move down"]').isDisabled(), true, 'nothing moves below it');
+  assert.equal(await page.locator('.menu .item', { hasText: 'End the run' }).count(), 0);
+  await page.keyboard.press('Escape');
+  await page.locator('.gap[data-list="1/then"][data-index="1"] [data-slot]').click();
+  await page.locator('.menu .item', { hasText: 'End the run' }).click();
+  await page.locator('[data-card="1/then/1"]').waitFor();
+  assert.equal(await page.locator('[data-branch="1"] .join.none').count(), 1, 'no join under a fork whose arms both end');
+  assert.equal(await page.locator('.gap[data-list=""][data-index="2"]').count(), 0, 'no gap after a branch that ends every path');
+  assert.equal(await page.locator('[data-end="1"]').count(), 1, 'the end mark stands after the branch');
+  assert.equal(await page.locator('.never').count(), 1);
+  assert.equal(await page.locator('[data-card="2"].unreachable').count(), 1, 'what was stored after it is never reached');
+  assert.equal(await page.locator('[data-card="1/then/1"] button[aria-label="Move up"]').isDisabled(), true, 'the end does not move up');
+  assert.equal(await page.locator('[data-card="1/then/0"] button[aria-label="Move down"]').isDisabled(), true, 'nothing moves below it');
 
-  // A stored rule with a step after a stop: drawn faded, with the word once.
+  // + Else if: a rung under the branch, the former else arm as the last resort, drawn as a ladder.
+  await page.locator('[data-add-rung="1"]').click();
+  await page.locator('[data-ladder="1"]').waitFor();
+  assert.equal(await page.locator('[data-rung="1"]').count(), 1);
+  assert.equal(await page.locator('[data-rung="1/else/0"]').count(), 1, 'the new rung');
+  assert.equal(await page.locator('[data-rung="1/else/0/else"]').count(), 1, 'the else after it');
+  assert.equal(await page.locator('[data-card="1/else/0/else/0"] .title').textContent(), 'Wait', 'what the else held travelled down');
+  assert.equal(await page.locator('[data-rung="1/else/0"] .rcond.selected').count(), 1, 'the rung is selected for its condition');
+
+  // A stored rule with a step after an end: drawn faded, with the word once.
   await page.goto(`${served.origin}/administration/rules/${STALE.id}`);
   await page.locator('[data-card="2"]').waitFor();
   assert.equal(await page.locator('.never').count(), 1);
   assert.equal(await page.locator('[data-card="2"].unreachable').count(), 1);
   assert.equal(await page.locator('[data-card="1"].unreachable').count(), 0);
+  assert.equal(await page.locator('[data-end=""]').count(), 0, 'the chain drew no second end mark');
 });
 
 test('chromium: a condition is composed as a tree in the gate and in a branch, and the write carries the CEL', async (t) => {
