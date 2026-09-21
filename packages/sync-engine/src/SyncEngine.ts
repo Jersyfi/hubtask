@@ -925,6 +925,11 @@ export class SyncEngine {
    * after `SNAPSHOT_ATTEMPTS` such endings the engine walks `:pull` from nothing, page by page,
    * and keeps the cursor of the last page (offline-sync.md §3.1). The records of a cut-short
    * snapshot stay in the store: they are the server's, and the next attempt writes them again.
+   *
+   * What follows the synchronisation is `#recover`, not an invalidation of everything: the reads
+   * a screen made from the server while the snapshot ran are as fresh as the snapshot, and
+   * reading every one of them again doubled a first page load (issue 877). What the copy
+   * answered meanwhile, and what could not be answered at all, is read again.
    */
   async #initial(
     options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>,
@@ -944,7 +949,7 @@ export class SyncEngine {
       for await (const line of lines) {
         if (line.kind === 'cursor') {
           await replica.hold({ ...(await replica.position()), cursor: line.cursor });
-          this.#invalidate(undefined);
+          this.#recover();
           return line.cursor;
         }
         const record = recordOf(JSON.stringify(line.record));
@@ -965,7 +970,7 @@ export class SyncEngine {
       if (!page.has_more) break;
     }
     await replica.hold({ ...(await replica.position()), cursor });
-    this.#invalidate(undefined);
+    this.#recover();
     return cursor;
   }
 
