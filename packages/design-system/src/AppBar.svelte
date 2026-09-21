@@ -35,6 +35,8 @@
     /** Whether what it controls is open. Announced through `aria-expanded`. */
     isExpanded?: boolean;
     onToggle: () => void;
+    /** For the tour and for tests: the attribute the caller finds the control by. */
+    tour?: string;
   }
 
   interface Props {
@@ -61,6 +63,7 @@
         label={toggle.label}
         aria-expanded={toggle.isExpanded}
         data-toggle={toggle.kind}
+        data-tour={toggle.tour}
         onclick={toggle.onToggle}
       />
     {/if}
