@@ -40,7 +40,15 @@
     onhosts(present);
   });
 
-  const widthFor = (width: string) => (width === 'auto' ? '100%' : `var(--bp-${width})`);
+  // `compact` is the breakpoint whose value is 0 - it is where the scale starts, not a width
+  // anything is - so the pane for it is a phone: the medium breakpoint less a control's height,
+  // which lands on the narrow phones the row supports. Every other value is its own lower bound.
+  const widthFor = (width: string) =>
+    width === 'auto'
+      ? '100%'
+      : width === 'compact'
+        ? 'calc(var(--bp-medium) - var(--layout-appbar-height) * 4)'
+        : `var(--bp-${width})`;
 </script>
 
 <div class="stage" bind:this={container} style="--pane-count: {list.length}">
@@ -81,9 +89,15 @@
     display: grid;
     grid-template-columns: repeat(var(--pane-count, 1), minmax(0, 1fr));
     gap: var(--sp-200);
-    padding: var(--sp-300);
     align-items: start;
-    min-height: 0;
+  }
+
+  /* Below `medium` the panes stack: two modes side by side on a phone are two 154 px panes, and
+     a comparison one cannot read is not a comparison. The value is `primitive.breakpoint.medium`
+     less one, written out because a media query cannot read a custom property. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px) less one; a media query cannot read a custom property. */
+  @media (max-width: 599px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* Panes carry data-theme, so their own background has to come from the semantic layer or the
