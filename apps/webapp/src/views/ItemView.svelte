@@ -511,12 +511,13 @@
 
   // What sits under this entry, for the kinds that hold anything (F5-02): an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
-  // the reader to find them in the collection. The level is the same read the list expands, so
-  // the acceptance's invalidation of `/items` brings them here without being asked.
+  // the reader to find them in the collection. The subtree is the one read the section below
+  // makes (issue 877), and this counts its first level; the acceptance's invalidation of the
+  // lists brings them here without being asked.
   const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
   $effect(() => {
     if (!takesChildren) return;
-    return untrack(() => items.openChildren(id));
+    return untrack(() => items.openSubtree(id));
   });
   const children = $derived(takesChildren ? items.childrenOf(id) : []);
   function startEditing() {

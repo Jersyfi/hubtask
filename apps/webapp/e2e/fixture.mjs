@@ -91,7 +91,9 @@ export function stub(route) {
       return route.fulfill({ json: { data: [], groups, page: { next_cursor: null, has_more: false }, total: ITEMS.length } });
     }
     if (body.scope?.item_id) {
-      const data = CHILDREN[body.scope.item_id] ?? [];
+      // One level, or the whole subtree in one answer - the anchor is not in its own subtree.
+      const below = (id) => (CHILDREN[id] ?? []).flatMap((child) => [child, ...(body.scope.include_descendants ? below(child.id) : [])]);
+      const data = below(body.scope.item_id);
       return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
     }
     return route.fulfill({ json: { data: ITEMS, groups: [], page: { next_cursor: null, has_more: false }, total: ITEMS.length } });

@@ -52,10 +52,14 @@ export interface ItemsQuery {
 /** The manual order: `order_key ASC`, which is also the query's own default. */
 const MANUAL = [{ field: 'order_key', dir: 'ASC' as const }];
 
-/** The question that reads one level: a collection's own entries, or one entry's children. */
+/**
+ * The question that reads one level: a collection's own entries, or one entry's children - or,
+ * with `descendants`, everything under one entry at once (see `openSubtree`).
+ */
 function level(
   scope: { container_id?: string; item_id?: string },
   query: ItemsQuery = {},
+  descendants = false,
 ): {
   path: string;
   body: unknown;
@@ -63,7 +67,7 @@ function level(
   return {
     path: QUERY,
     body: {
-      scope: { ...scope, include_descendants: false },
+      scope: { ...scope, include_descendants: descendants },
       // **Archived is read-only, not hidden** (I-W4). The query defaults to leaving archived
       // entries out, and taking that default would make "archived" mean "gone" — which is the
       // failure F2-14 exists to prevent: the row stays, says so, and has every control off with
@@ -126,13 +130,38 @@ class Items {
     return rowsOf(this.#levels[`container:${containerId}`]);
   }
 
-  /** The direct children of an entry. */
+  /**
+   * The direct children of an entry: from its own level where one was opened, and from the
+   * subtree read that covers it otherwise.
+   */
   childrenOf(itemId: string): readonly WorkItem[] {
-    return rowsOf(this.#levels[`item:${itemId}`]);
+    const own = this.#levels[`item:${itemId}`];
+    if (own) return rowsOf(own);
+    const subtree = this.#subtreeCovering(itemId);
+    return subtree ? rowsOf(subtree).filter((item) => item.parent_id === itemId) : [];
   }
 
   stateOf(key: string): ResourceState<ItemQueryResult> | undefined {
     return this.#levels[key];
+  }
+
+  /**
+   * Whether an entry's children are known - its level has arrived, or a subtree read that holds
+   * it has. What a row's "done of total" waits for.
+   */
+  hasChildrenOf(itemId: string): boolean {
+    if (this.#levels[`item:${itemId}`]?.status === 'ready') return true;
+    return this.#subtreeCovering(itemId)?.status === 'ready';
+  }
+
+  /** The subtree read whose root is this entry or whose rows hold it, if one is open. */
+  #subtreeCovering(itemId: string): ResourceState<ItemQueryResult> | undefined {
+    const own = this.#levels[`subtree:${itemId}`];
+    if (own) return own;
+    for (const [key, state] of Object.entries(this.#levels)) {
+      if (key.startsWith('subtree:') && rowsOf(state).some((item) => item.id === itemId)) return state;
+    }
+    return undefined;
   }
 
   /** An entry among the levels that have been read, wherever it sits; nothing is read for it. */
@@ -162,6 +191,20 @@ class Items {
    */
   openChildren(itemId: string): () => void {
     return this.#open(`item:${itemId}`, level({ item_id: itemId }));
+  }
+
+  /**
+   * Everything under one entry, in one read: the subtree the entry page shows (F9-08).
+   *
+   * One level at a time is the collection's shape, where a collapsed row costs nothing; a
+   * subtree shows every level and says "done of total" on every branch, so reading it level by
+   * level was one request per branch, twice after every write (issue 877). One
+   * `include_descendants` query answers every level, and `childrenOf` groups it by parent - the
+   * server orders by `order_key`, which orders siblings under every parent alike. The anchor is
+   * not in its own subtree, exactly as one level below it does not include it.
+   */
+  openSubtree(rootId: string): () => void {
+    return this.#open(`subtree:${rootId}`, level({ item_id: rootId }, {}, true));
   }
 
   /**
