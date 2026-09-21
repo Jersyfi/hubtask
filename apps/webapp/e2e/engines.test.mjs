@@ -229,8 +229,12 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => el.textContent?.includes("Shown from this device's copy")), null, { timeout: 30_000 })
       .catch(() => assert.fail(`${name}: the replica's state was not replaced after the server came back`));
 
-    // Sign-out deletes the database, not its rows.
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    // Sign-out deletes the database, not its rows. The verb is the last item of the account
+    // menu, behind the name (ADR-0061 decision 1) - or behind "You", while the account's own
+    // read has not come back since the server did: the menu does not wait for it, because
+    // signing out has to be reachable with the server away.
+    await page.getByRole('button', { name: /^(Engine Walker|You)$/ }).click();
+    await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await page.waitForFunction(async (name) => !(await indexedDB.databases()).some((d) => d.name === name), database, { timeout: 10_000 })
       .catch(() => assert.fail(`${name}: the replica's database survived the sign-out`));
     assert.deepEqual(failures, [], `${name}: the bundle threw during the walk`);
