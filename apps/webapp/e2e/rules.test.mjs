@@ -198,6 +198,9 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   assert.equal(patches.length, 1, 'one PATCH left');
   assert.deepEqual(patches[0].actions.map((action) => action.kind), ['BRANCH', 'SEND_WEBHOOK', 'ADD_LABEL']);
   assert.deepEqual(patches[0].actions[0].then.map((action) => action.kind), ['ADD_COMMENT']);
+  // And the check right after it: the write leaves the rule unchecked, and the writer is told at
+  // the card whether the repair held rather than at the next opening of the list.
+  assert.ok(written.some((body) => body.check), 'the editor checked after the save');
 });
 
 test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {

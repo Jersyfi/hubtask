@@ -69,6 +69,11 @@ SET scope_type = sqlc.arg('scope_type'),
     -- An edit may change the recurrence rule, so the moment is recomputed with the definition
     -- rather than left pointing at an occurrence of a rule that no longer exists.
     next_run_at = sqlc.narg('next_run_at'),
+    -- The findings describe the definition the check read, and this is a new one: an edit that
+    -- repaired the step must not keep showing the flag, and one that broke a step must not show
+    -- none. Unchecked, until the next check reads it (ADR-0060).
+    findings   = '[]'::jsonb,
+    checked_at = NULL,
     version    = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expected_version');
 
