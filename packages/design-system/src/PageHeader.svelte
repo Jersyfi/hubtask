@@ -45,6 +45,13 @@
      * step points at.
      */
     readonly opener?: string;
+    /**
+     * A second way to do the same thing, beside the button: "create an entry" and "from a
+     * template…". Drawn as a split button - the verb, and a chevron that opens the list - from
+     * `medium` up; folded, the list's items join the page menu, because a round button pinned at
+     * the bottom of a phone has no room for a second half.
+     */
+    readonly menu?: { readonly label: string; readonly items: readonly MenuItem[]; readonly onselect: (id: string) => void };
   }
 
   interface Props {
@@ -84,6 +91,7 @@
   // Below `medium` the secondary actions join the menu, so one control holds everything that is
   // not the primary. The ids are prefixed so a caller's own ids cannot collide with them.
   const foldedItems = $derived<readonly MenuItem[]>([
+    ...(primary?.menu?.items ?? []).map((item) => ({ ...item, id: `primary-${item.id}` })),
     ...secondary.map((action, index) => ({
       id: `secondary-${index}`,
       label: action.label,
@@ -91,11 +99,16 @@
       disabledReason: action.disabledReason,
     })),
     ...(menu?.items ?? []).map((item, index) =>
-      index === 0 && secondary.length > 0 ? { ...item, hasSeparatorBefore: true } : item,
+      index === 0 && (secondary.length > 0 || (primary?.menu?.items.length ?? 0) > 0) ? { ...item, hasSeparatorBefore: true } : item,
     ),
-  ]);
+  ].map((item, index) =>
+    // The secondary actions stand apart from the primary's own list, when there is one.
+    index === (primary?.menu?.items.length ?? 0) && index > 0 && secondary.length > 0 ? { ...item, hasSeparatorBefore: true } : item,
+  ));
 
   function onFoldedSelect(id: string) {
+    const fromPrimary = /^primary-(.+)$/.exec(id);
+    if (fromPrimary) return primary?.menu?.onselect(fromPrimary[1] ?? '');
     const match = /^secondary-(\d+)$/.exec(id);
     if (match) secondary[Number(match[1])]?.onclick();
     else menu?.onselect(id);
@@ -150,10 +163,20 @@
 
     <div class="actions">
       {#if primary}
-        <span class="primary">
+        <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
           <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
             {primary.label}
           </Button>
+          {#if primary.menu && primary.menu.items.length > 0}
+            {@const submenu = primary.menu}
+            <span class="primary-more">
+              <Menu label={submenu.label} items={submenu.items} placement={{ side: 'block-end', align: 'end' }} onselect={submenu.onselect}>
+                {#snippet trigger(props)}
+                  <IconButton icon="chevron-down" label={submenu.label} tone="primary" {...props} />
+                {/snippet}
+              </Menu>
+            </span>
+          {/if}
         </span>
       {/if}
       {#each secondary as action, index (index)}
@@ -241,6 +264,22 @@
     margin-inline-start: auto;
   }
 
+  /* The split button: the verb and its list read as one control, joined at the seam. The two
+     halves keep their own focus rings; only the corners between them are squared. */
+  .primary[data-split] { display: inline-flex; align-items: stretch; }
+
+  .primary[data-split] > :global(.button) {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  .primary-more { display: inline-flex; margin-inline-start: var(--bw-hairline); }
+
+  .primary-more :global(.icon-button) {
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+  }
+
   .parent { display: none; margin: 0; }
 
   .parent a {
@@ -274,7 +313,14 @@
   .head[data-folded] .trail { display: none; }
   .head[data-folded] .parent { display: block; }
   .head[data-folded] .secondary,
+  .head[data-folded] .primary-more,
   .head[data-folded] .menu-full { display: none; }
+
+  /* Folded, the button stands alone again and gets its corners back. */
+  .head[data-folded] .primary[data-split] > :global(.button) {
+    border-start-end-radius: var(--r-md);
+    border-end-end-radius: var(--r-md);
+  }
   .head[data-folded] .menu-folded { display: inline-flex; }
 
   /* The one primary action, pinned at the end of the screen above the bottom bar and the safe
