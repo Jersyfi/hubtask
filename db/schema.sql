@@ -1237,6 +1237,10 @@ CREATE TABLE notification (
   created_at   timestamptz NOT NULL DEFAULT now(),
   sent_at      timestamptz,
   attempts     integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  -- The subjects that are not an entry (migration 0096, issue 814): the rule that was switched
+  -- off, the subscription that stopped being called. At most one of the three is set.
+  rule_id         uuid,
+  subscription_id uuid,
 
   CONSTRAINT notification_recipient_id_fkey
     FOREIGN KEY (tenant_id, recipient_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -1244,7 +1248,13 @@ CREATE TABLE notification (
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT notification_actor_id_fkey
     FOREIGN KEY (tenant_id, actor_id) REFERENCES account (tenant_id, id)
-      ON DELETE SET NULL (actor_id)
+      ON DELETE SET NULL (actor_id),
+  CONSTRAINT notification_rule_id_fkey
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_subscription_id_fkey
+    FOREIGN KEY (tenant_id, subscription_id) REFERENCES webhook_subscription (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id) <= 1)
 );
 -- Partial: the invitation carries no event, and NULLs are all distinct to a unique index.
 CREATE UNIQUE INDEX notification_event_recipient_idx
