@@ -339,6 +339,19 @@ func AutomationActionFields() map[string][]usecase.Field {
 	return fields
 }
 
+// AutomationActionSummaries is, for every action kind AutomationActions names, the one sentence
+// its use case declares as its Summary - the sentence the MCP tool for it carries, read off the
+// descriptor here so that a rule editor's catalogue says what a kind does without a second copy
+// of ninety sentences (F8-15, decision 17). Protocol documentation in English, as the Field
+// descriptions are, and for the same reason not a breach of ADR-0011.
+func AutomationActionSummaries() map[string]string {
+	summaries := make(map[string]string, len(Descriptors()))
+	for _, descriptor := range Descriptors() {
+		summaries[descriptor.AutomationAction()] = descriptor.Summary
+	}
+	return summaries
+}
+
 // SessionScopes is what a session-authenticated person may exercise: every declared scope except
 // the control plane's. A session is the person themselves - but the admin surface is entered by
 // a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0

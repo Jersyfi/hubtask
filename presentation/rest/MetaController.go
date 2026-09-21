@@ -191,15 +191,32 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 				description := field.Description
 				entry.Description = &description
 			}
+			// The caller's plumbing says `rule: false`, and only that: absent means true, so a
+			// form reads one flag rather than two shapes of the same answer (F8-15).
+			if field.CallerOnly {
+				rule := false
+				entry.Rule = &rule
+			}
+			if field.Format != "" {
+				format := string(field.Format)
+				entry.Format = &format
+			}
 			fields = append(fields, entry)
 		}
 		actionFields[kind] = fields
 	}
+	// And the one sentence per kind (F8-15): always an object, empty on a build wired without
+	// the catalogue, so that a client reads one shape.
+	actionSummaries := make(map[string]string, len(source.AutomationActionSummaries))
+	for kind, summary := range source.AutomationActionSummaries {
+		actionSummaries[kind] = summary
+	}
 	automationManifest := struct {
-		ActionFields *map[string][]openapi.AutomationActionField `json:"action_fields,omitempty"`
-		Actions      *[]string                                   `json:"actions,omitempty"`
-		Triggers     *[]string                                   `json:"triggers,omitempty"`
-	}{ActionFields: &actionFields, Actions: &automationActions, Triggers: &triggers}
+		ActionFields    *map[string][]openapi.AutomationActionField `json:"action_fields,omitempty"`
+		ActionSummaries *map[string]string                          `json:"action_summaries,omitempty"`
+		Actions         *[]string                                   `json:"actions,omitempty"`
+		Triggers        *[]string                                   `json:"triggers,omitempty"`
+	}{ActionFields: &actionFields, ActionSummaries: &actionSummaries, Actions: &automationActions, Triggers: &triggers}
 
 	// The catalogue of §3, with what this build can do to each. `actions` is always an array,
 	// including the empty one: a kind nothing removes is named here on purpose, and an absent key

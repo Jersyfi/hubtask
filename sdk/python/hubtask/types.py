@@ -731,6 +731,8 @@ class AutomationActionField(TypedDict, total=False):
     required: Required[bool]
     enum: list[str]
     description: str
+    rule: bool
+    format: str
 
 class RuleAction(TypedDict, total=False):
     """One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything."""
