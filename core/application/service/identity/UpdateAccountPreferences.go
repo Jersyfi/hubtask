@@ -211,7 +211,7 @@ func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 				Description: "Whether the moments are marked for this person. Empty clears it, and the default is on.",
 			},
 			{
-				Name: "onboarding_completed_at", Kind: usecase.KindString,
+				Name: "onboarding_completed_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the first-run tour ended or was skipped, as an RFC 3339 date and time. Empty clears it, which runs the tour again.",
 			},
 		},

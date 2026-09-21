@@ -265,7 +265,7 @@ func (h UpdateTemplate) Descriptor() usecase.Descriptor {
 				Description: "The tree, as one root node carrying its children.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read (If-Match). Omitted accepts what is there.",
 			},
 		},
@@ -323,7 +323,7 @@ func (h DeleteTemplate) Descriptor() usecase.Descriptor {
 				Description: "The template to remove.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read (If-Match). Omitted accepts what is there.",
 			},
 		},

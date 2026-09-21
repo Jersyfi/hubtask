@@ -365,7 +365,7 @@ func (h UpdateBackupSchedule) Descriptor() usecase.Descriptor {
 				Description: "FAILURE, SUCCESS, FIRST_SUCCESS_AFTER_FAILURE. Replaces the set."},
 			{Name: "enabled", Kind: usecase.KindBool,
 				Description: "Off keeps the rule and owes nothing."},
-			{Name: "expected_version", Kind: usecase.KindInt,
+			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller named none."},
 		},
 		Audit: usecase.AuditDeclaration{

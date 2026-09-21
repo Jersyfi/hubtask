@@ -231,7 +231,7 @@ func (h ReorderContainer) Descriptor() usecase.Descriptor {
 					"the end of the level.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller read none and accepts " +
 					"whatever is there.",
 			},
