@@ -236,6 +236,7 @@
     account: (accountId) => runners.find((choice) => choice.value === accountId)?.label ?? accounts.nameOf(accountId) ?? t('app.rules.choose_runner'),
     event: (type) => eventWords(words, type).clause,
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
+    label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
   });
   const generated = $derived(generatedName(words, names, draft));
   const automatic = $derived(isAutomatic(draft.name, generated));

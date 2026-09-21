@@ -26,6 +26,7 @@ export interface Names {
   account: (id: string) => string;
   event: (type: string) => string;
   bucket?: (id: string) => string | undefined;
+  label?: (id: string) => string | undefined;
   changedField?: (field: string) => string;
 }
 
@@ -223,6 +224,8 @@ export function sentenceWords(words: Catalogue, names: Names, sentence: Sentence
       return sentence.a ? `${subject} ${op} ${names.account(sentence.a)}` : `${subject} ${op}`;
     case 'bucket':
       return `${subject} ${op} ${names.bucket?.(sentence.a ?? '') ?? sentence.a ?? ''}`;
+    case 'label':
+      return `${subject} „${names.label?.(sentence.a ?? '') ?? sentence.a ?? ''}“ ${op}`;
     case 'type':
       return `${subject} ${op} ${sentence.a ?? ''}`;
     default:

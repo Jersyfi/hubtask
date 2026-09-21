@@ -43,6 +43,10 @@ type TestRule struct {
 	Conditions expression.Compiler
 	Entries    Entries
 	Containers Containers
+	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
+	// `item.members` (issue 807). Optional, as in condition.Values.
+	Labels     condition.Sets
+	Members    condition.Sets
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -131,7 +135,7 @@ func (h TestRule) Execute(
 	}
 	values := condition.Values{
 		Envelope: envelope, Now: h.Clock.Now(), Payload: cmd.Payload,
-		Entries: h.Entries, Containers: h.Containers,
+		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members,
 	}
 
 	outcome := TestOutcome{}

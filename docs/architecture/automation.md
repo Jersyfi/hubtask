@@ -31,7 +31,7 @@ graph LR
   "run_as": "service-account:automation-default",
   "trigger": { "kind": "EVENT", "event_type": "de.hubtask.work.item.overdue.v1" },
   "conditions": [
-    { "expr": "item.labels.exists(l, l == 'label:approval') && item.type == 'TASK'" },
+    { "expr": "item.labels.exists(l, l == '01936f2a-7c1e-7000-8000-0000000000a1') && item.type == 'TASK'" },
     { "expr": "now.hour >= 8 && now.hour < 18" }
   ],
   "actions": [
