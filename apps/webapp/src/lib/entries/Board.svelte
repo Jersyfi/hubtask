@@ -843,8 +843,12 @@
 
   :global([data-motion='reduced']) .card[data-dragging] { translate: none; }
 
-  /* The board scrolls sideways, not the page. */
+  /* The board scrolls sideways, not the page. Positioned, so that it is the containing block of
+     what it scrolls: a card's checkbox hides its input the visually-hidden way, absolutely, and
+     an absolute box inside an unpositioned scroller overflows the scroller's ancestor - which is
+     how the board widened the page by four hundred pixels on a tablet (issue 874). */
   .board {
+    position: relative;
     display: flex;
     gap: var(--sp-200);
     align-items: start;

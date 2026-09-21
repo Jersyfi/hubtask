@@ -8,11 +8,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
@@ -38,6 +40,7 @@ type checkHarness struct {
 	check CheckRules
 	rules *ruleStore
 	refs  *references
+	held  *memberships
 	audit *auditSink
 	told  *told
 	auth  *authorizer
@@ -52,6 +55,11 @@ func newCheck(rules ...domain.Rule) *checkHarness {
 			repository.ReferenceAccount: {serviceID: true},
 			repository.ReferenceLabel:   {labelID: true},
 		}},
+		// The service account holds a role at the tenant, so that a rule's runner is sound
+		// unless a test takes the role away.
+		held: &memberships{rows: map[shared.ID][]identity.Membership{
+			serviceID: {{AccountID: serviceID, Scope: identity.TenantScope(), Role: identity.RoleMember}},
+		}},
 	}
 	// The default catalogue declares names and no kinds; the check resolves only an `id` field,
 	// so the catalogue here says which fields are identifiers, as the real descriptors do.
@@ -61,7 +69,7 @@ func newCheck(rules ...domain.Rule) *checkHarness {
 		Input: []usecase.Field{{Name: "item_id", Kind: usecase.KindID}, {Name: "label_id", Kind: usecase.KindID}},
 	}
 	h.check = CheckRules{
-		Rules: h.rules, References: h.refs, Catalogue: known, Conditions: compiler{},
+		Rules: h.rules, References: h.refs, Memberships: h.held, Catalogue: known, Conditions: compiler{},
 		Authorizer: h.auth, Audit: h.audit, Owners: h.told, Signals: h.sig,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now),
 	}
@@ -330,5 +338,109 @@ func TestADeletionSeedsOneCheckForItsTenant(t *testing.T) {
 	}
 	if err := (CheckOnDeletion{}).Deliver(context.Background(), event.Envelope{Type: event.LabelDeleted, TenantID: tenant}); err != nil {
 		t.Errorf("without a queue: %v", err)
+	}
+}
+
+// A required parameter the rule does not carry is a finding only when the run cannot supply it
+// either (issue 856): `body` on a comment is one, the entry an event is about is not. ATTENTION
+// at the parameter's path, and the rule stays on - the check names the step, the run answers
+// the rest.
+func TestAMissingParameterTheRunCannotSupplyIsFound(t *testing.T) {
+	commenting := func(id shared.ID, params map[string]any) domain.Rule {
+		rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, id)
+		rule.Actions = []domain.Action{{Kind: "ADD_COMMENT", Params: params}}
+		return rule
+	}
+	silent := commenting(ruleID, map[string]any{})
+	spoken := commenting(otherRule, map[string]any{"body": "on it"})
+	h := newCheck(silent, spoken)
+	h.check.Catalogue.(catalogue).known["ADD_COMMENT"] = usecase.Descriptor{
+		Name: "AddComment", TokenScope: "items:write",
+		Input: []usecase.Field{
+			{Name: "item_id", Kind: usecase.KindID, Required: true},
+			{Name: "body", Kind: usecase.KindString, Required: true},
+		},
+	}
+
+	checked, err := h.check.Execute(context.Background(), writerActor())
+	if err != nil {
+		t.Fatalf("checking: %v", err)
+	}
+	for _, rule := range checked {
+		codes := findingCodes(rule)
+		switch rule.ID {
+		case ruleID:
+			if codes["/actions/0/params/body"] != FindingParameterMissing || len(codes) != 1 {
+				t.Errorf("the silent comment answered %v", codes)
+			}
+			if !rule.Enabled || rule.Findings[0].Level != domain.FindingAttention ||
+				rule.Findings[0].Params["parameter"] != "body" {
+				t.Errorf("the finding is %+v, enabled=%v", rule.Findings[0], rule.Enabled)
+			}
+		case otherRule:
+			if len(codes) != 0 {
+				t.Errorf("the spoken comment answered %v", codes)
+			}
+		}
+	}
+}
+
+// An account that exists and holds no role anywhere on the rule's scope path is found at
+// /run_as (issue 817): the rule would run and every entry step would answer not-found. A role
+// at the hub of a hub-scoped rule is enough; the finding is ATTENTION and the rule stays on.
+func TestARunnerWithoutARoleOnTheScopeIsFound(t *testing.T) {
+	hub := shared.ID("01936f2a-7c1e-7000-8000-0000000000c4")
+	rule := ruleNaming(ruleID, labelID)
+	rule.Scope = domain.Scope{Type: domain.ScopeHub, ID: hub}
+	h := newCheck(rule)
+	h.held.rows[serviceID] = nil
+
+	checked, err := h.check.Execute(context.Background(), writerActor())
+	if err != nil {
+		t.Fatalf("checking: %v", err)
+	}
+	if codes := findingCodes(checked[0]); codes["/run_as"] != FindingRunnerWithoutRole || len(codes) != 1 {
+		t.Errorf("the roleless runner answered %v", codes)
+	}
+	if !checked[0].Enabled || checked[0].Findings[0].Level != domain.FindingAttention ||
+		checked[0].Findings[0].Params["scope"] != "HUB" {
+		t.Errorf("the finding is %+v, enabled=%v", checked[0].Findings[0], checked[0].Enabled)
+	}
+
+	h.held.rows[serviceID] = []identity.Membership{{AccountID: serviceID, Scope: identity.HubScope(hub), Role: identity.RoleMember}}
+	checked, err = h.check.Execute(context.Background(), writerActor())
+	if err != nil {
+		t.Fatalf("checking again: %v", err)
+	}
+	if len(checked[0].Findings) != 0 {
+		t.Errorf("a runner with a role at the hub answered %v", findingCodes(checked[0]))
+	}
+
+	// An account that is gone is BROKEN and asked nothing further.
+	delete(h.refs.present[repository.ReferenceAccount], serviceID)
+	h.held.rows[serviceID] = nil
+	checked, _ = h.check.Execute(context.Background(), writerActor())
+	if codes := findingCodes(checked[0]); codes["/run_as"] != FindingAccountGone {
+		t.Errorf("a gone account answered %v", codes)
+	}
+}
+
+// What the run supplies is exactly what SuppliedByRun says it may: a name written by one and not
+// the other is a parameter the check would find missing on every rule that relies on it.
+func TestTheRunSuppliesOnlyWhatTheCheckKnowsItMay(t *testing.T) {
+	entry := shared.ID("01936f2a-7c1e-7000-8000-0000000000c5")
+	command := Command{EventID: ruleID, Trigger: domain.TriggerJumbleEntry, SubjectID: entry}
+	values := condition.Values{Envelope: event.Envelope{Subject: "item/" + entry.String()}}
+	supplied := command.supplied(values)
+	if len(supplied) != 3 {
+		t.Fatalf("the run supplies %v, want the event, the entry and the jumble entry", supplied)
+	}
+	for name := range supplied {
+		if !SuppliedByRun(name) {
+			t.Errorf("the run supplies %s and the check does not know it may", name)
+		}
+	}
+	if SuppliedByRun("body") {
+		t.Error("the check believes the run supplies a body")
 	}
 }

@@ -15,6 +15,7 @@
   import {
     AvatarGroup,
     Button,
+    DetailPane,
     Dialog,
     Drawer,
     EmptyState,
@@ -51,6 +52,7 @@
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { items } from '../lib/data/items.svelte.ts';
   import { holds, rootTypes } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -62,6 +64,7 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -81,14 +84,43 @@
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { humanise } from '../lib/i18n/messages.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
     id: string;
+    /**
+     * The entry open beside the list (ADR-0061 decision 4): `?item=` on the collection's address,
+     * from `large` up. The frame's router resolved it and `App.svelte` redirected below `large`,
+     * so here it is only ever a pane. Opening from a row sets it; closing clears it; both are
+     * navigations, so the address, a reload and the back button agree.
+     */
+    openItemId?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, onnavigate }: Props = $props();
+  const { id, openItemId, onnavigate }: Props = $props();
+
+  /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
+  const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
+
+  function openBeside(itemId: string) {
+    onnavigate(`/collections/${id}?item=${encodeURIComponent(itemId)}`);
+  }
+
+  /**
+   * Closing the pane puts the focus back on the row it came from - the reader who opened it from
+   * the list is still in the list, which is the point of a pane. The row is found after the
+   * navigation has redrawn, when nothing has focus but the body.
+   */
+  function closePane() {
+    const rowId = openItemId;
+    onnavigate(`/collections/${id}`);
+    queueMicrotask(() => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      document.querySelector<HTMLElement>(`[data-row="${rowId}"] a`)?.focus();
+    });
+  }
 
   // Its own read as well as the levels. A deep link to a collection may be the first thing this
   // client ever asks for, and its hub is then not loaded either — looking only in the levels would
@@ -739,34 +771,58 @@
           (lastResults = byItem(operations, results))}
       />
 
-      {#if layout === 'TIMELINE'}
-        <TimelineView
-          collectionId={container.id}
-          {query}
-          onopen={(itemId) => onnavigate(`/items/${itemId}`)}
-        />
-      {:else if layout === 'KANBAN'}
-        <Board
-          collectionId={container.id}
-          isReadOnly={isReadOnly}
-          {query}
-          {lastResults}
-          onduplicate={(item) => (duplicating = item)}
-        />
-      {:else}
-        <!-- Read-only follows the container: an archived collection's entries are archived with
-             it (I-C3), and the reason travels with the controls rather than the controls
-             disappearing. -->
-        <EntryList
-          bind:this={list}
-          collectionId={container.id}
-          isReadOnly={isReadOnly}
-          {query}
-          isExpanded={layout === 'LIST_EXPANDED'}
-          {lastResults}
-          onduplicate={(item) => (duplicating = item)}
-        />
-      {/if}
+      <!-- The list, and from `large` the pane beside it (ADR-0061 decision 4): the entry the
+           address names, in the same form it takes on a phone. The pane is a place, not a
+           feature - `/items/:id` is still the entry's address and this only draws it here. -->
+      <div class="split" data-pane={openItemId ? '' : undefined}>
+        <div class="entries">
+          {#if layout === 'TIMELINE'}
+            <TimelineView
+              collectionId={container.id}
+              {query}
+              onopen={(itemId) => onnavigate(`/items/${itemId}`)}
+            />
+          {:else if layout === 'KANBAN'}
+            <Board
+              collectionId={container.id}
+              isReadOnly={isReadOnly}
+              {query}
+              {lastResults}
+              onduplicate={(item) => (duplicating = item)}
+            />
+          {:else}
+            <!-- Read-only follows the container: an archived collection's entries are archived with
+                 it (I-C3), and the reason travels with the controls rather than the controls
+                 disappearing. From `large` a row opens beside the list and stays current. -->
+            <EntryList
+              bind:this={list}
+              collectionId={container.id}
+              isReadOnly={isReadOnly}
+              {query}
+              isExpanded={layout === 'LIST_EXPANDED'}
+              {lastResults}
+              onopen={viewport.isLarge ? openBeside : undefined}
+              currentId={openItemId}
+              onduplicate={(item) => (duplicating = item)}
+            />
+          {/if}
+        </div>
+        {#if openItemId}
+          {#key openItemId}
+            <DetailPane
+              title={openItem?.title ?? ''}
+              kind={openItem ? humanise(openItem.type.toLowerCase()) : undefined}
+              dismissLabel={t('app.pane.close')}
+              pageLabel={t('app.pane.open_page')}
+              pageHref={`/items/${openItemId}`}
+              onOpenPage={() => onnavigate(`/items/${openItemId}`)}
+              onClose={closePane}
+            >
+              <ItemView id={openItemId} {onnavigate} isInPane />
+            </DetailPane>
+          {/key}
+        {/if}
+      </div>
     {/if}
   </Stack>
 {/if}
@@ -899,6 +955,18 @@
 {/if}
 
 <style>
+  .split { display: flex; align-items: flex-start; gap: var(--sp-300); min-width: 0; }
+
+  .entries { flex: 1; min-width: 0; }
+
+  /* The pane keeps to the top while the list scrolls under it, and scrolls inside itself. */
+  .split[data-pane] > :global(aside) {
+    position: sticky;
+    inset-block-start: calc(var(--layout-appbar-height) + var(--sp-200));
+    max-block-size: calc(100vh - var(--layout-appbar-height) - var(--sp-400));
+    overflow: auto;
+  }
+
   .filter[hidden] { display: none; }
 
   .filter {

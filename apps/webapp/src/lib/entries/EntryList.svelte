@@ -104,6 +104,14 @@
      */
     lastResults?: ReadonlyMap<string, BulkResult>;
     /**
+     * Asked to open an entry beside the list rather than on its page (ADR-0061 decision 4). The
+     * view decides, because whether there is room beside the list is the view's width; a list
+     * without it leaves the rows as the links they are.
+     */
+    onopen?: (itemId: string) => void;
+    /** The entry open beside the list, so its row is announced as current. */
+    currentId?: string;
+    /**
      * Asked to copy an entry.
      *
      * Handed up rather than handled here, because a duplicate ends on the copy — and navigation is
@@ -120,6 +128,8 @@
     query,
     isExpanded = false,
     lastResults,
+    onopen,
+    currentId,
     onduplicate,
   }: Props = $props();
 
@@ -990,6 +1000,8 @@
               title={row.item.title}
               depth={row.depth}
               href={`/items/${row.item.id}`}
+              onOpen={onopen ? () => onopen(row.item.id) : undefined}
+              isCurrent={currentId === row.item.id}
               pendingLabel={queue.isPending(row.item.id) ? t('app.sync.pending_entry') : undefined}
               isCompleted={row.item.completion?.is_completed ?? false}
               expansion={!row.takesChildren
