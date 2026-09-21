@@ -72,6 +72,18 @@ test('a level: the plain question the list asks, in the manual order, labels and
     body: { scope: { item_id: 'i-1', include_descendants: false }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
   }, storage)) as { data: unknown[] };
   assert.deepEqual(ids(children.data), ['i-1-a']);
+
+  // The entry page's one read (issue 877): everything under the entry, the entry itself left out.
+  const subtree = (await storeFor({
+    path: '/items:query',
+    body: { scope: { item_id: 'i-1', include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
+  }, storage)) as { data: unknown[] };
+  assert.deepEqual(ids(subtree.data), ['i-1-a']);
+  // A whole collection at once is not a question the copy answers.
+  assert.equal(await storeFor({
+    path: '/items:query',
+    body: { scope: { container_id: COLLECTION, include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
+  }, storage), undefined);
 });
 
 test('the board: the same entries by column, the loose ones last', async () => {
