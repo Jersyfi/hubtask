@@ -13330,7 +13330,7 @@
               "null"
             ],
             "format": "date-time",
-            "description": "When the check last ran over this rule, and absent for a rule it never has."
+            "description": "When the check last ran over this rule, and absent for a rule it never has — or for one edited since: an edit leaves the rule unchecked and its findings empty, because they described the definition the check read, not this one.\n"
           },
           "created_by": {
             "type": "string",
