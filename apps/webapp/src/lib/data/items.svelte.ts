@@ -32,11 +32,9 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
+import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, touchesOf } from './touches.ts';
 
 const QUERY = '/items:query';
-
-/** What a write to an entry makes stale. Entries, and nothing about the container tree. */
-const TOUCHES = ['/items'];
 
 /**
  * What the reader has asked of a level beyond "show it": a filter, an order, a grouping.
@@ -225,7 +223,8 @@ class Items {
     // F3 is where dates get a surface.
     return engine.mutate<WorkItem>('POST', '/items', { due_date_only: false, ...body }, {
       idempotencyKey,
-      invalidates: TOUCHES,
+      // A new entry is a row in a list and nothing else yet: nobody holds its document open.
+      invalidates: [ENTRY_LISTS],
     });
   }
 
@@ -240,7 +239,7 @@ class Items {
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
       ifMatch: etagFor(version),
-      invalidates: TOUCHES,
+      invalidates: touchesOf(id),
     });
   }
 
@@ -255,7 +254,7 @@ class Items {
     const version = current.status === 'ready' ? current.data.version : undefined;
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { notes }, {
       ...(version !== undefined ? { ifMatch: etagFor(version) } : {}),
-      invalidates: TOUCHES,
+      invalidates: touchesOf(id),
     });
   }
 
@@ -270,7 +269,7 @@ class Items {
   async setBucket(id: string, bucketId: string | null, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { bucket_id: bucketId }, {
       ifMatch: etagFor(version),
-      invalidates: TOUCHES,
+      invalidates: touchesOf(id),
     });
   }
 
@@ -298,7 +297,7 @@ class Items {
       'POST',
       `/items/${id}:reorder`,
       { before_item_id: beforeItemId },
-      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: touchesOf(id) },
     );
   }
 
@@ -335,7 +334,7 @@ class Items {
         ...(destination.collectionId ? { target_collection_id: destination.collectionId } : {}),
         before_item_id: destination.beforeItemId ?? null,
       },
-      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES_ANY_ENTRY },
     );
   }
 
@@ -350,7 +349,7 @@ class Items {
       'POST',
       `/items/${id}:${isArchived ? 'archive' : 'unarchive'}`,
       undefined,
-      { idempotencyKey, invalidates: TOUCHES },
+      { idempotencyKey, invalidates: TOUCHES_ANY_ENTRY },
     );
   }
 
@@ -367,7 +366,7 @@ class Items {
   async trash(id: string, version: number): Promise<void> {
     await engine.mutate<void>('DELETE', `/items/${id}`, undefined, {
       ifMatch: etagFor(version),
-      invalidates: TOUCHES,
+      invalidates: [...TOUCHES_ANY_ENTRY, '/trash'],
     });
   }
 
@@ -382,7 +381,7 @@ class Items {
     return engine.mutate<WorkItem>('POST', `/items/${id}:restore`, undefined, {
       idempotencyKey,
       // The trash changes and so does whatever level the entry came back to.
-      invalidates: ['/items', '/trash'],
+      invalidates: [...TOUCHES_ANY_ENTRY, '/trash'],
     });
   }
 
@@ -397,7 +396,7 @@ class Items {
   async purge(id: string, idempotencyKey: string): Promise<void> {
     await engine.mutate<void>('POST', `/items/${id}:purge`, undefined, {
       idempotencyKey,
-      invalidates: ['/items', '/trash'],
+      invalidates: [ENTRY_LISTS, '/trash'],
     });
   }
 
@@ -414,7 +413,7 @@ class Items {
       'POST',
       `/items/${id}:${isCompleted ? 'complete' : 'reopen'}`,
       undefined,
-      { idempotencyKey, invalidates: TOUCHES },
+      { idempotencyKey, invalidates: TOUCHES_ANY_ENTRY },
     );
   }
 
@@ -439,7 +438,7 @@ class Items {
       // not from memory: the entry's field is `assignee_id`, the body's is `account_id`, and the
       // other spelling was refused as unknown by every real server (issue 876).
       { account_id: accountId } satisfies Assignment,
-      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: touchesOf(id) },
     );
   }
 
@@ -448,7 +447,7 @@ class Items {
       'POST',
       `/items/${id}:unassign`,
       undefined,
-      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: touchesOf(id) },
     );
   }
 
@@ -464,7 +463,7 @@ class Items {
       'POST',
       `/items/${id}:auto-assign`,
       undefined,
-      { idempotencyKey, invalidates: TOUCHES },
+      { idempotencyKey, invalidates: touchesOf(id) },
     );
   }
 
@@ -482,7 +481,7 @@ class Items {
       'PUT',
       `/items/${id}/members/${accountId}`,
       undefined,
-      { idempotencyKey, invalidates: TOUCHES },
+      { idempotencyKey, invalidates: touchesOf(id) },
     );
   }
 
@@ -500,7 +499,7 @@ class Items {
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PUT', `/items/${id}/due`, due, {
       ifMatch: etagFor(version),
-      invalidates: TOUCHES,
+      invalidates: touchesOf(id),
     });
   }
 
@@ -508,7 +507,7 @@ class Items {
   async clearDue(id: string, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('DELETE', `/items/${id}/due`, undefined, {
       ifMatch: etagFor(version),
-      invalidates: TOUCHES,
+      invalidates: touchesOf(id),
     });
   }
 
@@ -531,7 +530,7 @@ class Items {
       'POST',
       '/items:bulk',
       { atomic, operations },
-      { idempotencyKey, invalidates: ['/items', '/trash'] },
+      { idempotencyKey, invalidates: [...TOUCHES_ANY_ENTRY, '/trash'] },
     );
     // HTTP 200 says the bulk was carried out, never that every operation in it succeeded. What
     // happened is in the results, and a caller that read the status would learn nothing.
@@ -557,7 +556,7 @@ class Items {
   ): Promise<DuplicateResult> {
     return engine.mutate<DuplicateResult>('POST', `/items/${id}:duplicate`, body, {
       idempotencyKey,
-      invalidates: TOUCHES,
+      invalidates: [ENTRY_LISTS],
     });
   }
 
@@ -566,7 +565,7 @@ class Items {
       'DELETE',
       `/items/${id}/members/${accountId}`,
       undefined,
-      { invalidates: TOUCHES },
+      { invalidates: touchesOf(id) },
     );
   }
 }
