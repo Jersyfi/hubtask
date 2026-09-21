@@ -309,6 +309,16 @@
   let draftLanguage = $state('');
   const languages = $derived(textLanguages(manifest.value));
 
+  /**
+   * The page head's primary action (F9-07): opens the form at the list's end and focuses into it,
+   * exactly as the button at the end does. Exported so the view can ask without owning the
+   * form's state, which is the list's.
+   */
+  export function addEntry() {
+    if (isReadOnly || rootTypes().length === 0) return;
+    startAdding('root');
+  }
+
   function startAdding(under: string) {
     addingUnder = under;
     draftTitle = '';
