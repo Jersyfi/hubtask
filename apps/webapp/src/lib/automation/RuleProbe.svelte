@@ -13,7 +13,8 @@
 
   import type { Outcome } from './probe.ts';
   import { search } from '../data/search.svelte.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { eventGroups } from './words.ts';
 
   interface Props {
     /** The event types this installation publishes, and the trigger's own where it has one. */
@@ -28,6 +29,8 @@
   }
 
   const { eventTypes, defaultType, takesPayload, isRunning, outcome, onrun, onclear }: Props = $props();
+
+  const words = { t, has: (code: string) => messages.has(code) };
 
   let type = $state('');
   $effect(() => {
@@ -67,7 +70,7 @@
   <h3>{t('app.flow.tab_probe')}</h3>
   <p class="quiet">{t('app.flow.probe_intro')}</p>
 
-  <Select label={t('app.flow.probe_event')} bind:value={type} options={eventTypes.map((each) => ({ value: each, label: each }))} />
+  <Select label={t('app.flow.probe_event')} hint={type ? t('app.flow.event_wire_name', { type }) : undefined} bind:value={type} options={[]} groups={eventGroups(words, eventTypes)} />
 
   <Stack gap="050">
     <SearchField label={t('app.flow.probe_subject')} clearLabel={t('app.search.clear')} bind:value={term} onclear={() => { chosen = undefined; search.reset(); }} />

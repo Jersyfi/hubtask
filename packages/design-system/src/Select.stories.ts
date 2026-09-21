@@ -23,3 +23,10 @@ export const withUnavailableOption: Story = {
     'The option carries its own reason. The capability principle reaches into the list rather than stopping at the control.',
   args: { mode: 'gated' },
 };
+
+export const grouped: Story = {
+  name: 'Under headings',
+  about:
+    'A list long enough that a person scans by what the entries are about before reading them takes `groups`: the native `<optgroup>`, which every platform’s picker draws and every screen reader names. Forty event types are readable this way and not as one column.',
+  args: { mode: 'grouped' },
+};

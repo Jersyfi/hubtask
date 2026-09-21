@@ -31,7 +31,7 @@
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { TRIGGER_ICONS, eventWord, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
+  import { TRIGGER_ICONS, eventWords, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { FLOW_KINDS } from '../lib/automation/model.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -231,7 +231,7 @@
   const names = $derived<Names>({
     scope: (scope) => scopes.find((choice) => choice.value === (scope.id ? `${scope.type}:${scope.id}` : scope.type))?.label ?? scope.type,
     account: (accountId) => runners.find((choice) => choice.value === accountId)?.label ?? accounts.nameOf(accountId) ?? t('app.rules.choose_runner'),
-    event: (type) => eventWord(type),
+    event: (type) => eventWords(words, type).clause,
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
   });
   const generated = $derived(generatedName(words, names, draft));
@@ -243,7 +243,7 @@
     const trigger = draft.trigger;
     switch (trigger.kind) {
       case 'EVENT':
-        return trigger.event_type ? eventWord(trigger.event_type) : t('app.rules.choose_event');
+        return trigger.event_type ? eventWords(words, trigger.event_type).said : t('app.rules.choose_event');
       case 'SCHEDULE':
         return [trigger.rrule, trigger.timezone].filter(Boolean).join(' · ');
       case 'RELATIVE_DATE':
