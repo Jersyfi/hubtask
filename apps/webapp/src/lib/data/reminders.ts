@@ -94,8 +94,8 @@ export function reminderLimitOf(limits: Record<string, unknown> | undefined): nu
  * `recurrence_rule_id` is set on the template *and* on every occurrence, so it says "this belongs
  * to a series" and nothing about which end. `occurrenceSourceOf` answers that, without a request.
  */
-export function belongsToSeries(item: WorkItem): boolean {
-  return Boolean((item as { recurrence_rule_id?: string | null }).recurrence_rule_id);
+export function belongsToSeries(item: Pick<WorkItem, 'recurrence_rule_id'>): boolean {
+  return Boolean(item.recurrence_rule_id);
 }
 
 /**
