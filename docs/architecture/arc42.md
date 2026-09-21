@@ -769,7 +769,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0057 | The SDKs: which packages, under which licence, extracted or not | accepted |
 | 0058 | The connector packages: generated, dependency-free here, typed there | accepted |
 | 0059 | Licensing phases and Licensing Start | proposed |
-| 0060 | The check: a rule's references resolved before they fail | proposed |
+| 0060 | The check: a rule's references resolved before they fail | accepted |
 | 0061 | Page anatomy: one navigation, the shell wave, and status as a surface | proposed |
 
 ---
