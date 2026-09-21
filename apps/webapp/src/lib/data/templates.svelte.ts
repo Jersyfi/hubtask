@@ -25,6 +25,7 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
+import { ENTRY_LISTS } from './touches.ts';
 
 /** Where a container's templates live. Naming none is a different question, so a different path. */
 export const templatesPath = (containerId?: string) =>
@@ -100,7 +101,7 @@ class Templates {
   ): Promise<TemplateInstance> {
     return engine.mutate<TemplateInstance>('POST', `/templates/${id}:instantiate`, body, {
       idempotencyKey,
-      invalidates: ['/items'],
+      invalidates: [ENTRY_LISTS],
     });
   }
 }
