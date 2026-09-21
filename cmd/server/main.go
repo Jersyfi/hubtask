@@ -1050,9 +1050,10 @@ func run() error {
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
 	// because the job a deletion seeds runs the same check the route serves.
 	ruleCheck := automationservice.CheckRules{
-		Rules:      postgres.NewAutomationRuleRepository(cursors),
-		References: postgres.NewAutomationReferenceRepository(),
-		Catalogue:  ruleCatalogue, Conditions: celexpression.New(),
+		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		References:  postgres.NewAutomationReferenceRepository(),
+		Memberships: postgres.NewMembershipRepository(),
+		Catalogue:   ruleCatalogue, Conditions: celexpression.New(),
 		Authorizer: authorizer, Audit: auditSink,
 		Owners: notification.RecordRuleDisabled{
 			Notifications: notifications, Accounts: accounts,

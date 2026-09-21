@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -52,6 +53,12 @@ const (
 	FindingConditionInvalid = "automation.finding.condition_invalid"
 	FindingAccountGone      = "automation.finding.account_gone"
 	FindingReferenceGone    = "automation.finding.reference_gone"
+	// FindingParameterMissing is a required parameter the rule does not carry and the run cannot
+	// supply: a step that fails every time it is reached (F8-19, issue 856).
+	FindingParameterMissing = "automation.finding.parameter_missing"
+	// FindingRunnerWithoutRole is an account that exists and holds no membership anywhere on the
+	// rule's scope path: a rule that finds no entry it may touch (F8-19, issue 817).
+	FindingRunnerWithoutRole = "automation.finding.runner_without_role"
 )
 
 // referenceFields is the table from a parameter's name to the kind of thing it names (ADR-0060).
@@ -87,7 +94,11 @@ func ReferenceFields() map[string]repository.ReferenceKind {
 type CheckRules struct {
 	Rules      repository.Rules
 	References repository.References
-	Catalogue  Catalogue
+	// Memberships answers whether the account the rule runs as holds a role anywhere on the
+	// rule's scope path (F8-19). Nil in a build that does not ask - the question is then not
+	// asked, as a nil Conditions asks nothing about the conditions.
+	Memberships identityrepository.Memberships
+	Catalogue   Catalogue
 	// Conditions compiles every condition and every branch's, as the write does (ADR-0009).
 	Conditions expression.Compiler
 	Authorizer Authorizer
@@ -264,6 +275,21 @@ func (h CheckRules) inspect(ctx context.Context, rule domain.Rule) ([]domain.Fin
 			Level: domain.FindingBroken, Path: "/run_as", Code: FindingAccountGone,
 			Params: map[string]string{"account_id": rule.RunAs.String()},
 		})
+	} else if h.Memberships != nil {
+		// An account that exists and holds nothing on the path can run and will find nothing:
+		// every entry action answers items.not_found, which is the right refusal for the API and
+		// useless to the rule's writer (issue 817). ATTENTION rather than BROKEN, because the run
+		// answers the question per action and a rule of outbound steps needs no role at all.
+		held, err := h.Memberships.Along(ctx, rule.RunAs, rule.Scope.Path())
+		if err != nil {
+			return nil, err
+		}
+		if len(held) == 0 {
+			findings = append(findings, domain.Finding{
+				Level: domain.FindingAttention, Path: "/run_as", Code: FindingRunnerWithoutRole,
+				Params: map[string]string{"account_id": rule.RunAs.String(), "scope": string(rule.Scope.Type)},
+			})
+		}
 	}
 
 	// Every condition, compiled as the write compiles it.
@@ -329,6 +355,17 @@ func (h CheckRules) inspectActions(
 		declared := map[string]usecase.Kind{}
 		for _, field := range descriptor.Input {
 			declared[field.Name] = field.Kind
+			// A required parameter the rule does not carry and the run cannot supply is a step
+			// that fails every time it is reached (issue 856). The write accepts the absence on
+			// purpose - it may be the entry - so the check is where the two are told apart.
+			if field.Required && !SuppliedByRun(field.Name) {
+				if _, carried := action.Params[field.Name]; !carried {
+					findings = append(findings, domain.Finding{
+						Level: domain.FindingAttention, Path: at + "/params/" + field.Name, Code: FindingParameterMissing,
+						Params: map[string]string{"kind": action.Kind, "parameter": field.Name},
+					})
+				}
+			}
 		}
 		for _, name := range sortedKeys(action.Params) {
 			kind, isDeclared := declared[name]
