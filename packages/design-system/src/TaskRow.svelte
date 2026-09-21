@@ -127,6 +127,15 @@
      Arabic is indented from the right. */
   .task-row { padding-inline-start: calc(var(--depth) * var(--sp-300)); }
 
+  /* In a narrow tree - a phone, a 400 px pane - the step is smaller and stops at the third level:
+     deeper rows keep that indent and their type mark says the level (ADR-0061). A container query
+     on the tree's width, not a media query: the tree is what has the room or lacks it. The caller
+     makes the tree a container; a row on its own is measured against nothing and keeps the step. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .task-row { padding-inline-start: calc(min(var(--depth), 3) * var(--sp-200)); }
+  }
+
   .twist,
   .mark { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
 

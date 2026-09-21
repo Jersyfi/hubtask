@@ -6,7 +6,7 @@
   import Stack from './Stack.svelte';
   import TaskRow from './TaskRow.svelte';
 
-  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' } = $props();
+  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' } = $props();
 
   // The three levels of domain-model.md §3.4, at the depths they sit at.
   const levels = [
@@ -42,13 +42,26 @@
     { id: 'd', type: 'ACTIVITY', title: 'Elektroinstallationsarbeiten', depth: 2, expansion: 'leaf' as const },
   ];
 
+  // A subtree four levels deep, as a detail pane of `layout.pane.width` would hold it (arc42 Q-03:
+  // a sixth level is depth 3 and no code). The step is smaller in a narrow tree and stops at the
+  // third level; the type mark says the level from there.
+  const subtree = [
+    { id: 'a', type: 'TASK', title: 'The kitchen', depth: 0, expansion: 'expanded' as const },
+    { id: 'b', type: 'WORK_PACKAGE', title: 'Electrics', depth: 1, expansion: 'expanded' as const },
+    { id: 'c', type: 'ACTIVITY', title: 'Move the socket by the window', depth: 2, expansion: 'expanded' as const },
+    { id: 'f', type: 'STEP', title: 'Switch the circuit off first', depth: 3, expansion: 'leaf' as const },
+    { id: 'g', type: 'STEP', title: 'Test the socket afterwards', depth: 3, expansion: 'leaf' as const, done: true },
+  ];
+
   const rows = $derived(
-    mode === 'collapsed' ? collapsed : mode === 'unknown' ? unknown : mode === 'long' ? long : mode === 'phone' ? phone : levels,
+    mode === 'collapsed' ? collapsed : mode === 'unknown' ? unknown : mode === 'long' ? long : mode === 'phone' ? phone : mode === 'subtree' ? subtree : levels,
   );
 
   let done = $state<string[]>(['d']);
 </script>
 
+<!-- The tree is the container the indent is measured against; the pane's width is the token's. -->
+<div class="tree" data-pane={mode === 'subtree' ? '' : undefined}>
 <Stack gap="050">
   {#each rows as row (row.id)}
     <TaskRow
@@ -70,3 +83,10 @@
     </TaskRow>
   {/each}
 </Stack>
+</div>
+
+<style>
+  .tree { container-type: inline-size; }
+
+  .tree[data-pane] { max-inline-size: var(--layout-pane-width); }
+</style>
