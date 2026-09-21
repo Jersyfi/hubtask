@@ -339,7 +339,7 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 		at, _ := last["at"].(time.Time)
 		status, _ := last["status"].(string)
 		rule.LastRun = &struct {
-			At     time.Time              `json:"at"`
+			At     time.Time             `json:"at"`
 			Status openapi.RuleRunStatus `json:"status"`
 		}{At: at, Status: openapi.RuleRunStatus(status)}
 	}

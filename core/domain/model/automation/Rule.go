@@ -239,7 +239,7 @@ type Rule struct {
 	// LastRun is the rule's most recent run, read beside the rule for the list that says when it
 	// last ran and how it ended without a page of runs per card (F8-21, decision 23). Nil for a
 	// rule that never ran. Not part of the definition: an edit neither sends nor stores it.
-	LastRun *LastRun
+	LastRun   *LastRun
 	CreatedBy shared.ID
 	CreatedAt time.Time
 	UpdatedAt time.Time
