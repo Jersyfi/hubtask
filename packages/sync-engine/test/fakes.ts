@@ -130,6 +130,28 @@ export class FakeTransport implements Transport {
     return this;
   }
 
+  #holds = new Map<string, { until: Promise<void>; release: () => void }>();
+
+  /**
+   * Holds a path's answers back until `release` - a slow server, so that a test can see what the
+   * engine does with a second ask while the first is still on its way.
+   */
+  hold(path: string): this {
+    let release = () => {};
+    const until = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.#holds.set(path, { until, release });
+    return this;
+  }
+
+  /** Lets every held answer of the path through, and stops holding it. */
+  release(path: string): this {
+    this.#holds.get(path)?.release();
+    this.#holds.delete(path);
+    return this;
+  }
+
   /**
    * Fails a path once and answers normally afterwards - which is exactly the shape of an expired
    * access token: the first call is refused, the exchange happens, the retry succeeds.
@@ -225,6 +247,7 @@ export class FakeTransport implements Transport {
     this.calls.push({ method, path, body, options });
     // A turn of the microtask queue, so `loading` is a state a test can observe.
     await Promise.resolve();
+    await this.#holds.get(path)?.until;
 
     const once = this.#oneTimeFailures.get(path);
     if (once) {

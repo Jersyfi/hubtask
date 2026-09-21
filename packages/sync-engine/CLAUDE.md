@@ -91,7 +91,18 @@ a fifth:
 * **Invalidation that names what changed.** `mutate`'s `invalidates` is a list of path prefixes.
   Omitting it invalidates everything, and that is the safe default rather than the lazy one — a
   stale row is worse than a redundant reload. Naming prefixes is what keeps a drag from reloading
-  four columns that did not change.
+  four columns that did not change. Two marks make a name precise where a prefix is too wide
+  (issue 877): a trailing `$` names the path itself and not what hangs under it — `/items/{id}$`
+  is the entry's document, with or without its query string, and not its comments — and `*`
+  stands for one segment, for a record that names a reminder and not its entry. `matchesPath`
+  is the one place that reads them. The application keeps its names in one module
+  (`apps/webapp/src/lib/data/touches.ts`) so that a write and the record for it agree.
+
+  **A read in flight is joined, not raced.** An invalidation that arrives while the same entry
+  is being read marks it and shares one follow-up read with everything else that arrives
+  meanwhile; a write's answer and its stream records, landing within a few milliseconds of each
+  other, are two reads of an entry and not four. The follow-up is never skipped, because the
+  read in flight may have been served before the change was committed.
 
   **What "invalidate" means depends on whether anybody is watching**, and treating the two alike
   was a defect: an entry with listeners is a screen somebody has open, and *dropping* it takes the

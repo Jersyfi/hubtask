@@ -172,12 +172,13 @@
 
   // `untrack` for the reason F2-08 records: the listener writes the store and writing it reads it,
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
-  // A subtree's top level is the root's children, read unfiltered as every child level is.
+  // A subtree is read whole - every level under the root in one query, unfiltered as every child
+  // level is (issue 877: a level per branch was a request per branch, twice after every write).
   $effect(() => {
     const wanted = collectionId;
     const asked = query;
     const under = root?.id;
-    return untrack(() => (under ? items.openChildren(under) : items.openCollection(wanted, asked)));
+    return untrack(() => (under ? items.openSubtree(under) : items.openCollection(wanted, asked)));
   });
 
   // In a subtree, the direct children that take children start open and deeper levels closed
@@ -320,9 +321,9 @@
 
   const rows = $derived(flatten(root ? items.childrenOf(root.id) : items.inCollection(collectionId), 0, root?.id ?? null, isReadOnly));
 
-  // In a subtree every level is read whether or not it is shown, so that a closed row can say
-  // "done of total" about what it hides; in the collection's list only an open row's level is read.
-  const readIds = $derived(root ? rows.filter((row) => row.takesChildren).map((row) => row.item.id) : expanded);
+  // In the collection's list only an open row's level is read; a subtree arrived whole, so a
+  // closed row there already knows what it hides and nothing more is read.
+  const readIds = $derived(root ? [] : expanded);
   // Keyed by the ids as one string: reading a level writes the store, the store rebuilds the rows,
   // and a fresh array of the same ids would re-run this effect and re-read the level - forever.
   const readKey = $derived(readIds.join(' '));
@@ -338,7 +339,7 @@
 
   /** What a row hides or shows: its direct children's completion, once they have been read. */
   function progressOf(itemId: string): { done: number; total: number } | undefined {
-    if (items.stateOf(`item:${itemId}`)?.status !== 'ready') return undefined;
+    if (!items.hasChildrenOf(itemId)) return undefined;
     const children = items.childrenOf(itemId);
     return { done: children.filter((child) => child.completion?.is_completed).length, total: children.length };
   }
@@ -370,7 +371,7 @@
   });
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
-  const levelState = $derived(items.stateOf(root ? `item:${root.id}` : `container:${collectionId}`));
+  const levelState = $derived(items.stateOf(root ? `subtree:${root.id}` : `container:${collectionId}`));
   const failure = $derived(
     levelState?.status === 'failed' ? renderProblem(levelState.error, messages) : undefined,
   );
@@ -892,7 +893,7 @@
       reference={failure.reference}
       referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')}
-      onRetry={() => (root ? items.openChildren(root.id) : items.openCollection(collectionId))()}
+      onRetry={() => (root ? items.openSubtree(root.id) : items.openCollection(collectionId))()}
     />
   {:else}
     <ReplicaMark state={levelState} />

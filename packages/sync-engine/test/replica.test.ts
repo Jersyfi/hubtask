@@ -385,6 +385,25 @@ test('a path the copy could not answer is read again once the server answers a p
   assert.equal(transport.calls.filter((c) => c.path === `/items/${ITEM}/activity`).length - reads, 1, 'read again exactly once');
 });
 
+test('the initial synchronisation does not read again what the server already answered', async () => {
+  // Issue 877: everything watched was invalidated once the snapshot ended, so a first page load
+  // read every resource twice - once on arrival, once more a moment later.
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
+  transport.answer(`/items/${ITEM}`, { id: ITEM, title: 'from the server' });
+  const engine = new SyncEngine({ transport, clock: new FixedClock(), storeFor });
+  engine.subscribe({ path: `/items/${ITEM}` }, () => {});
+  await settle();
+  assert.equal(transport.calls.filter((c) => c.path === `/items/${ITEM}`).length, 1);
+
+  await engine.attach(new MemoryStorage(), { platform: 'web', displayName: 'test' });
+  const stop = engine.listen({ pathsFor });
+  await settle(20);
+  stop();
+  assert.equal(transport.snapshots.length, 1, 'the initial synchronisation did not run');
+  assert.equal(transport.calls.filter((c) => c.path === `/items/${ITEM}`).length, 1, 'read again after the snapshot for nothing');
+});
+
 test('the first server answer after a reconnect replaces the replica\'s state', async () => {
   const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
   transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });

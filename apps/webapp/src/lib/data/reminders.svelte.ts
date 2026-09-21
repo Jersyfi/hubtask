@@ -37,6 +37,7 @@ import type {
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { belongsToSeries } from './reminders.ts';
+import { touchesOf } from './touches.ts';
 
 export const remindersPath = (itemId: string) => `/items/${itemId}/reminders`;
 export const recurrencePath = (itemId: string) => `/items/${itemId}/recurrence`;
@@ -191,7 +192,7 @@ class Series {
   async set(itemId: string, body: RecurrenceInput, version: number | undefined): Promise<Recurrence> {
     const rule = await engine.mutate<Recurrence>('PUT', recurrencePath(itemId), body, {
       ...(version === undefined ? {} : { ifMatch: etagFor(version) }),
-      invalidates: [recurrencePath(itemId), '/items'],
+      invalidates: [recurrencePath(itemId), ...touchesOf(itemId)],
     });
     this.#hold(recurrencePath(itemId), rule);
     return rule;
@@ -201,7 +202,7 @@ class Series {
   async remove(itemId: string, version: number): Promise<void> {
     await engine.mutate<void>('DELETE', recurrencePath(itemId), undefined, {
       ifMatch: etagFor(version),
-      invalidates: [recurrencePath(itemId), '/items'],
+      invalidates: [recurrencePath(itemId), ...touchesOf(itemId)],
     });
     this.#hold(recurrencePath(itemId), undefined);
   }
@@ -215,7 +216,7 @@ class Series {
   async skip(itemId: string, idempotencyKey: string): Promise<Recurrence> {
     return engine.mutate<Recurrence>(`POST`, `${recurrencePath(itemId)}:skip`, undefined, {
       idempotencyKey,
-      invalidates: [recurrencePath(itemId), '/items'],
+      invalidates: [recurrencePath(itemId), ...touchesOf(itemId)],
     });
   }
 }

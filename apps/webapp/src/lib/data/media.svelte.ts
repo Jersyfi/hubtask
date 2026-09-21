@@ -26,6 +26,7 @@ import type { CoverInput, ItemAttachments, MediaObject, MediaPage, WorkItem } fr
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { downloadUrlOf, transferTimeoutFor } from './media.ts';
+import { touchesOf } from './touches.ts';
 
 /** The entry's attachments — a page of media records, and the only path a write here touches. */
 export const attachmentsPath = (itemId: string) => `/items/${itemId}/attachments`;
@@ -168,7 +169,7 @@ class Media {
   async setCover(itemId: string, cover: CoverInput, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PUT', `/items/${itemId}/cover`, cover, {
       ifMatch: etagFor(version),
-      invalidates: ['/items'],
+      invalidates: touchesOf(itemId),
     });
   }
 
@@ -176,7 +177,7 @@ class Media {
   async clearCover(itemId: string, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('DELETE', `/items/${itemId}/cover`, undefined, {
       ifMatch: etagFor(version),
-      invalidates: ['/items'],
+      invalidates: touchesOf(itemId),
     });
   }
 
