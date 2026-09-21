@@ -55,6 +55,7 @@ const RULE = {
   created_at: '2026-09-01T00:00:00Z',
   updated_at: '2026-09-01T00:00:00Z',
   findings: [],
+  last_run: { at: '2026-09-20T15:00:00Z', status: 'SUCCEEDED' },
 };
 const MANIFEST = {
   product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single',
@@ -106,6 +107,7 @@ const STALE = {
   id: '01a0e2e0-0000-7000-8000-000000000011',
   name: 'Flag blocked work',
   enabled: false,
+  last_run: null,
   // A stop with a step stored after it: the server accepts the shape, the run never reaches it.
   actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'STOP' }, { kind: 'ADD_ATTACHMENT_FROM_URL' }, { kind: 'ADD_COMMENT', params: {} }],
   findings: [
@@ -155,6 +157,7 @@ function stubFor(written, tested = TEST_HELD) {
       return route.fulfill({ json: { ...PAGE, data: RUNS } });
     }
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [ITEM], items: [ITEM], page: { next_cursor: null, has_more: false } } });
+    if (path.endsWith('/api/v1/quotas')) return route.fulfill({ json: [{ quota: 'automation_runs_per_hour', limit: 500, used: 34, ratio: 0.068 }] });
     return route.fulfill({ json: PAGE });
   };
 }
@@ -429,6 +432,9 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('Broken', { exact: true }).waitFor();
   await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
   await page.getByText('Works', { exact: true }).waitFor();
+  // The last run under the word (F8-21): the rule that ran says when and how, the other says never.
+  assert.match(await page.locator('article', { hasText: RULE.name }).textContent(), /Last run.*Succeeded/);
+  assert.match(await page.locator('article', { hasText: STALE.name }).textContent(), /Last run\s*never/);
 
   // The rule itself: the findings at their cards, and the switch refused with the reason.
   await page.getByRole('link', { name: 'Flag blocked work' }).click();
@@ -466,4 +472,8 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.ok(windowed, 'the listing was asked for the window');
   assert.ok(windowed.runs.to > windowed.runs.from, `to ${windowed.runs.to} after from ${windowed.runs.from}`);
   assert.equal(await page.locator('[data-strip] .stat').count(), 5);
+  // The hour's standing and the link to Limits (F8-21).
+  await page.locator('[data-hourly]').waitFor();
+  assert.match(await page.locator('[data-hourly]').textContent(), /This hour: 34 of 500 runs/);
+  assert.equal(await page.locator('[data-hourly] a').getAttribute('href'), '/administration/quotas');
 });

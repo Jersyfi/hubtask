@@ -33,6 +33,7 @@
       runAs={{ label: labels.runAs, value: 'Automation service account' }}
       isEnabled
       stateLabel="On"
+      lastRun={{ label: 'Last run', value: '2 hours ago · succeeded' }}
       healthLabel="Works"
       healthTone="success"
     />
