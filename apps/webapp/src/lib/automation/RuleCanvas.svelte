@@ -23,7 +23,7 @@
   import RuleCanvasList from './RuleCanvasList.svelte';
   import type { Draft, Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
-  import { conditionWords, type Names } from './words.ts';
+  import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -104,14 +104,7 @@
 
   const words = { t, has: (code: string) => messages.has(code) };
 
-  const TRIGGER_ICON: Record<string, IconName> = {
-    EVENT: 'zap',
-    SCHEDULE: 'clock',
-    RELATIVE_DATE: 'calendar',
-    INBOUND_WEBHOOK: 'globe',
-    MANUAL: 'hand',
-    JUMBLE_ENTRY: 'inbox',
-  };
+  const TRIGGER_ICON: Record<string, IconName> = TRIGGER_ICONS as Record<string, IconName>;
 
   const isSelected = (kind: Selection['kind'], index?: number): boolean =>
     selection.kind === kind && (kind !== 'condition' || (selection as { index: number }).index === index);

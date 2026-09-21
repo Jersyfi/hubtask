@@ -61,8 +61,9 @@ const MANIFEST = {
   event_types: ['de.hubtask.work.item.created.v1', 'de.hubtask.work.item.overdue.v1'],
   automation: {
     triggers: ['EVENT', 'SCHEDULE', 'RELATIVE_DATE', 'INBOUND_WEBHOOK', 'MANUAL', 'JUMBLE_ENTRY'],
-    actions: ['ADD_COMMENT', 'ADD_LABEL', 'SEND_WEBHOOK'],
+    actions: ['ADD_COMMENT', 'ADD_LABEL', 'CREATE_ACCESS_TOKEN', 'SEND_WEBHOOK'],
     action_fields: {
+      CREATE_ACCESS_TOKEN: [],
       ADD_COMMENT: [{ name: 'item_id', kind: 'id', required: true }, { name: 'body', kind: 'string', required: true }],
       ADD_LABEL: [{ name: 'item_id', kind: 'id', required: true }, { name: 'label_id', kind: 'id', required: true }],
       SEND_WEBHOOK: [{ name: 'subscription_id', kind: 'id', required: true }],
@@ -200,6 +201,26 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   // And the check right after it: the write leaves the rule unchecked, and the writer is told at
   // the card whether the repair held rather than at the next opening of the list.
   assert.ok(written.some((body) => body.check), 'the editor checked after the save');
+});
+
+test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 900 });
+
+  // The palette: an icon in every item, and the curated groups only.
+  const items = page.locator('aside.palette .pitem');
+  assert.equal(await items.count(), await items.locator('svg').count(), 'every palette item has an icon');
+  assert.equal(await page.locator('aside.palette .pitem', { hasText: 'Create access token' }).count(), 0, 'the rest is not in the palette');
+
+  // The + menu: the same, and the search reaches what the palette leaves out.
+  await page.locator('.gap[data-list=""][data-index="0"] [data-slot]').click();
+  const menu = page.locator('.menu');
+  assert.equal(await menu.locator('.item').count(), await menu.locator('.item svg').count(), 'every menu item has an icon');
+  assert.equal(await menu.locator('.item', { hasText: 'Create access token' }).count(), 0);
+  await menu.locator('input[type="search"]').fill('access');
+  await menu.locator('.item', { hasText: 'Create access token' }).click();
+  assert.equal(await page.locator('[data-canvas] [data-card="0"] .title').textContent(), 'Create access token');
 });
 
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {

@@ -11,7 +11,7 @@
 
   import { FLOW_KINDS } from './model.ts';
   import { gapTakes, type Drag } from './selection.ts';
-  import { grouped, kindWord } from './words.ts';
+  import { grouped, kindIcon, kindWord } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -53,8 +53,11 @@
   let query = $state('');
 
   const words = { t, has: (code: string) => messages.has(code) };
+  // The groups alone while nothing is typed; everything the installation serves once something
+  // is (decision 12) - the search is how a kind outside the groups is reached, here and nowhere
+  // else, so the palette can stay a palette.
   const groups = $derived([
-    ...grouped(kinds),
+    ...grouped(kinds, query.trim() === '' ? 'folded' : 'listed'),
     { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] },
   ]);
   const shown = $derived(
@@ -98,10 +101,11 @@
     {/snippet}
     <div class="menu">
       <input class="search" type="search" placeholder={t('app.flow.insert_search')} aria-label={t('app.flow.insert_search')} bind:value={query} />
+      {#if query.trim() === ''}<span class="more">{t('app.flow.insert_search_hint')}</span>{/if}
       {#each shown as group (group.code)}
         <span class="group">{t(group.code)}</span>
         {#each group.kinds as kind (kind)}
-          <button class="item" type="button" onclick={() => pick(kind)}>{kindWord(words, kind)}</button>
+          <button class="item" type="button" onclick={() => pick(kind)}><Icon name={kindIcon(kind)} size="sm" />{kindWord(words, kind)}</button>
         {/each}
       {/each}
     </div>
@@ -164,9 +168,13 @@
     margin-block-end: var(--sp-050);
   }
 
+  .more { padding: 0 var(--sp-100) var(--sp-050); font-size: var(--fs-050); color: var(--text-subtle); }
+
   .group { padding: var(--sp-100) var(--sp-100) var(--sp-025); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
 
-  .item { text-align: start; padding: var(--sp-050) var(--sp-100); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); font-size: var(--fs-075); }
+  .item { display: flex; align-items: center; gap: var(--sp-100); text-align: start; padding: var(--sp-050) var(--sp-100); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); font-size: var(--fs-075); }
+
+  .item :global(svg) { color: var(--text-subtle); flex: none; }
 
   .item:hover { background: var(--bg-surface-hover); }
 

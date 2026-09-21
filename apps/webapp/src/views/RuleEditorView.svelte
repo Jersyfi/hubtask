@@ -31,7 +31,7 @@
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { emptyDraft, fromRule, insertAt, isAutomatic, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { eventWord, generatedName, grouped, kindWord, sentence, type Names } from '../lib/automation/words.ts';
+  import { TRIGGER_ICONS, eventWord, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { FLOW_KINDS } from '../lib/automation/model.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -409,7 +409,7 @@
     await attempt(() => runs.trigger(stored.id), t('app.flow.manual_started'));
   }
 
-  const palette = $derived([...grouped(actionKinds), { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] }]);
+  const palette = $derived([...grouped(actionKinds, 'folded'), { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] }]);
 
   /* ---------- The probe, drawn onto the canvas (decision 9) ---------- */
 
@@ -568,19 +568,19 @@
           <span class="eyebrow">{t('app.flow.palette_starts')} <em>{t('app.flow.palette_starts_where')}</em></span>
           {#each triggers as kind (kind)}
             <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'trigger', kind })} ondragend={() => (drag = undefined)} onclick={() => { replaceTrigger(kind); }}>
-              {messages.has(`app.rules.trigger_${kind.toLowerCase()}`) ? t(`app.rules.trigger_${kind.toLowerCase()}`) : kind}
+              <Icon name={TRIGGER_ICONS[kind] ?? 'zap'} size="sm" />{messages.has(`app.rules.trigger_${kind.toLowerCase()}`) ? t(`app.rules.trigger_${kind.toLowerCase()}`) : kind}
             </button>
           {/each}
         </div>
         <div class="pgroup">
           <span class="eyebrow">{t('app.flow.palette_condition')} <em>{t('app.flow.palette_condition_where')}</em></span>
-          <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'condition' })} ondragend={() => (drag = undefined)} onclick={addCondition}>{t('app.flow.palette_condition_item')}</button>
+          <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'condition' })} ondragend={() => (drag = undefined)} onclick={addCondition}><Icon name="funnel" size="sm" />{t('app.flow.palette_condition_item')}</button>
         </div>
         {#each palette as group (group.code)}
           <div class="pgroup">
             <span class="eyebrow">{t(group.code)} <em>{t('app.flow.palette_where')}</em></span>
             {#each group.kinds as kind (kind)}
-              <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'action', kind })} ondragend={() => (drag = undefined)} onclick={() => insert('', draft.actions.length, kind)}>{kindWord(words, kind)}</button>
+              <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'action', kind })} ondragend={() => (drag = undefined)} onclick={() => insert('', draft.actions.length, kind)}><Icon name={kindIcon(kind)} size="sm" />{kindWord(words, kind)}</button>
             {/each}
           </div>
         {/each}
@@ -754,7 +754,9 @@
 
   .eyebrow em { font-style: normal; font-weight: var(--fw-regular); letter-spacing: 0; text-transform: none; }
 
-  .pitem { padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); font-size: var(--fs-075); text-align: start; cursor: pointer; }
+  .pitem { display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); font-size: var(--fs-075); text-align: start; cursor: pointer; }
+
+  .pitem :global(svg) { color: var(--text-subtle); flex: none; }
 
   .pitem:hover { background: var(--bg-surface-hover); border-color: var(--border-subtle); }
 

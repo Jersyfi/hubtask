@@ -13,7 +13,7 @@
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
   import { countSteps, depthOf, type Step } from './model.ts';
-  import { conditionWords, kindWord, type Names } from './words.ts';
+  import { conditionWords, kindIcon, kindWord, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -69,17 +69,7 @@
   const pathOf = (index: number): string => (prefix ? `${prefix}/${index}` : String(index));
   const isSelected = (path: string): boolean => selection.kind === 'step' && selection.path === path;
 
-  function iconOf(kind: string): IconName {
-    if (FLOW_ICON[kind]) return FLOW_ICON[kind];
-    if (kind.startsWith('AI_')) return 'sparkles';
-    if (kind.includes('WEBHOOK') || kind === 'HTTP_REQUEST') return 'globe';
-    if (kind.includes('LABEL')) return 'tag';
-    if (kind.includes('ASSIGN') || kind.includes('MEMBER')) return 'user';
-    if (kind.includes('COMMENT')) return 'message-square';
-    if (kind.includes('DUE') || kind.includes('RECURRENCE') || kind.includes('OCCURRENCE')) return 'calendar';
-    if (kind.includes('NOTIF') || kind.includes('EMAIL')) return 'bell';
-    return 'check';
-  }
+  const iconOf = (kind: string): IconName => kindIcon(kind);
 
   function meta(step: Step): string {
     if (step.kind === 'BRANCH') return t('app.flow.card_branch_if', { condition: conditionWords(words, names, String(step.params.condition ?? '')) });
