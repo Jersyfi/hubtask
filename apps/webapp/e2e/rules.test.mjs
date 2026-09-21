@@ -430,6 +430,15 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
   await page.getByText('Works', { exact: true }).waitFor();
 
+  // On the shell (issue 880): one heading, from the PageHeader; the check's banner among its
+  // notices; *Write a rule* the primary action, which opens the editor at its address.
+  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Automation');
+  await page.locator('[data-opener="new-rule"]').click();
+  await page.waitForURL(/\/administration\/rules\/new$/, { timeout: 5_000 });
+  await page.goBack();
+  await page.getByText('Works', { exact: true }).waitFor();
+
   // The rule itself: the findings at their cards, and the switch refused with the reason.
   await page.getByRole('link', { name: 'Flag blocked work' }).click();
   await page.locator('[data-card="2"] .flag').waitFor();
@@ -457,6 +466,9 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   await page.locator('[data-strip]').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-strip] dd')?.textContent === '3');
   assert.ok(written.some((body) => body.runs?.rule_id === RULE.id), 'the listing was asked for the rule');
+  // On the shell (issue 880): one heading, from the PageHeader.
+  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'What the rules did');
 
   await page.getByLabel('From').fill('2026-09-20T00:00');
   await page.getByLabel('To').fill('2026-09-21T00:00');

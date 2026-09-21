@@ -19,16 +19,24 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
   import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+
+  // On the shell (ADR-0061, issue 880): the page's head is a `PageHeader`, the title the bar's on
+  // a phone. The filters stay beside the list they narrow, under its own heading and above the
+  // counting strip, rather than in the head's second row: a row there would sit above the dry
+  // run, which they do not filter.
+  $effect(() => page.entitle(t('app.runs.title')));
 
   /** A run that says it is running and started this long ago is a crash, not progress. */
   const STALE_AFTER_MS = 15 * 60 * 1000;
@@ -141,14 +149,15 @@
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.runs.title')}</h1>
-    <p class="quiet">{t('app.runs.intro')}</p>
-
-    {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
-    {/if}
+    <PageHeader title={t('app.runs.title')} subtitle={t('app.runs.intro')} isTitleInBar={viewport.isCompact}>
+      {#snippet notices()}
+        {#if failure}
+          <Banner tone="danger" title={failure.message}>
+            {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
+          </Banner>
+        {/if}
+      {/snippet}
+    </PageHeader>
 
     <Stack gap="150">
       <h2 class="section">{t('app.runs.try_title')}</h2>
@@ -377,14 +386,6 @@
 </div>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
