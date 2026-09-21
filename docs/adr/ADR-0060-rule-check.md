@@ -1,6 +1,6 @@
 # ADR-0060 — The check: a rule's references resolved before they fail
 
-**Status:** proposed · **Date:** 2026-09-20
+**Status:** accepted (2026-09-21) · **Date:** 2026-09-20
 
 ## Context
 
@@ -151,4 +151,5 @@ author's.
 
 Written for milestone F8 (`docs/backlog/milestone-F8.md`, decision 6) from the prototype the
 owner walked on 2026-09-20; built by F8-03 and drawn by F8-07. Put to the owner by name with
-the pull request that builds it; moved to `accepted` on his word.
+the pull request that builds it; accepted by the owner on 2026-09-21, after the F8-08 walk had
+run the check's ATTENTION level exactly as written (`docs/evidence/F8-2026-09-20.md`).
