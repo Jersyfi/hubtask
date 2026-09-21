@@ -73,7 +73,24 @@ type Field struct {
 	Required    bool
 	Enum        []string
 	Description string
+	// CallerOnly marks a field as the caller's plumbing rather than a decision of the use case's:
+	// the identifier a client minted for offline work, the version it last read for If-Match, a
+	// reserved switch. A person typing a call sets these; a rule never does, because the run has
+	// no version it read and mints nothing (F8-15). The manifest carries it as `rule: false`, so
+	// that a rule editor hides the field without a list of names compiled into it; the registry
+	// validates the field exactly as before.
+	CallerOnly bool
+	// Format names the shape of a string field where a form can draw it better than as text:
+	// FormatDateTime for an RFC 3339 instant. Empty for a string that is just a string.
+	Format Format
 }
+
+// Format is the shape of a string field, in the vocabulary of the OpenAPI `format` keyword so
+// that the manifest and the contract say the same word.
+type Format string
+
+// FormatDateTime is an RFC 3339 date and time.
+const FormatDateTime Format = "date-time"
 
 // String returns a declared string field. Missing and empty are the same answer for an optional
 // field: a client that sends `""` for a description means the same thing as one that omits it.

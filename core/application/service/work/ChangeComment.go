@@ -432,7 +432,7 @@ func commentChangeInput(commentDescription string) []usecase.Field {
 		},
 		{Name: "comment_id", Kind: usecase.KindID, Required: true, Description: commentDescription},
 		{
-			Name: "expected_version", Kind: usecase.KindInt,
+			Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 			Description: "The version last read, from the If-Match header over REST. Omitted " +
 				"means the caller read none and accepts whatever is there; a version that has " +
 				"moved on since is refused rather than overwritten.",

@@ -401,7 +401,7 @@ func (h SetDueDate) Descriptor() usecase.Descriptor {
 		Input: append(
 			[]usecase.Field{
 				{
-					Name: "due_at", Kind: usecase.KindString, Required: true,
+					Name: "due_at", Kind: usecase.KindString, Required: true, Format: usecase.FormatDateTime,
 					Description: "When the entry is due, RFC 3339. Stored in UTC.",
 				},
 				{
@@ -453,7 +453,7 @@ func dueDateInput(itemDescription string) []usecase.Field {
 	return []usecase.Field{
 		{Name: "item_id", Kind: usecase.KindID, Required: true, Description: itemDescription},
 		{
-			Name: "expected_version", Kind: usecase.KindInt,
+			Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 			Description: "The version last read, from the If-Match header over REST. Omitted means " +
 				"the caller read none and accepts whatever is there; a version that has moved on " +
 				"since is refused rather than overwritten.",

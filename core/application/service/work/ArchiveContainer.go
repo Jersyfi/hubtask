@@ -111,7 +111,7 @@ func (h ArchiveContainer) Descriptor() usecase.Descriptor {
 				Description: "The hub or collection to archive.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller read none and accepts " +
 					"whatever is there.",
 			},
@@ -160,7 +160,7 @@ func (h UnarchiveContainer) Descriptor() usecase.Descriptor {
 				Description: "The hub or collection to unarchive.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller read none and accepts " +
 					"whatever is there.",
 			},
