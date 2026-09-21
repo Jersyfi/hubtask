@@ -283,11 +283,11 @@ func (h VerifyAuditChain) Descriptor() usecase.Descriptor {
 		ReadOnly:   true,
 		Input: []usecase.Field{
 			{
-				Name: "from", Kind: usecase.KindString, Required: true,
+				Name: "from", Kind: usecase.KindString, Required: true, Format: usecase.FormatDateTime,
 				Description: "The start of the period, inclusive. RFC 3339.",
 			},
 			{
-				Name: "to", Kind: usecase.KindString, Required: true,
+				Name: "to", Kind: usecase.KindString, Required: true, Format: usecase.FormatDateTime,
 				Description: "The end of the period, exclusive. RFC 3339.",
 			},
 			{

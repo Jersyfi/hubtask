@@ -433,7 +433,7 @@ func (h UpdateLabel) Descriptor() usecase.Descriptor {
 				Description: "What the label means. Empty clears it, omitted leaves it as it is.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST.",
 			},
 		},
@@ -498,7 +498,7 @@ func (h DeleteLabel) Descriptor() usecase.Descriptor {
 				Description: "The label to take out of the vocabulary.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST.",
 			},
 		},

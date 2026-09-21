@@ -297,7 +297,7 @@ func (h DeleteBucket) Descriptor() usecase.Descriptor {
 				Description: "The column to take off the board.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST. Omitted " +
 					"means the caller read none and accepts whatever is there.",
 			},
