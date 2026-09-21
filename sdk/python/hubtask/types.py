@@ -758,6 +758,7 @@ class AutomationRule(TypedDict, total=False):
     inbound_rotated_at: str | None
     findings: list["RuleFinding"]
     checked_at: str | None
+    last_run: dict[str, Any] | None
     created_by: Required[str]
     created_at: Required[str]
     updated_at: Required[str]
