@@ -82,3 +82,26 @@ export const ROUTES: readonly Route[] = [
 
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */
 export const ADMINISTRATION_PREFIX = '/administration';
+
+/**
+ * What `/collections/:id?item=:itemId` means at a width (ADR-0061 decision 4): from `large` up,
+ * the collection with the entry open in the detail pane beside its list; below `large`, the
+ * entry's own page - the address the client redirects to, replacing the one it was given, so
+ * the back button goes to where the reader came from. `/items/:id` is the entry's address on
+ * every width and is not touched by this. Pure, so the redirect has a test without a browser.
+ */
+export type PaneResolution =
+  | { readonly kind: 'pane'; readonly collectionId: string; readonly itemId: string }
+  | { readonly kind: 'redirect'; readonly path: string }
+  | { readonly kind: 'none' };
+
+export function paneFor(
+  route: { readonly name: string | null; readonly params: Readonly<Record<string, string>>; readonly query: Readonly<Record<string, string>> },
+  options: { readonly isLarge: boolean },
+): PaneResolution {
+  const itemId = route.query['item'];
+  const collectionId = route.params['id'];
+  if (route.name !== 'collection' || !itemId || !collectionId) return { kind: 'none' };
+  if (!options.isLarge) return { kind: 'redirect', path: `/items/${encodeURIComponent(itemId)}` };
+  return { kind: 'pane', collectionId, itemId };
+}

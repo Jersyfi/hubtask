@@ -2114,6 +2114,8 @@
   "app.item.children": "Unter diesem Eintrag",
   "app.item.no_children": "Unter diesem Eintrag liegt noch nichts.",
   "app.item.details": "Details",
+  "app.pane.close": "Die Seitenleiste schließen",
+  "app.pane.open_page": "Als Seite öffnen",
   "app.item.tabs": "Der Verlauf des Eintrags",
   "app.item.tab_with_count": "{title} · {count}",
   "app.item.expand_all": "Alle Ebenen öffnen",

@@ -43,6 +43,13 @@ export interface Resolution {
   readonly params: Readonly<Record<string, string>>;
   /** The path that was resolved, normalised, without query or fragment. */
   readonly path: string;
+  /**
+   * The query, as one value per name. A route's parameters are in the path; the query carries
+   * what is open *beside* a screen - `?item=` on a collection is the entry in the detail pane
+   * (ADR-0061 decision 4) - and is part of the address so that a reload and the back button keep
+   * it. Never a search term: `security.md` §9's reason for `POST /search` stands.
+   */
+  readonly query: Readonly<Record<string, string>>;
   /** The area the matched route declared. `end-user` for a route that declared none. */
   readonly area: Area;
 }
@@ -76,13 +83,31 @@ function matchPattern(pattern: string, path: string): Record<string, string> | n
 }
 
 /** Resolve a path against the table. First match wins, so order the table specific-first. */
+/** The query of an address, as one value per name; the fragment is not part of it. */
+export function queryOf(input: string): Record<string, string> {
+  const at = input.indexOf('?');
+  if (at < 0) return {};
+  const end = input.indexOf('#', at);
+  const query: Record<string, string> = {};
+  for (const [name, value] of new URLSearchParams(input.slice(at + 1, end < 0 ? undefined : end))) query[name] = value;
+  return query;
+}
+
 export function resolve(routes: readonly Route[], input: string): Resolution {
   const path = normalisePath(input);
+  const query = queryOf(input);
   for (const route of routes) {
     const params = matchPattern(route.pattern, path);
-    if (params) return { name: route.name, params, path, area: route.area ?? 'end-user' };
+    if (params) return { name: route.name, params, path, query, area: route.area ?? 'end-user' };
   }
-  return { name: null, params: {}, path, area: 'end-user' };
+  return { name: null, params: {}, path, query, area: 'end-user' };
+}
+
+/** The address as the router compares it: the normalised path with its query, without a fragment. */
+function addressOf(input: string): string {
+  const path = normalisePath(input);
+  const query = new URLSearchParams(queryOf(input)).toString();
+  return query === '' ? path : `${path}?${query}`;
 }
 
 export type Unsubscribe = () => void;
@@ -97,7 +122,7 @@ export class Router {
   readonly #listeners = new Set<(resolution: Resolution) => void>();
   #current: Resolution;
 
-  constructor(routes: readonly Route[], initialPath: string = window.location.pathname) {
+  constructor(routes: readonly Route[], initialPath: string = window.location.pathname + window.location.search) {
     this.#routes = routes;
     this.#current = resolve(routes, initialPath);
   }
@@ -114,9 +139,24 @@ export class Router {
 
   /** Navigate to a path, entering it into the session history. */
   navigate(path: string): void {
-    if (normalisePath(path) === this.#current.path) return;
+    if (addressOf(path) === this.#address()) return;
     history.pushState(null, '', path);
     this.#apply(path);
+  }
+
+  /**
+   * Replaces the current entry rather than adding one: what a redirect does, so that the back
+   * button goes to where the reader came from and not to the address that sent them on.
+   */
+  replace(path: string): void {
+    if (addressOf(path) === this.#address()) return;
+    history.replaceState(null, '', path);
+    this.#apply(path);
+  }
+
+  #address(): string {
+    const query = new URLSearchParams(this.#current.query).toString();
+    return query === '' ? this.#current.path : `${this.#current.path}?${query}`;
   }
 
   /**
@@ -125,7 +165,7 @@ export class Router {
    * stays with the browser.
    */
   start(): Unsubscribe {
-    const onPopState = () => this.#apply(window.location.pathname);
+    const onPopState = () => this.#apply(window.location.pathname + window.location.search);
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0) return;
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

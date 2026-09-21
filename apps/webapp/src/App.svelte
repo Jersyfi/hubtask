@@ -13,7 +13,8 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
-  import { ROUTES } from './lib/routes.ts';
+  import { ROUTES, paneFor } from './lib/routes.ts';
+  import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
@@ -66,6 +67,18 @@
     };
   });
 
+  /**
+   * The detail pane's address (ADR-0061 decision 4): `/collections/:id?item=:itemId` is the list
+   * with the entry beside it from `large` up, and below `large` the entry's own page - a redirect
+   * that replaces the address, so the back button goes to where the reader came from. Width, not
+   * platform: the desktop shell dragged narrow redirects like a phone. `paneFor` is the pure
+   * answer and has the test; this is only the effect that acts on it.
+   */
+  const pane = $derived(paneFor(route, { isLarge: viewport.isLarge }));
+  $effect(() => {
+    if (pane.kind === 'redirect') router.replace(pane.path);
+  });
+
   // Signing in again returns the reader to what they were looking at when the session ended. The
   // path is taken once: one that navigated twice would fight the reader's next click.
   $effect(() => {
@@ -115,7 +128,7 @@
   {:else if !session.isSignedIn}
     <SignInView />
   {:else if route.name === 'home'}
-    <HomeView />
+    <HomeView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
     <InstallationView />
   {:else if route.name === 'profile'}
@@ -179,7 +192,7 @@
          that navigating from one collection to another rebuilds rather than reusing the state of
          the one before — a draft rename would otherwise follow the reader to a different name. -->
     {#key route.params.id}
-      <ContainerView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+      <ContainerView id={route.params.id ?? ''} openItemId={pane.kind === 'pane' ? pane.itemId : undefined} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else}
     <!-- The server's own code for a path that reaches nothing, at the same address - as the

@@ -17,6 +17,7 @@
  */
 
 import type {
+  Assignment,
   AutoAssignOutcome,
   BulkOperation,
   BulkResult,
@@ -134,6 +135,15 @@ class Items {
 
   stateOf(key: string): ResourceState<ItemQueryResult> | undefined {
     return this.#levels[key];
+  }
+
+  /** An entry among the levels that have been read, wherever it sits; nothing is read for it. */
+  find(itemId: string): WorkItem | undefined {
+    for (const state of Object.values(this.#levels)) {
+      const found = rowsOf(state).find((item) => item.id === itemId);
+      if (found) return found;
+    }
+    return undefined;
   }
 
   /**
@@ -425,7 +435,10 @@ class Items {
     return engine.mutate<WorkItem>(
       'POST',
       `/items/${id}:assign`,
-      { assignee_id: accountId },
+      // Typed as the contract's `Assignment`, so the field's name comes from the specification and
+      // not from memory: the entry's field is `assignee_id`, the body's is `account_id`, and the
+      // other spelling was refused as unknown by every real server (issue 876).
+      { account_id: accountId } satisfies Assignment,
       { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
     );
   }

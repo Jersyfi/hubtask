@@ -103,7 +103,9 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/`);
-    const createHub = page.getByRole('button', { name: 'Create hub' });
+    // The workspace page's primary action (issue 879); the tree at the side offers the same
+    // verb, which is why the name alone is not enough.
+    const createHub = page.locator('[data-opener="add-hub"]');
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 

@@ -13,12 +13,29 @@
   //
   // It holds no data of its own: `AppFrame` starts `containers`, and the sidebar reads the same
   // level. A home screen that fetched the hubs a second time would be a second reader of one list.
+  //
+  // On the shell (ADR-0061) it is a page like the others: a `PageHeader` whose one primary action
+  // is what a workspace page is for - a hub - the same dialog the tree's button opens (issue 879),
+  // and the title handed to the bar on a phone.
 
-  import { EmptyState, ErrorState, ListRow, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, ErrorState, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
 
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+
+  interface Props {
+    onnavigate?: (path: string) => void;
+  }
+
+  const { onnavigate }: Props = $props();
+
+  let isCreatingHub = $state(false);
+
+  $effect(() => page.entitle(t('app.workspace.title')));
 
   const failure = $derived(
     containers.hubsState.status === 'failed'
@@ -28,7 +45,11 @@
 </script>
 
 <Stack gap="200">
-  <h1>{t('app.workspace.title')}</h1>
+  <PageHeader
+    title={t('app.workspace.title')}
+    isTitleInBar={viewport.isCompact}
+    primary={{ label: t('app.workspace.create_hub'), icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' }}
+  />
 
   {#if containers.hubsState.status === 'loading' || containers.hubsState.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={4} /></div>
@@ -51,3 +72,5 @@
     </Stack>
   {/if}
 </Stack>
+
+<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
