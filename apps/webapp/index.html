@@ -5,7 +5,9 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- `viewport-fit=cover`: the bars read the safe-area insets (ADR-0061); read, not written,
+         and 0 in a browser. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Hubtask</title>
     <script type="module" src="/src/main.ts"></script>
   </head>

@@ -5,9 +5,12 @@
    is a value that will disagree with tokens.json sooner or later (ADR-0029), and `pnpm lint`
    fails on one. */
 
+/* No padding: the shell (ADR-0061) runs edge to edge - the bar along the top, the navigation
+   along the start edge, the bottom bar along the bottom - and the frame's `main` is what gives
+   the content its air. */
 body {
   margin: 0;
-  padding: var(--sp-600);
+  padding: 0;
   background: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-ui);
