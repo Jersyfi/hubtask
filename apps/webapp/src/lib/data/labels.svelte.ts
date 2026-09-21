@@ -17,6 +17,7 @@
 import type { Label, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, touchesOf } from './touches.ts';
 
 /**
  * A **bare array**, not a `{data, page}` envelope — which is what the contract declares and worth
@@ -27,7 +28,7 @@ import { engine } from './engine.ts';
 const labelsPath = (collectionId: string) => `/containers/${collectionId}/labels`;
 
 /** A label write changes entries as well as the list: a removed label leaves the rows it was on. */
-const TOUCHES = ['/containers', '/items'];
+const TOUCHES = ['/containers', ENTRY_LISTS, ANY_ENTRY_DOCUMENT];
 
 class Labels {
   #levels = $state<Record<string, ResourceState<readonly Label[]>>>({});
@@ -92,7 +93,7 @@ class Labels {
       isOn ? 'PUT' : 'DELETE',
       `/items/${itemId}/labels/${labelId}`,
       undefined,
-      { idempotencyKey, invalidates: ['/items'] },
+      { idempotencyKey, invalidates: touchesOf(itemId) },
     );
   }
 }

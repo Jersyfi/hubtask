@@ -24,6 +24,7 @@ import type { Container, ContainerPage, ResourceState } from '@hubtask/sync-engi
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { anchorFor } from './rank.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 /** The hub level: the one anchored to nothing. */
 const HUBS = '/containers?type=HUB&page_size=200';
@@ -231,7 +232,7 @@ class Containers {
   async restore(id: string, idempotencyKey: string): Promise<Container> {
     return engine.mutate<Container>('POST', `/containers/${id}:restore`, undefined, {
       idempotencyKey,
-      invalidates: ['/containers', '/items', '/trash'],
+      invalidates: ['/containers', ENTRY_LISTS, ANY_ENTRY_DOCUMENT, '/trash'],
     });
   }
 

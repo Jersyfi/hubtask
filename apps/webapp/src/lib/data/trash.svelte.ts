@@ -23,6 +23,7 @@
 import type { PurgeSummary, TrashEntry, TrashPage, TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 const PATH = '/trash';
 const PAGE_SIZE = 50;
@@ -30,7 +31,7 @@ const PAGE_SIZE = 50;
 const MAX_PAGES = 20;
 
 /** What a write to the trash makes stale: the trash, and wherever a restored thing came back to. */
-const TOUCHES = ['/trash', '/items', '/containers'];
+const TOUCHES = ['/trash', ENTRY_LISTS, ANY_ENTRY_DOCUMENT, '/containers'];
 
 class Trash {
   #rows = $state<readonly TrashEntry[]>([]);
