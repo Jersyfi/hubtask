@@ -30,3 +30,10 @@ export const long: Story = {
     'Rule 4. The column keeps its width and the card wraps; the board scrolls sideways rather than the page, because a wide board that widened the document would take every other region with it.',
   args: { mode: 'long' },
 };
+
+export const phone: Story = {
+  name: 'One column at a time, on a phone',
+  about:
+    'Below `medium` three columns do not fit and nothing said where the third went (ADR-0061). The board shows one column, the strip above it says which and how many, and a tap — or a swipe across the board, in the product — switches. Each column keeps its own head and its own actions; moving a card between columns is the card’s menu, which it has (SC 2.5.7). Switch the width axis to Compact.',
+  args: { mode: 'phone' },
+};

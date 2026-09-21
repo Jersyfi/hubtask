@@ -5,9 +5,10 @@
   import IconButton from './IconButton.svelte';
   import Inline from './Inline.svelte';
   import LabelChip from './LabelChip.svelte';
+  import ViewSwitcher, { type View } from './ViewSwitcher.svelte';
   import WorkItemCard from './WorkItemCard.svelte';
 
-  const { mode = 'board' }: { mode?: 'board' | 'overLimit' | 'covers' | 'long' } = $props();
+  const { mode = 'board' }: { mode?: 'board' | 'overLimit' | 'covers' | 'long' | 'phone' } = $props();
 
   interface Card {
     id: string;
@@ -92,13 +93,26 @@
     },
   ];
 
-  const shown = $derived(
+  const all = $derived(
     mode === 'overLimit' ? overLimit : mode === 'covers' ? covers : mode === 'long' ? long : columns,
   );
+
+  // On a phone the board is one column at a time (ADR-0061 decision 4): the strip above says which
+  // and how many, a tap switches, and each column keeps its own head and its own actions.
+  let shownId = $state('todo');
+  const strip = $derived<View[]>(all.map((column) => ({ id: column.id, label: `${column.name} · ${column.cards.length}` })));
+  const shown = $derived(mode === 'phone' ? all.filter((column) => column.id === shownId) : all);
 </script>
 
-<div class="board">
+{#if mode === 'phone'}
+  <div class="strip">
+    <ViewSwitcher label="Which column is shown" views={strip} selected={shownId} onselect={(id) => (shownId = id)} />
+  </div>
+{/if}
+
+<div class="board" data-one-column={mode === 'phone' ? '' : undefined}>
   {#each shown as column (column.id)}
+    <div class="column-slot">
     <BucketColumn
       name={column.name}
       count={column.cards.length}
@@ -131,6 +145,7 @@
         </WorkItemCard>
       {/each}
     </BucketColumn>
+    </div>
   {/each}
 </div>
 
@@ -144,4 +159,13 @@
     overflow-x: auto;
     padding-block-end: var(--sp-100);
   }
+
+  /* One column on a phone: it takes the width the strip leaves it. */
+  .board[data-one-column] { flex-direction: column; align-items: stretch; overflow-x: visible; }
+
+  .column-slot { display: flex; flex: none; }
+
+  .board[data-one-column] .column-slot > :global(*) { box-sizing: border-box; inline-size: 100%; }
+
+  .strip { overflow-x: auto; margin-block-end: var(--sp-150); padding-block-end: var(--sp-050); }
 </style>

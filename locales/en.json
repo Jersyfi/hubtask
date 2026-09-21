@@ -1213,6 +1213,8 @@
   "app.board.title": "Board",
   "app.board.no_buckets": "No columns in this collection yet. A column is a step the entries move through.",
   "app.board.unbucketed": "No column",
+  "app.board.columns": "Which column is shown",
+  "app.board.column_with_count": "{name} · {count}",
   "app.board.over_limit": "More entries than this column is meant to hold.",
   "app.board.done_bucket": "Entries moved here are marked as done.",
   "app.board.column_actions": "Actions for {name}",

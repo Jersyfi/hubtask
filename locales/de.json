@@ -208,6 +208,8 @@
   "app.board.title": "Board",
   "app.board.no_buckets": "Noch keine Spalten in dieser Sammlung. Eine Spalte ist ein Schritt, den die Einträge durchlaufen.",
   "app.board.unbucketed": "Keine Spalte",
+  "app.board.columns": "Welche Spalte gezeigt wird",
+  "app.board.column_with_count": "{name} · {count}",
   "app.board.over_limit": "Mehr Einträge, als diese Spalte aufnehmen soll.",
   "app.board.done_bucket": "Einträge, die hierher wandern, gelten als erledigt.",
   "app.board.column_actions": "Aktionen für {name}",
