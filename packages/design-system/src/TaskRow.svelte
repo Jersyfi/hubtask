@@ -132,7 +132,17 @@
 
   .mark { color: var(--text-subtle); }
 
-  .title { overflow-wrap: anywhere; }
+  /* A title takes a few lines and then loses its end (issue 838): the row is a row, and the whole
+     text is on the entry's own page. The prefixed form is what every engine on the browser row
+     implements; the standard property stands beside it for the day they take it. */
+  .title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
 
   /* A change waiting to be sent: the `pending` role on the mark - a continuous indicator with
      no end - and the word beside it, because a pulse alone is a colour argument (rule 3) and is

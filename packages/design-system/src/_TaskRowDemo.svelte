@@ -6,7 +6,7 @@
   import Stack from './Stack.svelte';
   import TaskRow from './TaskRow.svelte';
 
-  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' } = $props();
+  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' } = $props();
 
   // The three levels of domain-model.md §3.4, at the depths they sit at.
   const levels = [
@@ -33,8 +33,17 @@
     { id: 'b', type: 'WORK_PACKAGE', title: 'Elektroarbeiten im Bereich der Fensterfront', depth: 1, expansion: 'leaf' as const },
   ];
 
+  // The rows issue 838 found broken at 327 px: a deep level with a badge and a menu beside a title
+  // that is one word, and one that is many.
+  const phone = [
+    { id: 'a', type: 'TASK', title: 'The kitchen', depth: 0, expansion: 'expanded' as const },
+    { id: 'b', type: 'WORK_PACKAGE', title: 'Electrics', depth: 1, expansion: 'expanded' as const },
+    { id: 'c', type: 'ACTIVITY', title: 'Move the socket by the window and check the fuse box', depth: 2, expansion: 'leaf' as const },
+    { id: 'd', type: 'ACTIVITY', title: 'Elektroinstallationsarbeiten', depth: 2, expansion: 'leaf' as const },
+  ];
+
   const rows = $derived(
-    mode === 'collapsed' ? collapsed : mode === 'unknown' ? unknown : mode === 'long' ? long : levels,
+    mode === 'collapsed' ? collapsed : mode === 'unknown' ? unknown : mode === 'long' ? long : mode === 'phone' ? phone : levels,
   );
 
   let done = $state<string[]>(['d']);

@@ -37,3 +37,10 @@ export const long: Story = {
     'Rule 4 against the component with the least room: the indent takes width from the title at every level. The title wraps rather than pushing the badge and the menu off the end.',
   args: { mode: 'long' },
 };
+
+export const phone: Story = {
+  name: 'The three levels at a phone’s width',
+  about:
+    'Issue 838: in a 327 px pane a deep row used to break its title one letter per line, because the fixed cells around it left the title no track. Switch the width axis to Compact: the title keeps a few words at least, and the badge and the menu move under it when the line has no room for them — a rule of the row, so it holds in a 400 px detail pane as well as on a phone.',
+  args: { mode: 'phone' },
+};

@@ -5,6 +5,12 @@
   // are. Everything it offers comes from `/meta/capabilities` through `lib/data/query.ts`, and
   // nothing in this file names a field.
   //
+  // The layout switch is not here since F9-07: it is the page head's second row
+  // (`LayoutSwitch`), and this panel is what the head's "Filter" button opens - inline from
+  // `expanded`, in a drawer below it. The panel stays mounted either way, because the conditions
+  // are its state and a closed filter is still a filter; it reports how many parts are set so the
+  // button can say so.
+  //
   // It builds the **document** as well as the controls, because the two have to agree: a condition
   // the editor allowed and the document dropped would be a filter the reader can see and the
   // server never received. `filterOf` is the one place that decides, and this hands it the rows.
@@ -14,7 +20,7 @@
   // catalogue has never heard of still renders, as `humanise` makes of it, because the grammar can
   // grow without this client.
 
-  import { QueryBuilder, Select, ViewSwitcher, type QueryCondition, type View } from '@hubtask/design-system/components';
+  import { QueryBuilder, Select, type QueryCondition } from '@hubtask/design-system/components';
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import type { ItemsQuery } from '../data/items.svelte.ts';
@@ -32,13 +38,12 @@
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
-    /** Which layout the reader chose. Kept on the device by the caller; saved views are F3's. */
+    /** Which layout the reader chose, because the grouping belongs to the board. */
     layout: string;
-    /** The layouts this client can actually draw, in the order it offers them. */
-    drawable: readonly string[];
-    onlayout: (id: string) => void;
     /** The query, rebuilt whenever a control changes. */
     onquery: (query: ItemsQuery) => void;
+    /** How many parts of the query are set - the conditions and an order - for the button that opens this. */
+    oncount?: (count: number) => void;
     /**
      * The custom fields in force where these entries live, as fields a condition can name.
      *
@@ -50,27 +55,8 @@
     custom?: readonly FilterField[];
   }
 
-  const { layout, drawable, onlayout, onquery, custom = [] }: Props = $props();
+  const { layout, onquery, oncount, custom = [] }: Props = $props();
 
-  /**
-   * The layouts, as the installation reports them.
-   *
-   * Reported and drawable is offered; reported and not drawable is offered **with the reason**,
-   * because leaving it out would make the switcher disagree with the manifest. A layout this
-   * client draws and the installation does not report is not shown at all — that is the
-   * installation saying it does not have it, which is not this client's to override.
-   */
-  const views = $derived<View[]>(
-    (manifest.value?.view_layouts ?? []).map((id) => ({
-      id,
-      label: t(`app.view.${id}`),
-      unavailableReason: drawable.includes(id)
-        ? undefined
-        : t('app.view.not_built', { layout: t(`app.view.${id}`) }),
-    })),
-  );
-
-  let isOpen = $state(false);
   let conditions = $state<QueryCondition[]>([]);
   /** The manual order is the empty choice: `order_key ASC` is the query's own default. */
   let sortField = $state('');
@@ -114,6 +100,7 @@
       sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir),
       group: layout === 'KANBAN' ? groupOf(manifest.value, groupField) : undefined,
     });
+    oncount?.(conditions.length + (sortField === '' ? 0 : 1));
   }
 
   function clear() {
@@ -131,66 +118,54 @@
 </script>
 
 <div class="panel">
-  <!-- `data-tour`: where the tour points for "the same entries, two ways" (F6-14). -->
-  <div class="bar" data-tour="layouts">
-    <ViewSwitcher label={t('app.view.label')} {views} selected={layout} onselect={onlayout} />
-    <button type="button" class="toggle" aria-expanded={isOpen} onclick={() => (isOpen = !isOpen)}>
-      {isOpen ? t('app.query.hide') : t('app.query.show')}
-    </button>
-  </div>
+  <QueryBuilder
+    label={t('app.query.title')}
+    {fields}
+    bind:conditions
+    fieldLabel={t('app.query.field')}
+    operatorLabel={t('app.query.operator')}
+    valueLabel={t('app.query.value')}
+    addLabel={t('app.query.add')}
+    removeLabel={t('app.query.remove')}
+    emptyLabel={t('app.query.none_filterable')}
+    onchange={publish}
+  />
 
-  {#if isOpen}
-    <QueryBuilder
-      label={t('app.query.title')}
-      {fields}
-      bind:conditions
-      fieldLabel={t('app.query.field')}
-      operatorLabel={t('app.query.operator')}
-      valueLabel={t('app.query.value')}
-      addLabel={t('app.query.add')}
-      removeLabel={t('app.query.remove')}
-      emptyLabel={t('app.query.none_filterable')}
+  <div class="ordering">
+    <Select
+      label={t('app.query.sort_by')}
+      size="sm"
+      bind:value={sortField}
+      placeholder={t('app.query.sort_manual')}
+      options={sorts.map((field) => ({ value: field.field, label: field.field }))}
       onchange={publish}
     />
-
-    <div class="ordering">
+    <Select
+      label={t('app.query.direction')}
+      size="sm"
+      bind:value={sortDir}
+      options={[
+        { value: 'ASC', label: t('app.query.ascending') },
+        { value: 'DESC', label: t('app.query.descending') },
+      ]}
+      onchange={publish}
+    />
+    <!-- Only where the columns are a question. On a list there is no grouping to choose. -->
+    {#if layout === 'KANBAN' && groups.length > 1}
       <Select
-        label={t('app.query.sort_by')}
+        label={t('app.query.group_by')}
         size="sm"
-        bind:value={sortField}
-        placeholder={t('app.query.sort_manual')}
-        options={sorts.map((field) => ({ value: field.field, label: field.field }))}
+        bind:value={groupField}
+        options={groups.map((field) => ({ value: field.field, label: field.field }))}
         onchange={publish}
       />
-      <Select
-        label={t('app.query.direction')}
-        size="sm"
-        bind:value={sortDir}
-        options={[
-          { value: 'ASC', label: t('app.query.ascending') },
-          { value: 'DESC', label: t('app.query.descending') },
-        ]}
-        onchange={publish}
-      />
-      <!-- Only where the columns are a question. On a list there is no grouping to choose. -->
-      {#if layout === 'KANBAN' && groups.length > 1}
-        <Select
-          label={t('app.query.group_by')}
-          size="sm"
-          bind:value={groupField}
-          options={groups.map((field) => ({ value: field.field, label: field.field }))}
-          onchange={publish}
-        />
-      {/if}
-      <button type="button" class="toggle" onclick={clear}>{t('app.query.clear')}</button>
-    </div>
-  {/if}
+    {/if}
+    <button type="button" class="toggle" onclick={clear}>{t('app.query.clear')}</button>
+  </div>
 </div>
 
 <style>
   .panel { display: flex; flex-direction: column; gap: var(--sp-150); }
-
-  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
 
   .ordering { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
 

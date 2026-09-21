@@ -41,6 +41,7 @@ export const DECLARED = {
     'ellipsis',
     'grip-vertical',
     'funnel', // a filter; lucide renamed `filter` to `funnel`
+    'star', // the saved views, beside the switcher that draws them (F9-07)
   ],
   'Navigation — wave 2': [
     'chevron-up',

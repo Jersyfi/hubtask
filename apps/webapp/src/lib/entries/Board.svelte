@@ -28,10 +28,12 @@
     LabelChip,
     Menu,
     Skeleton,
+    ViewSwitcher,
     WorkItemCard,
     rankIntent,
     rankTarget,
     type RankCommand,
+    type View,
   } from '@hubtask/design-system/components';
   import type { Bucket, BulkResult, WorkItem } from '@hubtask/sync-engine';
 
@@ -54,6 +56,7 @@
   import { outcomeOf } from '../data/bulk.ts';
   import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
@@ -165,6 +168,70 @@
   );
 
   /** The cards of one column, from the group whose key is that bucket. */
+  /**
+   * Below `medium` the board shows one column at a time (ADR-0061 decision 4), the columns as a
+   * strip above it: a tap or a swipe switches. The strip is `ViewSwitcher` - one subject, several
+   * renderings - and each column keeps its own head with its own actions. Moving a card between
+   * columns is the card's menu, which it has (SC 2.5.7). The strip lists every column that would be
+   * drawn, the entries with no column included where there are any.
+   */
+  /** The column the reader chose; `undefined` until they chose one, and then the first is shown. */
+  let shownColumn = $state<string | null | undefined>(undefined);
+  const strip = $derived<readonly { id: string | null; label: string; count: number }[]>(
+    [...columns, null]
+      .filter((bucket) => bucket !== null || cardsOf(null).length > 0)
+      .map((bucket) => ({ id: bucket?.id ?? null, label: bucket?.name ?? t('app.board.unbucketed'), count: countOf(bucket?.id ?? null) ?? cardsOf(bucket?.id ?? null).length })),
+  );
+  const stripViews = $derived<View[]>(strip.map((column) => ({ id: column.id ?? 'none', label: t('app.board.column_with_count', { name: column.label, count: String(column.count) }) })));
+  const shownKey = $derived(
+    shownColumn !== undefined && strip.some((column) => (column.id ?? 'none') === (shownColumn ?? 'none'))
+      ? (shownColumn ?? 'none')
+      : (strip[0]?.id ?? 'none'),
+  );
+  const isOneColumn = $derived(viewport.isCompact);
+
+  function showColumn(key: string) {
+    shownColumn = key === 'none' ? null : key;
+  }
+
+  /** A swipe across the board switches columns: a horizontal move that is more than a nudge. */
+  let swipeStart: { x: number; y: number } | null = null;
+  function onSwipeStart(event: TouchEvent) {
+    const touch = event.touches[0];
+    swipeStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  function onSwipeEnd(event: TouchEvent) {
+    const touch = event.changedTouches[0];
+    if (!swipeStart || !touch || !isOneColumn) return;
+    const dx = touch.clientX - swipeStart.x;
+    const dy = touch.clientY - swipeStart.y;
+    swipeStart = null;
+    // Far enough sideways, and more sideways than down: a scroll is not a swipe.
+    if (Math.abs(dx) < swipeThreshold() || Math.abs(dx) < Math.abs(dy)) return;
+    const index = strip.findIndex((column) => (column.id ?? 'none') === shownKey);
+    const dir = board !== null && getComputedStyle(board).direction === 'rtl' ? -1 : 1;
+    const next = strip[index + (dx < 0 ? dir : -dir)];
+    if (next) showColumn(next.id ?? 'none');
+  }
+  // Listened for in an effect rather than bound on the element: a `<div>` with a touch handler is
+  // a static element with an interaction, and the a11y lint is right to say so. A swipe is a
+  // pointer convenience over the strip, which is the control; nothing is reachable by it alone.
+  $effect(() => {
+    const element = board;
+    if (!element) return;
+    element.addEventListener('touchstart', onSwipeStart, { passive: true });
+    element.addEventListener('touchend', onSwipeEnd, { passive: true });
+    return () => {
+      element.removeEventListener('touchstart', onSwipeStart);
+      element.removeEventListener('touchend', onSwipeEnd);
+    };
+  });
+  /** How far a swipe has to travel, read from the density's control size rather than written. */
+  function swipeThreshold(): number {
+    const size = board ? Number.parseFloat(getComputedStyle(board).getPropertyValue('--density-control-md-min')) : NaN;
+    return Number.isFinite(size) ? size : 0;
+  }
+
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
     return groups.find((group) => group.key === bucketId)?.data ?? [];
   }
@@ -536,14 +603,20 @@
   <ReplicaMark state={boardState} />
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
-  <div class="board" bind:this={board}>
+  {#if isOneColumn && strip.length > 1}
+    <div class="strip">
+      <ViewSwitcher label={t('app.board.columns')} views={stripViews} selected={shownKey} onselect={showColumn} />
+    </div>
+  {/if}
+
+  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board}>
     {#each [...columns, null] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = cardsOf(bucketId)}
       <!-- The entries with no bucket are their own column, and the API puts that group last. It is
            shown rather than hidden: a card nobody has put in a column is a card somebody has to
-           find. -->
-      {#if bucket !== null || cards.length > 0}
+           find. On a phone only the column the strip chose is drawn. -->
+      {#if (bucket !== null || cards.length > 0) && (!isOneColumn || (bucket?.id ?? 'none') === shownKey)}
         <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
              across the board, which is why it is the whole column rather than the list of cards:
              an empty column is a destination too. -->
@@ -778,6 +851,14 @@
     overflow-x: auto;
     padding-block-end: var(--sp-100);
   }
+
+  /* One column on a phone: it takes the width, and the strip above says which and how many. */
+  .board[data-one-column] { flex-direction: column; align-items: stretch; overflow-x: visible; }
+
+  .board[data-one-column] .zone,
+  .board[data-one-column] .zone > :global(*) { box-sizing: border-box; inline-size: 100%; }
+
+  .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>

@@ -28,6 +28,7 @@
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
+  import { page } from './page.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
@@ -221,8 +222,11 @@
 
   <!-- Signed out there is nowhere to go but the token screen, so the bar offers nothing that
        would land there under another name: no toggle, no account, the wordmark alone. -->
+  <!-- On a phone the bar carries the page's title where the page told the frame one
+       (`page.svelte.ts`); the head then reads its heading rather than drawing it. -->
   <AppBar
     label={t('app.nav.bar')}
+    title={viewport.isCompact ? page.title : undefined}
     toggle={!session.isSignedIn
       ? undefined
       : viewport.isBelowExpanded
@@ -368,6 +372,9 @@
     position: sticky;
     inset-block-start: var(--layout-appbar-height);
     flex: none;
+    /* The token is the whole column, padding included: at exactly `expanded` the content beside
+       it has to be `medium` wide, or the page head folds as if on a phone. */
+    box-sizing: border-box;
     inline-size: var(--layout-sidenav-width);
     max-block-size: calc(100vh - var(--layout-appbar-height));
     min-width: 0;
