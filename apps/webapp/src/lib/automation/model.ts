@@ -69,12 +69,26 @@ export function emptyDraft(eventType = ''): Draft {
   };
 }
 
+/**
+ * A branch's arms live inside its `params` - `then` and `else` are what the kind *takes*, beside
+ * `condition` - which is where the domain reads them and where a finding's path points
+ * (`/actions/2/params/then/0/kind`). The canvas keeps them as `Step.then` / `Step.else` for its
+ * own paths, and this is the one place the two shapes meet (issue 853).
+ */
+function armFrom(params: Record<string, unknown> | undefined, arm: 'then' | 'else'): RuleAction[] {
+  const rows = params?.[arm];
+  return Array.isArray(rows) ? (rows as RuleAction[]) : [];
+}
+
 function stepsFrom(actions: readonly RuleAction[] | undefined): Step[] {
-  return (actions ?? []).map((action) => ({
-    kind: action.kind,
-    params: { ...(action.params ?? {}) },
-    ...(action.kind === 'BRANCH' ? { then: stepsFrom(action.then), else: stepsFrom(action.else) } : {}),
-  }));
+  return (actions ?? []).map((action) => {
+    const params = Object.fromEntries(Object.entries(action.params ?? {}).filter(([key]) => key !== 'then' && key !== 'else'));
+    return {
+      kind: action.kind,
+      params,
+      ...(action.kind === 'BRANCH' ? { then: stepsFrom(armFrom(action.params, 'then')), else: stepsFrom(armFrom(action.params, 'else')) } : {}),
+    };
+  });
 }
 
 /** A stored rule, opened for editing. */
@@ -104,13 +118,16 @@ export function fromRule(rule: Rule): Draft {
 
 function actionsFrom(steps: readonly Step[]): RuleAction[] {
   return steps.map((step) => {
-    const params = Object.fromEntries(
+    const params: Record<string, unknown> = Object.fromEntries(
       Object.entries(step.params).filter(([, value]) => value !== '' && value !== undefined && value !== null),
     );
+    if (step.kind === 'BRANCH') {
+      params.then = actionsFrom(step.then ?? []);
+      params.else = actionsFrom(step.else ?? []);
+    }
     return {
       kind: step.kind,
       ...(Object.keys(params).length > 0 ? { params } : {}),
-      ...(step.kind === 'BRANCH' ? { then: actionsFrom(step.then ?? []), else: actionsFrom(step.else ?? []) } : {}),
     };
   });
 }
