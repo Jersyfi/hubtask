@@ -36,7 +36,18 @@
   import { decimalSeparatorOf, formatDecimal, parseDecimal } from '../i18n/number.ts';
   import { renderProblem } from '../problem.ts';
 
-  const { item, path }: { item: WorkItem; path: Path } = $props();
+  interface Props {
+    item: WorkItem;
+    path: Path;
+    /**
+     * One definition's key, when the panel is a details row's editor (F9-08): the entry page
+     * shows one row per definition, and each opens this panel for its own field alone. Without
+     * it the panel draws every definition in force, as the section always did.
+     */
+    only?: string;
+  }
+
+  const { item, path, only }: Props = $props();
 
   // A NUMBER field is written and read the way the reader's locale writes numbers (F5-09):
   // the decimal mark is the manifest's for the resolved locale, else Intl's, and the text is
@@ -51,7 +62,9 @@
   const capability = $derived(supports(item.type, 'CUSTOM_FIELDS'));
 
   const applicable = $derived(
-    definitionsFor(customFields.of(item.collection_id), item.type as string),
+    definitionsFor(customFields.of(item.collection_id), item.type as string).filter(
+      (definition) => only === undefined || definition.key === only,
+    ),
   );
 
   const values = $derived((item.custom_fields ?? {}) as Record<string, unknown>);
