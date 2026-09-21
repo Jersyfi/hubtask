@@ -3185,6 +3185,8 @@
   "app.item.children": "Under this entry",
   "app.item.no_children": "Nothing sits under this entry yet.",
   "app.item.details": "Details",
+  "app.pane.close": "Close the pane",
+  "app.pane.open_page": "Open as a page",
   "app.item.tabs": "The entry's history",
   "app.item.tab_with_count": "{title} · {count}",
   "app.item.expand_all": "Open every level",
