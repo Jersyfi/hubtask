@@ -41,7 +41,8 @@ async function openEntry(browser, width, written) {
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', async (route) => {
       const request = route.request();
-      if (request.method() === 'PATCH' || request.method() === 'POST') written.push({ method: request.method(), path: new URL(request.url()).pathname, body: request.postDataJSON() });
+      // Every request, by method: the writes are asserted on, and one read is asserted absent.
+      written.push({ method: request.method(), path: new URL(request.url()).pathname, body: request.method() === 'GET' ? undefined : request.postDataJSON() });
       return stub(route);
     });
   }
@@ -117,6 +118,12 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   // The set value reads on its row; the empty one says "add".
   assert.equal((await page.locator('[data-detail="labels"]').textContent()).includes('Materials'), true);
   assert.equal((await page.locator('[data-detail="due"]').textContent()).includes('Add'), true);
+  // An entry that repeats never is not asked for its series (issue 882): the row says so, the
+  // editor says so, and no GET went out to answer 404 in the console.
+  await page.locator('[data-detail="recurrence"]').click();
+  await page.getByText('This entry does not repeat.').waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  assert.deepEqual(written.filter((w) => w.method === 'GET' && w.path.endsWith('/recurrence')), [], 'the series was read for an entry whose row says it has none');
 
   // The subtree: the child type's name with its count, every level, and a count on a branch.
   const heading = page.getByRole('heading', { level: 2, name: /Work package/ });

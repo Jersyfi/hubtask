@@ -212,7 +212,13 @@
     return untrack(() => labels.open(wanted));
   });
   $effect(() => untrack(() => reminders.open(id)));
-  $effect(() => untrack(() => series.open(id)));
+  // The series is asked for only when the row says there is one (issue 882); the effect follows
+  // `recurrence_rule_id` so that setting a series starts the read and removing it ends it.
+  $effect(() => {
+    const row = item ? { id: item.id, recurrence_rule_id: item.recurrence_rule_id } : undefined;
+    if (!row) return;
+    return untrack(() => series.open(row));
+  });
   const attachments = resource<MediaPage>({ path: untrack(() => attachmentsPath(id)) });
   const thread = resource<CommentPage>({ path: untrack(() => commentsPath(id)) });
   const attachmentCount = $derived(attachments.state.status === 'ready' ? (attachments.state.data.data ?? []).length : undefined);

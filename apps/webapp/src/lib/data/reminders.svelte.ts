@@ -12,6 +12,13 @@
  * The contract says so, and this is where that is turned into a fact a screen can render: a failed
  * read whose status is 404 becomes "no series", and every other failure stays a failure.
  *
+ * **An entry that repeats never is not asked.** `recurrence_rule_id` is on the row, null for an
+ * entry with no series, so "none" is known before any request - and the request is not made
+ * (issue 882): every `GET` that answered 404 was a red line in the browser's console, one per read, and
+ * with the entry page's re-reads that was five to ten per page hiding a failure that mattered. The
+ * 404 branch stays for the one case the row cannot settle: an occurrence restored from an archive
+ * taken before the source column existed, which carries a rule id and has no rule of its own.
+ *
  * **Deleting a series leaves every occurrence standing.** The entries it already made are ordinary
  * entries and somebody's work; the dialog says so, and nothing here pretends otherwise.
  */
@@ -24,10 +31,12 @@ import type {
   ReminderUpdate,
   ResourceState,
   TransportError,
+  WorkItem,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
+import { belongsToSeries } from './reminders.ts';
 
 export const remindersPath = (itemId: string) => `/items/${itemId}/reminders`;
 export const recurrencePath = (itemId: string) => `/items/${itemId}/recurrence`;
@@ -98,12 +107,40 @@ class Reminders {
 
 class Series {
   #rules = $state<Record<string, ResourceState<Recurrence>>>({});
+  /** The entries whose row says they repeat never. Known without a request, and kept apart from
+   *  `#rules` so that a rule a write just answered is not overwritten by the row it is ahead of. */
+  #absent = $state<Record<string, true>>({});
 
-  open(itemId: string): () => void {
-    const path = recurrencePath(itemId);
+  /**
+   * Starts one entry's series - or settles it from the row, when the row says there is none.
+   *
+   * Takes the entry rather than its id because the answer is on the entry: a caller re-runs this
+   * when `recurrence_rule_id` changes, and the read begins the moment the row says a series exists.
+   * **From `untrack`**, for the reason every other store records.
+   */
+  open(item: Pick<WorkItem, 'id' | 'recurrence_rule_id'>): () => void {
+    const path = recurrencePath(item.id);
+    if (!belongsToSeries(item)) {
+      this.#absent = { ...this.#absent, [path]: true };
+      return () => {};
+    }
+    const { [path]: _known, ...others } = this.#absent;
+    this.#absent = others;
     return engine.subscribe<Recurrence>({ path }, (next) => {
       this.#rules = { ...this.#rules, [path]: next };
     });
+  }
+
+  /** Keeps what a write answered, so the panel shows the series before the row has caught up. */
+  #hold(path: string, rule: Recurrence | undefined): void {
+    const { [path]: _known, ...others } = this.#absent;
+    this.#absent = rule === undefined ? { ...this.#absent, [path]: true } : others;
+    if (rule === undefined) {
+      const { [path]: _gone, ...kept } = this.#rules;
+      this.#rules = kept;
+      return;
+    }
+    this.#rules = { ...this.#rules, [path]: { status: 'ready', data: rule, at: Date.now(), source: 'server' } };
   }
 
   /** The rule, when there is one. */
@@ -120,8 +157,10 @@ class Series {
    * place that knows what 404 means on this one route.
    */
   hasNone(itemId: string): boolean {
-    const state = this.#rules[recurrencePath(itemId)];
-    return state?.status === 'failed' && state.error.status === 404;
+    const path = recurrencePath(itemId);
+    const state = this.#rules[path];
+    if (state === undefined) return this.#absent[path] === true;
+    return state.status === 'failed' && state.error.status === 404;
   }
 
   /**
@@ -136,7 +175,9 @@ class Series {
   }
 
   isReading(itemId: string): boolean {
-    const status = this.#rules[recurrencePath(itemId)]?.status;
+    const path = recurrencePath(itemId);
+    if (this.#absent[path] && this.#rules[path] === undefined) return false;
+    const status = this.#rules[path]?.status;
     return status === undefined || status === 'idle' || status === 'loading';
   }
 
@@ -148,10 +189,12 @@ class Series {
    * are ordinary entries that a list is showing.
    */
   async set(itemId: string, body: RecurrenceInput, version: number | undefined): Promise<Recurrence> {
-    return engine.mutate<Recurrence>('PUT', recurrencePath(itemId), body, {
+    const rule = await engine.mutate<Recurrence>('PUT', recurrencePath(itemId), body, {
       ...(version === undefined ? {} : { ifMatch: etagFor(version) }),
       invalidates: [recurrencePath(itemId), '/items'],
     });
+    this.#hold(recurrencePath(itemId), rule);
+    return rule;
   }
 
   /** Takes the series off. Every occurrence it already made stays where it is. */
@@ -160,6 +203,7 @@ class Series {
       ifMatch: etagFor(version),
       invalidates: [recurrencePath(itemId), '/items'],
     });
+    this.#hold(recurrencePath(itemId), undefined);
   }
 
   /**
