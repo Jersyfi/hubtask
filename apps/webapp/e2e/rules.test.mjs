@@ -107,9 +107,11 @@ const STALE = {
   name: 'Flag blocked work',
   enabled: false,
   // A stop with a step stored after it: the server accepts the shape, the run never reaches it.
-  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'STOP' }, { kind: 'ADD_ATTACHMENT_FROM_URL' }],
+  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'STOP' }, { kind: 'ADD_ATTACHMENT_FROM_URL' }, { kind: 'ADD_COMMENT', params: {} }],
   findings: [
+    { level: 'ATTENTION', path: '/run_as', code: 'automation.finding.runner_without_role', params: { account_id: RULE.run_as, scope: 'TENANT' } },
     { level: 'ATTENTION', path: '/actions/0/params/label_id', code: 'automation.finding.reference_gone', params: { kind: 'label', id: '01a0e2e0-0000-7000-8000-0000000000ff' } },
+    { level: 'ATTENTION', path: '/actions/3/params/body', code: 'automation.finding.parameter_missing', params: { kind: 'ADD_COMMENT', parameter: 'body' } },
     { level: 'BROKEN', path: '/actions/2/kind', code: 'automation.finding.action_unknown', params: { kind: 'ADD_ATTACHMENT_FROM_URL' } },
   ],
   checked_at: '2026-09-20T15:00:00Z',
@@ -425,7 +427,7 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('The check found one rule that needs your attention.').waitFor();
   assert.ok(written.some((body) => body.check), 'the list asked for the check');
   await page.getByText('Broken', { exact: true }).waitFor();
-  await page.getByText('Step 0: The label this step points at no longer exists; the step would find nothing.').waitFor();
+  await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
   await page.getByText('Works', { exact: true }).waitFor();
 
   // The rule itself: the findings at their cards, and the switch refused with the reason.
@@ -433,6 +435,9 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.locator('[data-card="2"] .flag').waitFor();
   assert.match(await page.locator('[data-card="2"] .flag').textContent(), /no action ADD_ATTACHMENT_FROM_URL/);
   assert.match(await page.locator('[data-card="0"] .flag').textContent(), /no longer exists/);
+  // The two findings of F8-19: the missing parameter at its step, the roleless runner at the pill.
+  assert.match(await page.locator('[data-card="3"] .flag').textContent(), /needs body/);
+  assert.match(await page.locator('.chip-flag').textContent(), /holds no role/);
   const enable = page.getByRole('button', { name: 'Switch it on' });
   assert.equal(await enable.isDisabled(), true);
 });
