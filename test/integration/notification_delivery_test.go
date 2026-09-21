@@ -212,7 +212,7 @@ func newNotificationStack(ctx context.Context, t *testing.T) notificationStack {
 				Items: postgres.NewItemRepository(pageCursors()), Mail: sender, Renderer: renderer,
 				Rules:         postgres.NewAutomationRuleRepository(pageCursors()),
 				Subscriptions: postgres.NewWebhookSubscriptionRepository(),
-				UnitOfWork: work, Clock: clockadapter.System{},
+				UnitOfWork:    work, Clock: clockadapter.System{},
 				BaseURL: "https://hub.test.invalid",
 			},
 		},
