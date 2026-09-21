@@ -477,7 +477,7 @@ func (h RenameContainer) Descriptor() usecase.Descriptor {
 					"own palette. Empty clears it, omitted leaves it as it is.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST. Omitted means " +
 					"the caller read none and accepts whatever is there; a version that has moved on " +
 					"since is refused rather than overwritten.",
@@ -568,7 +568,7 @@ func (h UpdateContainerPolicies) Descriptor() usecase.Descriptor {
 					"assignment.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST. Omitted means " +
 					"the caller read none and accepts whatever is there.",
 			},

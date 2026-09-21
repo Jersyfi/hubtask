@@ -139,7 +139,7 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 				Description: "The new behaviour on failure. Omitted leaves it.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. A mismatch is a conflict rather than an overwrite.",
 			},
 		},

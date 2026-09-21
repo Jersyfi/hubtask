@@ -3831,10 +3831,16 @@ type AutomationActionField struct {
 	Description *string `json:"description,omitempty"`
 
 	// Enum The closed set of values the field takes, where it takes one.
-	Enum     *[]string                 `json:"enum,omitempty"`
+	Enum *[]string `json:"enum,omitempty"`
+
+	// Format The shape of a string field where a form draws it better than as text, in the vocabulary of this document's own `format` keyword: `date-time` for an RFC 3339 instant. Absent for a string that is just a string; a client tolerates a value it does not know and draws the field as text.
+	Format   *string                   `json:"format,omitempty"`
 	Kind     AutomationActionFieldKind `json:"kind"`
 	Name     string                    `json:"name"`
 	Required bool                      `json:"required"`
+
+	// Rule Whether a rule sets this field. `false` for the caller's plumbing - the identifier a client minted for offline work, the version it last read for If-Match, a reserved switch - which a person typing a call supplies and a rule never does, because a run has no version it read and mints nothing (F8-15). A rule editor hides such a field; the call still accepts it. Absent means `true`.
+	Rule *bool `json:"rule,omitempty"`
 }
 
 // AutomationActionFieldKind defines model for AutomationActionField.Kind.
@@ -4311,6 +4317,9 @@ type Capabilities struct {
 	Automation *struct {
 		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time (F8-01). A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest (automation.md §2.2), so `required` describes the call, not the rule.
 		ActionFields *map[string][]AutomationActionField `json:"action_fields,omitempty"`
+
+		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration (F8-15). A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.
+		ActionSummaries *map[string]string `json:"action_summaries,omitempty"`
 
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
 		Actions *[]string `json:"actions,omitempty"`

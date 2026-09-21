@@ -9125,6 +9125,21 @@ components:
           description: >
             Protocol documentation, in English, as the descriptions in this document are - never
             display text (ADR-0011).
+        rule:
+          type: boolean
+          description: >
+            Whether a rule sets this field. `false` for the caller's plumbing - the identifier a
+            client minted for offline work, the version it last read for If-Match, a reserved
+            switch - which a person typing a call supplies and a rule never does, because a run
+            has no version it read and mints nothing (F8-15). A rule editor hides such a field;
+            the call still accepts it. Absent means `true`.
+        format:
+          type: string
+          description: >
+            The shape of a string field where a form draws it better than as text, in the
+            vocabulary of this document's own `format` keyword: `date-time` for an RFC 3339
+            instant. Absent for a string that is just a string; a client tolerates a value it does
+            not know and draws the field as text.
 
     RuleAction:
       type: object
@@ -12467,6 +12482,16 @@ components:
               additionalProperties:
                 type: array
                 items: { $ref: "#/components/schemas/AutomationActionField" }
+            action_summaries:
+              type: object
+              description: >
+                For every kind in `actions`, the one sentence its use case declares - the same
+                sentence the MCP tool for it carries, derived from the same declaration (F8-15).
+                A rule editor's catalogue says it under the kind's name, so that every kind the
+                installation serves is readable without a copy of the sentences compiled into a
+                client. Protocol documentation in English, as every description in this document
+                is; a client that lacks it shows the name alone. Always present.
+              additionalProperties: { type: string }
         event_types:
           type: array
           items: { type: string }

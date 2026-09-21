@@ -81,6 +81,9 @@ type Capabilities struct {
 	// declaration the MCP tool schema is built from, so that an action's form is built from the
 	// manifest and never from a schema compiled into a client. Handed in with the actions.
 	AutomationActionFields map[string][]usecase.Field
+	// AutomationActionSummaries is, per action kind, the use case's one sentence (F8-15): what a
+	// rule editor's catalogue says under a kind's name. Handed in with the actions.
+	AutomationActionSummaries map[string]string
 	// RetentionDataKinds is the catalogue of `data-retention.md` §3, and what this build can do to
 	// each (F4-18). The catalogue itself rather than a copy of it, for the reason the query fields
 	// are: the document says a new kind "is then immediately configurable through the API - with
@@ -199,8 +202,9 @@ type GetCapabilities struct {
 	Config     env.Config
 	// Actions is every automation action kind that is a use case, handed in from the catalogue at
 	// composition for the reason Scopes is; ActionFields what each of them declares (F8-01).
-	Actions      []string
-	ActionFields map[string][]usecase.Field
+	Actions         []string
+	ActionFields    map[string][]usecase.Field
+	ActionSummaries map[string]string
 	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
 	// for the reason the field on Capabilities records.
 	Scopes []string
@@ -278,25 +282,26 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 	}
 
 	return Capabilities{
-		ProductVersion:         g.Config.Version,
-		APIVersion:             APIVersion,
-		TenancyMode:            string(g.Config.Tenancy),
-		ItemTypes:              profiles,
-		QueryFields:            view.Fields(),
-		ViewLayouts:            view.Layouts(),
-		CompletionPolicies:     work.CompletionPolicies(),
-		AutoAssignStrategies:   work.AutoAssignStrategies(),
-		EventTypes:             event.Types(),
-		AutomationTriggers:     automation.TriggerKinds(),
-		AutomationActions:      g.Actions,
-		AutomationActionFields: g.ActionFields,
-		RetentionDataKinds:     lifecycle.Catalogue(),
-		TextLanguages:          languages,
-		SupportedLocales:       supportedLocales,
-		NotificationCategories: notificationCategories(),
-		NotificationChannels:   notificationChannels(),
-		TokenScopes:            g.Scopes,
-		Roles:                  roleMatrix(),
+		ProductVersion:            g.Config.Version,
+		APIVersion:                APIVersion,
+		TenancyMode:               string(g.Config.Tenancy),
+		ItemTypes:                 profiles,
+		QueryFields:               view.Fields(),
+		ViewLayouts:               view.Layouts(),
+		CompletionPolicies:        work.CompletionPolicies(),
+		AutoAssignStrategies:      work.AutoAssignStrategies(),
+		EventTypes:                event.Types(),
+		AutomationTriggers:        automation.TriggerKinds(),
+		AutomationActions:         g.Actions,
+		AutomationActionFields:    g.ActionFields,
+		AutomationActionSummaries: g.ActionSummaries,
+		RetentionDataKinds:        lifecycle.Catalogue(),
+		TextLanguages:             languages,
+		SupportedLocales:          supportedLocales,
+		NotificationCategories:    notificationCategories(),
+		NotificationChannels:      notificationChannels(),
+		TokenScopes:               g.Scopes,
+		Roles:                     roleMatrix(),
 		Limits: map[string]int64{
 			"max_body_bytes":            g.Config.Request.MaxBodyBytes,
 			"max_upload_bytes":          g.Config.Request.MaxUploadBytes,
