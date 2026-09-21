@@ -341,7 +341,7 @@ func (h UpdateReminder) Descriptor() usecase.Descriptor {
 				Description: "The reminder to change.",
 			},
 			{
-				Name: "offset_spec", Kind: usecase.KindString,
+				Name: "offset_spec", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "REL: with an ISO-8601 duration, or ABS: with an RFC 3339 instant.",
 			},
 			{
@@ -354,7 +354,7 @@ func (h UpdateReminder) Descriptor() usecase.Descriptor {
 					"members.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read (If-Match). Omitted accepts what is there.",
 			},
 		},
@@ -423,7 +423,7 @@ func (h DeleteReminder) Descriptor() usecase.Descriptor {
 				Description: "The reminder to remove.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read (If-Match). Omitted accepts what is there.",
 			},
 		},

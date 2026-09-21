@@ -334,7 +334,7 @@ func (h UpdateRetentionPolicy) Descriptor() usecase.Descriptor {
 			{Name: "enabled", Kind: usecase.KindBool},
 			{Name: "export_target_id", Kind: usecase.KindID,
 				Description: "Where EXPORT_THEN_DELETE writes its archive."},
-			{Name: "expected_version", Kind: usecase.KindInt,
+			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller named none."},
 		},
 		Audit: usecase.AuditDeclaration{

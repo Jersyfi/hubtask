@@ -659,7 +659,7 @@ func (h UpdateWebhookSubscription) Descriptor() usecase.Descriptor {
 				Description: "ACTIVE resumes or re-enables; PAUSED stops deliveries deliberately.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. A mismatch is a conflict rather than an overwrite.",
 			},
 		},

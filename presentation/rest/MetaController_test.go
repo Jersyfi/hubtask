@@ -447,8 +447,11 @@ func TestTheManifestPublishesEachActionsFields(t *testing.T) {
 		"ASSIGN_ITEM": {
 			{Name: "item_id", Kind: catalogueusecase.KindID, Required: true, Description: "the entry"},
 			{Name: "strategy", Kind: catalogueusecase.KindString, Enum: []string{"FIXED", "ROUND_ROBIN"}},
+			{Name: "expected_version", Kind: catalogueusecase.KindInt, CallerOnly: true},
+			{Name: "due_at", Kind: catalogueusecase.KindString, Format: catalogueusecase.FormatDateTime},
 		},
 	}
+	answer.AutomationActionSummaries = map[string]string{"ARCHIVE_ITEM": "Archives an entry.", "ASSIGN_ITEM": "Assigns an entry."}
 
 	response := serveCapabilities(t, &capabilities{result: answer})
 	if response.Code != http.StatusOK {
@@ -464,7 +467,10 @@ func TestTheManifestPublishesEachActionsFields(t *testing.T) {
 				Required    bool     `json:"required"`
 				Enum        []string `json:"enum"`
 				Description string   `json:"description"`
+				Rule        *bool    `json:"rule"`
+				Format      string   `json:"format"`
 			} `json:"action_fields"`
+			ActionSummaries map[string]string `json:"action_summaries"`
 		} `json:"automation"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
@@ -482,11 +488,27 @@ func TestTheManifestPublishesEachActionsFields(t *testing.T) {
 		t.Errorf("a kind with no parameters answers %v, want an empty array", fields)
 	}
 	assign := body.Automation.ActionFields["ASSIGN_ITEM"]
-	if len(assign) != 2 || assign[0].Name != "item_id" || assign[0].Kind != "id" || !assign[0].Required ||
+	if len(assign) != 4 || assign[0].Name != "item_id" || assign[0].Kind != "id" || !assign[0].Required ||
 		assign[0].Description != "the entry" {
 		t.Errorf("the id field is published as %+v", assign)
 	}
-	if len(assign) == 2 && (assign[1].Required || len(assign[1].Enum) != 2 || assign[1].Enum[1] != "ROUND_ROBIN") {
+	if len(assign) == 4 && (assign[1].Required || len(assign[1].Enum) != 2 || assign[1].Enum[1] != "ROUND_ROBIN") {
 		t.Errorf("the enum field is published as %+v", assign[1])
+	}
+	// The caller's plumbing says rule: false and nothing else says rule at all; a date says its
+	// format (F8-15).
+	if len(assign) == 4 {
+		if assign[0].Rule != nil || assign[1].Rule != nil {
+			t.Errorf("a rule's field carries a rule flag: %+v", assign[:2])
+		}
+		if assign[2].Rule == nil || *assign[2].Rule {
+			t.Errorf("the caller-only field is published as %+v, want rule: false", assign[2])
+		}
+		if assign[3].Format != "date-time" || assign[2].Format != "" {
+			t.Errorf("the formats are published as %q and %q", assign[3].Format, assign[2].Format)
+		}
+	}
+	if body.Automation.ActionSummaries == nil || body.Automation.ActionSummaries["ASSIGN_ITEM"] != "Assigns an entry." {
+		t.Errorf("action_summaries is %v", body.Automation.ActionSummaries)
 	}
 }

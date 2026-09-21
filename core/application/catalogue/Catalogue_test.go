@@ -278,3 +278,55 @@ func TestAutomationActionFieldsAreTheDescriptorsOwnInputs(t *testing.T) {
 		}
 	}
 }
+
+// The caller's plumbing is marked wherever it is declared (F8-15): a caller-minted identifier, a
+// version read for If-Match, a reserved switch. The three names carry the same meaning in every
+// use case, so a descriptor that declares one unmarked is a form that would ask a rule's writer
+// about If-Match headers - which is what the second F8 walk read. And a string the description
+// calls RFC 3339 says so as a format, or a form draws a date as a text field.
+func TestPlumbingAndDatesAreMarkedOnEveryDescriptor(t *testing.T) {
+	for _, descriptor := range catalogue.Descriptors() {
+		for _, field := range descriptor.Input {
+			switch field.Name {
+			case "expected_version", "cascade_children":
+				if !field.CallerOnly {
+					t.Errorf("%s declares %s without CallerOnly", descriptor.Name, field.Name)
+				}
+			case "id":
+				if field.Kind == usecase.KindID && !field.CallerOnly {
+					t.Errorf("%s declares a caller-minted id without CallerOnly", descriptor.Name)
+				}
+			}
+			if strings.Contains(field.Description, "RFC 3339") && field.Kind == usecase.KindString &&
+				field.Format != usecase.FormatDateTime {
+				t.Errorf("%s.%s is described as RFC 3339 and has no date-time format", descriptor.Name, field.Name)
+			}
+			if field.Format != "" && field.Kind != usecase.KindString {
+				t.Errorf("%s.%s has a format and is not a string", descriptor.Name, field.Name)
+			}
+		}
+	}
+}
+
+// The summaries are the descriptors' own, one per action kind - the same key set as the actions,
+// so a catalogue in a rule editor never meets a kind it has no sentence for (F8-15).
+func TestAutomationActionSummariesAreTheDescriptorsOwn(t *testing.T) {
+	summaries := catalogue.AutomationActionSummaries()
+	actions := catalogue.AutomationActions()
+	if len(summaries) != len(actions) {
+		t.Fatalf("%d summaries for %d actions", len(summaries), len(actions))
+	}
+	for _, descriptor := range catalogue.Descriptors() {
+		summary, present := summaries[descriptor.AutomationAction()]
+		if !present {
+			t.Errorf("%s has no summary entry", descriptor.Name)
+			continue
+		}
+		if summary != descriptor.Summary {
+			t.Errorf("%s is summarised as %q, declares %q", descriptor.Name, summary, descriptor.Summary)
+		}
+		if strings.TrimSpace(summary) == "" {
+			t.Errorf("%s declares an empty summary; the catalogue would show its name alone", descriptor.Name)
+		}
+	}
+}
