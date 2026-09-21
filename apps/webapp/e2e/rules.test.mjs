@@ -277,13 +277,13 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
   await inspector.getByRole('button', { name: 'Add another sentence' }).click();
   await inspector.locator('[data-sentence="1"] select').nth(0).selectOption('title');
   await inspector.locator('[data-sentence="1"] input').fill('urgent');
-  assert.equal(await inspector.locator('code.compiled').textContent(), "has(item.due_at) && item.title.contains('urgent')");
+  assert.equal(await inspector.locator('code.compiled').textContent(), "has(item.due_at) && item.title.matches('(?i)urgent')");
 
   await page.getByRole('button', { name: 'Save the rule' }).click();
   await page.waitForTimeout(500);
   const patch = written.find((body) => body.actions);
   assert.equal(patch.conditions[0].expr, "item.type == 'TASK' || item.completed == true || (!(item.archived == true))");
-  assert.equal(patch.actions[1].params.condition, "has(item.due_at) && item.title.contains('urgent')");
+  assert.equal(patch.actions[1].params.condition, "has(item.due_at) && item.title.matches('(?i)urgent')");
 });
 
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {

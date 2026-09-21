@@ -174,12 +174,15 @@ test('a sentence compiles to the expression the server stores, and reads back fr
     [{ subject: 'hour', op: 'between', a: '8', b: '18' }, 'now.getHours() >= 8 && now.getHours() < 18'],
     [{ subject: 'field', op: 'is', a: 'priority', b: "O'Neil" }, "item.custom_fields['priority'] == 'O\\'Neil'"],
     // The subjects and operators of decision 15.
-    [{ subject: 'title', op: 'contains', a: 'permit' }, "item.title.contains('permit')"],
-    [{ subject: 'title', op: 'not_contains', a: 'draft' }, "!item.title.contains('draft')"],
-    [{ subject: 'title', op: 'starts_with', a: 'RFC' }, "item.title.startsWith('RFC')"],
+    // Case-insensitive, as an RE2 match with the value escaped: "permit" means "Permit" too.
+    [{ subject: 'title', op: 'contains', a: 'permit' }, "item.title.matches('(?i)permit')"],
+    [{ subject: 'title', op: 'not_contains', a: 'draft' }, "!item.title.matches('(?i)draft')"],
+    [{ subject: 'title', op: 'starts_with', a: 'RFC' }, "item.title.matches('(?i)^RFC')"],
+    // A metacharacter is escaped for RE2 and the backslash for CEL's string: two in the text.
+    [{ subject: 'title', op: 'contains', a: 'v1.2 (beta)' }, "item.title.matches('(?i)v1\\\\.2 \\\\(beta\\\\)')"],
     [{ subject: 'notes', op: 'empty' }, "item.notes == ''"],
     [{ subject: 'notes', op: 'not_empty' }, "item.notes != ''"],
-    [{ subject: 'notes', op: 'contains', a: 'blocked' }, "item.notes.contains('blocked')"],
+    [{ subject: 'notes', op: 'contains', a: 'blocked' }, "item.notes.matches('(?i)blocked')"],
     [{ subject: 'archived', op: 'yes' }, 'item.archived == true'],
     [{ subject: 'due', op: 'past' }, 'has(item.due_at) && item.due_at < now'],
     [{ subject: 'due', op: 'future' }, 'has(item.due_at) && item.due_at > now'],
@@ -231,7 +234,7 @@ test('a tree of conditions compiles with parentheses and reads back the same', (
   assert.equal(readNode("!(item.type == 'TASK' && has(item.due_at))"), undefined, 'not-all has no mode');
   assert.equal(readNode("(item.type == 'TASK'"), undefined);
   // A quoted join is not a join.
-  assert.deepEqual(readNode("item.title.contains('a && b')"), { subject: 'title', op: 'contains', a: 'a && b' });
+  assert.deepEqual(readNode("item.title.matches('(?i)a && b')"), { subject: 'title', op: 'contains', a: 'a && b' });
   // An empty group is no expression.
   assert.equal(compileNode({ mode: 'any', items: [] }), '');
 });

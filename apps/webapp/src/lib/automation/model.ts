@@ -381,16 +381,26 @@ const unquote = (value: string | undefined): string => (value ?? '').replace(/\\
 
 const days = (value: string): number => Math.max(0, Math.floor(Number(value) || 0));
 
+/**
+ * "Contains" and "starts with" are case-insensitive: a person who writes *permit* means *Permit*
+ * too. CEL's standard library has no case fold and this installation compiles no extension in, so
+ * the sentence becomes an RE2 match with the `(?i)` flag over the value with every metacharacter
+ * escaped - and reads back by unescaping it.
+ */
+const escapeRegex = (value: string): string => value.replace(/[\\^$.|?*+()[\]{}]/g, '\\$&');
+const unescapeRegex = (value: string): string => value.replace(/\\([\\^$.|?*+()[\]{}])/g, '$1');
+const insensitive = (value: string, anchored: boolean): string => quote(`(?i)${anchored ? '^' : ''}${escapeRegex(value)}`);
+
 export function compileSentence(sentence: Sentence): string {
   const { subject, op, a = '', b = '' } = sentence;
   switch (subject) {
     case 'type':
       return `item.type ${op === 'is' ? '==' : '!='} ${quote(a)}`;
     case 'title':
-      if (op === 'starts_with') return `item.title.startsWith(${quote(a)})`;
-      return `${op === 'not_contains' ? '!' : ''}item.title.contains(${quote(a)})`;
+      if (op === 'starts_with') return `item.title.matches(${insensitive(a, true)})`;
+      return `${op === 'not_contains' ? '!' : ''}item.title.matches(${insensitive(a, false)})`;
     case 'notes':
-      if (op === 'contains') return `item.notes.contains(${quote(a)})`;
+      if (op === 'contains') return `item.notes.matches(${insensitive(a, false)})`;
       return `item.notes ${op === 'empty' ? '==' : '!='} ''`;
     case 'completed':
       return `item.completed == ${op === 'yes' ? 'true' : 'false'}`;
@@ -427,9 +437,9 @@ const QUOTED = "'((?:[^'\\\\]|\\\\.)*)'";
 
 const SHAPES: readonly { pattern: RegExp; read: (m: RegExpExecArray) => Sentence }[] = [
   { pattern: new RegExp(`^item\\.type (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'type', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
-  { pattern: new RegExp(`^(!?)item\\.title\\.contains\\(${QUOTED}\\)$`), read: (m) => ({ subject: 'title', op: m[1] ? 'not_contains' : 'contains', a: unquote(m[2]) }) },
-  { pattern: new RegExp(`^item\\.title\\.startsWith\\(${QUOTED}\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unquote(m[1]) }) },
-  { pattern: new RegExp(`^item\\.notes\\.contains\\(${QUOTED}\\)$`), read: (m) => ({ subject: 'notes', op: 'contains', a: unquote(m[1]) }) },
+  { pattern: new RegExp(`^(!?)item\\.title\\.matches\\('\\(\\?i\\)\\^((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unescapeRegex(unquote(m[2])) }) },
+  { pattern: new RegExp(`^(!?)item\\.title\\.matches\\('\\(\\?i\\)((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: m[1] ? 'not_contains' : 'contains', a: unescapeRegex(unquote(m[2])) }) },
+  { pattern: new RegExp(`^item\\.notes\\.matches\\('\\(\\?i\\)((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'notes', op: 'contains', a: unescapeRegex(unquote(m[1])) }) },
   { pattern: /^item\.notes (==|!=) ''$/, read: (m) => ({ subject: 'notes', op: m[1] === '==' ? 'empty' : 'not_empty' }) },
   { pattern: /^item\.completed == (true|false)$/, read: (m) => ({ subject: 'completed', op: m[1] === 'true' ? 'yes' : 'no' }) },
   { pattern: /^item\.archived == (true|false)$/, read: (m) => ({ subject: 'archived', op: m[1] === 'true' ? 'yes' : 'no' }) },
