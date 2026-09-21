@@ -1,6 +1,6 @@
 # ADR-0061 — Page anatomy: one navigation, the shell wave, and status as a surface
 
-**Status:** proposed · **Date:** 2026-09-21
+**Status:** accepted · **Date:** 2026-09-21 · **Accepted:** 2026-09-21
 
 ## Context
 

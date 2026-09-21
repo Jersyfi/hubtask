@@ -472,11 +472,19 @@ teaches the screenshots.
   unfinished` story shows the idea (three nested planes, the innermost in bordeaux) but is not a
   finished mark. It moved there with the page that used to hold it, because it was the only drawn
   record of it.
-- **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
-  Narrowed by [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md): the web app's phone
-  layout — the shell, the bottom bar, the one-column entry, the board one column at a time — is
-  F9's and no longer waits for a shell. What stays open is only what a shell can do: the
-  conventions of the installed clients, in F7.
+- ~~**Platform adaptation, for the web**~~ — closed by F9
+  ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md), walked in
+  [F9-2026-09-21.md](../evidence/F9-2026-09-21.md)): the web app's phone layout is built and is
+  the layout the shells will render as it is — one list of destinations drawn as a pinned side
+  nav, a drawer and a bottom bar by width; a page head with one primary action and a menu; the
+  entry as head, subtree, details beside the text and the history as tabs; the board one column
+  at a time; the detail pane from `large`; `density.spacious` below `medium` and under a coarse
+  pointer; the safe-area insets read by the bars. Width is the whole condition — nothing under
+  `src/lib/platform/` decides a layout — so the desktop shell dragged to a phone's width is the
+  phone. **What stays open is only what a shell can do**, and it stays with F7: the system
+  conventions of the installed clients — the back gesture and the swipe as the history they
+  already are, the share sheet, the keyboard's accessory row, the status bar's colour, and the
+  administration row rendered as ADR-0032's affordance in a build that excludes the routes.
 - ~~**A browser support row**~~ — closed by
   [ADR-0044](../adr/ADR-0044-browser-support-row.md): the current and the previous major of
   Chromium, Gecko and WebKit, in `support-matrix.md` §5. It was affordable because nothing had to be
@@ -517,7 +525,8 @@ teaches the screenshots.
   about is the `attach` role; and the tone in `voice-and-tone.md` §7 — offered, never asserted.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: the wordmark in `F1`, because the website needs it; platform adaptation in `F7`, with the mobile shell that raises the question.
+list: the wordmark in `F1`, because the website needs it; what is left of platform adaptation in
+`F7`, with the mobile shell that raises the question.
 
 ---
 
