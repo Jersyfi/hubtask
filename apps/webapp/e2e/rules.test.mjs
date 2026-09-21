@@ -257,6 +257,38 @@ test('chromium: a stop goes last - refused in the middle, landing at the end, an
   assert.equal(await page.locator('[data-card="1"].unreachable').count(), 0);
 });
 
+test('chromium: a condition is composed as a tree in the gate and in a branch, and the write carries the CEL', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 1200 });
+  const inspector = page.locator('aside.inspector');
+
+  // The gate's condition: the sentence it holds becomes "any of" it and one more, with a group under them.
+  await page.locator('[data-card="conditions/0"]').click();
+  await inspector.getByRole('button', { name: 'Add another sentence' }).click();
+  await inspector.locator('select.mode').first().selectOption('any');
+  await inspector.locator('[data-sentence="1"] select').nth(0).selectOption('completed');
+  await inspector.getByRole('button', { name: 'Add a group' }).click();
+  await inspector.locator('[data-group="2"] select.mode').selectOption('none');
+  await inspector.locator('[data-sentence="2/0"] select').nth(0).selectOption('archived');
+  assert.equal(await inspector.locator('code.compiled').textContent(), "item.type == 'TASK' || item.completed == true || (!(item.archived == true))");
+  assert.equal(await page.locator('[data-card="conditions/0"] .words').textContent(), "the entry's type is TASK or completion yes or (none of: archived yes)");
+
+  // A branch's condition takes the same composer.
+  await page.locator('[data-card="1"]').click();
+  await inspector.getByRole('button', { name: 'Add another sentence' }).click();
+  await inspector.locator('[data-sentence="1"] select').nth(0).selectOption('title');
+  await inspector.locator('[data-sentence="1"] input').fill('urgent');
+  assert.equal(await inspector.locator('code.compiled').textContent(), "has(item.due_at) && item.title.matches('(?i)urgent')");
+
+  await page.getByRole('button', { name: 'Save the rule' }).click();
+  await page.waitForTimeout(500);
+  const patch = written.find((body) => body.actions);
+  assert.equal(patch.conditions[0].expr, "item.type == 'TASK' || item.completed == true || (!(item.archived == true))");
+  assert.equal(patch.actions[1].params.condition, "has(item.due_at) && item.title.matches('(?i)urgent')");
+});
+
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
