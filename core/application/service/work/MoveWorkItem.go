@@ -748,7 +748,7 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 					"sibling. Contradicts before_item_id and is refused beside it.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller read none and accepts whatever " +
 					"is there; a version that has moved on since is refused rather than overwritten.",
 			},
@@ -792,7 +792,7 @@ func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 					"Contradicts before_item_id and is refused beside it.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, as on a move.",
 			},
 		},

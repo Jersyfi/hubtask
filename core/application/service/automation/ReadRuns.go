@@ -207,8 +207,8 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 				Description: "Narrow to one way of starting. \"Did the schedule fire last night\" " +
 					"and \"did anybody press the button\" are two questions about the same rule.",
 			},
-			{Name: "from", Kind: usecase.KindString, Description: "The start of the window on started_at, inclusive. RFC 3339."},
-			{Name: "to", Kind: usecase.KindString, Description: "The end of the window on started_at, exclusive. RFC 3339."},
+			{Name: "from", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "The start of the window on started_at, inclusive. RFC 3339."},
+			{Name: "to", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "The end of the window on started_at, exclusive. RFC 3339."},
 			{Name: "cursor", Kind: usecase.KindString, Description: "Where the last page stopped."},
 			{Name: "size", Kind: usecase.KindInt, Description: "How many at most. Fifty by default, two hundred at most."},
 		},

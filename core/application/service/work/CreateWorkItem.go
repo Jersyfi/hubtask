@@ -820,6 +820,7 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{
 				Name: "id", Kind: usecase.KindID,
+				CallerOnly: true,
 				Description: "The identifier the caller minted, a UUIDv7. Offline clients assign " +
 					"their own so that an entry created away from the server has its final " +
 					"identity at once; leave it out and the server mints one.",
@@ -882,7 +883,7 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"than failing the creation.",
 			},
 			{
-				Name: "start_at", Kind: usecase.KindString,
+				Name: "start_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the work begins, RFC 3339 - the timeline view's field. " +
 					"Omitted for an entry with no start.",
 			},
@@ -894,7 +895,7 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"URL path segment. Leave it out for an entry no calendar client made.",
 			},
 			{
-				Name: "due_at", Kind: usecase.KindString,
+				Name: "due_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the entry is due, RFC 3339, with the same rules as the due " +
 					"date route: the entry is created already carrying it, and the scheduler " +
 					"hears " + string(event.ItemDueChanged) + " beside the create.",

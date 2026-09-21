@@ -633,7 +633,7 @@ func (h SetRecurrence) Descriptor() usecase.Descriptor {
 				Description: "How far ahead occurrences are kept, in days. Omitted means 90.",
 			},
 			{
-				Name: "ends_at", Kind: usecase.KindString,
+				Name: "ends_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the series stops, RFC 3339. At most one of ends_at and max_count.",
 			},
 			{
@@ -641,7 +641,7 @@ func (h SetRecurrence) Descriptor() usecase.Descriptor {
 				Description: "How many occurrences the series produces at most.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read (If-Match). Omitted accepts what is there.",
 			},
 		},
@@ -710,7 +710,7 @@ func (h RemoveRecurrence) Descriptor() usecase.Descriptor {
 				Description: "The entry that should stop repeating.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read (If-Match). Omitted accepts what is there.",
 			},
 		},
