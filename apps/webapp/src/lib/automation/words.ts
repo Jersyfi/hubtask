@@ -12,7 +12,7 @@
  */
 
 import type { Draft, Step, TriggerDraft } from './model.ts';
-import { nameSeed, readSentence, type Sentence } from './model.ts';
+import { isGroup, nameSeed, readNode, type Node, type Sentence } from './model.ts';
 
 /** How the catalogue is asked: the renderer, and whether it has an entry. */
 export interface Catalogue {
@@ -190,9 +190,17 @@ export function kindIcon(kind: string): KindIconName {
 
 /** One condition, as words: the sentence's subject and value, or "the expression holds". */
 export function conditionWords(words: Catalogue, names: Names, expr: string): string {
-  const sentence = readSentence(expr);
-  if (!sentence) return words.t('app.flow.sentence_expression');
-  return sentenceWords(words, names, sentence);
+  const node = readNode(expr);
+  if (!node) return words.t('app.flow.sentence_expression');
+  return nodeWords(words, names, node);
+}
+
+/** A tree as one sentence: "the type is TASK and (a due date is set or the entry is archived)". */
+export function nodeWords(words: Catalogue, names: Names, node: Node): string {
+  if (!isGroup(node)) return sentenceWords(words, names, node);
+  const parts = node.items.map((item) => (isGroup(item) ? `(${nodeWords(words, names, item)})` : nodeWords(words, names, item)));
+  if (node.mode === 'none') return words.t('app.flow.sentence_none', { items: parts.join(words.t('app.flow.sentence_or')) });
+  return parts.join(node.mode === 'all' ? words.t('app.flow.sentence_and') : words.t('app.flow.sentence_or'));
 }
 
 export function sentenceWords(words: Catalogue, names: Names, sentence: Sentence): string {
@@ -203,6 +211,13 @@ export function sentenceWords(words: Catalogue, names: Names, sentence: Sentence
       return `${subject} ${op} ${words.t('app.flow.hour_range', { from: sentence.a ?? '', to: sentence.b ?? '' })}`;
     case 'field':
       return `${subject} „${sentence.a ?? ''}“ ${op} „${sentence.b ?? ''}“`;
+    case 'title':
+    case 'notes':
+      return sentence.a !== undefined ? `${subject} ${op} „${sentence.a}“` : `${subject} ${op}`;
+    case 'due':
+      return sentence.op === 'within' ? `${subject} ${op} ${words.t('app.flow.days', { count: Number(sentence.a) || 0 })}` : `${subject} ${op}`;
+    case 'depth':
+      return `${subject} ${op} ${sentence.a ?? ''}`;
     case 'assignee':
     case 'actor':
       return sentence.a ? `${subject} ${op} ${names.account(sentence.a)}` : `${subject} ${op}`;

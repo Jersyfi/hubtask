@@ -339,7 +339,8 @@ export const isAutomatic = (name: string, generated: string): boolean => name.tr
  * actor, and the hour of `now`. Labels are not among them: the run's document has no `labels` key
  * today (issue 807), and a subject the run cannot answer would compile into a rule that fails.
  */
-export type Subject = 'type' | 'completed' | 'due' | 'assignee' | 'bucket' | 'parent' | 'actor' | 'hour' | 'field';
+export type Subject =
+  | 'type' | 'title' | 'notes' | 'completed' | 'archived' | 'due' | 'assignee' | 'bucket' | 'parent' | 'depth' | 'actor' | 'hour' | 'field';
 
 export interface Sentence {
   subject: Subject;
@@ -351,42 +352,66 @@ export interface Sentence {
 /** The operators each subject takes, in the order a picker offers them. */
 export const OPERATORS: Record<Subject, readonly string[]> = {
   type: ['is', 'is_not'],
+  title: ['contains', 'not_contains', 'starts_with'],
+  notes: ['empty', 'not_empty', 'contains'],
   completed: ['yes', 'no'],
-  due: ['has', 'lacks'],
-  assignee: ['has', 'lacks', 'is'],
+  archived: ['yes', 'no'],
+  due: ['has', 'lacks', 'past', 'future', 'within'],
+  assignee: ['has', 'lacks', 'is', 'is_not'],
   bucket: ['is', 'is_not'],
   parent: ['has', 'lacks'],
+  depth: ['is', 'at_most'],
   actor: ['is', 'is_not'],
   hour: ['between'],
   field: ['is', 'is_not'],
 };
 
 /** Whether the operator takes a value, and which. */
-export function takes(subject: Subject, op: string): 'none' | 'value' | 'range' | 'key_value' {
+export function takes(subject: Subject, op: string): 'none' | 'value' | 'number' | 'days' | 'range' | 'key_value' {
   if (subject === 'hour') return 'range';
   if (subject === 'field') return 'key_value';
-  if (op === 'has' || op === 'lacks' || op === 'yes' || op === 'no') return 'none';
+  if (subject === 'depth') return 'number';
+  if (subject === 'due') return op === 'within' ? 'days' : 'none';
+  if (op === 'has' || op === 'lacks' || op === 'yes' || op === 'no' || op === 'empty' || op === 'not_empty') return 'none';
   return 'value';
 }
 
 const quote = (value: string): string => `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 const unquote = (value: string | undefined): string => (value ?? '').replace(/\\'/g, "'").replace(/\\\\/g, '\\');
 
+const days = (value: string): number => Math.max(0, Math.floor(Number(value) || 0));
+
 export function compileSentence(sentence: Sentence): string {
   const { subject, op, a = '', b = '' } = sentence;
   switch (subject) {
     case 'type':
       return `item.type ${op === 'is' ? '==' : '!='} ${quote(a)}`;
+    case 'title':
+      if (op === 'starts_with') return `item.title.startsWith(${quote(a)})`;
+      return `${op === 'not_contains' ? '!' : ''}item.title.contains(${quote(a)})`;
+    case 'notes':
+      if (op === 'contains') return `item.notes.contains(${quote(a)})`;
+      return `item.notes ${op === 'empty' ? '==' : '!='} ''`;
     case 'completed':
       return `item.completed == ${op === 'yes' ? 'true' : 'false'}`;
+    case 'archived':
+      return `item.archived == ${op === 'yes' ? 'true' : 'false'}`;
     case 'due':
-      return op === 'has' ? 'has(item.due_at)' : '!has(item.due_at)';
+      // The three that compare need the date to be there first: `dyn < timestamp` on a missing
+      // key is an error at the run, not a false. `now` is the run's one instant.
+      if (op === 'has') return 'has(item.due_at)';
+      if (op === 'lacks') return '!has(item.due_at)';
+      if (op === 'past') return 'has(item.due_at) && item.due_at < now';
+      if (op === 'future') return 'has(item.due_at) && item.due_at > now';
+      return `has(item.due_at) && item.due_at < now + duration(${quote(`${days(a) * 24}h`)})`;
     case 'parent':
       return op === 'has' ? 'has(item.parent_id)' : '!has(item.parent_id)';
+    case 'depth':
+      return `item.depth ${op === 'is' ? '==' : '<='} ${Number(a) || 0}`;
     case 'assignee':
       if (op === 'has') return 'has(item.assignee_id)';
       if (op === 'lacks') return '!has(item.assignee_id)';
-      return `item.assignee_id == ${quote(a)}`;
+      return `item.assignee_id ${op === 'is' ? '==' : '!='} ${quote(a)}`;
     case 'bucket':
       return `item.bucket_id ${op === 'is' ? '==' : '!='} ${quote(a)}`;
     case 'actor':
@@ -402,11 +427,19 @@ const QUOTED = "'((?:[^'\\\\]|\\\\.)*)'";
 
 const SHAPES: readonly { pattern: RegExp; read: (m: RegExpExecArray) => Sentence }[] = [
   { pattern: new RegExp(`^item\\.type (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'type', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
+  { pattern: new RegExp(`^(!?)item\\.title\\.contains\\(${QUOTED}\\)$`), read: (m) => ({ subject: 'title', op: m[1] ? 'not_contains' : 'contains', a: unquote(m[2]) }) },
+  { pattern: new RegExp(`^item\\.title\\.startsWith\\(${QUOTED}\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unquote(m[1]) }) },
+  { pattern: new RegExp(`^item\\.notes\\.contains\\(${QUOTED}\\)$`), read: (m) => ({ subject: 'notes', op: 'contains', a: unquote(m[1]) }) },
+  { pattern: /^item\.notes (==|!=) ''$/, read: (m) => ({ subject: 'notes', op: m[1] === '==' ? 'empty' : 'not_empty' }) },
   { pattern: /^item\.completed == (true|false)$/, read: (m) => ({ subject: 'completed', op: m[1] === 'true' ? 'yes' : 'no' }) },
+  { pattern: /^item\.archived == (true|false)$/, read: (m) => ({ subject: 'archived', op: m[1] === 'true' ? 'yes' : 'no' }) },
   { pattern: /^(!?)has\(item\.due_at\)$/, read: (m) => ({ subject: 'due', op: m[1] ? 'lacks' : 'has' }) },
+  { pattern: /^has\(item\.due_at\) && item\.due_at (<|>) now$/, read: (m) => ({ subject: 'due', op: m[1] === '<' ? 'past' : 'future' }) },
+  { pattern: /^has\(item\.due_at\) && item\.due_at < now \+ duration\('(\d+)h'\)$/, read: (m) => ({ subject: 'due', op: 'within', a: String(Math.floor(Number(m[1]) / 24)) }) },
   { pattern: /^(!?)has\(item\.parent_id\)$/, read: (m) => ({ subject: 'parent', op: m[1] ? 'lacks' : 'has' }) },
+  { pattern: /^item\.depth (==|<=) (\d+)$/, read: (m) => ({ subject: 'depth', op: m[1] === '==' ? 'is' : 'at_most', a: m[2] }) },
   { pattern: /^(!?)has\(item\.assignee_id\)$/, read: (m) => ({ subject: 'assignee', op: m[1] ? 'lacks' : 'has' }) },
-  { pattern: new RegExp(`^item\\.assignee_id == ${QUOTED}$`), read: (m) => ({ subject: 'assignee', op: 'is', a: unquote(m[1]) }) },
+  { pattern: new RegExp(`^item\\.assignee_id (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'assignee', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
   { pattern: new RegExp(`^item\\.bucket_id (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'bucket', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
   { pattern: new RegExp(`^actor\\.id (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'actor', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
   { pattern: /^now\.getHours\(\) >= (\d+) && now\.getHours\(\) < (\d+)$/, read: (m) => ({ subject: 'hour', op: 'between', a: m[1], b: m[2] }) },
@@ -425,3 +458,125 @@ export function readSentence(expr: string): Sentence | undefined {
 
 /** A sentence's first shape, for a new condition. */
 export const defaultSentence = (): Sentence => ({ subject: 'type', op: 'is', a: 'TASK' });
+
+/* ---------- The tree (decision 15) ---------- */
+
+/**
+ * A condition as a tree: sentences under *all of*, *any of* or *none of*, nested as deep as the
+ * writer likes. Compiled to CEL with parentheses and read back by the same grammar - top-level
+ * `||` first, then `&&`, a leading `!(…)` for *none*, a pair of parentheses around a group - and
+ * anything else stays an expression, as decision 3 says. A group is one `expr` on the server;
+ * nothing there changes.
+ */
+export type GroupMode = 'all' | 'any' | 'none';
+
+export interface Group {
+  mode: GroupMode;
+  items: Node[];
+}
+
+export type Node = Sentence | Group;
+
+export const isGroup = (node: Node): node is Group => 'items' in node;
+
+/** A fresh group of the mode, holding one default sentence. */
+export const newGroup = (mode: GroupMode = 'any'): Group => ({ mode, items: [defaultSentence()] });
+
+/** Whether an expression has `&&` or `||` outside every pair of parentheses and quotes. */
+function hasTopLevelJoin(expr: string): boolean {
+  return splitTopLevel(expr, '&&').length > 1 || splitTopLevel(expr, '||').length > 1;
+}
+
+export function compileNode(node: Node): string {
+  if (!isGroup(node)) return compileSentence(node);
+  const parts = node.items.map((item) => {
+    const compiled = compileNode(item);
+    // A nested group and a sentence that is itself a join (the hour, a due date compared) are
+    // parenthesised, so what the writer grouped is what the engine groups.
+    return isGroup(item) || hasTopLevelJoin(compiled) ? `(${compiled})` : compiled;
+  }).filter((part) => part !== '' && part !== '()');
+  if (parts.length === 0) return '';
+  if (node.mode === 'none') return `!(${parts.join(' || ')})`;
+  return parts.join(node.mode === 'all' ? ' && ' : ' || ');
+}
+
+/** The expression split at a join outside every pair of parentheses and quotes. */
+function splitTopLevel(expr: string, join: '&&' | '||'): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quoted = false;
+  let start = 0;
+  for (let at = 0; at < expr.length; at += 1) {
+    const char = expr[at];
+    if (quoted) {
+      if (char === '\\') at += 1;
+      else if (char === "'") quoted = false;
+      continue;
+    }
+    if (char === "'") quoted = true;
+    else if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if (depth === 0 && expr.startsWith(join, at)) {
+      parts.push(expr.slice(start, at));
+      start = at + 2;
+      at += 1;
+    }
+  }
+  parts.push(expr.slice(start));
+  return parts.map((part) => part.trim());
+}
+
+/** Whether the first `(` closes at the very end, so the pair wraps the whole expression. */
+function wrapped(expr: string): boolean {
+  if (!expr.startsWith('(') || !expr.endsWith(')')) return false;
+  let depth = 0;
+  let quoted = false;
+  for (let at = 0; at < expr.length; at += 1) {
+    const char = expr[at];
+    if (quoted) {
+      if (char === '\\') at += 1;
+      else if (char === "'") quoted = false;
+      continue;
+    }
+    if (char === "'") quoted = true;
+    else if (char === '(') depth += 1;
+    else if (char === ')') {
+      depth -= 1;
+      if (depth === 0 && at < expr.length - 1) return false;
+    }
+  }
+  return depth === 0;
+}
+
+/** The tree an expression is, where the composer could have written it; undefined otherwise. */
+export function readNode(expr: string): Node | undefined {
+  const trimmed = expr.trim();
+  if (trimmed === '') return undefined;
+  const sentence = readSentence(trimmed);
+  if (sentence) return sentence;
+  if (trimmed.startsWith('!(') && wrapped(trimmed.slice(1))) {
+    const inner = readNode(trimmed.slice(2, -1));
+    if (!inner) return undefined;
+    // `!(a || b)` is none-of; `!(a && b)` has no mode of its own and stays an expression.
+    if (isGroup(inner)) return inner.mode === 'any' ? { mode: 'none', items: inner.items } : undefined;
+    return { mode: 'none', items: [inner] };
+  }
+  if (wrapped(trimmed)) {
+    const inner = readNode(trimmed.slice(1, -1));
+    // A pair of parentheses around one sentence is a group of one: the composer writes it for a
+    // group the writer has just made and not yet filled, and reading it back as the bare
+    // sentence would make the group vanish under their hands.
+    // Except a sentence that is itself a join - the hour, a due date compared - whose parentheses
+    // the compiler wrote for the join; those read back as the sentence.
+    return inner && !isGroup(inner) && !hasTopLevelJoin(compileSentence(inner)) ? { mode: 'all', items: [inner] } : inner;
+  }
+  for (const [join, mode] of [['||', 'any'], ['&&', 'all']] as const) {
+    const parts = splitTopLevel(trimmed, join);
+    if (parts.length > 1) {
+      const items = parts.map((part) => readNode(part));
+      if (items.some((item) => item === undefined)) return undefined;
+      return { mode, items: items as Node[] };
+    }
+  }
+  return undefined;
+}

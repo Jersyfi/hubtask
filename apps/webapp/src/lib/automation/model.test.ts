@@ -5,7 +5,30 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Rule } from '../data/rules.svelte.ts';
-import { canPlace, compileSentence, countSteps, depthOf, fromRule, insertAt, isAutomatic, moveStep, nameSeed, newStep, nudge, pathOf, pointerOf, readSentence, removeAt, stepAt, toRuleDraft, unreachableFrom, type Sentence } from './model.ts';
+import {
+  canPlace,
+  compileNode,
+  compileSentence,
+  countSteps,
+  depthOf,
+  fromRule,
+  insertAt,
+  isAutomatic,
+  moveStep,
+  nameSeed,
+  newStep,
+  nudge,
+  pathOf,
+  pointerOf,
+  readNode,
+  readSentence,
+  removeAt,
+  stepAt,
+  toRuleDraft,
+  unreachableFrom,
+  type Node,
+  type Sentence,
+} from './model.ts';
 
 /** A stored rule with everything the old form could write, plus a branch, a wait and a stop. */
 const STORED: Rule = {
@@ -150,6 +173,20 @@ test('a sentence compiles to the expression the server stores, and reads back fr
     [{ subject: 'actor', op: 'is', a: 'acc-2' }, "actor.id == 'acc-2'"],
     [{ subject: 'hour', op: 'between', a: '8', b: '18' }, 'now.getHours() >= 8 && now.getHours() < 18'],
     [{ subject: 'field', op: 'is', a: 'priority', b: "O'Neil" }, "item.custom_fields['priority'] == 'O\\'Neil'"],
+    // The subjects and operators of decision 15.
+    [{ subject: 'title', op: 'contains', a: 'permit' }, "item.title.contains('permit')"],
+    [{ subject: 'title', op: 'not_contains', a: 'draft' }, "!item.title.contains('draft')"],
+    [{ subject: 'title', op: 'starts_with', a: 'RFC' }, "item.title.startsWith('RFC')"],
+    [{ subject: 'notes', op: 'empty' }, "item.notes == ''"],
+    [{ subject: 'notes', op: 'not_empty' }, "item.notes != ''"],
+    [{ subject: 'notes', op: 'contains', a: 'blocked' }, "item.notes.contains('blocked')"],
+    [{ subject: 'archived', op: 'yes' }, 'item.archived == true'],
+    [{ subject: 'due', op: 'past' }, 'has(item.due_at) && item.due_at < now'],
+    [{ subject: 'due', op: 'future' }, 'has(item.due_at) && item.due_at > now'],
+    [{ subject: 'due', op: 'within', a: '3' }, "has(item.due_at) && item.due_at < now + duration('72h')"],
+    [{ subject: 'depth', op: 'is', a: '0' }, 'item.depth == 0'],
+    [{ subject: 'depth', op: 'at_most', a: '2' }, 'item.depth <= 2'],
+    [{ subject: 'assignee', op: 'is_not', a: 'acc-1' }, "item.assignee_id != 'acc-1'"],
   ];
   for (const [sentence, expr] of cases) {
     assert.equal(compileSentence(sentence), expr);
@@ -157,4 +194,44 @@ test('a sentence compiles to the expression the server stores, and reads back fr
   }
   assert.equal(readSentence('size(item.title) > 3'), undefined, 'an expression the composer did not write');
   assert.equal(readSentence("item.type == 'TASK' || item.completed"), undefined);
+});
+
+// A condition as a tree (decision 15): all / any / none over sentences and groups, compiled with
+// parentheses and read back by the same grammar; a shape the composer did not write stays an
+// expression, and a sentence alone is unchanged.
+test('a tree of conditions compiles with parentheses and reads back the same', () => {
+  const type: Sentence = { subject: 'type', op: 'is', a: 'TASK' };
+  const due: Sentence = { subject: 'due', op: 'has' };
+  const hour: Sentence = { subject: 'hour', op: 'between', a: '8', b: '18' };
+  const archived: Sentence = { subject: 'archived', op: 'yes' };
+  const cases: readonly [Node, string][] = [
+    [type, "item.type == 'TASK'"],
+    [{ mode: 'all', items: [type, due] }, "item.type == 'TASK' && has(item.due_at)"],
+    [{ mode: 'any', items: [type, due] }, "item.type == 'TASK' || has(item.due_at)"],
+    [{ mode: 'none', items: [type, due] }, "!(item.type == 'TASK' || has(item.due_at))"],
+    [{ mode: 'none', items: [type] }, "!(item.type == 'TASK')"],
+    // Nested two deep, and a sentence that is itself a join parenthesised inside a group.
+    [{ mode: 'all', items: [type, { mode: 'any', items: [due, archived] }] }, "item.type == 'TASK' && (has(item.due_at) || item.archived == true)"],
+    [{ mode: 'any', items: [{ mode: 'all', items: [type, hour] }, { mode: 'none', items: [archived] }] }, "(item.type == 'TASK' && (now.getHours() >= 8 && now.getHours() < 18)) || (!(item.archived == true))"],
+    [{ mode: 'all', items: [{ mode: 'any', items: [type, { mode: 'all', items: [due, archived] }] }, hour] }, "(item.type == 'TASK' || (has(item.due_at) && item.archived == true)) && (now.getHours() >= 8 && now.getHours() < 18)"],
+  ];
+  for (const [node, expr] of cases) {
+    assert.equal(compileNode(node), expr);
+    assert.deepEqual(readNode(expr), node, expr);
+  }
+  // A group of one at the root compiles to the sentence and reads back as one; nested, its
+  // parentheses keep it a group, so a group just made does not vanish under the writer's hands.
+  assert.equal(compileNode({ mode: 'all', items: [type] }), "item.type == 'TASK'");
+  assert.deepEqual(readNode("item.type == 'TASK'"), type);
+  const nestedOne: Node = { mode: 'any', items: [type, { mode: 'all', items: [due] }] };
+  assert.equal(compileNode(nestedOne), "item.type == 'TASK' || (has(item.due_at))");
+  assert.deepEqual(readNode("item.type == 'TASK' || (has(item.due_at))"), nestedOne);
+  // An expression the composer did not write, in whole or in part, stays one.
+  assert.equal(readNode("item.type == 'TASK' && size(item.title) > 3"), undefined);
+  assert.equal(readNode("!(item.type == 'TASK' && has(item.due_at))"), undefined, 'not-all has no mode');
+  assert.equal(readNode("(item.type == 'TASK'"), undefined);
+  // A quoted join is not a join.
+  assert.deepEqual(readNode("item.title.contains('a && b')"), { subject: 'title', op: 'contains', a: 'a && b' });
+  // An empty group is no expression.
+  assert.equal(compileNode({ mode: 'any', items: [] }), '');
 });
