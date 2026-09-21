@@ -150,7 +150,9 @@
 
   /* While a piece is lifted (decision 7): a gap that may take it widens into a labelled target,
      one that may not fades and refuses; the one under the pointer fills. */
-  .target .slot { width: min(24ch, 90%); border-color: var(--accent-primary); color: var(--accent-primary); background: var(--accent-primary-subtle); transform: none; }
+  /* Sized by its words, not by its wrapper: the popover's anchor shrinks to fit, so a percentage
+     of it was a circle with two lines of text in it. */
+  .target .slot { width: auto; min-width: 12ch; padding-inline: var(--sp-150); border-color: var(--accent-primary); color: var(--accent-primary); background: var(--accent-primary-subtle); transform: none; white-space: nowrap; }
 
   .over .slot { background: var(--accent-primary); color: var(--text-inverse); }
 
