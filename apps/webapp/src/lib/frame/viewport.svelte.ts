@@ -19,6 +19,7 @@ export class Viewport {
   #isCompact = $state(false);
   #isBelowExpanded = $state(false);
   #isCoarse = $state(false);
+  #isLarge = $state(false);
 
   /** Below `medium`: one column, the bottom bar, `density.spacious`. */
   get isCompact(): boolean {
@@ -28,6 +29,11 @@ export class Viewport {
   /** Below `expanded`: the navigation is a drawer rather than pinned. */
   get isBelowExpanded(): boolean {
     return this.#isBelowExpanded;
+  }
+
+  /** From `large`: the list and the detail pane beside it. */
+  get isLarge(): boolean {
+    return this.#isLarge;
   }
 
   /** The primary pointer is a finger rather than a mouse. */
@@ -40,12 +46,13 @@ export class Viewport {
     return this.#isCompact || this.#isCoarse;
   }
 
-  /** Starts listening. Nothing happens where there is no window - a test - and the widths stay wide. */
+  /** Starts listening. Nothing happens where there is no window - a test - and the widths stay `expanded`. */
   start(): () => void {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
     const style = getComputedStyle(document.documentElement);
     const medium = Number.parseFloat(style.getPropertyValue('--bp-medium'));
     const expanded = Number.parseFloat(style.getPropertyValue('--bp-expanded'));
+    const large = Number.parseFloat(style.getPropertyValue('--bp-large'));
 
     const stops: (() => void)[] = [];
     const watch = (query: string, apply: (matches: boolean) => void) => {
@@ -60,6 +67,7 @@ export class Viewport {
     // a minus one that would be a second number to keep in step with the token.
     if (Number.isFinite(medium)) watch(`(width < ${medium}px)`, (matches) => (this.#isCompact = matches));
     if (Number.isFinite(expanded)) watch(`(width < ${expanded}px)`, (matches) => (this.#isBelowExpanded = matches));
+    if (Number.isFinite(large)) watch(`(width >= ${large}px)`, (matches) => (this.#isLarge = matches));
     watch('(pointer: coarse)', (matches) => (this.#isCoarse = matches));
 
     return () => {
