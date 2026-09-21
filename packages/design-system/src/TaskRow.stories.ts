@@ -51,3 +51,10 @@ export const subtree: Story = {
     'An entry’s subtree as the detail pane holds it (ADR-0061 decision 4): the tree is `layout.pane.width` wide, so the indent’s step is the smaller one and stops at the third level — deeper rows keep that indent, and the type mark says the level. Depth comes from the tree, never from a type name: the fourth level here is a type this client has never heard of, at `depth 3`, and no code (arc42 Q-03). A container query on the tree, not a media query; switch the width axis to Desktop and the tree is still 400 px.',
   args: { mode: 'subtree' },
 };
+
+export const beside: Story = {
+  name: 'One row open beside the list',
+  about:
+    'From `large` up an entry opens in the detail pane beside its list rather than on its own page (ADR-0061 decision 4). The row it came from stays `aria-current` and carries the rail, and a plain press on a title opens beside — the link keeps its address, so a middle click, a modifier or “open in a new tab” still go to the entry’s page, and a reader still hears a link. Press a title: the current row moves and focus stays in the list.',
+  args: { mode: 'beside' },
+};

@@ -19,7 +19,13 @@
   interface Props {
     /** Where the row goes. Present makes it a link. */
     href?: string;
-    /** What pressing the row does when it does not navigate. Present makes it a button. */
+    /**
+     * What pressing the row does when it does not navigate. Present without `href` makes it a
+     * button. Present *with* `href` it is what a plain press does instead of navigating - an entry
+     * opened beside its list (ADR-0061 decision 4) - while the link stays a link: a middle click, a
+     * modifier or "open in a new tab" still go to the address, and a reader still hears a link to
+     * where the row leads.
+     */
     onactivate?: () => void;
     /** Whether this row is the chosen one, where a list has a selection. */
     isSelected?: boolean;
@@ -46,7 +52,17 @@
   {/if}
 
   {#if href !== undefined}
-    <a class="content" {href} aria-label={label} aria-current={isSelected ? 'true' : undefined}>
+    <a
+      class="content"
+      {href}
+      aria-label={label}
+      aria-current={isSelected ? 'true' : undefined}
+      onclick={(event) => {
+        if (!onactivate || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        onactivate();
+      }}
+    >
       {@render children()}
     </a>
   {:else if onactivate !== undefined}

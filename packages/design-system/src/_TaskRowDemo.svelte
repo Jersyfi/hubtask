@@ -6,7 +6,7 @@
   import Stack from './Stack.svelte';
   import TaskRow from './TaskRow.svelte';
 
-  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' } = $props();
+  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' | 'beside' } = $props();
 
   // The three levels of domain-model.md §3.4, at the depths they sit at.
   const levels = [
@@ -57,6 +57,10 @@
     mode === 'collapsed' ? collapsed : mode === 'unknown' ? unknown : mode === 'long' ? long : mode === 'phone' ? phone : mode === 'subtree' ? subtree : levels,
   );
 
+  /** Which row is open beside the list, when the list opens beside (ADR-0061 decision 4). */
+  let chosenId = $state<string | undefined>(undefined);
+  const openId = $derived(mode === 'beside' ? (chosenId ?? 'b') : undefined);
+
   let done = $state<string[]>(['d']);
 </script>
 
@@ -71,6 +75,8 @@
       expansion={row.expansion}
       isCompleted={done.includes(row.id)}
       href={`/items/${row.id}`}
+      onOpen={mode === 'beside' ? () => (chosenId = row.id) : undefined}
+      isCurrent={openId === row.id}
       completeLabel={`Mark “${row.title}” as done`}
       expandLabel={row.expansion === 'expanded' ? 'Hide what is inside' : 'Show what is inside'}
       onToggleComplete={() =>

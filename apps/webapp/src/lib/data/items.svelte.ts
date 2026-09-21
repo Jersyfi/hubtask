@@ -137,6 +137,15 @@ class Items {
     return this.#levels[key];
   }
 
+  /** An entry among the levels that have been read, wherever it sits; nothing is read for it. */
+  find(itemId: string): WorkItem | undefined {
+    for (const state of Object.values(this.#levels)) {
+      const found = rowsOf(state).find((item) => item.id === itemId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
   /**
    * Starts one level. **Call this from `untrack`** — the listener writes the store and writing it
    * reads it, so an effect that subscribes while tracking that read cancels its own subscription
