@@ -67,11 +67,22 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { textLanguages } from '../data/query.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { humanise } from '../i18n/messages.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
     collectionId: string;
+    /**
+     * The entry whose subtree this list is, instead of the collection's top level (ADR-0061,
+     * backlog decision 6): the same flatten, the same rows, the same menus, mounted one level
+     * down. With a root, the top level is the root's children, "add" creates under the root with
+     * the types the manifest lets it take, direct children open and deeper levels start closed,
+     * and the expansion is kept per entry on this device (decision 7). The id is what decision 6
+     * calls `rootId`; the type and the parent travel with it because the add form and "move out"
+     * need them and the list should not read the entry a second time.
+     */
+    root?: Pick<WorkItem, 'id' | 'type' | 'parent_id'>;
     /** Whether the collection is archived — the entries in it are then read-only too (I-C3). */
     isReadOnly?: boolean;
     /** What the reader has asked of this level: a filter, an order. Built from the manifest. */
@@ -104,12 +115,29 @@
 
   const {
     collectionId,
+    root,
     isReadOnly = false,
     query,
     isExpanded = false,
     lastResults,
     onduplicate,
   }: Props = $props();
+
+  /** The types the top level of this list may hold: the collection's roots, or the root's children. */
+  const topTypes = () => (root ? childTypes(root.type) : rootTypes());
+
+  /** Where this device keeps which levels of a subtree are open (decision 7). */
+  const expansionKey = $derived(root ? `hubtask.subtree.${root.id}` : undefined);
+
+  function rememberedExpansion(): string[] | undefined {
+    if (!expansionKey) return undefined;
+    try {
+      const kept = sessionStorage.getItem(expansionKey);
+      return kept ? (JSON.parse(kept) as string[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   /** The entry whose dates are being changed from the row, if one is. */
   let dating = $state<WorkItem | undefined>(undefined);
@@ -128,15 +156,45 @@
   }
 
   /** The entries whose children are shown. Expanding one is what reads its level. */
-  let expanded = $state<string[]>([]);
+  let expanded = $state<string[]>(rememberedExpansion() ?? []);
+  /** Whether the subtree's default - direct children open - has been applied once they arrived. */
+  let hasDefaultExpansion = rememberedExpansion() !== undefined;
 
   // `untrack` for the reason F2-08 records: the listener writes the store and writing it reads it,
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
+  // A subtree's top level is the root's children, read unfiltered as every child level is.
   $effect(() => {
     const wanted = collectionId;
     const asked = query;
-    return untrack(() => items.openCollection(wanted, asked));
+    const under = root?.id;
+    return untrack(() => (under ? items.openChildren(under) : items.openCollection(wanted, asked)));
   });
+
+  // In a subtree, the direct children that take children start open and deeper levels closed
+  // (decision 7) - applied once, when the first level has arrived, unless this device remembers
+  // a choice. Kept whenever it changes, and only for a subtree.
+  $effect(() => {
+    if (!root || hasDefaultExpansion) return;
+    const first = items.childrenOf(root.id);
+    if (first.length === 0) return;
+    hasDefaultExpansion = true;
+    expanded = first.filter((item) => childTypes(item.type).length > 0).map((item) => item.id);
+  });
+  $effect(() => {
+    if (!expansionKey || !hasDefaultExpansion) return;
+    const kept = JSON.stringify(expanded);
+    try {
+      sessionStorage.setItem(expansionKey, kept);
+    } catch {
+      // A browser that refuses storage keeps the choice for as long as the page is open.
+    }
+  });
+
+  /** Opens or closes every level of the subtree: the section head's one control over all of them. */
+  export function expandAll(isOpen: boolean) {
+    hasDefaultExpansion = true;
+    expanded = isOpen ? rows.filter((row) => row.takesChildren).map((row) => row.item.id) : [];
+  }
 
   // What `LIST_EXPANDED` means, one row at a time: a row that takes children is opened, and
   // opening it is what reads its level — so the rows that arrive are opened in turn rather than a
@@ -149,15 +207,7 @@
     if (opened.length > 0) expanded = [...expanded, ...opened];
   });
 
-  $effect(() => {
-    const open = [...expanded];
-    return untrack(() => {
-      const stops = open.map((id) => items.openChildren(id));
-      return () => {
-        for (const stop of stops) stop();
-      };
-    });
-  });
+
 
   // The collection's labels, read once for the whole list: every row picks from the same set,
   // because a label belongs to a collection (I-W3).
@@ -256,7 +306,27 @@
     return rows;
   }
 
-  const rows = $derived(flatten(items.inCollection(collectionId), 0, null, isReadOnly));
+  const rows = $derived(flatten(root ? items.childrenOf(root.id) : items.inCollection(collectionId), 0, root?.id ?? null, isReadOnly));
+
+  // In a subtree every level is read whether or not it is shown, so that a closed row can say
+  // "done of total" about what it hides; in the collection's list only an open row's level is read.
+  const readIds = $derived(root ? rows.filter((row) => row.takesChildren).map((row) => row.item.id) : expanded);
+  $effect(() => {
+    const open = [...readIds];
+    return untrack(() => {
+      const stops = open.map((id) => items.openChildren(id));
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
+  });
+
+  /** What a row hides or shows: its direct children's completion, once they have been read. */
+  function progressOf(itemId: string): { done: number; total: number } | undefined {
+    if (items.stateOf(`item:${itemId}`)?.status !== 'ready') return undefined;
+    const children = items.childrenOf(itemId);
+    return { done: children.filter((child) => child.completion?.is_completed).length, total: children.length };
+  }
 
   /** The moment standing, and which row of this level carries it (F6-13). */
   const moment = $derived(celebration.current);
@@ -285,7 +355,7 @@
   });
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
-  const levelState = $derived(items.stateOf(`container:${collectionId}`));
+  const levelState = $derived(items.stateOf(root ? `item:${root.id}` : `container:${collectionId}`));
   const failure = $derived(
     levelState?.status === 'failed' ? renderProblem(levelState.error, messages) : undefined,
   );
@@ -301,8 +371,17 @@
     addingUnder === null
       ? []
       : addingUnder === 'root'
-        ? rootTypes()
+        ? topTypes()
         : childTypes(rows.find((row) => row.item.id === addingUnder)?.item.type ?? ''),
+  );
+
+  /**
+   * What the control at the end of the top level says: "Add an entry" in a collection; in a
+   * subtree the name of what it adds, as the manifest names the type, because "+ Work package"
+   * under a task says which level the reader is adding to.
+   */
+  const addLabel = $derived(
+    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: humanise(topTypes()[0] ?? '') }) : t('app.entries.add'),
   );
 
   /** The language a new entry is written in: the person's own, preselected, and changeable. */
@@ -315,7 +394,7 @@
    * form's state, which is the list's.
    */
   export function addEntry() {
-    if (isReadOnly || rootTypes().length === 0) return;
+    if (isReadOnly || topTypes().length === 0) return;
     startAdding('root');
   }
 
@@ -327,7 +406,7 @@
     // The first type the manifest offers, so the common case needs no choice at all.
     draftType =
       (under === 'root'
-        ? rootTypes()
+        ? topTypes()
         : childTypes(rows.find((row) => row.item.id === under)?.item.type ?? ''))[0] ?? '';
   }
 
@@ -341,7 +420,9 @@
       const language = draftLanguage.trim() ? { content_language: draftLanguage.trim() } : {};
       await items.create(
         addingUnder === 'root'
-          ? { type: draftType, collection_id: collectionId, title: draftTitle.trim(), ...language }
+          ? root
+            ? { type: draftType, parent_id: root.id, title: draftTitle.trim(), ...language }
+            : { type: draftType, collection_id: collectionId, title: draftTitle.trim(), ...language }
           : { type: draftType, parent_id: addingUnder, title: draftTitle.trim(), ...language },
         crypto.randomUUID(),
       );
@@ -574,7 +655,8 @@
   function moveOut(row: Row) {
     if (!row.parentId) return;
     const parent = rows.find((each) => each.item.id === row.parentId);
-    const grandParentId = parent?.parentId ?? null;
+    // In a subtree the top level's parent is the root, which is not a row: its parent is the root's.
+    const grandParentId = parent ? parent.parentId : root && row.parentId === root.id ? root.parent_id ?? null : null;
     void move(
       row,
       grandParentId === null ? { parentId: null, collectionId } : { parentId: grandParentId },
@@ -793,7 +875,7 @@
       reference={failure.reference}
       referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')}
-      onRetry={() => items.openCollection(collectionId)()}
+      onRetry={() => (root ? items.openChildren(root.id) : items.openCollection(collectionId))()}
     />
   {:else}
     <ReplicaMark state={levelState} />
@@ -835,8 +917,8 @@
       {:else}
         <EmptyState kind="unused" title={t('app.entries.none')} icon="task">
           {#snippet action()}
-            {#if !isReadOnly && rootTypes().length > 0}
-              <Button data-opener="add-entry" onclick={() => startAdding('root')}>{t('app.entries.add')}</Button>
+            {#if !isReadOnly && topTypes().length > 0}
+              <Button data-opener="add-entry" onclick={() => startAdding('root')}>{addLabel}</Button>
             {/if}
           {/snippet}
         </EmptyState>
@@ -924,6 +1006,14 @@
                   : [...expanded, row.item.id])}
             >
               {#snippet trailing()}
+                <!-- What a row that takes children holds, done of total, once its level has been
+                     read (ADR-0061 decision 4): a closed branch still says how much is inside. -->
+                {#if row.takesChildren}
+                  {@const progress = progressOf(row.item.id)}
+                  {#if progress && progress.total > 0}
+                    <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
+                  {/if}
+                {/if}
                 <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
                      already carries: the names come from the accounts cache rather than from an
                      expansion this server does not serve. -->
@@ -987,7 +1077,9 @@
                        competing with its title for width. -->
                   <IconButton
                     icon="plus"
-                    label={t('app.entries.add_child', { title: row.item.title })}
+                    label={childTypes(row.item.type).length === 1
+                      ? t('app.entries.add_typed_inside', { type: humanise(childTypes(row.item.type)[0] ?? ''), title: row.item.title })
+                      : t('app.entries.add_child', { title: row.item.title })}
                     size="sm"
                     onclick={() => startAdding(row.item.id)}
                   />
@@ -1025,13 +1117,13 @@
         {/each}
       </div>
 
-      {#if !isReadOnly && rootTypes().length > 0}
+      {#if !isReadOnly && topTypes().length > 0}
         {#if addingUnder === 'root'}
           {@render addForm()}
         {:else}
           <div>
             <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root')}>
-              {t('app.entries.add')}
+              {addLabel}
             </Button>
           </div>
         {/if}
@@ -1123,7 +1215,18 @@
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
 
+  /* The level is what a row's indent is measured against (`TaskRow` caps it below `medium` by a
+     container query), so it is a container: the width of the tree, not of the screen, decides. */
+  .level { container-type: inline-size; }
+
   .row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  .progress {
+    font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-subtle);
+    white-space: nowrap;
+  }
 
   /* The rows and the level are the slots a moment sits over (F6-13). */
   .level { position: relative; }

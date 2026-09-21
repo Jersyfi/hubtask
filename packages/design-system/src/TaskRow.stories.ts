@@ -44,3 +44,10 @@ export const phone: Story = {
     'Issue 838: in a 327 px pane a deep row used to break its title one letter per line, because the fixed cells around it left the title no track. Switch the width axis to Compact: the title keeps a few words at least, and the badge and the menu move under it when the line has no room for them — a rule of the row, so it holds in a 400 px detail pane as well as on a phone.',
   args: { mode: 'phone' },
 };
+
+export const subtree: Story = {
+  name: 'Four levels in a 400 px tree',
+  about:
+    'An entry’s subtree as the detail pane holds it (ADR-0061 decision 4): the tree is `layout.pane.width` wide, so the indent’s step is the smaller one and stops at the third level — deeper rows keep that indent, and the type mark says the level. Depth comes from the tree, never from a type name: the fourth level here is a type this client has never heard of, at `depth 3`, and no code (arc42 Q-03). A container query on the tree, not a media query; switch the width axis to Desktop and the tree is still 400 px.',
+  args: { mode: 'subtree' },
+};
