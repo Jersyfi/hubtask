@@ -171,9 +171,17 @@
     gap: var(--sp-050);
   }
 
-  /* Rule 3: the colour says it and so does the word beside it. */
-  [data-connection='offline'] .state { color: var(--text-warning); }
-  [data-connection='connected'] .state { color: var(--text-success); }
+  /* Rule 3: the colour says it and so does the word beside it. Offline is the bold form
+     (ADR-0061, F9-04): the one state in this line somebody has to see first, drawn on the
+     warning accent under inverse text; connected stays a quiet word. */
+  [data-connection='connected'] .state { color: var(--status-success-text); }
+  [data-connection='offline'] .state {
+    padding: var(--sp-025) var(--sp-100);
+    border-radius: var(--r-full);
+    background: var(--status-warning-accent);
+    color: var(--text-inverse);
+    font-weight: var(--fw-semibold);
+  }
 
   .mark { display: inline-flex; }
 

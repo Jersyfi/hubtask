@@ -71,7 +71,7 @@ test('the TypeScript target hands out custom properties, not colours', () => {
 // worth testing: a role that quietly acquired a light and a dark value would be a role two themes
 // could disagree about, and that is what putting them under `semantic` would have allowed.
 
-test('both density modes declare the same vocabulary', () => {
+test('every density mode declares the same vocabulary', () => {
   const names = (mode) => {
     const out = [];
     const walk = (node, prefix) => {
@@ -84,7 +84,9 @@ test('both density modes declare the same vocabulary', () => {
     walk(source.density[mode], []);
     return out.sort();
   };
-  assert.deepEqual(names('comfortable'), names('compact'));
+  const modes = Object.keys(source.density).filter((k) => !k.startsWith('$'));
+  assert.ok(modes.length >= 3, 'the three density modes are declared');
+  for (const mode of modes) assert.deepEqual(names(mode), names('comfortable'), `density.${mode} disagrees with comfortable`);
 });
 
 test('every motion role names both a duration and an easing', () => {
@@ -135,6 +137,7 @@ test('the CSS gives density a default on :root and the theme none', () => {
   const css = read(packageRoot, 'dist', 'tokens.css');
   assert.match(css, /^:root,\n\[data-density="comfortable"\] \{$/m);
   assert.match(css, /^\[data-density="compact"\] \{$/m);
+  assert.match(css, /^\[data-density="spacious"\] \{$/m);
   // The asymmetry is deliberate (formats.js): no theme is right in the absence of a choice, and
   // `comfortable` is. A `:root` fallback appearing for the theme would be a regression.
   assert.doesNotMatch(css, /^:root,\n\[data-theme=/m);
@@ -152,4 +155,22 @@ test('no component writes a raw duration or easing where a role exists', () => {
     }
   }
   assert.deepEqual(offenders, []);
+});
+
+// The shell's measures (ADR-0061, F9-01): every leaf under `layout` is a dimension, and the CSS
+// declares each on `:root` - a bar is the same height in the dark, which is why the root is not
+// under `semantic`.
+test('every layout token is a dimension declared on :root', () => {
+  const css = read(packageRoot, 'dist', 'tokens.css');
+  const root = css.slice(css.indexOf(':root {'), css.indexOf('\n}', css.indexOf(':root {')));
+  const walk = (node, prefix) => {
+    for (const [key, value] of Object.entries(node)) {
+      if (key.startsWith('$')) continue;
+      if (value && typeof value === 'object' && '$value' in value) {
+        assert.equal(value.$type, 'dimension', `layout.${[...prefix, key].join('.')} is not a dimension`);
+        assert.match(root, new RegExp(`--layout-${[...prefix, key].join('-')}:`), `:root declares --layout-${[...prefix, key].join('-')}`);
+      } else walk(value, [...prefix, key]);
+    }
+  };
+  walk(source.layout, []);
 });

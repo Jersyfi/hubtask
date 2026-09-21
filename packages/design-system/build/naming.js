@@ -30,7 +30,7 @@ export const PRIMITIVE_PREFIX = {
  * `semantic` rather than inside either: a motion role is not a colour and so has no light and dark
  * to declare, and a density step is a mode of its own that is orthogonal to the theme.
  */
-export const ROLE_PREFIX = { motion: 'motion', density: 'density' };
+export const ROLE_PREFIX = { motion: 'motion', density: 'density', layout: 'layout' };
 
 /** Colour families whose token name is shorter than their source name. */
 export const FAMILY_ALIAS = { neutral: 'n' };
@@ -64,6 +64,11 @@ export function cssName(path) {
     // `motion.entrance.duration` -> `--motion-entrance-duration`. No mode: a role means the same
     // thing in both themes, which is the reason it is not under `semantic`.
     return [ROLE_PREFIX.motion, ...path.slice(1)].join('-');
+  }
+  if (root === 'layout') {
+    // `layout.sidenav.width` -> `--layout-sidenav-width`. The shell's measures (ADR-0061): no
+    // mode, because a bar is the same height in the dark.
+    return [ROLE_PREFIX.layout, ...path.slice(1)].join('-');
   }
   if (root === 'density') {
     // `density.compact.control.md.block` -> `--density-control-md-block`. path[1] is the density

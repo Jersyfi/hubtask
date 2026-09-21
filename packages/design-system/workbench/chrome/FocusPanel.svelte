@@ -8,9 +8,11 @@
   interface Props {
     /** The panes on stage. Only the first is walked: four panes would fight over focus. */
     hosts: readonly HTMLElement[];
+    /** Open from `expanded` up, folded on a phone - where the story comes first (F9-03). */
+    isOpenByDefault?: boolean;
   }
 
-  const { hosts }: Props = $props();
+  const { hosts, isOpenByDefault = true }: Props = $props();
 
   let stops = $state<Stop[]>([]);
   let current = $state<Stop | null>(null);
@@ -43,12 +45,15 @@
   $effect(() => () => stop?.());
 </script>
 
-<section class="panel" aria-label="Keyboard order">
-  <header>
+<details class="panel" open={isOpenByDefault}>
+  <summary>
     <h2>Keyboard order</h2>
+    <span class="count">{stops.length === 0 ? 'nothing focusable' : `${stops.length} stops`}</span>
+  </summary>
+  <div class="actions">
     <button type="button" onclick={run} disabled={stops.length === 0}>Walk the focus</button>
     <button type="button" onclick={inspect}>Re-read</button>
-  </header>
+  </div>
 
   {#if stops.length === 0}
     <p class="empty">Nothing in this story can take focus.</p>
@@ -76,19 +81,48 @@
     finds an order that disagrees with the layout. It does not find a focus trap — that needs a
     driven browser, which is F5's decision (ADR-0037).
   </p>
-</section>
+</details>
 
 <style>
   .panel {
     padding: var(--sp-200) var(--sp-300);
-    border-top: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-lg);
     background: var(--bg-surface);
   }
 
-  header {
+  summary {
     display: flex;
     align-items: center;
     gap: var(--sp-150);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker { display: none; }
+
+  summary::before {
+    content: '';
+    inline-size: 0.5em;
+    block-size: 0.5em;
+    border-inline-end: 2px solid var(--text-subtle);
+    border-block-end: 2px solid var(--text-subtle);
+    transform: rotate(-45deg);
+  }
+
+  :global([dir='rtl']) summary::before { transform: rotate(135deg); }
+
+  .panel[open] > summary::before { transform: rotate(45deg); }
+
+  .count {
+    font-size: var(--fs-075);
+    color: var(--text-subtle);
+  }
+
+  .actions {
+    display: flex;
+    gap: var(--sp-150);
+    margin-block-start: var(--sp-150);
   }
 
   h2 {

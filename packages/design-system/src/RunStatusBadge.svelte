@@ -74,7 +74,15 @@
   );
 </script>
 
-<span class="run" data-tone={appearance.tone} data-variant={isDryRun ? 'dry-run' : 'live'}>
+<!-- Bold for the two states somebody has to act on (ADR-0061, F9-04): a failed run, and a rule
+     that stopped itself. Everything else is the subtle form, so that a list of twenty runs is
+     twenty quiet rows and the one that matters is the one that is seen. -->
+<span
+  class="run"
+  data-tone={appearance.tone}
+  data-emphasis={status === 'FAILED' || status === 'ABORTED_LOOP' ? 'bold' : 'subtle'}
+  data-variant={isDryRun ? 'dry-run' : 'live'}
+>
   <!-- Rule 3: the mark never stands alone, and it is chosen by the status rather than by the
        caller — two badges of the same status with different marks would be two vocabularies. -->
   <Icon name={appearance.icon} size="sm" />
@@ -85,28 +93,40 @@
 </span>
 
 <style>
+  /* The tone's four roles, as `Badge` reads them (ADR-0061). */
   .run {
+    --run-surface: var(--status-neutral-surface);
+    --run-border: var(--status-neutral-border);
+    --run-text: var(--status-neutral-text);
+    --run-accent: var(--status-neutral-accent);
     display: inline-flex;
     align-items: center;
     gap: var(--sp-050);
     padding: var(--sp-025) var(--sp-100);
-    border: var(--bw-hairline) solid var(--border-subtle);
+    border: var(--bw-hairline) solid var(--run-border);
     border-radius: var(--r-full);
-    background: var(--bg-surface-sunken);
+    background: var(--run-surface);
+    color: var(--run-text);
     font-size: var(--fs-075);
     font-weight: var(--fw-medium);
     min-width: 0;
   }
 
-  .run[data-tone='neutral'] { color: var(--text-secondary); }
-  .run[data-tone='info'] { color: var(--text-brand); }
-  .run[data-tone='success'] { color: var(--text-success); }
-  .run[data-tone='warning'] { color: var(--text-warning); }
-  .run[data-tone='danger'] { color: var(--text-danger); }
+  .run[data-tone='info'] { --run-surface: var(--status-info-surface); --run-border: var(--status-info-border); --run-text: var(--status-info-text); --run-accent: var(--status-info-accent); }
+  .run[data-tone='success'] { --run-surface: var(--status-success-surface); --run-border: var(--status-success-border); --run-text: var(--status-success-text); --run-accent: var(--status-success-accent); }
+  .run[data-tone='warning'] { --run-surface: var(--status-warning-surface); --run-border: var(--status-warning-border); --run-text: var(--status-warning-text); --run-accent: var(--status-warning-accent); }
+  .run[data-tone='danger'] { --run-surface: var(--status-danger-surface); --run-border: var(--status-danger-border); --run-text: var(--status-danger-text); --run-accent: var(--status-danger-accent); }
+
+  .run[data-emphasis='bold'] {
+    background: var(--run-accent);
+    border-color: var(--run-accent);
+    color: var(--text-inverse);
+    font-weight: var(--fw-semibold);
+  }
 
   /* A rehearsal reads as one at a glance: the outline is drawn rather than solid, and the word is
      there as well, because a border style alone is a colour argument by another name. */
-  .run[data-variant='dry-run'] { border-style: dashed; background: none; }
+  .run[data-variant='dry-run'] { border-style: dashed; background: none; color: var(--run-text); border-color: var(--run-border); }
 
   .variant {
     padding-inline-start: var(--sp-050);

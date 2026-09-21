@@ -58,9 +58,9 @@
     position: relative;
     max-width: 60ch;
     padding: var(--sp-150) var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
+    border: var(--bw-hairline) solid var(--toast-border);
     border-radius: var(--r-md);
-    background: var(--bg-surface);
+    background: var(--toast-surface);
     box-shadow: var(--shadow-overlay);
     color: var(--text-primary);
     font-size: var(--fs-100);
@@ -74,11 +74,14 @@
     to { opacity: 1; transform: none; }
   }
 
-  .mark { display: inline-flex; flex: none; }
-  .toast[data-tone='info'] .mark { color: var(--text-brand); }
-  .toast[data-tone='success'] .mark { color: var(--text-success); }
-  .toast[data-tone='warning'] .mark { color: var(--text-warning); }
-  .toast[data-tone='danger'] .mark { color: var(--text-danger); }
+  .mark { display: inline-flex; flex: none; color: var(--toast-accent); }
+  /* A status as a surface (ADR-0061): the tone's surface and border under the prose, its accent
+     on the mark. Rule 3: the mark says it as well as the colour does. */
+  .toast[data-tone='info'] { --toast-surface: var(--status-info-surface); --toast-border: var(--status-info-border); --toast-accent: var(--status-info-accent); }
+  .toast[data-tone='success'] { --toast-surface: var(--status-success-surface); --toast-border: var(--status-success-border); --toast-accent: var(--status-success-accent); }
+  .toast[data-tone='warning'] { --toast-surface: var(--status-warning-surface); --toast-border: var(--status-warning-border); --toast-accent: var(--status-warning-accent); }
+  .toast[data-tone='danger'] { --toast-surface: var(--status-danger-surface); --toast-border: var(--status-danger-border); --toast-accent: var(--status-danger-accent); }
+
 
   .text { flex: 1; margin: 0; min-width: 0; overflow-wrap: anywhere; }
 

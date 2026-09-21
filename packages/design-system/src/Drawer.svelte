@@ -125,7 +125,10 @@
        dialog. `margin-inline` does the sidedness so the whole thing mirrors in RTL. */
     block-size: 100%;
     max-block-size: 100%;
-    inline-size: min(42ch, 100%);
+    /* A caller that is a navigation (NavDrawer) sets the width to the shell's measure through the
+       custom property; every other drawer is as wide as a column of text. Inheritance reaches the
+       top layer, which is why this needs no prop and no inline style. */
+    inline-size: var(--drawer-inline-size, min(42ch, 100%));
     max-inline-size: 100%;
     margin-block: 0;
     overflow: auto;
