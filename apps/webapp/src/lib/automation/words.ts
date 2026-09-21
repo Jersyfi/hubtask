@@ -12,7 +12,7 @@
  */
 
 import type { Draft, Step, TriggerDraft } from './model.ts';
-import { isGroup, nameSeed, readNode, type Node, type Sentence } from './model.ts';
+import { FLOW_KINDS, isGroup, nameSeed, readNode, type Node, type Sentence } from './model.ts';
 
 /** How the catalogue is asked: the renderer, and whether it has an entry. */
 export interface Catalogue {
@@ -187,6 +187,45 @@ export function kindIcon(kind: string): KindIconName {
   if (group) return GROUP_ICON[group.code] ?? 'check';
   if (kind.startsWith('AI_')) return 'sparkles';
   return 'check';
+}
+
+/**
+ * The family a kind belongs to, which is what its colour says (decision 18): the same word in the
+ * blocks list, the `+` popover and on the card, so the three cannot disagree. The flow kinds are
+ * the engine's own; a kind in no group is *other*.
+ */
+export type KindFamily = 'entries' | 'people' | 'structure' | 'content' | 'outbound' | 'ai' | 'flow' | 'other';
+
+const GROUP_FAMILY: Readonly<Record<string, KindFamily>> = {
+  'app.flow.group_entries': 'entries', 'app.flow.group_people': 'people', 'app.flow.group_structure': 'structure',
+  'app.flow.group_content': 'content', 'app.flow.group_outbound': 'outbound', 'app.flow.group_ai': 'ai',
+};
+
+export function kindFamily(kind: string): KindFamily {
+  if ((FLOW_KINDS as readonly string[]).includes(kind)) return 'flow';
+  const group = COMMON_GROUPS.find((each) => each.kinds.includes(kind));
+  if (group) return GROUP_FAMILY[group.code] ?? 'other';
+  if (kind.startsWith('AI_')) return 'ai';
+  return 'other';
+}
+
+/**
+ * How often each kind is used across the rules the client holds (decision 17): what the blocks
+ * list's *Frequent* group is counted from, arms included. Nothing is asked of the server.
+ */
+export function usageOf(rules: readonly { actions: readonly { kind: string; params?: Record<string, unknown> }[] }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  const visit = (actions: readonly { kind: string; params?: Record<string, unknown> }[]): void => {
+    for (const action of actions) {
+      counts.set(action.kind, (counts.get(action.kind) ?? 0) + 1);
+      for (const arm of ['then', 'else'] as const) {
+        const inner = action.params?.[arm];
+        if (Array.isArray(inner)) visit(inner as { kind: string; params?: Record<string, unknown> }[]);
+      }
+    }
+  };
+  for (const rule of rules) visit(rule.actions);
+  return counts;
 }
 
 /** One condition, as words: the sentence's subject and value, or "the expression holds". */

@@ -27,6 +27,9 @@
     /** The list's own path: `''` for the chain, `2/then` for an arm. */
     prefix: string;
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it, for the `+` popover's list. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     names: Names;
     selection: Selection;
     marks?: ReadonlyMap<string, string>;
@@ -53,7 +56,7 @@
   }
 
   const {
-    steps, actions, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
+    steps, actions, prefix, kinds, summaries = {}, usage = new Map(), names, selection, marks, describe, onselect, oninsert, onremove, onfold,
     onnudge, onaddrung, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
@@ -244,9 +247,9 @@
             <div class="rsteps">
               {#if (rung.step.then ?? []).length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
-                <InsertMenu {kinds} {actions} list={`${rung.path}/then`} index={0} onpick={oninsert} {drag} {ondrop} />
+                <InsertMenu {kinds} {summaries} {usage} {actions} list={`${rung.path}/then`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
             </div>
           </div>
@@ -256,9 +259,9 @@
           <div class="rsteps">
             {#if (last.step.else ?? []).length === 0}
               <span class="empty">{t('app.flow.card_arm_empty')}</span>
-              <InsertMenu {kinds} {actions} list={`${last.path}/else`} index={0} onpick={oninsert} {drag} {ondrop} />
+              <InsertMenu {kinds} {summaries} {usage} {actions} list={`${last.path}/else`} index={0} onpick={oninsert} {drag} {ondrop} />
             {:else}
-              <RuleCanvasList steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+              <RuleCanvasList {summaries} {usage} steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
             {/if}
           </div>
         </div>
@@ -290,9 +293,9 @@
               <span class="stub"></span>
               {#if list.length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
-                <InsertMenu {kinds} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
+                <InsertMenu {kinds} {summaries} {usage} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
               {#if continues(list)}<span class="tail"></span>{/if}
             </div>
@@ -315,6 +318,8 @@
   {:else if !endsAllPaths(step)}
     <InsertMenu
       {kinds}
+      {summaries}
+      {usage}
       {actions}
       list={prefix}
       index={index + 1}

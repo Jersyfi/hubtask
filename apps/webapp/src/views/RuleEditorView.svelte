@@ -24,6 +24,7 @@
   import { Badge, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs } from '@hubtask/design-system/components';
 
   import RuleCanvas from '../lib/automation/RuleCanvas.svelte';
+  import BlocksPanel from '../lib/automation/BlocksPanel.svelte';
   import RuleInspector from '../lib/automation/RuleInspector.svelte';
   import RuleProbe from '../lib/automation/RuleProbe.svelte';
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
@@ -31,9 +32,8 @@
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { TRIGGER_ICONS, eventWords, generatedName, grouped, kindIcon, kindWord, sentence, type Names } from '../lib/automation/words.ts';
+  import { eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
-  import { FLOW_KINDS } from '../lib/automation/model.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -103,7 +103,16 @@
   };
 
   let selection = $state<Selection>({ kind: 'rule' });
-  let tab = $state('piece');
+  /** The panel's five tabs (decision 16): Rule, Blocks, Details, Probe, Runs. */
+  let tab = $state('rule');
+  const RULE_TAB: ReadonlySet<Selection['kind']> = new Set(['rule', 'scope', 'runas', 'guardrails']);
+  const TABS = [
+    { id: 'rule', code: 'app.flow.tab_rule', icon: 'settings' },
+    { id: 'blocks', code: 'app.flow.tab_blocks', icon: 'plus' },
+    { id: 'piece', code: 'app.flow.tab_piece', icon: 'pencil' },
+    { id: 'probe', code: 'app.flow.tab_probe', icon: 'play' },
+    { id: 'runs', code: 'app.flow.tab_runs', icon: 'clock' },
+  ] as const;
 
   /* ---------- Narrow: the inspector as a sheet, one arm at a time (F8-05, decision 8) ---------- */
 
@@ -119,6 +128,8 @@
   let sheetOpen = $state(false);
   const select = (next: Selection): void => {
     selection = next;
+    // The canvas shows, the panel sets (decision 16): what was clicked opens where it is edited.
+    tab = RULE_TAB.has(next.kind) ? 'rule' : 'piece';
     if (narrow) sheetOpen = true;
   };
   let armChoice = $state<Map<string, 'then' | 'else'>>(new Map());
@@ -436,7 +447,9 @@
     await attempt(() => runs.trigger(stored.id), t('app.flow.manual_started'));
   }
 
-  const palette = $derived([...grouped(actionKinds, 'folded'), { code: 'app.flow.group_flow', kinds: [...FLOW_KINDS] }]);
+  /** Each kind's sentence from the manifest (F8-15), and how often this workspace's rules use it (decision 17). */
+  const summaries = $derived((manifest.value?.automation?.action_summaries ?? {}) as Readonly<Record<string, string>>);
+  const usage = $derived(usageOf(rules.all));
 
   /* ---------- The probe, drawn onto the canvas (decision 9) ---------- */
 
@@ -533,16 +546,16 @@
       </div>
 
       <div class="row">
-        <button class="name" class:automatic type="button" onclick={() => (selection = { kind: 'rule' })} title={t('app.flow.name_own')}>
+        <button class="name" class:automatic type="button" onclick={() => select({ kind: 'rule' })} title={t('app.flow.name_own')}>
           <h1>{shownName || t('app.flow.new_title')}</h1>
           {#if automatic}<span class="auto" title={t('app.flow.name_automatic_hint')}>{t('app.flow.name_automatic')}</span>{/if}
           <Icon name="pencil" size="sm" />
         </button>
         <div class="chips">
-          <button class="chip" type="button" onclick={() => (selection = { kind: 'scope' })}>
+          <button class="chip" type="button" onclick={() => select({ kind: 'scope' })}>
             <Icon name="hub" size="sm" /><span>{t('app.flow.applies_in')}</span><b>{names.scope(draft.scope)}</b>
           </button>
-          <button class="chip" class:flagged={marks.has('run_as')} type="button" onclick={() => (selection = { kind: 'runas' })}>
+          <button class="chip" class:flagged={marks.has('run_as')} type="button" onclick={() => select({ kind: 'runas' })}>
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
             {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" />{marks.get('run_as')}</span>{/if}
           </button>
@@ -595,36 +608,14 @@
     </p>
 
     <div class="bench">
-      <aside class="palette" aria-label={t('app.flow.palette')}>
-        <h2>{t('app.flow.palette')}</h2>
-        <p class="quiet small">{t('app.flow.palette_hint')}</p>
-        <div class="pgroup">
-          <span class="eyebrow">{t('app.flow.palette_starts')} <em>{t('app.flow.palette_starts_where')}</em></span>
-          {#each triggers as kind (kind)}
-            <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'trigger', kind })} ondragend={() => (drag = undefined)} onclick={() => { replaceTrigger(kind); }}>
-              <Icon name={TRIGGER_ICONS[kind] ?? 'zap'} size="sm" />{messages.has(`app.rules.trigger_${kind.toLowerCase()}`) ? t(`app.rules.trigger_${kind.toLowerCase()}`) : kind}
-            </button>
-          {/each}
-        </div>
-        <div class="pgroup">
-          <span class="eyebrow">{t('app.flow.palette_condition')} <em>{t('app.flow.palette_condition_where')}</em></span>
-          <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'condition' })} ondragend={() => (drag = undefined)} onclick={addCondition}><Icon name="funnel" size="sm" />{t('app.flow.palette_condition_item')}</button>
-        </div>
-        {#each palette as group (group.code)}
-          <div class="pgroup">
-            <span class="eyebrow">{t(group.code)} <em>{t('app.flow.palette_where')}</em></span>
-            {#each group.kinds as kind (kind)}
-              <button class="pitem" type="button" draggable="true" ondragstart={(event) => lift(event, { src: 'action', kind })} ondragend={() => (drag = undefined)} onclick={() => insert('', draft.actions.length, kind)}><Icon name={kindIcon(kind)} size="sm" />{kindWord(words, kind)}</button>
-            {/each}
-          </div>
-        {/each}
-      </aside>
 
       <section class="canvas" aria-label={t('app.rules.title')}>
         <RuleCanvas
           {draft}
           {selection}
           kinds={actionKinds}
+          {summaries}
+          {usage}
           {names}
           {triggerMeta}
           {marks}
@@ -655,9 +646,12 @@
         <Drawer bind:isOpen={sheetOpen} edge="block-end" title={t('app.flow.inspector')} dismissLabel={t('app.flow.sheet_close')}>
           {@render inspector()}
         </Drawer>
-        <div class="sheetbar">
-          <Button tone="primary" icon="settings" onclick={() => { tab = 'piece'; sheetOpen = true; }}>{t('app.flow.sheet_open')}</Button>
-          <Button icon="play" onclick={() => { tab = 'probe'; sheetOpen = true; }}>{t('app.flow.sheet_probe')}</Button>
+        <div class="sheetbar" role="tablist" aria-label={t('app.flow.inspector')}>
+          {#each TABS as each (each.id)}
+            <button type="button" role="tab" aria-selected={tab === each.id} onclick={() => { tab = each.id; sheetOpen = true; if (each.id === 'runs' && !isNew) void runs.reload({ ruleId: id }); }}>
+              <Icon name={each.icon} size="sm" /><span>{t(each.code)}</span>
+            </button>
+          {/each}
         </div>
       {:else}
         <aside class="inspector" aria-label={t('app.flow.inspector')}>
@@ -675,13 +669,42 @@
             // What the rule has done since the editor opened: no record announces a run.
             if (next === 'runs' && !isNew) void runs.reload({ ruleId: id });
           }}
-          tabs={[
-            { id: 'piece', label: t('app.flow.tab_piece') },
-            { id: 'probe', label: t('app.flow.tab_probe') },
-            { id: 'runs', label: t('app.flow.tab_runs') },
-          ]}
+          tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
         />
-        {#if tab === 'piece'}
+        {#if tab === 'rule'}
+          <RuleInspector
+            {draft}
+            selection={{ kind: 'rule' }}
+            section="rule"
+            ruleId={stored?.id}
+            generatedName={generated}
+            {triggers}
+            {eventTypes}
+            {actionFields}
+            {scopes}
+            {runners}
+            {pickers}
+            {itemTypes}
+            {errors}
+            onupdate={update}
+            onremovestep={remove}
+            onremovecondition={removeCondition}
+            onaddcondition={addCondition}
+          />
+        {:else if tab === 'blocks'}
+          <div class="panel">
+            <BlocksPanel
+              {triggers}
+              kinds={actionKinds}
+              {summaries}
+              {usage}
+              onpick={(kind) => insert('', draft.actions.length, kind)}
+              onpicktrigger={replaceTrigger}
+              onlift={(event, piece) => lift(event, piece)}
+              ondrop={() => (drag = undefined)}
+            />
+          </div>
+        {:else if tab === 'piece'}
           <RuleInspector
             {draft}
             {selection}
@@ -756,7 +779,7 @@
 
   .auto { flex: 0 0 auto; padding: 0 var(--sp-100); border-radius: var(--r-full); background: var(--label-slate-bg); color: var(--label-slate-fg); font-size: var(--fs-050); font-weight: var(--fw-medium); }
 
-  .name:focus-visible, .chip:focus-visible, .fold:focus-visible, .pitem:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
+  .name:focus-visible, .chip:focus-visible, .fold:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
 
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
@@ -779,23 +802,9 @@
 
   .fold:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
-  .bench { display: grid; grid-template-columns: minmax(0, 24ch) minmax(0, 1fr) minmax(0, 40ch); flex: 1 1 auto; min-height: 0; }
-
-  .palette { display: flex; flex-direction: column; gap: var(--sp-200); padding: var(--sp-150); border-inline-end: var(--bw-hairline) solid var(--border-subtle); background: var(--bg-surface); }
-
-  .palette h2 { margin: 0; font-family: var(--font-ui); font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-
-  .pgroup { display: flex; flex-direction: column; gap: var(--sp-025); }
-
-  .eyebrow { display: flex; justify-content: space-between; gap: var(--sp-100); margin-block-end: var(--sp-050); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
-
-  .eyebrow em { font-style: normal; font-weight: var(--fw-regular); letter-spacing: 0; text-transform: none; }
-
-  .pitem { display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); font-size: var(--fs-075); text-align: start; cursor: pointer; }
-
-  .pitem :global(svg) { color: var(--text-subtle); flex: none; }
-
-  .pitem:hover { background: var(--bg-surface-hover); border-color: var(--border-subtle); }
+  /* The canvas and the panel, nothing else (decision 16): the panel reaches the bottom and
+     scrolls on its own, the canvas takes every other pixel. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 44ch); flex: 1 1 auto; min-height: 0; }
 
   .dragline { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); margin: 0; max-width: none; align-self: stretch; height: 0; overflow: visible; text-align: center; pointer-events: none; }
 
@@ -805,7 +814,7 @@
 
   .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow-x: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
 
-  .inspector { display: flex; flex-direction: column; border-inline-start: var(--bw-hairline) solid var(--border-subtle); background: var(--bg-surface); position: sticky; inset-block-start: 0; align-self: start; max-height: 100vh; overflow: auto; }
+  .inspector { display: flex; flex-direction: column; border-inline-start: var(--bw-hairline) solid var(--border-subtle); background: var(--bg-surface); position: sticky; inset-block-start: 0; align-self: start; height: 100vh; overflow: auto; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
@@ -820,9 +829,11 @@
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
   @media (max-width: 904px) {
     .bench { grid-template-columns: minmax(0, 1fr); }
-    .palette { display: none; }
-    .canvas { padding-block-end: var(--sp-1600); }
-    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: var(--sp-200); z-index: var(--z-sticky); display: flex; gap: var(--sp-100); }
-    .sheetbar :global(button) { flex: 1 1 auto; justify-content: center; box-shadow: var(--shadow-overlay); }
+    .canvas { padding-block-end: calc(var(--sp-1600) + var(--layout-bottombar-height)); }
+    /* Above the shell's bottom bar (F9), not behind it. */
+    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); box-shadow: var(--shadow-overlay); overflow: hidden; }
+    .sheetbar button { flex: 1 1 0; min-width: 0; display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-025); padding: var(--sp-050) var(--sp-025); border: 0; background: transparent; color: var(--text-secondary); font-size: var(--fs-050); }
+    .sheetbar button[aria-selected='true'] { color: var(--accent-primary); }
+    .sheetbar button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--sp-025)); }
   }
 </style>
