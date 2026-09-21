@@ -39,6 +39,12 @@
     readonly disabledReason?: string;
     /** For the tour and for tests: the attribute the caller finds the control by. */
     readonly tour?: string;
+    /**
+     * `data-opener`: the name a form or a dialog returns focus to when the control that opened it
+     * has been re-rendered in the meantime (`focusFirst`'s `returnTo`), and what the tour's last
+     * step points at.
+     */
+    readonly opener?: string;
   }
 
   interface Props {
@@ -51,7 +57,7 @@
     /** At most two; the third belongs in the menu, and the type says so. */
     secondary?: readonly [] | readonly [PageAction] | readonly [PageAction, PageAction];
     /** Everything else, grouped with `hasSeparatorBefore`, the destructive item last. */
-    menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void };
+    menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string };
     /** The bar that shows the title asks for it to be read, not drawn, below `medium`. */
     isTitleInBar?: boolean;
     /** Lines under the title: an archived notice, a refusal. The caller's `role="alert"` travels with them. */
@@ -145,14 +151,14 @@
     <div class="actions">
       {#if primary}
         <span class="primary">
-          <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour}>
+          <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
             {primary.label}
           </Button>
         </span>
       {/if}
       {#each secondary as action, index (index)}
         <span class="secondary">
-          <Button tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour}>
+          <Button tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
             {action.label}
           </Button>
         </span>
@@ -161,7 +167,7 @@
         <span class="menu menu-full">
           <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu.label} tone="secondary" {...props} />
+              <IconButton icon="ellipsis" label={menu.label} tone="secondary" data-opener={isFolded ? undefined : menu.opener} {...props} />
             {/snippet}
           </Menu>
         </span>
@@ -170,7 +176,7 @@
         <span class="menu menu-folded">
           <Menu label={menu?.label ?? secondary[0]?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? ''} tone="secondary" {...props} />
+              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? ''} tone="secondary" data-opener={isFolded ? menu?.opener : undefined} {...props} />
             {/snippet}
           </Menu>
         </span>
