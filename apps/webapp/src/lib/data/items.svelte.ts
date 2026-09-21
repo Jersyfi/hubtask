@@ -17,6 +17,7 @@
  */
 
 import type {
+  Assignment,
   AutoAssignOutcome,
   BulkOperation,
   BulkResult,
@@ -434,7 +435,10 @@ class Items {
     return engine.mutate<WorkItem>(
       'POST',
       `/items/${id}:assign`,
-      { assignee_id: accountId },
+      // Typed as the contract's `Assignment`, so the field's name comes from the specification and
+      // not from memory: the entry's field is `assignee_id`, the body's is `account_id`, and the
+      // other spelling was refused as unknown by every real server (issue 876).
+      { account_id: accountId } satisfies Assignment,
       { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
     );
   }

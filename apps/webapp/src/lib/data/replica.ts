@@ -257,8 +257,10 @@ export async function mutationFor(
       case 'reopen':
         return { kind: 'ITEM_PATCH', itemId, fields: { completion: { is_completed: false } } };
       case 'assign':
-        return typeof fields.assignee_id === 'string'
-          ? { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: fields.assignee_id } }
+        // The body names the account (`Assignment.account_id`); the field it sets on the entry
+        // is `assignee_id` (issue 876).
+        return typeof fields.account_id === 'string'
+          ? { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: fields.account_id } }
           : undefined;
       case 'unassign':
         return { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: null } };
