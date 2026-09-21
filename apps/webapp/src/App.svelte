@@ -128,7 +128,7 @@
   {:else if !session.isSignedIn}
     <SignInView />
   {:else if route.name === 'home'}
-    <HomeView />
+    <HomeView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
     <InstallationView />
   {:else if route.name === 'profile'}

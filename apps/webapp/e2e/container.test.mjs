@@ -196,3 +196,19 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
+
+test('chromium: 768 px — the board scrolls inside itself and does not widen the page', async (t) => {
+  // Issue 874: a card's hidden checkbox input is absolutely positioned, and an absolute box inside
+  // an unpositioned scroller overflows the scroller's ancestor - the page grew by four hundred
+  // pixels on a tablet. The board is positioned now; this holds the page to its viewport.
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await openCollection(browser, 768);
+  t.after(close);
+  await page.getByRole('radio', { name: 'Board' }).click();
+  await page.getByRole('region', { name: /To do/ }).waitFor({ timeout: 10_000 });
+  const scroll = await page.evaluate(() => ({ page: document.documentElement.scrollWidth - window.innerWidth, board: document.querySelector('.board').scrollWidth - document.querySelector('.board').clientWidth }));
+  assert.equal(scroll.page, 0, `the page scrolls sideways by ${scroll.page}px`);
+  assert.ok(scroll.board > 0, 'the board has nothing to scroll, so the case is not exercised');
+  assert.deepEqual(failures, []);
+});

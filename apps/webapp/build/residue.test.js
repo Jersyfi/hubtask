@@ -174,7 +174,9 @@ async function boot() {
   const stops = [manifest.start(), actor.start()];
   await engine.refresh({ path: '/meta/capabilities' });
   await engine.refresh({ path: '/accounts/me' });
-  await engine.refresh({ path: `/items/${ITEM}` });
+  // The entry as the view reads it - with the labels expanded (issue 875) - primed under that key.
+  const { itemPath } = await import('../src/lib/data/item.svelte.ts');
+  await engine.refresh({ path: itemPath(ITEM) });
   await engine.refresh({ path: `/containers/${COLLECTION}` });
   // The inbox reads through its own store rather than a `resource()`, and a store fills from its
   // subscription - which an effect starts in the browser and this starts here.
