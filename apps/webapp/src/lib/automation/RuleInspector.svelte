@@ -12,7 +12,7 @@
 
   import ActionForm, { type Choice, type Field } from './ActionForm.svelte';
   import Composer from './Composer.svelte';
-  import { pointerOf, replaceAt, stepAt, type Draft } from './model.ts';
+  import { isRung, listAt, parentOf, pointerOf, replaceAt, stepAt, type Draft } from './model.ts';
   import type { Selection } from './selection.ts';
   import { eventGroups, kindWord } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -91,6 +91,14 @@
   }
 
   const step = $derived(selection.kind === 'step' ? stepAt(draft.actions, selection.path) : undefined);
+  /** A branch that is the sole step of an else arm is a rung of a ladder: its heading says so (decision 19). */
+  const isElseIf = $derived.by(() => {
+    if (selection.kind !== 'step' || step?.kind !== 'BRANCH') return false;
+    const { list } = parentOf(selection.path);
+    if (!list.endsWith('/else')) return false;
+    const owner = stepAt(draft.actions, list.slice(0, -'/else'.length));
+    return isRung(owner) && (listAt(draft.actions, list)?.length ?? 0) === 1;
+  });
 </script>
 
 {#snippet nameSection()}
@@ -320,9 +328,10 @@
     <div><Button size="sm" tone="subtle" icon="trash" onclick={() => onremovecondition(index)}>{t('app.rules.remove_condition')}</Button></div>
   {:else if selection.kind === 'step' && step}
     {@const path = selection.path}
-    <h3>{kindWord(words, step.kind)}</h3>
+    <h3>{isElseIf ? t('app.flow.card_else_if') : kindWord(words, step.kind)}</h3>
     <span class="hint mono">{t('app.flow.kind_path', { kind: step.kind, path })}</span>
     {#if step.kind === 'BRANCH'}
+      {#if isElseIf}<p class="quiet">{t('app.flow.card_else_if_hint')}</p>{/if}
       <span class="label">{t('app.flow.branch_condition')}</span>
       <Composer
         expr={String(step.params.condition ?? '')}

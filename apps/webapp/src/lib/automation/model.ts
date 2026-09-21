@@ -372,9 +372,13 @@ export function addRung(actions: readonly Step[], path: Path): Step[] {
   return replaceAt(actions, last.path, { ...last.step, else: [rung] });
 }
 
-/** A fresh step of a kind, with a branch's two empty arms. */
+/**
+ * A fresh step of a kind, with a branch's two empty arms. A branch starts with the composer's own
+ * first sentence compiled, so the card and the panel say the same thing from the first moment
+ * and a branch saved untouched carries a condition the server accepts (F8-18).
+ */
 export function newStep(kind: string): Step {
-  return kind === 'BRANCH' ? { kind, params: { condition: '' }, then: [], else: [] } : { kind, params: {} };
+  return kind === 'BRANCH' ? { kind, params: { condition: compileSentence(defaultSentence()) }, then: [], else: [] } : { kind, params: {} };
 }
 
 /* ---------- The generated name ---------- */
