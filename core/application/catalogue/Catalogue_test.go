@@ -307,3 +307,26 @@ func TestPlumbingAndDatesAreMarkedOnEveryDescriptor(t *testing.T) {
 		}
 	}
 }
+
+// The summaries are the descriptors' own, one per action kind - the same key set as the actions,
+// so a catalogue in a rule editor never meets a kind it has no sentence for (F8-15).
+func TestAutomationActionSummariesAreTheDescriptorsOwn(t *testing.T) {
+	summaries := catalogue.AutomationActionSummaries()
+	actions := catalogue.AutomationActions()
+	if len(summaries) != len(actions) {
+		t.Fatalf("%d summaries for %d actions", len(summaries), len(actions))
+	}
+	for _, descriptor := range catalogue.Descriptors() {
+		summary, present := summaries[descriptor.AutomationAction()]
+		if !present {
+			t.Errorf("%s has no summary entry", descriptor.Name)
+			continue
+		}
+		if summary != descriptor.Summary {
+			t.Errorf("%s is summarised as %q, declares %q", descriptor.Name, summary, descriptor.Summary)
+		}
+		if strings.TrimSpace(summary) == "" {
+			t.Errorf("%s declares an empty summary; the catalogue would show its name alone", descriptor.Name)
+		}
+	}
+}
