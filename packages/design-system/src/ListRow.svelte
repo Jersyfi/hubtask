@@ -67,8 +67,12 @@
 </div>
 
 <style>
+  /* A row wraps rather than crushing its title (issue 838): when the leading controls, the title's
+     least width and the trailing controls do not fit on one line, the trailing ones go under the
+     title. That happens at a phone's width and in a 400 px pane, and never on a desk. */
   .row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--density-row-gap);
     padding-block: var(--density-row-block);
@@ -94,11 +98,16 @@
   .leading,
   .trailing { display: flex; flex: none; align-items: center; gap: var(--sp-100); }
 
+  /* Wrapped under the title, the trailing controls keep to the end of their line. */
+  .trailing { margin-inline-start: auto; max-inline-size: 100%; flex-wrap: wrap; }
+
   /* The content is what stretches, and it is the whole hit area of the row rather than the text
-     inside it: a target the width of a title is a target that misses. */
+     inside it: a target the width of a title is a target that misses. Its basis is nothing and
+     its least width is a couple of words - the width below which a title breaks letter by
+     letter - so the wrap above is decided by that width and not by the title's length. */
   .content {
-    flex: 1;
-    min-width: 0;
+    flex: 1 1 0;
+    min-inline-size: min(100%, 10ch);
     padding: 0;
     border: 0;
     background: transparent;
