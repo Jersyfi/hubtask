@@ -19,6 +19,22 @@ body {
   line-height: var(--lh-normal);
 }
 
+/* What a focused control scrolls clear of (2.4.11): the bar that sticks to the top on every
+   width, and on a phone the bar fixed to the bottom - a `Tab` that lands under either would land
+   on a control the reader cannot see. The keyboard walk of the entry (F9-08) found four stops
+   under the bottom bar before this. The token's value is written out because a media query cannot
+   read a custom property; it is `primitive.breakpoint.medium` and nothing else. */
+html {
+  scroll-padding-block-start: calc(var(--layout-appbar-height) + var(--sp-200));
+}
+
+/* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+@media (width < 600px) {
+  html {
+    scroll-padding-block-end: calc(var(--layout-bottombar-height) + var(--sp-200) + env(safe-area-inset-bottom, 0));
+  }
+}
+
 h1 {
   margin: 0 0 var(--sp-200);
   font-family: var(--font-display);

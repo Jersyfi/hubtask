@@ -26,6 +26,20 @@ export const ITEMS = [
   item('34', 'Choose the paint', { bucket_id: null }),
   item('35', 'Clear the room', { bucket_id: BUCKETS[2].id, completion: { is_completed: true } }),
 ];
+/** The subtree under the first task: two work packages, one of them holding two activities. */
+export const CHILDREN = {
+  [ITEMS[0].id]: [
+    { ...item('41', 'Tiles for the floor', { type: 'WORK_PACKAGE', parent_id: ITEMS[0].id, depth: 1 }) },
+    { ...item('42', 'Tiles for the splashback', { type: 'WORK_PACKAGE', parent_id: ITEMS[0].id, depth: 1, completion: { is_completed: true } }) },
+  ],
+  '01a0e2e0-0000-7000-8000-000000000041': [
+    { ...item('51', 'Measure the floor', { type: 'ACTIVITY', parent_id: '01a0e2e0-0000-7000-8000-000000000041', depth: 2, completion: { is_completed: true } }) },
+    { ...item('52', 'Order the floor tiles', { type: 'ACTIVITY', parent_id: '01a0e2e0-0000-7000-8000-000000000041', depth: 2 }) },
+  ],
+  '01a0e2e0-0000-7000-8000-000000000042': [],
+};
+export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
+
 export const MANIFEST = {
   product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single',
   item_types: [
@@ -76,9 +90,22 @@ export function stub(route) {
       const groups = [...BUCKETS.map((b) => b.id), null].map((key) => { const data = ITEMS.filter((i) => (i.bucket_id ?? null) === key); return { key, count: data.length, data, page: { next_cursor: null, has_more: false } }; });
       return route.fulfill({ json: { data: [], groups, page: { next_cursor: null, has_more: false }, total: ITEMS.length } });
     }
-    if (body.scope?.item_id) return route.fulfill({ json: { data: [], groups: [], page: { next_cursor: null, has_more: false }, total: 0 } });
+    if (body.scope?.item_id) {
+      const data = CHILDREN[body.scope.item_id] ?? [];
+      return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
+    }
     return route.fulfill({ json: { data: ITEMS, groups: [], page: { next_cursor: null, has_more: false }, total: ITEMS.length } });
   }
+  const one = ALL_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (one && request.method() === 'GET') return route.fulfill({ json: one });
+  if (one && request.method() === 'PATCH') return route.fulfill({ json: { ...one, ...request.postDataJSON(), version: one.version + 1 } });
+  if (path.match(/\/api\/v1\/items\/[^/]+:(complete|reopen)$/) && request.method() === 'POST') {
+    const id = path.split('/').pop().split(':')[0];
+    const target = ALL_ITEMS.find((each) => each.id === id);
+    return route.fulfill({ json: { ...target, completion: { is_completed: path.endsWith(':complete') }, version: target.version + 1 } });
+  }
+  if (path.match(/\/api\/v1\/items\/[^/]+\/(reminders|attachments|comments|activity)$/)) return route.fulfill({ json: { ...PAGE, data: [] } });
+  if (path.match(/\/api\/v1\/items\/[^/]+\/recurrence$/)) return route.fulfill({ status: 404, json: { code: 'recurrence.not_found' } });
   if (/\/(views|templates|custom-fields|policies|feeds)$/.test(path)) return route.fulfill({ json: [] });
   return route.fulfill({ json: PAGE });
 }
