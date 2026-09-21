@@ -3844,7 +3844,7 @@ type AutomationActionFieldKind string
 type AutomationRule struct {
 	Actions []RuleAction `json:"actions"`
 
-	// CheckedAt When the check last ran over this rule, and absent for a rule it never has.
+	// CheckedAt When the check last ran over this rule, and absent for a rule it never has — or for one edited since: an edit leaves the rule unchecked and its findings empty, because they described the definition the check read, not this one.
 	CheckedAt *time.Time `json:"checked_at,omitempty"`
 
 	// Conditions Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is (G-06).

@@ -372,7 +372,13 @@
     }
     if (!stored) return;
     const ok = await attempt(() => rules.change(stored.id, body, stored.version), t('app.flow.saved_announced'));
-    if (ok) dirty = false;
+    if (ok) {
+      dirty = false;
+      // The write leaves the rule unchecked; the check right after it is what tells the writer
+      // whether the repair held, at the card it concerns, rather than at the next opening of the
+      // list. Nothing to undo if it fails: the list checks again when it opens.
+      await rules.check().catch(() => undefined);
+    }
   }
 
   async function toggle(): Promise<void> {
