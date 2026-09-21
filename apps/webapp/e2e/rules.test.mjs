@@ -160,6 +160,14 @@ function stubFor(written, tested = TEST_HELD) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
+/** The panel's Blocks tab, opened: where every block is dragged or clicked from (decision 17). */
+async function openBlocks(page) {
+  await page.locator('aside.inspector').getByRole('tab', { name: 'Blocks' }).click();
+  const blocks = page.locator('aside.inspector [data-blocks]');
+  await blocks.waitFor();
+  return blocks;
+}
+
 async function open(browser, written, viewport, tested) {
   const context = await browser.newContext({ viewport });
   await context.route('**/api/v1/**', stubFor(written, tested));
@@ -212,12 +220,20 @@ test('chromium: every building block carries its icon, and a kind outside the gr
   t.after(() => browser.close());
   const page = await open(browser, [], { width: 1400, height: 900 });
 
-  // The palette: an icon in every item, and the curated groups only.
-  const items = page.locator('aside.palette .pitem');
-  assert.equal(await items.count(), await items.locator('svg').count(), 'every palette item has an icon');
-  assert.equal(await page.locator('aside.palette .pitem', { hasText: 'Create access token' }).count(), 0, 'the rest is not in the palette');
+  // The Blocks tab of the panel (decision 17): an icon in every item; the curated groups on the
+  // first sub-tab, every served kind on the second - nothing hidden.
+  const blocks = await openBlocks(page);
+  const items = blocks.locator('.item');
+  assert.equal(await items.count(), await items.locator('svg').count(), 'every block has an icon');
+  assert.equal(await blocks.locator('.item', { hasText: 'Create access token' }).count(), 0, 'the rest is not among the blocks');
+  await blocks.getByRole('tab', { name: /^All/ }).click();
+  assert.equal(await blocks.locator('.item', { hasText: 'Create access token' }).count(), 1, 'and is in All, by eye');
+  await blocks.locator('.item', { hasText: 'Create access token' }).click();
+  assert.equal(await page.locator('[data-canvas] [data-card="3"] .title').textContent(), 'Create access token', 'a click appends to the chain');
+  await openBlocks(page);
+  await blocks.getByRole('tab', { name: 'Blocks', exact: true }).click();
 
-  // The + menu: the same, and the search reaches what the palette leaves out.
+  // The + menu: the same list, and typing reaches what the blocks leave out.
   await page.locator('.gap[data-list=""][data-index="0"] [data-slot]').click();
   const menu = page.locator('.menu');
   assert.equal(await menu.locator('.item').count(), await menu.locator('.item svg').count(), 'every menu item has an icon');
@@ -234,10 +250,13 @@ test('chromium: End the run belongs at the end of an arm, a branch ending on eve
   const titles = async () => page.locator('[data-canvas] [data-card="0"] .title, [data-canvas] [data-card="1"] .title, [data-canvas] [data-card="2"] .title, [data-canvas] [data-card="3"] .title').allTextContents();
 
   // Into the chain: refused with its own sentence in the hint line, the chain unchanged.
-  await page.getByRole('button', { name: 'End the run', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
+  // Frequent and Flow both list it; the block under Flow is the one dragged.
+  const blocks = await openBlocks(page);
+  const endTheRun = blocks.locator('[data-block="STOP"]').last();
+  await endTheRun.dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
   await page.locator('.dragline span', { hasText: 'goes at the end of an arm' }).waitFor();
   assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook']);
-  await page.getByRole('button', { name: 'End the run', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="3"]'));
+  await endTheRun.dragTo(page.locator('.gap[data-list=""][data-index="3"]'));
   assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook'], 'the chain ends the run anyway');
 
   // The + menu of the chain's last gap does not offer it; the last gap of an arm does. The else
@@ -247,7 +266,7 @@ test('chromium: End the run belongs at the end of an arm, a branch ending on eve
   assert.equal(await page.locator('.menu .item', { hasText: 'End the run' }).count(), 0);
   await page.keyboard.press('Escape');
   await page.locator('.gap[data-list="1/then"][data-index="1"] [data-slot]').click();
-  await page.locator('.menu .item', { hasText: 'End the run' }).click();
+  await page.locator('.menu .item', { hasText: 'End the run' }).last().click();
   await page.locator('[data-card="1/then/1"]').waitFor();
   assert.equal(await page.locator('[data-branch="1"] .join.none').count(), 1, 'no join under a fork whose arms both end');
   assert.equal(await page.locator('.gap[data-list=""][data-index="2"]').count(), 0, 'no gap after a branch that ends every path');
@@ -314,20 +333,21 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
 
   // While the piece is lifted: the hint on its own line, whole; the trigger card's strip inside
   // the card; the gap's pill readable on one line (F8-12).
+  await openBlocks(page);
   const dt = await page.evaluateHandle(() => new DataTransfer());
-  await page.dispatchEvent('aside.palette button:has-text("A schedule")', 'dragstart', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="T:SCHEDULE"]', 'dragstart', { dataTransfer: dt });
   assert.equal(await page.locator('.dragline').textContent(), 'A trigger goes at the top: let it go on the trigger card, and it replaces the one there.');
   const strip = page.locator('[data-card="trigger"] .dropword');
   assert.equal(await strip.textContent(), 'Replace the trigger');
   const [card, badge] = await Promise.all([page.locator('[data-card="trigger"]').boundingBox(), strip.boundingBox()]);
   assert.ok(badge.y >= card.y && badge.y + badge.height <= card.y + card.height, 'the strip sits inside the card');
-  await page.dispatchEvent('aside.palette button:has-text("A schedule")', 'dragend', { dataTransfer: dt });
-  await page.dispatchEvent('aside.palette button:has-text("Add a label")', 'dragstart', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="T:SCHEDULE"]', 'dragend', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="ADD_LABEL"]', 'dragstart', { dataTransfer: dt });
   const pill = page.locator('.gap[data-list=""][data-index="1"] [data-slot]');
   const pillBox = await pill.boundingBox();
   assert.ok(pillBox.width > pillBox.height * 2, 'the pill is wide, not a circle with two lines in it');
   assert.equal(await pill.evaluate((el) => el.scrollWidth <= el.clientWidth), true, 'nothing clipped');
-  await page.dispatchEvent('aside.palette button:has-text("Add a label")', 'dragend', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="ADD_LABEL"]', 'dragend', { dataTransfer: dt });
   assert.equal(await page.locator('.dragline').textContent(), '', 'the line stays and empties');
 
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
@@ -342,7 +362,9 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   assert.deepEqual(await eventSelect.locator('option').allTextContents().then((texts) => texts.map((text) => text.trim())), ['Choose an event', 'An entry is created', 'An entry becomes overdue']);
   await page.getByText('On the wire: de.hubtask.work.item.overdue.v1').waitFor();
 
-  // And on the trigger card it lands: the kind changes.
+  // And on the trigger card it lands: the kind changes. Clicking the card opened Details; the
+  // blocks are a tab away.
+  await openBlocks(page);
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('[data-card="trigger"]'));
   assert.equal(await page.locator('[data-card="trigger"] .title').textContent(), 'A schedule');
 });

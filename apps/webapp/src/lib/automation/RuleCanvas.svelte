@@ -32,6 +32,9 @@
     selection: Selection;
     /** The action kinds this installation serves. */
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it, for the `+` popover's list. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     names: Names;
     /** The text under the trigger's title: the event, the schedule, the address. */
     triggerMeta: string;
@@ -63,7 +66,7 @@
   }
 
   const {
-    draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
+    draft, selection, kinds, summaries = {}, usage = new Map(), names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
     onnudge, onaddrung, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
@@ -218,9 +221,9 @@
     </button>
   </div>
 
-  <InsertMenu {kinds} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
+  <InsertMenu {kinds} {summaries} {usage} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+  <RuleCanvasList {summaries} {usage} steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
   <!-- The run ends where the chain ends (decision 19): the end mark, unless the chain already
        ended on every path above - where the list drew its own, or where a stored rule's steps

@@ -9,18 +9,21 @@
 
   import { Icon, Popover } from '@hubtask/design-system/components';
 
-  import { FLOW_KINDS, canPlace, type Step } from './model.ts';
+  import BlocksPanel from './BlocksPanel.svelte';
+  import { canPlace, type Step } from './model.ts';
   import { gapTakes, type Drag } from './selection.ts';
-  import { grouped, kindIcon, kindWord } from './words.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     /** The action kinds this installation serves, from `/meta/capabilities`. */
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it: the list's own props. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     /** Where the chosen kind goes: the list and the index the gap sits at. */
     list: string;
     index: number;
-    /** The whole chain, which decides what this gap may take (decision 14: a stop goes last). */
+    /** The whole chain, which decides what this gap may take (decision 19). */
     actions: readonly Step[];
     onpick: (list: string, index: number, kind: string) => void;
     /** A label above the slot, such as "a day later" under a WAIT. */
@@ -31,7 +34,7 @@
     ondrop?: (list: string, index: number, drag: Drag) => void;
   }
 
-  const { kinds, list, index, actions, onpick, caption, drag, ondrop }: Props = $props();
+  const { kinds, summaries = {}, usage = new Map(), list, index, actions, onpick, caption, drag, ondrop }: Props = $props();
 
   const target = $derived(gapTakes(drag, list, index, actions));
   let over = $state(false);
@@ -52,31 +55,12 @@
   }
 
   let isOpen = $state(false);
-  let query = $state('');
 
-  const words = { t, has: (code: string) => messages.has(code) };
-  // The groups alone while nothing is typed; everything the installation serves once something
-  // is (decision 12) - the search is how a kind outside the groups is reached, here and nowhere
-  // else, so the palette can stay a palette.
-  const groups = $derived([
-    ...grouped(kinds, query.trim() === '' ? 'folded' : 'listed'),
-    { code: 'app.flow.group_flow', kinds: FLOW_KINDS.filter((kind) => canPlace(actions, list, index, kind)) },
-  ]);
-  const shown = $derived(
-    groups
-      .map((group) => ({
-        code: group.code,
-        kinds: group.kinds.filter((kind) => {
-          const needle = query.trim().toLowerCase();
-          return needle === '' || kindWord(words, kind).toLowerCase().includes(needle) || kind.toLowerCase().includes(needle);
-        }),
-      }))
-      .filter((group) => group.kinds.length > 0),
-  );
+  /** The same list as the panel's, filtered to what this gap takes (decision 17). */
+  const allowed = (kind: string): boolean => canPlace(actions, list, index, kind);
 
   function pick(kind: string): void {
     isOpen = false;
-    query = '';
     onpick(list, index, kind);
   }
 </script>
@@ -102,14 +86,7 @@
       </button>
     {/snippet}
     <div class="menu">
-      <input class="search" type="search" placeholder={t('app.flow.insert_search')} aria-label={t('app.flow.insert_search')} bind:value={query} />
-      {#if query.trim() === ''}<span class="more">{t('app.flow.insert_search_hint')}</span>{/if}
-      {#each shown as group (group.code)}
-        <span class="group">{t(group.code)}</span>
-        {#each group.kinds as kind (kind)}
-          <button class="item" type="button" onclick={() => pick(kind)}><Icon name={kindIcon(kind)} size="sm" />{kindWord(words, kind)}</button>
-        {/each}
-      {/each}
+      <BlocksPanel triggers={[]} {kinds} {summaries} {usage} {allowed} onpick={pick} autofocus />
     </div>
   </Popover>
   <span class="line"></span>
@@ -160,29 +137,8 @@
 
   .word { font-size: var(--fs-050); font-weight: var(--fw-medium); }
 
-  .menu { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 28ch; max-block-size: 50vh; overflow: auto; padding: var(--sp-050); }
-
-  .search {
-    min-height: var(--density-control-sm-min);
-    padding: var(--sp-050) var(--sp-100);
-    border: var(--bw-hairline) solid var(--border-default);
-    border-radius: var(--r-sm);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    margin-block-end: var(--sp-050);
-  }
-
-  .more { padding: 0 var(--sp-100) var(--sp-050); font-size: var(--fs-050); color: var(--text-subtle); }
-
-  .group { padding: var(--sp-100) var(--sp-100) var(--sp-025); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
-
-  .item { display: flex; align-items: center; gap: var(--sp-100); text-align: start; padding: var(--sp-050) var(--sp-100); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-primary); font-size: var(--fs-075); }
-
-  .item :global(svg) { color: var(--text-subtle); flex: none; }
-
-  .item:hover { background: var(--bg-surface-hover); }
-
-  .item:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--sp-025)); }
+  /* The popover: the panel's list with a gutter of its own, so the search does not sit on the edge. */
+  .menu { min-inline-size: 30ch; max-inline-size: 40ch; max-block-size: 50vh; overflow: auto; padding: var(--sp-100); }
 
   @media (prefers-reduced-motion: reduce) { .slot { transition: none; } }
   :global([data-motion='reduced']) .slot { transition: none; }
