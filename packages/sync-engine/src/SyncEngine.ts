@@ -164,6 +164,13 @@ export interface MutateOptions {
    * A prefix matches a path, so `/containers` covers `/containers?cursor=…` and
    * `/containers/{id}` alike; the document half of a query key is not matched against, because a
    * write does not know which questions it changed the answer to.
+   *
+   * Two marks make a name precise where a prefix is too wide (issue 877 - a retitled entry
+   * re-read its comments, reminders, attachments and series, none of which had moved):
+   * a trailing `$` names the path itself and not what hangs under it - `/items/{id}$` is the
+   * entry's document, with or without a query string, and not `/items/{id}/comments` - and `*`
+   * stands for one segment, so a star in place of the id under `/items/` names every thread a
+   * screen holds open. See `matchesPath`.
    */
   readonly invalidates?: readonly string[];
 }
@@ -177,7 +184,10 @@ export interface MutateOptions {
  * a container, nothing at all for an entity this client does not read.
  */
 export interface ListenOptions {
-  /** What a record makes stale, as path prefixes. Empty means "this record changes nothing here". */
+  /**
+   * What a record makes stale, as path prefixes - with `$` and `*` as `MutateOptions.invalidates`
+   * takes them. Empty means "this record changes nothing here".
+   */
   readonly pathsFor: (record: ChangeRecord) => readonly string[];
   /** The stream's path. The contract's is `/stream`, and there is no reason to name another. */
   readonly path?: string;
@@ -1034,7 +1044,35 @@ export class SyncEngine {
     return entry;
   }
 
-  async #load<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
+  /**
+   * Reads the entry - once at a time. An ask that arrives while a read is on its way does not
+   * start a second one: it marks the entry stale and joins the read in flight, and when that one
+   * lands, one more read follows for everything that arrived meanwhile (issue 877). A write
+   * answers, its stream records land a moment later, and each names the same paths; before this,
+   * every one of them was a request of its own, and a title saved once was an entry read three
+   * times. The follow-up is not skipped, because the read in flight may have been served before
+   * the change was committed - what is skipped is the second and third of the same question.
+   * The promise answered is the follow-up's, so `refresh` resolves on a read that began after it
+   * was called.
+   */
+  #load<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
+    if (entry.loading) {
+      // One follow-up, shared by every ask that arrives during the flight; it starts when the
+      // read in flight lands, and an ask that arrives during the follow-up queues the next one.
+      // `#read` never rejects, so there is nothing to catch on the way.
+      entry.next ??= entry.loading.then(() => {
+        entry.next = undefined;
+        return this.#load(request, entry);
+      });
+      return entry.next;
+    }
+    entry.loading = this.#read(request, entry).finally(() => {
+      entry.loading = undefined;
+    });
+    return entry.loading;
+  }
+
+  async #read<T>(request: ResourceRequest, entry: ResourceEntry<T>): Promise<void> {
     // A screen that holds data keeps it while the next answer is on its way (F5-11). Publishing
     // `loading` over a `ready` state tore every list down to its skeleton after every write - and
     // took the keyboard's focus to `body` with it, so a reorder by menu cost the reader the whole
@@ -1160,7 +1198,7 @@ export class SyncEngine {
    */
   #invalidate(prefixes: readonly string[] | undefined): void {
     const stale = [...this.#resources].filter(
-      ([, entry]) => prefixes === undefined || prefixes.some((prefix) => entry.path.startsWith(prefix)),
+      ([, entry]) => prefixes === undefined || prefixes.some((prefix) => matchesPath(prefix, entry.path)),
     );
 
     for (const [key, entry] of stale) {
@@ -1173,6 +1211,28 @@ export class SyncEngine {
       void this.#load(entry.request, entry);
     }
   }
+}
+
+/**
+ * Whether a name an invalidation carries covers a path an entry was read from.
+ *
+ * A plain name is a prefix, as it always was: `/items` covers `/items:query`, `/items/{id}` and
+ * `/items/{id}/comments` alike. Two marks narrow it. A trailing `$` ends the name at the path
+ * itself - the query string does not count, so `/items/{id}$` covers `/items/{id}?expand=labels`
+ * and not `/items/{id}/comments`. A `*` stands for exactly one segment - a star in place of the
+ * id under `/items/`, followed by `/reminders`, covers every entry's reminders, which is what a
+ * record that names the reminder and not the entry needs. Nothing else is special: a path of
+ * this API carries no `*` and no `$`.
+ */
+export function matchesPath(name: string, path: string): boolean {
+  const isExact = name.endsWith('$');
+  const pattern = isExact ? name.slice(0, -1) : name;
+  if (!isExact && !pattern.includes('*')) return path.startsWith(pattern);
+  const source = pattern
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^/?]+');
+  return new RegExp(`^${source}${isExact ? '(?:\\?.*)?$' : ''}`).test(path);
 }
 
 /** A failure that never reached the server: no answer at all, or none in time. */
@@ -1263,6 +1323,10 @@ interface ResourceEntry<T> {
   readonly request: ResourceRequest;
   state: ResourceState<T>;
   listeners: Set<Listener<T>>;
+  /** The read on its way, while one is - so a second ask joins it rather than racing it. */
+  loading?: Promise<void>;
+  /** The one read promised after it, when something changed while it was on its way. */
+  next?: Promise<void>;
   /** The tag the last successful read carried, so a write can state the version it saw. */
   etag?: string;
 }
