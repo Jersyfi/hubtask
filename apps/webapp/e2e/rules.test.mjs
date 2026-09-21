@@ -220,6 +220,38 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   assert.ok(written.some((body) => body.check), 'the editor checked after the save');
 });
 
+test('chromium: a deep link into the editor reads each resource once, and only what the first paint needs', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  const seen = [];
+  const stub = stubFor([]);
+  await context.route('**/api/v1/**', (route) => {
+    const url = new URL(route.request().url());
+    seen.push(`${route.request().method()} ${url.pathname}${url.search}`);
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.waitForFunction(() => document.querySelector('[data-canvas]') !== null);
+  await page.waitForTimeout(1500);
+
+  // Issue 818: the boot read every subscription twice - once on subscribing, once when the
+  // snapshot ended - and the editor opened every picker's store at once; 32 requests met the
+  // credential's burst of 20. Now each GET once, and the labels, buckets, groups, templates and
+  // webhooks only when a field of the rule names their kind.
+  const gets = seen.filter((line) => line.startsWith('GET ') && !line.endsWith('/stream'));
+  assert.deepEqual(gets.filter((line, index) => gets.indexOf(line) !== index), [], 'no resource read twice on open');
+  for (const path of ['/labels', '/buckets', '/templates', '/groups', '/integrations/webhooks']) {
+    assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
+  }
+  assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
+});
+
 test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

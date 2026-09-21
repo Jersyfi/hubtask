@@ -30,9 +30,9 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, type Draft, type Step } from '../lib/automation/model.ts';
+  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
+  import { REFERENCE, eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
@@ -63,13 +63,14 @@
   const TENANT = { scopeType: 'TENANT' } as const;
   const isNew = $derived(id === 'new');
 
+  // What the first paint needs, and nothing more (issue 818): the rules, the hubs and their
+  // collections for the scope's name, the service accounts for the runner's. Everything a form or
+  // a name might need later - the memberships, the groups, the templates, the webhooks, each
+  // collection's labels and buckets - is opened when a field of the rule or the panel names its
+  // kind (`needed`, below), so that a deep link never meets the credential's burst on one screen.
   $effect(() => untrack(() => rules.open()));
   $effect(() => untrack(() => containers.start()));
   $effect(() => untrack(() => serviceAccounts.open()));
-  $effect(() => untrack(() => people.openScope(TENANT)));
-  $effect(() => untrack(() => groups.open()));
-  $effect(() => untrack(() => templates.open()));
-  $effect(() => untrack(() => webhooks.open()));
   $effect(() => {
     for (const hub of containers.hubs) untrack(() => containers.openLevel(hub.id));
   });
@@ -234,13 +235,55 @@
     const hubs = draft.scope.type === 'HUB' && draft.scope.id ? containers.hubs.filter((hub) => hub.id === draft.scope.id) : containers.hubs;
     return hubs.flatMap((hub) => containers.collectionsOf(hub.id));
   });
+  /**
+   * The kinds of thing the rule names or the panel is about to ask for: what decides which stores
+   * are read (issue 818). A step's declared fields name their kinds through the reference table;
+   * a condition anywhere may name a label, a bucket or an account; the composer and the runner
+   * picker need theirs open while they are shown.
+   */
+  const needed = $derived.by(() => {
+    const kinds = new Set<string>();
+    const conditions: string[] = [...draft.conditions];
+    walk(draft.actions, (step) => {
+      for (const field of actionFields[step.kind] ?? []) {
+        const reference = REFERENCE[field.name];
+        if (reference) kinds.add(reference);
+      }
+      if (step.kind === 'BRANCH') conditions.push(String(step.params.condition ?? ''));
+    });
+    for (const expr of conditions) {
+      if (expr.includes('item.labels')) kinds.add('label');
+      if (expr.includes('item.bucket_id')) kinds.add('bucket');
+      if (expr.includes('assignee_id') || expr.includes('actor.id')) kinds.add('account');
+    }
+    if (selection.kind === 'gate' || selection.kind === 'condition' || (selection.kind === 'step' && stepAt(draft.actions, selection.path)?.kind === 'BRANCH')) {
+      kinds.add('label');
+      kinds.add('bucket');
+      kinds.add('account');
+    }
+    if (tab === 'rule' || selection.kind === 'runas' || (draft.runAs && !serviceAccounts.all.some((account) => account.id === draft.runAs))) kinds.add('account');
+    return kinds;
+  });
   $effect(() => {
+    if (!needed.has('label') && !needed.has('bucket')) return;
     for (const collection of collectionsInScope) {
       untrack(() => {
-        labels.open(collection.id);
-        buckets.open(collection.id);
+        if (needed.has('label')) labels.open(collection.id);
+        if (needed.has('bucket')) buckets.open(collection.id);
       });
     }
+  });
+  $effect(() => {
+    if (needed.has('account')) untrack(() => people.openScope(TENANT));
+  });
+  $effect(() => {
+    if (needed.has('group')) untrack(() => groups.open());
+  });
+  $effect(() => {
+    if (needed.has('template')) untrack(() => templates.open());
+  });
+  $effect(() => {
+    if (needed.has('subscription')) untrack(() => webhooks.open());
   });
 
   const pickers = $derived<Readonly<Record<string, readonly Choice[]>>>({

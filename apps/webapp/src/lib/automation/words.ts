@@ -228,6 +228,24 @@ export function usageOf(rules: readonly { actions: readonly { kind: string; para
   return counts;
 }
 
+/**
+ * The reference table's client half (ADR-0060): which store answers an identifier's name, by the
+ * parameter's name. One table for the form's pickers and for what the editor reads at all - a
+ * store is opened when a field of the rule names its kind, and not before (issue 818).
+ */
+export const REFERENCE: Readonly<Record<string, string>> = {
+  label_id: 'label',
+  bucket_id: 'bucket',
+  container_id: 'container',
+  parent_id: 'container',
+  collection_id: 'container',
+  template_id: 'template',
+  subscription_id: 'subscription',
+  group_id: 'group',
+  account_id: 'account',
+  assignee_id: 'account',
+};
+
 /** One condition, as words: the sentence's subject and value, or "the expression holds". */
 export function conditionWords(words: Catalogue, names: Names, expr: string): string {
   const node = readNode(expr);

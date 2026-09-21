@@ -14,6 +14,7 @@
 
   import { Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
+  import { REFERENCE } from './words.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   /** One declared field, as the manifest answers it. */
@@ -40,19 +41,6 @@
 
   const { fields, params, pickers, errors, onchange }: Props = $props();
 
-  /** The reference table's client half: which store answers an identifier's name (ADR-0060). */
-  const REFERENCE: Readonly<Record<string, string>> = {
-    label_id: 'label',
-    bucket_id: 'bucket',
-    container_id: 'container',
-    parent_id: 'container',
-    collection_id: 'container',
-    template_id: 'template',
-    subscription_id: 'subscription',
-    group_id: 'group',
-    account_id: 'account',
-    assignee_id: 'account',
-  };
 
   /** The JSON of a document field as it is being typed: a half-written object is still visible. */
   let texts = $state<Record<string, string>>({});
