@@ -791,9 +791,9 @@ export class SyncEngine {
           cursor = await this.#catchUp(options, signal);
           if (signal.aborted) return;
           // The server answered: what the queue holds is pushed, and whatever a screen is
-          // showing from the copy is read again.
+          // showing from the copy, or could not show at all, is read again.
           await this.push();
-          this.#replaceReplicaStates();
+          this.#recover();
         }
         const connection = await this.#transport.stream(path, {
           token: this.#token(),
@@ -802,8 +802,10 @@ export class SyncEngine {
           idleTimeoutMs: options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
           signal,
         });
-        // The connection was accepted, so whatever went wrong before is over.
+        // The connection was accepted, so whatever went wrong before is over - and without a
+        // store this is the first moment the engine knows it, so what failed is read again here.
         attempt = 0;
+        if (!this.#replica) this.#recover();
 
         for await (const event of connection.events) {
           if (event.retryMs !== undefined) suggested = event.retryMs;
@@ -1107,15 +1109,21 @@ export class SyncEngine {
   }
 
   /**
-   * Every entry a screen is showing from the replica, read from the server again: what the loop
-   * runs once the server answered a pull after a reconnect, so a replica state is replaced by
-   * the first server answer rather than retried on every render.
+   * Every entry a screen is showing from the replica, and every one the server could not answer,
+   * read from the server again: what the loop runs once the server answered after a reconnect,
+   * so a replica state is replaced by the first server answer rather than retried on every
+   * render - and a read that failed while the server was away is not left failed until the tab
+   * reloads (issue 881: the account, read once at start, stayed "You" after every reconnect).
+   *
+   * A failure the server *answered* - a 403, a 404 - is the server's answer and stays: retrying
+   * it would be asking for a better one. Only what could plausibly succeed now is asked again.
    */
-  #replaceReplicaStates(): void {
+  #recover(): void {
     for (const entry of this.#resources.values()) {
-      if (entry.state.status === 'ready' && entry.state.source === 'replica' && entry.listeners.size > 0) {
-        void this.#load(entry.request, entry);
-      }
+      if (entry.listeners.size === 0) continue;
+      const isCopy = entry.state.status === 'ready' && entry.state.source === 'replica';
+      const isUnanswered = entry.state.status === 'failed' && entry.state.error.isRetryable;
+      if (isCopy || isUnanswered) void this.#load(entry.request, entry);
     }
   }
 
