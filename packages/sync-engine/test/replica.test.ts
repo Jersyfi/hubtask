@@ -356,6 +356,35 @@ test('a refusal the server answered is never replaced by the copy', async () => 
   if (state.status === 'failed') assert.equal(state.error.status, 403);
 });
 
+test('a path the copy could not answer is read again once the server answers a pull', async () => {
+  // Issue 881, with a store: the copy answered the entry and not its history, which stayed failed.
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
+  const engine = new SyncEngine({ transport, clock: new FixedClock(), storeFor });
+  await engine.attach(new MemoryStorage(), { platform: 'web', displayName: 'test' });
+  const first = engine.listen({ pathsFor });
+  await settle();
+  first();
+
+  transport.fail(`/items/${ITEM}/activity`, new TransportError('offline'));
+  const seen: string[] = [];
+  engine.subscribe<{ data: string[] }>({ path: `/items/${ITEM}/activity` }, (state) => {
+    if (state.status === 'failed') seen.push(`failed:${state.error.detailCode ?? state.error.kind}`);
+    if (state.status === 'ready') seen.push(`ready:${state.data.data.length}`);
+  });
+  await settle();
+  assert.deepEqual(seen, ['failed:sync.needs_connection']);
+
+  transport.recover(`/items/${ITEM}/activity`);
+  transport.answer(`/items/${ITEM}/activity`, { data: ['created'] });
+  const reads = transport.calls.filter((c) => c.path === `/items/${ITEM}/activity`).length;
+  const second = engine.listen({ pathsFor, wait: async () => {} });
+  await settle(20);
+  second();
+  assert.equal(seen.at(-1), 'ready:1', 'what the copy could not answer stayed failed after the reconnect');
+  assert.equal(transport.calls.filter((c) => c.path === `/items/${ITEM}/activity`).length - reads, 1, 'read again exactly once');
+});
+
 test('the first server answer after a reconnect replaces the replica\'s state', async () => {
   const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
   transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });

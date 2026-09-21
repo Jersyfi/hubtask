@@ -96,12 +96,20 @@
    * reader who navigates from a board to an entry does not want the connection torn down and made
    * again. `live.stop()` is called by the sign-out itself, so the teardown here is only for a tab
    * that closes.
+   *
+   * The effect follows the account's **id** and nothing else about it (issue 881). It used to read
+   * `actor.account` directly, and so re-ran on every state the account passed through - and with
+   * the server away, each re-run tore the stream down and attached the store again, each attach
+   * read the failed account again, each failure was a new state: a loop as tight as the network
+   * let it be, nine hundred reads of `/accounts/me` in the seconds an outage lasted in the walk.
    */
-  $effect(() => {
-    if (!session.isSignedIn) return;
+  const liveAccountId = $derived(
     // The account from `/accounts/me`, or the one remembered beside the pair when the server
     // cannot be reached: a tab reloading offline still opens its replica (F6-04).
-    const accountId = actor.account?.id ?? platform.lastAccount();
+    session.isSignedIn ? (actor.account?.id ?? platform.lastAccount()) : undefined,
+  );
+  $effect(() => {
+    const accountId = liveAccountId;
     if (!accountId) return;
     live.start(accountId);
     return () => live.stop();
