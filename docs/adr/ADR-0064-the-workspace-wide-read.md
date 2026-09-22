@@ -1,6 +1,6 @@
 # ADR-0064 — The one read that may ask the whole workspace a narrowed question
 
-**Status:** proposed · **Date:** 2026-09-22
+**Status:** accepted · **Date:** 2026-09-22 · **Accepted:** 2026-09-22
 
 ## Context
 
