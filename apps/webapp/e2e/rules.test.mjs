@@ -510,6 +510,15 @@ test('chromium: the gate is edited as one thing, a group is offered from the fir
   assert.equal(await inspector.locator('[data-condition]').count(), 1, 'the stored condition is in the gate\'s own panel');
   assert.equal(await inspector.locator('button', { hasText: 'Add a condition' }).count(), 0, 'and nothing offers a second');
   assert.equal(await page.locator('[data-card="gate"] .add').count(), 0);
+  // One is the most there can be, so the head says nothing about how they join, and the
+  // condition is not a second thing to click: it is the gate.
+  assert.deepEqual(await page.locator('[data-card="gate"] .ghead .hint').allTextContents(), []);
+  assert.equal(await page.locator('[data-card="conditions/0"]').getAttribute('role'), null);
+  await page.locator('[data-card="conditions/0"]').click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('.gate.selected').count(), 1, 'the click reaches the gate');
+  assert.equal(await page.locator('.condition.selected').count(), 0, 'and selects no condition of its own');
+  assert.equal(await inspector.locator('h3').first().textContent(), 'Only when');
 
   // A group is offered from the first sentence, and the mode appears when there is something to
   // hold together.
@@ -647,6 +656,26 @@ test('chromium: the sheet keeps its head, is sized by the reader, and keeps that
   await page.keyboard.press('ArrowDown');
   await page.waitForTimeout(150);
   assert.equal(await share(), 85);
+
+  // Nothing of the sheet stands past its own bottom edge: scrolled to the end, the last control
+  // is whole and the panel's own room is under it.
+  await page.evaluate(() => {
+    const body = document.querySelector('dialog[open] .body');
+    body.scrollTop = body.scrollHeight;
+  });
+  await page.waitForTimeout(150);
+  const foot = await page.evaluate(() => {
+    const open = document.querySelector('dialog[open]');
+    const body = open.querySelector('.body');
+    const last = body.lastElementChild;
+    return {
+      sheet: Math.round(open.getBoundingClientRect().bottom),
+      body: Math.round(body.getBoundingClientRect().bottom),
+      last: Math.round(last.getBoundingClientRect().bottom),
+    };
+  });
+  assert.ok(foot.body <= foot.sheet, `the body ends inside the sheet: ${JSON.stringify(foot)}`);
+  assert.ok(foot.last <= foot.body, `and the last control inside the body: ${JSON.stringify(foot)}`);
 
   // Closed and opened again: the size the reader left it at.
   await page.keyboard.press('Escape');
