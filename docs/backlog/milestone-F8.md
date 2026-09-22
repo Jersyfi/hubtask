@@ -641,6 +641,10 @@ additive things, the check two findings. Eight decisions:
     and gone once there is one. **Nothing about the contract changes** — `conditions` stays an
     array and the engine still ands them — and a stored rule that carries several keeps them,
     each with its own remove, because the client does not silently rewrite what somebody wrote.
+    It follows that **the one condition is the gate**: it is not a card of its own to select
+    beside it, the gate's head says nothing about how conditions join where there is only one to
+    join, and a click anywhere in the block opens the one panel that edits it. Only a rule that
+    carries several keeps them apart, one card each.
 31. **A page that fills the region takes its height too.** `page.fill()` (issue 918) said a
     canvas draws its own edges; it did not say how tall the region is, so the editor grew past
     the fold and the panel — as tall as the viewport but starting below everything above it —
