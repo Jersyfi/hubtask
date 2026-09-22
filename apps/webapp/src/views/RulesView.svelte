@@ -37,6 +37,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { eventWords } from '../lib/automation/words.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -77,6 +78,14 @@
   });
 
   const words = { t, has: (code: string) => messages.has(code) };
+  /** When the rule last ran and how it ended (F8-21), or that it never did. */
+  function lastRunWords(rule: { last_run?: { at: string; status: string } | null }): string {
+    const last = rule.last_run;
+    if (!last) return t('app.rules.never_ran');
+    const status = `app.runs.status_${last.status.toLowerCase()}`;
+    return t('app.rules.last_run_words', { when: formatRelative(last.at, messages.locale), outcome: messages.has(status) ? t(status) : last.status });
+  }
+
   const broken = $derived(rules.all.filter((rule) => (rule.findings ?? []).some((finding) => finding.level === 'BROKEN')).length);
   const attention = $derived(rules.all.filter((rule) => (rule.findings ?? []).length > 0).length - broken);
 
@@ -161,6 +170,7 @@
               trigger={{ label: t('app.rules.starts_on'), value: triggerWord(rule) }}
               actions={{ label: t('app.rules.actions'), value: String(rule.actions.length) }}
               runAs={{ label: t('app.rules.runs_as'), value: runnerName(rule.run_as) }}
+              lastRun={{ label: t('app.rules.last_run'), value: lastRunWords(rule) }}
               isEnabled={rule.enabled}
               stateLabel={rule.enabled ? t('app.rules.on') : t('app.rules.off')}
               failureLabel={rule.failure_count > 0 ? t('app.rules.failing', { count: String(rule.failure_count) }) : undefined}

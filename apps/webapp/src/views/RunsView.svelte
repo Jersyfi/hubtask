@@ -23,6 +23,7 @@
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
+  import { quotas } from '../lib/data/quotas.svelte.ts';
   import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -71,6 +72,11 @@
   });
 
   $effect(() => untrack(() => rules.open()));
+  // The hour's standing against automation_runs_per_hour (F8-21, decision 23): one line under
+  // the strip and the link to Limits, from the same answer the Limits page reads. A reader the
+  // quotas refuse sees no line - the standing is theirs to see or not, not this page's.
+  $effect(() => untrack(() => quotas.open()));
+  const hourly = $derived(quotas.standings.find((standing) => standing.quota === 'automation_runs_per_hour'));
   $effect(() => {
     const current = filter;
     return untrack(() => runs.open(current));
@@ -267,6 +273,16 @@
           <div class="stat"><dd>{value}</dd><dt>{t(`app.runs.strip_${key}`)}</dt></div>
         {/each}
       </dl>
+      {#if hourly}
+        <p class="quiet small" data-hourly>
+          {#if hourly.limit > 0}
+            {t('app.runs.this_hour', { used: String(hourly.used ?? 0), limit: String(hourly.limit) })}
+          {:else}
+            {t('app.runs.this_hour_unlimited', { used: String(hourly.used ?? 0) })}
+          {/if}
+          <a href="/administration/quotas">{t('app.quotas.title')}</a>
+        </p>
+      {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="waiting"><Spinner label={t('app.runs.reading')} /> <span>{t('app.runs.reading')}</span></p>

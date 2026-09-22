@@ -41,6 +41,12 @@
     actions: RuleFact;
     /** The account it acts as. */
     runAs: RuleFact;
+    /**
+     * When it last ran and how that run ended, in the caller's words (F8-21) - the line under
+     * the health word that the owner asked for instead of bars. Absent shows no row; a caller
+     * that wants "never" says so in the value.
+     */
+    lastRun?: RuleFact;
     /** Whether it is switched on. */
     isEnabled: boolean;
     /** The word for that state, resolved. */
@@ -66,8 +72,10 @@
   }
 
   const {
-    name, href, trigger, actions, runAs, isEnabled, stateLabel, failureLabel, healthLabel, healthTone = 'neutral', findingLabel, isBroken = false,
+    name, href, trigger, actions, runAs, lastRun, isEnabled, stateLabel, failureLabel, healthLabel, healthTone = 'neutral', findingLabel, isBroken = false,
   }: Props = $props();
+
+  const facts = $derived(lastRun ? [trigger, actions, runAs, lastRun] : [trigger, actions, runAs]);
 </script>
 
 <article class="card">
@@ -88,7 +96,7 @@
     </div>
 
     <dl class="facts">
-      {#each [trigger, actions, runAs] as fact (fact.label)}
+      {#each facts as fact (fact.label)}
         <div class="fact">
           <dt>{fact.label}</dt>
           <dd>{fact.value}</dd>
