@@ -220,6 +220,9 @@ test('a sentence compiles to the expression the server stores, and reads back fr
     [{ subject: 'completed', op: 'no' }, 'item.completed == false'],
     [{ subject: 'due', op: 'lacks' }, '!has(item.due_at)'],
     [{ subject: 'parent', op: 'has' }, 'has(item.parent_id)'],
+    // A label, by its identifier, over the set the run reads beside the entry (issue 807).
+    [{ subject: 'label', op: 'on', a: 'l-1' }, "item.labels.exists(l, l == 'l-1')"],
+    [{ subject: 'label', op: 'not_on', a: 'l-1' }, "!item.labels.exists(l, l == 'l-1')"],
     [{ subject: 'assignee', op: 'is', a: 'acc-1' }, "item.assignee_id == 'acc-1'"],
     [{ subject: 'assignee', op: 'lacks' }, '!has(item.assignee_id)'],
     [{ subject: 'bucket', op: 'is_not', a: 'b-1' }, "item.bucket_id != 'b-1'"],

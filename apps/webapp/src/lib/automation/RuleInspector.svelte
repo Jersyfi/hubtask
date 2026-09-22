@@ -72,6 +72,7 @@
     types: itemTypes,
     buckets: pickers.bucket ?? [],
     accounts: pickers.account ?? [],
+    labels: pickers.label ?? [],
   });
 
   const value = (event: Event): string => (event.currentTarget as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;

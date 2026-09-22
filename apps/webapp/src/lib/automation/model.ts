@@ -405,11 +405,11 @@ export const isAutomatic = (name: string, generated: string): boolean => name.tr
  * an expression the composer did not write is shown as an expression (decision 3).
  *
  * The subjects are the fields the run's `item` document carries (`condition.ItemDocument`), the
- * actor, and the hour of `now`. Labels are not among them: the run's document has no `labels` key
- * today (issue 807), and a subject the run cannot answer would compile into a rule that fails.
+ * labels beside it (`item.labels`, read with the entry since issue 807), the actor, and the hour
+ * of `now`.
  */
 export type Subject =
-  | 'type' | 'title' | 'notes' | 'completed' | 'archived' | 'due' | 'assignee' | 'bucket' | 'parent' | 'depth' | 'actor' | 'hour' | 'field';
+  | 'type' | 'title' | 'notes' | 'completed' | 'archived' | 'due' | 'label' | 'assignee' | 'bucket' | 'parent' | 'depth' | 'actor' | 'hour' | 'field';
 
 export interface Sentence {
   subject: Subject;
@@ -426,6 +426,7 @@ export const OPERATORS: Record<Subject, readonly string[]> = {
   completed: ['yes', 'no'],
   archived: ['yes', 'no'],
   due: ['has', 'lacks', 'past', 'future', 'within'],
+  label: ['on', 'not_on'],
   assignee: ['has', 'lacks', 'is', 'is_not'],
   bucket: ['is', 'is_not'],
   parent: ['has', 'lacks'],
@@ -441,6 +442,7 @@ export function takes(subject: Subject, op: string): 'none' | 'value' | 'number'
   if (subject === 'field') return 'key_value';
   if (subject === 'depth') return 'number';
   if (subject === 'due') return op === 'within' ? 'days' : 'none';
+  if (subject === 'label') return 'value';
   if (op === 'has' || op === 'lacks' || op === 'yes' || op === 'no' || op === 'empty' || op === 'not_empty') return 'none';
   return 'value';
 }
@@ -483,6 +485,8 @@ export function compileSentence(sentence: Sentence): string {
       if (op === 'past') return 'has(item.due_at) && item.due_at < now';
       if (op === 'future') return 'has(item.due_at) && item.due_at > now';
       return `has(item.due_at) && item.due_at < now + duration(${quote(`${days(a) * 24}h`)})`;
+    case 'label':
+      return `${op === 'not_on' ? '!' : ''}item.labels.exists(l, l == ${quote(a)})`;
     case 'parent':
       return op === 'has' ? 'has(item.parent_id)' : '!has(item.parent_id)';
     case 'depth':
@@ -515,6 +519,7 @@ const SHAPES: readonly { pattern: RegExp; read: (m: RegExpExecArray) => Sentence
   { pattern: /^(!?)has\(item\.due_at\)$/, read: (m) => ({ subject: 'due', op: m[1] ? 'lacks' : 'has' }) },
   { pattern: /^has\(item\.due_at\) && item\.due_at (<|>) now$/, read: (m) => ({ subject: 'due', op: m[1] === '<' ? 'past' : 'future' }) },
   { pattern: /^has\(item\.due_at\) && item\.due_at < now \+ duration\('(\d+)h'\)$/, read: (m) => ({ subject: 'due', op: 'within', a: String(Math.floor(Number(m[1]) / 24)) }) },
+  { pattern: new RegExp(`^(!?)item\\.labels\\.exists\\(l, l == ${QUOTED}\\)$`), read: (m) => ({ subject: 'label', op: m[1] ? 'not_on' : 'on', a: unquote(m[2]) }) },
   { pattern: /^(!?)has\(item\.parent_id\)$/, read: (m) => ({ subject: 'parent', op: m[1] ? 'lacks' : 'has' }) },
   { pattern: /^item\.depth (==|<=) (\d+)$/, read: (m) => ({ subject: 'depth', op: m[1] === '==' ? 'is' : 'at_most', a: m[2] }) },
   { pattern: /^(!?)has\(item\.assignee_id\)$/, read: (m) => ({ subject: 'assignee', op: m[1] ? 'lacks' : 'has' }) },

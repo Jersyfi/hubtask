@@ -109,6 +109,10 @@ type RunRule struct {
 	Conditions expression.Compiler
 	Entries    Entries
 	Containers Containers
+	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
+	// `item.members` (issue 807). Optional, as in condition.Values.
+	Labels  condition.Sets
+	Members condition.Sets
 	// Jumble is the read `payload` costs on a JUMBLE_ENTRY run: the entry, rendered as data for
 	// the conditions (G-10). Optional; without it the name resolves to an empty document.
 	Jumble condition.JumbleEntries
@@ -527,7 +531,7 @@ func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) con
 	values := condition.Values{
 		Envelope: envelope, Now: now,
 		Subject: cmd.SubjectID, Payload: cmd.Payload,
-		Entries: h.Entries, Containers: h.Containers,
+		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members,
 		Jumble: h.Jumble,
 	}
 	if cmd.Trigger == domain.TriggerJumbleEntry {
