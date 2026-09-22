@@ -8,9 +8,10 @@
   // `SideNav` pinned beside the content from `expanded` (collapsible to a rail), as the same
   // `SideNav` in a `NavDrawer` behind ☰ below it, and as a `BottomBar` on `compact`, where the
   // drawer then holds the tree alone. The account group is behind the avatar and the name from
-  // `medium` and behind "You" in the bottom bar below it. The bar carries no page action and no
-  // search field: the search is a destination, and a second entry to it is the duplication the
-  // list exists to prevent.
+  // `medium` and behind "You" in the bottom bar below it. The bar carries no page action. It does
+  // carry the entry to search from `medium` up (ADR-0063 decision 4), and that is why `primary()`
+  // is asked for the list *without* Search there: one visible entry to it on every width - the
+  // field up here, or the destination in the bottom bar on `compact`, never both.
   //
   // Two things it deliberately does not do. It knows nothing about a Tauri shell — every platform
   // difference goes through `src/lib/platform/` (ADR-0033), and there is no `isTauri` anywhere in
@@ -23,6 +24,7 @@
   import { AppBar, Banner, BottomBar, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
+  import BarSearch from './BarSearch.svelte';
   import HealthNotice from './HealthNotice.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import TourGuide from './TourGuide.svelte';
@@ -252,6 +254,13 @@
       <!-- A name rather than a message: the product is called Hubtask in every language. -->
       <a class="wordmark" href="/">Hubtask</a>
     {/snippet}
+    {#snippet search()}
+      <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
+           the reader reaches search through the bottom bar instead. -->
+      {#if session.isSignedIn && !viewport.isCompact}
+        <BarSearch onnavigate={go} />
+      {/if}
+    {/snippet}
     {#snippet end()}
       <!-- The copy and the server, as one mark (ADR-0063 decision 5): connected, reconnecting or
            offline; what waits to be sent and what the server refused; when the copy last
@@ -293,11 +302,11 @@
     {#if session.isSignedIn}
       {#if viewport.isBelowExpanded}
         <NavDrawer bind:isOpen={isDrawerOpen} title={t('app.nav.title')} dismissLabel={t('app.nav.close')}>
-          <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} onnavigate={go} />
+          <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
         </NavDrawer>
       {:else}
         <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour="hubs">
-          <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
+          <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
         </aside>
       {/if}
     {/if}

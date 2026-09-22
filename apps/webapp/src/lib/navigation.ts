@@ -112,8 +112,19 @@ export const TRASH = TRASH_ROW;
 /** The word for the account group's head on a phone, where there is no avatar to open. */
 export const YOU_CODE = 'app.nav.you';
 
-export function primary(): readonly Destination[] {
-  return DESTINATIONS.filter((destination) => destination.group === 'primary');
+/**
+ * The primary group, minus the one the bar may be carrying.
+ *
+ * From `medium` up the bar holds the entry to search (ADR-0063 decision 4), and a row for it in
+ * the tree beside it would be the second entry to one destination — the duplication ADR-0061's
+ * "no search field in the bar" was protecting against, now kept on the other side. Below that the
+ * bar has no room, the field is not there, and Search is a destination in the bottom bar.
+ */
+export function primary(options: { readonly hasSearchField?: boolean } = {}): readonly Destination[] {
+  return DESTINATIONS.filter(
+    (destination) =>
+      destination.group === 'primary' && !(destination.id === 'search' && options.hasSearchField === true),
+  );
 }
 
 /**

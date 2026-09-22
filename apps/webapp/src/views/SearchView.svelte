@@ -51,6 +51,19 @@
   const { query = {}, onnavigate }: Props = $props();
 
   let term = $state('');
+
+  /**
+   * The words the app bar handed over, taken as they arrive.
+   *
+   * An effect rather than an initial value, because this screen is not remounted when somebody
+   * searches again from the bar while already on it — and that press has to do something. Taken
+   * rather than read: the store empties on the way out, so the same words handed over twice are
+   * two searches (`search.svelte.ts`).
+   */
+  $effect(() => {
+    if (search.handedOver === undefined) return;
+    term = search.takeHandover() ?? term;
+  });
   /**
    * The narrowing, read from the address and written back to it.
    *

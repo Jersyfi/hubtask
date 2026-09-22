@@ -96,6 +96,16 @@ class Search {
   #remaining = $state<readonly string[]>([]);
   /** Which search the answers on screen belong to, so a slower earlier one cannot overwrite them. */
   #generation = 0;
+  /**
+   * The words the app bar handed over, waiting for the screen they were handed to.
+   *
+   * In memory rather than in the address, and that is the one sentence of ADR-0063 decision 4 this
+   * client does not do: the decision says the bar navigates to `/search?q=…`, and a `?q=` would
+   * undo the reason `/search` is a `POST` with no `GET` (the note at the top of this file). So the
+   * bar hands the words over here and the screen takes them, once. The address still carries the
+   * *narrowing*, which is structural rather than content — `searchfilters.ts` is what writes it.
+   */
+  #handedOver = $state<string | undefined>(undefined);
 
   get hits(): readonly WorkItem[] {
     return this.#hits;
@@ -137,6 +147,29 @@ class Search {
     })
       ? this.#remaining.length
       : 0;
+  }
+
+  /** Whether the bar has words waiting for the search screen. */
+  get handedOver(): string | undefined {
+    return this.#handedOver;
+  }
+
+  /** The bar's own verb: hand the words to the screen it is about to navigate to. */
+  handOver(term: string): void {
+    this.#handedOver = term;
+  }
+
+  /**
+   * The screen's own verb: take them, and leave nothing behind.
+   *
+   * Taken rather than read, because the same words handed over twice are two searches — somebody
+   * who searches for the same term again from the bar has asked again, and a value that stayed
+   * would make the second press do nothing.
+   */
+  takeHandover(): string | undefined {
+    const term = this.#handedOver;
+    this.#handedOver = undefined;
+    return term;
   }
 
   /** Empties it. What clearing the field does, and what leaving the screen should do. */
