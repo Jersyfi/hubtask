@@ -30,3 +30,10 @@ export const long: Story = {
     'Rule 4 against the component with the least room: an indent takes width from the label at every level. The labels truncate; the indent does not collapse, because the depth is the information.',
   args: { mode: 'long' },
 };
+
+export const rail: Story = {
+  name: 'Folded to its marks',
+  about:
+    'The fold is a drawing, not a narrower panel: one mark per row, centred in the column the layout token gives it, with no twist, no label and no indent. The label stays the row’s accessible name and becomes its tooltip, and an opened hub’s collections are marks under it — depth is the one thing a rail cannot draw. A column that was merely narrowed put the mark past its own edge, which is what issue 915 was.',
+  args: { isRail: true },
+};

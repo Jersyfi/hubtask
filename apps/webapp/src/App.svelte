@@ -193,7 +193,7 @@
     <TrashView />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <ItemView id={route.params.id ?? ''} />
+      <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else if route.name === 'hub' || route.name === 'collection'}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so

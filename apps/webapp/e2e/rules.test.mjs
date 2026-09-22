@@ -275,6 +275,16 @@ test('chromium: a deep link into the editor reads each resource once, and only w
     assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
   }
   assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
+
+  // And the canvas meets the content region rather than standing in its padding: the editor drew
+  // a slab of one colour on a page of another, which read as a border no other screen has
+  // (issue 918). Its start is the navigation's end and its end is the window's.
+  const edges = await page.evaluate(() => {
+    const editor = document.querySelector('main .editor')?.getBoundingClientRect();
+    const nav = document.querySelector('aside.sidenav')?.getBoundingClientRect();
+    return editor && nav ? { start: Math.round(editor.left - nav.right), end: Math.round(window.innerWidth - editor.right) } : null;
+  });
+  assert.deepEqual(edges, { start: 0, end: 0 }, 'the editor stands inside the frame\'s padding');
 });
 
 test('chromium: a step\'s form shows what a rule can decide: no plumbing, the run\'s fields in one line, a date as a date', async (t) => {

@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What the current page tells the frame about itself: its title, for the bar on a phone.
+ * What the current page tells the frame about itself: its title, for the bar on a phone, and
+ * whether it draws its own edges.
  *
  * Below `medium` the app bar carries the page's title in place of the wordmark, and the page head
  * asks for its `h1` to be read rather than drawn (`PageHeader`'s `isTitleInBar`), so a screen
@@ -14,6 +15,7 @@
 
 class Page {
   #title = $state<string | undefined>(undefined);
+  #fills = $state(false);
 
   get title(): string | undefined {
     return this.#title;
@@ -24,6 +26,28 @@ class Page {
     this.#title = title;
     return () => {
       if (this.#title === title) this.#title = undefined;
+    };
+  }
+
+  /**
+   * Whether the page draws its own edges and takes the content region whole.
+   *
+   * Almost every screen is a document in the frame's padding, with the reading measure capped.
+   * A canvas is not: the rule editor is a surface with its own head, its own hairlines and an
+   * inspector against the far edge, and standing it inside the padding drew a slab of one colour
+   * on a page of another - a box on a page, which is what issue 918 was. The page says so and
+   * the frame gives it the room; the same answer would serve any later canvas, and there is no
+   * route table in the frame to keep in step.
+   */
+  get fills(): boolean {
+    return this.#fills;
+  }
+
+  /** Takes the content region for as long as the caller's effect lives. */
+  fill(): () => void {
+    this.#fills = true;
+    return () => {
+      this.#fills = false;
     };
   }
 }
