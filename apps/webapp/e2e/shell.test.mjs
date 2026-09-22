@@ -203,6 +203,20 @@ for (const width of [905, 1280]) {
     assert.deepEqual(marks.filter((mark) => !mark.inside || mark.width === 0), [], `${width}: a mark of the rail is clipped or missing`);
     // The label is announced although it is not drawn, so the rail is navigable by name.
     assert.equal(await tree.getByRole('treeitem', { name: 'Jumble' }).count(), 1, `${width}: the rail's rows lost their names`);
+
+    // A branch pressed in the rail opens its subtree beside the column, so nothing is unreachable
+    // while the navigation is folded (ADR-0063 decision 2). Escape closes it and focus comes back.
+    const hubMark = aside.locator(`[data-node="${HUB.id}"]`);
+    await hubMark.click();
+    const flyout = page.locator('.flyout');
+    await flyout.waitFor({ timeout: 5_000 });
+    // Opening it is also what asks the server for the level, so the collections arrive after the
+    // panel does — a flyout that only set its own state would open beside a hub nobody had read.
+    await flyout.getByRole('treeitem', { name: COLLECTION.name }).waitFor({ timeout: 5_000 })
+      .catch(() => assert.fail(`${width}: the flyout does not hold the hub's collections`));
+    await page.keyboard.press('Escape');
+    await flyout.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-node')), HUB.id, `${width}: focus did not come back to the mark`);
     await page.getByRole('button', { name: 'Expand the navigation' }).click();
     assert.equal(await aside.evaluate((el) => el.getBoundingClientRect().width), pinned);
 

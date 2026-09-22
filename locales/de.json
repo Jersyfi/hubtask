@@ -196,6 +196,7 @@
   "app.nav.label": "Bereiche",
   "app.nav.bar": "Anwendungsleiste",
   "app.nav.title": "Navigation",
+  "app.nav.inside": "In {name}",
   "app.nav.open": "Navigation öffnen",
   "app.nav.close": "Navigation schließen",
   "app.nav.collapse": "Navigation einklappen",
