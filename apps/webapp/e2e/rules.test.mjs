@@ -653,6 +653,49 @@ test('chromium: the sheet keeps its head, is sized by the reader, and keeps that
   assert.equal(await share(), 85, 'the sheet is where it was left');
 });
 
+test('chromium: the editor says what is missing before the probe is pressed', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1100 } });
+  await context.route('**/api/v1/**', stubFor([], undefined));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  // A rule being written, not a stored one: the check has said nothing about it and cannot.
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.locator('[data-canvas]').waitFor();
+  const inspector = page.locator('aside.inspector');
+
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  const notes = inspector.locator('.notes .note');
+  assert.deepEqual(await notes.allTextContents(), [
+    'Nobody acts yet: choose the account this rule runs as.',
+    'The rule does nothing yet: add a block to the chain.',
+  ]);
+
+  // A block with a required parameter nobody filled: said at the card and in the list.
+  const blocks = await openBlocks(page);
+  await blocks.locator('[data-block="ADD_LABEL"]').first().click();
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  assert.ok((await notes.allTextContents()).includes('Add a label needs label id, and nothing is set.'));
+  assert.equal(await page.locator('[data-card="0"] .flag').textContent(), 'Add a label needs label id, and nothing is set.');
+
+  // Each line presses through to the card it is about.
+  await notes.first().click();
+  assert.equal(await inspector.locator('[role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent(), 'Rule');
+
+  // Filled in, the review says so and the probe is nothing but the sample. On the Rule tab the
+  // selects are scope, runs as, then the guardrails'.
+  await inspector.locator('select').nth(1).selectOption({ index: 1 });
+  await page.locator('[data-card="0"]').click();
+  await inspector.locator('select').last().selectOption({ index: 1 });
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  assert.equal(await notes.count(), 0);
+  assert.equal(await inspector.locator('.ready').textContent(), 'Nothing is missing: this rule can run.');
+});
+
 test('chromium: the probe runs the canvas\'s definition through the dry run and draws the answer', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
