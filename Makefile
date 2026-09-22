@@ -341,19 +341,26 @@ gate-unit:
 # The threshold applies per package, not as an average over the tree. An average lets a new,
 # entirely untested package hide behind well-covered neighbours - which is exactly what
 # gate-selftest caught once core/domain held its first real package.
+#
+# `pkg` is taken from the line's shape rather than from a fixed field. A tested package is
+# reported as `ok <pkg> <time> coverage: …` and an untested one as `<pkg> coverage: 0.0% of
+# statements` - with a leading tab that awk drops - so `$$2` named the package in the first case
+# and printed `coverage:` in the second. That is the case the threshold exists for, and it was the
+# one whose message did not say which package had failed it.
 .PHONY: coverage-check
 coverage-check:
 	@pkgs="$$($(GO) list $(PKG) 2>/dev/null)"; \
 	if [ -z "$$pkgs" ]; then echo "coverage $(PKG): no packages yet - skipped"; exit 0; fi; \
 	out="$$($(GO) test -covermode=atomic -cover $$pkgs 2>&1)" || { echo "$$out"; exit 1; }; \
 	echo "$$out" | awk -v min="$(MIN)" ' \
-		/\[no test files\]/ { printf("  %s: no test file at all\n", $$2); failed=1; next } \
+		{ pkg = ($$1 == "ok" || $$1 == "?" || $$1 == "FAIL") ? $$2 : $$1 } \
+		/\[no test files\]/ { printf("  %s: no test file at all\n", pkg); failed=1; next } \
 		/coverage:/ { \
 			for (i = 1; i <= NF; i++) if ($$i == "coverage:") { value = $$(i + 1); break } \
 			if (value ~ /statements/ || value ~ /\[/) next; \
 			gsub(/%/, "", value); \
-			if (value + 0 < min + 0) { printf("  %s: %s%% below the %s%% threshold\n", $$2, value, min); failed=1 } \
-			else printf("  %s: %s%%\n", $$2, value) \
+			if (value + 0 < min + 0) { printf("  %s: %s%% below the %s%% threshold\n", pkg, value, min); failed=1 } \
+			else printf("  %s: %s%%\n", pkg, value) \
 		} \
 		END { if (failed) { print "coverage $(PKG): below the threshold"; exit 1 } }'
 
