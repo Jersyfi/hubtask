@@ -220,6 +220,7 @@ async function views() {
     ['search', await load('SearchView'), {}],
     ['jumble', await load('JumbleView'), { onnavigate: noop }],
     ['trash', await load('TrashView'), {}],
+    ['archive', await load('ArchiveView'), { onnavigate: noop }],
     ['item', await load('ItemView'), { id: ITEM }],
     ['collection', await load('ContainerView'), { id: COLLECTION, onnavigate: noop }],
     ['sign-in', await load('SignInView'), {}],

@@ -32,8 +32,26 @@ const HUBS = '/containers?type=HUB&page_size=200';
 /** One hub's collections. */
 const collectionsPath = (hubId: string) => `/containers?parent_id=${hubId}&page_size=200`;
 
+/**
+ * The same two levels, with what has been put aside in them.
+ *
+ * `include_archived` defaults to `false`, so the tree above does not hold an archived hub or
+ * collection at all — it leaves the navigation and nothing shows it again (issue 933). These are
+ * the archive screen's own reads, kept apart from the tree's: a tree that carried archived rows
+ * would put a read-only container back among the ones somebody works in, which is the opposite of
+ * what archiving is for.
+ */
+const ARCHIVED_HUBS = '/containers?type=HUB&include_archived=true&page_size=200';
+const archivedCollectionsPath = (hubId: string) => `/containers?parent_id=${hubId}&include_archived=true&page_size=200`;
+
 /** What a write makes stale: the structure, and nothing else — an entry list is not a container. */
 const TOUCHES = ['/containers'];
+
+/** One row of the archive: what was put aside, and the hub it sits in where it is a collection. */
+export interface ArchivedContainer {
+  readonly container: Container;
+  readonly parent?: Container;
+}
 
 const rowsOf = (state: ResourceState<ContainerPage>): readonly Container[] =>
   state.status === 'ready' ? (state.data.data ?? []) : [];
@@ -44,6 +62,9 @@ class Containers {
   #levels = $state<Record<string, ResourceState<ContainerPage>>>({});
   /** Single containers read by id, for a deep link that arrived before any level was loaded. */
   #single = $state<Record<string, ResourceState<Container>>>({});
+  /** The archive screen's own two levels, which include what has been put aside. */
+  #archivedHubs = $state<ResourceState<ContainerPage>>({ status: 'idle' });
+  #archivedLevels = $state<Record<string, ResourceState<ContainerPage>>>({});
 
   get hubsState(): ResourceState<ContainerPage> {
     return this.#hubs;
@@ -113,6 +134,60 @@ class Containers {
     return engine.subscribe<ContainerPage>({ path: collectionsPath(hubId) }, (next) => {
       this.#levels = { ...this.#levels, [hubId]: next };
     });
+  }
+
+  /**
+   * Starts the archive's reads: the hubs including the archived ones, and every hub's collections
+   * the same way.
+   *
+   * One request per hub, which is what the API's two levels cost and what the tree already pays
+   * for the hubs somebody opens. The screen that calls this is not one anybody keeps open.
+   */
+  openArchive(): () => void {
+    const stops: (() => void)[] = [
+      engine.subscribe<ContainerPage>({ path: ARCHIVED_HUBS }, (next) => {
+        this.#archivedHubs = next;
+        for (const hub of rowsOf(next)) {
+          if (this.#archivedLevels[hub.id] !== undefined) continue;
+          this.#archivedLevels = { ...this.#archivedLevels, [hub.id]: { status: 'idle' } };
+          stops.push(
+            engine.subscribe<ContainerPage>({ path: archivedCollectionsPath(hub.id) }, (level) => {
+              this.#archivedLevels = { ...this.#archivedLevels, [hub.id]: level };
+            }),
+          );
+        }
+      }),
+    ];
+    return () => {
+      for (const stop of stops) stop();
+      this.#archivedHubs = { status: 'idle' };
+      this.#archivedLevels = {};
+    };
+  }
+
+  /** What has been put aside: the archived containers, each with the hub it sits in. */
+  get archived(): readonly ArchivedContainer[] {
+    const hubs = rowsOf(this.#archivedHubs);
+    const rows: ArchivedContainer[] = hubs.filter((hub) => hub.archived_at).map((container) => ({ container }));
+    for (const hub of hubs) {
+      for (const collection of rowsOf(this.#archivedLevels[hub.id] ?? { status: 'idle' })) {
+        if (collection.archived_at) rows.push({ container: collection, parent: hub });
+      }
+    }
+    return rows;
+  }
+
+  /** Whether the archive's reads have all settled, so the screen can tell "none" from "not yet". */
+  get isArchiveReady(): boolean {
+    if (this.#archivedHubs.status !== 'ready') return false;
+    return rowsOf(this.#archivedHubs).every((hub) => {
+      const status = this.#archivedLevels[hub.id]?.status;
+      return status === 'ready' || status === 'failed';
+    });
+  }
+
+  get archiveState(): ResourceState<ContainerPage> {
+    return this.#archivedHubs;
   }
 
   /** Starts one container's own read, for a deep link that named it. From `untrack`, as above. */
