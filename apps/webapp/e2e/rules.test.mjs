@@ -68,7 +68,12 @@ const MANIFEST = {
     actions: ['ADD_COMMENT', 'ADD_LABEL', 'CREATE_ACCESS_TOKEN', 'SEND_WEBHOOK'],
     action_fields: {
       CREATE_ACCESS_TOKEN: [],
-      ADD_COMMENT: [{ name: 'item_id', kind: 'id', required: true }, { name: 'body', kind: 'string', required: true }],
+      ADD_COMMENT: [
+        { name: 'id', kind: 'id', required: false, rule: false },
+        { name: 'item_id', kind: 'id', required: true },
+        { name: 'body', kind: 'string', required: true },
+        { name: 'remind_at', kind: 'string', required: false, format: 'date-time' },
+      ],
       ADD_LABEL: [{ name: 'item_id', kind: 'id', required: true }, { name: 'label_id', kind: 'id', required: true }],
       SEND_WEBHOOK: [{ name: 'subscription_id', kind: 'id', required: true }],
     },
@@ -250,6 +255,20 @@ test('chromium: a deep link into the editor reads each resource once, and only w
     assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
   }
   assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
+});
+
+test('chromium: a step\'s form shows what a rule can decide: no plumbing, the run\'s fields in one line, a date as a date', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 1000 });
+  await page.locator('[data-card="1/then/0"]').click();
+  const inspector = page.locator('aside.inspector');
+  const labels = await inspector.locator('label').allTextContents();
+  assert.equal(labels.some((label) => label.trim() === 'id'), false, 'the caller-minted id is not offered');
+  assert.equal(labels.some((label) => label.trim() === 'item id'), false, 'what the run supplies is not a field');
+  assert.equal(labels.some((label) => label.trim() === 'body'), true);
+  await inspector.getByText('The run supplies item id').waitFor();
+  assert.equal(await inspector.locator('input[type="datetime-local"]').count(), 1, 'a date-time is a date and time field');
 });
 
 test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {
@@ -533,7 +552,8 @@ test('chromium: the list checks the rules when it opens and says what the check 
   assert.match(await page.locator('[data-card="0"] .flag').textContent(), /no longer exists/);
   // The two findings of F8-19: the missing parameter at its step, the roleless runner at the pill.
   assert.match(await page.locator('[data-card="3"] .flag').textContent(), /needs body/);
-  assert.match(await page.locator('.chip-flag').textContent(), /holds no role/);
+  assert.match(await page.locator('.chip-flag').textContent(), /holds no role/, 'the sentence is there for a screen reader');
+  assert.match(await page.locator('.chip.flagged').getAttribute('title'), /holds no role/, 'and on hover');
   const enable = page.getByRole('button', { name: 'Switch it on' });
   assert.equal(await enable.isDisabled(), true);
 });

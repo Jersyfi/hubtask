@@ -21,7 +21,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
 
   import RuleCanvas from '../lib/automation/RuleCanvas.svelte';
   import BlocksPanel from '../lib/automation/BlocksPanel.svelte';
@@ -210,9 +210,11 @@
     (manifest.value?.item_types ?? []).flatMap((entry) => (entry.type ? [{ value: String(entry.type), label: String(entry.type) }] : [])),
   );
 
+  // One row per account: a service account that also holds a membership is in both lists, and
+  // the select showed the second row's words for it (the third walk).
   const runners = $derived<Choice[]>([
     ...serviceAccounts.all.map((account) => ({ value: account.id, label: t('app.rules.service_account_named', { name: account.display_name }) })),
-    ...people.candidates({}).map((accountId) => ({ value: accountId, label: accounts.nameOf(accountId) ?? t('app.people.unnamed') })),
+    ...people.candidates({}).filter((accountId) => !serviceAccounts.all.some((account) => account.id === accountId)).map((accountId) => ({ value: accountId, label: accounts.nameOf(accountId) ?? t('app.people.unnamed') })),
   ]);
 
   const scopes = $derived<Choice[]>([
@@ -598,9 +600,11 @@
           <button class="chip" type="button" onclick={() => select({ kind: 'scope' })}>
             <Icon name="hub" size="sm" /><span>{t('app.flow.applies_in')}</span><b>{names.scope(draft.scope)}</b>
           </button>
-          <button class="chip" class:flagged={marks.has('run_as')} type="button" onclick={() => select({ kind: 'runas' })}>
+          <!-- A finding at the pill is the mark, with the sentence on hover and for a screen
+               reader; the sentence itself stands in the banner above, where a sentence fits. -->
+          <button class="chip" class:flagged={marks.has('run_as')} type="button" title={marks.get('run_as')} onclick={() => select({ kind: 'runas' })}>
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
-            {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" />{marks.get('run_as')}</span>{/if}
+            {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" /><VisuallyHidden>{marks.get('run_as')}</VisuallyHidden></span>{/if}
           </button>
         </div>
       </div>
