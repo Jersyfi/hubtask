@@ -671,8 +671,11 @@
                 style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
               >
                 <!-- The same pick the list has, and deliberately the same code behind it: one
-                     selection across both layouts, and shift read from the event rather than from
-                     a mode this component would have to keep. -->
+                     selection across both layouts, drawn only while somebody is selecting, and
+                     shift read from the event rather than from a mode this component would keep.
+                     The mode is the screen's, so switching between the list and the board keeps
+                     it (ADR-0063 decision 8). -->
+                {#if selection.isOn}
                 <span class="pick">
                   <Checkbox
                     label={t('app.bulk.select', { title: card.title })}
@@ -687,6 +690,7 @@
                     }}
                   />
                 </span>
+                {/if}
                 <!-- A picture, not a control: the menu on the card is SC 2.5.7's single-pointer
                      alternative, and a second focusable element that does nothing for the keyboard
                      would be noise in the tab order rather than access. -->

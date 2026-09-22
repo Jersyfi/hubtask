@@ -2303,6 +2303,8 @@
   "app.fields.value_saved_announced": "{key} gespeichert.",
   "app.bulk.select": "{title} auswählen",
   "app.bulk.select_all": "Jeden Eintrag auf dem Bildschirm auswählen",
+  "app.bulk.select_mode": "Einträge auswählen",
+  "app.bulk.done": "Auswahl beenden",
   "app.bulk.selected": "{count} ausgewählt",
   "app.bulk.selected_of_cap": "{count} ausgewählt, von {cap}, die eine Anfrage trägt",
   "app.bulk.over_cap": "Mehr Einträge sind ausgewählt, als eine Anfrage trägt. Wähle einige ab, oder mach es in zwei Durchgängen.",
