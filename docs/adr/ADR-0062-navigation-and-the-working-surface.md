@@ -110,6 +110,14 @@ Nothing else is a band and nothing is drawn outside one. The account group is no
 at all; it is the bar's menu above `compact` and the bottom bar's "You" below it, as ADR-0061
 decided and this ADR keeps.
 
+**The first destination becomes the overview.** `/` keeps its address and stops being a list of
+the hubs the tree beside it already lists: it is what is on the reader — what of theirs is overdue
+and what is due next, what waits in the jumble, what they opened last on this device — and, for a
+workspace with no hub yet, the one action that starts one. The row's word changes with it, from
+the workspace's title to `app.nav.overview`; `app.workspace.title` stays what the workspace is
+called. Everything it shows comes from reads the client already makes, and what was opened last is
+this device's, kept the way the fold is kept (ADR-0043) and sent nowhere.
+
 **The archive is a destination, not a hiding place.** An archived *entry* stays in its list and
 says so — `include_archived: true` and the badge, which `items.svelte.ts` already does and this
 ADR does not change. An archived *container* does neither: `containers.svelte.ts` never asks for
