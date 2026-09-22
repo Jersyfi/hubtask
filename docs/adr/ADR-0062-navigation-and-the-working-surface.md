@@ -304,8 +304,9 @@ month) with dated gridlines and today marked; one row per entry with a bar from 
 due, and a point where only one of them is set; the entries with no dates in a tray that can be
 collapsed, from which a drag across the axis gives one its first dates; dragging a bar moves both
 dates and dragging an end moves one; and a window that opens on **where the work is** rather than
-on the current month — the collection walked on 2026-09-22 had its only dated entry on 2 October
-and the timeline opened on September and showed nothing.
+on the current month — the collection walked on 2026-09-22 had two dated entries, one on
+25 September and one on 2 October, and the timeline opened on 1–30 September and drew the first
+as a bar with no label and left the second outside the window with nothing saying so.
 
 ### 13. Pointer and touch: one layout, two input rules
 
