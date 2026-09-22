@@ -246,6 +246,12 @@ export const REFERENCE: Readonly<Record<string, string>> = {
   assignee_id: 'account',
 };
 
+/**
+ * What the run supplies to an action and a rule may leave unset (automation.md §2.2): the event
+ * it is about, the entry, the jumble entry. The same three names the check reads, said once.
+ */
+export const SUPPLIED: ReadonlySet<string> = new Set(['event_id', 'item_id', 'entry_id']);
+
 /** One condition, as words: the sentence's subject and value, or "the expression holds". */
 export function conditionWords(words: Catalogue, names: Names, expr: string): string {
   const node = readNode(expr);

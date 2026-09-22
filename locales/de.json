@@ -1663,6 +1663,7 @@
   "app.flow.wait_hint": "Nichts bleibt offen, während gewartet wird: Der Lauf wird geparkt und später fortgesetzt.",
   "app.flow.action_no_fields": "Diese Aktion braucht keine Einstellungen.",
   "app.flow.action_run_supplies": "Was die Regel offenlässt, liefert der Lauf – etwa den Eintrag, um den es bei einem Ereignis geht.",
+  "app.flow.action_run_supplies_named": "Der Lauf liefert {fields} – die Regel muss nicht.",
   "app.flow.field_json": "Als JSON",
   "app.flow.field_json_hint": "Ein Dokument, dessen Form die Aktion bestimmt.",
   "app.flow.field_id": "Eine Kennung",

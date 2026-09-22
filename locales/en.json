@@ -2737,6 +2737,7 @@
   "app.flow.wait_hint": "Nothing is held open while it waits: the run is parked and resumed later.",
   "app.flow.action_no_fields": "This action takes no settings.",
   "app.flow.action_run_supplies": "What the rule leaves out, the run supplies — the entry an event is about, for one.",
+  "app.flow.action_run_supplies_named": "The run supplies {fields} — the rule need not.",
   "app.flow.field_json": "As JSON",
   "app.flow.field_json_hint": "A document whose shape the action decides.",
   "app.flow.field_id": "An identifier",
