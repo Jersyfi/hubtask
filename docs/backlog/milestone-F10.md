@@ -249,7 +249,8 @@ and the bulk verbs; `Escape` ends it. The row's leading slot then holds the comp
 alone, and the type becomes a mark on the title's line. The mode survives a switch between list
 and board.
 
-**Acceptance:** a row at 375 px is measured before and after and the saving recorded; every bulk
+**Acceptance:** a row at 375 px is measured before and after and the saving recorded — it is 299 px
+wide today and its title begins at 122 px; every bulk
 verb still reachable; the keyboard enters and leaves the mode; the announcements stay.
 
 **Read:** `apps/webapp/src/lib/data/selection.svelte.ts`, `lib/entries/EntryList.svelte`,

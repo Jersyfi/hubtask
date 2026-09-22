@@ -44,7 +44,9 @@ Each is measured or read from the source here, not judged:
 9. **Every list spends two controls a row on a selection nobody asked for.** A row in the entry
    list carries a selection checkbox, a grip, a twist, a completion checkbox and a type mark
    before its title, and a bar above the list says "Select every entry on screen" whether or not
-   anything is being selected.
+   anything is being selected. Measured at 375 px: the row is 299 px wide and its title begins at
+   122 px — **41 % of a phone's row spent before the first word**, at every width, whether or not
+   anybody is selecting anything.
 10. **The board's card is not the thing you move.** The drag is a 14 × 22 px grip beside the card,
     and the card travels only on the block axis: carried to another column it stays where it was
     and the reader sees an outline appear somewhere else. Measured: the gesture works and lands
