@@ -72,6 +72,29 @@ expect_gate_failure() {
 	cleanup
 }
 
+# expect_coverage_failure <name> <package-dir> <content>
+# The coverage threshold, asked of the target that decides it. The message is read rather than
+# only the exit status: `coverage-check` can also fail because the package does not compile, and
+# a probe that counts that as a catch would keep reporting green after the threshold stopped
+# being applied.
+expect_coverage_failure() {
+	local name="$1" dir="$2" content="$3"
+	CHECKS=$((CHECKS + 1))
+
+	write "$dir" "selftest.go" "$content"
+	local out
+	out="$(make --no-print-directory coverage-check PKG=./$dir/... MIN=85 2>&1 || true)"
+	cleanup
+
+	if grep -q "$dir/$SCRATCH: .*below the .*% threshold" <<<"$out"; then
+		printf '  ok      %-44s caught by make coverage-check\n' "$name"
+	else
+		printf '  FAILED  %-44s make coverage-check did not report it\n' "$name"
+		printf '%s\n' "$out" | sed 's/^/            /'
+		FAILURES=$((FAILURES + 1))
+	fi
+}
+
 header() { printf '\n%s\n' "$1"; }
 
 test -x "$LINT" || { echo "$LINT is missing - run 'make tools'"; exit 1; }
@@ -390,7 +413,18 @@ var _ = secret.New'
 
 header "Coverage threshold (make gate-unit)"
 
-expect_gate_failure "domain package without tests" gate-unit core/domain \
+# Two halves, because the rule and its wiring fail in different ways and neither proves the other.
+#
+# The rule is `coverage-check`, and it is asked directly. Asking `make gate-unit` instead ran the
+# whole test suite with the race detector - 189 seconds of this script's 14 minutes - to reach a
+# threshold that `coverage-check` decides in fifteen (#911). It was also the weaker evidence: any
+# red result counted as a catch, including a compile error that never reached the threshold at
+# all. The output is now read, so the probe passes for the reason it names.
+#
+# The wiring is that `gate-unit` calls it. `make -n` prints the recipe without running it, which
+# is what turns "the threshold bites" and "the gate applies it" into two statements instead of
+# one assumption.
+expect_coverage_failure "domain package without tests" core/domain \
 'package selftest
 
 // Selftest is exported, uncovered, and therefore below the threshold.
@@ -400,6 +434,18 @@ func Selftest(n int) int {
 	}
 	return -n
 }'
+
+CHECKS=$((CHECKS + 1))
+# Into a variable rather than through a pipe into `grep -q`: grep leaves as soon as it matches,
+# make dies of the closed pipe, and `set -o pipefail` above turns the successful match into a
+# failed pipeline - a probe that reports red exactly when the thing it looks for is there.
+unit_recipe="$(make --no-print-directory -n gate-unit 2>/dev/null || true)"
+if grep -q 'coverage-check PKG=./core/domain/\.\.\. MIN=85' <<<"$unit_recipe"; then
+	printf '  ok      %-44s make gate-unit applies it\n' "the unit gate asks for the threshold"
+else
+	printf '  FAILED  %-44s make gate-unit no longer calls coverage-check\n' "the unit gate asks for the threshold"
+	FAILURES=$((FAILURES + 1))
+fi
 
 # A query that orders by a name and does not say which collation (M-08). The gate globs
 # db/queries/*.sql, so the violation is a file there rather than a Go package.

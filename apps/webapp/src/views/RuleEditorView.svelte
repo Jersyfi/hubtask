@@ -135,6 +135,15 @@
   let sheetOpen = $state(false);
   const select = (next: Selection): void => {
     selection = next;
+    if (next.kind === 'none') {
+      // Nothing is selected (decision 26): *Details* has nothing to show, so the panel moves to
+      // the blocks - what one does next after letting a card go is add another - while *Rule*,
+      // *Probe* and *Runs*, which are about the whole rule, stay where they are. On a narrow
+      // screen the sheet is over the canvas, so it closes instead.
+      if (tab === 'piece') tab = 'blocks';
+      if (narrow) sheetOpen = false;
+      return;
+    }
     // The canvas shows, the panel sets (decision 16): what was clicked opens where it is edited.
     tab = RULE_TAB.has(next.kind) ? 'rule' : 'piece';
     if (narrow) sheetOpen = true;
@@ -386,7 +395,7 @@
 
   function remove(path: string): void {
     update((current) => ({ ...current, actions: removeAt(current.actions, path) }));
-    selection = { kind: 'gate' };
+    select({ kind: 'none' });
   }
 
   function replaceTrigger(kind: string): void {
@@ -407,7 +416,7 @@
 
   function removeCondition(index: number): void {
     update((current) => ({ ...current, conditions: current.conditions.filter((_, at) => at !== index) }));
-    selection = { kind: 'gate' };
+    select({ kind: 'gate' });
   }
 
   /* ---------- Saving and the switches ---------- */
@@ -676,7 +685,16 @@
 
     <div class="bench">
 
-      <section class="canvas" aria-label={t('app.rules.title')}>
+      <!-- The room around the flow deselects too (decision 26): the flow answers a click on its
+           own background, this one the pixels beside and below it. Escape does the same from
+           anywhere on the canvas, which is the keyboard's way to the same place. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <section
+        class="canvas"
+        aria-label={t('app.rules.title')}
+        onclick={(event) => { if (event.target === event.currentTarget) select({ kind: 'none' }); }}
+        onkeydown={(event) => { if (event.key === 'Escape' && selection.kind !== 'none') { event.preventDefault(); select({ kind: 'none' }); } }}
+      >
         <RuleCanvas
           {draft}
           {selection}
