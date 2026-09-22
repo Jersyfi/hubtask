@@ -4,10 +4,14 @@
 package rest
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -31,13 +35,17 @@ func (c *RestController) SearchItems(w http.ResponseWriter, r *http.Request) {
 	}
 	actor, _ := appshared.ActorFrom(r.Context())
 
+	// Read twice, as the query is: once into the generated type for everything the contract names
+	// by field, and once as a document for the two parts whose grammar is the domain's — the filter
+	// and the sort travel as they arrived (ADR-0064, and `decodeQuery`'s own reasoning).
 	var body openapi.ItemSearchQuery
-	if err := decodeJSON(r, &body); err != nil {
+	document, err := decodeSearch(r, &body)
+	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
 
-	out, err := c.UseCases.Invoke(r.Context(), searchItemsUseCase, actor, searchInput(body))
+	out, err := c.UseCases.Invoke(r.Context(), searchItemsUseCase, actor, searchInput(body, document))
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -56,9 +64,12 @@ func (c *RestController) SearchItems(w http.ResponseWriter, r *http.Request) {
 // layer does not resolve, and the page size a caller did not state is the contract's default - both
 // are the use case's to decide, so that the MCP and automation channels get the same answer
 // (ADR-0005).
-func searchInput(body openapi.ItemSearchQuery) usecase.Input {
+func searchInput(body openapi.ItemSearchQuery, document map[string]any) usecase.Input {
 	in := usecase.Input{
-		"q":                body.Q,
+		// Absent is the empty request the domain decides about, not a nil the descriptor would
+		// refuse: `q` is optional beside a filter, and which of the two is missing is one question
+		// asked in one place (ADR-0064).
+		"q":                stringOrEmpty(body.Q),
 		"container_id":     optionalUUIDField(body.ContainerId),
 		"language":         optionalStringField(body.Language),
 		"mode":             searchModeField(body.Mode),
@@ -69,7 +80,32 @@ func searchInput(body openapi.ItemSearchQuery) usecase.Input {
 		in["cursor"] = optionalStringField(body.Page.Cursor)
 		in["size"] = optionalIntField(body.Page.Size)
 	}
+
+	// As they arrived, for the reason the query passes its own that way: the grammar that reads
+	// them is in the domain, so this layer neither validates nor reshapes them.
+	for _, part := range []string{"filter", "sort"} {
+		if value, present := document[part]; present && value != nil {
+			in[part] = value
+		}
+	}
 	return in
+}
+
+// decodeSearch reads the request twice, the way `decodeQuery` does and for the same reason.
+func decodeSearch(r *http.Request, into *openapi.ItemSearchQuery) (map[string]any, error) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err)
+	}
+	if err := decodeFrom(bytes.NewReader(raw), into); err != nil {
+		return nil, err
+	}
+
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return nil, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err)
+	}
+	return document, nil
 }
 
 // searchModeField passes the mode through as text, unvalidated.

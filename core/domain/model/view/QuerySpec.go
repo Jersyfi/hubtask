@@ -130,6 +130,22 @@ func ParseSort(raw any, path string) ([]SortTerm, error) {
 	if raw == nil {
 		return defaultSort(), nil
 	}
+	return parseSortTerms(raw, path)
+}
+
+// ParseSortOrNone reads the same list and answers **none** where the caller sent none.
+//
+// The search needs that difference: a query with no sort is in the manual order, and a search with
+// no sort is either ranked - where there is nothing to order by - or a work list whose default is
+// its own (ADR-0064). One parser, two defaults, and neither of them invented at the call site.
+func ParseSortOrNone(raw any, path string) ([]SortTerm, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	return parseSortTerms(raw, path)
+}
+
+func parseSortTerms(raw any, path string) ([]SortTerm, error) {
 	terms, ok := raw.([]any)
 	if !ok {
 		return nil, fieldError(path, "query.sort_malformed", nil)
