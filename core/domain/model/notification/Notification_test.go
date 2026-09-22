@@ -4,6 +4,7 @@
 package notification_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -182,5 +183,27 @@ func TestOnlyTheInvitationCannotBeSwitchedOff(t *testing.T) {
 			t.Errorf("%s cannot be switched off, and data-protection.md §9 says it must be",
 				category)
 		}
+	}
+}
+
+// A record names one subject (issue 814): an entry, a rule or a subscription. Two is refused
+// before the table refuses it, so a caller learns it from the domain rather than from a
+// constraint's name.
+func TestARecordNamesOneSubject(t *testing.T) {
+	base := notification.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000001"), TenantID: tenant,
+		RecipientID: recipient, Category: notification.CategoryIntegration, Channel: notification.ChannelEmail,
+	}
+	rule := shared.ID("01936f2a-7c1e-7000-8000-000000000004")
+
+	one := base
+	one.RuleID = rule
+	if written, err := notification.New(one); err != nil || written.RuleID != rule || !written.ItemID.IsZero() {
+		t.Errorf("a rule as the subject: %+v, %v", written, err)
+	}
+	two := base
+	two.RuleID, two.ItemID = rule, item
+	if _, err := notification.New(two); err == nil || !strings.Contains(err.Error(), "notifications.subject_ambiguous") {
+		t.Errorf("two subjects were accepted: %v", err)
 	}
 }

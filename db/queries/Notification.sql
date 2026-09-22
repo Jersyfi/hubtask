@@ -12,18 +12,19 @@
 -- enqueue a second delivery.
 INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
-  event_id, item_id, actor_id, created_at
+  event_id, item_id, actor_id, created_at, rule_id, subscription_id
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('recipient_id'), sqlc.arg('category'),
   sqlc.arg('channel'), sqlc.arg('state'), sqlc.narg('reason'),
-  sqlc.narg('event_id'), sqlc.narg('item_id'), sqlc.narg('actor_id'), sqlc.arg('created_at')
+  sqlc.narg('event_id'), sqlc.narg('item_id'), sqlc.narg('actor_id'), sqlc.arg('created_at'),
+  sqlc.narg('rule_id'), sqlc.narg('subscription_id')
 )
 ON CONFLICT (tenant_id, event_id, recipient_id, channel) WHERE event_id IS NOT NULL
 DO NOTHING;
 
 -- name: FindNotification :one
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
-       event_id, item_id, actor_id, created_at, sent_at, attempts
+       event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id
 FROM notification
 WHERE id = $1;
 
