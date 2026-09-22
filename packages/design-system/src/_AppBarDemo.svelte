@@ -5,6 +5,7 @@
   import Avatar from './Avatar.svelte';
   import IconButton from './IconButton.svelte';
   import Menu from './Menu.svelte';
+  import SearchField from './SearchField.svelte';
   import Stack from './Stack.svelte';
 
   const { mode = 'brand' }: { mode?: 'brand' | 'title' | 'rail' | 'long' } = $props();
@@ -12,6 +13,7 @@
   let isOpen = $state(false);
   let isPinned = $state(true);
   let chosen = $state<string | undefined>(undefined);
+  let term = $state('');
 
   // The account group of the one navigation list (ADR-0061 decision 1): what the avatar opens.
   const account = [
@@ -34,6 +36,11 @@
     >
       {#snippet brand()}
         <a class="wordmark" href="/">Hubtask</a>
+      {/snippet}
+      {#snippet search()}
+        <!-- The entry to search, not the search: pressing Enter here leads to the search page,
+             and this component knows neither (ADR-0063 decision 4). -->
+        <SearchField label="Search" isLabelHidden clearLabel="Clear the search" size="sm" placeholder="Search" bind:value={term} />
       {/snippet}
       {#snippet end()}
         <Menu label="You" items={account} placement={{ side: 'block-end', align: 'end' }} onselect={(id) => (chosen = id)}>
