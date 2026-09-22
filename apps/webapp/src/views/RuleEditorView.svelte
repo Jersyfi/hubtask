@@ -857,6 +857,7 @@
             {pickers}
             {itemTypes}
             {errors}
+            {marks}
             onupdate={update}
             onremovestep={remove}
             onremovecondition={removeCondition}
@@ -889,6 +890,7 @@
             {pickers}
             {itemTypes}
             {errors}
+            {marks}
             onupdate={update}
             onremovestep={remove}
             onremovecondition={removeCondition}
@@ -929,7 +931,11 @@
 </div>
 
 <style>
-  .editor { display: flex; flex-direction: column; min-height: 100%; }
+  /* The editor is the region it was given, and nothing of it hangs past the fold: the head at the
+     top, the bench the rest, each of the two surfaces scrolling on its own (decision 16). The
+     frame answers `page.fill()` with a region of a definite height, which is what makes this
+     `100%` a real one. */
+  .editor { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
 
   .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 
@@ -986,9 +992,9 @@
 
   .dragline.refused span { background: var(--status-warning-text); }
 
-  .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow-x: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
+  .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
 
-  .inspector { display: flex; flex-direction: column; border-inline-start: var(--bw-hairline) solid var(--border-subtle); background: var(--bg-surface); position: sticky; inset-block-start: 0; align-self: start; height: 100vh; overflow: auto; }
+  .inspector { display: flex; flex-direction: column; border-inline-start: var(--bw-hairline) solid var(--border-subtle); background: var(--bg-surface); block-size: 100%; min-block-size: 0; overflow: auto; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
