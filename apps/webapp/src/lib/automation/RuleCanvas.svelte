@@ -20,18 +20,22 @@
   import { Icon, type IconName } from '@hubtask/design-system/components';
 
   import InsertMenu from './InsertMenu.svelte';
+  import ConditionWords from './ConditionWords.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { endsRun, unreachableFrom, type Draft, type Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
-  import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
+  import { TRIGGER_ICONS, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     draft: Draft;
     selection: Selection;
     /** The action kinds this installation serves. */
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it, for the `+` popover's list. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     names: Names;
     /** The text under the trigger's title: the event, the schedule, the address. */
     triggerMeta: string;
@@ -63,7 +67,7 @@
   }
 
   const {
-    draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
+    draft, selection, kinds, summaries = {}, usage = new Map(), names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
     onnudge, onaddrung, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
@@ -87,8 +91,6 @@
     onrefuse(drag);
     ondragchange(undefined);
   }
-
-  const words = { t, has: (code: string) => messages.has(code) };
 
   const TRIGGER_ICON: Record<string, IconName> = TRIGGER_ICONS as Record<string, IconName>;
 
@@ -199,8 +201,7 @@
       >
         {#if index > 0}<span class="and">{t('app.flow.sentence_and').trim()}</span>{/if}
         <span class="body">
-          <span class="words">{conditionWords(words, names, expr)}</span>
-          <code class="expr">{expr}</code>
+          <span class="words"><ConditionWords {expr} {names} /></span>
           {#if marks?.get(`conditions/${index}`)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(`conditions/${index}`)}</span>{/if}
         </span>
         {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
@@ -218,9 +219,9 @@
     </button>
   </div>
 
-  <InsertMenu {kinds} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
+  <InsertMenu {kinds} {summaries} {usage} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+  <RuleCanvasList {summaries} {usage} steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
   <!-- The run ends where the chain ends (decision 19): the end mark, unless the chain already
        ended on every path above - where the list drew its own, or where a stored rule's steps
@@ -377,9 +378,8 @@
     background: var(--bg-surface-sunken);
   }
 
-  .condition .words { font-size: var(--fs-100); color: var(--text-primary); }
+  .condition .words { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); font-size: var(--fs-100); color: var(--text-primary); }
 
-  .expr { display: block; font-family: var(--font-mono); font-size: var(--fs-050); color: var(--text-subtle); overflow-wrap: anywhere; }
 
   .and {
     position: absolute;

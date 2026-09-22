@@ -12,11 +12,12 @@
 
   import { Icon, type IconName } from '@hubtask/design-system/components';
 
+  import ConditionWords from './ConditionWords.svelte';
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
   import { countSteps, depthOf, endsAllPaths, endsRun, isRung, rungsOf, unreachableFrom, type Step } from './model.ts';
-  import { conditionWords, kindIcon, kindWord, type Names } from './words.ts';
+  import { kindIcon, kindWord, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -27,6 +28,9 @@
     /** The list's own path: `''` for the chain, `2/then` for an arm. */
     prefix: string;
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it, for the `+` popover's list. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     names: Names;
     selection: Selection;
     marks?: ReadonlyMap<string, string>;
@@ -53,7 +57,7 @@
   }
 
   const {
-    steps, actions, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
+    steps, actions, prefix, kinds, summaries = {}, usage = new Map(), names, selection, marks, describe, onselect, oninsert, onremove, onfold,
     onnudge, onaddrung, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
@@ -79,7 +83,6 @@
   const iconOf = (kind: string): IconName => kindIcon(kind);
 
   function meta(step: Step): string {
-    if (step.kind === 'BRANCH') return t('app.flow.card_branch_if', { condition: conditionWords(words, names, String(step.params.condition ?? '')) });
     if (step.kind === 'STOP') return t('app.flow.card_stop_hint');
     if (step.kind === 'WAIT') return String(step.params.duration ?? '');
     return describe?.(step) ?? '';
@@ -100,8 +103,6 @@
     const right = continues(step.else);
     return left && right ? 'both' : left ? 'l' : right ? 'r' : 'none';
   };
-
-  const condition = (step: Step): string => conditionWords(words, names, String(step.params.condition ?? ''));
 
   function onkey(event: KeyboardEvent, select: () => void): void {
     // A key on a tool inside the card is the tool's, not the card's: the card's own handler
@@ -149,7 +150,9 @@
     <span class="body">
       <span class="kind">{step.kind === 'BRANCH' ? t('app.flow.card_branch') : isFlow ? t('app.flow.card_flow') : t('app.flow.card_action')}</span>
       <span class="title">{kindWord(words, step.kind)}</span>
-      {#if meta(step)}<span class="meta">{meta(step)}</span>{/if}
+      {#if step.kind === 'BRANCH'}
+        <span class="cond"><span class="cmark"><Icon name="funnel" size="sm" /></span><ConditionWords expr={String(step.params.condition ?? '')} {names} /></span>
+      {:else if meta(step)}<span class="meta">{meta(step)}</span>{/if}
       {#if marks?.get(path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(path)}</span>{/if}
     </span>
     {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
@@ -235,7 +238,7 @@
                   data-card={rung.path}
                   onclick={() => onselect({ kind: 'step', path: rung.path })}
                 >
-                  <Icon name="funnel" size="sm" />{condition(rung.step)}
+                  <Icon name="funnel" size="sm" /><ConditionWords expr={String(rung.step.params.condition ?? '')} {names} />
                   {#if verdicts?.get(rung.path)}{@const v = verdicts.get(rung.path)!}<span class="verdict inline" class:yes={v.state === 'yes'} class:no={v.state === 'no'}><Icon name={v.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(v)}</span>{/if}
                 </button>
                 {#if marks?.get(rung.path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(rung.path)}</span>{/if}
@@ -244,9 +247,9 @@
             <div class="rsteps">
               {#if (rung.step.then ?? []).length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
-                <InsertMenu {kinds} {actions} list={`${rung.path}/then`} index={0} onpick={oninsert} {drag} {ondrop} />
+                <InsertMenu {kinds} {summaries} {usage} {actions} list={`${rung.path}/then`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
             </div>
           </div>
@@ -256,9 +259,9 @@
           <div class="rsteps">
             {#if (last.step.else ?? []).length === 0}
               <span class="empty">{t('app.flow.card_arm_empty')}</span>
-              <InsertMenu {kinds} {actions} list={`${last.path}/else`} index={0} onpick={oninsert} {drag} {ondrop} />
+              <InsertMenu {kinds} {summaries} {usage} {actions} list={`${last.path}/else`} index={0} onpick={oninsert} {drag} {ondrop} />
             {:else}
-              <RuleCanvasList steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+              <RuleCanvasList {summaries} {usage} steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
             {/if}
           </div>
         </div>
@@ -290,9 +293,9 @@
               <span class="stub"></span>
               {#if list.length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
-                <InsertMenu {kinds} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
+                <InsertMenu {kinds} {summaries} {usage} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
               {#if continues(list)}<span class="tail"></span>{/if}
             </div>
@@ -315,6 +318,8 @@
   {:else if !endsAllPaths(step)}
     <InsertMenu
       {kinds}
+      {summaries}
+      {usage}
       {actions}
       list={prefix}
       index={index + 1}
@@ -359,6 +364,11 @@
   .title { font-weight: var(--fw-medium); color: var(--text-primary); overflow-wrap: anywhere; }
 
   .meta { font-size: var(--fs-075); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+  /* The branch's condition on its card, in the gate's notation: the funnel, the sentences, the chips. */
+  .cond { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); }
+
+  .cmark { display: inline-grid; place-items: center; width: var(--sp-200); height: var(--sp-200); border-radius: var(--r-xs); background: var(--label-amber-bg); color: var(--label-amber-fg); }
 
   .flag { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); color: var(--text-warning); }
 

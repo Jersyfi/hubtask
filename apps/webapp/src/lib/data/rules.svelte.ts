@@ -121,10 +121,17 @@ class Rules {
   }
 
   async write(draft: RuleDraft): Promise<Rule> {
-    return engine.mutate<Rule>('POST', PATH, draft, {
+    const created = await engine.mutate<Rule>('POST', PATH, draft, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [PATH],
     });
+    // Into the page at once: the editor navigates to the new rule's address the moment the
+    // write answers, and the list's re-read lands a beat later - the beat in which the screen
+    // said "there is no such rule" (the third walk).
+    if (this.#page.status === 'ready' && !(this.#page.data.data ?? []).some((rule) => rule.id === created.id)) {
+      this.#page = { ...this.#page, data: { ...this.#page.data, data: [created, ...(this.#page.data.data ?? [])] } };
+    }
+    return created;
   }
 
   async change(ruleId: string, draft: RuleDraft, version: number): Promise<Rule> {
