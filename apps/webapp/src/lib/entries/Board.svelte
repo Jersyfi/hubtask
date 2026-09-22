@@ -22,7 +22,6 @@
     Dialog,
     EmptyState,
     ErrorState,
-    Icon,
     IconButton,
     Inline,
     LabelChip,
@@ -477,6 +476,10 @@
    * honest outcome rather than a rollback that hides it.
    */
   const drag = createDrag({
+    // The card is the handle (ADR-0063 decision 11). A board is the one surface where moving the
+    // thing *is* what it is for, and the 14 × 22 px grip beside it was an affordance nobody found:
+    // the gesture always worked, and nothing said so.
+    handle: '[data-card]',
     start: (grip) => {
       const held = grip.closest('[data-card]');
       const cardId = held?.getAttribute('data-card');
@@ -620,7 +623,7 @@
         <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
              across the board, which is why it is the whole column rather than the list of cards:
              an empty column is a destination too. -->
-        <div class="zone" data-column-zone={bucket?.id ?? 'none'}>
+        <div class="zone" data-column-zone={bucket?.id ?? 'none'} data-over={drag.id !== null && drag.levelKey === (bucket?.id ?? 'none') ? '' : undefined}>
           <BucketColumn
             name={bucket?.name ?? t('app.board.unbucketed')}
             count={countOf(bucketId) ?? cards.length}
@@ -669,6 +672,7 @@
                   ? ''
                   : undefined}
                 style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
+                style:--drag-offset-inline={drag.id === card.id ? drag.offsetInline : undefined}
               >
                 <!-- The same pick the list has, and deliberately the same code behind it: one
                      selection across both layouts, drawn only while somebody is selecting, and
@@ -691,12 +695,6 @@
                   />
                 </span>
                 {/if}
-                <!-- A picture, not a control: the menu on the card is SC 2.5.7's single-pointer
-                     alternative, and a second focusable element that does nothing for the keyboard
-                     would be noise in the tab order rather than access. -->
-                <span class="grip" data-grip aria-hidden="true">
-                  <Icon name="grip-vertical" size="sm" />
-                </span>
                 {#if moment && moment.item.id === card.id}
                   <CelebrationSlot current={moment} />
                 {/if}
@@ -811,26 +809,17 @@
 
   .bulk-note { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 
-  .grip {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    padding-block-start: var(--sp-100);
-    color: var(--text-subtle);
-    cursor: grab;
-    touch-action: none;
-  }
 
-  /* Rule 6: a translate and nothing else, and it is direct manipulation rather than decoration. */
+  /* Rule 6: a translate and nothing else, and it is direct manipulation rather than decoration.
+     Both axes, because a card carried towards another column that stayed where it was is a card
+     the reader is told nothing about (ADR-0063 decision 11). */
   .card[data-dragging] {
-    translate: 0 var(--drag-offset);
+    translate: var(--drag-offset-inline) var(--drag-offset);
     border-radius: var(--r-md);
     box-shadow: var(--shadow-overlay);
     /* Out of the way of the measuring: what is under the pointer has to be the board. */
     pointer-events: none;
   }
-
-  .card[data-dragging] .grip { cursor: grabbing; }
 
   /* Where it would land. Rule 3: an outline rather than a tint, so it reads in greyscale. */
   .card[data-drop] {
@@ -846,6 +835,14 @@
   }
 
   :global([data-motion='reduced']) .card[data-dragging] { translate: none; }
+
+  /* The column the pointer is over, so that "where would this land" is a place rather than an
+     outline on one card. Rule 3: a border rather than a tint alone. */
+  .zone[data-over] { border-radius: var(--r-lg); outline: var(--bw-hairline) dashed var(--border-default); outline-offset: var(--sp-050); }
+
+  /* A press on a card is a drag in waiting, so the browser's own text selection is out of the way
+     and a touch does not scroll while one is being carried. */
+  .card { touch-action: none; user-select: none; }
 
   /* The board scrolls sideways, not the page. Positioned, so that it is the containing block of
      what it scrolls: a card's checkbox hides its input the visually-hidden way, absolutely, and
