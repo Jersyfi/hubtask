@@ -93,7 +93,12 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			TokenPerMinute:     getInt("HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE", 600),
 			TenantPerMinute:    getInt("HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE", 3000),
 			AuthPerMinute:      getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
-			Burst:              getInt("HUBTASK_RATE_LIMIT_BURST", 20),
+			// Sixty, because a browser opening a page *is* a burst: it does not pace itself, and
+			// the product's own first paint of a cold entry page is 24 requests (F9 brought it
+			// down from 38). At 20 two of them were answered 429 and retried, which works and is
+			// slower for no gain — the minute's budget above is what bounds a caller, and the
+			// burst only decides whether an honest client's first screen stutters.
+			Burst: getInt("HUBTASK_RATE_LIMIT_BURST", 60),
 		},
 		Bus: env.BusConfig{
 			// No default URL, and that is the off switch: an installation that never names a bus
