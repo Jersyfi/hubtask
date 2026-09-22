@@ -8,11 +8,13 @@
   import Input from './Input.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'end' }: { mode?: 'end' | 'start' | 'bottom' | 'layered' } = $props();
+  const { mode = 'end' }: { mode?: 'end' | 'start' | 'bottom' | 'sized' | 'layered' } = $props();
 
   let isOpen = $state(false);
   let isDialogOpen = $state(false);
   let title = $state('Move the socket by the window');
+  // What the caller keeps: the sheet answers its share, the application decides where it lives.
+  let size = $state(0.5);
 </script>
 
 <Stack gap="200">
@@ -21,8 +23,11 @@
   <Drawer
     bind:isOpen
     title="Entry details"
-    edge={mode === 'start' ? 'inline-start' : mode === 'bottom' ? 'block-end' : 'inline-end'}
+    edge={mode === 'start' ? 'inline-start' : mode === 'bottom' || mode === 'sized' ? 'block-end' : 'inline-end'}
     dismissLabel="Close the details"
+    isResizable={mode === 'sized'}
+    resizeLabel="Size the sheet"
+    bind:size
   >
     <Stack gap="200">
       <Input label="Title" bind:value={title} />
@@ -30,6 +35,12 @@
         A drawer sits beside what is already on screen rather than taking it away, which is the one
         thing that separates it from a dialog.
       </p>
+      {#if mode === 'sized'}
+        <p>The sheet is {Math.round(size * 100)} per cent of the screen.</p>
+        {#each ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'] as row (row)}
+          <p>{row}: enough under the head for the body to scroll while the head stays where it is.</p>
+        {/each}
+      {/if}
       {#if mode === 'layered'}
         <Button tone="secondary" onclick={() => (isDialogOpen = true)}>
           Open a dialog from inside it

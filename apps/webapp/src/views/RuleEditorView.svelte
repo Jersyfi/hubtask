@@ -32,8 +32,9 @@
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { REFERENCE, eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
+  import { REFERENCE, eventWords, generatedName, kindWord, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
+  import { review, type Note } from '../lib/automation/review.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
@@ -95,6 +96,10 @@
   $effect(() => {
     if (taken) return;
     if (isNew) {
+      // The first event type is what a fresh rule starts on, and the manifest is what says which:
+      // taking the draft before it has arrived left the rule starting on nothing, silently, on
+      // every deep link into `/rules/new` that beat the boot (found by F8-26's own review).
+      if (manifest.state.status === 'loading' || manifest.state.status === 'idle') return;
       const first = manifest.value?.event_types?.[0] ?? '';
       draft = emptyDraft(first);
       taken = true;
@@ -133,6 +138,26 @@
     return () => narrowQuery.removeEventListener('change', onchange);
   });
   let sheetOpen = $state(false);
+  /**
+   * How much of the screen the sheet takes (decision 27): half to begin with, and afterwards
+   * whatever the reader dragged it to, kept in this browser. Not the account's: it is a choice
+   * about this screen, like the theme (`apps/webapp/CLAUDE.md`).
+   */
+  let sheetSize = $state(0.5);
+  try {
+    const kept = Number(localStorage.getItem('hubtask.rule.sheet'));
+    if (Number.isFinite(kept) && kept > 0) sheetSize = kept;
+  } catch {
+    // A private window, or storage blocked: half the screen, every time.
+  }
+  $effect(() => {
+    const share = sheetSize;
+    try {
+      localStorage.setItem('hubtask.rule.sheet', String(share));
+    } catch {
+      // The size lives for this view then.
+    }
+  });
   const select = (next: Selection): void => {
     selection = next;
     if (next.kind === 'none') {
@@ -440,7 +465,36 @@
   const findings = $derived(stored?.findings ?? []);
   const isBroken = $derived(findings.some((finding) => finding.level === 'BROKEN'));
 
-  /** A finding or refusal drawn at a card: the check's findings first, a refusal over them. */
+  /**
+   * What the draft itself is missing (F8-26, decision 29): read from the draft and the manifest,
+   * live, because the check runs on a stored rule and has nothing to say about what is under the
+   * hands. An inbound rule has an address only once one has been minted.
+   */
+  const notes = $derived(review(draft, actionFields, { hasInboundAddress: Boolean(stored?.inbound_rotated_at) }));
+  /** One note as a sentence: the kind in its own words, a parameter as the form spells it. */
+  const noteWords = (note: Note): string =>
+    t(note.code, {
+      ...note.params,
+      ...(note.params?.kind ? { kind: kindWord(words, String(note.params.kind)) } : {}),
+      ...(note.params?.parameter ? { parameter: String(note.params.parameter).replace(/_/g, ' ') } : {}),
+    });
+  const noteList = $derived(notes.map((note) => ({ level: note.level, card: note.card, text: noteWords(note) })));
+
+  /** The card a note or a finding is about, selected. */
+  function pick(card: string): void {
+    if (card === '') return select({ kind: 'rule' });
+    if (card === 'trigger') return select({ kind: 'trigger' });
+    if (card === 'run_as') return select({ kind: 'runas' });
+    const condition = /^conditions\/(\d+)$/.exec(card);
+    if (condition) return select({ kind: 'condition', index: Number(condition[1]) });
+    select({ kind: 'step', path: card });
+  }
+
+  /**
+   * A finding or refusal drawn at a card: the check's findings first, a refusal over them, and
+   * the draft's own review where neither has spoken - the server, which knows the workspace,
+   * outranks the client, which knows only the draft.
+   */
   const marks = $derived.by(() => {
     const found = marksOf(words, findings);
     for (const [pointer, message] of errors) {
@@ -449,6 +503,9 @@
       if (condition) found.set(`conditions/${condition[1]}`, message);
       const step = /^\/actions\/(.+?)(?:\/kind|\/params\/(?!then|else).*)?$/.exec(pointer);
       if (step?.[1]) found.set(step[1].replace(/\/params\/(then|else)/g, '/$1'), message);
+    }
+    for (const note of notes) {
+      if (note.card !== '' && !found.has(note.card)) found.set(note.card, noteWords(note));
     }
     return found;
   });
@@ -737,7 +794,15 @@
       {#if narrow}
         <!-- Below the expanded breakpoint the details come to the canvas rather than the reader
              scrolling to them: a sheet over it, one glass surface at a time (rule 2). -->
-        <Drawer bind:isOpen={sheetOpen} edge="block-end" title={t('app.flow.inspector')} dismissLabel={t('app.flow.sheet_close')}>
+        <Drawer
+          bind:isOpen={sheetOpen}
+          edge="block-end"
+          title={t('app.flow.inspector')}
+          dismissLabel={t('app.flow.sheet_close')}
+          isResizable
+          resizeLabel={t('app.flow.sheet_size')}
+          bind:size={sheetSize}
+        >
           {@render inspector()}
         </Drawer>
         <div class="sheetbar" role="tablist" aria-label={t('app.flow.inspector')}>
@@ -755,6 +820,9 @@
     </div>
 
     {#snippet inspector()}
+        <!-- The tabs stay where the head stays (decision 27): they are how the panel is steered,
+             and a panel whose steering scrolls away is steered by scrolling back up. -->
+        <div class="tabsrow">
         <Tabs
           label={t('app.flow.inspector')}
           selected={tab}
@@ -765,6 +833,7 @@
           }}
           tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
         />
+        </div>
         {#if tab === 'rule'}
           <RuleInspector
             {draft}
@@ -823,6 +892,8 @@
           <RuleProbe
             {eventTypes}
             defaultType={draft.trigger.event_type ?? ''}
+            notes={noteList}
+            onpick={pick}
             takesPayload={draft.trigger.kind === 'INBOUND_WEBHOOK'}
             isRunning={isProbing}
             {outcome}
@@ -915,6 +986,9 @@
   .small { font-size: var(--fs-075); }
 
   .panel { padding: var(--sp-200); font-size: var(--fs-075); }
+
+  /* Sticky in whatever scrolls the panel: the aside on a wide screen, the sheet's body on a narrow one. */
+  .tabsrow { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); background: var(--bg-surface); }
 
   /* Below the expanded breakpoint the palette is gone (the + is the way in) and the inspector
      follows the canvas; F8-05 makes it a sheet over it. */
