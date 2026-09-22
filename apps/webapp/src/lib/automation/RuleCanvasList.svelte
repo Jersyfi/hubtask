@@ -343,6 +343,8 @@
 <style>
   .card {
     position: relative;
+    /* The border box is the width (decision 25), here as in `RuleCanvas`. */
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     gap: var(--sp-150);
@@ -454,6 +456,7 @@
      on to the chain (decision 20). `grid-column: 1 / -1` on every line, or it sits in a column. */
   .arms {
     position: relative;
+    box-sizing: border-box;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: var(--sp-300);
@@ -489,7 +492,7 @@
 
   .arm .empty { width: 100%; }
 
-  .arm :global(.card) { width: 100%; box-sizing: border-box; }
+  .arm :global(.card) { width: 100%; }
 
   .armlabel {
     display: inline-flex;
@@ -511,9 +514,9 @@
 
   /* The ladder: rungs one under the other, each a pill and its steps indented behind a rail;
      an else-if rung's condition is a card of its own in the gate's notation. */
-  .ladder { width: min(56ch, 100%); display: flex; flex-direction: column; gap: var(--sp-050); }
+  .ladder { box-sizing: border-box; width: min(56ch, 100%); display: flex; flex-direction: column; gap: var(--sp-050); }
 
-  .rung { display: flex; flex-direction: column; gap: var(--sp-050); padding: var(--sp-100); border: var(--bw-hairline) solid var(--label-violet-fg); border-radius: var(--r-md); background: var(--bg-surface); }
+  .rung { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sp-050); padding: var(--sp-100); border: var(--bw-hairline) solid var(--label-violet-fg); border-radius: var(--r-md); background: var(--bg-surface); }
 
   .rung.else { border-style: dashed; }
 
@@ -535,7 +538,7 @@
 
   .rsteps { display: flex; flex-direction: column; align-items: stretch; min-width: 0; margin-inline-start: var(--sp-200); padding-inline-start: var(--sp-150); border-inline-start: var(--bw-ring) solid var(--border-subtle); }
 
-  .rsteps :global(.card) { width: 100%; box-sizing: border-box; }
+  .rsteps :global(.card) { width: 100%; }
 
   .verdict.inline { position: static; }
 
@@ -554,6 +557,7 @@
   .endcap i { display: block; width: var(--sp-150); height: var(--sp-150); border-radius: var(--r-xs); background: var(--border-strong); }
 
   .folded {
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     align-items: center;

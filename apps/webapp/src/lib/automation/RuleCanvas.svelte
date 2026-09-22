@@ -109,8 +109,22 @@
   }
 </script>
 
+<!-- The background of the canvas deselects (decision 26): a click that reached no card, and
+     Escape while the focus is anywhere on the canvas. Both leave the panel with nothing to show
+     in *Details*, which is the view's to answer. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flow" data-canvas ondragover={(event) => { if (drag) event.preventDefault(); }} ondrop={refuse}>
+<div
+  class="flow"
+  data-canvas
+  ondragover={(event) => { if (drag) event.preventDefault(); }}
+  ondrop={refuse}
+  onclick={(event) => { if (event.target === event.currentTarget) onselect({ kind: 'none' }); }}
+  onkeydown={(event) => {
+    if (event.key !== 'Escape' || selection.kind === 'none') return;
+    event.preventDefault();
+    onselect({ kind: 'none' });
+  }}
+>
   <!-- The trigger: the one card in the signature colour, because it is where the run comes from. -->
   <div
     class="card trigger"
@@ -242,6 +256,10 @@
      alone carries the signature colour, because it is where the run comes from. */
   .card {
     position: relative;
+    /* The width is the border box (decision 25): under the project's content-box default a card
+       at `100%` stood its padding and border wider than the column, and the scroll container cut
+       the selection ring off in the canvas's own gutter. */
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     gap: var(--sp-150);
@@ -321,6 +339,7 @@
 
   .gate {
     position: relative;
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     flex-direction: column;
