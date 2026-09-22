@@ -375,3 +375,66 @@ func TestTheTenantDashboardDegradesToANotice(t *testing.T) {
 			"to has to say which setting fills it")
 	}
 }
+
+// The point-in-time recovery rules read the database operator's series, not this application's,
+// and only a scrape of a real CloudNativePG instance can say whether those names exist. That
+// scrape lives in scripts/pitr-drill.sh and runs in the nightly, against a kind cluster.
+//
+// What runs here is the half that needs no cluster: that the script's list and the rules file
+// agree about which names are in play. The script cannot check a name nobody reads, and it must
+// not stay silent about one a rule does read - and both had already gone wrong. Its list carried
+// `cnpg_collector_up`, which no rule has ever read, and it would have carried on reporting on it
+// forever (#940).
+//
+// The same two-directional shape as the support matrix in tools/checkdocs: a claim and its
+// evidence, checked from both ends, because a list that only grows one way rots quietly.
+func TestThePitrDrillChecksExactlyTheMetricsTheRulesRead(t *testing.T) {
+	const drill = "../../scripts/pitr-drill.sh"
+
+	script, err := os.ReadFile(drill)
+	if err != nil {
+		t.Fatalf("%s is not readable: %v", drill, err)
+	}
+
+	named := map[string]string{}
+	for _, list := range []string{"PITR_REQUIRED_METRICS", "PITR_ABSENT_METRICS"} {
+		block := regexp.MustCompile(list + `="([^"]*)"`).FindSubmatch(script)
+		if block == nil {
+			t.Fatalf("%s no longer declares %s - the drill's metric list is what this reconciles", drill, list)
+		}
+		for _, metric := range strings.Fields(string(block[1])) {
+			named[metric] = list
+		}
+	}
+	if len(named) == 0 {
+		t.Fatal("the drill names no metrics at all - the lists have stopped being parsed, not stopped being needed")
+	}
+
+	// Every name a rule reads has to be accounted for by the drill.
+	read := map[string]bool{}
+	for _, group := range load(t, pitrRulesFile).Groups {
+		for _, rule := range group.Rules {
+			for _, metric := range regexp.MustCompile(`\bcnpg_[a-z_]+`).FindAllString(rule.Expr, -1) {
+				read[metric] = true
+				if _, ok := named[metric]; !ok {
+					t.Errorf("the alert %s reads %s, and %s neither requires it nor excuses it - "+
+						"add it to PITR_REQUIRED_METRICS, or to PITR_ABSENT_METRICS with the reason",
+						rule.Alert, metric, drill)
+				}
+			}
+		}
+	}
+	if len(read) == 0 {
+		t.Fatal("no operator series found in the rules at all - the expression pattern has stopped matching")
+	}
+
+	// And nothing the drill names may be a series no rule reads. A check of a metric nobody
+	// alerts on proves nothing and, worse, reads as proof that something is covered.
+	for metric, list := range named {
+		if !read[metric] {
+			t.Errorf("%s names %s in %s, and no alert in %s reads it - a scrape checked against a "+
+				"name nothing alerts on is evidence for nothing",
+				drill, metric, list, pitrRulesFile)
+		}
+	}
+}

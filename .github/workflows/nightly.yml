@@ -97,11 +97,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 16 is the supported floor and runs on every pull request; this job is what lets the
-        # table claim anything beyond it.
-        postgres: ["17-alpine"]
+        # A major, not an image. The entry used to be `17-alpine` and the image was composed as
+        # `postgres:${{ matrix.postgres }}` - a plain build with no pgvector, so every run of this
+        # job died on `db/schema.sql does not apply: extension "vector" is not available`, every
+        # night since 2026-09-09 (#939). The row of the table that claims PostgreSQL 17, and the
+        # half of the pgvector row that claims 17, were resting on it.
+        #
+        # The image family is named here, once, so that a matrix entry chooses a version and
+        # cannot choose a build. `test/dbtest` refuses a database without the extension outright,
+        # which is the same rule stated where it is used rather than only here.
+        postgres: ["17"]
     env:
-      HUBTASK_TEST_POSTGRES_IMAGE: postgres:${{ matrix.postgres }}
+      HUBTASK_TEST_POSTGRES_IMAGE: pgvector/pgvector:pg${{ matrix.postgres }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -123,17 +130,35 @@ jobs:
         with:
           go-version: "1.27.1"
           cache: true
-      - name: Podman with its Compose implementation
+      # Podman as the engine, driven by Compose v2 against Podman's Docker-compatible socket -
+      # which is what `podman compose` does for you and what a Podman host runs today.
+      #
+      # It used to be `podman-compose`, the Python reimplementation, and that is a different claim
+      # than the one the matrix makes. Two of its limitations stood between this job and a green
+      # result, and only the first was ours: it does not honour `depends_on: condition`, so the
+      # migration started beside the database (fixed in the artefact itself - the migrator now
+      # waits, and `gate-compose` proves the stack converges without the guarantee). The second is
+      # not ours to fix: `podman-compose` 1.0.6 starts each container with `podman start <name>`,
+      # and Podman then refuses to resolve a dependency graph that includes the migration
+      # container after it has exited - so the application container is created and never started.
+      # The support matrix says which of the two this row stands for (support-matrix.md §2).
+      - name: Podman, and Compose against its socket
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman podman-compose
+          sudo apt-get install -y podman
           podman --version
+          # The API the Compose plugin talks to. `--time=0` keeps it alive for the whole job.
+          podman system service --time=0 unix:///tmp/podman.sock &
+          for _ in $(seq 1 30); do [ -S /tmp/podman.sock ] && break; sleep 1; done
+          test -S /tmp/podman.sock || { echo "podman's socket never appeared"; exit 1; }
+          docker compose version
       # The same Compose file, the same script, a different engine. deployment.md promises
       # "Docker/Podman"; this is what turns that from a sentence into a claim with evidence.
       - name: The reference stack under Podman
         env:
           DOCKER: podman
-          HUBTASK_COMPOSE: podman-compose
+          HUBTASK_COMPOSE: docker compose
+          DOCKER_HOST: unix:///tmp/podman.sock
         run: make gate-compose
 
   matrix-hubctl:
