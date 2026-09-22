@@ -2631,7 +2631,7 @@
   "app.flow.blocks_frequent_hint": "from this workspace’s rules",
   "app.flow.blocks_uses": "in {n} rules",
     "app.flow.blocks_none_all": "Nothing matches.",
-  "app.flow.blocks_from_all": "From the whole catalogue — nothing among the blocks matched.",
+    "app.flow.blocks_from_all_hint": "from the whole catalogue",
   "app.flow.blocks_only_here": "Only what may go here: no trigger, and “End the run” only at the end of an arm.",
   "app.flow.rule_tab_hint": "What the rule is: its name, where it applies, whose rights it acts with, and its guardrails.",
   "app.flow.tab_probe": "Probe",

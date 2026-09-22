@@ -53,6 +53,8 @@
     code: string;
     hint?: string;
     kinds: string[];
+    /** Found in the whole catalogue rather than among the blocks. */
+    fromAll?: boolean;
   }
 
   /** The curated list: Frequent, the categories in their order, Flow. */
@@ -84,9 +86,18 @@
 
   const filtered = (groups: Group[]): Group[] =>
     groups.map((group) => ({ ...group, kinds: group.kinds.filter((kind) => takes(kind) && hit(kind)) })).filter((group) => group.kinds.length > 0);
-  /** What the search finds: the sub-tab's own list, and the whole catalogue when the blocks have nothing for the words typed. */
-  const fromAll = $derived(side === 'blocks' && needle !== '' && filtered(curated).length === 0);
-  const shown = $derived(fromAll ? filtered(everything) : filtered(side === 'blocks' ? curated : everything));
+  /**
+   * What the search finds on the *Blocks* sub-tab: the blocks first, then whatever else the
+   * whole catalogue has for the words typed, under its own groups - typing reaches every kind
+   * (decision 17), whether or not a block happened to match too.
+   */
+  const shownBlocks = $derived(filtered(side === 'blocks' ? curated : everything));
+  const rest = $derived.by((): Group[] => {
+    if (side !== 'blocks' || needle === '') return [];
+    const placed = new Set(shownBlocks.flatMap((group) => group.kinds));
+    return filtered(everything).map((group) => ({ ...group, kinds: group.kinds.filter((kind) => !placed.has(kind)) })).filter((group) => group.kinds.length > 0);
+  });
+  const shown = $derived([...shownBlocks, ...rest.map((group) => ({ ...group, fromAll: true }))]);
 
   const shownTriggers = $derived(side === 'blocks' && !allowed ? triggers.filter((kind) => needle === '' || triggerWord(words, kind).toLowerCase().includes(needle)) : []);
 
@@ -118,8 +129,8 @@
         </button>
       {/each}
     {/if}
-    {#each shown as group (group.code)}
-      <span class="group">{t(group.code)}{#if group.hint}<em>{group.hint}</em>{/if}</span>
+    {#each shown as group (`${group.fromAll ? 'all:' : ''}${group.code}`)}
+      <span class="group">{t(group.code)}{#if group.hint}<em>{group.hint}</em>{/if}{#if group.fromAll}<em>{t('app.flow.blocks_from_all_hint')}</em>{/if}</span>
       {#each group.kinds as kind (kind)}
         <button
           class="item {kindFamily(kind)}"
@@ -134,13 +145,12 @@
           <span class="mark"><Icon name={kindIcon(kind)} size="sm" /></span>
           <span class="w">
             <span>{kindWord(words, kind)}</span>
-            {#if (side === 'all' || fromAll) && summaries[kind]}<span class="d">{summaries[kind]}</span>{/if}
+            {#if (side === 'all' || group.fromAll) && summaries[kind]}<span class="d">{summaries[kind]}</span>{/if}
           </span>
           {#if usage.get(kind)}<span class="use" aria-hidden="true" title={t('app.flow.blocks_uses', { n: usage.get(kind) ?? 0 })}>{usage.get(kind)}</span>{/if}
         </button>
       {/each}
     {/each}
-    {#if fromAll && shown.length > 0}<p class="quiet tiny">{t('app.flow.blocks_from_all')}</p>{/if}
     {#if shown.length === 0 && shownTriggers.length === 0}
       <p class="quiet">{t('app.flow.blocks_none_all')}</p>
     {/if}

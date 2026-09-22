@@ -271,6 +271,36 @@ test('chromium: a step\'s form shows what a rule can decide: no plumbing, the ru
   assert.equal(await inspector.locator('input[type="datetime-local"]').count(), 1, 'a date-time is a date and time field');
 });
 
+test('chromium: a card moves by drag into a branch below it, arms and all', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 1200 });
+  const cards = async () => page.locator('[data-canvas] [data-card]').evaluateAll((els) => els.map((el) => el.getAttribute('data-card')));
+
+  // The label, above the branch, into the branch's else arm: the arm's path is one shorter
+  // once the label is out, which is what the gap has to know to light (the final check of F8-20).
+  const dt = await page.evaluateHandle(() => new DataTransfer());
+  await page.dispatchEvent('[data-card="0"]', 'dragstart', { dataTransfer: dt });
+  assert.equal(await page.locator('.gap[data-list="1/else"][data-index="2"]').count(), 0, 'after the end: no gap at all');
+  const above = page.locator('.gap[data-list="1/else"][data-index="0"]');
+  assert.equal(await above.evaluate((el) => el.classList.contains('target')), true, 'before the wait: a target');
+  await above.dispatchEvent('dragover', { dataTransfer: dt });
+  await above.dispatchEvent('drop', { dataTransfer: dt });
+  await page.dispatchEvent('[data-card="0"]', 'dragend', { dataTransfer: dt });
+  assert.deepEqual((await cards()).filter((card) => /^0/.test(card)), ['0', '0/then/0', '0/else/0', '0/else/1', '0/else/2'], 'the label leads the else arm; the branch is now first');
+  assert.equal(await page.locator('[data-card="0/else/0"] .title').textContent(), 'Add a label');
+
+  // And the branch itself, with its arms, down past the webhook.
+  const dt2 = await page.evaluateHandle(() => new DataTransfer());
+  await page.dispatchEvent('[data-card="0"]', 'dragstart', { dataTransfer: dt2 });
+  const end = page.locator('.gap[data-list=""][data-index="2"]');
+  await end.dispatchEvent('dragover', { dataTransfer: dt2 });
+  await end.dispatchEvent('drop', { dataTransfer: dt2 });
+  await page.dispatchEvent('[data-card="0"]', 'dragend', { dataTransfer: dt2 });
+  assert.equal(await page.locator('[data-card="0"] .title').textContent(), 'Deliver to a webhook');
+  assert.equal(await page.locator('[data-card="1/else/0"] .title').textContent(), 'Add a label', 'the arms travelled with the branch');
+});
+
 test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

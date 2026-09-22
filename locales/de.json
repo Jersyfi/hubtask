@@ -1557,7 +1557,7 @@
   "app.flow.blocks_frequent_hint": "aus den Regeln dieses Arbeitsbereichs",
   "app.flow.blocks_uses": "in {n} Regeln",
     "app.flow.blocks_none_all": "Nichts passt.",
-  "app.flow.blocks_from_all": "Aus dem ganzen Katalog – unter den Bausteinen passte nichts.",
+    "app.flow.blocks_from_all_hint": "aus dem ganzen Katalog",
   "app.flow.blocks_only_here": "Nur, was hier hin darf: kein Auslöser, „Lauf beenden“ nur am Ende eines Arms.",
   "app.flow.rule_tab_hint": "Was die Regel ist: ihr Name, wo sie gilt, mit wessen Rechten sie handelt, und ihre Leitplanken.",
   "app.flow.tab_probe": "Probelauf",

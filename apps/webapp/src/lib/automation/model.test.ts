@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Rule } from '../data/rules.svelte.ts';
+import { gapTakes } from './selection.ts';
 import {
   addRung,
   canPlace,
@@ -22,6 +23,7 @@ import {
   newStep,
   nudge,
   rungsOf,
+  shiftedList,
   pathOf,
   pointerOf,
   readNode,
@@ -136,6 +138,14 @@ test('inserting, removing and moving keep the chain a copy, and a branch never e
 
   assert.equal(nudge(actions, '0', 1).map((step) => step.kind).join(','), 'BRANCH,ADD_LABEL,SEND_WEBHOOK');
   assert.equal(nudge(actions, '2', 1).map((step) => step.kind).join(','), 'ADD_LABEL,BRANCH,SEND_WEBHOOK', 'the last cannot go down');
+  // A card moved into a branch below it: the branch's path shifts up one once the card is out.
+  const into = moveStep(actions, '0', '1/then', 0);
+  assert.equal(into?.map((step) => step.kind).join(','), 'BRANCH,SEND_WEBHOOK');
+  assert.equal(into?.[0]?.then?.map((step) => step.kind).join(','), 'ADD_LABEL,NOTIFY_GROUP');
+  assert.equal(shiftedList('1/then', '0'), '0/then');
+  assert.equal(shiftedList('1/then', '1/else/0'), '1/then', 'a lift inside the branch shifts nothing above it');
+  assert.equal(shiftedList('0/then', '2'), '0/then', 'a lift below shifts nothing');
+  assert.equal(gapTakes({ src: 'step', path: '0' }, '1/then', 0, actions), true, 'and the gap lights');
   assert.equal(moveStep(actions, '1', '1/then', 0), undefined, 'a branch into its own arm');
   assert.equal(moveStep(actions, '1', '1/else/0/then', 0), undefined, 'or deeper');
   assert.equal(moveStep(actions, '9', '', 0), undefined);
