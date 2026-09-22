@@ -36,10 +36,25 @@
     current?: string;
     /** The branches that are open, by id. Bindable: a caller usually restores it. */
     expanded?: string[];
+    /**
+     * Folded to its marks.
+     *
+     * A rail is a **drawing**, not a narrower panel: one mark per row, centred in the column,
+     * with no twist, no label and no indent — the label stays the row's accessible name and
+     * becomes its tooltip. A caller that only narrowed the column would push the marks out of it,
+     * which is what issue 915 was: at a rail of 56 px the twist took the first 24, and the mark
+     * was drawn from 44 to 68 with the half past the edge clipped.
+     *
+     * Nothing is removed by the fold. Every row is still in the tree, a branch still opens and
+     * still announces that it is open, and the keys still walk what is visible — an opened hub's
+     * collections are marks under it. Depth is the one thing a rail cannot draw, and a column
+     * that tried would spend on the indent the width it has for the mark.
+     */
+    isRail?: boolean;
     onnavigate?: (id: string) => void;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), onnavigate }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, onnavigate }: Props = $props();
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -78,7 +93,7 @@
   }
 </script>
 
-<nav class="side-nav" aria-label={label}>
+<nav class="side-nav" data-rail={isRail ? '' : undefined} aria-label={label}>
   <ul class="tree" role="tree" bind:this={tree} onkeydown={onKeydown}>
     <!-- `aria-selected` and `aria-current` are both here and they say different things:
          the first is the tree's own state, the second is that this is the page the reader is on.
@@ -89,7 +104,9 @@
         class="row"
         role="treeitem"
         data-index={index}
-        style:--depth={row.depth}
+        style:--depth={isRail ? 0 : row.depth}
+        title={isRail ? row.node.label : undefined}
+        aria-label={isRail ? row.node.label : undefined}
         aria-expanded={row.isBranch ? row.isExpanded : undefined}
         aria-selected={row.node.id === current}
         aria-current={row.node.id === current ? 'page' : undefined}
@@ -106,15 +123,19 @@
           else onnavigate?.(row.node.id);
         }}
       >
-        <span class="twist" aria-hidden="true">
-          {#if row.isBranch}
-            <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
-          {/if}
-        </span>
+        {#if !isRail}
+          <span class="twist" aria-hidden="true">
+            {#if row.isBranch}
+              <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
+            {/if}
+          </span>
+        {/if}
         {#if row.node.icon}
           <span class="mark" aria-hidden="true"><Icon name={row.node.icon} size="sm" /></span>
         {/if}
-        <span class="label">{row.node.label}</span>
+        {#if !isRail}
+          <span class="label">{row.node.label}</span>
+        {/if}
       </li>
     {/each}
   </ul>
@@ -170,4 +191,11 @@
   }
 
   .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* The fold: the mark alone, centred, and the row no wider than the column it is in. The
+     padding goes with the indent and the twist, because what is left has nothing to sit beside. */
+  .side-nav[data-rail] .row {
+    justify-content: center;
+    padding-inline: var(--sp-050);
+  }
 </style>

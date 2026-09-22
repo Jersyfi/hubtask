@@ -38,7 +38,7 @@
     current?: string;
     /** Whether the primary group is drawn above the tree - not on `compact`, where the bar has it. */
     hasDestinations?: boolean;
-    /** Folded to its marks: the tree stays whole, and the controls beside it show their marks alone. */
+    /** Folded to its marks: the tree stays whole and draws its marks alone, as do the controls beside it. */
     isRail?: boolean;
     onnavigate: (path: string) => void;
   }
@@ -146,7 +146,7 @@
   {#if isTreeReady && !failure && !isRail}
     <ReplicaMark state={containers.hubsState} />
   {/if}
-  <SideNav label={t('app.workspace.title')} {nodes} {current} bind:expanded onnavigate={navigate} />
+  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} bind:expanded onnavigate={navigate} />
   {#if !isTreeReady}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if failure}

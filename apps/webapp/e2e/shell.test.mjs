@@ -190,6 +190,19 @@ for (const width of [905, 1280]) {
     const rail = await aside.evaluate((el) => el.getBoundingClientRect().width);
     assert.ok(rail < pinned / 2, `${width}: the rail is ${rail} px against ${pinned} px pinned`);
     assert.equal(await tree.getByRole('treeitem').count(), rows.length, `${width}: the rail lost rows`);
+    // And every mark is **drawn**, inside the column. Folding used to leave the twist in front of
+    // it and clip the half that stuck out, so the rail was a column of slivers (issue 915).
+    const marks = await aside.evaluate((el) => {
+      const column = el.getBoundingClientRect();
+      return [...el.querySelectorAll('[role="treeitem"] svg')].map((mark) => {
+        const box = mark.getBoundingClientRect();
+        return { inside: box.left >= column.left && box.right <= column.right, width: Math.round(box.width) };
+      });
+    });
+    assert.equal(marks.length, rows.length, `${width}: the rail drew ${marks.length} marks for ${rows.length} rows`);
+    assert.deepEqual(marks.filter((mark) => !mark.inside || mark.width === 0), [], `${width}: a mark of the rail is clipped or missing`);
+    // The label is announced although it is not drawn, so the rail is navigable by name.
+    assert.equal(await tree.getByRole('treeitem', { name: 'Jumble' }).count(), 1, `${width}: the rail's rows lost their names`);
     await page.getByRole('button', { name: 'Expand the navigation' }).click();
     assert.equal(await aside.evaluate((el) => el.getBoundingClientRect().width), pinned);
 
