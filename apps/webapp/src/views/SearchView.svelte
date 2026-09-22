@@ -134,12 +134,16 @@
 
   <!-- `data-tour`: where the tour points for the query language (F6-14). -->
   <Inline gap="150" align="end" data-tour="search">
-    <SearchField
-      label={t('app.search.label')}
-      clearLabel={t('app.search.clear')}
-      bind:value={term}
-      onclear={() => search.reset()}
-    />
+    <!-- The field takes the room the line has - the whole width on a phone, a few words' worth
+         beside the language and the switch on a desk - rather than the width a bare input picks. -->
+    <div class="term">
+      <SearchField
+        label={t('app.search.label')}
+        clearLabel={t('app.search.clear')}
+        bind:value={term}
+        onclear={() => search.reset()}
+      />
+    </div>
     <!-- Offered only where the installation reports more than one, because a picker with a single
          option is a decision nobody has. -->
     {#if languages.length > 1}
@@ -250,6 +254,8 @@
     font-weight: var(--fw-semibold);
     line-height: var(--lh-tight);
   }
+
+  .term { flex: 1 1 24ch; min-width: 0; max-width: 48ch; }
 
   .hint { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }
 

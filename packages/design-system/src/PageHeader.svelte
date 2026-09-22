@@ -87,6 +87,9 @@
 
   // The way up on a phone: the crumb before the current one, if there is one.
   const parent = $derived(breadcrumb && breadcrumb.trail.length > 1 ? breadcrumb.trail[breadcrumb.trail.length - 2] : undefined);
+  // With the title drawn elsewhere and no subtitle, the actions have no title to stand beside
+  // and take the trail's line; the title row then holds only the read-not-drawn heading.
+  const actionsOnTrail = $derived(isTitleInBar && !subtitle && breadcrumb !== undefined);
 
   // Below `medium` the secondary actions join the menu, so one control holds everything that is
   // not the primary. The ids are prefixed so a caller's own ids cannot collide with them.
@@ -134,33 +137,7 @@
   });
 </script>
 
-<header class="head" data-folded={isFolded ? '' : undefined} data-title-in-bar={isTitleInBar ? '' : undefined} bind:this={head}>
-  {#if breadcrumb}
-    <div class="trail">
-      <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} />
-    </div>
-    {#if parent}
-      <!-- The way up, on a phone: one link, the parent, with the chevron pointing along the
-           reading direction's start. It mirrors in RTL because the icon set mirrors it. -->
-      <p class="parent">
-        <a href={parent.href} onclick={(event) => { if (breadcrumb.onnavigate) { event.preventDefault(); breadcrumb.onnavigate(parent.id); } }}>
-          <Icon name="chevron-left" size="sm" />
-          <span>{parent.label}</span>
-        </a>
-      </p>
-    {/if}
-  {/if}
-
-  <div class="row">
-    <div class="titles">
-      {#if isTitleInBar}
-        <VisuallyHidden as="h1">{title}</VisuallyHidden>
-      {:else}
-        <h1 class="title">{title}</h1>
-      {/if}
-      {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
-    </div>
-
+{#snippet actionBar()}
     <div class="actions">
       {#if primary}
         <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
@@ -205,6 +182,41 @@
         </span>
       {/if}
     </div>
+{/snippet}
+
+<header class="head" data-folded={isFolded ? '' : undefined} data-title-in-bar={isTitleInBar ? '' : undefined} bind:this={head}>
+  {#if breadcrumb}
+    <div class="top">
+      <div class="trail">
+        <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} />
+      </div>
+      {#if parent}
+        <!-- The way up, on a phone: one link, the parent, with the chevron pointing along the
+             reading direction's start. It mirrors in RTL because the icon set mirrors it. -->
+        <p class="parent">
+          <a href={parent.href} onclick={(event) => { if (breadcrumb.onnavigate) { event.preventDefault(); breadcrumb.onnavigate(parent.id); } }}>
+            <Icon name="chevron-left" size="sm" />
+            <span>{parent.label}</span>
+          </a>
+        </p>
+      {/if}
+      <!-- A title that is drawn elsewhere - in the bar, or by the caller as a field - leaves the
+           title row nothing to show beside the actions; the actions join the trail's line
+           instead of standing on an empty one. -->
+      {#if actionsOnTrail}{@render actionBar()}{/if}
+    </div>
+  {/if}
+
+  <div class="row" data-empty={actionsOnTrail ? '' : undefined}>
+    <div class="titles">
+      {#if isTitleInBar}
+        <VisuallyHidden as="h1">{title}</VisuallyHidden>
+      {:else}
+        <h1 class="title">{title}</h1>
+      {/if}
+      {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
+    </div>
+    {#if !actionsOnTrail}{@render actionBar()}{/if}
   </div>
 
   {#if notices}
@@ -230,6 +242,19 @@
     gap: var(--sp-200);
     flex-wrap: wrap;
   }
+
+  /* The trail's line, which carries the actions when the title row would stand empty. */
+  .top {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-200);
+    min-width: 0;
+  }
+
+  .top .trail { flex: 1; min-width: 0; }
+
+  /* A title row that holds only the read heading takes no room of its own. */
+  .row[data-empty] { display: contents; }
 
   .titles {
     display: flex;
@@ -311,7 +336,7 @@
   /* Narrower than `medium`, the head folds (ADR-0061): the parent alone as the way up, one
      control for everything that is not the primary, and the primary where the thumb is. */
   .head[data-folded] .trail { display: none; }
-  .head[data-folded] .parent { display: block; }
+  .head[data-folded] .parent { display: block; flex: 1; min-width: 0; }
   .head[data-folded] .secondary,
   .head[data-folded] .primary-more,
   .head[data-folded] .menu-full { display: none; }
