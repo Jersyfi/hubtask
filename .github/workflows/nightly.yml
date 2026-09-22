@@ -310,7 +310,32 @@ jobs:
         with:
           script: |
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const results = Object.entries(${{ toJSON(needs) }});
+
+            // `needs` is a map of job id to `{ result, outputs }`, so the outcome is `.result` and
+            // not the entry itself. Reading the entry as a string is what this job did between
+            // 2026-09-03 and 2026-09-22: every comparison against 'failure' and 'success' was
+            // false, nothing was filed, nothing was closed, and the job went green while three
+            // nightly jobs were red every night (#937).
+            //
+            // So the outcome is now read, and anything that is not an outcome stops the job. That
+            // is the whole lesson: this job's failure mode is silence, and a reporter that cannot
+            // report has to say so rather than pass. If GitHub ever changes the shape of `needs`
+            // again, the nightly turns red on the reporter instead of quietly forgetting its job.
+            const OUTCOMES = ['success', 'failure', 'cancelled', 'skipped'];
+            const results = Object.entries(${{ toJSON(needs) }}).map(([job, outcome]) => {
+              const result = outcome?.result;
+              if (!OUTCOMES.includes(result)) {
+                throw new Error(
+                  `the nightly's reporter cannot read an outcome for '${job}': ` +
+                  `${JSON.stringify(outcome)} - it expected one of ${OUTCOMES.join(', ')} under .result`
+                );
+              }
+              return [job, result];
+            });
+
+            if (results.length === 0) {
+              throw new Error('the nightly\'s reporter was handed no jobs at all - its `needs` list is empty');
+            }
 
             // The title is the identity of the thread, so it is also how one is found again. The
             // search is a phrase match rather than an exact one, so every hit is compared against
