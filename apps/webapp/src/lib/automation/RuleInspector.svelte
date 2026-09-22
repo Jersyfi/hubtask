@@ -323,8 +323,25 @@
   {:else if selection.kind === 'runas'}
     {@render runAsSection()}
   {:else if selection.kind === 'gate'}
+    <!-- The gate is one block holding every condition, so its panel holds every condition too
+         (decision 28): each under its *and*, edited and removed here, without a second click on
+         the canvas for each. A single condition selected on the canvas still opens alone. -->
     <h3>{t('app.flow.card_only_when')}</h3>
     <p class="quiet">{t('app.flow.gate_hint')}</p>
+    {#each draft.conditions as expr, index (index)}
+      <div class="gcondition" data-condition={index}>
+        <div class="ghead">
+          <span class="label">{index > 0 ? `${t('app.flow.chip_and')} · ${t('app.flow.condition_n', { n: index + 1 })}` : t('app.flow.condition_n', { n: index + 1 })}</span>
+          <Button size="sm" tone="subtle" icon="trash" onclick={() => onremovecondition(index)}>{t('app.rules.remove_condition')}</Button>
+        </div>
+        <Composer
+          {expr}
+          error={errors.get(`/conditions/${index}/expr`)}
+          choices={composerChoices}
+          onchange={(next) => onupdate((current) => ({ ...current, conditions: current.conditions.map((each, at) => (at === index ? next : each)) }))}
+        />
+      </div>
+    {/each}
     <div><Button size="sm" icon="plus" onclick={onaddcondition}>{t('app.flow.add_condition')}</Button></div>
     <Callout>{t('app.flow.gate_before_writes')}</Callout>
   {:else if selection.kind === 'condition'}
@@ -393,4 +410,9 @@
   .hint { font-size: var(--fs-075); color: var(--text-subtle); }
 
   .mono { font-family: var(--font-mono); }
+
+  /* One condition of the gate, in the panel: its place in the *and*, its composer, its trash. */
+  .gcondition { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface-sunken); }
+
+  .ghead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
 </style>
