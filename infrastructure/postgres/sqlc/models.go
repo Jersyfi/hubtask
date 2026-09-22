@@ -1001,19 +1001,21 @@ type Membership struct {
 }
 
 type Notification struct {
-	ID          pgtype.UUID
-	TenantID    pgtype.UUID
-	RecipientID pgtype.UUID
-	Category    string
-	Channel     string
-	State       string
-	Reason      *string
-	EventID     pgtype.UUID
-	ItemID      pgtype.UUID
-	ActorID     pgtype.UUID
-	CreatedAt   pgtype.Timestamptz
-	SentAt      pgtype.Timestamptz
-	Attempts    int32
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	RecipientID    pgtype.UUID
+	Category       string
+	Channel        string
+	State          string
+	Reason         *string
+	EventID        pgtype.UUID
+	ItemID         pgtype.UUID
+	ActorID        pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	SentAt         pgtype.Timestamptz
+	Attempts       int32
+	RuleID         pgtype.UUID
+	SubscriptionID pgtype.UUID
 }
 
 type NotificationPreference struct {

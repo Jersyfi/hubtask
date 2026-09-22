@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -37,13 +39,17 @@ const (
 	subjectReminder    = "email.reminder.subject"
 	subjectIntegration = "email.integration.subject"
 	subjectRetention   = "email.retention.subject"
-	bodyAssignment     = "email.assignment.body"
-	bodyMembership     = "email.membership.body"
-	bodyComment        = "email.comment.body"
-	bodyInvitation     = "email.invitation.body"
-	bodyReminder       = "email.reminder.body"
-	bodyIntegration    = "email.integration.body"
-	bodyRetention      = "email.retention.body"
+	// A rule that was switched off (issue 814): INTEGRATION's category, its own sentence, because
+	// "we stopped calling your server" is the wrong news about a rule.
+	subjectRuleDisabled = "email.rule_disabled.subject"
+	bodyRuleDisabled    = "email.rule_disabled.body"
+	bodyAssignment      = "email.assignment.body"
+	bodyMembership      = "email.membership.body"
+	bodyComment         = "email.comment.body"
+	bodyInvitation      = "email.invitation.body"
+	bodyReminder        = "email.reminder.body"
+	bodyIntegration     = "email.integration.body"
+	bodyRetention       = "email.retention.body"
 	// withheldSuffix names the variant of a message that has no title to put in it - because the
 	// recipient asked for none, or because the entry is gone.
 	withheldSuffix = ".withheld"
@@ -70,6 +76,11 @@ type DeliverNotification struct {
 	Preferences   repository.Preferences
 	Accounts      identityrepo.Accounts
 	Items         Entries
+	// Rules and Subscriptions name the subjects that are not an entry (issue 814): the rule the
+	// message says was switched off, the subscription it says is no longer called. Optional -
+	// nil leaves the title out, which is the withheld sentence rather than a wrong one.
+	Rules         RuleReader
+	Subscriptions SubscriptionReader
 	Mail          mail.Sender
 	Renderer      i18n.Renderer
 	UnitOfWork    persistence.UnitOfWork
@@ -91,6 +102,16 @@ type DeliverNotification struct {
 	Redemptions RedemptionMinter
 	// Signals is the observability slice. Optional, like everywhere else in this package.
 	Signals Signals
+}
+
+// RuleReader answers a rule by its identifier - the automation repository's Find.
+type RuleReader interface {
+	Find(ctx context.Context, id shared.ID) (automation.Rule, error)
+}
+
+// SubscriptionReader answers a subscription by its identifier - the integration repository's Find.
+type SubscriptionReader interface {
+	Find(ctx context.Context, id shared.ID) (integrationrepo.StoredSubscription, error)
 }
 
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
@@ -224,17 +245,31 @@ func (d DeliverNotification) load(
 			}
 		}
 
-		if record.ItemID.IsZero() {
-			return nil
-		}
-		item, err := d.Items.Find(ctx, record.ItemID)
+		// What the message is about, by which subject the record names (issue 814). Gone is not
+		// an error for any of them: the message becomes the one without a title rather than no
+		// message - somebody was told about something, and the link will tell them it is gone.
 		switch {
-		case errors.Is(err, shared.ErrNotFound):
-			// The entry went. The message becomes the one without a title rather than no message:
-			// somebody was told about something, and the link will tell them it is gone.
-		case err != nil:
-			return err
-		default:
+		case !record.RuleID.IsZero() && d.Rules != nil:
+			rule, err := d.Rules.Find(ctx, record.RuleID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = rule.Name
+		case !record.SubscriptionID.IsZero() && d.Subscriptions != nil:
+			stored, err := d.Subscriptions.Find(ctx, record.SubscriptionID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			// The host and nothing more: a target address may carry a token in its path, and a
+			// mail is the wrong place to repeat one.
+			if target, err := url.Parse(stored.Subscription.TargetURL); err == nil {
+				loaded.title = target.Host
+			}
+		case !record.ItemID.IsZero():
+			item, err := d.Items.Find(ctx, record.ItemID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
 			loaded.title = item.Title
 		}
 		return nil
@@ -283,6 +318,9 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 // cases: somebody is told that something concerns them, and where to look.
 func (d DeliverNotification) compose(loaded subject) domain.Message {
 	subjectCode, bodyCode := codesFor(loaded.record.Category)
+	if !loaded.record.RuleID.IsZero() {
+		subjectCode, bodyCode = subjectRuleDisabled, bodyRuleDisabled
+	}
 
 	message := domain.Message{
 		SubjectCode: subjectCode,
@@ -338,13 +376,18 @@ func (d DeliverNotification) link(record domain.Notification) string {
 	if base == "" {
 		return ""
 	}
-	if record.ItemID.IsZero() {
-		return base
-	}
 	// The identifier is a parsed UUID by the time it is here, so there is nothing to escape - and
 	// it is escaped anyway, because a link built by concatenation is the shape of an injection
 	// even when this particular value cannot be one.
-	return base + "/items/" + url.PathEscape(record.ItemID.String())
+	switch {
+	case !record.RuleID.IsZero():
+		return base + "/administration/rules/" + url.PathEscape(record.RuleID.String())
+	case !record.SubscriptionID.IsZero():
+		return base + "/administration/webhooks"
+	case !record.ItemID.IsZero():
+		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	}
+	return base
 }
 
 // recordFailure writes what went wrong and decides whether the job comes back.
