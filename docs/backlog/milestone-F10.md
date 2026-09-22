@@ -30,11 +30,14 @@ ADR-0035 decided, and the client's maturity stage stays `preview`.
 
 Every task is one pull request. The order is binding where dependencies exist.
 
-**Seventeen tasks, not fifteen.** F10-16 and F10-17 joined the cut on 2026-09-22: the first is
+**Eighteen tasks, not fifteen.** F10-16 and F10-17 joined the cut on 2026-09-22: the first is
 ADR-0061's own contract for the compact bar, which the walk found is true of three pages and not
 of twenty-six; the second is three fields the contract promises and the descriptor refuses. Both
 were open issues with nowhere to be, and both are this milestone's subject — one is the shell's
-promise, the other is the rule that the contract is the source.
+promise, the other is the rule that the contract is the source. F10-18 joined with
+[ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md) on the same day: two of this milestone's own
+screens asked the product a question neither of its reads could answer, and the ADR decided which
+read learns to.
 
 Legend: **[L]** = best done locally with Claude Code. Both markers are **[L]** during the initial
 phase (`CLAUDE.md`).
@@ -145,9 +148,9 @@ belongs and the row leaves the list; nothing new in `api/openapi.yaml`.
 
 ## F10-04 — The overview is worth arriving at **[L]**
 
-*Depends on: F10-02, and on [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md) being accepted
-— see issue 972. **Blocked** until then: the half this task exists for is "what of mine is
-overdue", and no read in the product can ask the workspace a narrowed question.*
+*Depends on: F10-02 and on F10-18, the core task ADR-0064 cuts. The half this task exists for —
+"what of mine is overdue" — is a filtered search with no words, and nothing can ask it until the
+search takes a filter (issue 972).*
 
 ADR-0063 decision 1, the third finding. `/` stops listing the hubs the tree lists and becomes
 what is on the reader: what is overdue and what is due next among the entries assigned to them,
@@ -165,8 +168,8 @@ width; the read count on arrival is measured and recorded in the pull request.
 
 ## F10-05 — Search from the bar, and a search that narrows **[L]**
 
-*Depends on: F10-02, and on [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md) for the
-filters. The bar's field and the page's own shape do not wait on it; the chips do.*
+*Depends on: F10-02, and on F10-18 for the chips. The bar's field and the page's own shape do not
+wait on it.*
 
 ADR-0063 decision 4. The app bar carries the field from `medium` up; Enter navigates to
 `/search?q=…`; on `compact` the bar has no field and Search stays the bottom bar's destination.
@@ -348,6 +351,37 @@ a usable range.
 
 **Read:** `apps/webapp/src/lib/entries/TimelineView.svelte`, `DuePanel.svelte`; ADR-0063
 decision 12
+
+---
+
+## F10-18 — The search takes a filter, and its words become optional **[L]**
+
+*Depends on: nothing. [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md), accepted 2026-09-22.
+A **core** task, and the one F10-04 and F10-05 wait on.*
+
+`POST /search` gains `filter` — the tree `Spec` already compiles, with the same closed field
+vocabulary, the same operators, the same depth of 5, the same 50 nodes and the same cost estimate
+capped at 50 — and `words` becomes optional when a filter is present. A request with neither stays
+refused by `search.words_required`.
+
+With words the ranking is `ts_rank_cd`, as today. Without them there is nothing to rank, so the
+caller may send the query's own `sort`, and the default is `due_at ASC NULLS LAST, id ASC` — a
+filtered workspace read with no words is a work list, and a work list is ordered by when it is due.
+It does **not** gain `group_by`, `expand: children` or `count: exact`, so that it stays one read
+rather than becoming a second query endpoint.
+
+The order is rule 11's: `api/openapi.yaml`, `make generate`, then the domain, the compiler, the use
+case and the tests. The field catalogue and the cost estimate move out of `Spec`'s parser into
+something both callers use — one grammar, two readers. `/meta/capabilities` publishes that the
+search takes a filter, so a client can tell rather than probe.
+
+**Acceptance:** `make verify` green and `make generate` no diff; a search with a filter and no
+words answers the entries assigned to the caller ordered by due date, planned on `wi_assignee_idx`;
+a search with neither is refused by name; the cost cap refuses an expensive filter before it runs;
+a cross-tenant negative test for the new repository path (gate SG-3).
+
+**Read:** `core/domain/model/view/Search.go`, `QuerySpec.go`, `Filter.go`, the compiler in
+`infrastructure/postgres`, `api/openapi.yaml`'s `/search`; ADR-0026, ADR-0034, ADR-0064
 
 ---
 
