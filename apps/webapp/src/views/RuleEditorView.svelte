@@ -34,6 +34,7 @@
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { REFERENCE, eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -68,6 +69,11 @@
   // a name might need later - the memberships, the groups, the templates, the webhooks, each
   // collection's labels and buckets - is opened when a field of the rule or the panel names its
   // kind (`needed`, below), so that a deep link never meets the credential's burst on one screen.
+  // The canvas takes the content region whole: it is a surface with its own head, its own
+  // hairlines and an inspector against the far edge, and standing it in the frame's padding drew
+  // a slab of one colour on a page of another - a box on a page (issue 918).
+  $effect(() => page.fill());
+
   $effect(() => untrack(() => rules.open()));
   $effect(() => untrack(() => containers.start()));
   $effect(() => untrack(() => serviceAccounts.open()));
@@ -129,6 +135,15 @@
   let sheetOpen = $state(false);
   const select = (next: Selection): void => {
     selection = next;
+    if (next.kind === 'none') {
+      // Nothing is selected (decision 26): *Details* has nothing to show, so the panel moves to
+      // the blocks - what one does next after letting a card go is add another - while *Rule*,
+      // *Probe* and *Runs*, which are about the whole rule, stay where they are. On a narrow
+      // screen the sheet is over the canvas, so it closes instead.
+      if (tab === 'piece') tab = 'blocks';
+      if (narrow) sheetOpen = false;
+      return;
+    }
     // The canvas shows, the panel sets (decision 16): what was clicked opens where it is edited.
     tab = RULE_TAB.has(next.kind) ? 'rule' : 'piece';
     if (narrow) sheetOpen = true;
@@ -311,6 +326,15 @@
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
     label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
   });
+  /** The guardrails in the words the canvas's card used, now the head's third chip (decision 24). */
+  const guardrailWords = $derived(
+    [
+      t(`app.rules.on_error_${draft.onError.toLowerCase()}`),
+      draft.throttle.maxRunsPerHour ? t('app.flow.card_guardrails_runs', { count: draft.throttle.maxRunsPerHour }) : t('app.flow.card_guardrails_unbounded'),
+      ...(draft.throttle.dedupeKeyExpr ? [t('app.flow.card_guardrails_dedupe', { expr: draft.throttle.dedupeKeyExpr })] : []),
+    ].join(' · '),
+  );
+
   const generated = $derived(generatedName(words, names, draft));
   const automatic = $derived(isAutomatic(draft.name, generated));
   const shownName = $derived(automatic ? generated : draft.name);
@@ -371,7 +395,7 @@
 
   function remove(path: string): void {
     update((current) => ({ ...current, actions: removeAt(current.actions, path) }));
-    selection = { kind: 'gate' };
+    select({ kind: 'none' });
   }
 
   function replaceTrigger(kind: string): void {
@@ -392,7 +416,7 @@
 
   function removeCondition(index: number): void {
     update((current) => ({ ...current, conditions: current.conditions.filter((_, at) => at !== index) }));
-    selection = { kind: 'gate' };
+    select({ kind: 'gate' });
   }
 
   /* ---------- Saving and the switches ---------- */
@@ -606,6 +630,11 @@
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
             {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" /><VisuallyHidden>{marks.get('run_as')}</VisuallyHidden></span>{/if}
           </button>
+          <!-- The guardrails are the rule's, not a card on the canvas (decision 24): said here,
+               set on the *Rule* tab, and nowhere else. -->
+          <button class="chip" type="button" onclick={() => select({ kind: 'guardrails' })}>
+            <Icon name="settings" size="sm" /><span>{t('app.flow.card_guardrails')}</span><b>{guardrailWords}</b>
+          </button>
         </div>
       </div>
 
@@ -656,7 +685,16 @@
 
     <div class="bench">
 
-      <section class="canvas" aria-label={t('app.rules.title')}>
+      <!-- The room around the flow deselects too (decision 26): the flow answers a click on its
+           own background, this one the pixels beside and below it. Escape does the same from
+           anywhere on the canvas, which is the keyboard's way to the same place. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <section
+        class="canvas"
+        aria-label={t('app.rules.title')}
+        onclick={(event) => { if (event.target === event.currentTarget) select({ kind: 'none' }); }}
+        onkeydown={(event) => { if (event.key === 'Escape' && selection.kind !== 'none') { event.preventDefault(); select({ kind: 'none' }); } }}
+      >
         <RuleCanvas
           {draft}
           {selection}
@@ -721,7 +759,7 @@
         {#if tab === 'rule'}
           <RuleInspector
             {draft}
-            selection={{ kind: 'rule' }}
+            {selection}
             section="rule"
             ruleId={stored?.id}
             generatedName={generated}

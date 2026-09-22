@@ -6,8 +6,9 @@
   // **The canvas is a vertical flow, in this order and no other:** the trigger card; the gate,
   // one block holding every condition; the chain of steps, each a card, with `BRANCH` drawn as a
   // fork into *then* and *otherwise* that rejoins, `WAIT` as a pause with its duration written on
-  // the line below it, and `STOP` as a terminus that draws no line onward; the guardrails last.
-  // Every gap between two cards is exactly one line with one insertion point in its middle.
+  // the line below it, and `STOP` as a terminus that draws no line onward. Every gap between two
+  // cards is exactly one line with one insertion point in its middle. What bounds the rule rather
+  // than travelling it - the guardrails - is the head's chip and the *Rule* tab (decision 24).
   //
   // **It draws, it does not decide.** A click selects into the inspector, a `+` inserts, the
   // tools remove or fold; every change goes back through a callback and the parent holds the
@@ -108,8 +109,22 @@
   }
 </script>
 
+<!-- The background of the canvas deselects (decision 26): a click that reached no card, and
+     Escape while the focus is anywhere on the canvas. Both leave the panel with nothing to show
+     in *Details*, which is the view's to answer. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flow" data-canvas ondragover={(event) => { if (drag) event.preventDefault(); }} ondrop={refuse}>
+<div
+  class="flow"
+  data-canvas
+  ondragover={(event) => { if (drag) event.preventDefault(); }}
+  ondrop={refuse}
+  onclick={(event) => { if (event.target === event.currentTarget) onselect({ kind: 'none' }); }}
+  onkeydown={(event) => {
+    if (event.key !== 'Escape' || selection.kind === 'none') return;
+    event.preventDefault();
+    onselect({ kind: 'none' });
+  }}
+>
   <!-- The trigger: the one card in the signature colour, because it is where the run comes from. -->
   <div
     class="card trigger"
@@ -230,28 +245,6 @@
     <span class="endcap" data-end=""><i></i>{t('app.flow.run_ends')}</span>
   {/if}
 
-  <!-- The guardrails: what bounds the rule, standing apart from the path's end. -->
-  <div
-    class="card guardrails apart"
-    class:selected={isSelected('guardrails')}
-    class:inert={drag !== undefined}
-    data-card="guardrails"
-    role="button"
-    tabindex="0"
-    onclick={() => onselect({ kind: 'guardrails' })}
-    onkeydown={(event) => onkey(event, () => onselect({ kind: 'guardrails' }))}
-  >
-    <span class="mark settings-mark"><Icon name="settings" size="sm" /></span>
-    <span class="body">
-      <span class="kind">{t('app.flow.card_guardrails')}</span>
-      <span class="title">{t(`app.rules.on_error_${draft.onError.toLowerCase()}`)}</span>
-      <span class="meta">
-        {draft.throttle.maxRunsPerHour
-          ? t('app.flow.card_guardrails_runs', { count: draft.throttle.maxRunsPerHour })
-          : t('app.flow.card_guardrails_unbounded')}{#if draft.throttle.dedupeKeyExpr}{' · '}{t('app.flow.card_guardrails_dedupe', { expr: draft.throttle.dedupeKeyExpr })}{/if}
-      </span>
-    </span>
-  </div>
 </div>
 
 <style>
@@ -260,9 +253,13 @@
   .stub { width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); border-radius: var(--r-full); flex: 0 0 auto; }
 
   /* One card shape for every step (design-system.md §6 rule 1: raised = standalone). The trigger
-     alone carries the signature colour, and the guardrails are recessed: a bound, not a step. */
+     alone carries the signature colour, because it is where the run comes from. */
   .card {
     position: relative;
+    /* The width is the border box (decision 25): under the project's content-box default a card
+       at `100%` stood its padding and border wider than the column, and the scroll container cut
+       the selection ring off in the canvas's own gutter. */
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     gap: var(--sp-150);
@@ -277,11 +274,6 @@
   }
 
   .card.trigger { border-color: var(--accent-signature); border-width: var(--bw-thick); }
-
-  .card.guardrails { border-style: dashed; box-shadow: none; background: var(--bg-surface-sunken); }
-
-  /* The path has ended at the mark; the guardrails stand apart from it rather than hanging off nothing. */
-  .card.guardrails.apart { margin-block-start: var(--sp-300); }
 
   .endcap { display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-050); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
 
@@ -343,12 +335,11 @@
 
   .condition-mark { background: var(--label-amber-bg); color: var(--label-amber-fg); }
 
-  .settings-mark { background: var(--label-slate-bg); color: var(--label-slate-fg); }
-
   .flag { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); color: var(--text-warning); }
 
   .gate {
     position: relative;
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     flex-direction: column;

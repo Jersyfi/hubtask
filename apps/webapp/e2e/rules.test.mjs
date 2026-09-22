@@ -225,6 +225,69 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   assert.ok(written.some((body) => body.check), 'the editor checked after the save');
 });
 
+test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowhere else', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 900 });
+
+  // The canvas draws the run's path and nothing that is not on it (decision 24).
+  assert.equal(await page.locator('[data-canvas] [data-card="guardrails"]').count(), 0, 'no guardrails card on the canvas');
+
+  // The chip says what the card said, and leads to the one place they are set.
+  const chip = page.getByRole('button', { name: /^Guardrails/ });
+  assert.match(await chip.textContent(), /Carry on|at most 100 runs an hour/);
+  await chip.click();
+  const panel = page.locator('aside.inspector');
+  assert.equal(await panel.locator('[role="tab"][aria-selected="true"]').textContent(), 'Rule');
+  await panel.getByLabel("At most this many runs an hour").fill('7');
+  await page.waitForTimeout(200);
+  assert.match(await chip.textContent(), /at most 7 runs an hour/, 'the chip follows the panel');
+});
+
+test('chromium: at the narrowest width beside the panel a selected card keeps its ring, and the background deselects', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  // Just above the expanded breakpoint: the canvas and the panel side by side with the least
+  // room between them, which is where a content-box card overhung its column (decision 25).
+  const page = await open(browser, written, { width: 960, height: 1000 });
+  await page.locator('[data-card="0"]').click();
+
+  const room = await page.evaluate(() => {
+    const canvas = document.querySelector('.canvas');
+    const card = document.querySelector('[data-card="0"]');
+    const outer = canvas.getBoundingClientRect();
+    const inner = card.getBoundingClientRect();
+    return { start: Math.round(inner.left - outer.left), end: Math.round(outer.right - inner.right), clipped: canvas.scrollWidth > canvas.clientWidth };
+  });
+  assert.ok(room.start >= 4 && room.end >= 4, `the ring has room on both sides: ${JSON.stringify(room)}`);
+  assert.equal(room.clipped, false, 'nothing overflows the canvas sideways');
+
+  // The background deselects (decision 26): the panel leaves Details for Blocks, because what one
+  // does after letting a card go is add another.
+  const selected = () => page.locator('aside.inspector [role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent();
+  assert.equal(await selected(), 'Details');
+  // The canvas's own gutter beside the flow: background, not a card.
+  const gutter = await page.evaluate(() => {
+    const canvas = document.querySelector('.canvas').getBoundingClientRect();
+    const card = document.querySelector('[data-card="0"]').getBoundingClientRect();
+    return { x: Math.round(canvas.left + 2), y: Math.round(card.top + card.height / 2) };
+  });
+  await page.mouse.click(gutter.x, gutter.y);
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-canvas] .card.selected').count(), 0, 'nothing is selected');
+  assert.equal(await selected(), 'Blocks');
+
+  // And Escape from a card does the same, without a pointer.
+  await page.locator('[data-card="1"]').click();
+  assert.equal(await selected(), 'Details');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-canvas] .card.selected').count(), 0);
+  assert.equal(await selected(), 'Blocks');
+});
+
 test('chromium: a deep link into the editor reads each resource once, and only what the first paint needs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -255,6 +318,16 @@ test('chromium: a deep link into the editor reads each resource once, and only w
     assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
   }
   assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
+
+  // And the canvas meets the content region rather than standing in its padding: the editor drew
+  // a slab of one colour on a page of another, which read as a border no other screen has
+  // (issue 918). Its start is the navigation's end and its end is the window's.
+  const edges = await page.evaluate(() => {
+    const editor = document.querySelector('main .editor')?.getBoundingClientRect();
+    const nav = document.querySelector('aside.sidenav')?.getBoundingClientRect();
+    return editor && nav ? { start: Math.round(editor.left - nav.right), end: Math.round(window.innerWidth - editor.right) } : null;
+  });
+  assert.deepEqual(edges, { start: 0, end: 0 }, 'the editor stands inside the frame\'s padding');
 });
 
 test('chromium: a step\'s form shows what a rule can decide: no plumbing, the run\'s fields in one line, a date as a date', async (t) => {
