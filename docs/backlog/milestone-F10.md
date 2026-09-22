@@ -13,7 +13,7 @@ entered from the bar and can be narrowed, administration is a section with its o
 selection has an *off* and it is the default, a card is dragged by being dragged, and an entry is
 edited one way — where it is shown, and only where its type carries the field.
 
-What the walk of 2026-09-22 found is [ADR-0062](../adr/ADR-0062-navigation-and-the-working-surface.md);
+What the walk of 2026-09-22 found is [ADR-0063](../adr/ADR-0063-navigation-and-the-working-surface.md);
 this backlog cuts it into tasks and adds only what the cutting decided.
 
 F10 is the tenth milestone of the client track (`roadmap.md` phase 5). It continues F9 and
@@ -74,7 +74,7 @@ Seven decisions taken while cutting, beyond what the ADR holds:
 
 *Depends on: nothing. The fold drawing its marks at all is done — #915, closed by #920.*
 
-ADR-0062 decision 2. `SideNav`'s row becomes mark · label · twist: the mark first, at one
+ADR-0063 decision 2. `SideNav`'s row becomes mark · label · twist: the mark first, at one
 inline position for every level, the indent on the label, and the twist at the trailing edge
 (logical properties, so RTL mirrors it). `isRail` draws one mark per row, centred in
 `--layout-sidenav-rail`, without twist, label or indent; the label stays the row's accessible
@@ -88,7 +88,7 @@ rail with a flyout open; `pnpm --filter @hubtask/design-system test` green; meas
 workbench, every mark of the rail is fully inside the column at every text size.
 
 **Read:** `packages/design-system/src/SideNav.svelte`, `structure.ts`, `Popover.svelte`;
-`design-system.md` §4; ADR-0039, ADR-0062 decision 2
+`design-system.md` §4; ADR-0039, ADR-0063 decision 2
 
 ---
 
@@ -96,7 +96,7 @@ workbench, every mark of the rail is fully inside the column at every text size.
 
 *Depends on: F10-01.*
 
-ADR-0062 decisions 1 and 3. `lib/navigation.ts` gains `band: 'places' | 'tree' | 'keeping'`;
+ADR-0063 decisions 1 and 3. `lib/navigation.ts` gains `band: 'places' | 'tree' | 'keeping'`;
 `WorkspaceNav` draws the three in that order with the group label carrying the "+" that makes a
 hub, and pins `keeping` — Archive, then Trash — to the foot of the column above the hairline, on
 every width, in the drawer as on the desk. The app bar, the navigation column and the bottom bar
@@ -108,7 +108,7 @@ band and the rule that no destination is drawn in two bands or in none.
 finds the tree.
 
 **Read:** `apps/webapp/src/lib/navigation.ts` and its test, `lib/frame/WorkspaceNav.svelte`,
-`AppFrame.svelte`; ADR-0062 decisions 1 and 3
+`AppFrame.svelte`; ADR-0063 decisions 1 and 3
 
 ---
 
@@ -116,7 +116,7 @@ finds the tree.
 
 *Depends on: F10-02. Closes issue 933.*
 
-ADR-0062 decision 1, and issue 933. `/archive`: what this workspace has put aside — the archived
+ADR-0063 decision 1, and issue 933. `/archive`: what this workspace has put aside — the archived
 containers and the archived entries the reader may see, each with where it lives and the way to
 bring it back, read through the reads that exist (decision 3 of this cut). A `PageHeader`, the
 empty state that says what the place is for, and the row menu's "unarchive" with its capability
@@ -138,7 +138,7 @@ belongs and the row leaves the list; nothing new in `api/openapi.yaml`.
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 1, the third finding. `/` stops listing the hubs the tree lists and becomes
+ADR-0063 decision 1, the third finding. `/` stops listing the hubs the tree lists and becomes
 what is on the reader: what is overdue and what is due next among the entries assigned to them,
 what waits in the jumble, what they opened last on this device, and — for a workspace with no
 hub yet — the one action that starts one. Composed of reads that already exist (decision 4 of
@@ -148,7 +148,7 @@ this cut).
 width; the read count on arrival is measured and recorded in the pull request.
 
 **Read:** `apps/webapp/src/views/HomeView.svelte`, `lib/data/items.svelte.ts`,
-`lib/data/jumble.svelte.ts`; ADR-0062 decision 1
+`lib/data/jumble.svelte.ts`; ADR-0063 decision 1
 
 ---
 
@@ -156,7 +156,7 @@ width; the read count on arrival is measured and recorded in the pull request.
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 4. The app bar carries the field from `medium` up; Enter navigates to
+ADR-0063 decision 4. The app bar carries the field from `medium` up; Enter navigates to
 `/search?q=…`; on `compact` the bar has no field and Search stays the bottom bar's destination.
 The page: one field for the words, the language demoted to a filter defaulting to any, and the
 filter chips — where, label, who, state, when, type — each a `Popover` with its values and a
@@ -167,7 +167,7 @@ count, OR within a chip and AND between them, every one of them in the query str
 every width.
 
 **Read:** `apps/webapp/src/views/SearchView.svelte`, `lib/entries/QueryPanel.svelte`,
-`lib/data/customfields.ts` (`queryFieldsFor`); ADR-0026, ADR-0034, ADR-0062 decision 4
+`lib/data/customfields.ts` (`queryFieldsFor`); ADR-0026, ADR-0034, ADR-0063 decision 4
 
 ---
 
@@ -175,7 +175,7 @@ every width.
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 5. `SyncLine` leaves the page flow and becomes a mark in the app bar: quiet
+ADR-0063 decision 5. `SyncLine` leaves the page flow and becomes a mark in the app bar: quiet
 when connected with nothing waiting, a count when writes wait, the ring in motion while
 reconnecting, the struck cloud offline, and the danger dot when something was refused. Pressing
 it opens what the line holds today — the sentence, the last synchronisation, the queue, the
@@ -186,7 +186,7 @@ transitions stay announced through the one live region.
 not only a colour (rule 3); the page gains the line back at no width.
 
 **Read:** `apps/webapp/src/lib/frame/SyncLine.svelte`, `AppFrame.svelte`,
-`packages/design-system/src/SyncStatus.svelte`; ADR-0062 decision 5
+`packages/design-system/src/SyncStatus.svelte`; ADR-0063 decision 5
 
 ---
 
@@ -194,7 +194,7 @@ not only a colour (rule 3); the page gains the line back at no width.
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 6. The account trigger is the avatar alone below `large`; the name and the
+ADR-0063 decision 6. The account trigger is the avatar alone below `large`; the name and the
 e-mail move into the menu's head, where the sheet already has them. The marks become `user`,
 `sliders` and `compass`; "Workspace administration" says which setup it is; "This installation"
 leaves the list and becomes "About Hubtask" at the foot of the menu, carrying the product
@@ -204,7 +204,7 @@ version and leading to the page, which keeps its address.
 catalogue carries the changed codes in both languages and `make gate-architecture` is green.
 
 **Read:** `apps/webapp/src/lib/frame/AccountMenu.svelte`, `lib/navigation.ts`,
-`views/InstallationView.svelte`, `locales/en.json`; ADR-0062 decision 6
+`views/InstallationView.svelte`, `locales/en.json`; ADR-0063 decision 6
 
 ---
 
@@ -212,7 +212,7 @@ catalogue carries the changed codes in both languages and `make gate-architectur
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 7, the first half. While the route's area is `administration` the navigation
+ADR-0063 decision 7, the first half. While the route's area is `administration` the navigation
 column shows the administration's own list in its five groups, headed by the row that leads back
 to where the reader was; the workspace's tree is not drawn there. The index keeps existing as the
 section's overview. **One screen adopts the page pattern in this task** — `PageHeader` with the
@@ -224,7 +224,7 @@ a reader without the area sees no row, no section and no route; the one adopted 
 width.
 
 **Read:** `apps/webapp/src/views/AdministrationView.svelte`, `lib/router.ts` (`area`),
-`lib/frame/AppFrame.svelte`; ADR-0032, ADR-0062 decision 7
+`lib/frame/AppFrame.svelte`; ADR-0032, ADR-0063 decision 7
 
 ---
 
@@ -239,7 +239,7 @@ changes. F8's automation screens already carry the design system and are not re-
 **Acceptance:** every screen of the section at 375 and 1280 px; one `h1` per screen; no screen
 without a way back; `pnpm -r build && lint && typecheck && test` green.
 
-**Read:** `apps/webapp/src/views/*View.svelte` (the administration set); ADR-0062 decision 7
+**Read:** `apps/webapp/src/views/*View.svelte` (the administration set); ADR-0063 decision 7
 
 ---
 
@@ -247,7 +247,7 @@ without a way back; `pnpm -r build && lint && typecheck && test` green.
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 8. No list draws a selection control until somebody is selecting. The mode is
+ADR-0063 decision 8. No list draws a selection control until somebody is selecting. The mode is
 entered from the page menu, by a long press on a coarse pointer and by `Ctrl`/`Cmd`-click; while
 it is on, the rows and the cards carry the checkbox and the page head is replaced by the count
 and the bulk verbs; `Escape` ends it. The row's leading slot then holds the completion checkbox
@@ -259,7 +259,7 @@ wide today and its title begins at 122 px; every bulk
 verb still reachable; the keyboard enters and leaves the mode; the announcements stay.
 
 **Read:** `apps/webapp/src/lib/data/selection.svelte.ts`, `lib/entries/EntryList.svelte`,
-`Board.svelte`, `BulkBar.svelte`; ADR-0062 decision 8
+`Board.svelte`, `BulkBar.svelte`; ADR-0063 decision 8
 
 ---
 
@@ -267,7 +267,7 @@ verb still reachable; the keyboard enters and leaves the mode; the announcements
 
 *Depends on: F10-10.*
 
-ADR-0062 decision 11. The grip goes; a press on the card that travels past the threshold starts
+ADR-0063 decision 11. The grip goes; a press on the card that travels past the threshold starts
 the drag and one that does not opens the entry; the card follows the pointer on both axes; the
 column under it is marked. On a coarse pointer the drag begins after a 300 ms hold so that the
 board still scrolls under a finger. The card menu's "move to column" stays as the single-pointer
@@ -278,7 +278,7 @@ land; a click still opens; the keyboard path is unchanged; `prefers-reduced-moti
 floor.
 
 **Read:** `apps/webapp/src/lib/entries/dragging.svelte.ts`, `Board.svelte`,
-`packages/design-system/src/reorder.ts`; ADR-0062 decision 11
+`packages/design-system/src/reorder.ts`; ADR-0063 decision 11
 
 ---
 
@@ -287,7 +287,7 @@ floor.
 *Depends on: F10-02. Partly done as a finding: #916, by #927 — the rows follow the capability
 matrix and the dates are one row. What is left here is the edit form and the cover.*
 
-ADR-0062 decision 9. The "edit" item and the form it opens are removed; the head's fields stay
+ADR-0063 decision 9. The "edit" item and the form it opens are removed; the head's fields stay
 edited in place and every other field is a details row that opens its own editor. The details
 column is the capability matrix drawn: a row exists only where `supports(type, capability)` is
 permitted. Dates are one row. The cover row says where a cover goes and takes no room above the
@@ -307,7 +307,7 @@ every width and in the detail pane.
 *Depends on: F10-12. Partly done as a finding: #917, by #930 — the button carries its reason
 where no policy exists. What is left here is what the two pickers say.*
 
-ADR-0062 decision 10. One panel, two named parts — *Responsible*, one person, and *Also on it*,
+ADR-0063 decision 10. One panel, two named parts — *Responsible*, one person, and *Also on it*,
 several — each with the sentence that distinguishes it. Auto-assign is offered only where the
 collection carries an enabled policy, and where there is none the part says where a policy is set
 and leads there for a reader who may set one.
@@ -324,7 +324,7 @@ policy and present with one; the catalogue carries the new sentences in both lan
 
 *Depends on: F10-02.*
 
-ADR-0062 decision 12. A scale — day, week, month — with dated gridlines and today marked; one
+ADR-0063 decision 12. A scale — day, week, month — with dated gridlines and today marked; one
 row per entry with a bar from start to due and a point where only one is set; the undated in a
 tray that collapses, from which a drag across the axis gives an entry its first dates; a bar
 dragged moves both dates and an end dragged moves one; and a window that opens where the work is
@@ -334,7 +334,7 @@ rather than on the current month. The pointer rules of decision 13 apply to ever
 it; every drag has a keyboard path through the entry's own date editor; the view at 375 px shows
 a usable range.
 
-**Read:** `apps/webapp/src/lib/entries/TimelineView.svelte`, `DuePanel.svelte`; ADR-0062
+**Read:** `apps/webapp/src/lib/entries/TimelineView.svelte`, `DuePanel.svelte`; ADR-0063
 decision 12
 
 ---
@@ -342,12 +342,12 @@ decision 12
 ## F10-15 — The rule editor meets the content region **[L]** — **done**
 
 *Depends on: nothing. Closed as a finding: #918, by #931. It is listed so that the milestone's
-reader finds every part of ADR-0062 in one place.*
+reader finds every part of ADR-0063 in one place.*
 
-ADR-0062 decision 7's last paragraph. The visual editor's own border and inset come off so that
+ADR-0063 decision 7's last paragraph. The visual editor's own border and inset come off so that
 its canvas meets the content region the way every other screen does. Nothing else about F8's
 screens is touched.
 
 **Acceptance:** the editor at 375, 1000 and 1440 px; `apps/webapp/e2e/rules.test.mjs` green.
 
-**Read:** `apps/webapp/src/views/RuleEditorView.svelte`; ADR-0062 decision 7
+**Read:** `apps/webapp/src/views/RuleEditorView.svelte`; ADR-0063 decision 7

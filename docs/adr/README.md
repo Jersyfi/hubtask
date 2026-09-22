@@ -68,4 +68,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0059](./ADR-0059-licensing-phases-and-licensing-start.md) | Licensing phases and Licensing Start | proposed | Legal, product, process |
 | [0060](./ADR-0060-rule-check.md) | The check: a rule's references resolved before they fail | accepted | Automation, data model |
 | [0061](./ADR-0061-page-anatomy-and-the-shell.md) | Page anatomy: one navigation, the shell wave, and status as a surface | accepted | Design system, client |
-| [0062](./ADR-0062-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |
+| [0063](./ADR-0063-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |

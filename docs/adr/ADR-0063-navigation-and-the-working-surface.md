@@ -1,4 +1,4 @@
-# ADR-0062 — The navigation, the status place, and how a screen is worked
+# ADR-0063 — The navigation, the status place, and how a screen is worked
 
 **Status:** accepted · **Date:** 2026-09-22 · **Accepted:** 2026-09-22 · **Supersedes parts of ADR-0061**
 
