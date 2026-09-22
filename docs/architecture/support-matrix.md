@@ -33,7 +33,7 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 |---|---|---|---|
 | Docker (Compose) | linux/amd64 | `supported` | `ci.yml:compose` |
 | Docker (Compose) | linux/arm64 | `supported` | `nightly.yml:matrix-arm64` |
-| Podman (Compose) | linux/amd64 | `supported` | `nightly.yml:matrix-podman` |
+| Podman (Compose) | linux/amd64 | `supported` | `nightly.yml:matrix-podman` — the Podman engine, with the image built by `podman build` and the stack driven by Compose v2 against Podman's Docker-compatible socket, which is the path `podman compose` takes. **`podman-compose` 1.0.6, the Python reimplementation Debian and Ubuntu package, does not run this stack**: it starts each container with `podman start <name>`, and Podman refuses to resolve a dependency graph containing the migration container once that has exited, so the application container is created and never started. That is a limitation of that tool and not of the artefact — the half that *was* ours is fixed, and `ci.yml:compose` proves it on every pull request by starting the stack in the wrong order on purpose |
 | Kubernetes ≥ 1.28 | linux/amd64 | `supported` | `nightly.yml:matrix-kind` |
 | Kubernetes ≥ 1.28 | linux/arm64 | `best effort` | — the image is multi-arch and the chart is architecture-agnostic; no ARM cluster runs in CI |
 | Docker Desktop | macOS, Windows | `best effort` | — the same Linux container; the runtime differences are Docker's, not ours |

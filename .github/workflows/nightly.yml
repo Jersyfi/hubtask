@@ -130,17 +130,35 @@ jobs:
         with:
           go-version: "1.27.1"
           cache: true
-      - name: Podman with its Compose implementation
+      # Podman as the engine, driven by Compose v2 against Podman's Docker-compatible socket -
+      # which is what `podman compose` does for you and what a Podman host runs today.
+      #
+      # It used to be `podman-compose`, the Python reimplementation, and that is a different claim
+      # than the one the matrix makes. Two of its limitations stood between this job and a green
+      # result, and only the first was ours: it does not honour `depends_on: condition`, so the
+      # migration started beside the database (fixed in the artefact itself - the migrator now
+      # waits, and `gate-compose` proves the stack converges without the guarantee). The second is
+      # not ours to fix: `podman-compose` 1.0.6 starts each container with `podman start <name>`,
+      # and Podman then refuses to resolve a dependency graph that includes the migration
+      # container after it has exited - so the application container is created and never started.
+      # The support matrix says which of the two this row stands for (support-matrix.md §2).
+      - name: Podman, and Compose against its socket
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman podman-compose
+          sudo apt-get install -y podman
           podman --version
+          # The API the Compose plugin talks to. `--time=0` keeps it alive for the whole job.
+          podman system service --time=0 unix:///tmp/podman.sock &
+          for _ in $(seq 1 30); do [ -S /tmp/podman.sock ] && break; sleep 1; done
+          test -S /tmp/podman.sock || { echo "podman's socket never appeared"; exit 1; }
+          docker compose version
       # The same Compose file, the same script, a different engine. deployment.md promises
       # "Docker/Podman"; this is what turns that from a sentence into a claim with evidence.
       - name: The reference stack under Podman
         env:
           DOCKER: podman
-          HUBTASK_COMPOSE: podman-compose
+          HUBTASK_COMPOSE: docker compose
+          DOCKER_HOST: unix:///tmp/podman.sock
         run: make gate-compose
 
   matrix-hubctl:

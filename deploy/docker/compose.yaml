@@ -39,6 +39,21 @@ services:
       # the migration itself creates the role without one, because a credential has no business
       # in a migration.
       HUBTASK_DB_APP_PASSWORD: ${HUBTASK_DB_APP_PASSWORD:?HUBTASK_DB_APP_PASSWORD must be set}
+      # How long the migrator keeps trying to reach the database before giving up.
+      #
+      # `depends_on: condition: service_healthy` below is the ordering guarantee, and it is the
+      # orchestrator's rather than ours. Docker Compose honours it; podman-compose - the Python
+      # implementation a Podman self-hoster installs from their distribution - does not reliably,
+      # and starts this container beside the database instead of after it. The migration then
+      # fails with "connection refused", never grants hubtask_app its login, and the application
+      # authenticates against a role that cannot log in: one missing guarantee, arriving as a
+      # credential defect three containers away (#119).
+      #
+      # So the stack converges rather than depending on the guarantee. The same value and the same
+      # reasoning as the Kubernetes hook, which has waited since the first sync that created its
+      # database in an earlier wave (k8s/values.yaml, migration.connectWait). The wait is bounded;
+      # a database that is not there in five minutes is not late, it is absent.
+      HUBTASK_DB_CONNECT_WAIT: ${HUBTASK_DB_CONNECT_WAIT:-5m}
     depends_on:
       db:
         condition: service_healthy
