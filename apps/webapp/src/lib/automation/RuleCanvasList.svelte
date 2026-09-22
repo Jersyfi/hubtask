@@ -115,6 +115,11 @@
   }
 </script>
 
+{#if prefix !== '' && steps.length > 0}
+  <!-- A gap before an arm's first card too, so that a card can be dropped first without a
+       second move (the final check of F8-20); the chain's own leading gap is the canvas's. -->
+  <InsertMenu {kinds} {summaries} {usage} {actions} list={prefix} index={0} onpick={oninsert} {drag} {ondrop} />
+{/if}
 {#each steps as step, index (pathOf(index))}
   {@const path = pathOf(index)}
   {@const isFlow = step.kind in FLOW_ICON}
@@ -290,7 +295,7 @@
           {#if !seg || shown === arm}
             <div class="arm" data-arm={`${path}/${arm}`}>
               {#if !seg}<span class="stub"></span><span class="armlabel"><Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')}</span>{/if}
-              <span class="stub"></span>
+              {#if list.length === 0}<span class="stub"></span>{/if}
               {#if list.length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
                 <InsertMenu {kinds} {summaries} {usage} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />

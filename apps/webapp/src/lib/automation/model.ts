@@ -282,8 +282,25 @@ export function moveStep(actions: readonly Step[], from: Path, list: string, ind
   let target = index;
   if (source.list === list && source.index < index) target -= 1;
   const without = removeAt(actions, from);
-  if (!canPlace(without, list, target, step.kind)) return undefined;
-  return insertAt(without, list, target, step);
+  const shifted = shiftedList(list, from);
+  if (!canPlace(without, shifted, target, step.kind)) return undefined;
+  return insertAt(without, shifted, target, step);
+}
+
+/**
+ * A list's path once the step at `from` is lifted out: a list inside a branch that follows the
+ * lifted step in the same parent moves up one - `1/else` is `0/else` once `0` is gone. Without
+ * this a card could never be moved into a branch below it (the final check of F8-20).
+ */
+export function shiftedList(list: string, from: Path): string {
+  const source = parentOf(from);
+  const prefix = source.list === '' ? '' : `${source.list}/`;
+  if (!list.startsWith(prefix)) return list;
+  const rest = list.slice(prefix.length);
+  const head = rest.split('/')[0] ?? '';
+  const at = Number(head);
+  if (rest === '' || !Number.isInteger(at) || at <= source.index) return list;
+  return `${prefix}${at - 1}${rest.slice(head.length)}`;
 }
 
 /** The chain with the step at `path` moved one place up or down inside its own list; unchanged at the end. */

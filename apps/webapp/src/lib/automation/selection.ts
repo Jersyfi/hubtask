@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-import { canPlace, parentOf, removeAt, stepAt, type Step } from './model.ts';
+import { canPlace, parentOf, removeAt, shiftedList, stepAt, type Step } from './model.ts';
 
 /** What is selected on the canvas, and therefore what the inspector shows (F8-04). */
 export type Selection =
@@ -35,7 +35,7 @@ export function gapTakes(drag: Drag | undefined, list: string, index: number, ac
     const source = parentOf(drag.path);
     const without = removeAt(actions, drag.path);
     const at = source.list === list && source.index < index ? index - 1 : index;
-    return canPlace(without, list, at, stepAt(actions, drag.path)?.kind ?? '');
+    return canPlace(without, shiftedList(list, drag.path), at, stepAt(actions, drag.path)?.kind ?? '');
   }
   return false;
 }
