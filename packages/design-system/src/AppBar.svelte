@@ -69,7 +69,9 @@
     {/if}
     <div class="lead">
       {#if title}
-        <span class="title">{title}</span>
+        <!-- Named, because a bar with a sheet opened from it holds a second `.title` — the
+             sheet's own heading — and "the bar's title" has to be a question with one answer. -->
+        <span class="title" data-bar="title">{title}</span>
       {:else if brand}
         {@render brand()}
       {/if}

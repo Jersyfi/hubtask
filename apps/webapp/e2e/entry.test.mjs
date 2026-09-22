@@ -192,7 +192,7 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   const { page, failures, close } = await openEntry(browser, 375);
   t.after(close);
 
-  assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('.title').textContent()).trim(), ENTRY.title);
+  assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent()).trim(), ENTRY.title);
   assert.equal(await page.getByRole('link', { name: COLLECTION.name }).count(), 1, 'the parent as the way up');
   const fold = page.locator('details.details-fold');
   assert.equal(await fold.evaluate((el) => el.open), false, 'the details stand open on a phone');
