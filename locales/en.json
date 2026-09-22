@@ -2585,7 +2585,6 @@
   "app.flow.card_only_when": "Only when",
   "app.flow.card_only_when_all": "all have to hold",
   "app.flow.card_only_when_none": "runs on every match",
-  "app.flow.card_only_when_one": "one condition",
   "app.flow.card_action": "Action",
   "app.flow.card_flow": "Flow",
   "app.flow.card_branch": "Branch",

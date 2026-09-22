@@ -1511,7 +1511,6 @@
   "app.flow.card_only_when": "Nur wenn",
   "app.flow.card_only_when_all": "alle zutreffen",
   "app.flow.card_only_when_none": "läuft bei jedem Treffer",
-  "app.flow.card_only_when_one": "eine Bedingung",
   "app.flow.card_action": "Aktion",
   "app.flow.card_flow": "Ablauf",
   "app.flow.card_branch": "Verzweigung",
