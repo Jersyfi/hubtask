@@ -20,6 +20,8 @@
   interface Props {
     draft: Draft;
     selection: Selection;
+    /** The *Rule* tab (decision 16): the name, where it applies, whose rights it acts with, the guardrails - together. */
+    section?: 'rule';
     /** Whether the rule has been saved at least once: what a manual trigger's button needs. */
     ruleId?: string;
     generatedName: string;
@@ -46,6 +48,7 @@
   const {
     draft,
     selection,
+    section,
     ruleId,
     generatedName,
     triggers,
@@ -90,8 +93,7 @@
   const step = $derived(selection.kind === 'step' ? stepAt(draft.actions, selection.path) : undefined);
 </script>
 
-<div class="panel">
-  {#if selection.kind === 'rule'}
+{#snippet nameSection()}
     <h3>{t('app.flow.inspector_rule')}</h3>
     <Input
       label={t('app.flow.name_own')}
@@ -104,6 +106,87 @@
         onupdate((current) => ({ ...current, name }));
       }}
     />
+{/snippet}
+{#snippet scopeSection()}
+    <h3>{t('app.flow.scope')}</h3>
+    <Select
+      label={t('app.rules.scope')}
+      hint={t('app.rules.scope_hint')}
+      error={errors.get('/scope')}
+      value={draft.scope.id ? `${draft.scope.type}:${draft.scope.id}` : draft.scope.type}
+      options={scopes}
+      onchange={(event: Event) => {
+        const [type, id] = value(event).split(':');
+        onupdate((current) => ({ ...current, scope: { type: type ?? 'TENANT', ...(id ? { id } : {}) } }));
+      }}
+    />
+{/snippet}
+{#snippet runAsSection()}
+    <h3>{t('app.flow.runs_as')}</h3>
+    <Select
+      label={t('app.rules.runs_as')}
+      hint={t('app.flow.run_as_hint')}
+      error={errors.get('/run_as')}
+      placeholder={t('app.rules.choose_runner')}
+      value={draft.runAs}
+      options={runners}
+      onchange={(event: Event) => {
+        const runAs = value(event);
+        onupdate((current) => ({ ...current, runAs }));
+      }}
+    />
+{/snippet}
+{#snippet guardrailsSection()}
+    <h3>{t('app.flow.card_guardrails')}</h3>
+    <Select
+      label={t('app.rules.on_error')}
+      hint={t('app.rules.on_error_hint')}
+      value={draft.onError}
+      options={[
+        { value: 'STOP', label: t('app.rules.on_error_stop') },
+        { value: 'CONTINUE', label: t('app.rules.on_error_continue') },
+        { value: 'RETRY', label: t('app.rules.on_error_retry') },
+      ]}
+      onchange={(event: Event) => {
+        const onError = value(event);
+        onupdate((current) => ({ ...current, onError }));
+      }}
+    />
+    <Input
+      label={t('app.rules.max_runs')}
+      hint={t('app.rules.max_runs_hint')}
+      error={errors.get('/throttle/max_runs_per_hour')}
+      type="number"
+      value={draft.throttle.maxRunsPerHour ? String(draft.throttle.maxRunsPerHour) : ''}
+      oninput={(event: Event) => {
+        const raw = value(event);
+        onupdate((current) => ({ ...current, throttle: { ...current.throttle, maxRunsPerHour: raw ? Number(raw) : undefined } }));
+      }}
+    />
+    <Textarea
+      label={t('app.rules.dedupe')}
+      hint={t('app.rules.dedupe_hint')}
+      error={errors.get('/throttle/dedupe_key_expr')}
+      rows={2}
+      spellcheck={false}
+      value={draft.throttle.dedupeKeyExpr ?? ''}
+      oninput={(event: Event) => {
+        const raw = value(event);
+        onupdate((current) => ({ ...current, throttle: { ...current.throttle, dedupeKeyExpr: raw || undefined } }));
+      }}
+    />
+    <Callout>{t('app.flow.guardrails_hint')}</Callout>
+{/snippet}
+
+<div class="panel">
+  {#if section === 'rule'}
+    <p class="quiet">{t('app.flow.rule_tab_hint')}</p>
+    {@render nameSection()}
+    {@render scopeSection()}
+    {@render runAsSection()}
+    {@render guardrailsSection()}
+  {:else if selection.kind === 'rule'}
+    {@render nameSection()}
   {:else if selection.kind === 'trigger'}
     <h3>{t('app.flow.card_starts_on')}</h3>
     <Select
@@ -217,32 +300,9 @@
     {/if}
     <Callout tone="info">{t('app.flow.trigger_all_six')}</Callout>
   {:else if selection.kind === 'scope'}
-    <h3>{t('app.flow.scope')}</h3>
-    <Select
-      label={t('app.rules.scope')}
-      hint={t('app.rules.scope_hint')}
-      error={errors.get('/scope')}
-      value={draft.scope.id ? `${draft.scope.type}:${draft.scope.id}` : draft.scope.type}
-      options={scopes}
-      onchange={(event: Event) => {
-        const [type, id] = value(event).split(':');
-        onupdate((current) => ({ ...current, scope: { type: type ?? 'TENANT', ...(id ? { id } : {}) } }));
-      }}
-    />
+    {@render scopeSection()}
   {:else if selection.kind === 'runas'}
-    <h3>{t('app.flow.runs_as')}</h3>
-    <Select
-      label={t('app.rules.runs_as')}
-      hint={t('app.flow.run_as_hint')}
-      error={errors.get('/run_as')}
-      placeholder={t('app.rules.choose_runner')}
-      value={draft.runAs}
-      options={runners}
-      onchange={(event: Event) => {
-        const runAs = value(event);
-        onupdate((current) => ({ ...current, runAs }));
-      }}
-    />
+    {@render runAsSection()}
   {:else if selection.kind === 'gate'}
     <h3>{t('app.flow.card_only_when')}</h3>
     <p class="quiet">{t('app.flow.gate_hint')}</p>
@@ -297,45 +357,7 @@
     {/if}
     <div><Button size="sm" tone="subtle" icon="trash" onclick={() => onremovestep(path)}>{t('app.flow.remove_step')}</Button></div>
   {:else if selection.kind === 'guardrails'}
-    <h3>{t('app.flow.card_guardrails')}</h3>
-    <Select
-      label={t('app.rules.on_error')}
-      hint={t('app.rules.on_error_hint')}
-      value={draft.onError}
-      options={[
-        { value: 'STOP', label: t('app.rules.on_error_stop') },
-        { value: 'CONTINUE', label: t('app.rules.on_error_continue') },
-        { value: 'RETRY', label: t('app.rules.on_error_retry') },
-      ]}
-      onchange={(event: Event) => {
-        const onError = value(event);
-        onupdate((current) => ({ ...current, onError }));
-      }}
-    />
-    <Input
-      label={t('app.rules.max_runs')}
-      hint={t('app.rules.max_runs_hint')}
-      error={errors.get('/throttle/max_runs_per_hour')}
-      type="number"
-      value={draft.throttle.maxRunsPerHour ? String(draft.throttle.maxRunsPerHour) : ''}
-      oninput={(event: Event) => {
-        const raw = value(event);
-        onupdate((current) => ({ ...current, throttle: { ...current.throttle, maxRunsPerHour: raw ? Number(raw) : undefined } }));
-      }}
-    />
-    <Textarea
-      label={t('app.rules.dedupe')}
-      hint={t('app.rules.dedupe_hint')}
-      error={errors.get('/throttle/dedupe_key_expr')}
-      rows={2}
-      spellcheck={false}
-      value={draft.throttle.dedupeKeyExpr ?? ''}
-      oninput={(event: Event) => {
-        const raw = value(event);
-        onupdate((current) => ({ ...current, throttle: { ...current.throttle, dedupeKeyExpr: raw || undefined } }));
-      }}
-    />
-    <Callout>{t('app.flow.guardrails_hint')}</Callout>
+    {@render guardrailsSection()}
   {:else}
     <p class="quiet">{t('app.flow.inspector_nothing')}</p>
   {/if}
