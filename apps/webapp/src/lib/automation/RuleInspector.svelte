@@ -90,6 +90,17 @@
     return found;
   }
 
+  /**
+   * The *Rule* tab holds all four of the rule's own settings (decision 16), and the head's chips
+   * lead to one of them: the section the chip named is brought into view rather than the reader
+   * hunting for it down a panel (decision 24).
+   */
+  let guardrails = $state<HTMLElement | null>(null);
+  $effect(() => {
+    if (section !== 'rule' || selection.kind !== 'guardrails' || !guardrails) return;
+    guardrails.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+
   const step = $derived(selection.kind === 'step' ? stepAt(draft.actions, selection.path) : undefined);
   /** A branch that is the sole step of an else arm is a rung of a ladder: its heading says so (decision 19). */
   const isElseIf = $derived.by(() => {
@@ -145,7 +156,7 @@
     />
 {/snippet}
 {#snippet guardrailsSection()}
-    <h3>{t('app.flow.card_guardrails')}</h3>
+    <h3 bind:this={guardrails}>{t('app.flow.card_guardrails')}</h3>
     <Select
       label={t('app.rules.on_error')}
       hint={t('app.rules.on_error_hint')}
@@ -365,8 +376,6 @@
       />
     {/if}
     <div><Button size="sm" tone="subtle" icon="trash" onclick={() => onremovestep(path)}>{t('app.flow.remove_step')}</Button></div>
-  {:else if selection.kind === 'guardrails'}
-    {@render guardrailsSection()}
   {:else}
     <p class="quiet">{t('app.flow.inspector_nothing')}</p>
   {/if}

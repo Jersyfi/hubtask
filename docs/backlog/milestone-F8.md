@@ -580,6 +580,56 @@ additive things, the check two findings. Eight decisions:
     (expand-only migration, check constraint), no pseudo-entry — as its own pull request before
     the third walk. *The deploy:* not a decision — everything on `main` is on the integration
     environment, and no release is being held back for it.
+24. **The guardrails are the rule's, not a card on the canvas.** The canvas draws the run's
+    path — what starts it, what it has to pass, what it does, where it ends — and nothing that is
+    not on that path. `on_error` and the throttle are properties of the rule like its name, its
+    scope and the account it runs as, and those three are already said in the head and set on the
+    *Rule* tab. So the guardrails card leaves the canvas and becomes the head's third chip, beside
+    *Applies in* and *Runs as*, saying what they are in the same words the card said; pressing it
+    opens the *Rule* tab where they are set. One place to change them, the same place as the other
+    three, and the reader learns the pattern once: **the head is the rule, the canvas is the run.**
+25. **A card's width is its border box.** Every card on the canvas declared `width: min(44ch, 100%)`
+    under the project's `content-box` default, so at a width where `100%` won it stood its padding
+    and border wider than the column that holds it — the selection ring fell into the canvas's own
+    gutter and the scroll container cut it. The canvas's cards, the gate, the ladder and the folded
+    line are `border-box`, and the canvas keeps a gutter no smaller than the ring it has to show.
+26. **Empty canvas deselects.** A click on the canvas's background, and `Escape` while the canvas
+    has the focus, clear the selection: the *Details* tab has nothing to show and is not the place
+    to leave the reader, so the panel moves to *Blocks* — what one does next after letting go of a
+    card is add another — unless it is on *Probe* or *Runs*, which are about the whole rule and
+    stay. On a narrow screen the sheet closes instead, because there the panel is over the canvas
+    and nothing is behind it to read.
+27. **The sheet is sized by the reader, and keeps its size.** Below the expanded breakpoint the
+    panel is a sheet over the canvas, and a sheet that scrolls its own header away is a sheet one
+    cannot close without scrolling back up. The sheet's head — its title, its tabs, its close —
+    stays put and only the body scrolls; above the head sits a handle, and the handle is dragged
+    to size the sheet between a third and nine tenths of the screen, let go below the third to
+    close it. Half the screen is what it opens at; the size the reader dragged it to is kept in
+    this browser for the next time. `Drawer` gains `resizable` and a bindable `size` for it; where
+    the size is kept is the caller's, never the component's.
+28. **The gate is one thing, a group is offered from the first sentence, and a rung is a card
+    like any other.** Four things the owner's test found in the conditions: the *Only when* block
+    holds every condition, so its *Details* holds every condition too — each composer under its
+    *and*, added and removed there — and clicking a single condition on the canvas still opens
+    that one; the composer offers *Add a sentence* **and** *Add a group* from the first sentence,
+    the group's mode appearing when there is something to hold together, rather than the group
+    becoming possible only once a second sentence exists; an *else if* rung carries the trash
+    every other card carries, and removing it hands its *otherwise* on to the rung above, exactly
+    as *+ Else if* took it; and a folded ladder counts its rungs rather than reporting
+    *otherwise 1*, which was the next rung counted as a step.
+29. **The editor says what is missing before the probe is pressed.** ADR-0060's check runs on a
+    *stored* rule against what exists in the workspace; it cannot speak about the draft under the
+    hands, which is where writing a rule actually goes wrong: an event trigger with no event, an
+    action whose required parameter is empty, a branch with two empty arms, a schedule that feeds
+    a step needing the entry no schedule has. The client reads the draft against the manifest it
+    already holds and says so itself — the same marks at the same cards the check's findings use,
+    and a list in the *Probe* tab above the button, each line pressing through to the card it is
+    about. Its codes are the client's (`app.flow.review_*`), never the server's, because it is the
+    draft they are about and no server was asked; where the server's own finding says the same
+    thing at the same card, the finding wins. Nothing is refused: the probe still runs, and a rule
+    that a review complains about can still be saved — the review says what will happen, it does
+    not decide.
+
 
 ## F8-15 — The manifest says more about each action: summary, rule flag, format **[L]**
 
@@ -700,6 +750,95 @@ one that never did (contract and repository test); the card shows the line; the 
 the hour's number and the link, and the e2e reads both; `make verify` green, `make generate`
 clean, the catalogue complete.
 
+## The fourth round — what the owner's own testing found
+
+The third round was built, walked and merged; the owner then wrote rules with it himself and
+came back with six things — one of them a concept fault (the guardrails set in two places), two
+visual (a ring cut off, a ring overlapping), two about reaching what is there (a sheet whose
+close scrolls away, conditions that take a second click each), and one about the hardest moment
+of writing a rule: **finding out why the probe does nothing.** Nothing here reopens the concept;
+all six are it, held to. Six decisions, five tasks, each one pull request in milestone 20.
+
+## F8-22 — The guardrails in one place **[L]**
+
+*Depends on: nothing. Issue #921.*
+
+Decision 24. The guardrails card leaves `RuleCanvas`; the head gets a third chip that says
+`on_error` and the throttle in the card's words and selects `{ kind: 'guardrails' }`, which the
+view already maps to the *Rule* tab. `RuleInspector`'s standalone guardrails panel goes with the
+card — the *Rule* tab is the one place — and `app.flow.card_guardrails*` keep their words, now on
+the chip. The e2e presses the chip and sets a bound.
+
+**Acceptance:** the canvas ends at the end mark and draws no guardrails card; the chip says the
+same sentence the card said; pressing it opens *Rule* with the guardrails on it; nothing else
+sets them; `pnpm -r …` green, the catalogue complete.
+
+## F8-23 — The canvas: the ring fits, and empty space deselects **[L]**
+
+*Depends on: nothing. Issue #922.*
+
+Decisions 25 and 26. `box-sizing: border-box` on every card, the gate, the ladder, the rungs and
+the folded line; the canvas's inline padding is at least the ring's offset and width, so a
+selected card at the narrowest side-by-side width is drawn whole. A click on the canvas's
+background clears the selection (`{ kind: 'none' }`), `Escape` on the canvas does the same; the
+panel leaves *Details* for *Blocks* and stays where it is on *Probe* and *Runs*; on a narrow
+screen the sheet closes. The *Details* tab with nothing selected keeps its sentence.
+
+**Acceptance:** at 960 px a selected card's ring is inside the canvas on both sides (measured in
+the pull request); clicking the background deselects and the panel shows *Blocks*; `Escape`
+does the same; on a phone the sheet closes; `pnpm -r …` green.
+
+## F8-24 — The sheet the reader sizes **[L]**
+
+*Depends on: nothing. Issue #923.*
+
+Decision 27. `Drawer` at `block-end` gains a sticky head — the panel is a column, the body the
+only scroller — and, with `resizable`, a handle above it: pointer and keyboard (arrow keys, Home,
+End) size the sheet between `0.33` and `0.9` of the screen, a drag let go below the floor closes
+it, `size` is bindable so the caller keeps it. The story shows both. The rule editor opens the
+sheet at half the screen and keeps what the reader dragged in `localStorage`, falling back in
+silence where storage is refused.
+
+**Acceptance:** the sheet's tabs and close stay visible while its body scrolls; the handle sizes
+the sheet by pointer and by keyboard; dragging it to the bottom closes it; the size is there on
+the next open of the same browser; `prefers-reduced-motion` is respected; the workbench story
+exists; `pnpm -r …` green.
+
+## F8-25 — The gate as one panel, a group from the first sentence, the rung's trash **[L]**
+
+*Depends on: nothing. Issue #924.*
+
+Decision 28. The gate's *Details* draws every condition, each with its *and*, a remove beside it
+and *Add a condition* under them; a condition selected on the canvas still opens alone.
+`Composer` renders its root as a group from the first sentence — both adds always, the mode
+select from the second item — with `compileNode` unchanged, so no stored expression moves.
+`removeRung` in `model.ts` with its table tests; the rung's head carries the trash; the rungs get
+the room the selection ring needs; `card_folded` counts a ladder's rungs
+(`app.flow.card_folded_ladder`).
+
+**Acceptance:** the gate's Details edits and removes every condition without a second click on
+the canvas; a fresh sentence offers both adds; the mode appears with the second item; every F8-13
+fixture compiles to the same CEL; an *else if* is removed by its trash and its *otherwise* stays;
+a folded ladder says its rungs; `pnpm -r …` green, the catalogue complete.
+
+## F8-26 — What is missing, before the probe runs **[L]**
+
+*Depends on: F8-15 (the manifest's `rule` flag and required fields). Issue #925.*
+
+Decision 29. `review.ts`: a pure pass over the draft and the manifest answering a list of
+`{ level, card, code, params }` — no trigger event, no schedule, no address minted, no runner, no
+step at all, a required parameter that is empty and the run does not supply, an empty condition, a
+branch with two empty arms, a step that needs the entry a scheduled run has not. The view merges
+them into the marks the canvas already draws (a server finding at the same card wins), and the
+*Probe* tab lists them above the button, each line selecting its card, with the sample's own
+mismatch — an event other than the one the rule starts on — said there too. `app.flow.review_*`
+in `en` and `de`, table tests per rule.
+
+**Acceptance:** a new rule with an empty `ADD_LABEL` says so at the card and in the list before
+anything is saved; a schedule feeding a step that needs an entry is named; the probe still runs
+and the rule still saves; the list's line selects the card it is about; `pnpm -r …` green, the
+catalogue complete.
+
 ## The order at a glance
 
 ```
@@ -720,6 +859,12 @@ F8-15 ──── F8-16 ──── F8-18 ─┐
 F8-17 ──────────────────────┼── F8-20      (the third round; #814 before F8-20)
 F8-19 ──────────────────────┤
 F8-21 ──────────────────────┘
+
+F8-22 ─┐
+F8-23 ─┤
+F8-24 ─┼──                                 (the fourth round; F8-26 needs F8-15's fields)
+F8-25 ─┤
+F8-26 ─┘
 ```
 
 Three tasks depend on nothing and can start at once: the three core tasks **F8-01**, **F8-02**

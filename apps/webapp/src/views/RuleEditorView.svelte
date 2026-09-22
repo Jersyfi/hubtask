@@ -317,6 +317,15 @@
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
     label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
   });
+  /** The guardrails in the words the canvas's card used, now the head's third chip (decision 24). */
+  const guardrailWords = $derived(
+    [
+      t(`app.rules.on_error_${draft.onError.toLowerCase()}`),
+      draft.throttle.maxRunsPerHour ? t('app.flow.card_guardrails_runs', { count: draft.throttle.maxRunsPerHour }) : t('app.flow.card_guardrails_unbounded'),
+      ...(draft.throttle.dedupeKeyExpr ? [t('app.flow.card_guardrails_dedupe', { expr: draft.throttle.dedupeKeyExpr })] : []),
+    ].join(' · '),
+  );
+
   const generated = $derived(generatedName(words, names, draft));
   const automatic = $derived(isAutomatic(draft.name, generated));
   const shownName = $derived(automatic ? generated : draft.name);
@@ -612,6 +621,11 @@
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
             {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" /><VisuallyHidden>{marks.get('run_as')}</VisuallyHidden></span>{/if}
           </button>
+          <!-- The guardrails are the rule's, not a card on the canvas (decision 24): said here,
+               set on the *Rule* tab, and nowhere else. -->
+          <button class="chip" type="button" onclick={() => select({ kind: 'guardrails' })}>
+            <Icon name="settings" size="sm" /><span>{t('app.flow.card_guardrails')}</span><b>{guardrailWords}</b>
+          </button>
         </div>
       </div>
 
@@ -727,7 +741,7 @@
         {#if tab === 'rule'}
           <RuleInspector
             {draft}
-            selection={{ kind: 'rule' }}
+            {selection}
             section="rule"
             ruleId={stored?.id}
             generatedName={generated}
