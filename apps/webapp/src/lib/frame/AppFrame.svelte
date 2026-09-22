@@ -289,7 +289,7 @@
     {/if}
     <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
          so it draws no ring when it does. -->
-    <main id="main" tabindex="-1" bind:this={mainElement}>
+    <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
       <div class="content">
         {@render children()}
       </div>
@@ -392,6 +392,12 @@
   }
 
   main { flex: 1; min-width: 0; padding: var(--sp-300); }
+
+  /* A page that draws its own edges takes the region whole: no padding around it and no reading
+     measure, because a canvas is not a document (`page.svelte.ts`). */
+  main[data-filled] { padding: 0; }
+
+  main[data-filled] .content { max-inline-size: none; }
 
   main:focus { outline: none; }
 
