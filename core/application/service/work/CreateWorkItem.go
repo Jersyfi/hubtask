@@ -98,6 +98,13 @@ type CreateWorkItemCommand struct {
 	// records as PUT /items/{id}/due, in the same transaction as the creation - the way an
 	// explicit assignee reuses the :assign machinery. Nil for none.
 	Due *domain.DueDate
+	// LabelIDs creates the entry already carrying labels of its collection, and MemberIDs already
+	// on a member list (issue 878): the contract promised both on WorkItemCreate and the catalogue
+	// refused them by name. Each goes through the writer that owns the set, with the same guards
+	// and the same four records as the standalone route, in the same transaction as the creation.
+	// Empty for none.
+	LabelIDs  []shared.ID
+	MemberIDs []shared.ID
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -139,6 +146,11 @@ type CreateWorkItem struct {
 	// DueDates is the writer the declared due fields dispatch into, reused whole for the same
 	// reason (D-01).
 	DueDates DueDateWriter
+	// Labels and Members are the writers the two set fields dispatch into (issue 878), reused
+	// whole: a label put on at creation is the same OR-set element, the same events and the same
+	// audit entry as one put on a moment later.
+	Labels  ItemLabelWriter
+	Members ItemMemberWriter
 	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5, M-07).
 	Text text.Normalizer
 }
@@ -189,6 +201,11 @@ func (h CreateWorkItem) Execute(
 	// eligibility read through the authorisation service, which opens transactions of its own.
 	plan, err := h.assignmentPlan(ctx, actor, collection, cmd)
 	if err != nil {
+		return domain.WorkItem{}, nil, err
+	}
+	// Whether every named member can see the entry they are put on: asked before the
+	// transaction for the reason the assignment plan is, and refused by the element.
+	if err := h.Members.ensureMembersCanSee(ctx, actor, cmd.MemberIDs, collection); err != nil {
 		return domain.WorkItem{}, nil, err
 	}
 
@@ -273,6 +290,19 @@ func (h CreateWorkItem) Execute(
 				); err != nil {
 					return err
 				}
+			}
+		}
+		// And its labels and its members, through the writers that own the two sets (issue
+		// 878): a label from another collection, or a type whose profile carries no LABELS,
+		// refuses here and takes the creation with it, as the due date does.
+		for position, labelID := range cmd.LabelIDs {
+			if err := h.Labels.addWithin(ctx, actor, created, collection, labelID, position, now); err != nil {
+				return err
+			}
+		}
+		for position, accountID := range cmd.MemberIDs {
+			if err := h.Members.addWithin(ctx, actor, created, collection, accountID, position, now); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -910,6 +940,20 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 				Description: "The IANA time zone the due date is local to, such as " +
 					"Europe/Berlin. Refused without due_at.",
 			},
+			{
+				Name: "label_ids", Kind: usecase.KindIDList,
+				Description: "Labels of the entry's collection to put on it as it is created, " +
+					"with the rules of PUT /items/{id}/labels/{labelId}: only a type whose " +
+					"profile carries LABELS, and only labels of this collection. A refusal " +
+					"names the element and takes the whole creation with it.",
+			},
+			{
+				Name: "member_ids", Kind: usecase.KindIDList,
+				Description: "Accounts to put on the entry's member list as it is created, with " +
+					"the rules of PUT /items/{id}/members/{accountId}: only a type whose " +
+					"profile carries MEMBERS, and only people who can see the entry. A refusal " +
+					"names the element and takes the whole creation with it.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemCreatedAction, TargetType: itemTarget,
@@ -945,6 +989,14 @@ func (h CreateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	labelIDs, err := in.IDList("label_ids")
+	if err != nil {
+		return nil, err
+	}
+	memberIDs, err := in.IDList("member_ids")
+	if err != nil {
+		return nil, err
+	}
 
 	cmd := CreateWorkItemCommand{
 		ID:              id,
@@ -958,6 +1010,8 @@ func (h CreateWorkItem) invoke(
 		AutoAssign:      in.Bool("auto_assign"),
 		ContentLanguage: in.String("content_language"),
 		CalendarUID:     in.String("calendar_uid"),
+		LabelIDs:        labelIDs,
+		MemberIDs:       memberIDs,
 	}
 	if raw := in.String("start_at"); raw != "" {
 		startAt, err := parseInstantField(raw, "start_at")
@@ -994,4 +1048,22 @@ func customFieldsOutput(values map[string]any) map[string]any {
 		out[key] = value
 	}
 	return out
+}
+
+// atListElement moves a refusal's field findings under the list element that caused it: a label
+// the standalone route refuses at `/label_id` was, on a create, the second entry of `/label_ids`,
+// and a client puts the message under the control that sent it (api-guidelines.md §3). Anything
+// that is not a validation error passes through as it is.
+func atListElement(err error, list string, position int) error {
+	var typed *shared.Error
+	if !errors.As(err, &typed) || len(typed.Fields) == 0 {
+		return err
+	}
+	fields := make([]shared.FieldError, 0, len(typed.Fields))
+	for _, field := range typed.Fields {
+		fields = append(fields, shared.FieldError{
+			Path: list + "/" + strconv.Itoa(position), Code: field.Code, Params: field.Params,
+		})
+	}
+	return typed.WithFields(fields...)
 }

@@ -1303,6 +1303,8 @@ func run() error {
 			HLC:        hybrid,
 			AutoAssign: autoAssign,
 			DueDates:   dueDateWriter,
+			Labels:     itemLabelWriter,
+			Members:    itemMemberWriter,
 			Text:       forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{

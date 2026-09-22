@@ -75,6 +75,22 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
 		},
+		// The two set writers (issue 878), over the same adapters: `label_ids` and `member_ids`
+		// dispatch into them inside the create's transaction.
+		Labels: work.ItemLabelWriter{
+			Items: itemRepo(), ItemLabels: itemLabelRepo(), Labels: labelRepo(), Containers: containerRepo(),
+			Profiles: postgres.NewCapabilityProfileRepository(), Authorizer: authorizer,
+			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(), Audit: sink,
+			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
+			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+		},
+		Members: work.ItemMemberWriter{
+			Items: itemRepo(), ItemMembers: itemMemberRepo(), Containers: containerRepo(),
+			Profiles: postgres.NewCapabilityProfileRepository(), Authorizer: authorizer, Visibility: authorizer,
+			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(), Audit: sink,
+			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
+			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+		},
 	}.Descriptor())
 	if err != nil {
 		t.Fatalf("building the catalogue: %v", err)
@@ -325,18 +341,66 @@ func TestAFieldNoUseCaseWritesYetIsRefusedByName(t *testing.T) {
 	seedMemberships(ctx, t)
 	collection := collectionFor(ctx, t, tenantB, authorB)
 
+	// `cover` is one of the three fields the contract promises and no use case writes at creation
+	// yet (issue 896); `member_ids` moved from this list to the written ones with issue 878.
 	_, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
 		usecase.Input{
 			"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
-			"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
+			"cover": map[string]any{"kind": "COLOR", "color_token": "accent.red"},
 		})
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error = %v, want a validation error", err)
 	}
 
 	fields := shared.AsError(err).Fields
-	if len(fields) != 1 || fields[0].Path != "/member_ids" {
-		t.Errorf("field errors = %v, want one naming /member_ids", fields)
+	if len(fields) != 1 || fields[0].Path != "/cover" {
+		t.Errorf("field errors = %v, want one naming /cover", fields)
+	}
+}
+
+// Issue 878 against the real database: an entry created with `label_ids` carries the label the
+// moment it exists, in the same transaction, and a label of another collection takes the whole
+// creation with it - no row, no label.
+func TestAnEntryIsCreatedCarryingItsLabels(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	label := seedLabel(ctx, t, tenantB, collection)
+	elsewhere := seedLabel(ctx, t, tenantB, collectionFor(ctx, t, tenantB, authorB))
+	catalogue := itemCatalogueFor(ctx, t)
+
+	out, err := catalogue.Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB), usecase.Input{
+		"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
+		"label_ids": []any{label.ID.String()},
+	})
+	if err != nil {
+		t.Fatalf("Invoke: %v", err)
+	}
+	created := shared.MustParseID(out["id"].(string))
+	var carried []shared.ID
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		carried, err = itemLabelRepo().List(ctx, created)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the labels: %v", err)
+	}
+	if len(carried) != 1 || carried[0] != label.ID {
+		t.Errorf("labels carried = %v, want %v", carried, label.ID)
+	}
+
+	_, err = catalogue.Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB), usecase.Input{
+		"type": "TASK", "collection_id": collection.String(), "title": "Buy bread",
+		"label_ids": []any{elsewhere.ID.String()},
+	})
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("error = %v, want a validation error", err)
+	}
+	if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != "/label_ids/0" || fields[0].Code != "labels.not_in_collection" {
+		t.Errorf("field errors = %v, want labels.not_in_collection at /label_ids/0", fields)
+	}
+	if rows := countIn(ctx, t, `SELECT count(*) FROM work_item WHERE collection_id = $1 AND title = 'Buy bread'`, collection); rows != 0 {
+		t.Errorf("the refused creation left %d row(s)", rows)
 	}
 }
 
