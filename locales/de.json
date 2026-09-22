@@ -1978,6 +1978,7 @@
   "app.people.auto_assigning": "Wird gewählt",
   "app.people.auto_assigned": "Zugewiesen durch die Richtlinie {strategy}.",
   "app.people.auto_assign_none": "Die Richtlinie {strategy} ist gelaufen und hat niemanden Geeigneten gefunden.",
+  "app.people.auto_assign_unset": "Für diese Sammlung wählt noch keine Richtlinie. Eine wird in den Richtlinien der Sammlung festgelegt.",
   "app.people.unassigned_announced": "Jetzt ist niemand zuständig.",
   "app.people.assigned_announced": "Zugewiesen.",
   "app.people.member_added_announced": "Mitglied hinzugefügt.",
