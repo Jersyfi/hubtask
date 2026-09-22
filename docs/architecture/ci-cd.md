@@ -140,6 +140,24 @@ lets the milestone build all gates up front and fill them in task by task. What 
 is the reverse: a gate that swallows a real failure. Whether the difference still holds is exactly
 what the `selftest` job checks.
 
+### 3.3 What a job no longer compiles again
+
+Eight jobs need the pinned tool set, and each one compiled it: `make tools` installs nine tools,
+eight of them from source, and took **215 seconds** — 29 of a Go pull request's 69 runner-minutes,
+twice on the critical path. `actions/setup-go`'s cache was supposed to pay for that and could not:
+it saves only when the key is not yet present, so the entry belonged to the first job to finish,
+which is one of the two that compile nothing.
+
+So the tools are cached as tools ([ADR-0062](../adr/ADR-0062-cached-tool-binaries.md)). The jobs
+call `make tools-ensure`, which installs the whole set unless `.tools/.installed` names exactly
+today's pins and the Go that built them, and every binary those pins name is there. The cache
+decides nothing: a restored directory that does not match is thrown away and installed again, and
+`release.yml` compiles its own set from the pins of the tagged commit, with no cache near it.
+
+The same reasoning has not yet been applied to the *project's* build and module caches, which is
+where the rest of a job's cold start lives. That is measured work of its own, because thirteen
+jobs each keeping a build cache is a real question against the repository's 10 GB.
+
 ---
 
 ## 4. Hardening
