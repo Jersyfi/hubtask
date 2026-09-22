@@ -38,6 +38,12 @@ class Page {
    * on a page of another - a box on a page, which is what issue 918 was. The page says so and
    * the frame gives it the room; the same answer would serve any later canvas, and there is no
    * route table in the frame to keep in step.
+   *
+   * **The room is a height as well as a width** (`milestone-F8.md` decision 31): a filled page
+   * is one screen, so the frame bounds the region to the viewport and what scrolls is inside the
+   * page - its canvas, its panel - rather than the page itself. Without that bound the editor
+   * grew past the fold and its panel, as tall as the viewport but starting below the bar and the
+   * notices, ended below the window with no way to reach it.
    */
   get fills(): boolean {
     return this.#fills;
