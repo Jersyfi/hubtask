@@ -16,6 +16,7 @@ export {
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
   SNAPSHOT_ATTEMPTS,
+  matchesPath,
 } from './SyncEngine.ts';
 export type {
   Listener,

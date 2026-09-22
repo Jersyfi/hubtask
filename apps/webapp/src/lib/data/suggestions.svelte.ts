@@ -24,6 +24,7 @@ import type { AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-en
 
 import { engine } from './engine.ts';
 import { followArrival, suggestionsPath, type Operation, type Target } from './suggestions.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 export { suggestionsPath } from './suggestions.ts';
 export type { SuggestionPage };
@@ -219,10 +220,10 @@ class Suggestions {
         // templates that apply here are what changed.
         invalidates:
           target === 'JUMBLE_ENTRY'
-            ? [...touches(suggestion.target_id, target), '/jumble/entries', '/items', '/containers']
+            ? [...touches(suggestion.target_id, target), '/jumble/entries', ENTRY_LISTS, '/containers']
             : target === 'CONTAINER'
               ? [...touches(suggestion.target_id, target), '/templates']
-              : [...touches(suggestion.target_id), '/items'],
+              : [...touches(suggestion.target_id), ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
       },
     );
   }

@@ -114,8 +114,11 @@
   .leading,
   .trailing { display: flex; flex: none; align-items: center; gap: var(--sp-100); }
 
-  /* Wrapped under the title, the trailing controls keep to the end of their line. */
-  .trailing { margin-inline-start: auto; max-inline-size: 100%; flex-wrap: wrap; }
+  /* Wrapped under the title, the trailing controls start where the row starts - a second line of
+     the same row - rather than keeping to the end of theirs, which read as a line that belonged
+     to nothing. On one line the content stretches, so nothing pushes them to the end and they
+     are there anyway. */
+  .trailing { max-inline-size: 100%; flex-wrap: wrap; }
 
   /* The content is what stretches, and it is the whole hit area of the row rather than the text
      inside it: a target the width of a title is a target that misses. Its basis is nothing and

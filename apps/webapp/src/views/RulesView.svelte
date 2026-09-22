@@ -19,22 +19,38 @@
   //
   // **Every list is read rather than compiled in**, and **nothing is pre-empted**: the server
   // refuses and this renders it, as before.
+  //
+  // **On the shell (ADR-0061, issue 880)** the page sits under a `PageHeader` like every other:
+  // *Write a rule* is its one primary action, the check's findings and a refusal are its notice
+  // lines, and on a phone the title is the bar's. The editor keeps its address - it is a screen
+  // of its own - and the primary navigates there the way the frame navigates.
 
   import { untrack } from 'svelte';
 
-  import { AutomationRuleCard, Banner, Button, Spinner, Stack } from '@hubtask/design-system/components';
+  import { AutomationRuleCard, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { findingWords, listHealth } from '../lib/automation/findings.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { rules, type Rule } from '../lib/data/rules.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { eventWords } from '../lib/automation/words.ts';
   import { renderProblem } from '../lib/problem.ts';
 
+  interface Props {
+    onnavigate?: (path: string) => void;
+  }
+
+  const { onnavigate }: Props = $props();
+
   const TENANT = { scopeType: 'TENANT' } as const;
+
+  $effect(() => page.entitle(t('app.rules.title')));
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
@@ -62,6 +78,14 @@
   });
 
   const words = { t, has: (code: string) => messages.has(code) };
+  /** When the rule last ran and how it ended (F8-21), or that it never did. */
+  function lastRunWords(rule: { last_run?: { at: string; status: string } | null }): string {
+    const last = rule.last_run;
+    if (!last) return t('app.rules.never_ran');
+    const status = `app.runs.status_${last.status.toLowerCase()}`;
+    return t('app.rules.last_run_words', { when: formatRelative(last.at, messages.locale), outcome: messages.has(status) ? t(status) : last.status });
+  }
+
   const broken = $derived(rules.all.filter((rule) => (rule.findings ?? []).some((finding) => finding.level === 'BROKEN')).length);
   const attention = $derived(rules.all.filter((rule) => (rule.findings ?? []).length > 0).length - broken);
 
@@ -105,23 +129,28 @@
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.rules.title')}</h1>
-    <p class="quiet">{t('app.rules.intro')}</p>
-
-    {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
-    {/if}
-
-    {#if broken + attention > 0}
-      <Banner tone={broken > 0 ? 'danger' : 'warning'} title={broken + attention === 1 ? t('app.flow.check_banner_one') : t('app.flow.check_banner_title', { count: broken + attention })}>
-        {t('app.flow.check_banner_body', { broken, attention })}
-      </Banner>
-    {/if}
-    {#if isChecking}
-      <p class="waiting small"><Spinner label={t('app.flow.check_running')} /> <span>{t('app.flow.check_running')}</span></p>
-    {/if}
+    <PageHeader
+      title={t('app.rules.title')}
+      subtitle={t('app.rules.intro')}
+      isTitleInBar={viewport.isCompact}
+      primary={{ label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') }}
+    >
+      {#snippet notices()}
+        {#if failure}
+          <Banner tone="danger" title={failure.message}>
+            {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
+          </Banner>
+        {/if}
+        {#if broken + attention > 0}
+          <Banner tone={broken > 0 ? 'danger' : 'warning'} title={broken + attention === 1 ? t('app.flow.check_banner_one') : t('app.flow.check_banner_title', { count: broken + attention })}>
+            {t('app.flow.check_banner_body', { broken, attention })}
+          </Banner>
+        {/if}
+        {#if isChecking}
+          <p class="waiting small"><Spinner label={t('app.flow.check_running')} /> <span>{t('app.flow.check_running')}</span></p>
+        {/if}
+      {/snippet}
+    </PageHeader>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.rules.reading')} /> <span>{t('app.rules.reading')}</span></p>
@@ -141,6 +170,7 @@
               trigger={{ label: t('app.rules.starts_on'), value: triggerWord(rule) }}
               actions={{ label: t('app.rules.actions'), value: String(rule.actions.length) }}
               runAs={{ label: t('app.rules.runs_as'), value: runnerName(rule.run_as) }}
+              lastRun={{ label: t('app.rules.last_run'), value: lastRunWords(rule) }}
               isEnabled={rule.enabled}
               stateLabel={rule.enabled ? t('app.rules.on') : t('app.rules.off')}
               failureLabel={rule.failure_count > 0 ? t('app.rules.failing', { count: String(rule.failure_count) }) : undefined}
@@ -168,18 +198,10 @@
         {/each}
       </Stack>
     {/if}
-
-    <div>
-      <!-- An address, not a handler: the editor is a screen of its own that can be opened in a
-           second tab; the frame's interception turns the click into a navigation. -->
-      <a class="new" href="/administration/rules/new">{t('app.rules.new_rule')}</a>
-    </div>
   </Stack>
 </div>
 
 <style>
-  h1 { margin: 0; font-family: var(--font-display); font-size: var(--fs-400); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
-
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
@@ -187,20 +209,4 @@
   .small { font-size: var(--fs-075); }
 
   .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-
-  .new {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--density-control-md-min);
-    padding: var(--density-control-md-block) var(--sp-200);
-    border-radius: var(--r-sm);
-    background: var(--accent-primary);
-    color: var(--text-inverse);
-    font-weight: var(--fw-medium);
-    text-decoration: none;
-  }
-
-  .new:hover { background: var(--accent-primary-hover); }
-
-  .new:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

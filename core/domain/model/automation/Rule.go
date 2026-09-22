@@ -236,6 +236,10 @@ type Rule struct {
 	// definition an edit sends - they are the check's assessment of it.
 	Findings  []Finding
 	CheckedAt time.Time
+	// LastRun is the rule's most recent run, read beside the rule for the list that says when it
+	// last ran and how it ended without a page of runs per card (F8-21, decision 23). Nil for a
+	// rule that never ran. Not part of the definition: an edit neither sends nor stores it.
+	LastRun   *LastRun
 	CreatedBy shared.ID
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -880,4 +884,10 @@ func itoa(n int) string {
 		return "-" + string(digits)
 	}
 	return string(digits)
+}
+
+// LastRun is when a rule last ran and how that run ended - the two things the list card says.
+type LastRun struct {
+	At     time.Time
+	Status RunStatus
 }

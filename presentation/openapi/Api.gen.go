@@ -3870,7 +3870,15 @@ type AutomationRule struct {
 
 	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
 	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
-	Name             string     `json:"name"`
+
+	// LastRun The rule's most recent run — when it started and how it ended — read beside the rule so that a list of rules says it without a page of runs per rule (F8-21). Absent for a rule that never ran. Not part of the definition: a write ignores it.
+	LastRun *struct {
+		At time.Time `json:"at"`
+
+		// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
+		Status RuleRunStatus `json:"status"`
+	} `json:"last_run,omitempty"`
+	Name string `json:"name"`
 
 	// NextRunAt When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
 	NextRunAt *time.Time            `json:"next_run_at,omitempty"`

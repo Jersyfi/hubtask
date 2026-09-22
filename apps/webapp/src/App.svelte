@@ -158,7 +158,7 @@
   {:else if route.name === 'apps'}
     <AppsView />
   {:else if route.name === 'rules'}
-    <RulesView />
+    <RulesView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule-new'}
     <RuleEditorView id="new" onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule'}

@@ -106,6 +106,7 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
@@ -511,12 +512,13 @@
 
   // What sits under this entry, for the kinds that hold anything (F5-02): an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
-  // the reader to find them in the collection. The level is the same read the list expands, so
-  // the acceptance's invalidation of `/items` brings them here without being asked.
+  // the reader to find them in the collection. The subtree is the one read the section below
+  // makes (issue 877), and this counts its first level; the acceptance's invalidation of the
+  // lists brings them here without being asked.
   const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
   $effect(() => {
     if (!takesChildren) return;
-    return untrack(() => items.openChildren(id));
+    return untrack(() => items.openSubtree(id));
   });
   const children = $derived(takesChildren ? items.childrenOf(id) : []);
   function startEditing() {
@@ -754,7 +756,7 @@
           {/each}
           {#if repeatValue}<Badge icon="repeat">{repeatValue}</Badge>{/if}
           {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
-          {#if item.content_language}<Badge icon="globe">{item.content_language}</Badge>{/if}
+          {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
         </div>
         <!-- The notes, in place, for the same reasons; empty, the field says what it is for. -->
         <textarea
@@ -890,7 +892,7 @@
             <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue}>
               <RecurrencePanel {item} />
             </DetailRow>
-            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ?? undefined}>
+            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined}>
               <Stack gap="150">
                 <LanguagePicker
                   {languages}

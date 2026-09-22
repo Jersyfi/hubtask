@@ -14,6 +14,13 @@
  * why a record for something this client does not draw returns nothing at all rather than an
  * invalidation of everything.
  *
+ * **The names are `touches.ts`'s**, the same ones a write declares, so the write's answer and the
+ * record for it agree on what is stale (issue 877 - `/items` here re-read an entry's thread, its
+ * reminders and its series for a retitled entry, and each record of the write did it again).
+ * `entity_id` is the record's own entity - a reminder's id on a reminder record, not its entry's -
+ * which is why the reminders, the threads and the series are named with a star in place of the
+ * entry: the record cannot name it, and only the open entry's are watched.
+ *
  * **Two names for an entry, deliberately.** The change log records a work item as `item`
  * (`CreateWorkItem.recordChange`) and the purge records one as `work_item` (`Purge.go`). Both are
  * accepted here rather than one being picked: a client that guessed would go blind for whichever
@@ -22,17 +29,20 @@
 
 import type { ChangeRecord } from '@hubtask/sync-engine';
 
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, entryDocument, entryHistory } from './touches.ts';
+
 /** The paths a change to an entry makes stale. */
-function itemPaths(id: string, containerId: string | null | undefined): readonly string[] {
+function itemPaths(record: ChangeRecord): readonly string[] {
+  const id = record.entity_id;
   return [
-    // Every list and board of the collection it is in, and the entry's own document. `/items` is
-    // the prefix both share, and the engine matches by prefix — so one name covers the level read,
-    // the board's query and `/items/{id}` together.
-    '/items',
-    // Its history, which is a different path and a different question: a change made anywhere is a
-    // step somebody may be reading.
-    `/items/${id}/activity`,
-    ...(containerId ? [`/containers/${containerId}`] : []),
+    // Every list and board, the entry's own document, and its history - a change made anywhere
+    // is a step somebody may be reading. Not the thread, the reminders or the attachments under
+    // it: each of those is an entity with a record of its own.
+    ENTRY_LISTS,
+    entryDocument(id),
+    entryHistory(id),
+    // An entry that left for the trash, or came back from it, is a row of that screen too.
+    ...(record.op === 'DELETE' ? ['/trash'] : []),
   ];
 }
 
@@ -50,38 +60,49 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
   switch (record.entity) {
     case 'item':
     case 'work_item':
-      return itemPaths(id, container);
+      return itemPaths(record);
 
     case 'container':
-      // The tree, and the entries under it: a renamed collection is a sidebar row and a heading.
-      return ['/containers', '/items'];
+      // The tree - the hubs, and the children of each - and the container's own document, which
+      // is a heading and a row in the sidebar. Not the entries under it: a renamed collection
+      // changes no entry, and a trashed one takes its entries to the trash under records of
+      // their own.
+      return ['/containers$', `/containers/${id}$`, ...(record.op === 'DELETE' ? ['/trash'] : [])];
 
     case 'comment':
       // The thread it is in. `container_id` is the collection, so the entry is not in the record —
       // and a thread is read at `/items/{itemId}/comments`, which this record cannot name.
-      // Invalidating every thread is right and cheap: only the open one is watched.
-      return ['/items'];
+      // Every open thread is right and cheap: only the open entry's is watched.
+      return ['/items/*/comments'];
 
     case 'label':
+      // A label belongs to a collection and is drawn, expanded, on every entry that carries it:
+      // the collection's labels, the lists, and every open document.
+      return [...(container ? [`/containers/${container}/labels`] : ['/containers']), ENTRY_LISTS, ANY_ENTRY_DOCUMENT];
+
     case 'bucket':
-      // Both belong to a collection and both are drawn on the entries in it.
-      return container ? [`/containers/${container}`, '/items'] : ['/containers', '/items'];
+      // The board's columns, and the lists that group by them.
+      return [...(container ? [`/containers/${container}/buckets`] : ['/containers']), ENTRY_LISTS];
 
     case 'reminder':
-      return [`/items/${id}/reminders`, '/items'];
+      // The record names the reminder, not its entry.
+      return ['/items/*/reminders'];
 
     case 'recurrence_rule':
-      return ['/items'];
+      // The series, and the entry's own document, which carries `recurrence_rule_id`. The
+      // occurrences a series makes arrive as entry records of their own.
+      return ['/items/*/recurrence', ANY_ENTRY_DOCUMENT];
 
     case 'media_object':
-      return [`/media/${id}`, '/items'];
+      return [`/media/${id}`, '/items/*/attachments'];
 
     case 'membership':
     case 'group':
       return ['/memberships', '/groups'];
 
+    case 'custom_field':
     case 'custom_field_definition':
-      return ['/custom-fields', '/items'];
+      return ['/custom-fields', ENTRY_LISTS, ANY_ENTRY_DOCUMENT];
 
     case 'saved_view':
       return ['/views'];

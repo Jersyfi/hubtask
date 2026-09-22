@@ -60,10 +60,10 @@ func (r RecordWebhookDisabled) WebhookDisabled(
 		RecipientID: recipientID,
 		Category:    domain.CategoryIntegration,
 		Channel:     domain.ChannelEmail,
-		// The subscription stands in for the item: it is what the message is about, and it is what
-		// a renderer needs to name. No event - see the note on the type.
-		ItemID: subscriptionID,
-		At:     r.Clock.Now(),
+		// The subscription is the subject (issue 814): what the message is about, and what a
+		// renderer needs to name. No event - see the note on the type.
+		SubscriptionID: subscriptionID,
+		At:             r.Clock.Now(),
 	})
 	if err != nil {
 		return err

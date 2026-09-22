@@ -205,6 +205,35 @@ func (w ItemLabelWriter) change(
 	return result, nil
 }
 
+// addWithin puts a label on an entry that is being created, inside the creator's transaction
+// (issue 878): the same guards and the same four records as `PUT /items/{id}/labels/{labelId}`,
+// minus the permission question, which the creation has already asked of the same path with
+// the same permission. A refusal takes the whole creation with it - a merge of one request
+// half-applied is a state nobody asked for. `position` is where the label sat in the request's
+// list, so a refusal names the element rather than a field the request never had.
+func (w ItemLabelWriter) addWithin(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+	collection domain.Container, labelID shared.ID, position int, now time.Time,
+) error {
+	if err := w.ensureLabelAllowed(ctx, item); err != nil {
+		return atListElement(err, "/label_ids", position)
+	}
+	if err := w.ensureLabelInCollection(ctx, item, labelID); err != nil {
+		return atListElement(err, "/label_ids", position)
+	}
+	tag := setTag(ctx, domain.SetLabels, w.HLC)
+	cmd := LabelCommand{ItemID: item.ID, LabelID: labelID}
+	changed, err := w.apply(ctx, cmd, adding, tag)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		// The same label twice in one request: written once, announced once.
+		return nil
+	}
+	return w.announce(ctx, actor, item, collection, labelID, adding, tag, now)
+}
+
 // apply writes the membership and the tag, and reports whether the set actually moved.
 func (w ItemLabelWriter) apply(
 	ctx context.Context, cmd LabelCommand, want labelDirection, tag shared.HLC,
