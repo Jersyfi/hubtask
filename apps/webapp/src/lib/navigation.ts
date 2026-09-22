@@ -75,10 +75,9 @@ export const DESTINATIONS: readonly Destination[] = [
 /**
  * The `keeping` band: where a reader goes when something is missing, at the foot of the column.
  *
- * The trash alone today; the archive joins it with the screen that answers for it (F10-03). It is
- * not "the tree's last node" any more — ADR-0063 decision 1 supersedes that sentence of ADR-0061,
- * because a row somebody reaches for when something has gone should not sit under the last hub as
- * though it were one.
+ * The archive and the trash. Neither is "the tree's last node" any more — ADR-0063 decision 1
+ * supersedes that sentence of ADR-0061, because a row somebody reaches for when something has gone
+ * should not sit under the last hub as though it were one.
  */
 export interface KeepingRow {
   readonly id: string;
@@ -89,9 +88,12 @@ export interface KeepingRow {
   readonly routes: readonly string[];
 }
 
+const ARCHIVE_ROW: KeepingRow = { id: 'archive', icon: 'archive', code: 'app.nav.archive', path: '/archive', routes: ['archive'] };
 const TRASH_ROW: KeepingRow = { id: 'trash', icon: 'trash', code: 'app.nav.trash', path: '/trash', routes: ['trash'] };
 
-export const KEEPING: readonly KeepingRow[] = [TRASH_ROW];
+// The archive before the trash: what was put aside is the milder of the two, and the one somebody
+// reaches for first when something has gone.
+export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
 
 /** Kept as the name the rest of the client uses for the trash's row. */
 export const TRASH = TRASH_ROW;
