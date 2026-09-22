@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { DESTINATIONS, TRASH, YOU_CODE, account, currentDestination, primary } from './navigation.ts';
+import { DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -25,9 +25,27 @@ test('every destination with a route lands on a route it claims as current', () 
     assert.ok(destination.routes.includes(resolution.name), `${destination.id} lands on ${resolution.name} but does not claim it`);
     assert.equal(currentDestination(resolution), destination.id);
   }
-  const trash = resolve(ROUTES, TRASH.path);
-  assert.equal(trash.name, 'trash');
-  assert.equal(currentDestination(trash), TRASH.id);
+  for (const row of KEEPING) {
+    const resolution = resolve(ROUTES, row.path);
+    assert.ok(resolution.name, `${row.id} points at ${row.path}, which resolves to nothing`);
+    assert.ok(row.routes.includes(resolution.name), `${row.id} lands on ${resolution.name} but does not claim it`);
+    assert.equal(currentDestination(resolution), row.id);
+  }
+});
+
+test('nothing is in two bands, and nothing is outside one', () => {
+  // The three bands are `places` (the primary group), the tree (the containers, which are data
+  // rather than a list here) and `keeping`. A destination in both would be drawn twice, which is
+  // the failure the one list exists to prevent (ADR-0063 decision 1).
+  const places = new Set(primary().map((destination) => destination.id));
+  const keeping = new Set(KEEPING.map((row) => row.id));
+  for (const id of keeping) assert.equal(places.has(id), false, `${id} is in two bands`);
+  assert.equal(keeping.size, KEEPING.length, 'a row of the keeping band is in it twice');
+  // The account group is behind the avatar, not in the column: no band holds it.
+  for (const destination of DESTINATIONS) {
+    if (destination.group !== 'account') continue;
+    assert.equal(places.has(destination.id) || keeping.has(destination.id), false, `${destination.id} is in the column`);
+  }
 });
 
 test('every route a destination claims exists in the table', () => {
@@ -50,6 +68,7 @@ test('the areas are the route table’s, not the list’s', () => {
 
 test('every word is a code the catalogue has', () => {
   for (const destination of DESTINATIONS) assert.ok(destination.code in SOURCE, destination.code);
+  for (const row of KEEPING) assert.ok(row.code in SOURCE, row.code);
   assert.ok(TRASH.code in SOURCE);
   assert.ok(YOU_CODE in SOURCE);
 });

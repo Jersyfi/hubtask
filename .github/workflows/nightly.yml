@@ -97,11 +97,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 16 is the supported floor and runs on every pull request; this job is what lets the
-        # table claim anything beyond it.
-        postgres: ["17-alpine"]
+        # A major, not an image. The entry used to be `17-alpine` and the image was composed as
+        # `postgres:${{ matrix.postgres }}` - a plain build with no pgvector, so every run of this
+        # job died on `db/schema.sql does not apply: extension "vector" is not available`, every
+        # night since 2026-09-09 (#939). The row of the table that claims PostgreSQL 17, and the
+        # half of the pgvector row that claims 17, were resting on it.
+        #
+        # The image family is named here, once, so that a matrix entry chooses a version and
+        # cannot choose a build. `test/dbtest` refuses a database without the extension outright,
+        # which is the same rule stated where it is used rather than only here.
+        postgres: ["17"]
     env:
-      HUBTASK_TEST_POSTGRES_IMAGE: postgres:${{ matrix.postgres }}
+      HUBTASK_TEST_POSTGRES_IMAGE: pgvector/pgvector:pg${{ matrix.postgres }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -123,17 +130,35 @@ jobs:
         with:
           go-version: "1.27.1"
           cache: true
-      - name: Podman with its Compose implementation
+      # Podman as the engine, driven by Compose v2 against Podman's Docker-compatible socket -
+      # which is what `podman compose` does for you and what a Podman host runs today.
+      #
+      # It used to be `podman-compose`, the Python reimplementation, and that is a different claim
+      # than the one the matrix makes. Two of its limitations stood between this job and a green
+      # result, and only the first was ours: it does not honour `depends_on: condition`, so the
+      # migration started beside the database (fixed in the artefact itself - the migrator now
+      # waits, and `gate-compose` proves the stack converges without the guarantee). The second is
+      # not ours to fix: `podman-compose` 1.0.6 starts each container with `podman start <name>`,
+      # and Podman then refuses to resolve a dependency graph that includes the migration
+      # container after it has exited - so the application container is created and never started.
+      # The support matrix says which of the two this row stands for (support-matrix.md §2).
+      - name: Podman, and Compose against its socket
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman podman-compose
+          sudo apt-get install -y podman
           podman --version
+          # The API the Compose plugin talks to. `--time=0` keeps it alive for the whole job.
+          podman system service --time=0 unix:///tmp/podman.sock &
+          for _ in $(seq 1 30); do [ -S /tmp/podman.sock ] && break; sleep 1; done
+          test -S /tmp/podman.sock || { echo "podman's socket never appeared"; exit 1; }
+          docker compose version
       # The same Compose file, the same script, a different engine. deployment.md promises
       # "Docker/Podman"; this is what turns that from a sentence into a claim with evidence.
       - name: The reference stack under Podman
         env:
           DOCKER: podman
-          HUBTASK_COMPOSE: podman-compose
+          HUBTASK_COMPOSE: docker compose
+          DOCKER_HOST: unix:///tmp/podman.sock
         run: make gate-compose
 
   matrix-hubctl:
@@ -310,7 +335,32 @@ jobs:
         with:
           script: |
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const results = Object.entries(${{ toJSON(needs) }});
+
+            // `needs` is a map of job id to `{ result, outputs }`, so the outcome is `.result` and
+            // not the entry itself. Reading the entry as a string is what this job did between
+            // 2026-09-03 and 2026-09-22: every comparison against 'failure' and 'success' was
+            // false, nothing was filed, nothing was closed, and the job went green while three
+            // nightly jobs were red every night (#937).
+            //
+            // So the outcome is now read, and anything that is not an outcome stops the job. That
+            // is the whole lesson: this job's failure mode is silence, and a reporter that cannot
+            // report has to say so rather than pass. If GitHub ever changes the shape of `needs`
+            // again, the nightly turns red on the reporter instead of quietly forgetting its job.
+            const OUTCOMES = ['success', 'failure', 'cancelled', 'skipped'];
+            const results = Object.entries(${{ toJSON(needs) }}).map(([job, outcome]) => {
+              const result = outcome?.result;
+              if (!OUTCOMES.includes(result)) {
+                throw new Error(
+                  `the nightly's reporter cannot read an outcome for '${job}': ` +
+                  `${JSON.stringify(outcome)} - it expected one of ${OUTCOMES.join(', ')} under .result`
+                );
+              }
+              return [job, result];
+            });
+
+            if (results.length === 0) {
+              throw new Error('the nightly\'s reporter was handed no jobs at all - its `needs` list is empty');
+            }
 
             // The title is the identity of the thread, so it is also how one is found again. The
             // search is a phrase match rather than an exact one, so every hit is compared against

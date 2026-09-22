@@ -36,6 +36,8 @@
     itemTypes: readonly Choice[];
     /** The server's refusals, by JSON pointer into the rule's document. */
     errors: ReadonlyMap<string, string>;
+    /** What the check or the draft's own review says at a card, by card (`run_as`, `trigger`, a step path). */
+    marks?: ReadonlyMap<string, string>;
     onupdate: (change: (draft: Draft) => Draft) => void;
     onremovestep: (path: string) => void;
     onremovecondition: (index: number) => void;
@@ -59,6 +61,7 @@
     pickers,
     itemTypes,
     errors,
+    marks,
     onupdate,
     onremovestep,
     onremovecondition,
@@ -96,9 +99,15 @@
    * hunting for it down a panel (decision 24).
    */
   let guardrails = $state<HTMLElement | null>(null);
+  let runAs = $state<HTMLElement | null>(null);
   $effect(() => {
-    if (section !== 'rule' || selection.kind !== 'guardrails' || !guardrails) return;
-    guardrails.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (section !== 'rule') return;
+    const target = selection.kind === 'guardrails' ? guardrails : selection.kind === 'runas' ? runAs : undefined;
+    if (!target) return;
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // The pill that led here is a warning about this field: the reader lands on the field itself,
+    // not beside it (the owner's second testing round).
+    if (selection.kind === 'runas') target.querySelector('select')?.focus({ preventScroll: true });
   });
 
   const step = $derived(selection.kind === 'step' ? stepAt(draft.actions, selection.path) : undefined);
@@ -141,19 +150,21 @@
     />
 {/snippet}
 {#snippet runAsSection()}
+    <div bind:this={runAs}>
     <h3>{t('app.flow.runs_as')}</h3>
     <Select
       label={t('app.rules.runs_as')}
       hint={t('app.flow.run_as_hint')}
-      error={errors.get('/run_as')}
+      error={errors.get('/run_as') ?? marks?.get('run_as')}
       placeholder={t('app.rules.choose_runner')}
       value={draft.runAs}
       options={runners}
       onchange={(event: Event) => {
-        const runAs = value(event);
-        onupdate((current) => ({ ...current, runAs }));
+        const chosen = value(event);
+        onupdate((current) => ({ ...current, runAs: chosen }));
       }}
     />
+    </div>
 {/snippet}
 {#snippet guardrailsSection()}
     <h3 bind:this={guardrails}>{t('app.flow.card_guardrails')}</h3>
@@ -331,7 +342,9 @@
     {#each draft.conditions as expr, index (index)}
       <div class="gcondition" data-condition={index}>
         <div class="ghead">
-          <span class="label">{index > 0 ? `${t('app.flow.chip_and')} · ${t('app.flow.condition_n', { n: index + 1 })}` : t('app.flow.condition_n', { n: index + 1 })}</span>
+          <!-- A rule written here has one condition (decision 30); a stored rule may carry more,
+               from before, and each of those keeps its number and its own remove. -->
+          <span class="label">{draft.conditions.length === 1 ? t('app.flow.the_condition') : index > 0 ? `${t('app.flow.chip_and')} · ${t('app.flow.condition_n', { n: index + 1 })}` : t('app.flow.condition_n', { n: index + 1 })}</span>
           <Button size="sm" tone="subtle" icon="trash" onclick={() => onremovecondition(index)}>{t('app.rules.remove_condition')}</Button>
         </div>
         <Composer
@@ -342,7 +355,9 @@
         />
       </div>
     {/each}
-    <div><Button size="sm" icon="plus" onclick={onaddcondition}>{t('app.flow.add_condition')}</Button></div>
+    {#if draft.conditions.length === 0}
+      <div><Button size="sm" icon="plus" onclick={onaddcondition}>{t('app.flow.add_condition')}</Button></div>
+    {/if}
     <Callout>{t('app.flow.gate_before_writes')}</Callout>
   {:else if selection.kind === 'condition'}
     {@const index = selection.index}

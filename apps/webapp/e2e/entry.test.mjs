@@ -192,7 +192,7 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   const { page, failures, close } = await openEntry(browser, 375);
   t.after(close);
 
-  assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('.title').textContent()).trim(), ENTRY.title);
+  assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent()).trim(), ENTRY.title);
   assert.equal(await page.getByRole('link', { name: COLLECTION.name }).count(), 1, 'the parent as the way up');
   const fold = page.locator('details.details-fold');
   assert.equal(await fold.evaluate((el) => el.open), false, 'the details stand open on a phone');
@@ -216,6 +216,49 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   const indents = await page.locator('.task-row').evaluateAll((rows) => rows.map((row) => getComputedStyle(row).paddingInlineStart));
   assert.deepEqual([...new Set(indents)].sort(), ['0px', '16px'], `the indent steps are ${indents}`);
   assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — the policy chooses only where there is one to choose', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  /** Opens the entry's assignee editor and reads the auto-assign button, with the collection served as given. */
+  const buttonWith = async (policies) => {
+    const { page, context, close } = await signedIn(browser, 1280, 1000);
+    t.after(close);
+    await context.route(`**/api/v1/containers/${COLLECTION.id}`, (route) =>
+      route.fulfill({ json: { ...COLLECTION, policies } }));
+    await page.goto(`${served.origin}/items/${ENTRY.id}`);
+    await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    await page.locator('[data-detail="assignee"]').click();
+    await page.getByRole('dialog', { name: 'Assignee' }).waitFor({ timeout: 5_000 });
+    const state = await page.evaluate(() => {
+      const button = [...document.querySelectorAll('button')].find((each) => each.textContent?.includes('Let the policy choose'));
+      return button ? { disabled: button.disabled, reason: button.nextElementSibling?.textContent ?? null } : null;
+    });
+    await context.close();
+    return state;
+  };
+
+  // Offered where a policy exists, and carrying its reason where none does — rather than
+  // disappearing, because automatic assignment is exactly something somebody might want and be
+  // missing (issue 917, and `domain-model.md` §2's rule that a refusal is never silent).
+  const without = await buttonWith({ completion_policy: 'MANUAL' });
+  assert.equal(without?.disabled, true, 'the policy was offered where the collection has none');
+  assert.match(without?.reason ?? '', /No policy chooses/);
+
+  const with_ = await buttonWith({
+    completion_policy: 'MANUAL',
+    auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: true },
+  });
+  assert.equal(with_?.disabled, false, 'the policy was refused where the collection has one');
+  assert.equal(with_?.reason, null);
+
+  const off = await buttonWith({
+    completion_policy: 'MANUAL',
+    auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: false },
+  });
+  assert.equal(off?.disabled, true, 'a policy that is switched off still offered to choose');
 });
 
 test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {

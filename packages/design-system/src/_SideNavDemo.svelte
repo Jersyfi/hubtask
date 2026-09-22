@@ -4,7 +4,7 @@
   import Box from './Box.svelte';
   import SideNav, { type NavNode } from './SideNav.svelte';
 
-  const { mode = 'tree', isRail = false }: { mode?: 'tree' | 'flat' | 'long'; isRail?: boolean } = $props();
+  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
   // shape F2-08 will hand this component for real.
@@ -50,15 +50,25 @@
   ];
 
   let expanded = $state(['private', 'work']);
+  let nav = $state<HTMLElement | null>(null);
+
+  // The story opens one branch's flyout so that the shape can be looked at, the way a menu story
+  // shows the menu rather than the button. It presses the row, because the flyout's state is the
+  // component's own and a prop for it would be state as a prop.
+  $effect(() => {
+    if (!opened || !nav) return;
+    const row = nav.querySelector(`[data-node="${opened}"]`);
+    if (row instanceof HTMLElement) row.click();
+  });
   const nodes = $derived(mode === 'flat' ? flat : mode === 'long' ? long : tree);
 </script>
 
 <!-- No inline `style` on the primitive: ADR-0028's `style-src` has no `'unsafe-inline'`, so a
      width written there is a rule the browser refuses — silently, and in production only. The
      demo's own stylesheet is where a demo's layout belongs. -->
-<div class="pane" data-rail={isRail ? '' : undefined}>
+<div class="pane" data-rail={isRail ? '' : undefined} bind:this={nav}>
   <Box padding="100">
-    <SideNav label="Workspace" {nodes} current="renovation" {isRail} bind:expanded />
+    <SideNav label="Workspace" {nodes} current="renovation" {isRail} flyoutLabel={(name) => `Inside ${name}`} bind:expanded />
   </Box>
 </div>
 

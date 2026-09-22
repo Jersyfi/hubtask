@@ -192,10 +192,19 @@
     <span class="ghead">
       <span class="mark condition-mark"><Icon name="funnel" size="sm" /></span>
       <span class="title">{t('app.flow.card_only_when')}</span>
-      <span class="hint">{draft.conditions.length > 0 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
+      <!-- Nothing to say where there is one condition: one is the most there can be (decision 30).
+           A stored rule from before may carry several, and then how they join is worth saying. -->
+      {#if draft.conditions.length !== 1}
+        <span class="hint">{draft.conditions.length > 1 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
+      {/if}
     </span>
+    <!-- One condition is the gate itself (decision 30): it is not a second thing to click, and
+         the click goes through to the gate, whose panel is where it is edited. Only a stored rule
+         with several keeps them apart, one card each. -->
     {#each draft.conditions as expr, index (index)}
+      {@const several = draft.conditions.length > 1}
       {@const verdict = verdicts?.get(`conditions/${index}`)}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="condition"
         class:selected={isSelected('condition', index)}
@@ -204,16 +213,20 @@
         class:no={verdict?.state === 'no'}
         class:faded={dimUnvisited && verdict === undefined}
         data-card={`conditions/${index}`}
-        role="button"
-        tabindex="0"
-        onclick={(event) => {
-          event.stopPropagation();
-          onselect({ kind: 'condition', index });
-        }}
-        onkeydown={(event) => {
-          event.stopPropagation();
-          onkey(event, () => onselect({ kind: 'condition', index }));
-        }}
+        role={several ? 'button' : undefined}
+        tabindex={several ? 0 : undefined}
+        onclick={several
+          ? (event) => {
+              event.stopPropagation();
+              onselect({ kind: 'condition', index });
+            }
+          : undefined}
+        onkeydown={several
+          ? (event) => {
+              event.stopPropagation();
+              onkey(event, () => onselect({ kind: 'condition', index }));
+            }
+          : undefined}
       >
         {#if index > 0}<span class="and">{t('app.flow.sentence_and').trim()}</span>{/if}
         <span class="body">
@@ -223,16 +236,21 @@
         {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
       </div>
     {/each}
-    <button
-      class="add"
-      type="button"
-      onclick={(event) => {
-        event.stopPropagation();
-        onaddcondition();
-      }}
-    >
-      <Icon name="plus" size="sm" />{t('app.flow.add_condition')}
-    </button>
+    <!-- One condition, and it can hold everything (decision 30): a condition is a tree of
+         sentences under *all of* / *any of* / *none of*, so a second one beside it would be a
+         second way to write the same *and*. The way in is offered while there is none. -->
+    {#if draft.conditions.length === 0}
+      <button
+        class="add"
+        type="button"
+        onclick={(event) => {
+          event.stopPropagation();
+          onaddcondition();
+        }}
+      >
+        <Icon name="plus" size="sm" />{t('app.flow.add_condition')}
+      </button>
+    {/if}
   </div>
 
   <InsertMenu {kinds} {summaries} {usage} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />

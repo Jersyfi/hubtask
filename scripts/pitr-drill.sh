@@ -25,6 +25,27 @@ TAG="${1:?usage: pitr-drill.sh <image tag>}"
 IMAGE="${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}"
 NAMESPACE="${PITR_NAMESPACE:-hubtask-pitr}"
 CLUSTER="hubtask-db"
+
+# The CloudNativePG series A-12's rules read, and what this installation expects of each.
+#
+# Both lists are reconciled with deploy/observability/alerts/prometheus-rules-pitr.yaml by
+# test/observability on every pull request: every name a rule reads has to appear in one of them,
+# and every name here has to be read by a rule. Without that, a list drifts from the file it
+# claims to check and goes on reporting confidently - `cnpg_collector_up` sat in it for months
+# without a single rule reading it (#940).
+#
+# Required: published by the instance manager's own collector, on the primary, once the cluster
+# has a backup configured - which the step above has just waited for.
+PITR_REQUIRED_METRICS="cnpg_collector_pg_wal_archive_status
+cnpg_collector_first_recoverability_point
+cnpg_collector_last_available_backup_timestamp"
+
+# Absent by design here. `cnpg_pg_replication_lag` comes from the operator's default monitoring
+# queries rather than from the Go collector, and it has a value only where there is a standby to
+# measure. ADR-0046 decided one instance - what protects this installation is the archive, not a
+# replica - so the rule that reads it is written for the day a second instance is added and is
+# silent until then. That is a decision, so it is written down rather than left as a gap.
+PITR_ABSENT_METRICS="cnpg_pg_replication_lag"
 DRILL_CLUSTER="hubtask-db-drill"
 BUCKET="hubtask-backups"
 MEDIA_BUCKET="hubtask-media"
@@ -277,21 +298,38 @@ echo "--- the metric names A-12's rules read, against a real instance ---"
 # The half a promtool test cannot prove: that the operator publishes these series under these
 # names. A rule reading a name nobody emits is silent rather than noisy, so a rename has to turn
 # this build red (observability-reliability.md §11).
+#
+# The list is PITR_REQUIRED_METRICS below, and `test/observability` reconciles it with the rules
+# file in both directions on every pull request - a list that drifts from the rules it claims to
+# check is the failure this whole section exists to prevent, and it had already happened:
+# `cnpg_collector_up` stood here for months and no rule has ever read it (#940).
 cnpg_metrics="$(fetch "pod/$CLUSTER-1" 9187 /metrics)" || fail "the database's metrics port did not answer"
 missing=0
-for metric in \
-	cnpg_collector_pg_wal_archive_status \
-	cnpg_collector_first_recoverability_point \
-	cnpg_collector_last_available_backup_timestamp \
-	cnpg_collector_up; do
-	if ! printf '%s' "$cnpg_metrics" | grep -q "^# TYPE $metric "; then
+for metric in $PITR_REQUIRED_METRICS; do
+	# Into a variable and matched from there, never through a pipe. `grep -q` leaves on its first
+	# match, the writer gets SIGPIPE, and `set -o pipefail` at the top of this script then turns a
+	# *match* into a failed pipeline: a metric that is published is reported missing, and whether it
+	# happens depends on where in the payload the match falls. That is how this check spent every
+	# night since 2026-09-08 reporting three names the operator publishes perfectly well (#940).
+	if grep -q "^# TYPE $metric " <<<"$cnpg_metrics"; then
+		echo "  $metric"
+	else
 		echo "  MISSING: $metric is read by deploy/observability/alerts/prometheus-rules-pitr.yaml"
 		missing=1
-	else
-		echo "  $metric"
 	fi
 done
 [ "$missing" -eq 0 ] || fail "a rule reads a metric this operator does not publish"
+
+# And the names a rule reads that this installation is not expected to publish. They are named
+# rather than omitted, because an unexplained absence from the list above is indistinguishable
+# from a forgotten one - which is exactly how the list drifted in the first place.
+for metric in $PITR_ABSENT_METRICS; do
+	if grep -q "^# TYPE $metric " <<<"$cnpg_metrics"; then
+		echo "  $metric (published after all - the reason it was excused no longer holds)"
+	else
+		echo "  $metric: absent by design, see PITR_ABSENT_METRICS"
+	fi
+done
 
 echo "--- the drill: a restore to a point between two writes ---"
 # Run the way a release runs it: `helm upgrade` fires the post-upgrade hook, and --wait waits for

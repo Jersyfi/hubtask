@@ -73,6 +73,7 @@ export const ROUTES: readonly Route[] = [
   // `AUTOMATION`, and the server refuses that on the screen.
   { name: 'jumble', pattern: '/jumble' },
   { name: 'trash', pattern: '/trash' },
+  { name: 'archive', pattern: '/archive' },
   // The address the board's cards and the search results have linked to since F2-11. An entry is
   // a thing with its own history (F2-15), so it is a screen rather than a row somewhere.
   { name: 'item', pattern: '/items/:id' },

@@ -630,6 +630,28 @@ additive things, the check two findings. Eight decisions:
     that a review complains about can still be saved — the review says what will happen, it does
     not decide.
 
+**Two more, from his second pass over the round:**
+
+30. **The gate holds one condition.** Decision 28 gave the gate's panel every condition, each
+    under its *and* — and the owner asked why there are several at all, since the first one can
+    already say everything: a condition is a tree of sentences under *all of* / *any of* /
+    *none of*, nested as deep as the writer likes (decision 3). A second condition beside it is a
+    second way to write the same *and*, and two ways to write one thing is what this concept
+    keeps refusing. So the editor offers exactly one: the way in is there while there is none,
+    and gone once there is one. **Nothing about the contract changes** — `conditions` stays an
+    array and the engine still ands them — and a stored rule that carries several keeps them,
+    each with its own remove, because the client does not silently rewrite what somebody wrote.
+    It follows that **the one condition is the gate**: it is not a card of its own to select
+    beside it, the gate's head says nothing about how conditions join where there is only one to
+    join, and a click anywhere in the block opens the one panel that edits it. Only a rule that
+    carries several keeps them apart, one card each.
+31. **A page that fills the region takes its height too.** `page.fill()` (issue 918) said a
+    canvas draws its own edges; it did not say how tall the region is, so the editor grew past
+    the fold and the panel — as tall as the viewport but starting below everything above it —
+    ended out of reach, cut off at the bottom. A filled page is one screen: the frame gives it a
+    region of a definite height, and what scrolls inside it is the canvas and the panel, each on
+    its own. The page itself does not scroll.
+
 
 ## F8-15 — The manifest says more about each action: summary, rule flag, format **[L]**
 

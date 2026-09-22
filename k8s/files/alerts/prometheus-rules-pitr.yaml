@@ -24,6 +24,12 @@
 # turning this file into decoration. Every name here was read from the operator's own source and
 # sample scrape at v1.30.0 before it was written down.
 #
+# That scrape needs a cluster and therefore a nightly. What does not need one is that the drill
+# and this file agree about which names are in play, and `test/observability` reconciles the two
+# on every pull request - in both directions, because the drill's list had drifted from this file
+# without anybody noticing (#940). A name a rule reads is either required of the scrape or
+# excused in `PITR_ABSENT_METRICS` with its reason; there is no third state.
+#
 # **Two of them are deprecated, and are used anyway - deliberately.**
 # `cnpg_collector_last_available_backup_timestamp` and `cnpg_collector_first_recoverability_point`
 # carry a deprecation notice since operator 1.26, and the notice says they keep working for exactly
