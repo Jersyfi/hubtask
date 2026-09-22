@@ -110,9 +110,15 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 
 // The other direction is a warning in CI, not an error (i18n-l10n.md §3) - a code may be
 // prepared before its use lands. Reported so it does not rot unnoticed.
+//
+// Indexed rather than searched. Asking `strings.Contains` once per key walked the whole source
+// 3754 times and took 17 of this package's 20 seconds - which `gate-selftest` then paid for 25
+// times over, because every one of its probes runs `make gate-architecture` (#911). The index
+// below answers the same question in half a second and reports the same keys.
 func TestUnusedCatalogueEntriesAreReported(t *testing.T) {
 	messages := loadCatalogue(t)
 	source := readAllSources(t)
+	quoted := quotedTokens(source)
 
 	for key := range messages {
 		if strings.HasPrefix(key, "_") {
@@ -124,11 +130,62 @@ func TestUnusedCatalogueEntriesAreReported(t *testing.T) {
 		if bare, ok := strings.CutPrefix(key, "errors."); ok {
 			needle = bare
 		}
-		// Both quote styles: Go writes "route.unknown" and the client writes 'route.unknown'.
-		if !strings.Contains(source, `"`+needle+`"`) && !strings.Contains(source, `'`+needle+`'`) {
-			t.Logf("note: %s is in the catalogue but used nowhere", key)
+		if _, used := quoted[needle]; used {
+			continue
+		}
+		// The index holds every quoted run of key characters there is, so for a key made of
+		// those it is the whole answer. A key with a character outside that set could not be in
+		// it either way, and is asked of the source directly rather than called unused.
+		if !isKeyToken(needle) &&
+			(strings.Contains(source, `"`+needle+`"`) || strings.Contains(source, `'`+needle+`'`)) {
+			continue
+		}
+		t.Logf("note: %s is in the catalogue but used nowhere", key)
+	}
+}
+
+// isKeyToken reports whether a catalogue key consists only of the characters a quoted token in
+// the index can be made of.
+func isKeyToken(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := 0; i < len(key); i++ {
+		if !isKeyChar(key[i]) {
+			return false
 		}
 	}
+	return true
+}
+
+func isKeyChar(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
+		c == '_' || c == '.' || c == '-'
+}
+
+// quotedTokens collects every run of key characters that the source has directly enclosed in `"`
+// or `'` - which is exactly the shape a use of a message code has, in Go as in TypeScript.
+//
+// A candidate starts at every quote character rather than at every *opening* one: pairing them
+// off would need to know what is a string and what is prose, and an apostrophe in an English
+// comment would then swallow the literal behind it. Starting everywhere cannot miss a `"code"`
+// that is really there; it can only add a token that no key will ask about.
+func quotedTokens(source string) map[string]struct{} {
+	tokens := make(map[string]struct{}, 4096)
+	for i := 0; i < len(source); i++ {
+		quote := source[i]
+		if quote != '"' && quote != '\'' {
+			continue
+		}
+		end := i + 1
+		for end < len(source) && isKeyChar(source[end]) {
+			end++
+		}
+		if end > i+1 && end < len(source) && source[end] == quote {
+			tokens[source[i+1:end]] = struct{}{}
+		}
+	}
+	return tokens
 }
 
 // A parameter in a message has to be filled by somebody. This catches the mismatch that produces
