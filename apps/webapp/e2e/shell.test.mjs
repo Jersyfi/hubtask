@@ -235,6 +235,20 @@ for (const width of [905, 1280]) {
     await page.getByRole('button', { name: 'Expand the navigation' }).click();
     assert.equal(await aside.evaluate((el) => el.getBoundingClientRect().width), pinned);
 
+    // The connection is one mark in the bar, and no line of the page (ADR-0063 decision 5). At its
+    // quietest it says nothing until it is pressed; what the line used to print is behind it.
+    const mark = page.getByRole('banner', { name: 'Application bar' }).locator('.trigger');
+    assert.equal(await mark.count(), 1, `${width}: the connection is not in the bar`);
+    assert.equal(await mark.getAttribute('aria-label'), 'Connected');
+    assert.ok(await mark.evaluate((el) => el.hasAttribute('data-quiet')), `${width}: the quiet case is not quiet`);
+    assert.equal(await page.locator('main').getByText(/Connected|Reconnecting/).count(), 0, `${width}: a line of the page still says it`);
+    await mark.click();
+    const surface = page.getByRole('dialog', { name: 'The copy and the server' });
+    await surface.waitFor({ timeout: 5_000 });
+    assert.equal(await surface.getByText('Connected').count(), 1, `${width}: what it opened does not say the state`);
+    await page.keyboard.press('Escape');
+    await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+
     // Every destination, through the tree and the menu.
     await tree.getByRole('treeitem', { name: 'Jumble' }).click();
     assert.equal(new URL(page.url()).pathname, '/jumble');

@@ -9,7 +9,7 @@
   import TaskRow from './TaskRow.svelte';
   import WorkItemCard from './WorkItemCard.svelte';
 
-  const { mode = 'connected' }: { mode?: 'connected' | 'reconnecting' | 'offline' | 'refused' | 'rows' } = $props();
+  const { mode = 'connected', isSheet = false }: { mode?: 'connected' | 'reconnecting' | 'offline' | 'refused' | 'rows'; isSheet?: boolean } = $props();
 
   const WORDS: Record<Connection, string> = {
     connected: 'Connected',
@@ -48,7 +48,8 @@
     syncedLabel={mode === 'connected' ? 'Synchronised at 21:05' : 'Last synchronised at 20:41'}
     queued={pending > 0 ? queued : []}
     refused={mode === 'refused' ? refused : []}
-    listLabel="Changes waiting to be sent"
+    listLabel="The copy and the server"
+    {isSheet}
     emptyLabel="Nothing is waiting."
     refusedLabel="Not accepted"
     dismissLabel="Dismiss"

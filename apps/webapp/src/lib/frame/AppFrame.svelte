@@ -238,6 +238,11 @@
       <a class="wordmark" href="/">Hubtask</a>
     {/snippet}
     {#snippet end()}
+      <!-- The copy and the server, as one mark (ADR-0063 decision 5): connected, reconnecting or
+           offline; what waits to be sent and what the server refused; when the copy last
+           synchronised. It was a line of every page that read "Connected" at its quietest; now the
+           ordinary case says nothing until it is pressed, and what it said is behind it, whole. -->
+      <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn && !viewport.isCompact}
@@ -262,12 +267,6 @@
       {/if}
       <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
       <HealthNotice />
-      <!-- The copy and the server, on every route (F6-06): connected, reconnecting or offline;
-           what waits to be sent and what the server refused; when the copy last synchronised.
-           `SyncLine` feeds `SyncStatus` from the stream's state and the engine's queue. -->
-      <div class="live">
-        <SyncLine />
-      </div>
     </Stack>
   </div>
 
@@ -337,8 +336,6 @@
 </div>
 
 <style>
-  .live { display: flex; }
-
   .frame {
     display: flex;
     flex-direction: column;
