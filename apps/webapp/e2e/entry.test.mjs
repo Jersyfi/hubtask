@@ -171,6 +171,13 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.getByRole('feed').or(page.getByText(/Nothing has happened|No history|nothing/i)).first().waitFor({ timeout: 5_000 }).catch(() => {});
   assert.equal(await page.getByRole('tab', { name: 'History' }).getAttribute('aria-selected'), 'true');
 
+  // The trail leads somewhere. Last, because it leaves the page: the entry screen is the one that
+  // is rendered without the frame's navigator unless it is handed one, and a crumb that only
+  // looked like a link is what issue 914 was.
+  await trail.getByRole('link', { name: COLLECTION.name }).click();
+  await page.waitForFunction((id) => location.pathname === `/collections/${id}`, COLLECTION.id, { timeout: 5_000 }).catch(() => {});
+  assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the trail did not navigate');
+
   assert.deepEqual(failures, []);
 });
 
