@@ -56,6 +56,14 @@ export interface SearchAsked {
   /** A hub or a collection to look in. Omitted searches everything the caller may see. */
   readonly containerId?: string;
   /**
+   * What narrows the hits, in the grammar the item query uses (ADR-0064).
+   *
+   * It travels as it was built — `searchfilters.ts` composes it and the domain reads it — and it
+   * is what makes a search askable without words at all: a filter with no term is a work list,
+   * ordered by when it is due rather than ranked.
+   */
+  readonly filter?: unknown;
+  /**
    * The reader's own language, and the ones this installation indexes text in.
    *
    * Handed in rather than read here, for the reason every other store gives: the manifest is read
@@ -153,7 +161,9 @@ class Search {
    */
   async run(asked: SearchAsked): Promise<void> {
     const term = asked.q.trim();
-    if (term === '') {
+    // Neither words nor a narrowing is not a search; it is the empty screen this started on. With
+    // one of the two it is a question the contract answers (ADR-0064).
+    if (term === '' && asked.filter === undefined) {
       this.reset();
       return;
     }
@@ -183,7 +193,10 @@ class Search {
         asked.textLanguages ?? [],
         asked.preferredLanguages ?? [],
       );
-      if (shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
+      // Only a search for *words* is widened by language. A filter with none found nothing
+      // because nothing matches it, and asking the same filter under thirty configurations would
+      // be thirty identical answers (ADR-0034's widening is about how a query is read).
+      if (term !== '' && shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
         if (!(await this.#widen(term, asked, wider, mine))) return;
       }
 
@@ -281,7 +294,8 @@ class Search {
         'POST',
         '/search',
         {
-          q: term,
+          ...(term === '' ? {} : { q: term }),
+          ...(asked.filter === undefined ? {} : { filter: asked.filter }),
           // The chosen language wins over the widening one: somebody who picked asked a precise
           // question. Neither ever reaches a URL — this is a `POST` because a search term is
           // content and a query string travels through access logs (security.md §9).
