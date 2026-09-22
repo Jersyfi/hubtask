@@ -30,6 +30,12 @@ ADR-0035 decided, and the client's maturity stage stays `preview`.
 
 Every task is one pull request. The order is binding where dependencies exist.
 
+**Seventeen tasks, not fifteen.** F10-16 and F10-17 joined the cut on 2026-09-22: the first is
+ADR-0061's own contract for the compact bar, which the walk found is true of three pages and not
+of twenty-six; the second is three fields the contract promises and the descriptor refuses. Both
+were open issues with nowhere to be, and both are this milestone's subject — one is the shell's
+promise, the other is the rule that the contract is the source.
+
 Legend: **[L]** = best done locally with Claude Code. Both markers are **[L]** during the initial
 phase (`CLAUDE.md`).
 
@@ -342,6 +348,50 @@ a usable range.
 
 **Read:** `apps/webapp/src/lib/entries/TimelineView.svelte`, `DuePanel.svelte`; ADR-0063
 decision 12
+
+---
+
+## F10-16 — The compact bar's contract, on every page **[L]**
+
+*Depends on: F10-02. Issue #904.*
+
+ADR-0061 decision 1's table says what the app bar holds at each width, and on `compact` that is
+**☰ · the page title · the page menu**. Two thirds of it are true: the title arrives through
+`page.entitle`, which a view calls and most do not, and the bar has no page-menu slot at all — so
+a screen whose actions folded into a menu has nowhere to put it on a phone. `AppBar` gains the
+third slot, `PageHeader` hands its menu up into it where `isTitleInBar`, and every view that draws
+an `h1` entitles the bar.
+
+Nothing here collides with ADR-0063: the bar gains a search field from `medium` up (F10-05) and
+the connection mark on every width (F10-06), and neither is in the compact bar's three.
+
+**Acceptance:** a test walks every route and asserts that at 375 px the bar carries the page's
+title and, where the page has a menu, its menu; the count of pages that entitle nothing is zero.
+
+**Read:** `packages/design-system/src/AppBar.svelte`, `PageHeader.svelte`,
+`apps/webapp/src/lib/frame/page.svelte.ts`; ADR-0061 decision 1
+
+---
+
+## F10-17 — The three fields `WorkItemCreate` promises **[L]**
+
+*Depends on: nothing. Issue #896. A **core** task, in this milestone because this milestone found
+it.*
+
+Rule 11: `openapi.yaml` is the source, not the result. `WorkItemCreate` declares `cover`,
+`custom_fields` and `before_item_id`; the use-case descriptor declares none of them, so all three
+are refused with `usecase.field_unknown`. The contract is the side that is right.
+
+The shape is the one #897 proved for `label_ids` and `member_ids`: the create dispatches into the
+writer that owns each field, inside its own transaction, with that writer's guards and its records.
+`cover` is a value on the item; `custom_fields` is a map write against the collection's
+definitions; `before_item_id` is a rank anchor, which `anchorFor` already computes for a move.
+
+**Acceptance:** `make verify` green; the integration test that probes every field of
+`WorkItemCreate` by name stops listing these three as "not yet"; a refusal names the field.
+
+**Read:** `core/application/service/work/CreateWorkItem.go`, `AddLabel.go` (the `addWithin`
+shape), `core/domain/model/work/Cover.go`, `test/integration/create_work_item_test.go`
 
 ---
 

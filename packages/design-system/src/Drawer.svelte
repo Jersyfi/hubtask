@@ -294,7 +294,10 @@
   /* While it is being pulled below the floor: what letting go now would do, said by the sheet. */
   .drawer.letting { opacity: 0.8; }
 
-  .drawer.sized .panel { block-size: 100%; min-block-size: 0; }
+  /* The border box is the sheet's height. The project has no global `box-sizing`, so a
+     percentage height plus this panel's own padding stood past the sheet's bottom edge, where
+     `overflow: hidden` cut off the padding and the lower half of the last control with it. */
+  .drawer.sized .panel { box-sizing: border-box; block-size: 100%; min-block-size: 0; }
 
   .drawer.sized .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
 
