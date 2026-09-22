@@ -587,3 +587,62 @@ func TestTheRunListingPagesAndFilters(t *testing.T) {
 		}
 	}
 }
+
+// A rule carries its most recent run when it is read - the newest by its start, failed or not -
+// and a rule that never ran carries none (F8-21). The list reads a page of rules with one
+// statement for the runs, so the card says "last run" without a runs request per rule.
+func TestARuleIsReadWithItsLastRun(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	ran := seedRule(ctx, t, tenantA, nil)
+	idle := seedRule(ctx, t, tenantA, nil)
+
+	first := startedRun(t, tenantA, ran.ID)
+	second := startedRun(t, tenantA, ran.ID)
+	second.StartedAt = first.StartedAt.Add(time.Minute)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := automationRuns().Start(ctx, first); err != nil {
+			return err
+		}
+		if err := automationRuns().Start(ctx, second); err != nil {
+			return err
+		}
+		return automationRuns().Finish(ctx, second.Fail("access.not_permitted", second.StartedAt.Add(time.Second)))
+	}); err != nil {
+		t.Fatalf("writing the runs: %v", err)
+	}
+
+	var found, never domain.Rule
+	var page repository.Page
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		if found, err = automationRules().Find(ctx, ran.ID); err != nil {
+			return err
+		}
+		if never, err = automationRules().Find(ctx, idle.ID); err != nil {
+			return err
+		}
+		page, err = automationRules().List(ctx, repository.Query{Size: 200})
+		return err
+	}); err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if found.LastRun == nil || !found.LastRun.At.Equal(second.StartedAt) || found.LastRun.Status != domain.RunFailed {
+		t.Errorf("the rule that ran carries %+v, want the second run, FAILED", found.LastRun)
+	}
+	if never.LastRun != nil {
+		t.Errorf("the rule that never ran carries %+v", never.LastRun)
+	}
+	for _, rule := range page.Rules {
+		switch rule.ID {
+		case ran.ID:
+			if rule.LastRun == nil || rule.LastRun.Status != domain.RunFailed {
+				t.Errorf("the listing carries %+v for the rule that ran", rule.LastRun)
+			}
+		case idle.ID:
+			if rule.LastRun != nil {
+				t.Errorf("the listing carries %+v for the rule that never ran", rule.LastRun)
+			}
+		}
+	}
+}

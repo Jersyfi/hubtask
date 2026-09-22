@@ -2243,6 +2243,10 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// The subjects that are not an entry (issue 814): the rule that was switched off,
+			// the subscription that stopped being called.
+			Rules:         postgres.NewAutomationRuleRepository(cursors),
+			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 			// The workspace's default language for a recipient who has not chosen one (#603),
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,

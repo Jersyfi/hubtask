@@ -9,7 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -477,5 +480,118 @@ func TestARecipientWithoutALocaleIsWrittenToInTheWorkspacesLanguage(t *testing.T
 				t.Errorf("the subject was %q", fixture.mailbox.sent[0].Subject)
 			}
 		})
+	}
+}
+
+// ruleReader answers one rule by name, or not found.
+type ruleReader struct{ rules map[shared.ID]automation.Rule }
+
+func (r ruleReader) Find(_ context.Context, id shared.ID) (automation.Rule, error) {
+	rule, ok := r.rules[id]
+	if !ok {
+		return automation.Rule{}, shared.ErrNotFound.WithDetail("automation.rule_not_found")
+	}
+	return rule, nil
+}
+
+// subscriptionReader answers one subscription, or not found.
+type subscriptionReader struct {
+	stored map[shared.ID]integrationrepo.StoredSubscription
+}
+
+func (r subscriptionReader) Find(_ context.Context, id shared.ID) (integrationrepo.StoredSubscription, error) {
+	stored, ok := r.stored[id]
+	if !ok {
+		return integrationrepo.StoredSubscription{}, shared.ErrNotFound.WithDetail("integrations.subscription_not_found")
+	}
+	return stored, nil
+}
+
+// A message about a rule (issue 814) is rendered in the rule's own words with the rule's name
+// as its title and a link to the rule's screen; the entry is never asked for. A rule that is gone
+// leaves the withheld sentence, as an entry that is gone does.
+func TestAMessageAboutARuleNamesTheRuleAndLinksToIt(t *testing.T) {
+	ruleID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f1")
+	fixture := delivery(t, domain.CategoryIntegration, false)
+	record, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f2"), TenantID: tenant,
+		RecipientID: bert, Category: domain.CategoryIntegration, Channel: domain.ChannelEmail,
+		RuleID: ruleID, At: now,
+	})
+	if err != nil {
+		t.Fatalf("building the record: %v", err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+		t.Fatalf("seeding the record: %v", err)
+	}
+	fixture.delivery.Rules = ruleReader{rules: map[shared.ID]automation.Rule{ruleID: {ID: ruleID, Name: "Escalate overdue work"}}}
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Subject, "email.rule_disabled.subject") || strings.Contains(message.Subject, "withheld") {
+		t.Errorf("the subject is %q rather than the rule's", message.Subject)
+	}
+	if !strings.Contains(message.Subject, "title=Escalate overdue work") {
+		t.Errorf("the subject does not name the rule: %q", message.Subject)
+	}
+	if !strings.Contains(message.Body, "link="+baseURL+"/administration/rules/"+ruleID.String()) {
+		t.Errorf("the body links elsewhere: %q", message.Body)
+	}
+
+	// The rule gone: the withheld sentence, still the rule's.
+	fixture.delivery.Rules = ruleReader{}
+	gone, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f3"), TenantID: tenant,
+		RecipientID: bert, Category: domain.CategoryIntegration, Channel: domain.ChannelEmail,
+		RuleID: ruleID, At: now,
+	})
+	if err != nil {
+		t.Fatalf("building the second record: %v", err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), gone); err != nil {
+		t.Fatalf("seeding the second record: %v", err)
+	}
+	if err := fixture.delivery.Execute(t.Context(), tenant, gone.ID, false); err != nil {
+		t.Fatalf("delivering the second: %v", err)
+	}
+	if last := fixture.mailbox.sent[len(fixture.mailbox.sent)-1]; !strings.Contains(last.Subject, "email.rule_disabled.subject.withheld") {
+		t.Errorf("a gone rule rendered %q", last.Subject)
+	}
+}
+
+// A message about a subscription names its host and nothing more of the address, and links to
+// the integrations screen.
+func TestAMessageAboutASubscriptionNamesTheHostOnly(t *testing.T) {
+	subscriptionID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f4")
+	fixture := delivery(t, domain.CategoryIntegration, false)
+	record, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f5"), TenantID: tenant,
+		RecipientID: bert, Category: domain.CategoryIntegration, Channel: domain.ChannelEmail,
+		SubscriptionID: subscriptionID, At: now,
+	})
+	if err != nil {
+		t.Fatalf("building the record: %v", err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+		t.Fatalf("seeding the record: %v", err)
+	}
+	fixture.delivery.Subscriptions = subscriptionReader{stored: map[shared.ID]integrationrepo.StoredSubscription{
+		subscriptionID: {Subscription: integration.WebhookSubscription{ID: subscriptionID, TargetURL: "https://hooks.example.org/secret-path-token"}},
+	}}
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Subject, "email.integration.subject") || !strings.Contains(message.Subject, "title=hooks.example.org") {
+		t.Errorf("the subject is %q", message.Subject)
+	}
+	if strings.Contains(message.Subject+message.Body, "secret-path-token") {
+		t.Errorf("the message repeats the address's path: %q", message.Body)
+	}
+	if !strings.Contains(message.Body, "link="+baseURL+"/administration/webhooks") {
+		t.Errorf("the body links elsewhere: %q", message.Body)
 	}
 }
