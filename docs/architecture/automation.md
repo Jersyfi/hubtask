@@ -299,9 +299,11 @@ Three things the web client decided about the shape of a rule on screen, and eve
 copy: the rule is drawn as a path - the trigger, a gate holding every condition, the chain of
 actions with `BRANCH` as a fork that rejoins (or as a ladder, *if / else if / else*, where an
 else arm holds only another branch) and `STOP` - *End the run* - only at the end of an arm, the
-run ending where the chain ends and nothing after a step that ends every path, the guardrails
-standing apart; the canvas shows and a panel beside it sets (`milestone-F8.md`, the third round,
-decisions 16-20) - because §1's model is a list with nested branches and a free graph would draw
+run ending where the chain ends and nothing after a step that ends every path; the canvas shows
+and a panel beside it sets (`milestone-F8.md`, the third round, decisions 16-20), and what bounds
+the rule rather than travelling it - the account it runs as, where it applies, `on_error` and the
+throttle - is said in the head and set in one place, never drawn as a card on the path
+(decision 24) - because §1's model is a list with nested branches and a free graph would draw
 freedoms the engine does not have; a condition is composed as a sentence over a bounded set of subjects and stored as
 the CEL of §1.2, read back by the shapes the composer writes and shown as an expression
 otherwise; and the name is generated from the trigger and the first steps until somebody owns it,
