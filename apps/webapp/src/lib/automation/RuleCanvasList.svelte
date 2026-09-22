@@ -44,6 +44,8 @@
     onnudge: (path: string, direction: -1 | 1) => void;
     /** Append a rung - an *else if* - under the ladder that starts at the branch (decision 19). */
     onaddrung: (path: string) => void;
+    /** Remove one rung of a ladder, its *otherwise* going to the rung above (decision 28). */
+    onremoverung: (path: string) => void;
     /** The drag in flight, and what happens when it starts, ends, or lands on a gap. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
@@ -58,7 +60,7 @@
 
   const {
     steps, actions, prefix, kinds, summaries = {}, usage = new Map(), names, selection, marks, describe, onselect, oninsert, onremove, onfold,
-    onnudge, onaddrung, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
+    onnudge, onaddrung, onremoverung, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
   const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
@@ -219,7 +221,18 @@
       <button class="folded" type="button" onclick={() => onfold(path)}>
         <Icon name="git-branch" size="sm" />
         <span>
-          {t('app.flow.card_folded', { then: countSteps(step.then ?? []), else: countSteps(step.else ?? []) })}
+          <!-- A ladder folded says how many conditions it asks and how many steps hang off them:
+               counting the next rung as one step of *otherwise* was the line the owner read as
+               wrong, and it was (decision 28). -->
+          {#if isRung(step)}
+            {@const ladder = rungsOf(step, path)}
+            {t('app.flow.card_folded_ladder', {
+              rungs: ladder.length,
+              steps: ladder.reduce((sum, rung) => sum + countSteps(rung.step.then ?? []), 0) + countSteps(ladder[ladder.length - 1]?.step.else ?? []),
+            })}
+          {:else}
+            {t('app.flow.card_folded', { then: countSteps(step.then ?? []), else: countSteps(step.else ?? []) })}
+          {/if}
         </span>
       </button>
     {:else if isRung(step)}
@@ -246,6 +259,17 @@
                   <Icon name="funnel" size="sm" /><ConditionWords expr={String(rung.step.params.condition ?? '')} {names} />
                   {#if verdicts?.get(rung.path)}{@const v = verdicts.get(rung.path)!}<span class="verdict inline" class:yes={v.state === 'yes'} class:no={v.state === 'no'}><Icon name={v.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(v)}</span>{/if}
                 </button>
+                <!-- A rung is removed where every other card is removed: by its own trash. What
+                     it held as *otherwise* goes to the rung above (decision 28). -->
+                <button
+                  class="rtool"
+                  type="button"
+                  aria-label={t('app.flow.remove_else_if')}
+                  data-remove-rung={rung.path}
+                  onclick={() => onremoverung(rung.path)}
+                >
+                  <Icon name="trash" size="sm" />
+                </button>
                 {#if marks?.get(rung.path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(rung.path)}</span>{/if}
               {/if}
             </div>
@@ -254,7 +278,7 @@
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
                 <InsertMenu {kinds} {summaries} {usage} {actions} list={`${rung.path}/then`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList {summaries} {usage} steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
             </div>
           </div>
@@ -266,7 +290,7 @@
               <span class="empty">{t('app.flow.card_arm_empty')}</span>
               <InsertMenu {kinds} {summaries} {usage} {actions} list={`${last.path}/else`} index={0} onpick={oninsert} {drag} {ondrop} />
             {:else}
-              <RuleCanvasList {summaries} {usage} steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+              <RuleCanvasList {summaries} {usage} steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
             {/if}
           </div>
         </div>
@@ -300,7 +324,7 @@
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
                 <InsertMenu {kinds} {summaries} {usage} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList {summaries} {usage} steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
               {#if continues(list)}<span class="tail"></span>{/if}
             </div>
@@ -343,6 +367,8 @@
 <style>
   .card {
     position: relative;
+    /* The border box is the width (decision 25), here as in `RuleCanvas`. */
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     gap: var(--sp-150);
@@ -454,6 +480,7 @@
      on to the chain (decision 20). `grid-column: 1 / -1` on every line, or it sits in a column. */
   .arms {
     position: relative;
+    box-sizing: border-box;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: var(--sp-300);
@@ -489,7 +516,7 @@
 
   .arm .empty { width: 100%; }
 
-  .arm :global(.card) { width: 100%; box-sizing: border-box; }
+  .arm :global(.card) { width: 100%; }
 
   .armlabel {
     display: inline-flex;
@@ -511,9 +538,11 @@
 
   /* The ladder: rungs one under the other, each a pill and its steps indented behind a rail;
      an else-if rung's condition is a card of its own in the gate's notation. */
-  .ladder { width: min(56ch, 100%); display: flex; flex-direction: column; gap: var(--sp-050); }
+  .ladder { box-sizing: border-box; width: min(56ch, 100%); display: flex; flex-direction: column; gap: var(--sp-050); }
 
-  .rung { display: flex; flex-direction: column; gap: var(--sp-050); padding: var(--sp-100); border: var(--bw-hairline) solid var(--label-violet-fg); border-radius: var(--r-md); background: var(--bg-surface); }
+  /* The gap is the room the selected condition's ring needs (decision 25): at `--sp-050` the
+     ring met the rail of the steps underneath. */
+  .rung { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-100); border: var(--bw-hairline) solid var(--label-violet-fg); border-radius: var(--r-md); background: var(--bg-surface); }
 
   .rung.else { border-style: dashed; }
 
@@ -531,11 +560,17 @@
 
   .rcond.flagged { border-color: var(--status-warning-border); }
 
+  .rtool { flex: 0 0 auto; width: var(--sp-300); height: var(--sp-300); padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--text-subtle); cursor: pointer; }
+
+  .rtool:hover { background: var(--bg-surface-hover); color: var(--text-danger); }
+
+  .rtool:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
   .rcond:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   .rsteps { display: flex; flex-direction: column; align-items: stretch; min-width: 0; margin-inline-start: var(--sp-200); padding-inline-start: var(--sp-150); border-inline-start: var(--bw-ring) solid var(--border-subtle); }
 
-  .rsteps :global(.card) { width: 100%; box-sizing: border-box; }
+  .rsteps :global(.card) { width: 100%; }
 
   .verdict.inline { position: static; }
 
@@ -554,6 +589,7 @@
   .endcap i { display: block; width: var(--sp-150); height: var(--sp-150); border-radius: var(--r-xs); background: var(--border-strong); }
 
   .folded {
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     align-items: center;

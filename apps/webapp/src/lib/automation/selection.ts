@@ -5,6 +5,8 @@ import { canPlace, parentOf, removeAt, shiftedList, stepAt, type Step } from './
 
 /** What is selected on the canvas, and therefore what the inspector shows (F8-04). */
 export type Selection =
+  /** Nothing is selected: the canvas's background was clicked, or Escape was pressed on it (decision 26). */
+  | { kind: 'none' }
   | { kind: 'rule' }
   | { kind: 'trigger' }
   | { kind: 'scope' }

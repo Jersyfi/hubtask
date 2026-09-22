@@ -37,6 +37,17 @@
   const foreign = $derived(expr.trim() !== '' && node === undefined);
   const editingRaw = $derived(expert || foreign);
 
+  /**
+   * The root is always drawn as a group, whatever the expression is (decision 28). A lone
+   * sentence used to offer only *Add another sentence*, so a group became possible only once a
+   * second sentence existed and the reader could not say *any of* from the start; a group of one
+   * compiles to the sentence itself, so nothing about the stored expression changes.
+   */
+  const root = $derived.by(() => {
+    const current = node ?? defaultSentence();
+    return isGroup(current) ? current : { mode: 'all' as GroupMode, items: [current] };
+  });
+
   function emit(next: Node): void {
     onchange(compileNode(next));
   }
@@ -57,13 +68,17 @@
   const MODES: readonly GroupMode[] = ['all', 'any', 'none'];
 </script>
 
-{#snippet tree(current: Node, at: readonly number[], root: Node)}
+{#snippet tree(current: Node, at: readonly number[], root: Node, siblings: number)}
   {#if isGroup(current)}
     <div class="group" data-group={at.join('/') || 'root'} data-depth={at.length}>
       <div class="ghead">
-        <select class="mode" aria-label={t('app.flow.composer_mode')} value={current.mode} onchange={(event: Event) => emit(patch(root, at, { ...current, mode: (event.currentTarget as HTMLSelectElement).value as GroupMode }) ?? current)}>
-          {#each MODES as mode (mode)}<option value={mode}>{t(`app.flow.composer_mode_${mode}`)}</option>{/each}
-        </select>
+        <!-- The mode is what holds several things together, so it appears when there are several:
+             *all of* over one sentence says nothing and reads as a setting nobody made. -->
+        {#if at.length > 0 || current.items.length > 1}
+          <select class="mode" aria-label={t('app.flow.composer_mode')} value={current.mode} onchange={(event: Event) => emit(patch(root, at, { ...current, mode: (event.currentTarget as HTMLSelectElement).value as GroupMode }) ?? current)}>
+            {#each MODES as mode (mode)}<option value={mode}>{t(`app.flow.composer_mode_${mode}`)}</option>{/each}
+          </select>
+        {/if}
         {#if at.length > 0}
           <button class="tool" type="button" aria-label={t('app.flow.composer_remove_group')} onclick={() => emit(patch(root, at, undefined) ?? defaultSentence())}>{t('app.flow.composer_remove')}</button>
         {/if}
@@ -71,19 +86,21 @@
       <div class="rows">
         {#each current.items as item, index (index)}
           <div class="row" class:nested={isGroup(item)}>
-            {@render tree(item, [...at, index], root)}
+            {@render tree(item, [...at, index], root, current.items.length)}
           </div>
         {/each}
       </div>
       <div class="adds">
-        <Button size="sm" tone="subtle" icon="plus" onclick={() => emit(patch(root, at, { ...current, items: [...current.items, defaultSentence()] }) ?? current)}>{t('app.flow.composer_add_sentence')}</Button>
+        <Button size="sm" tone="subtle" icon="plus" onclick={() => emit(patch(root, at, { ...current, items: [...current.items, defaultSentence()] }) ?? current)}>{t(current.items.length > 1 ? 'app.flow.composer_add_sentence' : 'app.flow.composer_add_another')}</Button>
         <Button size="sm" tone="subtle" icon="plus" onclick={() => emit(patch(root, at, { ...current, items: [...current.items, newGroup(current.mode === 'any' ? 'all' : 'any')] }) ?? current)}>{t('app.flow.composer_add_group')}</Button>
       </div>
     </div>
   {:else}
     <div class="sentence" data-sentence={at.join('/') || 'root'}>
       <SentenceRow sentence={current} {choices} onchange={(next) => emit(patch(root, at, next) ?? next)} />
-      {#if at.length > 0}
+      <!-- The only sentence of the whole condition has nothing to be removed to: a condition is
+           an expression, and an empty one is not one. -->
+      {#if at.length > 0 && (at.length > 1 || siblings > 1)}
         <button class="tool" type="button" aria-label={t('app.flow.composer_remove_sentence')} onclick={() => emit(patch(root, at, undefined) ?? defaultSentence())}>{t('app.flow.composer_remove')}</button>
       {/if}
     </div>
@@ -108,17 +125,10 @@
       <Checkbox label={t('app.flow.composer_expert')} checked={expert} onchange={() => (expert = !expert)} />
     {/if}
   {:else}
-    {@const current = node ?? defaultSentence()}
-    {@render tree(current, [], current)}
-    {#if !isGroup(current)}
-      <!-- A sentence alone: one more turns it into a group, the mode chosen then. -->
-      <div class="adds">
-        <Button size="sm" tone="subtle" icon="plus" onclick={() => emit({ mode: 'all', items: [current, defaultSentence()] })}>{t('app.flow.composer_add_another')}</Button>
-      </div>
-    {/if}
+    {@render tree(root, [], root, 1)}
     <div>
       <span class="label">{t('app.flow.composer_compiled')}</span>
-      <code class="compiled" class:refused={Boolean(error)}>{expr || compileNode(current)}</code>
+      <code class="compiled" class:refused={Boolean(error)}>{expr || compileNode(root)}</code>
       {#if error}<span class="error">{error}</span>{/if}
     </div>
     <Checkbox label={t('app.flow.composer_expert')} checked={expert} onchange={() => (expert = !expert)} />

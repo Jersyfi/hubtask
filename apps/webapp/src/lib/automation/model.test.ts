@@ -29,6 +29,7 @@ import {
   readNode,
   readSentence,
   removeAt,
+  removeRung,
   stepAt,
   toRuleDraft,
   unreachableFrom,
@@ -212,6 +213,25 @@ test('an else-if is a rung under the ladder', () => {
   assert.equal(stepAt(twoRungs, '1/else/0/then')?.kind, undefined);
   assert.equal(addRung(actions, '0').length, actions.length, 'not a branch: unchanged');
   assert.equal(isRung(actions[1]), false, 'an else with two steps is no rung');
+});
+
+// A rung removed hands its otherwise to the rung above (decision 28), which is what + Else if
+// took from it; its own then goes with the condition that decided those steps.
+test('a rung is removed and the ladder closes over it', () => {
+  const { actions } = fromRule(STORED);
+  const twoRungs = addRung(addRung(actions, '1'), '1');
+  assert.deepEqual(rungsOf(twoRungs[1]!, '1').map((rung) => rung.path), ['1', '1/else/0', '1/else/0/else/0']);
+
+  const one = removeRung(twoRungs, '1/else/0');
+  assert.deepEqual(rungsOf(one[1]!, '1').map((rung) => rung.path), ['1', '1/else/0'], 'one rung fewer');
+  assert.equal(stepAt(one, '1/else/0/else/0')?.kind, 'WAIT', 'the last resort stayed where it was');
+
+  const none = removeRung(one, '1/else/0');
+  assert.equal(isRung(none[1]), false, 'the last rung leaves a plain branch');
+  assert.equal(none[1]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'with the arm it started with');
+
+  assert.deepEqual(removeRung(actions, '1'), actions, 'a branch that is not a rung is unchanged');
+  assert.deepEqual(removeRung(actions, '0'), actions, 'and so is anything else');
 });
 
 test('the generated name is seeded by the trigger and the first two steps that are not branches', () => {

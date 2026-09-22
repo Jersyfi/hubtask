@@ -30,10 +30,12 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
+  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { REFERENCE, eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
+  import { REFERENCE, eventWords, generatedName, kindWord, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
+  import { review, type Note } from '../lib/automation/review.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -68,6 +70,11 @@
   // a name might need later - the memberships, the groups, the templates, the webhooks, each
   // collection's labels and buckets - is opened when a field of the rule or the panel names its
   // kind (`needed`, below), so that a deep link never meets the credential's burst on one screen.
+  // The canvas takes the content region whole: it is a surface with its own head, its own
+  // hairlines and an inspector against the far edge, and standing it in the frame's padding drew
+  // a slab of one colour on a page of another - a box on a page (issue 918).
+  $effect(() => page.fill());
+
   $effect(() => untrack(() => rules.open()));
   $effect(() => untrack(() => containers.start()));
   $effect(() => untrack(() => serviceAccounts.open()));
@@ -89,6 +96,10 @@
   $effect(() => {
     if (taken) return;
     if (isNew) {
+      // The first event type is what a fresh rule starts on, and the manifest is what says which:
+      // taking the draft before it has arrived left the rule starting on nothing, silently, on
+      // every deep link into `/rules/new` that beat the boot (found by F8-26's own review).
+      if (manifest.state.status === 'loading' || manifest.state.status === 'idle') return;
       const first = manifest.value?.event_types?.[0] ?? '';
       draft = emptyDraft(first);
       taken = true;
@@ -127,8 +138,37 @@
     return () => narrowQuery.removeEventListener('change', onchange);
   });
   let sheetOpen = $state(false);
+  /**
+   * How much of the screen the sheet takes (decision 27): half to begin with, and afterwards
+   * whatever the reader dragged it to, kept in this browser. Not the account's: it is a choice
+   * about this screen, like the theme (`apps/webapp/CLAUDE.md`).
+   */
+  let sheetSize = $state(0.5);
+  try {
+    const kept = Number(localStorage.getItem('hubtask.rule.sheet'));
+    if (Number.isFinite(kept) && kept > 0) sheetSize = kept;
+  } catch {
+    // A private window, or storage blocked: half the screen, every time.
+  }
+  $effect(() => {
+    const share = sheetSize;
+    try {
+      localStorage.setItem('hubtask.rule.sheet', String(share));
+    } catch {
+      // The size lives for this view then.
+    }
+  });
   const select = (next: Selection): void => {
     selection = next;
+    if (next.kind === 'none') {
+      // Nothing is selected (decision 26): *Details* has nothing to show, so the panel moves to
+      // the blocks - what one does next after letting a card go is add another - while *Rule*,
+      // *Probe* and *Runs*, which are about the whole rule, stay where they are. On a narrow
+      // screen the sheet is over the canvas, so it closes instead.
+      if (tab === 'piece') tab = 'blocks';
+      if (narrow) sheetOpen = false;
+      return;
+    }
     // The canvas shows, the panel sets (decision 16): what was clicked opens where it is edited.
     tab = RULE_TAB.has(next.kind) ? 'rule' : 'piece';
     if (narrow) sheetOpen = true;
@@ -185,6 +225,12 @@
     }
     select({ kind: 'step', path: at });
   }
+  /** The trash on a rung: the ladder closes over it, and nothing is left selected (decision 28). */
+  function removeElseIf(path: string): void {
+    update((current) => ({ ...current, actions: removeRung(current.actions, path) }));
+    select({ kind: 'none' });
+  }
+
   let sentenceOpen = $state(false);
   try {
     sentenceOpen = localStorage.getItem('hubtask.rule.sentence') === 'open';
@@ -311,6 +357,15 @@
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
     label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
   });
+  /** The guardrails in the words the canvas's card used, now the head's third chip (decision 24). */
+  const guardrailWords = $derived(
+    [
+      t(`app.rules.on_error_${draft.onError.toLowerCase()}`),
+      draft.throttle.maxRunsPerHour ? t('app.flow.card_guardrails_runs', { count: draft.throttle.maxRunsPerHour }) : t('app.flow.card_guardrails_unbounded'),
+      ...(draft.throttle.dedupeKeyExpr ? [t('app.flow.card_guardrails_dedupe', { expr: draft.throttle.dedupeKeyExpr })] : []),
+    ].join(' · '),
+  );
+
   const generated = $derived(generatedName(words, names, draft));
   const automatic = $derived(isAutomatic(draft.name, generated));
   const shownName = $derived(automatic ? generated : draft.name);
@@ -371,7 +426,7 @@
 
   function remove(path: string): void {
     update((current) => ({ ...current, actions: removeAt(current.actions, path) }));
-    selection = { kind: 'gate' };
+    select({ kind: 'none' });
   }
 
   function replaceTrigger(kind: string): void {
@@ -387,12 +442,14 @@
 
   function addCondition(): void {
     update((current) => ({ ...current, conditions: [...current.conditions, "item.type == 'TASK'"] }));
-    select({ kind: 'condition', index: draft.conditions.length - 1 });
+    // The gate holds every condition and so does its panel (decision 28): the new one is already
+    // on screen, at the bottom of it, and jumping to it alone would take the others away.
+    select({ kind: 'gate' });
   }
 
   function removeCondition(index: number): void {
     update((current) => ({ ...current, conditions: current.conditions.filter((_, at) => at !== index) }));
-    selection = { kind: 'gate' };
+    select({ kind: 'gate' });
   }
 
   /* ---------- Saving and the switches ---------- */
@@ -408,7 +465,36 @@
   const findings = $derived(stored?.findings ?? []);
   const isBroken = $derived(findings.some((finding) => finding.level === 'BROKEN'));
 
-  /** A finding or refusal drawn at a card: the check's findings first, a refusal over them. */
+  /**
+   * What the draft itself is missing (F8-26, decision 29): read from the draft and the manifest,
+   * live, because the check runs on a stored rule and has nothing to say about what is under the
+   * hands. An inbound rule has an address only once one has been minted.
+   */
+  const notes = $derived(review(draft, actionFields, { hasInboundAddress: Boolean(stored?.inbound_rotated_at) }));
+  /** One note as a sentence: the kind in its own words, a parameter as the form spells it. */
+  const noteWords = (note: Note): string =>
+    t(note.code, {
+      ...note.params,
+      ...(note.params?.kind ? { kind: kindWord(words, String(note.params.kind)) } : {}),
+      ...(note.params?.parameter ? { parameter: String(note.params.parameter).replace(/_/g, ' ') } : {}),
+    });
+  const noteList = $derived(notes.map((note) => ({ level: note.level, card: note.card, text: noteWords(note) })));
+
+  /** The card a note or a finding is about, selected. */
+  function pick(card: string): void {
+    if (card === '') return select({ kind: 'rule' });
+    if (card === 'trigger') return select({ kind: 'trigger' });
+    if (card === 'run_as') return select({ kind: 'runas' });
+    const condition = /^conditions\/(\d+)$/.exec(card);
+    if (condition) return select({ kind: 'condition', index: Number(condition[1]) });
+    select({ kind: 'step', path: card });
+  }
+
+  /**
+   * A finding or refusal drawn at a card: the check's findings first, a refusal over them, and
+   * the draft's own review where neither has spoken - the server, which knows the workspace,
+   * outranks the client, which knows only the draft.
+   */
   const marks = $derived.by(() => {
     const found = marksOf(words, findings);
     for (const [pointer, message] of errors) {
@@ -417,6 +503,9 @@
       if (condition) found.set(`conditions/${condition[1]}`, message);
       const step = /^\/actions\/(.+?)(?:\/kind|\/params\/(?!then|else).*)?$/.exec(pointer);
       if (step?.[1]) found.set(step[1].replace(/\/params\/(then|else)/g, '/$1'), message);
+    }
+    for (const note of notes) {
+      if (note.card !== '' && !found.has(note.card)) found.set(note.card, noteWords(note));
     }
     return found;
   });
@@ -606,6 +695,11 @@
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
             {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" /><VisuallyHidden>{marks.get('run_as')}</VisuallyHidden></span>{/if}
           </button>
+          <!-- The guardrails are the rule's, not a card on the canvas (decision 24): said here,
+               set on the *Rule* tab, and nowhere else. -->
+          <button class="chip" type="button" onclick={() => select({ kind: 'guardrails' })}>
+            <Icon name="settings" size="sm" /><span>{t('app.flow.card_guardrails')}</span><b>{guardrailWords}</b>
+          </button>
         </div>
       </div>
 
@@ -656,7 +750,16 @@
 
     <div class="bench">
 
-      <section class="canvas" aria-label={t('app.rules.title')}>
+      <!-- The room around the flow deselects too (decision 26): the flow answers a click on its
+           own background, this one the pixels beside and below it. Escape does the same from
+           anywhere on the canvas, which is the keyboard's way to the same place. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <section
+        class="canvas"
+        aria-label={t('app.rules.title')}
+        onclick={(event) => { if (event.target === event.currentTarget) select({ kind: 'none' }); }}
+        onkeydown={(event) => { if (event.key === 'Escape' && selection.kind !== 'none') { event.preventDefault(); select({ kind: 'none' }); } }}
+      >
         <RuleCanvas
           {draft}
           {selection}
@@ -674,6 +777,7 @@
           onaddcondition={addCondition}
           onnudge={nudgeStep}
           onaddrung={addElseIf}
+          onremoverung={removeElseIf}
           {drag}
           ondragchange={(next) => (drag = next)}
           ondrop={dropped}
@@ -690,7 +794,15 @@
       {#if narrow}
         <!-- Below the expanded breakpoint the details come to the canvas rather than the reader
              scrolling to them: a sheet over it, one glass surface at a time (rule 2). -->
-        <Drawer bind:isOpen={sheetOpen} edge="block-end" title={t('app.flow.inspector')} dismissLabel={t('app.flow.sheet_close')}>
+        <Drawer
+          bind:isOpen={sheetOpen}
+          edge="block-end"
+          title={t('app.flow.inspector')}
+          dismissLabel={t('app.flow.sheet_close')}
+          isResizable
+          resizeLabel={t('app.flow.sheet_size')}
+          bind:size={sheetSize}
+        >
           {@render inspector()}
         </Drawer>
         <div class="sheetbar" role="tablist" aria-label={t('app.flow.inspector')}>
@@ -708,6 +820,9 @@
     </div>
 
     {#snippet inspector()}
+        <!-- The tabs stay where the head stays (decision 27): they are how the panel is steered,
+             and a panel whose steering scrolls away is steered by scrolling back up. -->
+        <div class="tabsrow">
         <Tabs
           label={t('app.flow.inspector')}
           selected={tab}
@@ -718,10 +833,11 @@
           }}
           tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
         />
+        </div>
         {#if tab === 'rule'}
           <RuleInspector
             {draft}
-            selection={{ kind: 'rule' }}
+            {selection}
             section="rule"
             ruleId={stored?.id}
             generatedName={generated}
@@ -776,6 +892,8 @@
           <RuleProbe
             {eventTypes}
             defaultType={draft.trigger.event_type ?? ''}
+            notes={noteList}
+            onpick={pick}
             takesPayload={draft.trigger.kind === 'INBOUND_WEBHOOK'}
             isRunning={isProbing}
             {outcome}
@@ -868,6 +986,9 @@
   .small { font-size: var(--fs-075); }
 
   .panel { padding: var(--sp-200); font-size: var(--fs-075); }
+
+  /* Sticky in whatever scrolls the panel: the aside on a wide screen, the sheet's body on a narrow one. */
+  .tabsrow { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); background: var(--bg-surface); }
 
   /* Below the expanded breakpoint the palette is gone (the + is the way in) and the inspector
      follows the canvas; F8-05 makes it a sheet over it. */

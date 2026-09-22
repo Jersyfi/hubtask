@@ -62,7 +62,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { childTypes } from '../lib/data/capability.svelte.ts';
+  import { childTypes, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor } from '../lib/data/customfields.ts';
@@ -238,6 +238,26 @@
       : undefined,
   );
   const startValue = $derived(item?.start_at ? formatDateTime(item.start_at, messages.locale) : undefined);
+  /**
+   * The two dates as one value, because they are one editor.
+   *
+   * `DuePanel` writes the start and the due together, so two rows opening it showed the same
+   * panel twice and the reader met the other date wherever they pressed (issue 916). One row,
+   * whose value reads the start, the due, or the span between them.
+   */
+  const datesValue = $derived(
+    startValue && dueValue
+      ? t('app.due.span', { start: startValue, due: dueValue })
+      : (dueValue ?? startValue),
+  );
+  /**
+   * What this entry's **type** carries, from `/meta/capabilities` and from nowhere else
+   * (`domain-model.md` §2). A row is drawn only where the answer is `permitted`: a field the
+   * profile refuses is answered with 422 by the server, and offering it is offering a refusal.
+   * `pending` — before the manifest has arrived — draws nothing either, because nothing is
+   * knowable yet and a row that appeared late is better than one that was wrong.
+   */
+  const carries = $derived((capability: string) => (item ? supports(item.type, capability).status === 'permitted' : false));
   const repeatValue = $derived.by(() => {
     if (!rule) return undefined;
     const frequency = /FREQ=([A-Z]+)/.exec(rule.rrule ?? '')?.[1];
@@ -276,6 +296,8 @@
   ]);
 
   let activeTab = $state('comments');
+  /** The tab that is actually shown: the history, where this type has no conversation to open. */
+  const shownTab = $derived(activeTab === 'comments' && !carries('COMMENTS') ? 'activity' : activeTab);
 
   function chooseFromMenu(chosen: string) {
     if (chosen === 'edit') startEditing();
@@ -677,7 +699,9 @@
           bind:value={draftTitle}
           error={isTitleFailure ? writeFailure?.message : undefined}
         />
-        <Textarea label={t('app.entries.notes')} bind:value={draftNotes} rows={6} />
+        {#if carries('NOTES')}
+          <Textarea label={t('app.entries.notes')} bind:value={draftNotes} rows={6} />
+        {/if}
         <LanguagePicker
           {languages}
           bind:value={draftLanguage}
@@ -758,7 +782,10 @@
           {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
           {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
         </div>
-        <!-- The notes, in place, for the same reasons; empty, the field says what it is for. -->
+        <!-- The notes, in place, for the same reasons; empty, the field says what it is for. An
+             activity carries none (`domain-model.md` §2), and a field whose every save is refused
+             is not a field. -->
+        {#if carries('NOTES')}
         <textarea
           class="notes-field"
           lang={entryLang}
@@ -771,6 +798,7 @@
           onblur={() => void commitInline()}
           onkeydown={onNotesKey}
         ></textarea>
+        {/if}
         {#if writeFailure && !isTitleFailure}
           <p class="failure" role="alert">{writeFailure.message}</p>
         {/if}
@@ -826,13 +854,18 @@
         <Tabs
           label={t('app.item.tabs')}
           tabs={[
-            { id: 'comments', label: commentCount === undefined ? t('app.comments.title') : t('app.item.tab_with_count', { title: t('app.comments.title'), count: String(commentCount) }) },
+            // The conversation where the type has one. An activity carries no `COMMENTS`, and the
+            // tab used to be there with a gate inside it saying so - a whole panel spent on a
+            // refusal (issue 916).
+            ...(carries('COMMENTS')
+              ? [{ id: 'comments', label: commentCount === undefined ? t('app.comments.title') : t('app.item.tab_with_count', { title: t('app.comments.title'), count: String(commentCount) }) }]
+              : []),
             { id: 'activity', label: t('app.activity.title') },
           ]}
-          selected={activeTab}
+          selected={shownTab}
           onselect={(chosen) => (activeTab = chosen)}
         >
-          {#if activeTab === 'comments'}
+          {#if shownTab === 'comments'}
             <CommentPanel {item} path={peoplePath} />
           {:else}
             <Stack gap="150">
@@ -874,24 +907,34 @@
 
 {#snippet detailRows()}
   {#if item}
-            <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined}>
-              <AssigneePanel {item} path={peoplePath} />
-            </DetailRow>
-            <DetailRow id="due" label={t('app.due.date')} value={dueValue}>
-              <DuePanel {item} disabledReason={frozenReason} />
-            </DetailRow>
-            <DetailRow id="start" label={t('app.due.start')} value={startValue}>
-              <DuePanel {item} disabledReason={frozenReason} />
-            </DetailRow>
-            <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined}>
-              <LabelsPanel {item} disabledReason={frozenReason} />
-            </DetailRow>
-            <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined}>
-              <ReminderPanel {item} path={peoplePath} />
-            </DetailRow>
-            <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue}>
-              <RecurrencePanel {item} />
-            </DetailRow>
+            {#if carries('ASSIGNMENT') || carries('MEMBERS')}
+              <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined}>
+                <AssigneePanel {item} path={peoplePath} />
+              </DetailRow>
+            {/if}
+            {#if carries('DUE_DATE')}
+              <!-- One row, because `DuePanel` is one editor: it writes the start and the due
+                   together, and two rows opening it showed the reader the other date wherever
+                   they pressed. -->
+              <DetailRow id="due" label={t('app.due.title')} value={datesValue}>
+                <DuePanel {item} disabledReason={frozenReason} />
+              </DetailRow>
+            {/if}
+            {#if carries('LABELS')}
+              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined}>
+                <LabelsPanel {item} disabledReason={frozenReason} />
+              </DetailRow>
+            {/if}
+            {#if carries('REMINDER')}
+              <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined}>
+                <ReminderPanel {item} path={peoplePath} />
+              </DetailRow>
+            {/if}
+            {#if carries('RECURRENCE')}
+              <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue}>
+                <RecurrencePanel {item} />
+              </DetailRow>
+            {/if}
             <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined}>
               <Stack gap="150">
                 <LanguagePicker
@@ -908,18 +951,24 @@
                 </div>
               </Stack>
             </DetailRow>
-            <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined}>
-              <CoverPanel {item} />
-            </DetailRow>
-            <DetailRow id="attachments" label={t('app.media.attachments')} value={attachmentCount ? t('app.item.attachments_count', { count: String(attachmentCount) }) : undefined}>
-              <AttachmentPanel {item} />
-            </DetailRow>
-            {#each definitions as definition (definition.id)}
-              {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-              <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)}>
-                <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
+            {#if carries('COVER')}
+              <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined}>
+                <CoverPanel {item} />
               </DetailRow>
-            {/each}
+            {/if}
+            {#if carries('ATTACHMENTS')}
+              <DetailRow id="attachments" label={t('app.media.attachments')} value={attachmentCount ? t('app.item.attachments_count', { count: String(attachmentCount) }) : undefined}>
+                <AttachmentPanel {item} />
+              </DetailRow>
+            {/if}
+            {#if carries('CUSTOM_FIELDS')}
+              {#each definitions as definition (definition.id)}
+                {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
+                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)}>
+                  <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
+                </DetailRow>
+              {/each}
+            {/if}
   {/if}
 {/snippet}
 

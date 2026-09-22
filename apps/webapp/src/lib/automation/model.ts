@@ -390,6 +390,23 @@ export function addRung(actions: readonly Step[], path: Path): Step[] {
 }
 
 /**
+ * The chain with one rung of a ladder removed (decision 28): the rung's *otherwise* is handed to
+ * the rung above, exactly as *+ Else if* took it, so the ladder closes rather than losing the
+ * last resort. The rung's own *then* goes with it - those steps were what its condition decided,
+ * and no other rung means them. Removing the ladder's first rung is removing the branch itself,
+ * which `removeAt` already does; this answers the chain unchanged for a path that is not a rung.
+ */
+export function removeRung(actions: readonly Step[], path: Path): Step[] {
+  const { list, index } = parentOf(path);
+  if (!list.endsWith('/else') || index !== 0) return clone(actions);
+  const owner = stepAt(actions, list.slice(0, -'/else'.length));
+  const rung = stepAt(actions, path);
+  if (!owner || owner.kind !== 'BRANCH' || !rung || rung.kind !== 'BRANCH') return clone(actions);
+  if ((owner.else?.length ?? 0) !== 1) return clone(actions);
+  return replaceAt(actions, list.slice(0, -'/else'.length), { ...owner, else: rung.else ?? [] });
+}
+
+/**
  * A fresh step of a kind, with a branch's two empty arms. A branch starts with the composer's own
  * first sentence compiled, so the card and the panel say the same thing from the first moment
  * and a branch saved untouched carries a condition the server accepts (F8-18).

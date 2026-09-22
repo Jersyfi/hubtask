@@ -90,6 +90,17 @@
     return found;
   }
 
+  /**
+   * The *Rule* tab holds all four of the rule's own settings (decision 16), and the head's chips
+   * lead to one of them: the section the chip named is brought into view rather than the reader
+   * hunting for it down a panel (decision 24).
+   */
+  let guardrails = $state<HTMLElement | null>(null);
+  $effect(() => {
+    if (section !== 'rule' || selection.kind !== 'guardrails' || !guardrails) return;
+    guardrails.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+
   const step = $derived(selection.kind === 'step' ? stepAt(draft.actions, selection.path) : undefined);
   /** A branch that is the sole step of an else arm is a rung of a ladder: its heading says so (decision 19). */
   const isElseIf = $derived.by(() => {
@@ -145,7 +156,7 @@
     />
 {/snippet}
 {#snippet guardrailsSection()}
-    <h3>{t('app.flow.card_guardrails')}</h3>
+    <h3 bind:this={guardrails}>{t('app.flow.card_guardrails')}</h3>
     <Select
       label={t('app.rules.on_error')}
       hint={t('app.rules.on_error_hint')}
@@ -312,8 +323,25 @@
   {:else if selection.kind === 'runas'}
     {@render runAsSection()}
   {:else if selection.kind === 'gate'}
+    <!-- The gate is one block holding every condition, so its panel holds every condition too
+         (decision 28): each under its *and*, edited and removed here, without a second click on
+         the canvas for each. A single condition selected on the canvas still opens alone. -->
     <h3>{t('app.flow.card_only_when')}</h3>
     <p class="quiet">{t('app.flow.gate_hint')}</p>
+    {#each draft.conditions as expr, index (index)}
+      <div class="gcondition" data-condition={index}>
+        <div class="ghead">
+          <span class="label">{index > 0 ? `${t('app.flow.chip_and')} · ${t('app.flow.condition_n', { n: index + 1 })}` : t('app.flow.condition_n', { n: index + 1 })}</span>
+          <Button size="sm" tone="subtle" icon="trash" onclick={() => onremovecondition(index)}>{t('app.rules.remove_condition')}</Button>
+        </div>
+        <Composer
+          {expr}
+          error={errors.get(`/conditions/${index}/expr`)}
+          choices={composerChoices}
+          onchange={(next) => onupdate((current) => ({ ...current, conditions: current.conditions.map((each, at) => (at === index ? next : each)) }))}
+        />
+      </div>
+    {/each}
     <div><Button size="sm" icon="plus" onclick={onaddcondition}>{t('app.flow.add_condition')}</Button></div>
     <Callout>{t('app.flow.gate_before_writes')}</Callout>
   {:else if selection.kind === 'condition'}
@@ -365,8 +393,6 @@
       />
     {/if}
     <div><Button size="sm" tone="subtle" icon="trash" onclick={() => onremovestep(path)}>{t('app.flow.remove_step')}</Button></div>
-  {:else if selection.kind === 'guardrails'}
-    {@render guardrailsSection()}
   {:else}
     <p class="quiet">{t('app.flow.inspector_nothing')}</p>
   {/if}
@@ -384,4 +410,9 @@
   .hint { font-size: var(--fs-075); color: var(--text-subtle); }
 
   .mono { font-family: var(--font-mono); }
+
+  /* One condition of the gate, in the panel: its place in the *and*, its composer, its trash. */
+  .gcondition { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface-sunken); }
+
+  .ghead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
 </style>

@@ -199,7 +199,24 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062). `make tools` installs nine
+      # tools, eight of them from source, and took 215 seconds in every one of the eight jobs that
+      # needed them - 29 of a Go pull request's 69 runner-minutes, twice on the critical path.
+      # setup-go's own cache could not pay for it: it saves only when the key is not yet present,
+      # so the first job to finish won it, and the first job to finish is the one that compiles
+      # nothing (#911).
+      #
+      # The key holds the Makefile, which is where every pin lives, and the Go that compiles them.
+      # The restore key is the same without the Makefile's hash, so a moved pin starts from the
+      # last set rather than from nothing - what makes that safe is that `tools-ensure` decides
+      # from the stamp, not from the cache: anything that is not exactly the pinned set, built by
+      # this Go, is installed again in full.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       - run: make gate-quick
 
   build:
@@ -242,8 +259,14 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       # actionlint is one of the pinned tools now, because this gate also reads the workflows.
-      - run: make tools
+      - run: make tools-ensure
       # Checks: layer boundaries, the bare-goroutine ban, mandatory authorisation, use case
       # parity across REST/MCP/automation, observability and audit completeness, and that every
       # workflow expression parses.
@@ -259,9 +282,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       # goose, because the RT tests that need a database migrate their own container the way
       # production does - a schema loaded any other way would be a schema nobody deploys.
-      - run: make tools
+      - run: make tools-ensure
       # The RT series is a PR gate wherever it can be (observability-reliability.md §12), and
       # since G-12 that is a measured decision rather than a habit: this job takes about four and
       # a half minutes beside jobs that take six and eight, so it costs no wall clock, and a
@@ -295,9 +324,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       # helm comes through the module proxy like every other tool, so the gate is the same
       # command here and on a laptop (ADR-0022, ci-cd.md).
-      - run: make tools
+      - run: make tools-ensure
       - run: make gate-chart
 
   # This is also the container build. The image contains both halves now (ADR-0028), so a change
@@ -376,7 +411,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       # Writes a deliberate violation per configured rule and expects a red result. Without
       # this, a rule broken by a config change would simply stop reporting anything.
       - run: make gate-selftest
@@ -406,7 +447,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       - run: make migrate
       - run: make gate-integration
       - run: make gate-contract
@@ -433,7 +480,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       # SG-7 is not here any more: secret scanning runs unconditionally in the `secrets` job,
       # because a key can be committed by a change that touches no Go file at all.
       - run: make gate-security
@@ -464,7 +517,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       # The backup targets come from Testcontainers, not from a service container - see the
       # integration job.
       - run: make gate-data
