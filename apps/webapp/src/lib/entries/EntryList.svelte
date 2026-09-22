@@ -1258,6 +1258,18 @@
 
   .row > :global(*:last-child) { flex: 1; min-width: 0; }
 
+  /* In a narrow tree the task row stacks its controls under its title (`TaskRow`), so the pick
+     and the grip keep to the title's line rather than floating beside the middle of the block:
+     aligned to the start, and as tall as the title's line is - the spacious control and the
+     row's padding - so the checkbox sits centred on it. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .row { align-items: start; }
+
+    .pick,
+    .grip { min-block-size: calc(var(--density-control-md-min) + 2 * var(--density-row-block)); }
+  }
+
   /* `touch-action: none` is what makes a drag possible on a touch screen at all: without it the
      browser claims the gesture for scrolling and the pointer events stop arriving after the first
      few. It is on the grip alone, so the page still scrolls everywhere else. */
