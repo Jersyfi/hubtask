@@ -210,6 +210,43 @@ func Search(
 	return b.statement()
 }
 
+// SearchRows compiles a search that has **no words**: a filtered read of the whole workspace, or of
+// one container, ordered rather than ranked (ADR-0064).
+//
+// The same statement `Rows` writes, with the join to `container` the search needs so that each row
+// carries the hub the narrowing is asked about - and a constant rank, because the answer's shape is
+// the same and nothing ranked it. Everything that decides *which* rows is the query's own:
+// `node` writes the filter, `ordering` and `keyset` the order and the cursor. There is no tsquery,
+// no trigram branch and no neighbourhood, because there are no words for any of them to read.
+func SearchRows(search repository.TextSearch, boundary Boundary, probe int) (Statement, error) {
+	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
+
+	b.write(`SELECT `, itemColumns, `, c.parent_id, 0::real AS rank`)
+	b.write(` FROM work_item wi JOIN container c ON c.id = wi.collection_id WHERE `)
+	b.scope(search.Anchor)
+	b.restriction(search.RestrictTo)
+	b.lifecycle(view.Spec{
+		IncludeArchived: search.Request.IncludeArchived,
+		IncludeTrashed:  search.Request.IncludeTrashed,
+	})
+	if search.Request.Filter != nil {
+		b.write(` AND (`)
+		b.node(*search.Request.Filter)
+		b.write(`)`)
+	}
+	if !boundary.IsZero() {
+		b.write(` AND (`)
+		b.keyset(search.Request.Sort, boundary)
+		b.write(`)`)
+	}
+
+	b.write(` ORDER BY `)
+	b.ordering(search.Request.Sort, itemPrefix)
+	b.write(`, wi.id LIMIT `)
+	b.param(int64(probe))
+	return b.statement()
+}
+
 // SearchBoundary is a decoded search cursor: the rank of the last row of the previous page, and the
 // identifier that breaks a tie between equal ranks.
 type SearchBoundary struct {
@@ -305,6 +342,14 @@ func (b *builder) searchPredicates(search repository.TextSearch, meaning string)
 	}
 	b.neighbourhood(meaning)
 	b.write(`)`)
+
+	// And the filter, where one came with the words: the same tree the query compiles, written by
+	// the same code (ADR-0064). It narrows what the words found rather than replacing it.
+	if search.Request.Filter != nil {
+		b.write(` AND (`)
+		b.node(*search.Request.Filter)
+		b.write(`)`)
+	}
 }
 
 // neighbourhood is the branch that makes the search find an entry sharing no word with the query.

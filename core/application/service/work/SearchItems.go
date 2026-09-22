@@ -82,6 +82,10 @@ type SearchItemsQuery struct {
 	Size            int
 	// Mode is AUTO or LEXICAL, and empty is AUTO (J-10).
 	Mode string
+	// Filter and Sort are the raw request, parsed here with the query's own parsers - one grammar,
+	// two readers (ADR-0064). Nil is no narrowing and no ordering asked for.
+	Filter any
+	Sort   any
 }
 
 // Execute answers one page of hits, in the order the database ranked them.
@@ -96,10 +100,22 @@ func (h SearchItems) Execute(
 	if err != nil {
 		return repository.ItemHitPage{}, err
 	}
+	// The query's own parsers, deliberately: the grammar, the closed field vocabulary, the bounds
+	// and the cost cap are one thing read twice rather than two things kept in step (ADR-0064).
+	filter, err := view.ParseFilter(query.Filter, "/filter")
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	sort, err := view.ParseSortOrNone(query.Sort, "/sort")
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
 
 	request := view.Search{
 		Words:           words,
 		Mode:            mode,
+		Filter:          filter,
+		Sort:            sort,
 		ContainerID:     query.ContainerID,
 		Language:        languageOr(query.Language, actor.Locale),
 		IncludeArchived: query.IncludeArchived,
@@ -109,6 +125,11 @@ func (h SearchItems) Execute(
 	}
 	if err := request.Validate(""); err != nil {
 		return repository.ItemHitPage{}, err
+	}
+	// Nothing to rank by, so something has to order it, and the caller may not have said. A work
+	// list is ordered by when it is due (ADR-0064).
+	if !request.IsRanked() && len(request.Sort) == 0 {
+		request.Sort = view.DefaultSearchSort()
 	}
 
 	reach, err := h.reach(ctx, actor, request.ContainerID)
@@ -302,9 +323,11 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{
-				Name: "q", Kind: usecase.KindString, Required: true,
+				Name: "q", Kind: usecase.KindString,
 				Description: "What to look for. Quoted phrases, `or` between words and a leading " +
-					"minus for exclusion work as they do in a web search box. At most 200 characters.",
+					"minus for exclusion work as they do in a web search box. At most 200 characters. " +
+					"Optional beside a filter, and one of the two is required: a search with neither " +
+					"is refused, because \"everything\" is not a question this API answers.",
 			},
 			{
 				Name: "container_id", Kind: usecase.KindID,
@@ -327,6 +350,22 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 					"only: it asks no AI provider, spends no budget and waits on nothing. There " +
 					"is deliberately no SEMANTIC: an installation may not have it, so it is not " +
 					"something a caller can be promised.",
+			},
+			{
+				Name: "filter", Kind: usecase.KindObject,
+				Description: "Narrows the search, in the same grammar the item query takes: a leaf of " +
+					"field, op and value, or a combination of op AND, OR or NOT with nodes. At most " +
+					"five levels and fifty nodes, and the same cost ceiling. A value beginning with @ " +
+					"is resolved on the server: @me, @today, @end_of_month, each optionally with an " +
+					"ISO 8601 offset such as @today+P3D.",
+			},
+			{
+				Name: "sort", Kind: usecase.KindList,
+				Description: "The ordering of a search that has no words, most significant first: " +
+					"objects of field, dir (ASC or DESC) and nulls (FIRST or LAST). Refused beside " +
+					"words, because a search for words is ordered by how well each entry matches " +
+					"them. Without words it defaults to due_at ascending with the undated last, and " +
+					"always ends on the identifier so that a cursor is unambiguous.",
 			},
 			{
 				Name: "include_archived", Kind: usecase.KindBool,
@@ -367,6 +406,8 @@ func (h SearchItems) invoke(
 
 	page, err := h.Execute(ctx, actor, SearchItemsQuery{
 		Words:           in.String("q"),
+		Filter:          in["filter"],
+		Sort:            in["sort"],
 		ContainerID:     containerID,
 		Language:        in.String("language"),
 		Mode:            in.String("mode"),

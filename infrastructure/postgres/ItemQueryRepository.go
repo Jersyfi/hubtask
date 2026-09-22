@@ -294,12 +294,19 @@ func (r ItemRepository) Search(
 		return repository.ItemHitPage{}, err
 	}
 
+	size := search.Request.Size
+	// A search with no words is a filtered read, ordered rather than ranked (ADR-0064): a different
+	// statement, a different cursor, and the same narrowing afterwards. Everything below the split
+	// is shared, because what a search *answers* did not change.
+	if !search.Request.IsRanked() {
+		return r.searchRows(ctx, tx, search, size)
+	}
+
 	boundary, err := r.searchBoundary(search.Request.Cursor)
 	if err != nil {
 		return repository.ItemHitPage{}, err
 	}
 
-	size := search.Request.Size
 	// A query vector wider than the index is refused here for `Store`'s reason: the application
 	// layer already fell back to a lexical search, and this is the second refusal a bypass meets.
 	if len(search.Meaning) > repository.EmbeddingWidth {
@@ -322,6 +329,34 @@ func (r ItemRepository) Search(
 	var page repository.ItemHitPage
 	page.Hits, page.Info = pageOf(hits, size, r.cursors, func(last repository.ItemHit) security.Position {
 		return security.At(rankKey(last.Rank), last.Item.ID)
+	})
+	return page, nil
+}
+
+// searchRows answers the wordless half: the filter, in the caller's order, with the query's own
+// cursor over the sort terms rather than the rank's.
+func (r ItemRepository) searchRows(
+	ctx context.Context, tx pgx.Tx, search repository.TextSearch, size int,
+) (repository.ItemHitPage, error) {
+	boundary, err := r.boundary(search.Request.Cursor)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	statement, err := query.SearchRows(search, boundary, int(pageProbe(size)))
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	hits, err := readHits(ctx, tx, statement)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	position := r.positionIn(search.Request.Sort)
+	var page repository.ItemHitPage
+	page.Hits, page.Info = pageOf(hits, size, r.cursors, func(last repository.ItemHit) security.Position {
+		return position(last.Item)
 	})
 	return page, nil
 }
