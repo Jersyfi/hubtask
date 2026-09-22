@@ -308,7 +308,14 @@ freedoms the engine does not have; a condition is composed as a sentence over a 
 the CEL of §1.2, read back by the shapes the composer writes and shown as an expression
 otherwise; and the name is generated from the trigger and the first steps until somebody owns it,
 with the sentence the whole rule reads as beside it. `POST /automation/rules:test` takes the
-definition as it stands, so a probe tests the canvas and not the stored rule.
+definition as it stands, so a probe tests the canvas and not the stored rule. Beside the check,
+which runs on a *stored* rule against what the workspace holds, the client reads the **draft**
+against the manifest it already has and says what is missing before the probe is pressed - no
+event on an event trigger, a required parameter nothing fills, a branch with two empty arms, a
+schedule feeding a step that acts on an entry (`milestone-F8.md` decision 29). Those notes carry
+the client's own codes, are drawn at the same cards a finding is, and refuse nothing: a server
+finding at the same card wins, because the server knows the workspace and the client knows only
+the draft.
 
 ## 2. Execution, security, observability
 
