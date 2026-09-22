@@ -146,7 +146,7 @@
   {#if isTreeReady && !failure && !isRail}
     <ReplicaMark state={containers.hubsState} />
   {/if}
-  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} bind:expanded onnavigate={navigate} />
+  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} flyoutLabel={(name) => t('app.nav.inside', { name })} bind:expanded onnavigate={navigate} />
   {#if !isTreeReady}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if failure}

@@ -16,6 +16,9 @@
 
   import Icon from './Icon.svelte';
   import type { IconName } from './icons/index.ts';
+  import { focusReturn } from './focus.ts';
+  import { openOverlay } from './overlay.ts';
+  import Self from './SideNav.svelte';
   import { flattenTree, treeIntent, type NavNode as StructureNode } from './structure.ts';
 
   /**
@@ -37,7 +40,7 @@
     /** The branches that are open, by id. Bindable: a caller usually restores it. */
     expanded?: string[];
     /**
-     * Folded to its marks.
+     * Folded to its marks (ADR-0063 decision 2).
      *
      * A rail is a **drawing**, not a narrower panel: one mark per row, centred in the column,
      * with no twist, no label and no indent — the label stays the row's accessible name and
@@ -45,16 +48,23 @@
      * which is what issue 915 was: at a rail of 56 px the twist took the first 24, and the mark
      * was drawn from 44 to 68 with the half past the edge clipped.
      *
-     * Nothing is removed by the fold. Every row is still in the tree, a branch still opens and
-     * still announces that it is open, and the keys still walk what is visible — an opened hub's
-     * collections are marks under it. Depth is the one thing a rail cannot draw, and a column
-     * that tried would spend on the indent the width it has for the mark.
+     * **Depth is the one thing a rail cannot draw**, so it does not try: it lists the roots, and
+     * a branch pressed there opens its own subtree in a flyout beside the column — this same
+     * component, unfolded, with the branch as its root. Nothing is unreachable while the
+     * navigation is folded, and there is no second tree.
      */
     isRail?: boolean;
+    /**
+     * What the flyout is called, from the branch's name — a reader who arrives on it by keyboard
+     * hears which branch they are inside. A function rather than a string with a placeholder in
+     * it, because the sentence belongs to the caller's catalogue (ADR-0011) and only the caller
+     * can render it around a name.
+     */
+    flyoutLabel?: (name: string) => string;
     onnavigate?: (id: string) => void;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), isRail = false, onnavigate }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, onnavigate }: Props = $props();
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -62,7 +72,55 @@
   // The flattening and the key arithmetic are `structure.ts` — the visible list is what every
   // question the keyboard asks is about, and a component that walked the tree instead would answer
   // "the next node" with one nobody can see.
-  const rows = $derived(flattenTree(nodes, expanded));
+  // Folded, the tree is its roots: what the flyout shows is the rest, and a rail that listed an
+  // opened hub's collections as marks would be drawing depth it has no room to distinguish.
+  const rows = $derived(flattenTree(nodes, isRail ? [] : expanded));
+
+  /** The branch whose flyout is open, in the rail. One at a time, like a menu. */
+  let opened = $state<string | null>(null);
+  const openedNode = $derived(opened === null ? undefined : rows.find((row) => row.node.id === opened)?.node);
+  let surface = $state<HTMLElement | null>(null);
+
+  // Positioned, dismissed and layered by the same code every other overlay uses (ADR-0039): the
+  // flyout is beside the row it belongs to, `Escape` closes it, and a press outside does too.
+  $effect(() => {
+    const trigger = opened === null ? null : tree?.querySelector<HTMLElement>(`[data-node="${CSS.escape(opened)}"]`);
+    if (!trigger || !surface) return;
+    const release = openOverlay({
+      layer: 'popover',
+      trigger,
+      surface,
+      placement: { side: 'inline-end', align: 'start' },
+      onDismiss: () => closeFlyout(),
+    });
+    surface.querySelector<HTMLElement>('[role="treeitem"]')?.focus();
+    return release;
+  });
+
+  function closeFlyout() {
+    const trigger = opened === null ? null : tree?.querySelector<HTMLElement>(`[data-node="${CSS.escape(opened)}"]`);
+    opened = null;
+    focusReturn(trigger);
+  }
+
+  /**
+   * What pressing a row does. In the rail a branch opens its flyout; everywhere else it unfolds.
+   *
+   * The flyout **expands the branch as well**, and that is not a flourish: `expanded` is what a
+   * caller watches to fetch a level that is loaded on demand, so a flyout that only set its own
+   * state would open beside a hub whose collections nobody had asked the server for. It stays
+   * expanded once closed, the way an unfolded tree does.
+   */
+  function choose(row: { node: NavNode; isBranch: boolean; isExpanded: boolean }) {
+    if (!row.isBranch) return onnavigate?.(row.node.id);
+    if (!isRail) return toggle(row.node.id, !row.isExpanded);
+    if (opened === row.node.id) {
+      opened = null;
+      return;
+    }
+    toggle(row.node.id, true);
+    opened = row.node.id;
+  }
   // Focus follows the current node when the caller moves it, so arrowing after a navigation
   // continues from where the reader is rather than from where they were.
   const focused = $derived(
@@ -87,9 +145,14 @@
     if (intent === null) return;
     event.preventDefault();
 
-    if (intent.kind === 'expand') toggle(row.node.id, true);
-    else if (intent.kind === 'collapse') toggle(row.node.id, false);
-    else focusRow(intent.index);
+    if (intent.kind === 'expand') {
+      // Folded, "towards the children" is the flyout: it is where the children are.
+      toggle(row.node.id, true);
+      if (isRail && row.isBranch) opened = row.node.id;
+    } else if (intent.kind === 'collapse') {
+      if (isRail) closeFlyout();
+      else toggle(row.node.id, false);
+    } else focusRow(intent.index);
   }
 </script>
 
@@ -104,41 +167,59 @@
         class="row"
         role="treeitem"
         data-index={index}
-        style:--depth={isRail ? 0 : row.depth}
+        data-node={row.node.id}
         title={isRail ? row.node.label : undefined}
         aria-label={isRail ? row.node.label : undefined}
-        aria-expanded={row.isBranch ? row.isExpanded : undefined}
+        aria-expanded={row.isBranch ? (isRail ? opened === row.node.id : row.isExpanded) : undefined}
         aria-selected={row.node.id === current}
         aria-current={row.node.id === current ? 'page' : undefined}
         tabindex={index === focused ? 0 : -1}
         onclick={() => {
           active = index;
-          if (row.isBranch) toggle(row.node.id, !row.isExpanded);
-          else onnavigate?.(row.node.id);
+          choose(row);
         }}
         onkeydown={(event) => {
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
-          if (row.isBranch) toggle(row.node.id, !row.isExpanded);
-          else onnavigate?.(row.node.id);
+          choose(row);
         }}
       >
+        <!-- The mark first, at one inline position for every level: it is the column that
+             survives the fold, and an indent in front of it is what pushed it out of the rail
+             (issue 915). The indent moves the label instead. -->
+        <span class="mark" aria-hidden="true">
+          {#if row.node.icon}<Icon name={row.node.icon} size="sm" />{/if}
+        </span>
         {#if !isRail}
+          <span class="label" style:--depth={row.depth}>{row.node.label}</span>
+          <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
+               through the logical padding, so it mirrors with the document. -->
           <span class="twist" aria-hidden="true">
             {#if row.isBranch}
               <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
             {/if}
           </span>
         {/if}
-        {#if row.node.icon}
-          <span class="mark" aria-hidden="true"><Icon name={row.node.icon} size="sm" /></span>
-        {/if}
-        {#if !isRail}
-          <span class="label">{row.node.label}</span>
-        {/if}
       </li>
     {/each}
   </ul>
+  <!-- The branch, unfolded, beside the column: this same component with the branch as its root,
+       so the keyboard, the announcements and the current mark are the ones the tree already has
+       and there is no second tree to keep in step. -->
+  {#if isRail && openedNode}
+    <div class="flyout" bind:this={surface}>
+      <Self
+        label={flyoutLabel ? flyoutLabel(openedNode.label) : openedNode.label}
+        nodes={[openedNode]}
+        {current}
+        expanded={[openedNode.id]}
+        onnavigate={(id) => {
+          closeFlyout();
+          onnavigate?.(id);
+        }}
+      />
+    </div>
+  {/if}
 </nav>
 
 <style>
@@ -150,10 +231,8 @@
     display: flex;
     align-items: center;
     gap: var(--density-row-gap);
-    /* The indent is `padding-inline-start`, which mirrors itself: a `padding-left` would put the
-       indent on the wrong side of an RTL tree, and that is what the direction axis catches. */
     padding-block: var(--density-row-block);
-    padding-inline: calc(var(--sp-100) + var(--depth) * var(--sp-200)) var(--sp-100);
+    padding-inline: var(--sp-100);
     border-radius: var(--r-md);
     color: var(--text-secondary);
     font-size: var(--fs-100);
@@ -190,7 +269,34 @@
     color: var(--text-subtle);
   }
 
-  .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The indent is the label's, and it is `padding-inline-start`, which mirrors itself: a
+     `padding-left` would put the indent on the wrong side of an RTL tree, and that is what the
+     direction axis catches. */
+  .label {
+    flex: 1;
+    min-width: 0;
+    padding-inline-start: calc(var(--depth) * var(--sp-200));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The flyout: positioned by `anchorTo`, layered by `openOverlay`, drawn like every other
+     surface that is temporarily over the page (rule 1). */
+  .flyout {
+    position: fixed;
+    z-index: var(--z-popover);
+    min-inline-size: var(--layout-sidenav-width);
+    max-inline-size: 40ch;
+    max-block-size: 80vh;
+    overflow: auto;
+    margin: var(--sp-050);
+    padding: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-overlay);
+  }
 
   /* The fold: the mark alone, centred, and the row no wider than the column it is in. The
      padding goes with the indent and the twist, because what is left has nothing to sit beside. */
