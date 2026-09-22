@@ -22,11 +22,16 @@ const ENTRY = ITEMS[0];
 const served = await serve(DIST);
 test.after(() => served.close());
 
-/** The rows the details column holds, by their ids and the heading of the editor each opens. */
+/**
+ * The rows a **task** holds, by their ids and the heading of the editor each opens.
+ *
+ * A task, because the column is the capability matrix drawn (issue 916): a work package carries
+ * neither a cover nor a repeat, and an activity carries five capabilities of fourteen. The dates
+ * are one row, because `DuePanel` is one editor.
+ */
 const ROWS = [
   ['assignee', 'Assignee'],
-  ['due', 'Date'],
-  ['start', 'Starts'],
+  ['due', 'Dates'],
   ['labels', 'Labels'],
   ['reminders', 'Reminders'],
   ['recurrence', 'Repeats'],
@@ -204,4 +209,47 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   const indents = await page.locator('.task-row').evaluateAll((rows) => rows.map((row) => getComputedStyle(row).paddingInlineStart));
   assert.deepEqual([...new Set(indents)].sort(), ['0px', '16px'], `the indent steps are ${indents}`);
   assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, close } = await signedIn(browser, 1280, 1000);
+  t.after(close);
+
+  const rowsOf = async (id) => {
+    await page.goto(`${served.origin}/items/${id}`);
+    await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    return page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')));
+  };
+
+  // A task carries all fourteen; a work package neither a cover nor a repeat; an activity five of
+  // the fourteen, and among them neither notes nor labels. `domain-model.md` §2, which the
+  // manifest answers and this client may not second-guess (issue 916).
+  const task = await rowsOf(ENTRY.id);
+  assert.deepEqual(task, ['assignee', 'due', 'labels', 'reminders', 'recurrence', 'language', 'cover', 'attachments']);
+
+  const pack = await rowsOf(CHILDREN[ENTRY.id][0].id);
+  assert.deepEqual(pack, ['assignee', 'due', 'labels', 'reminders', 'language', 'attachments']);
+  assert.equal(await page.locator('.notes-field').count(), 1, 'a work package carries notes');
+
+  const activity = await rowsOf(CHILDREN[CHILDREN[ENTRY.id][0].id][0].id);
+  assert.deepEqual(activity, ['assignee', 'due', 'reminders', 'language']);
+  assert.equal(await page.locator('.notes-field').count(), 0, 'an activity was offered notes it cannot keep');
+  // And no conversation either: the tab used to stand there with a gate inside it saying so.
+  assert.deepEqual(
+    (await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab').allTextContents()).map((each) => each.trim()),
+    ['History'],
+  );
+
+  // And the dates are one row: pressing it opens the one editor that writes both, which is why
+  // two rows for it showed the reader the other date wherever they pressed.
+  await page.locator('[data-detail="due"]').click();
+  const editor = page.getByRole('dialog', { name: 'Dates' });
+  await editor.waitFor({ timeout: 5_000 });
+  const inside = (await editor.textContent()) ?? '';
+  assert.ok(inside.includes('Date') && inside.includes('Starts'), `the dates editor holds ${inside.slice(0, 120)}`);
+
+  assert.deepEqual(failures, []);
+  await context.close();
 });

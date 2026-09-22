@@ -42,10 +42,13 @@ export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
 
 export const MANIFEST = {
   product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single',
+  // The three profiles as `domain-model.md` §2 defines them and a real server answers them,
+  // spelling included — the fixture said `ASSIGNEE` for `ASSIGNMENT` and gave a work package two
+  // capabilities of fourteen, which is a fake that agrees with no installation.
   item_types: [
-    { type: 'TASK', capabilities: ['COMPLETION', 'BUCKET', 'DUE_DATE', 'LABELS', 'ASSIGNEE', 'COMMENTS', 'ATTACHMENTS'], allowed_child_types: ['WORK_PACKAGE'], max_depth: 3 },
-    { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE'], allowed_child_types: ['ACTIVITY'], max_depth: 3 },
-    { type: 'ACTIVITY', capabilities: ['COMPLETION'], allowed_child_types: [], max_depth: 3 },
+    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'], allowed_child_types: ['WORK_PACKAGE'], max_depth: 3 },
+    { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'CUSTOM_FIELDS'], allowed_child_types: ['ACTIVITY'], max_depth: 2 },
+    { type: 'ACTIVITY', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'HISTORY'], allowed_child_types: [], max_depth: 1 },
   ],
   supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }],
   query_fields: [
