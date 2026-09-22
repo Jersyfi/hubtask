@@ -225,6 +225,26 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   assert.ok(written.some((body) => body.check), 'the editor checked after the save');
 });
 
+test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowhere else', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 900 });
+
+  // The canvas draws the run's path and nothing that is not on it (decision 24).
+  assert.equal(await page.locator('[data-canvas] [data-card="guardrails"]').count(), 0, 'no guardrails card on the canvas');
+
+  // The chip says what the card said, and leads to the one place they are set.
+  const chip = page.getByRole('button', { name: /^Guardrails/ });
+  assert.match(await chip.textContent(), /Carry on|at most 100 runs an hour/);
+  await chip.click();
+  const panel = page.locator('aside.inspector');
+  assert.equal(await panel.locator('[role="tab"][aria-selected="true"]').textContent(), 'Rule');
+  await panel.getByLabel("At most this many runs an hour").fill('7');
+  await page.waitForTimeout(200);
+  assert.match(await chip.textContent(), /at most 7 runs an hour/, 'the chip follows the panel');
+});
+
 test('chromium: a deep link into the editor reads each resource once, and only what the first paint needs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
