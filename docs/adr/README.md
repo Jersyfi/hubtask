@@ -70,3 +70,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0061](./ADR-0061-page-anatomy-and-the-shell.md) | Page anatomy: one navigation, the shell wave, and status as a surface | accepted | Design system, client |
 | [0062](./ADR-0062-cached-tool-binaries.md) | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted | CI, supply chain, tooling |
 | [0063](./ADR-0063-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |
+| [0064](./ADR-0064-the-workspace-wide-read.md) | The one read that may ask the whole workspace a narrowed question | proposed | API, domain, search |

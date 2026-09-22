@@ -60,7 +60,10 @@ Seven decisions taken while cutting, beyond what the ADR holds:
    way the rail's fold is kept (ADR-0043). No new endpoint, and nothing about the reader is sent
    anywhere.
 5. **The search's filters compile to the query DSL and to nothing else.** Every chip is a
-   `FilterNode` the contract already accepts (ADR-0026); the language becomes one of them.
+   `FilterNode` (ADR-0026); the language becomes one of them. **The contract does not accept one
+   yet** — `POST /search` takes words and no filter, and `POST /items:query` takes a filter and
+   demands an anchor. That is a wall both endpoints were written to keep, and getting through it
+   is [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md), not a task's to decide.
 6. **Selection's `off` is the default and its `on` survives a layout switch.** The store is the
    one both the list and the board already use; the mode is a property of the screen, not of
    either layout, so switching from list to board keeps what is selected.
@@ -136,7 +139,9 @@ belongs and the row leaves the list; nothing new in `api/openapi.yaml`.
 
 ## F10-04 — The overview is worth arriving at **[L]**
 
-*Depends on: F10-02.*
+*Depends on: F10-02, and on [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md) being accepted
+— see issue 972. **Blocked** until then: the half this task exists for is "what of mine is
+overdue", and no read in the product can ask the workspace a narrowed question.*
 
 ADR-0063 decision 1, the third finding. `/` stops listing the hubs the tree lists and becomes
 what is on the reader: what is overdue and what is due next among the entries assigned to them,
@@ -154,7 +159,8 @@ width; the read count on arrival is measured and recorded in the pull request.
 
 ## F10-05 — Search from the bar, and a search that narrows **[L]**
 
-*Depends on: F10-02.*
+*Depends on: F10-02, and on [ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md) for the
+filters. The bar's field and the page's own shape do not wait on it; the chips do.*
 
 ADR-0063 decision 4. The app bar carries the field from `medium` up; Enter navigates to
 `/search?q=…`; on `compact` the bar has no field and Search stays the bottom bar's destination.
