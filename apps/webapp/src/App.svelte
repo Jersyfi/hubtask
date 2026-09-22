@@ -19,7 +19,8 @@
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
-  import ContainerView from './views/ContainerView.svelte';
+  import ArchiveView from './views/ArchiveView.svelte';
+import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
@@ -191,6 +192,8 @@
     <JumbleView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'trash'}
     <TrashView />
+  {:else if route.name === 'archive'}
+    <ArchiveView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'item'}
     {#key route.params.id}
       <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
