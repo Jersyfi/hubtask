@@ -97,11 +97,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 16 is the supported floor and runs on every pull request; this job is what lets the
-        # table claim anything beyond it.
-        postgres: ["17-alpine"]
+        # A major, not an image. The entry used to be `17-alpine` and the image was composed as
+        # `postgres:${{ matrix.postgres }}` - a plain build with no pgvector, so every run of this
+        # job died on `db/schema.sql does not apply: extension "vector" is not available`, every
+        # night since 2026-09-09 (#939). The row of the table that claims PostgreSQL 17, and the
+        # half of the pgvector row that claims 17, were resting on it.
+        #
+        # The image family is named here, once, so that a matrix entry chooses a version and
+        # cannot choose a build. `test/dbtest` refuses a database without the extension outright,
+        # which is the same rule stated where it is used rather than only here.
+        postgres: ["17"]
     env:
-      HUBTASK_TEST_POSTGRES_IMAGE: postgres:${{ matrix.postgres }}
+      HUBTASK_TEST_POSTGRES_IMAGE: pgvector/pgvector:pg${{ matrix.postgres }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
