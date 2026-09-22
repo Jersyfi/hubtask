@@ -12,6 +12,13 @@
  * **It is cleared when the screen changes.** A selection is about what is in front of somebody, so
  * carrying it from one collection to the next would leave a bar acting on entries nobody can see.
  * The view that owns the screen calls `clear`; nothing here guesses at navigation.
+ *
+ * **Selecting is a mode, and its default is off** (ADR-0063 decision 8). Every list used to draw a
+ * checkbox on every row whether or not anybody was selecting: measured at 375 px, the row is
+ * 299 px wide and its title began at 122 px — 41 % of a phone's row spent before the first word,
+ * always. The mode is entered deliberately — from the page's menu, by a long press where the
+ * pointer is coarse, or by `Ctrl`/`Cmd`-clicking a row — and `Escape` leaves it. It is a property
+ * of the screen rather than of the list or the board, so switching between them keeps it.
  */
 
 import { rangeTo, stillVisible, toggle, toggleAll } from './selection.ts';
@@ -28,6 +35,22 @@ class Selection {
    * and they write it on every render, which is what keeps it from going stale.
    */
   #visible = $state<readonly string[]>([]);
+  /** Whether anybody is selecting. Off until somebody says so, and off again when they are done. */
+  #isOn = $state(false);
+
+  get isOn(): boolean {
+    return this.#isOn;
+  }
+
+  /** Turns it on with nothing picked — what the page's menu and a long press do. */
+  start(): void {
+    this.#isOn = true;
+  }
+
+  /** Leaves the mode and forgets what was picked. `Escape`, and the way out of the bulk bar. */
+  stop(): void {
+    this.clear();
+  }
 
   get ids(): readonly string[] {
     return this.#ids;
@@ -49,6 +72,9 @@ class Selection {
    * same range twice.
    */
   pick(visible: readonly string[], id: string, options: { range?: boolean } = {}): void {
+    // Picking is also how the mode begins: `Ctrl`-clicking a row is somebody saying they are
+    // selecting, and asking them to turn it on first would be asking twice.
+    this.#isOn = true;
     if (options.range) {
       this.#ids = rangeTo(visible, this.#ids, this.#anchor, id);
       return;
@@ -59,6 +85,7 @@ class Selection {
 
   /** Everything on screen, or nothing. */
   all(visible: readonly string[]): void {
+    this.#isOn = true;
     this.#ids = toggleAll(visible, this.#ids);
     this.#anchor = undefined;
   }
@@ -87,6 +114,7 @@ class Selection {
   clear(): void {
     this.#ids = [];
     this.#anchor = undefined;
+    this.#isOn = false;
   }
 }
 

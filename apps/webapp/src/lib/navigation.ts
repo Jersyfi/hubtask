@@ -65,11 +65,22 @@ export const DESTINATIONS: readonly Destination[] = [
   // The account group: what the avatar opens. Reachable from every screen, because the profile
   // is where somebody goes when the product is speaking to them in the wrong language — which is
   // exactly the moment a buried link is no use.
-  { id: 'profile', group: 'account', icon: 'settings', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
-  { id: 'installation', group: 'account', icon: 'info', code: 'app.nav.installation', target: { kind: 'route', path: '/installation' }, routes: ['installation'] },
-  { id: 'administration', group: 'account', icon: 'capability', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
-  { id: 'tour', group: 'account', icon: 'info', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
+  // The marks say what each row is about (ADR-0063 decision 6). `user` for what is the reader's
+  // own; the **gear moves to the administration**, where "the application's settings" is what it
+  // actually means — which is the owner's complaint answered exactly, and one icon fewer than the
+  // `sliders` the ADR named; `compass` for a tour, which is a way through rather than a notice.
+  // The installation used to carry the same outlined `info` as the tour, so two rows of one menu
+  // said the same thing with one mark.
+  { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
+  { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
+  { id: 'tour', group: 'account', icon: 'compass', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
   { id: 'sign-out', group: 'account', icon: 'log-out', code: 'app.sign_out', target: { kind: 'action', action: 'sign-out' }, routes: [] },
+  // The installation, at the foot and in the subtle voice: four facts — the product version, the
+  // API version, the tenancy and the languages — that nobody navigates to and everybody quotes
+  // when they report a problem. It keeps its address and its page; what it loses is a place in
+  // somebody's navigation. Everyone may see it: it names no person and no content, and a reader
+  // who cannot read their own product's version cannot file a useful report.
+  { id: 'about', group: 'account', icon: 'info', code: 'app.nav.about', target: { kind: 'route', path: '/installation' }, routes: ['installation'] },
 ];
 
 /**

@@ -182,6 +182,9 @@
   }
 </script>
 
+<!-- Drawn only while somebody is selecting (ADR-0063 decision 8). It used to stand above every
+     list saying "select every entry on screen" whether or not anybody was selecting anything. -->
+{#if selection.isOn}
 <div class="bar" data-active={count > 0 || op === 'CREATE_ITEM' ? '' : undefined}>
   <!-- The way in, and the only control here that is drawn with nothing selected: without it a
        keyboard reader would have to press every row to act on a screenful. -->
@@ -275,7 +278,16 @@
 
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   {/if}
+
+  <!-- The way out, always drawn while the mode is on: a mode with no visible end is one somebody
+       is stuck in. `Escape` does the same, from anywhere on the screen. -->
+  <span class="done">
+    <Button size="sm" tone="subtle" icon="x" onclick={() => selection.stop()}>
+      {t('app.bulk.done')}
+    </Button>
+  </span>
 </div>
+{/if}
 
 <Dialog
   bind:isOpen={confirming}
@@ -294,6 +306,9 @@
 </Dialog>
 
 <style>
+  /* Pushed to the end of the row, because it is the way out rather than one of the verbs. */
+  .done { margin-inline-start: auto; }
+
   /* Sticky once something is selected (ADR-0061 decision 4): the bar is about the rows below it,
      and a reader who picked forty entries should not scroll back up to act on them. Under the app
      bar from `medium`; on a phone above the bottom bar, where the thumb is. `raised`, because it

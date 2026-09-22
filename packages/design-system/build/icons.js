@@ -37,6 +37,10 @@ export const DECLARED = {
     'link',
     'search',
     'settings',
+    // A tour is a way through rather than a notice, and it used to carry the same outlined `info`
+    // as the installation — two rows of one menu saying the same thing with one mark (ADR-0063
+    // decision 6).
+    'compass',
     'log-out',
     'ellipsis',
     'grip-vertical',
