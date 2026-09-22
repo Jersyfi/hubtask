@@ -2340,6 +2340,7 @@
   "app.due.none": "Keine Fälligkeit",
   "app.due.zone_note": "{time} dort, wo es gesetzt wurde, {reader_time} für dich.",
   "app.due.start": "Beginnt",
+  "app.due.span": "{start} → {due}",
   "app.due.start_clear": "Beginn löschen",
   "app.due.overdue": "Überfällig",
   "app.due.overdue_by": "Überfällig, {relative}",
