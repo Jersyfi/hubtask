@@ -39,10 +39,11 @@ says so.
 Seven decisions taken while cutting, beyond what the ADR holds:
 
 1. **The defects come first and do not wait for the ADR.** Six of the thirteen findings are
-   broken rather than debatable — the dead breadcrumb, the empty rail, the refused capabilities,
-   the two date rows, the auto-assign without a policy, the editor's border. They are fixed as
-   findings against `main` before the milestone's own tasks, in the shape the ADR proposes, and
-   each task below says which part is already done.
+   broken rather than debatable — the dead breadcrumb (#914), the empty rail (#915), the refused
+   capabilities and the two date rows (#916), the auto-assign without a policy (#917), the
+   editor's border (#918). They were fixed as findings against `main` on 2026-09-22, in the shape
+   the ADR proposes and no further, and each task below says which part is already done. What they
+   measured is in [`evidence/F10-2026-09-22.md`](../evidence/F10-2026-09-22.md).
 2. **`SideNav` is one component with two drawings, never two components.** The rail is a prop,
    the flyout is the same tree in a `Popover`, and a second tree is the failure this is guarded
    against — as it was in F9.
@@ -64,9 +65,9 @@ Seven decisions taken while cutting, beyond what the ADR holds:
 
 ---
 
-## F10-01 — The rail draws its marks **[L]**
+## F10-01 — The mark first, the twist last, and the rail's flyout **[L]**
 
-*Depends on: nothing.*
+*Depends on: nothing. The fold drawing its marks at all is done — #915, closed by #920.*
 
 ADR-0062 decision 2. `SideNav`'s row becomes mark · label · twist: the mark first, at one
 inline position for every level, the indent on the label, and the twist at the trailing edge
@@ -273,7 +274,8 @@ floor.
 
 ## F10-12 — One way to edit, and only the fields the type carries **[L]**
 
-*Depends on: F10-02. Partly done as a finding — see decision 1 of this cut.*
+*Depends on: F10-02. Partly done as a finding: #916, by #927 — the rows follow the capability
+matrix and the dates are one row. What is left here is the edit form and the cover.*
 
 ADR-0062 decision 9. The "edit" item and the form it opens are removed; the head's fields stay
 edited in place and every other field is a details row that opens its own editor. The details
@@ -292,7 +294,8 @@ every width and in the detail pane.
 
 ## F10-13 — Assignment reads as the two questions it is **[L]**
 
-*Depends on: F10-12. Partly done as a finding — see decision 1 of this cut.*
+*Depends on: F10-12. Partly done as a finding: #917, by #930 — the button carries its reason
+where no policy exists. What is left here is what the two pickers say.*
 
 ADR-0062 decision 10. One panel, two named parts — *Responsible*, one person, and *Also on it*,
 several — each with the sentence that distinguishes it. Auto-assign is offered only where the
@@ -326,9 +329,10 @@ decision 12
 
 ---
 
-## F10-15 — The rule editor meets the content region **[L]**
+## F10-15 — The rule editor meets the content region **[L]** — **done**
 
-*Depends on: nothing. Done as a finding — see decision 1 of this cut.*
+*Depends on: nothing. Closed as a finding: #918, by #931. It is listed so that the milestone's
+reader finds every part of ADR-0062 in one place.*
 
 ADR-0062 decision 7's last paragraph. The visual editor's own border and inset come off so that
 its canvas meets the content region the way every other screen does. Nothing else about F8's
