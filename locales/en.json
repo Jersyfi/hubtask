@@ -3033,6 +3033,7 @@
   "app.people.auto_assigning": "Choosing",
   "app.people.auto_assigned": "Assigned by the {strategy} policy.",
   "app.people.auto_assign_none": "The {strategy} policy ran and found nobody eligible.",
+  "app.people.auto_assign_unset": "No policy chooses for this collection yet. One is set in the collection’s policies.",
   "app.people.unassigned_announced": "Nobody is assigned now.",
   "app.people.assigned_announced": "Assigned.",
   "app.people.member_added_announced": "Member added.",
