@@ -218,6 +218,11 @@ jobs:
           restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       - run: make tools-ensure
       - run: make gate-quick
+      # The generated Python SDK, parsed. `make generate` writes it and the step above fails on a
+      # drift, so what the contract produces is checked; that it is valid Python was not, by
+      # anything, ever (#943). Python is on the runner image and is already what the Compose gate
+      # reads JSON with.
+      - run: make gate-sdk
 
   build:
     name: Build (${{ matrix.goarch }})

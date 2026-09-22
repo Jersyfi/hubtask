@@ -37,7 +37,7 @@ Staggered by runtime: whatever fails fastest runs first.
 
 | Job | Contents | Gate |
 |---|---|---|
-| `quick` | `gofmt`, `go vet`, `golangci-lint`, `make generate` with no diff | Format, lint, generation |
+| `quick` | `gofmt`, `go vet`, `golangci-lint`, `make generate` with no diff, and `make gate-sdk` — the generated Python SDK parsed by a Python, which nothing did until #943: `tools/sdkgen`'s own test compares strings, and a file that does not parse passes that as readily as one that does | Format, lint, generation |
 | `build` | `go build ./...` for linux/amd64 and linux/arm64 | Buildability |
 | `unit` | Domain and application tests, coverage thresholds (85% / 75%) | Unit gate |
 | `integration` | Service container PostgreSQL 16, `goose up`, repository and use case tests; object storage and the other backup targets come from Testcontainers | Integration |
