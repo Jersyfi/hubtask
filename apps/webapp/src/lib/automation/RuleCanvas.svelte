@@ -192,10 +192,19 @@
     <span class="ghead">
       <span class="mark condition-mark"><Icon name="funnel" size="sm" /></span>
       <span class="title">{t('app.flow.card_only_when')}</span>
-      <span class="hint">{draft.conditions.length > 1 ? t('app.flow.card_only_when_all') : draft.conditions.length === 1 ? t('app.flow.card_only_when_one') : t('app.flow.card_only_when_none')}</span>
+      <!-- Nothing to say where there is one condition: one is the most there can be (decision 30).
+           A stored rule from before may carry several, and then how they join is worth saying. -->
+      {#if draft.conditions.length !== 1}
+        <span class="hint">{draft.conditions.length > 1 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
+      {/if}
     </span>
+    <!-- One condition is the gate itself (decision 30): it is not a second thing to click, and
+         the click goes through to the gate, whose panel is where it is edited. Only a stored rule
+         with several keeps them apart, one card each. -->
     {#each draft.conditions as expr, index (index)}
+      {@const several = draft.conditions.length > 1}
       {@const verdict = verdicts?.get(`conditions/${index}`)}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="condition"
         class:selected={isSelected('condition', index)}
@@ -204,16 +213,20 @@
         class:no={verdict?.state === 'no'}
         class:faded={dimUnvisited && verdict === undefined}
         data-card={`conditions/${index}`}
-        role="button"
-        tabindex="0"
-        onclick={(event) => {
-          event.stopPropagation();
-          onselect({ kind: 'condition', index });
-        }}
-        onkeydown={(event) => {
-          event.stopPropagation();
-          onkey(event, () => onselect({ kind: 'condition', index }));
-        }}
+        role={several ? 'button' : undefined}
+        tabindex={several ? 0 : undefined}
+        onclick={several
+          ? (event) => {
+              event.stopPropagation();
+              onselect({ kind: 'condition', index });
+            }
+          : undefined}
+        onkeydown={several
+          ? (event) => {
+              event.stopPropagation();
+              onkey(event, () => onselect({ kind: 'condition', index }));
+            }
+          : undefined}
       >
         {#if index > 0}<span class="and">{t('app.flow.sentence_and').trim()}</span>{/if}
         <span class="body">
