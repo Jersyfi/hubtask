@@ -178,8 +178,12 @@ type Notification struct {
 	// event (ADR-0007 delivers at-least-once, so a consumer may see the same event twice).
 	EventID shared.ID
 	// ItemID is the entry this is about, zero where there is none - an invitation is about the
-	// workspace.
-	ItemID shared.ID
+	// workspace. RuleID and SubscriptionID are the subjects that are not an entry (issue 814):
+	// the rule the check or the failure streak switched off, the subscription the engine stopped
+	// calling. At most one of the three is set, and the table holds the same rule.
+	ItemID         shared.ID
+	RuleID         shared.ID
+	SubscriptionID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the
 	// system rather than for a person (C-02).
 	ActorID   shared.ID
@@ -200,8 +204,12 @@ type NewInput struct {
 	Channel     Channel
 	EventID     shared.ID
 	ItemID      shared.ID
-	ActorID     shared.ID
-	At          time.Time
+	// RuleID or SubscriptionID instead of ItemID for a message about a rule or a subscription;
+	// naming two subjects is refused.
+	RuleID         shared.ID
+	SubscriptionID shared.ID
+	ActorID        shared.ID
+	At             time.Time
 }
 
 // New writes a pending notification.
@@ -224,20 +232,36 @@ func New(in NewInput) (Notification, error) {
 		return Notification{}, shared.ErrInternal.
 			WithDetail("notifications.channel_unknown").
 			WithParams(map[string]string{"value": string(in.Channel)})
+	case subjectsNamed(in) > 1:
+		// A message is about one thing; a record naming two would be rendered as whichever the
+		// renderer read first, and the table refuses it anyway (issue 814).
+		return Notification{}, shared.ErrInternal.WithDetail("notifications.subject_ambiguous")
 	}
 
 	return Notification{
-		ID:          in.ID,
-		TenantID:    in.TenantID,
-		RecipientID: in.RecipientID,
-		Category:    in.Category,
-		Channel:     in.Channel,
-		State:       StatePending,
-		EventID:     in.EventID,
-		ItemID:      in.ItemID,
-		ActorID:     in.ActorID,
-		CreatedAt:   in.At,
+		ID:             in.ID,
+		TenantID:       in.TenantID,
+		RecipientID:    in.RecipientID,
+		Category:       in.Category,
+		Channel:        in.Channel,
+		State:          StatePending,
+		EventID:        in.EventID,
+		ItemID:         in.ItemID,
+		RuleID:         in.RuleID,
+		SubscriptionID: in.SubscriptionID,
+		ActorID:        in.ActorID,
+		CreatedAt:      in.At,
 	}, nil
+}
+
+func subjectsNamed(in NewInput) int {
+	named := 0
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID} {
+		if !id.IsZero() {
+			named++
+		}
+	}
+	return named
 }
 
 // Suppress records a decision not to send, and why.
