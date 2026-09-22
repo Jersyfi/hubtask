@@ -30,6 +30,15 @@
     /** Called with the item's id. The menu closes first: what happens next may take focus itself. */
     onselect?: (id: string) => void;
     trigger: Snippet<[Record<string, unknown>]>;
+    /**
+     * Something above the items that is not one of them — a menu that belongs to a person names
+     * them there.
+     *
+     * Outside the `menu` role rather than inside it: the children of a menu are its items, and a
+     * heading among them is a row the arrows would have to skip. It sits in the surface, above
+     * the list, and takes no focus.
+     */
+    head?: Snippet;
   }
 
   let {
@@ -39,12 +48,15 @@
     isOpen = $bindable(false),
     onselect,
     trigger,
+    head,
   }: Props = $props();
 
   const id = `menu-${Math.random().toString(36).slice(2, 9)}`;
 
   let anchor = $state<HTMLElement | null>(null);
   let surface = $state<HTMLElement | null>(null);
+  /** The `menu` element itself: what the keyboard walks and what takes focus when it opens. */
+  let list = $state<HTMLElement | null>(null);
   let active = $state(-1);
   let opener: Element | null = null;
 
@@ -106,8 +118,8 @@
   // Focus follows the active index rather than being moved at every call site: there are five
   // places that change it, and four of them would eventually forget.
   $effect(() => {
-    if (!isOpen || !surface || active < 0) return;
-    surface.querySelectorAll<HTMLElement>('[role="menuitem"]')[active]?.focus();
+    if (!isOpen || !list || active < 0) return;
+    list.querySelectorAll<HTMLElement>('[role="menuitem"]')[active]?.focus();
   });
 
   $effect(() => {
@@ -120,6 +132,8 @@
   {@render trigger(triggerProps)}
 </span>
 {#if isOpen}
+  <div class="surface" bind:this={surface}>
+    {#if head}<div class="head">{@render head()}</div>{/if}
   <!-- The keydown listener is on the list rather than on each item: the arrows are a property of
        the menu, and one handler cannot disagree with itself. -->
   <div
@@ -128,7 +142,7 @@
     role="menu"
     aria-label={label}
     tabindex="-1"
-    bind:this={surface}
+    bind:this={list}
     onkeydown={onKeydown}
   >
     {#each items as item, index (item.id)}
@@ -152,13 +166,15 @@
         {/if}
       </button>
     {/each}
+    </div>
   </div>
 {/if}
 
 <style>
   .anchor { display: inline-flex; }
 
-  .menu {
+  /* The surface is what is anchored and drawn; the list inside it is what the keyboard walks. */
+  .surface {
     position: fixed;
     /* Anchored to a trigger and dismissed by it: the `popover` rank, from tokens.json. */
     z-index: var(--z-popover);
@@ -175,6 +191,15 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
+  }
+
+  .menu { display: flex; flex-direction: column; }
+
+  /* Above the items and not among them: a hairline under it, and it takes no focus. */
+  .head {
+    padding: var(--sp-100) var(--sp-150);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    margin-block-end: var(--sp-050);
   }
 
   .menu:focus-visible {

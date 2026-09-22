@@ -3,11 +3,16 @@
 <script lang="ts">
   // The account group of the one navigation list (ADR-0061 decision 1), drawn two ways.
   //
-  // From `medium` up it is a `Menu` behind the avatar and the name - where "signed in as …" was a
-  // sentence, the person is now the control that opens what is theirs. On `compact` there is no
-  // avatar in the bar; "You" in the bottom bar opens the same group as a sheet from the bottom,
-  // with the avatar and the name as its head. Two drawings, one list: the rows are handed in
-  // and this component invents none.
+  // From `medium` up it is a `Menu` behind the avatar - where "signed in as …" was a sentence, the
+  // person is now the control that opens what is theirs. On `compact` there is no avatar in the
+  // bar; "You" in the bottom bar opens the same group as a sheet from the bottom. Two drawings,
+  // one list: the rows are handed in and this component invents none.
+  //
+  // **The name and the address are the head of what it opens, in both drawings** (ADR-0063
+  // decision 6). The bar used to carry the display name, and a display name is the address until
+  // somebody introduces themselves — the server's own convention, so a fresh workspace put its
+  // owner's e-mail in the frame on every screen. An address is not navigation. The name joins the
+  // trigger again only from `large`, where there is room for it beside everything else.
   //
   // What choosing a row does is the frame's to decide - a route, the tour, signing out - so the
   // choice goes back as the destination's id.
@@ -23,18 +28,26 @@
     email?: string | null;
     /** A sheet from the bottom on `compact`; a menu behind the avatar above it. */
     isSheet: boolean;
+    /** Whether the trigger carries the name beside the avatar. Only where there is room for it. */
+    hasName?: boolean;
+    /**
+     * The word for one row, where the frame has something to put in it — the product's version in
+     * "About Hubtask · 0.9.0". A resolver rather than a map of ids, so that this component stays
+     * ignorant of which row is which.
+     */
+    word?: (destination: Destination) => string;
     /** The sheet's state, owned by the frame because the bottom bar is what opens it. */
     isSheetOpen?: boolean;
     onchoose: (id: string) => void;
   }
 
-  let { destinations, name, email, isSheet, isSheetOpen = $bindable(false), onchoose }: Props = $props();
+  let { destinations, name, email, isSheet, hasName = false, word, isSheetOpen = $bindable(false), onchoose }: Props = $props();
 
   // The two verbs at the end stand apart from the three places above them.
   const items = $derived(
     destinations.map((destination) => ({
       id: destination.id,
-      label: t(destination.code),
+      label: word ? word(destination) : t(destination.code),
       icon: destination.icon,
       hasSeparatorBefore: destination.target.kind === 'action' && destination.id === destinations.find((each) => each.target.kind === 'action')?.id,
     })),
@@ -46,16 +59,22 @@
   }
 </script>
 
+<!-- Who this is: the same head in both drawings, because the question "whose menu is this" has
+     one answer. The address is here and nowhere else. -->
+{#snippet who()}
+  <div class="who">
+    <Avatar {name} size="md" />
+    <div class="names">
+      <span class="name">{name}</span>
+      {#if email && email !== name}<span class="email">{email}</span>{/if}
+    </div>
+  </div>
+{/snippet}
+
 {#if isSheet}
   <Drawer bind:isOpen={isSheetOpen} edge="block-end" title={t('app.nav.you')} dismissLabel={t('app.dismiss')}>
     <Stack gap="200">
-      <div class="who">
-        <Avatar {name} size="md" />
-        <div class="names">
-          <span class="name">{name}</span>
-          {#if email}<span class="email">{email}</span>{/if}
-        </div>
-      </div>
+      {@render who()}
       <ul class="rows">
         {#each items as item (item.id)}
           <li class:apart={item.hasSeparatorBefore}>
@@ -70,12 +89,16 @@
   </Drawer>
 {:else}
   <Menu label={t('app.nav.you')} {items} placement={{ side: 'block-end', align: 'end' }} onselect={choose}>
+    {#snippet head()}
+      {@render who()}
+    {/snippet}
     {#snippet trigger(props)}
-      <!-- The button is named by the name beside the picture, once: the avatar is decoration here,
-           because a control called "Jérôme Winkel Jérôme Winkel" is a control named twice. -->
-      <button type="button" class="account" {...props}>
+      <!-- The button is named by the person, once: the avatar is decoration here, because a
+           control called "Jérôme Winkel Jérôme Winkel" is a control named twice. The name is drawn
+           beside it only where there is room; the address never is. -->
+      <button type="button" class="account" aria-label={hasName ? undefined : name} {...props}>
         <span aria-hidden="true"><Avatar {name} size="sm" /></span>
-        <span class="name">{name}</span>
+        {#if hasName}<span class="name">{name}</span>{/if}
       </button>
     {/snippet}
   </Menu>

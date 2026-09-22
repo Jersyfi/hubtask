@@ -38,6 +38,11 @@ async function stub(route) {
   }
   if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+  // The manifest, for the one thing the frame reads out of it here: the product's version, which
+  // the account menu's foot carries so that somebody reporting a problem can quote it.
+  if (path.endsWith('/api/v1/meta/capabilities')) {
+    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }] } });
+  }
   if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
   if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
@@ -51,7 +56,9 @@ test.after(() => served.close());
 
 /** The destinations every width has to offer, by the name a reader sees. */
 const PRIMARY = ['Workspace', 'Search', 'Jumble'];
-const ACCOUNT_GROUP = ['Your settings', 'This installation', 'Administration', 'Take the tour again', 'Sign out'];
+// The account group, in its order. "This installation" is at the foot as "About Hubtask" with the
+// version beside it (ADR-0063 decision 6) — the same route under a name somebody would look for.
+const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'Sign out', 'About Hubtask · 0.9.0'];
 
 async function open(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 800 } });
@@ -254,11 +261,24 @@ for (const width of [905, 1280]) {
     assert.equal(new URL(page.url()).pathname, '/jumble');
     await keeping.getByRole('treeitem', { name: 'Trash' }).click();
     assert.equal(new URL(page.url()).pathname, '/trash');
-    await page.getByRole('button', { name: ACCOUNT.display_name }).click();
+    // The trigger is the avatar, named by the person; the name is beside it only from `large`,
+    // and the address is inside rather than in the frame (ADR-0063 decision 6).
+    const trigger = page.getByRole('button', { name: ACCOUNT.display_name });
+    // The avatar's initials are always drawn; the name in words only from `large`.
+    assert.equal(
+      (await trigger.textContent()).includes(ACCOUNT.display_name),
+      width >= 1240,
+      `${width}: the trigger draws "${(await trigger.textContent()).trim()}"`,
+    );
+    assert.equal(await page.getByRole('banner', { name: 'Application bar' }).getByText(ACCOUNT.email).count(), 0, `${width}: the bar carries an address`);
+    await trigger.click();
     const menu = page.getByRole('menu', { name: 'You' });
     await menu.waitFor({ timeout: 5_000 });
     assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((item) => item.trim()), ACCOUNT_GROUP);
-    await menu.getByRole('menuitem', { name: 'This installation' }).click();
+    // Whose menu it is, said where it is opened and nowhere else.
+    const whose = page.locator('.surface').filter({ has: page.getByRole('menu', { name: 'You' }) });
+    assert.equal(await whose.getByText(ACCOUNT.email).count(), 1, `${width}: the menu does not say whose it is`);
+    await menu.getByRole('menuitem', { name: /About Hubtask/ }).click();
     assert.equal(new URL(page.url()).pathname, '/installation');
     assert.deepEqual(failures, []);
   });
