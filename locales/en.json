@@ -3377,6 +3377,8 @@
   "app.fields.value_saved_announced": "{key} saved.",
   "app.bulk.select": "Select {title}",
   "app.bulk.select_all": "Select every entry on screen",
+  "app.bulk.select_mode": "Select entries",
+  "app.bulk.done": "Done selecting",
   "app.bulk.selected": "{count} selected",
   "app.bulk.selected_of_cap": "{count} selected, of {cap} one request carries",
   "app.bulk.over_cap": "More entries are selected than one request carries. Deselect some, or act on them in two goes.",

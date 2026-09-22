@@ -195,6 +195,20 @@
   /** The entry being copied, if one is. The dialog is open exactly while this is set. */
   let duplicating = $state<WorkItem | undefined>(undefined);
 
+  // `Escape` leaves the selection mode, from anywhere on the screen: a mode with no way out but a
+  // small button is one somebody is stuck in (ADR-0063 decision 8). It is on the window rather
+  // than on a node, because the reader may be anywhere — a filter panel, a dialog's trigger, the
+  // page head — and a dialog that is open takes the key first, as its own overlay should.
+  $effect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !selection.isOn) return;
+      if (document.querySelector('dialog[open], [role="dialog"], [role="menu"]')) return;
+      selection.stop();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   // A selection is about what is in front of somebody, so it does not survive the screen.
   $effect(() => {
     void id;
@@ -494,6 +508,11 @@
     container === undefined
       ? []
       : [
+          // The way into the selection mode, where a screen's verbs are (ADR-0063 decision 8).
+          // Only on a collection: a hub holds collections, and nothing acts on those in bulk.
+          ...(container.type === 'COLLECTION'
+            ? [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, hasSeparatorBefore: false }]
+            : []),
           {
             id: 'rename',
             label: t('app.workspace.rename'),
@@ -536,7 +555,8 @@
   );
 
   function choseFromMenu(id: string) {
-    if (id === 'rename') startRename();
+    if (id === 'select') selection.start();
+    else if (id === 'rename') startRename();
     else if (id === 'move') isMovingHub = true;
     else if (id === 'archive') void toggleArchived();
     else if (id === 'up') void moveBy(-1);
