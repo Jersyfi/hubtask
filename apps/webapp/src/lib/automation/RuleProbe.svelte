@@ -31,13 +31,15 @@
     onpick?: (card: string) => void;
     /** Whether the rule is an inbound one, which takes a payload. */
     takesPayload: boolean;
+    /** Whether anything in the rule reads the entry: then a sample without one answers nothing. */
+    readsEntry?: boolean;
     isRunning: boolean;
     outcome?: Outcome;
     onrun: (sample: { type: string; subject?: string; payload?: Record<string, unknown> }) => void;
     onclear: () => void;
   }
 
-  const { eventTypes, defaultType, notes = [], onpick, takesPayload, isRunning, outcome, onrun, onclear }: Props = $props();
+  const { eventTypes, defaultType, notes = [], onpick, takesPayload, readsEntry = false, isRunning, outcome, onrun, onclear }: Props = $props();
 
   const words = { t, has: (code: string) => messages.has(code) };
 
@@ -120,6 +122,13 @@
 
   {#if takesPayload}
     <Textarea label={t('app.flow.probe_payload')} hint={t('app.flow.probe_payload_hint')} error={payloadError ? t('app.rules.action_params_hint') : undefined} rows={4} spellcheck={false} bind:value={payloadText} />
+  {/if}
+
+  {#if readsEntry && !chosen}
+    <!-- The commonest reason a probe answers nothing: a condition that reads the entry, and a
+         sample that is about none. The run then records the condition as unreadable, which is
+         true and tells the writer nothing they were looking for. -->
+    <Callout tone="info">{t('app.flow.probe_subject_needed')}</Callout>
   {/if}
 
   {#if defaultType && type && type !== defaultType}

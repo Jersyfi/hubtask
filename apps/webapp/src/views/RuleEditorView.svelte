@@ -478,6 +478,14 @@
       ...(note.params?.kind ? { kind: kindWord(words, String(note.params.kind)) } : {}),
       ...(note.params?.parameter ? { parameter: String(note.params.parameter).replace(/_/g, ' ') } : {}),
     });
+  /** Whether anything in the rule reads the entry: what a probe without a subject cannot answer. */
+  const readsEntry = $derived.by(() => {
+    const expressions = [...draft.conditions];
+    walk(draft.actions, (step) => {
+      if (step.kind === 'BRANCH') expressions.push(String(step.params.condition ?? ''));
+    });
+    return expressions.some((expr) => expr.includes('item.'));
+  });
   const noteList = $derived(notes.map((note) => ({ level: note.level, card: note.card, text: noteWords(note) })));
 
   /** The card a note or a finding is about, selected. */
@@ -894,6 +902,7 @@
             defaultType={draft.trigger.event_type ?? ''}
             notes={noteList}
             onpick={pick}
+            readsEntry={readsEntry}
             takesPayload={draft.trigger.kind === 'INBOUND_WEBHOOK'}
             isRunning={isProbing}
             {outcome}
