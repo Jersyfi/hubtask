@@ -771,7 +771,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0059 | Licensing phases and Licensing Start | proposed |
 | 0060 | The check: a rule's references resolved before they fail | accepted |
 | 0061 | Page anatomy: one navigation, the shell wave, and status as a surface | accepted |
-| 0062 | The navigation, the status place, and how a screen is worked | proposed |
+| 0062 | The navigation, the status place, and how a screen is worked | accepted |
 
 ---
 

@@ -20,6 +20,11 @@ F10 is the tenth milestone of the client track (`roadmap.md` phase 5). It contin
 supersedes two sentences of ADR-0061; everything else that ADR decided stands and is not
 revisited here. **F7 keeps its letter and stays uncut.**
 
+The ADR was **accepted on 2026-09-22**, with the four questions it put to the owner answered:
+the search field moves into the bar, the first destination becomes the overview, "This
+installation" stops being a destination and becomes "About Hubtask" at the foot of the account
+menu, and administration gets its own section navigation.
+
 **F10 is not a version.** Nothing is released by it; the product version stays the single line
 ADR-0035 decided, and the client's maturity stage stays `preview`.
 
