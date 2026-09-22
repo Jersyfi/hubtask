@@ -34,6 +34,7 @@
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { REFERENCE, eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -68,6 +69,11 @@
   // a name might need later - the memberships, the groups, the templates, the webhooks, each
   // collection's labels and buckets - is opened when a field of the rule or the panel names its
   // kind (`needed`, below), so that a deep link never meets the credential's burst on one screen.
+  // The canvas takes the content region whole: it is a surface with its own head, its own
+  // hairlines and an inspector against the far edge, and standing it in the frame's padding drew
+  // a slab of one colour on a page of another - a box on a page (issue 918).
+  $effect(() => page.fill());
+
   $effect(() => untrack(() => rules.open()));
   $effect(() => untrack(() => containers.start()));
   $effect(() => untrack(() => serviceAccounts.open()));
