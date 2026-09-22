@@ -324,3 +324,50 @@ func TestPayloadRendersTheJumbleEntryAsData(t *testing.T) {
 		t.Errorf("the inbound body lost to the jumble: %v", payload)
 	}
 }
+
+// sets answers one entry's identifiers beside it: the labels or the members it carries.
+type sets struct{ rows map[shared.ID][]shared.ID }
+
+func (s sets) List(_ context.Context, itemID shared.ID) ([]shared.ID, error) {
+	return s.rows[itemID], nil
+}
+
+// `item.labels` and `item.members` are the entry's sets beside it, as identifiers, read only when
+// `item` is (issue 807): automation.md §1's own example, `item.labels.exists(l, l == '<id>')`, was
+// a promise the engine did not keep - the document had no `labels` key, so the condition compiled
+// and failed at every run. Without the readers the document is the entry alone, as before.
+func TestTheItemCarriesItsLabelsAndMembersBesideIt(t *testing.T) {
+	entries, containers := workspace()
+	label := shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")
+	member := shared.ID("01936f2a-7c1e-7000-8000-0000000000a2")
+	values := condition.Values{
+		Envelope: itemEnvelope(), Now: readAt, Entries: entries, Containers: containers,
+		Labels:  sets{rows: map[shared.ID][]shared.ID{valuesItem: {label}}},
+		Members: sets{rows: map[shared.ID][]shared.ID{valuesItem: {member}}},
+	}
+	item, _ := resolved(t, values, "item").(map[string]any)
+	if labels, _ := item["labels"].([]any); len(labels) != 1 || labels[0] != label.String() {
+		t.Errorf("item.labels = %v", item["labels"])
+	}
+	if members, _ := item["members"].([]any); len(members) != 1 || members[0] != member.String() {
+		t.Errorf("item.members = %v", item["members"])
+	}
+
+	// An entry carrying none answers empty lists, not absent keys: `exists` over an empty list
+	// is false, where an absent key is an evaluation error.
+	bare := condition.Values{
+		Envelope: itemEnvelope(), Now: readAt, Entries: entries, Containers: containers,
+		Labels: sets{}, Members: sets{},
+	}
+	item, _ = resolved(t, bare, "item").(map[string]any)
+	if labels, ok := item["labels"].([]any); !ok || len(labels) != 0 {
+		t.Errorf("an entry without labels answers %v", item["labels"])
+	}
+
+	// Without the readers, the document is the entry alone.
+	alone := condition.Values{Envelope: itemEnvelope(), Now: readAt, Entries: entries, Containers: containers}
+	item, _ = resolved(t, alone, "item").(map[string]any)
+	if _, present := item["labels"]; present {
+		t.Error("a document built without the sets claims to know the labels")
+	}
+}

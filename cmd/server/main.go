@@ -1237,7 +1237,7 @@ func run() error {
 		automationservice.TestRule{
 			Rules:     postgres.NewAutomationRuleRepository(cursors),
 			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
-			Entries: items, Containers: containers,
+			Entries: items, Containers: containers, Labels: itemLabels, Members: itemMembers,
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
@@ -2510,6 +2510,8 @@ func run() error {
 			Conditions: celexpression.New(),
 			Entries:    items,
 			Containers: containers,
+			Labels:     itemLabels,
+			Members:    itemMembers,
 			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:    metrics,
