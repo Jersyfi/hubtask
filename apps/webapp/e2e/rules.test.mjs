@@ -494,6 +494,52 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
   assert.equal(patch.actions[1].params.condition, "has(item.due_at) && item.title.matches('(?i)urgent')");
 });
 
+test('chromium: the gate is edited as one thing, a group is offered from the first sentence, and a rung has a trash', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 1200 });
+  const inspector = page.locator('aside.inspector');
+
+  // The gate holds every condition, and so does its panel (decision 28).
+  // The gate's own heading: a click on a condition inside it selects that one alone, which is
+  // the other half of decision 28.
+  await page.locator('[data-card="gate"] .ghead').click();
+  await inspector.locator('[data-condition="0"]').waitFor();
+  assert.equal(await inspector.locator('[data-condition]').count(), 1, 'the stored condition is in the gate\'s own panel');
+  await inspector.locator('button', { hasText: 'Add a condition' }).click();
+  await page.waitForTimeout(150);
+  assert.equal(await inspector.locator('[data-condition]').count(), 2, 'adding one keeps the gate, with the new one under it');
+  assert.equal(await page.locator('[data-card="conditions/1"]').count(), 1, 'and the canvas has it too');
+
+  // A group is offered from the first sentence, and the mode appears when there is something to
+  // hold together.
+  const composer = inspector.locator('[data-condition="1"]');
+  assert.deepEqual((await composer.locator('.adds button').allTextContents()).map((text) => text.trim()), ['Add another sentence', 'Add a group']);
+  assert.equal(await composer.locator('select.mode').count(), 0, 'one sentence has no mode');
+  await composer.locator('.adds button').nth(1).click();
+  await page.waitForTimeout(150);
+  assert.equal(await composer.locator('select.mode').count(), 2, 'the root\'s mode and the new group\'s');
+  assert.equal(await composer.locator('code.compiled').textContent(), "item.type == 'TASK' && (item.type == 'TASK')");
+
+  // The condition is removed from the same panel.
+  await composer.locator('button', { hasText: 'Remove' }).first().click();
+  await page.waitForTimeout(150);
+  assert.equal(await inspector.locator('[data-condition]').count(), 1);
+
+  // A rung carries the trash every other card carries, and what it held as otherwise stays.
+  await page.locator('[data-add-rung="1"]').click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('[data-remove-rung]').count(), 1, 'the first rung is the branch itself');
+  await page.locator('[data-card="1"] button[aria-label="Fold the arms"]').click();
+  assert.match(await page.locator('.folded').textContent(), /Conditions · 2/, 'a folded ladder counts its rungs, not the next one as a step');
+  await page.locator('.folded').click();
+  await page.locator('[data-remove-rung]').first().click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('[data-remove-rung]').count(), 0, 'the ladder closed over it');
+  assert.equal(await page.locator('[data-card="1/else/0"] .title').textContent(), 'Wait', 'and the last resort is where it was');
+});
+
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

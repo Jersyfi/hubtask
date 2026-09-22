@@ -30,7 +30,7 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
+  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { REFERENCE, eventWords, generatedName, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
@@ -200,6 +200,12 @@
     }
     select({ kind: 'step', path: at });
   }
+  /** The trash on a rung: the ladder closes over it, and nothing is left selected (decision 28). */
+  function removeElseIf(path: string): void {
+    update((current) => ({ ...current, actions: removeRung(current.actions, path) }));
+    select({ kind: 'none' });
+  }
+
   let sentenceOpen = $state(false);
   try {
     sentenceOpen = localStorage.getItem('hubtask.rule.sentence') === 'open';
@@ -411,7 +417,9 @@
 
   function addCondition(): void {
     update((current) => ({ ...current, conditions: [...current.conditions, "item.type == 'TASK'"] }));
-    select({ kind: 'condition', index: draft.conditions.length - 1 });
+    // The gate holds every condition and so does its panel (decision 28): the new one is already
+    // on screen, at the bottom of it, and jumping to it alone would take the others away.
+    select({ kind: 'gate' });
   }
 
   function removeCondition(index: number): void {
@@ -712,6 +720,7 @@
           onaddcondition={addCondition}
           onnudge={nudgeStep}
           onaddrung={addElseIf}
+          onremoverung={removeElseIf}
           {drag}
           ondragchange={(next) => (drag = next)}
           ondrop={dropped}
