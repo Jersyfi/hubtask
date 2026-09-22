@@ -245,6 +245,49 @@ test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowher
   assert.match(await chip.textContent(), /at most 7 runs an hour/, 'the chip follows the panel');
 });
 
+test('chromium: at the narrowest width beside the panel a selected card keeps its ring, and the background deselects', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  // Just above the expanded breakpoint: the canvas and the panel side by side with the least
+  // room between them, which is where a content-box card overhung its column (decision 25).
+  const page = await open(browser, written, { width: 960, height: 1000 });
+  await page.locator('[data-card="0"]').click();
+
+  const room = await page.evaluate(() => {
+    const canvas = document.querySelector('.canvas');
+    const card = document.querySelector('[data-card="0"]');
+    const outer = canvas.getBoundingClientRect();
+    const inner = card.getBoundingClientRect();
+    return { start: Math.round(inner.left - outer.left), end: Math.round(outer.right - inner.right), clipped: canvas.scrollWidth > canvas.clientWidth };
+  });
+  assert.ok(room.start >= 4 && room.end >= 4, `the ring has room on both sides: ${JSON.stringify(room)}`);
+  assert.equal(room.clipped, false, 'nothing overflows the canvas sideways');
+
+  // The background deselects (decision 26): the panel leaves Details for Blocks, because what one
+  // does after letting a card go is add another.
+  const selected = () => page.locator('aside.inspector [role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent();
+  assert.equal(await selected(), 'Details');
+  // The canvas's own gutter beside the flow: background, not a card.
+  const gutter = await page.evaluate(() => {
+    const canvas = document.querySelector('.canvas').getBoundingClientRect();
+    const card = document.querySelector('[data-card="0"]').getBoundingClientRect();
+    return { x: Math.round(canvas.left + 2), y: Math.round(card.top + card.height / 2) };
+  });
+  await page.mouse.click(gutter.x, gutter.y);
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-canvas] .card.selected').count(), 0, 'nothing is selected');
+  assert.equal(await selected(), 'Blocks');
+
+  // And Escape from a card does the same, without a pointer.
+  await page.locator('[data-card="1"]').click();
+  assert.equal(await selected(), 'Details');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-canvas] .card.selected').count(), 0);
+  assert.equal(await selected(), 'Blocks');
+});
+
 test('chromium: a deep link into the editor reads each resource once, and only what the first paint needs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
