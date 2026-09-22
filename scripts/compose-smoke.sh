@@ -490,4 +490,53 @@ echo "multi mode: provisioned, redeemed, suspended and resumed on the wire"
 
 $COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
 
-echo "compose: the reference stack starts from $IMAGE:$TAG and is ready, in both modes"
+# --- The stack converges when the orchestrator does not order it -------------------------------
+#
+# `depends_on: condition: service_healthy` is a guarantee, and it belongs to whoever runs the file.
+# Docker Compose keeps it, so everything above passes whether or not the stack could survive
+# without it. podman-compose does not keep it reliably, and for three weeks the only witness to
+# that was a nightly job whose failure nobody was told about (#119, #937): the migration died with
+# "connection refused", never granted hubtask_app its login, and the application authenticated
+# against a role that cannot log in - a missing ordering guarantee arriving as a credential defect.
+#
+# So the guarantee is taken away here, on the engine that would otherwise always provide it: the
+# containers are created and then started in the worst order there is, the application and the
+# migration first and the database last. What makes it come up anyway is the migrator's bounded
+# wait and the application's restart policy, and both are properties of the artefact rather than
+# of the tool - which is what Q-01 claims when it says Docker, Podman and Kubernetes from one
+# artefact.
+echo "--- convergence: the same stack started in the wrong order ---"
+$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" create >/dev/null 2>&1
+
+# By container rather than by service: `up` would restore the ordering this section exists to
+# remove. The names are the project's, which both implementations spell the same way.
+$ENGINE start "${PROJECT}-app-1" "${PROJECT}-migrate-1" >/dev/null
+
+started=$SECONDS
+database=""
+converged=""
+while [ $((SECONDS - started)) -lt $DEADLINE_SECONDS ]; do
+	# Twenty seconds late, which is longer than the gap any implementation would leave.
+	if [ -z "$database" ] && [ $((SECONDS - started)) -ge 20 ]; then
+		$ENGINE start "${PROJECT}-db-1" >/dev/null
+		database="started"
+	fi
+	if curl -fsS -o /dev/null "http://127.0.0.1:$OPS_PORT/readyz" 2>/dev/null; then
+		converged="yes"
+		break
+	fi
+	sleep 3
+done
+
+if [ -z "$converged" ]; then
+	echo "FAILED: started in the wrong order, the stack never became ready within ${DEADLINE_SECONDS}s"
+	echo "        the migrator's HUBTASK_DB_CONNECT_WAIT and the application's restart policy are"
+	echo "        what carry this; one of them is not doing its work."
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" ps
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs --tail 30 migrate app
+	exit 1
+fi
+echo "convergence: ready $((SECONDS - started))s after the wrong start order"
+
+echo "compose: the reference stack starts from $IMAGE:$TAG and is ready, in both modes - and in the wrong order"
