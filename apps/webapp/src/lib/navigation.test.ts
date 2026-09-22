@@ -86,8 +86,20 @@ test('the search exists once', () => {
 
 test('the administration row is offered only where the server says so', () => {
   const ids = (reachable: boolean) => account({ isAdministrationReachable: reachable }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'installation', 'administration', 'tour', 'sign-out']);
-  assert.deepEqual(ids(false), ['profile', 'installation', 'tour', 'sign-out']);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'tour', 'sign-out', 'about']);
+  assert.deepEqual(ids(false), ['profile', 'tour', 'sign-out', 'about']);
+});
+
+test('the installation is still in the list, at the foot and under another name', () => {
+  // It stopped being a destination called "This installation" and became "About Hubtask" at the
+  // end of the menu (ADR-0063 decision 6) — a move, not a removal: the route is the same, the
+  // page is the same, and every reader still reaches it. Parity (ADR-0032) is about what a
+  // person can do, and nothing here is one thing fewer.
+  const about = DESTINATIONS.find((destination) => destination.id === 'about');
+  assert.equal(about?.target.kind === 'route' && about.target.path, '/installation');
+  assert.deepEqual(about?.routes, ['installation']);
+  assert.equal(about, account({ isAdministrationReachable: false }).at(-1), 'it is not at the foot');
+  assert.equal(about?.area, undefined, 'everyone may read what this installation is');
 });
 
 test('every screen under the administration is the administration destination', () => {

@@ -25,7 +25,10 @@ test.after(() => served.close());
 const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim().replace(/…$/, '') ?? ''));
 
 /** Backlog decision 5's order: act, set up, trash. */
-const MENU = ['Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
+// "Select entries" first: it is the way into the selection mode, which is a mode now and no longer
+// a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
+// nothing acts on those in bulk.
+const MENU = ['Select entries', 'Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context } = await signedIn(browser, width, 900);
@@ -154,8 +157,16 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, 'the board widened the page');
 
-  // The bulk bar: once something is picked it is fixed above the bottom bar, and the bottom bar stays.
+  // Selecting is a mode, and its default is off (ADR-0063 decision 8): no row carries a pick and
+  // no bar stands above the list until somebody says they are selecting. The way in on a phone is
+  // the page's menu, because a modifier is what a mouse has and a long press is what a finger has.
   await page.getByRole('radio', { name: 'List' }).click();
+  assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'a row carries a pick with nobody selecting');
+  assert.equal(await page.locator('main .bar').count(), 0, 'the bulk bar stands above a list nobody is selecting in');
+  await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
+  await page.getByRole('menuitem', { name: 'Select entries' }).click();
+
+  // The bulk bar: once something is picked it is fixed above the bottom bar, and the bottom bar stays.
   const pick = page.getByRole('checkbox', { name: /Select .*Order the tiles/ });
   await pick.waitFor({ timeout: 10_000 });
   await pick.click();
@@ -169,6 +180,11 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   assert.equal(boxes.position, 'fixed');
   assert.ok(boxes.bulkBottom <= boxes.navTop, `the bulk bar (${boxes.bulkBottom}) sits over the bottom bar (${boxes.navTop})`);
   assert.equal(boxes.navOpacity, '1', 'a ticked checkbox hid the bottom bar');
+
+  // And the way out: `Escape`, from anywhere on the screen. The picks and the bar go with it.
+  await page.keyboard.press('Escape');
+  await page.locator('main .bar').waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'the mode outlived Escape');
 
   // The timeline in its own frame.
   await page.getByRole('radio', { name: 'Timeline' }).click();
