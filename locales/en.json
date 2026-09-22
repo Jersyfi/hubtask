@@ -2791,6 +2791,7 @@
   "app.flow.sheet_open": "Details",
   "app.flow.sheet_probe": "Probe",
   "app.flow.sheet_close": "Close",
+  "app.flow.sheet_size": "Drag to size this sheet, or use the arrow keys; pull it down to close it",
   "app.flow.probe_intro": "A sample event is dropped in at the top and travels through the rule as it stands on the canvas — unsaved changes included. Nothing is written.",
   "app.flow.probe_event": "Which event",
   "app.flow.probe_subject": "Which entry it is about",

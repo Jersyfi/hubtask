@@ -1717,6 +1717,7 @@
   "app.flow.sheet_open": "Details",
   "app.flow.sheet_probe": "Probelauf",
   "app.flow.sheet_close": "Schließen",
+  "app.flow.sheet_size": "Ziehen oder mit den Pfeiltasten die Höhe ändern; nach unten ziehen schließt",
   "app.flow.probe_intro": "Ein Beispiel-Ereignis wird oben eingeworfen und wandert durch die Regel, wie sie auf der Leinwand steht – ungespeicherte Änderungen eingeschlossen. Nichts wird geschrieben.",
   "app.flow.probe_event": "Welches Ereignis",
   "app.flow.probe_subject": "Um welchen Eintrag es geht",

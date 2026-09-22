@@ -607,6 +607,52 @@ test('chromium: at phone width the details come as a sheet and a branch shows on
   await page.waitForFunction(() => !document.querySelector('dialog[open]'));
 });
 
+test('chromium: the sheet keeps its head, is sized by the reader, and keeps that size', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 375, height: 812 });
+
+  await page.locator('[data-card="0"]').click();
+  const sheet = page.locator('dialog[open]');
+  await sheet.waitFor();
+  const share = () => page.evaluate(() => {
+    const open = document.querySelector('dialog[open]');
+    return Math.round((open.getBoundingClientRect().height / window.innerHeight) * 100);
+  });
+  assert.equal(await share(), 50, 'it opens at half the screen');
+
+  // The head and the tabs stay while the body scrolls: closing it never means scrolling back up.
+  await page.evaluate(() => {
+    const body = document.querySelector('dialog[open] .body');
+    body.scrollTop = body.scrollHeight;
+  });
+  await page.waitForTimeout(150);
+  assert.ok(await sheet.locator('header button[title="Close"]').isVisible(), 'the close is still there');
+  assert.ok(await sheet.locator('[role="tab"][aria-selected="true"]').isVisible(), 'and so are the tabs');
+
+  // The handle sizes it by keyboard, and says where it stands.
+  const grip = sheet.locator('[role="separator"]');
+  await grip.focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await page.waitForTimeout(150);
+  assert.equal(await grip.getAttribute('aria-valuenow'), '60');
+  assert.equal(await share(), 60);
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(150);
+  assert.equal(await share(), 90, 'Home is as tall as it goes');
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(150);
+  assert.equal(await share(), 85);
+
+  // Closed and opened again: the size the reader left it at.
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+  await page.locator('[data-card="0"]').click();
+  await sheet.waitFor();
+  assert.equal(await share(), 85, 'the sheet is where it was left');
+});
+
 test('chromium: the probe runs the canvas\'s definition through the dry run and draws the answer', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
