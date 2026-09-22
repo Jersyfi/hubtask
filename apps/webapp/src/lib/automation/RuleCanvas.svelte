@@ -51,6 +51,7 @@
     onaddcondition: () => void;
     onnudge: (path: string, direction: -1 | 1) => void;
     onaddrung: (path: string) => void;
+    onremoverung: (path: string) => void;
     /** The drag in flight (F8-05, decision 7), and where it may land. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
@@ -69,7 +70,7 @@
 
   const {
     draft, selection, kinds, summaries = {}, usage = new Map(), names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
-    onnudge, onaddrung, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
+    onnudge, onaddrung, onremoverung, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
   const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
@@ -236,7 +237,7 @@
 
   <InsertMenu {kinds} {summaries} {usage} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList {summaries} {usage} steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+  <RuleCanvasList {summaries} {usage} steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
   <!-- The run ends where the chain ends (decision 19): the end mark, unless the chain already
        ended on every path above - where the list drew its own, or where a stored rule's steps
