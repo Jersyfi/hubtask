@@ -125,7 +125,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   t.after(close);
 
   // The bar carries the title; the head reads its heading rather than drawing it.
-  assert.equal(await page.getByRole('banner', { name: 'Application bar' }).locator('.title').textContent(), COLLECTION.name);
+  assert.equal(await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent(), COLLECTION.name);
   assert.equal(await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).evaluate((el) => el.getBoundingClientRect().width <= 1), true, 'the h1 is drawn as well as read');
   assert.equal(await page.getByRole('link', { name: HUB.name }).count(), 1, 'the parent as the way up');
 

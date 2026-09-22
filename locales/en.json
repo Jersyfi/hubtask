@@ -3668,6 +3668,7 @@
   "app.sync.oldest": "The oldest is from {moment}.",
   "app.sync.synced": "Synchronised {moment}",
   "app.sync.list": "Changes waiting to be sent",
+  "app.sync.panel": "The copy and the server",
   "app.sync.empty": "Nothing is waiting.",
   "app.sync.refused": "Not accepted",
   "app.sync.dismiss": "Dismiss",
