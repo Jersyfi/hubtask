@@ -452,7 +452,7 @@
 
   .bar, .join { position: relative; height: var(--bw-ring); margin-inline: var(--half); background: var(--border-default); border-radius: var(--r-full); }
 
-  .bar::before, .bar::after, .join::before, .join::after { content: ''; position: absolute; width: var(--bw-ring); height: var(--sp-075); background: var(--border-default); }
+  .bar::before, .bar::after, .join::before, .join::after { content: ''; position: absolute; width: var(--bw-ring); height: var(--sp-050); background: var(--border-default); }
 
   .bar::before, .bar::after { inset-block-start: 0; }
 
@@ -506,7 +506,7 @@
 
   .rpill { flex: 0 0 auto; padding: var(--sp-025) var(--sp-100); border-radius: var(--r-full); background: var(--label-violet-bg); color: var(--label-violet-fg); font-size: var(--fs-050); font-weight: var(--fw-medium); line-height: 1; text-transform: uppercase; }
 
-  .rcond { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-075); padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid transparent; border-radius: var(--r-sm); background: var(--label-amber-bg); color: var(--text-primary); font-size: var(--fs-075); text-align: start; cursor: pointer; }
+  .rcond { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-050); padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid transparent; border-radius: var(--r-sm); background: var(--label-amber-bg); color: var(--text-primary); font-size: var(--fs-075); text-align: start; cursor: pointer; }
 
   .rcond :global(svg) { color: var(--label-amber-fg); }
 
