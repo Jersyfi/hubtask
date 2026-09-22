@@ -133,6 +133,26 @@
     return () => narrowQuery.removeEventListener('change', onchange);
   });
   let sheetOpen = $state(false);
+  /**
+   * How much of the screen the sheet takes (decision 27): half to begin with, and afterwards
+   * whatever the reader dragged it to, kept in this browser. Not the account's: it is a choice
+   * about this screen, like the theme (`apps/webapp/CLAUDE.md`).
+   */
+  let sheetSize = $state(0.5);
+  try {
+    const kept = Number(localStorage.getItem('hubtask.rule.sheet'));
+    if (Number.isFinite(kept) && kept > 0) sheetSize = kept;
+  } catch {
+    // A private window, or storage blocked: half the screen, every time.
+  }
+  $effect(() => {
+    const share = sheetSize;
+    try {
+      localStorage.setItem('hubtask.rule.sheet', String(share));
+    } catch {
+      // The size lives for this view then.
+    }
+  });
   const select = (next: Selection): void => {
     selection = next;
     if (next.kind === 'none') {
@@ -737,7 +757,15 @@
       {#if narrow}
         <!-- Below the expanded breakpoint the details come to the canvas rather than the reader
              scrolling to them: a sheet over it, one glass surface at a time (rule 2). -->
-        <Drawer bind:isOpen={sheetOpen} edge="block-end" title={t('app.flow.inspector')} dismissLabel={t('app.flow.sheet_close')}>
+        <Drawer
+          bind:isOpen={sheetOpen}
+          edge="block-end"
+          title={t('app.flow.inspector')}
+          dismissLabel={t('app.flow.sheet_close')}
+          isResizable
+          resizeLabel={t('app.flow.sheet_size')}
+          bind:size={sheetSize}
+        >
           {@render inspector()}
         </Drawer>
         <div class="sheetbar" role="tablist" aria-label={t('app.flow.inspector')}>
@@ -755,6 +783,9 @@
     </div>
 
     {#snippet inspector()}
+        <!-- The tabs stay where the head stays (decision 27): they are how the panel is steered,
+             and a panel whose steering scrolls away is steered by scrolling back up. -->
+        <div class="tabsrow">
         <Tabs
           label={t('app.flow.inspector')}
           selected={tab}
@@ -765,6 +796,7 @@
           }}
           tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
         />
+        </div>
         {#if tab === 'rule'}
           <RuleInspector
             {draft}
@@ -915,6 +947,9 @@
   .small { font-size: var(--fs-075); }
 
   .panel { padding: var(--sp-200); font-size: var(--fs-075); }
+
+  /* Sticky in whatever scrolls the panel: the aside on a wide screen, the sheet's body on a narrow one. */
+  .tabsrow { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); background: var(--bg-surface); }
 
   /* Below the expanded breakpoint the palette is gone (the + is the way in) and the inspector
      follows the canvas; F8-05 makes it a sheet over it. */

@@ -31,6 +31,13 @@ export const bottom: Story = {
   args: { mode: 'bottom' },
 };
 
+export const sized: Story = {
+  name: 'A sheet the reader sizes',
+  about:
+    'A sheet that scrolls its own head away is a sheet nobody can close without scrolling back up (F8-24): the head stays and only the body scrolls. Above it sits a handle — drag it, or focus it and use the arrow keys, Home and End, to size the sheet between a third and nine tenths of the screen; let it go below the third and the sheet closes, which is how a sheet is put away by hand. The size is answered through `size`, bindable, because where a reader’s choice is remembered is the application’s question and not a component’s.',
+  args: { mode: 'sized' },
+};
+
 export const layered: Story = {
   name: 'A dialog opened from inside it',
   about:
