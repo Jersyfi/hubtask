@@ -30,9 +30,11 @@ Each is measured or read from the source here, not judged:
 5. **The navigation is on the content's plane.** Both are `bg.canvas`; a hairline is the only
    thing between them, so the column reads as an indented part of the page rather than as the
    frame around it.
-6. **The bar carries an address.** The account button is the display name, which for an account
-   that has not set one is the e-mail — the reader's address, in the frame, on every screen,
-   while the menu it opens has no head at all.
+6. **The bar carries an address.** The account button is the display name — and the display name
+   is the address until somebody introduces themselves, which is the server's own convention
+   (`Provision.go`: "the address stands in until the person introduces themselves"). So the
+   reader's e-mail is in the frame, on every screen, while the menu it opens has no head at all
+   and the sheet on `compact` has both the name and the address in one.
 7. **Four marks in the account menu say little and one says it twice.** A gear for what is the
    reader's own, an outlined `info` for the installation *and* for the tour, and the `capability`
    mark for administration. And "This installation" is a destination for four facts — the product
