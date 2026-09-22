@@ -99,12 +99,25 @@ outputs whether it has work to do.
 | `design_system` | Additionally: all token targets are regenerated and the committed `LabelTokens.go` must not move |
 | `webapp`, `website`, `design_system`, `api_client` | Lint, typecheck, test and build — for the affected packages and the packages they consume |
 | `webapp`, `design_system`, `api_client`, `go`, `deploy` | The container build, because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
-| documentation only | The documentation gate, and nothing else |
+| documentation only | The documentation gate, the secret scan, the dependency review and the licence gate — the four that are behind no filter |
 | `.github/**` | Everything, no exceptions |
 
-Three jobs are behind no filter at all — `secrets`, `dependencies` and `licences`. A key and a
-copyleft dependency get in through any path, including a stylesheet and a README, so a filter that
-could skip them is a filter that will.
+Four jobs are behind no filter at all — `secrets`, `dependencies`, `licences` and `docs`. A key
+and a copyleft dependency get in through any path, including a stylesheet and a README, so a
+filter that could skip them is a filter that will. `docs` joined them for the same reason and a
+second one: it takes 24 seconds, and `checkdocs` reconciles the Go version across `go.mod`, the
+workflows and the Dockerfile, reconciles the support matrix with the nightly's jobs, and resolves
+ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl` — so a change confined to `db/` or
+`deploy/` used to skip the gate that reads it.
+
+**The filters name trees, and `test/architecture` checks that they name all of them.** They used
+to name patterns — `**/*.go` and a list of manifests — which left every non-Go file a Go test
+reads outside the `go` filter: the golden archives under `test/backup`, the adapters' testdata,
+the load guard's baseline, the Go SDK's templates. A pull request that changed one of them alone
+ran no Go job and reported green, because `ci-required` counts a skip as a pass, and the test that
+exists to notice a changed archive format was the one that did not run (#941). Two tests now ask
+it from both ends: every tracked file is claimed by some filter or named in a short list of paths
+that deliberately trigger nothing, and every pattern a filter names matches something that exists.
 
 On a push to `main` and on a tag every filter output is `true` and the whole pipeline runs. There
 is no filtering on the branch that gets released.
