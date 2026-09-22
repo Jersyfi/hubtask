@@ -1203,6 +1203,8 @@
   "app.nav.bar": "Application bar",
   "app.nav.title": "Navigation",
   "app.nav.inside": "Inside {name}",
+  "app.nav.hubs": "Hubs",
+  "app.nav.keeping": "What is kept",
   "app.nav.open": "Open the navigation",
   "app.nav.close": "Close the navigation",
   "app.nav.collapse": "Collapse the navigation",
