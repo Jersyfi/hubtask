@@ -21,7 +21,7 @@ Which means:
 | File | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
-| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and the whole of `make gate-selftest`, whose probes for those two are skipped where there is no PostgreSQL, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
+| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and `make gate-selftest` on the other architecture, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `codeql.yml` | PR, schedule | Static security analysis |
@@ -37,7 +37,7 @@ Staggered by runtime: whatever fails fastest runs first.
 
 | Job | Contents | Gate |
 |---|---|---|
-| `quick` | `gofmt`, `go vet`, `golangci-lint`, `make generate` with no diff | Format, lint, generation |
+| `quick` | `gofmt`, `go vet`, `golangci-lint`, `make generate` with no diff, and `make gate-sdk` — the generated Python SDK parsed by a Python, which nothing did until #943: `tools/sdkgen`'s own test compares strings, and a file that does not parse passes that as readily as one that does | Format, lint, generation |
 | `build` | `go build ./...` for linux/amd64 and linux/arm64 | Buildability |
 | `unit` | Domain and application tests, coverage thresholds (85% / 75%) | Unit gate |
 | `integration` | Service container PostgreSQL 16, `goose up`, repository and use case tests; object storage and the other backup targets come from Testcontainers | Integration |
@@ -99,12 +99,25 @@ outputs whether it has work to do.
 | `design_system` | Additionally: all token targets are regenerated and the committed `LabelTokens.go` must not move |
 | `webapp`, `website`, `design_system`, `api_client` | Lint, typecheck, test and build — for the affected packages and the packages they consume |
 | `webapp`, `design_system`, `api_client`, `go`, `deploy` | The container build, because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
-| documentation only | The documentation gate, and nothing else |
+| documentation only | The documentation gate, the secret scan, the dependency review and the licence gate — the four that are behind no filter |
 | `.github/**` | Everything, no exceptions |
 
-Three jobs are behind no filter at all — `secrets`, `dependencies` and `licences`. A key and a
-copyleft dependency get in through any path, including a stylesheet and a README, so a filter that
-could skip them is a filter that will.
+Four jobs are behind no filter at all — `secrets`, `dependencies`, `licences` and `docs`. A key
+and a copyleft dependency get in through any path, including a stylesheet and a README, so a
+filter that could skip them is a filter that will. `docs` joined them for the same reason and a
+second one: it takes 24 seconds, and `checkdocs` reconciles the Go version across `go.mod`, the
+workflows and the Dockerfile, reconciles the support matrix with the nightly's jobs, and resolves
+ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl` — so a change confined to `db/` or
+`deploy/` used to skip the gate that reads it.
+
+**The filters name trees, and `test/architecture` checks that they name all of them.** They used
+to name patterns — `**/*.go` and a list of manifests — which left every non-Go file a Go test
+reads outside the `go` filter: the golden archives under `test/backup`, the adapters' testdata,
+the load guard's baseline, the Go SDK's templates. A pull request that changed one of them alone
+ran no Go job and reported green, because `ci-required` counts a skip as a pass, and the test that
+exists to notice a changed archive format was the one that did not run (#941). Two tests now ask
+it from both ends: every tracked file is claimed by some filter or named in a short list of paths
+that deliberately trigger nothing, and every pattern a filter names matches something that exists.
 
 On a push to `main` and on a tag every filter output is `true` and the whole pipeline runs. There
 is no filtering on the branch that gets released.

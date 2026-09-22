@@ -63,7 +63,9 @@ func searchRun(ctx context.Context, cli *CLI, args []string) error {
 		return usageError{error: errorString(message)}
 	}
 
-	body := openapi.ItemSearchQuery{Q: query}
+	// `q` is a pointer since ADR-0064 made it optional beside a filter; the CLI sends words and
+	// nothing else, and refuses an empty search a line above rather than letting the server do it.
+	body := openapi.ItemSearchQuery{Q: &query}
 	if *container != "" {
 		parsed, err := cli.parseID("--container", *container)
 		if err != nil {

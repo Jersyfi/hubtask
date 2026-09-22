@@ -25,7 +25,7 @@ SKIPPED=0
 
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	rm -f db/queries/zz_gate_selftest.sql locales/zz.json
+	rm -f db/queries/zz_gate_selftest.sql locales/zz.json sdk/python/hubtask/zz_gate_selftest.py
 }
 trap cleanup EXIT INT TERM
 cleanup
@@ -1044,6 +1044,22 @@ else
 	' "$ERASER.selftest-backup" > "$ERASER"
 	expect_full_privacy_failure "an erasure that leaves a location behind" "$ERASER"
 fi
+
+header "The generated SDK (make gate-sdk)"
+
+# A file that is not Python, in the package `make sdk` writes. The realistic shape of the defect:
+# the generator meets a contract field named after a keyword and writes it out as one. Nothing
+# looked at this package until #943 - tools/sdkgen's test compares strings, which a file that does
+# not parse passes as readily as one that does.
+CHECKS=$((CHECKS + 1))
+printf 'def selftest(from):\n    pass\n' > sdk/python/hubtask/zz_gate_selftest.py
+if make --no-print-directory gate-sdk >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-sdk stayed green\n' "a generated file that is not Python"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-sdk\n' "a generated file that is not Python"
+fi
+cleanup
 
 header "Licences (make gate-licenses)"
 

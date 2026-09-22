@@ -100,6 +100,10 @@ func startDatabase() (Database, error) {
 		return Database{}, fmt.Errorf("connection string: %w", err)
 	}
 
+	if err := requirePgvector(ctx, adminDSN); err != nil {
+		return Database{}, err
+	}
+
 	if err := Migrate(ctx, adminDSN); err != nil {
 		return Database{}, err
 	}
@@ -110,6 +114,44 @@ func startDatabase() (Database, error) {
 	}
 
 	return Database{AdminDSN: adminDSN, AppDSN: appDSN}, nil
+}
+
+// requirePgvector refuses a database that cannot offer the `vector` extension.
+//
+// `db/schema.sql` says of the embedding table that "it is mirrored here because every gate that
+// starts a PostgreSQL runs one that has the extension, which is what lets support-matrix.md call
+// semantic search supported at all". That sentence was a comment, and it stopped being true on
+// 2026-09-09: the nightly's PostgreSQL 17 job composed `postgres:17-alpine`, and every night since
+// it died on `db/schema.sql does not apply: extension "vector" is not available` - a message about
+// a reference file, three steps away from the image that was wrong (#939).
+//
+// So the premise is checked where the suite's database is made, and says what to do about it. The
+// absence path is not weakened by this: ADR-0050 has the extension detected rather than demanded,
+// and `TestTheMigrationsApplyWithoutPgvector` proves it by starting a plain PostgreSQL of its own,
+// through `HUBTASK_TEST_PLAIN_POSTGRES_IMAGE` and not through this one.
+func requirePgvector(ctx context.Context, adminDSN string) error {
+	pool, err := pgxpool.New(ctx, adminDSN)
+	if err != nil {
+		return fmt.Errorf("connecting to check for pgvector: %w", err)
+	}
+	defer pool.Close()
+
+	var available bool
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector')`,
+	).Scan(&available); err != nil {
+		return fmt.Errorf("asking for pgvector: %w", err)
+	}
+	if !available {
+		return fmt.Errorf(
+			"the test database %q does not offer the 'vector' extension, and this suite needs it: "+
+				"db/schema.sql creates it unconditionally and the semantic half of the support matrix "+
+				"rests on it. Use an image that carries it (pgvector/pgvector:pg16, :pg17) in "+
+				"HUBTASK_TEST_POSTGRES_IMAGE. The path without the extension is a separate test with "+
+				"its own image variable, HUBTASK_TEST_PLAIN_POSTGRES_IMAGE",
+			postgresImage())
+	}
+	return nil
 }
 
 // Migrate applies db/migrations the way production does - through goose, not by loading

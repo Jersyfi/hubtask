@@ -1572,42 +1572,6 @@ func (e ItemQueryCount) Valid() bool {
 	}
 }
 
-// Defines values for ItemQuerySortDir.
-const (
-	ASC  ItemQuerySortDir = "ASC"
-	DESC ItemQuerySortDir = "DESC"
-)
-
-// Valid indicates whether the value is a known member of the ItemQuerySortDir enum.
-func (e ItemQuerySortDir) Valid() bool {
-	switch e {
-	case ASC:
-		return true
-	case DESC:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ItemQuerySortNulls.
-const (
-	FIRST ItemQuerySortNulls = "FIRST"
-	LAST  ItemQuerySortNulls = "LAST"
-)
-
-// Valid indicates whether the value is a known member of the ItemQuerySortNulls enum.
-func (e ItemQuerySortNulls) Valid() bool {
-	switch e {
-	case FIRST:
-		return true
-	case LAST:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ItemType.
 const (
 	ItemTypeACTIVITY    ItemType = "ACTIVITY"
@@ -2820,6 +2784,42 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SortTermDir.
+const (
+	ASC  SortTermDir = "ASC"
+	DESC SortTermDir = "DESC"
+)
+
+// Valid indicates whether the value is a known member of the SortTermDir enum.
+func (e SortTermDir) Valid() bool {
+	switch e {
+	case ASC:
+		return true
+	case DESC:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SortTermNulls.
+const (
+	FIRST SortTermNulls = "FIRST"
+	LAST  SortTermNulls = "LAST"
+)
+
+// Valid indicates whether the value is a known member of the SortTermNulls enum.
+func (e SortTermNulls) Valid() bool {
+	switch e {
+	case FIRST:
+		return true
+	case LAST:
 		return true
 	default:
 		return false
@@ -5132,21 +5132,11 @@ type ItemQuery struct {
 	} `json:"scope"`
 
 	// Sort Ordered, most significant first, and always completed by `id ASC` so that a cursor is unambiguous. Defaults to the manual order (`order_key ASC`).
-	Sort *[]struct {
-		Dir   *ItemQuerySortDir   `json:"dir,omitempty"`
-		Field string              `json:"field"`
-		Nulls *ItemQuerySortNulls `json:"nulls,omitempty"`
-	} `json:"sort,omitempty"`
+	Sort *[]SortTerm `json:"sort,omitempty"`
 }
 
 // ItemQueryCount `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
 type ItemQueryCount string
-
-// ItemQuerySortDir defines model for ItemQuery.Sort.Dir.
-type ItemQuerySortDir string
-
-// ItemQuerySortNulls defines model for ItemQuery.Sort.Nulls.
-type ItemQuerySortNulls string
 
 // ItemQueryGroup One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor.
 type ItemQueryGroup struct {
@@ -5171,14 +5161,18 @@ type ItemQueryResult struct {
 	Total *int `json:"total"`
 }
 
-// ItemSearchQuery One search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.
+// ItemSearchQuery One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers.
+// `filter` is the same grammar `POST /items:query` takes, with the same closed field vocabulary, the same operators and the same bounds (ADR-0064). The difference between the two endpoints is not the grammar, it is the anchor: a query is anchored to a container because an unanchored one is a question authorisation cannot answer in one step, and a search is the one read where "where is this, anywhere" *is* the question - so it is read and then narrowed to what the caller may see, and its page may be short where a query's would be a refusal.
 // **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.
 // `mode` says how much of that to use, and defaults to `AUTO` - the two halves where the installation has both. Semantic search is optional four times over: the database may not carry pgvector, the workspace may have configured no AI provider or not consented to it, and the provider may not answer in the second somebody is waiting. Every one of those is a **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask for - it would be a mode the server could not promise. `/meta/capabilities` answers `semantic_search` for a client that wants to say in its interface which it has.
 type ItemSearchQuery struct {
 	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
-	ContainerId     *openapi_types.UUID `json:"container_id,omitempty"`
-	IncludeArchived *bool               `json:"include_archived,omitempty"`
-	IncludeTrashed  *bool               `json:"include_trashed,omitempty"`
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+
+	// Filter Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.
+	Filter          *FilterNode `json:"filter,omitempty"`
+	IncludeArchived *bool       `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
 
 	// Language BCP-47. The language the *words* are in, not the entries: it decides how the query is read. Omitted takes the caller's locale.
 	Language *string `json:"language,omitempty"`
@@ -5191,8 +5185,11 @@ type ItemSearchQuery struct {
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
 
-	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find.
-	Q string `json:"q"`
+	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find. Optional where a `filter` is sent: a filtered search with no words is a work list rather than a search, and it is ordered rather than ranked.
+	Q *string `json:"q,omitempty"`
+
+	// Sort Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.
+	Sort *[]SortTerm `json:"sort,omitempty"`
 }
 
 // ItemType Extensible; /meta/capabilities returns the valid values.
@@ -6514,6 +6511,19 @@ type SignInCompletion struct {
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
+
+// SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
+type SortTerm struct {
+	Dir   *SortTermDir   `json:"dir,omitempty"`
+	Field string         `json:"field"`
+	Nulls *SortTermNulls `json:"nulls,omitempty"`
+}
+
+// SortTermDir defines model for SortTerm.Dir.
+type SortTermDir string
+
+// SortTermNulls defines model for SortTerm.Nulls.
+type SortTermNulls string
 
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
