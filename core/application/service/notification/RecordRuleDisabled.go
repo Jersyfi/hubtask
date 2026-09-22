@@ -60,10 +60,10 @@ func (r RecordRuleDisabled) RuleDisabled(
 		RecipientID: rule.CreatedBy,
 		Category:    domain.CategoryIntegration,
 		Channel:     domain.ChannelEmail,
-		// The rule stands in for the item: it is what the message is about, and it is what a
-		// renderer needs to name. Never its name - a title is user content, and the record is read
-		// by a renderer that looks the rule up (rule 10).
-		ItemID: rule.ID,
+		// The rule is the subject (issue 814) - what the message is about, and what a renderer
+		// needs to name. Never its name - a title is user content, and the record is read by a
+		// renderer that looks the rule up (rule 10).
+		RuleID: rule.ID,
 		At:     at,
 	})
 	if err != nil {

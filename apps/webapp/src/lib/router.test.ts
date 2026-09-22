@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalisePath, resolve, type Route } from './router.ts';
+import { normalisePath, queryOf, resolve, type Route } from './router.ts';
 
 const routes: Route[] = [
   { name: 'home', pattern: '/' },
@@ -83,4 +83,14 @@ test('a route declares its area, and end-user is what most screens are', () => {
   assert.equal(resolve(declared, '/installation').area, 'administration');
   // A path that matches nothing is not administration by accident.
   assert.equal(resolve(declared, '/nowhere').area, 'end-user');
+});
+
+test('the query travels with the resolution, and the path stays clean of it', () => {
+  const routes = [{ name: 'collection', pattern: '/collections/:id' }];
+  const resolution = resolve(routes, '/collections/c1?item=i1&x=y#frag');
+  assert.equal(resolution.path, '/collections/c1');
+  assert.deepEqual(resolution.params, { id: 'c1' });
+  assert.deepEqual(resolution.query, { item: 'i1', x: 'y' });
+  assert.deepEqual(queryOf('/collections/c1'), {});
+  assert.deepEqual(queryOf('/a?item=%2Fx'), { item: '/x' });
 });

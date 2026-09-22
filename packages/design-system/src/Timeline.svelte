@@ -174,7 +174,9 @@
 <style>
   .timeline { display: flex; flex-direction: column; gap: var(--sp-150); min-width: 0; }
 
-  .scroller { overflow-x: auto; padding-block-end: var(--sp-050); }
+  /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
+     descendant of an unpositioned scroller overflows the page instead (issue 874). */
+  .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); }
 
   .axis {
     display: grid;

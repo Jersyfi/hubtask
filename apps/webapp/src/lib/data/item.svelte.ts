@@ -21,5 +21,8 @@ export function activityPath(itemId: string): string {
 }
 
 export function itemPath(itemId: string): string {
-  return `/items/${itemId}`;
+  // With the labels, as the list's query asks for them: without `expand=labels` the entry
+  // answers no `label_ids`, and the entry page drew none (issue 875). The engine's invalidation
+  // matches `/items` by prefix, so the query string changes nothing there.
+  return `/items/${itemId}?expand=labels`;
 }

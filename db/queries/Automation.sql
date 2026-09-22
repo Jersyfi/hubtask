@@ -185,6 +185,15 @@ WHERE (sqlc.narg('rule_id')::uuid IS NULL OR rule_id = sqlc.narg('rule_id')::uui
 ORDER BY id DESC
 LIMIT sqlc.arg('page_size');
 
+-- name: LatestRuleRuns :many
+-- The most recent run of each named rule (F8-21): what the list says under the rule's word
+-- without a page of runs per card. One statement for a page of rules, on the rule index; DISTINCT
+-- ON with the index's own order keeps the first row per rule the newest.
+SELECT DISTINCT ON (rule_id) rule_id, status, started_at
+FROM rule_run
+WHERE rule_id = ANY(sqlc.arg('rule_ids')::uuid[])
+ORDER BY rule_id, started_at DESC, id DESC;
+
 -- name: CountRunsSince :one
 -- What the throttle asks: how often this rule has run in the window (automation.md §2).
 --

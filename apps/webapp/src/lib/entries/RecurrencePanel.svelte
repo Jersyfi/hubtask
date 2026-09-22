@@ -3,9 +3,10 @@
 <script lang="ts">
   // Whether this entry repeats, and how.
   //
-  // **No series is not an error.** `GET` answers `404` for an entry with none, and the contract
-  // says that is the "none" state — so the panel draws "this entry does not repeat" and offers to
-  // make it, while an actual failure still reads as one.
+  // **No series is not an error, and is not asked.** The row's `recurrence_rule_id` says whether
+  // there is one, and the store reads the series only when there is — so the panel draws "this
+  // entry does not repeat" and offers to make it without a request, while an actual failure of a
+  // read still reads as one.
   //
   // **Only a `TASK` carries a series**, and the matrix says why: a series applies to the whole
   // subtree. A work package and an activity get the gate with the server's own code.
@@ -45,9 +46,11 @@
 
   const capability = $derived(supports(item.type, 'RECURRENCE'));
 
+  // Followed by id and by rule id: the store asks the server only for a row that says it has a
+  // series (issue 882), and a series set from this panel changes the row a moment after the write.
   $effect(() => {
-    const wanted = item.id;
-    return untrack(() => series.open(wanted));
+    const row = { id: item.id, recurrence_rule_id: item.recurrence_rule_id };
+    return untrack(() => series.open(row));
   });
 
   const rule = $derived(series.of(item.id));

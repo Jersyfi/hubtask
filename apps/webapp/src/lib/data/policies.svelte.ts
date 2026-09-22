@@ -27,6 +27,7 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 const POLICIES = '/retention-policies';
 const HOLDS = '/legal-holds';
@@ -191,7 +192,7 @@ class Policies {
   async retain(itemId: string): Promise<void> {
     await engine.mutate<unknown>('POST', `/items/${itemId}:retain`, {}, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: ['/items'],
+      invalidates: [ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
     });
   }
 

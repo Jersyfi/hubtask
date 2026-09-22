@@ -34,10 +34,12 @@
     EmptyState,
     ErrorState,
     focusFirst,
+    IconButton,
     Inline,
     Input,
     LabelChip,
     LoadMore,
+    Menu,
     PageHeader,
     Skeleton,
     Stack,
@@ -110,9 +112,15 @@
     id: string;
     /** Where the entry's parents lead. The view does not own the router. */
     onnavigate?: (path: string) => void;
+    /**
+     * Inside the detail pane beside a collection (ADR-0061 decision 4): the pane's head names
+     * the entry, so no page head, no trail and no title for the bar; one column; the entry's
+     * menu stands on its own. Everything else is the page's, unchanged.
+     */
+    isInPane?: boolean;
   }
 
-  const { id, onnavigate }: Props = $props();
+  const { id, onnavigate, isInPane = false }: Props = $props();
 
   // Read once, and `untrack` says the once is deliberate: `App.svelte` keys this view on the id,
   // so a different entry is a different component rather than the same one asking again. A
@@ -126,7 +134,7 @@
 
   // The bar carries the title on a phone (ADR-0061 decision 2); on every width the head's `h1`
   // is read rather than drawn, because the title the reader sees is the field they edit it in.
-  $effect(() => page.entitle(item?.title));
+  $effect(() => (isInPane ? undefined : page.entitle(item?.title)));
 
   /**
    * The entries above this one, nearest first, for the breadcrumb through the levels: a work
@@ -204,7 +212,13 @@
     return untrack(() => labels.open(wanted));
   });
   $effect(() => untrack(() => reminders.open(id)));
-  $effect(() => untrack(() => series.open(id)));
+  // The series is asked for only when the row says there is one (issue 882); the effect follows
+  // `recurrence_rule_id` so that setting a series starts the read and removing it ends it.
+  $effect(() => {
+    const row = item ? { id: item.id, recurrence_rule_id: item.recurrence_rule_id } : undefined;
+    if (!row) return;
+    return untrack(() => series.open(row));
+  });
   const attachments = resource<MediaPage>({ path: untrack(() => attachmentsPath(id)) });
   const thread = resource<CommentPage>({ path: untrack(() => commentsPath(id)) });
   const attachmentCount = $derived(attachments.state.status === 'ready' ? (attachments.state.data.data ?? []).length : undefined);
@@ -261,6 +275,11 @@
   ]);
 
   let activeTab = $state('comments');
+
+  function chooseFromMenu(chosen: string) {
+    if (chosen === 'edit') startEditing();
+    else if (chosen === 'share') isSharing = true;
+  }
 
   /** The language row's draft, written when the reader says so - a picker that wrote on every keystroke of a tag would send "d", "de". */
   let languageDraft = $state('');
@@ -492,12 +511,13 @@
 
   // What sits under this entry, for the kinds that hold anything (F5-02): an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
-  // the reader to find them in the collection. The level is the same read the list expands, so
-  // the acceptance's invalidation of `/items` brings them here without being asked.
+  // the reader to find them in the collection. The subtree is the one read the section below
+  // makes (issue 877), and this counts its first level; the acceptance's invalidation of the
+  // lists brings them here without being asked.
   const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
   $effect(() => {
     if (!takesChildren) return;
-    return untrack(() => items.openChildren(id));
+    return untrack(() => items.openSubtree(id));
   });
   const children = $derived(takesChildren ? items.childrenOf(id) : []);
   function startEditing() {
@@ -630,20 +650,23 @@
 
     <!-- The head (ADR-0061 decision 4). The heading is read and not drawn on every width: the
          title the reader sees is the field they edit it in, and a screen holds one `h1`. -->
-    <PageHeader
-      title={item.title}
-      isTitleInBar={true}
-      breadcrumb={{ trail, label: t('app.workspace.trail'), expandLabel: t('app.workspace.expand_trail'), onnavigate: goTo }}
-      menu={{
-        label: t('app.workspace.actions', { name: item.title }),
-        items: entryMenu,
-        opener: 'entry-menu',
-        onselect: (chosen) => {
-          if (chosen === 'edit') startEditing();
-          else if (chosen === 'share') isSharing = true;
-        },
-      }}
-    />
+    {#if isInPane}
+      <!-- The pane's own head names the entry and leads to its page; the menu stands alone. -->
+      <div class="pane-menu">
+        <Menu label={t('app.workspace.actions', { name: item.title })} items={entryMenu} placement={{ side: 'block-end', align: 'end' }} onselect={chooseFromMenu}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} tone="secondary" data-opener="entry-menu" {...props} />
+          {/snippet}
+        </Menu>
+      </div>
+    {:else}
+      <PageHeader
+        title={item.title}
+        isTitleInBar={true}
+        breadcrumb={{ trail, label: t('app.workspace.trail'), expandLabel: t('app.workspace.expand_trail'), onnavigate: goTo }}
+        menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, opener: 'entry-menu', onselect: chooseFromMenu }}
+      />
+    {/if}
 
     {#if isEditing}
       <!-- The form, for a reader who asked for one from the menu: it takes the focus (2.4.3). -->
@@ -756,7 +779,7 @@
       </div>
     {/if}
 
-    <div class="columns">
+    <div class="columns" data-pane={isInPane ? '' : undefined}>
       <!-- The details before the text in the document: after the head they are what the entry
            is, so the reading order and the tab order meet them there on every width; from
            `expanded` they are drawn beside the text, at the end of the line. -->
@@ -1032,16 +1055,22 @@
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
-    .columns { flex-direction: row-reverse; align-items: flex-start; }
+    .columns:not([data-pane]) { flex-direction: row-reverse; align-items: flex-start; }
 
-    .details { flex: none; inline-size: var(--layout-pane-width); position: sticky; inset-block-start: calc(var(--layout-appbar-height) + var(--sp-200)); }
+    .columns:not([data-pane]) .details { flex: none; inline-size: var(--layout-pane-width); position: sticky; inset-block-start: calc(var(--layout-appbar-height) + var(--sp-200)); }
 
     /* From `expanded` the details never fold: the disclosure is the phone's, and the summary is
-       a heading in all but name. */
+       a heading in all but name. Inside the pane the column is one and the fold stays a fold. */
     .details-summary { pointer-events: none; list-style: none; }
 
     .details-summary::-webkit-details-marker { display: none; }
+
+    .columns[data-pane] .details-summary { pointer-events: auto; list-style: disclosure-closed inside; }
+
+    .columns[data-pane] details[open] > .details-summary { list-style: disclosure-open inside; }
   }
+
+  .pane-menu { display: flex; justify-content: flex-end; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>

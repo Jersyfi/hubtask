@@ -103,7 +103,9 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/`);
-    const createHub = page.getByRole('button', { name: 'Create hub' });
+    // The workspace page's primary action (issue 879); the tree at the side offers the same
+    // verb, which is why the name alone is not enough.
+    const createHub = page.locator('[data-opener="add-hub"]');
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 
@@ -214,6 +216,11 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     // synchronisation. What the copy does not hold is named `sync.needs_connection`.
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', (route) => route.abort('connectionfailed'));
+    // Counted while the server is away: a read that fails is read again on the reconnect and
+    // not before (issue 881 found a loop that read the account nine hundred times instead).
+    let accountReads = 0;
+    const countAccountReads = (request) => { if (new URL(request.url()).pathname.endsWith('/accounts/me')) accountReads += 1; };
+    page.on('request', countAccountReads);
     await page.reload();
     const mark = page.getByRole('status').filter({ hasText: "Shown from this device's copy" });
     await mark.first().waitFor({ state: 'visible', timeout: 15_000 })
@@ -224,16 +231,21 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     // reconnect, which is what the pause is for: long enough for the first attempt to have
     // failed, so the replacement is the retry's and not the first attempt's luck.
     await page.waitForTimeout(1_500);
+    page.off('request', countAccountReads);
+    assert.ok(accountReads <= 4, `${name}: the account was read ${accountReads} times while the server was away`);
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', stub);
     await page.waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => el.textContent?.includes("Shown from this device's copy")), null, { timeout: 30_000 })
       .catch(() => assert.fail(`${name}: the replica's state was not replaced after the server came back`));
 
+    // The account, which the copy does not hold, comes back with the server too (issue 881):
+    // the engine reads again what it could not answer, so the menu says the name and not "You".
+    await page.getByRole('button', { name: 'Engine Walker' }).waitFor({ timeout: 15_000 })
+      .catch(() => assert.fail(`${name}: the account was not read again after the server came back`));
+
     // Sign-out deletes the database, not its rows. The verb is the last item of the account
-    // menu, behind the name (ADR-0061 decision 1) - or behind "You", while the account's own
-    // read has not come back since the server did: the menu does not wait for it, because
-    // signing out has to be reachable with the server away.
-    await page.getByRole('button', { name: /^(Engine Walker|You)$/ }).click();
+    // menu, behind the name (ADR-0061 decision 1).
+    await page.getByRole('button', { name: 'Engine Walker' }).click();
     await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await page.waitForFunction(async (name) => !(await indexedDB.databases()).some((d) => d.name === name), database, { timeout: 10_000 })
       .catch(() => assert.fail(`${name}: the replica's database survived the sign-out`));

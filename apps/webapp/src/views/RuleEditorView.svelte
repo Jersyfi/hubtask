@@ -541,8 +541,9 @@
           <button class="chip" type="button" onclick={() => (selection = { kind: 'scope' })}>
             <Icon name="hub" size="sm" /><span>{t('app.flow.applies_in')}</span><b>{names.scope(draft.scope)}</b>
           </button>
-          <button class="chip" type="button" onclick={() => (selection = { kind: 'runas' })}>
+          <button class="chip" class:flagged={marks.has('run_as')} type="button" onclick={() => (selection = { kind: 'runas' })}>
             <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
+            {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" />{marks.get('run_as')}</span>{/if}
           </button>
         </div>
       </div>
@@ -763,6 +764,8 @@
   .chip:hover { border-color: var(--border-default); }
 
   .chip b { font-weight: var(--fw-medium); color: var(--text-primary); }
+  .chip.flagged { border-color: var(--status-warning-border); }
+  .chip-flag { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-warning); }
 
   .sentence-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
 
