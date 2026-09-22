@@ -315,7 +315,16 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
   await inspector.locator('[data-group="2"] select.mode').selectOption('none');
   await inspector.locator('[data-sentence="2/0"] select').nth(0).selectOption('archived');
   assert.equal(await inspector.locator('code.compiled').textContent(), "item.type == 'TASK' || item.completed == true || (!(item.archived == true))");
-  assert.equal(await page.locator('[data-card="conditions/0"] .words').textContent(), "the entry's type is TASK or completion yes or (none of: archived yes)");
+  // On the canvas: the sentences in words, the modes as chips, the group marked (F8-18).
+  const shown = page.locator('[data-card="conditions/0"] .words');
+  assert.equal(await shown.locator('.w').allTextContents().then((texts) => texts.join(' | ')), "the entry's type is TASK | completion yes | archived yes");
+  assert.equal(await shown.locator('.chip').allTextContents().then((chips) => chips.join(',')), 'or,or,none of');
+  assert.equal(await shown.locator('.group').count(), 1);
+  assert.equal(await shown.locator('code').count(), 0, 'no raw expression on the canvas');
+
+  // The branch card says its condition the same way, and the branch is a flow card.
+  assert.equal(await page.locator('[data-card="1"] .cond .w').textContent(), 'a due date is set');
+  assert.equal(await page.locator('[data-card="1"] .mark.flow').count(), 1);
 
   // A branch's condition takes the same composer.
   await page.locator('[data-card="1"]').click();

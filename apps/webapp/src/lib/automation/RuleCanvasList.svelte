@@ -12,11 +12,12 @@
 
   import { Icon, type IconName } from '@hubtask/design-system/components';
 
+  import ConditionWords from './ConditionWords.svelte';
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
   import { countSteps, depthOf, endsAllPaths, endsRun, isRung, rungsOf, unreachableFrom, type Step } from './model.ts';
-  import { conditionWords, kindIcon, kindWord, type Names } from './words.ts';
+  import { kindIcon, kindWord, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -82,7 +83,6 @@
   const iconOf = (kind: string): IconName => kindIcon(kind);
 
   function meta(step: Step): string {
-    if (step.kind === 'BRANCH') return t('app.flow.card_branch_if', { condition: conditionWords(words, names, String(step.params.condition ?? '')) });
     if (step.kind === 'STOP') return t('app.flow.card_stop_hint');
     if (step.kind === 'WAIT') return String(step.params.duration ?? '');
     return describe?.(step) ?? '';
@@ -103,8 +103,6 @@
     const right = continues(step.else);
     return left && right ? 'both' : left ? 'l' : right ? 'r' : 'none';
   };
-
-  const condition = (step: Step): string => conditionWords(words, names, String(step.params.condition ?? ''));
 
   function onkey(event: KeyboardEvent, select: () => void): void {
     // A key on a tool inside the card is the tool's, not the card's: the card's own handler
@@ -152,7 +150,9 @@
     <span class="body">
       <span class="kind">{step.kind === 'BRANCH' ? t('app.flow.card_branch') : isFlow ? t('app.flow.card_flow') : t('app.flow.card_action')}</span>
       <span class="title">{kindWord(words, step.kind)}</span>
-      {#if meta(step)}<span class="meta">{meta(step)}</span>{/if}
+      {#if step.kind === 'BRANCH'}
+        <span class="cond"><span class="cmark"><Icon name="funnel" size="sm" /></span><ConditionWords expr={String(step.params.condition ?? '')} {names} /></span>
+      {:else if meta(step)}<span class="meta">{meta(step)}</span>{/if}
       {#if marks?.get(path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(path)}</span>{/if}
     </span>
     {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
@@ -238,7 +238,7 @@
                   data-card={rung.path}
                   onclick={() => onselect({ kind: 'step', path: rung.path })}
                 >
-                  <Icon name="funnel" size="sm" />{condition(rung.step)}
+                  <Icon name="funnel" size="sm" /><ConditionWords expr={String(rung.step.params.condition ?? '')} {names} />
                   {#if verdicts?.get(rung.path)}{@const v = verdicts.get(rung.path)!}<span class="verdict inline" class:yes={v.state === 'yes'} class:no={v.state === 'no'}><Icon name={v.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(v)}</span>{/if}
                 </button>
                 {#if marks?.get(rung.path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(rung.path)}</span>{/if}
@@ -364,6 +364,11 @@
   .title { font-weight: var(--fw-medium); color: var(--text-primary); overflow-wrap: anywhere; }
 
   .meta { font-size: var(--fs-075); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+  /* The branch's condition on its card, in the gate's notation: the funnel, the sentences, the chips. */
+  .cond { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); }
+
+  .cmark { display: inline-grid; place-items: center; width: var(--sp-200); height: var(--sp-200); border-radius: var(--r-xs); background: var(--label-amber-bg); color: var(--label-amber-fg); }
 
   .flag { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); color: var(--text-warning); }
 

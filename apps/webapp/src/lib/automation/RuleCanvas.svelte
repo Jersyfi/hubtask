@@ -20,12 +20,13 @@
   import { Icon, type IconName } from '@hubtask/design-system/components';
 
   import InsertMenu from './InsertMenu.svelte';
+  import ConditionWords from './ConditionWords.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { endsRun, unreachableFrom, type Draft, type Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
-  import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
+  import { TRIGGER_ICONS, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     draft: Draft;
@@ -90,8 +91,6 @@
     onrefuse(drag);
     ondragchange(undefined);
   }
-
-  const words = { t, has: (code: string) => messages.has(code) };
 
   const TRIGGER_ICON: Record<string, IconName> = TRIGGER_ICONS as Record<string, IconName>;
 
@@ -202,8 +201,7 @@
       >
         {#if index > 0}<span class="and">{t('app.flow.sentence_and').trim()}</span>{/if}
         <span class="body">
-          <span class="words">{conditionWords(words, names, expr)}</span>
-          <code class="expr">{expr}</code>
+          <span class="words"><ConditionWords {expr} {names} /></span>
           {#if marks?.get(`conditions/${index}`)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(`conditions/${index}`)}</span>{/if}
         </span>
         {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
@@ -380,9 +378,8 @@
     background: var(--bg-surface-sunken);
   }
 
-  .condition .words { font-size: var(--fs-100); color: var(--text-primary); }
+  .condition .words { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); font-size: var(--fs-100); color: var(--text-primary); }
 
-  .expr { display: block; font-family: var(--font-mono); font-size: var(--fs-050); color: var(--text-subtle); overflow-wrap: anywhere; }
 
   .and {
     position: absolute;
