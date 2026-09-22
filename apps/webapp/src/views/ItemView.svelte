@@ -106,6 +106,7 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
@@ -755,7 +756,7 @@
           {/each}
           {#if repeatValue}<Badge icon="repeat">{repeatValue}</Badge>{/if}
           {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
-          {#if item.content_language}<Badge icon="globe">{item.content_language}</Badge>{/if}
+          {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
         </div>
         <!-- The notes, in place, for the same reasons; empty, the field says what it is for. -->
         <textarea
@@ -891,7 +892,7 @@
             <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue}>
               <RecurrencePanel {item} />
             </DetailRow>
-            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ?? undefined}>
+            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined}>
               <Stack gap="150">
                 <LanguagePicker
                   {languages}
