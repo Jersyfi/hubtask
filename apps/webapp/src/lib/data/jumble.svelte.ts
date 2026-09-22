@@ -21,11 +21,12 @@
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ENTRY_LISTS } from './touches.ts';
 
 const ENTRIES = '/jumble/entries';
 const ROTATE = '/jumble/intake:rotate-token';
 /** A conversion creates an entry, so the containers a board reads are stale afterwards. */
-const TOUCHES = [ENTRIES, '/items', '/containers'];
+const TOUCHES = [ENTRIES, ENTRY_LISTS, '/containers'];
 
 /** One arrival, as `JumbleEntry` answers it. */
 export interface JumbleEntry {

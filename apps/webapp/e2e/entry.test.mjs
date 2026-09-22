@@ -76,10 +76,20 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.equal(await title.evaluate((el) => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'the title field draws a border at rest');
   await title.focus();
   await title.fill('Order the tiles, both rooms');
+  const beforeTitle = written.length;
   await page.keyboard.press('Enter');
   await page.waitForTimeout(300);
   const titleWrite = written.find((w) => w.method === 'PATCH' && w.path.endsWith(`/items/${ENTRY.id}`) && 'title' in (w.body ?? {}));
   assert.deepEqual(titleWrite?.body, { title: 'Order the tiles, both rooms' });
+  // What a title costs (issue 877): the write, the entry, its history and the subtree in one
+  // query - and not the thread, the reminders or the attachments, none of which moved.
+  const afterTitle = written.slice(beforeTitle).map((w) => `${w.method} ${w.path.replace(/^.*\/api\/v1/, '')}`).sort();
+  assert.deepEqual(afterTitle, [
+    `GET /items/${ENTRY.id}`,
+    `GET /items/${ENTRY.id}/activity`,
+    `PATCH /items/${ENTRY.id}`,
+    'POST /items:query',
+  ], 'a title costs more than the write, the entry, its history and the subtree: ' + JSON.stringify(written.slice(beforeTitle).filter((w) => w.path.endsWith(':query')).map((w) => w.body.scope)));
   // Escape restores an unsaved edit.
   await title.focus();
   await title.fill('Not this');
