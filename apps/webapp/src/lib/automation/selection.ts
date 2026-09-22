@@ -23,7 +23,7 @@ export type Drag = { src: 'trigger'; kind: string } | { src: 'condition' } | { s
 
 /**
  * Whether a gap of the chain may take what is being dragged: a step, unless into its own arm and
- * unless where a stop forbids it (decision 14).
+ * unless where an end forbids it (decision 19).
  */
 export function gapTakes(drag: Drag | undefined, list: string, index: number, actions: readonly Step[]): boolean {
   if (!drag) return false;

@@ -294,30 +294,82 @@ export function nudge(actions: readonly Step[], path: Path, direction: -1 | 1): 
   const target = index + direction;
   if (target < 0 || target >= siblings.length) return clone(actions);
   const step = siblings[index];
-  // A stop stays the terminus (decision 14): it does not move up past a step, and no step moves
-  // down past it.
-  if (step?.kind === 'STOP' || siblings[target]?.kind === 'STOP') return clone(actions);
+  // What ends the run stays the terminus (decision 19): it does not move up past a step, and no
+  // step moves down past it.
+  if (endsAllPaths(step) || endsAllPaths(siblings[target])) return clone(actions);
   return moveStep(actions, path, list, direction > 0 ? target + 1 : target) ?? clone(actions);
 }
 
 /**
- * Whether a step of `kind` may take the gap at `index` of `list` (decision 14): a stop only as
- * the last step, and nothing after a stop - the run would never reach it, and the canvas cannot
- * draw "never" honestly. A list the chain does not have takes nothing.
+ * Whether every path through a step ends the run (decision 19): *End the run* does; a branch does
+ * when each of its arms does - every rung of a ladder and the else. Nothing may follow such a
+ * step in its list, and the canvas draws the list's end right there.
+ */
+export function endsAllPaths(step: Step | undefined): boolean {
+  if (!step) return false;
+  if (step.kind === 'STOP') return true;
+  if (step.kind !== 'BRANCH') return false;
+  return endsRun(step.then ?? []) && endsRun(step.else ?? []);
+}
+
+/** Whether a list ends the run on every path: its last step does. */
+export const endsRun = (list: readonly Step[]): boolean => list.length > 0 && endsAllPaths(list[list.length - 1]);
+
+/**
+ * Whether a step of `kind` may take the gap at `index` of `list` (decision 19): *End the run*
+ * only as the last step of an arm, once - the chain's end ends the run anyway - and nothing
+ * after a step that ends the run on every path, because the run would never reach it and the
+ * canvas cannot draw "never" honestly. A list the chain does not have takes nothing.
  */
 export function canPlace(actions: readonly Step[], list: string, index: number, kind: string): boolean {
   const target = listAt(actions, list);
   if (!target) return false;
   const at = Math.max(0, Math.min(index, target.length));
-  const endsInStop = target.length > 0 && target[target.length - 1]?.kind === 'STOP';
-  if (kind === 'STOP') return at === target.length && !endsInStop;
-  return !(endsInStop && at === target.length);
+  const ended = endsRun(target);
+  if (kind === 'STOP') return list !== '' && at === target.length && !ended;
+  return !(ended && at === target.length);
 }
 
-/** The first index of a list a run never reaches - the step after a stop - or -1 for none. */
+/** The first index of a list a run never reaches - the step after one that ends every path - or -1 for none. */
 export function unreachableFrom(steps: readonly Step[]): number {
-  const stop = steps.findIndex((step) => step.kind === 'STOP');
-  return stop === -1 || stop === steps.length - 1 ? -1 : stop + 1;
+  const end = steps.findIndex((step) => endsAllPaths(step));
+  return end === -1 || end === steps.length - 1 ? -1 : end + 1;
+}
+
+/* ---------- The ladder: if / else if / else ---------- */
+
+/** A rung: an else arm whose only step is a branch (decision 19). The reader and the canvas know the shape alike. */
+export const isRung = (step: Step | undefined): boolean => step?.kind === 'BRANCH' && (step.else?.length ?? 0) === 1 && step.else?.[0]?.kind === 'BRANCH';
+
+/**
+ * The rungs of the ladder that starts at `path`: the branch itself, then every branch that is the
+ * sole step of the previous one's else arm, with their paths. A plain branch is a ladder of one.
+ */
+export function rungsOf(step: Step, path: Path): { step: Step; path: Path }[] {
+  const rungs = [{ step, path }];
+  let current = step;
+  let at = path;
+  while (isRung(current)) {
+    at = `${at}/else/0`;
+    current = current.else![0]!;
+    rungs.push({ step: current, path: at });
+  }
+  return rungs;
+}
+
+/**
+ * The chain with an *else if* added under the ladder at `path` (decision 19): a fresh branch
+ * becomes the sole step of the last rung's else arm, and whatever that arm held becomes the new
+ * rung's else - the steps keep their place as the last resort, and the engine runs the shape
+ * today. Unchanged where `path` is not a branch.
+ */
+export function addRung(actions: readonly Step[], path: Path): Step[] {
+  const step = stepAt(actions, path);
+  if (!step || step.kind !== 'BRANCH') return clone(actions);
+  const last = rungsOf(step, path).at(-1)!;
+  const rung = newStep('BRANCH');
+  rung.else = last.step.else ?? [];
+  return replaceAt(actions, last.path, { ...last.step, else: [rung] });
 }
 
 /** A fresh step of a kind, with a branch's two empty arms. */

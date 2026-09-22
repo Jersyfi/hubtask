@@ -6,7 +6,10 @@ import assert from 'node:assert/strict';
 
 import type { Rule } from '../data/rules.svelte.ts';
 import {
+  addRung,
   canPlace,
+  endsAllPaths,
+  isRung,
   compileNode,
   compileSentence,
   countSteps,
@@ -18,6 +21,7 @@ import {
   nameSeed,
   newStep,
   nudge,
+  rungsOf,
   pathOf,
   pointerOf,
   readNode,
@@ -26,6 +30,7 @@ import {
   stepAt,
   toRuleDraft,
   unreachableFrom,
+  type Step,
   type Node,
   type Sentence,
 } from './model.ts';
@@ -136,23 +141,67 @@ test('inserting, removing and moving keep the chain a copy, and a branch never e
   assert.equal(moveStep(actions, '9', '', 0), undefined);
 });
 
-// A stop is a terminus and goes last (decision 14): it does not move up, nothing moves or is
-// inserted below it, and a gap is asked before anything lands.
-test('a stop stays the last step of its list', () => {
+// *End the run* belongs at the end of an arm, once, and nothing follows a step that ends the run
+// on every path (decision 19): it does not move up, nothing moves or is inserted below it, the
+// chain itself takes none - its end ends the run anyway - and a gap is asked before anything lands.
+test('End the run stays the last step of an arm, and the chain takes none', () => {
   const { actions } = fromRule(STORED);
-  assert.equal(nudge(actions, '1/else/1', -1)[1]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'the stop does not move up');
+  assert.equal(nudge(actions, '1/else/1', -1)[1]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'the end does not move up');
   assert.equal(nudge(actions, '1/else/0', 1)[1]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'nothing moves below it');
-  assert.equal(canPlace(actions, '1/else', 2, 'COMPLETE_ITEM'), false, 'nothing after a stop');
+  assert.equal(canPlace(actions, '1/else', 2, 'COMPLETE_ITEM'), false, 'nothing after an end');
   assert.equal(canPlace(actions, '1/else', 1, 'COMPLETE_ITEM'), true, 'before it is fine');
-  assert.equal(canPlace(actions, '', 1, 'STOP'), false, 'a stop in the middle');
-  assert.equal(canPlace(actions, '', 3, 'STOP'), true, 'a stop at the end');
-  assert.equal(canPlace(actions, '1/else', 2, 'STOP'), false, 'a second stop');
+  assert.equal(canPlace(actions, '', 1, 'STOP'), false, 'an end in the middle of the chain');
+  assert.equal(canPlace(actions, '', 3, 'STOP'), false, 'an end at the end of the chain: the chain ends anyway');
+  assert.equal(canPlace(actions, '1/then', 1, 'STOP'), true, 'an end at the end of an arm');
+  assert.equal(canPlace(actions, '1/else', 2, 'STOP'), false, 'a second end');
   assert.equal(canPlace(actions, '7/then', 0, 'STOP'), false, 'a list that is not there');
-  assert.equal(moveStep(actions, '0', '1/else', 2), undefined, 'a move below a stop is refused');
-  assert.equal(moveStep(actions, '1/else/1', '', 1), undefined, 'a stop moved into the middle is refused');
-  assert.equal(moveStep(actions, '1/else/1', '', 3)?.map((step) => step.kind).join(','), 'ADD_LABEL,BRANCH,SEND_WEBHOOK,STOP', 'a stop moved to the end lands');
-  assert.equal(unreachableFrom(actions[1]?.else ?? []), -1, 'a stop that is last leaves nothing unreachable');
-  assert.equal(unreachableFrom([newStep('STOP'), newStep('WAIT'), newStep('WAIT')]), 1, 'what follows a stored stop');
+  assert.equal(moveStep(actions, '0', '1/else', 2), undefined, 'a move below an end is refused');
+  assert.equal(moveStep(actions, '1/else/1', '', 1), undefined, 'an end moved into the chain is refused');
+  assert.equal(moveStep(actions, '1/else/1', '1/then', 1)?.[1]?.then?.map((step) => step.kind).join(','), 'NOTIFY_GROUP,STOP', 'an end moved to the end of the other arm lands');
+  assert.equal(unreachableFrom(actions[1]?.else ?? []), -1, 'an end that is last leaves nothing unreachable');
+  assert.equal(unreachableFrom([newStep('STOP'), newStep('WAIT'), newStep('WAIT')]), 1, 'what follows a stored end');
+});
+
+// A branch whose every arm ends the run ends it too (decision 19): nothing may follow it, what a
+// stored rule holds after it is never reached, and the rule holds through a ladder's rungs.
+test('a branch ending on every path ends the list', () => {
+  const stop = (): Step => newStep('STOP');
+  const both: Step = { ...newStep('BRANCH'), then: [stop()], else: [stop()] };
+  const oneOpen: Step = { ...newStep('BRANCH'), then: [stop()], else: [] };
+  assert.equal(endsAllPaths(both), true);
+  assert.equal(endsAllPaths(oneOpen), false);
+  assert.equal(endsAllPaths(newStep('WAIT')), false);
+  const chain: Step[] = [newStep('WAIT'), both];
+  assert.equal(canPlace(chain, '', 2, 'WAIT'), false, 'nothing after a branch that ends every path');
+  assert.equal(canPlace(chain, '', 1, 'WAIT'), true, 'before it is fine');
+  assert.equal(unreachableFrom([both, newStep('WAIT')]), 1);
+  assert.equal(nudge([newStep('WAIT'), both], '0', 1).map((step) => step.kind).join(','), 'WAIT,BRANCH', 'nothing moves below it');
+  // A ladder: every rung and the else end.
+  const ladder: Step = { ...newStep('BRANCH'), then: [stop()], else: [{ ...newStep('BRANCH'), then: [stop()], else: [stop()] }] };
+  assert.equal(endsAllPaths(ladder), true);
+  const openLadder: Step = { ...newStep('BRANCH'), then: [stop()], else: [{ ...newStep('BRANCH'), then: [stop()], else: [] }] };
+  assert.equal(endsAllPaths(openLadder), false);
+});
+
+// A rung is an else arm whose only step is a branch (decision 19): adding one puts a fresh branch
+// there and moves what the arm held into the new rung's else, the reader takes the shape back
+// apart, and a plain branch is a ladder of one.
+test('an else-if is a rung under the ladder', () => {
+  const { actions } = fromRule(STORED);
+  const oneRung = addRung(actions, '1');
+  const branch = oneRung[1]!;
+  assert.equal(isRung(branch), true);
+  assert.equal(branch.else?.length, 1);
+  assert.equal(branch.else?.[0]?.then?.length, 0, 'the new rung starts empty');
+  assert.equal(branch.else?.[0]?.else?.map((step) => step.kind).join(','), 'WAIT,STOP', 'what the arm held is the last resort');
+  assert.deepEqual(rungsOf(branch, '1').map((rung) => rung.path), ['1', '1/else/0']);
+
+  const twoRungs = addRung(oneRung, '1');
+  assert.deepEqual(rungsOf(twoRungs[1]!, '1').map((rung) => rung.path), ['1', '1/else/0', '1/else/0/else/0']);
+  assert.equal(stepAt(twoRungs, '1/else/0/else/0/else/0')?.kind, 'WAIT', 'the else travels down');
+  assert.equal(stepAt(twoRungs, '1/else/0/then')?.kind, undefined);
+  assert.equal(addRung(actions, '0').length, actions.length, 'not a branch: unchanged');
+  assert.equal(isRung(actions[1]), false, 'an else with two steps is no rung');
 });
 
 test('the generated name is seeded by the trigger and the first two steps that are not branches', () => {
