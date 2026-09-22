@@ -108,12 +108,18 @@ Nothing else is a band and nothing is drawn outside one. The account group is no
 at all; it is the bar's menu above `compact` and the bottom bar's "You" below it, as ADR-0061
 decided and this ADR keeps.
 
-**The archive is a destination, not a hiding place.** Archived entries and containers stay where
-they are and say so — `include_archived: true` and the badge, which `items.svelte.ts` already
-does and this ADR does not change. What is new is one place that answers "what has been put
-aside here": `/archive`, the archived containers and entries of the workspace, read-only, each
-with the way to bring it back. Without it, "archived" is a state with no list, and the owner's
-question — *where do I find what is archived* — has no answer but a filter that does not exist.
+**The archive is a destination, not a hiding place.** An archived *entry* stays in its list and
+says so — `include_archived: true` and the badge, which `items.svelte.ts` already does and this
+ADR does not change. An archived *container* does neither: `containers.svelte.ts` never asks for
+them and the route defaults the parameter to `false`, so an archived hub or collection leaves the
+navigation and nothing anywhere shows it again. Measured on 2026-09-22: archiving a collection
+took it out of the tree, and unarchiving it needed the API (issue 933). Archiving is offered as
+the reversible alternative to the trash, and a reversal with no route in the interface is the half
+that is missing.
+
+`/archive` is that route: what this workspace has put aside — the archived containers and the
+archived entries the reader may see — each with where it lives and the way to bring it back.
+Without it, "archived" is a state with no list.
 
 ### 2. The fold is a rail, and the mark is the column that survives it
 

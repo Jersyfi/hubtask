@@ -109,13 +109,17 @@ finds the tree.
 
 ## F10-03 — The archive is a place **[L]**
 
-*Depends on: F10-02.*
+*Depends on: F10-02. Closes issue 933.*
 
-ADR-0062 decision 1. `/archive`: what this workspace has put aside — the archived containers and
-the archived entries the reader may see, each with where it lives and the way to bring it back,
-read through the reads that exist (decision 3 of this cut). A `PageHeader`, the empty state that
-says what the place is for, and the row menu's "unarchive" with its capability gate. The
-navigation's `keeping` band leads here.
+ADR-0062 decision 1, and issue 933. `/archive`: what this workspace has put aside — the archived
+containers and the archived entries the reader may see, each with where it lives and the way to
+bring it back, read through the reads that exist (decision 3 of this cut). A `PageHeader`, the
+empty state that says what the place is for, and the row menu's "unarchive" with its capability
+gate. The navigation's `keeping` band leads here.
+
+**What this task has to make untrue** (issue 933): an archived hub or collection leaves the
+navigation and nothing in the client shows it again — measured, and unarchiving it needs the API.
+An archived entry does not have that problem; it stays in its list with its badge.
 
 **Acceptance:** the screen at every width; unarchiving from it returns the object to where it
 belongs and the row leaves the list; nothing new in `api/openapi.yaml`.
