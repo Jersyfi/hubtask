@@ -100,7 +100,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   const rows = await drawer.getByRole('treeitem').allTextContents();
-  assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
+  assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   assert.equal(await drawer.getByRole('button', { name: 'Create hub' }).count(), 1, 'the drawer has no way to create a hub');
   // A navigation closes it, and the collection inside the hub is reachable through it.
   await drawer.getByRole('treeitem', { name: 'House' }).click();
@@ -154,7 +154,7 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-  assert.deepEqual(rows, [...PRIMARY, 'House', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
+  assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   await drawer.getByRole('treeitem', { name: 'Search' }).click();
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, '/search');
@@ -177,9 +177,22 @@ for (const width of [905, 1280]) {
 
     assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, `${width}: a bottom bar on a desk`);
     assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, `${width}: a drawer trigger on a desk`);
+    // Two trees in one column, and one list behind them: the places and the hubs, then the
+    // `keeping` band pinned to the foot (ADR-0063 decision 1). The rows are the same rows.
     const tree = page.getByRole('navigation', { name: 'Workspace' });
+    const keeping = page.getByRole('navigation', { name: 'What is kept' });
     const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-    assert.deepEqual(rows, [...PRIMARY, 'House', 'Trash'], `${width}: the tree holds ${JSON.stringify(rows)}`);
+    assert.deepEqual(rows, [...PRIMARY, 'House'], `${width}: the tree holds ${JSON.stringify(rows)}`);
+    assert.deepEqual((await keeping.getByRole('treeitem').allTextContents()).map((row) => row.trim()), ['Archive', 'Trash'], `${width}: the keeping band`);
+    // And it is at the foot: below every row of the tree above it, and at the bottom of the column.
+    const foot = await page.evaluate(() => {
+      const aside = document.querySelector('aside.sidenav');
+      const band = aside?.querySelector('.keeping')?.getBoundingClientRect();
+      const last = [...(aside?.querySelectorAll('nav[aria-label="Workspace"] [role="treeitem"]') ?? [])].at(-1)?.getBoundingClientRect();
+      return band && last ? { below: Math.round(band.top - last.bottom), toBottom: Math.round(aside.getBoundingClientRect().bottom - band.bottom) } : null;
+    });
+    assert.ok(foot !== null && foot.below > 100, `${width}: the keeping band is ${JSON.stringify(foot)} from the hubs`);
+    assert.ok(foot.toBottom < 40, `${width}: the keeping band is ${foot.toBottom}px above the column's bottom`);
     assert.equal(await page.locator('aside[data-tour="hubs"]').count(), 1, `${width}: the tour's target is not the pinned navigation`);
     assert.equal(await tree.getByRole('treeitem', { name: 'Workspace' }).getAttribute('aria-current'), 'page');
 
@@ -190,6 +203,7 @@ for (const width of [905, 1280]) {
     const rail = await aside.evaluate((el) => el.getBoundingClientRect().width);
     assert.ok(rail < pinned / 2, `${width}: the rail is ${rail} px against ${pinned} px pinned`);
     assert.equal(await tree.getByRole('treeitem').count(), rows.length, `${width}: the rail lost rows`);
+    assert.equal(await keeping.getByRole('treeitem').count(), 2, `${width}: the rail lost the keeping band`);
     // And every mark is **drawn**, inside the column. Folding used to leave the twist in front of
     // it and clip the half that stuck out, so the rail was a column of slivers (issue 915).
     const marks = await aside.evaluate((el) => {
@@ -199,7 +213,8 @@ for (const width of [905, 1280]) {
         return { inside: box.left >= column.left && box.right <= column.right, width: Math.round(box.width) };
       });
     });
-    assert.equal(marks.length, rows.length, `${width}: the rail drew ${marks.length} marks for ${rows.length} rows`);
+    const railRows = await aside.getByRole('treeitem').count();
+    assert.equal(marks.length, railRows, `${width}: the rail drew ${marks.length} marks for ${railRows} rows`);
     assert.deepEqual(marks.filter((mark) => !mark.inside || mark.width === 0), [], `${width}: a mark of the rail is clipped or missing`);
     // The label is announced although it is not drawn, so the rail is navigable by name.
     assert.equal(await tree.getByRole('treeitem', { name: 'Jumble' }).count(), 1, `${width}: the rail's rows lost their names`);
@@ -223,7 +238,7 @@ for (const width of [905, 1280]) {
     // Every destination, through the tree and the menu.
     await tree.getByRole('treeitem', { name: 'Jumble' }).click();
     assert.equal(new URL(page.url()).pathname, '/jumble');
-    await tree.getByRole('treeitem', { name: 'Trash' }).click();
+    await keeping.getByRole('treeitem', { name: 'Trash' }).click();
     assert.equal(new URL(page.url()).pathname, '/trash');
     await page.getByRole('button', { name: ACCOUNT.display_name }).click();
     const menu = page.getByRole('menu', { name: 'You' });

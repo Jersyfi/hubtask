@@ -163,11 +163,19 @@
          A navigation tree is the one place the two coincide, and a screen reader is told each in
          its own vocabulary. -->
     {#each rows as row, index (row.node.id)}
+      {#if row.depth === 0 && row.node.band?.caption}
+        <!-- A band's caption. `role="none"` because it is not a node of the tree: it says what the
+             rows under it are, and the arrows walk past it the way they walk past a heading. -->
+        <li class="band" role="none">
+          <span>{row.node.band.caption}</span>
+        </li>
+      {/if}
       <li
         class="row"
         role="treeitem"
         data-index={index}
         data-node={row.node.id}
+        data-band={row.depth === 0 && row.node.band !== undefined ? '' : undefined}
         title={isRail ? row.node.label : undefined}
         aria-label={isRail ? row.node.label : undefined}
         aria-expanded={row.isBranch ? (isRail ? opened === row.node.id : row.isExpanded) : undefined}
@@ -226,6 +234,37 @@
   .side-nav { min-width: 0; }
 
   .tree { margin: 0; padding: 0; list-style: none; }
+
+  /* Where a band begins: a hairline and the air that says "these are a different kind of thing".
+     The first row of the column opens no band, whatever it carries. */
+  .row[data-band],
+  .band {
+    margin-block-start: var(--sp-200);
+    padding-block-start: var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  .tree > :first-child {
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+  }
+
+  /* A captioned band is opened by its caption; the row under it only follows. */
+  .band + .row[data-band] {
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+  }
+
+  /* The caption, in the `label` role §3 gives a field name and a group title. */
+  .band {
+    padding-inline: var(--sp-100);
+    padding-block-end: var(--sp-050);
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+  }
 
   .row {
     display: flex;
