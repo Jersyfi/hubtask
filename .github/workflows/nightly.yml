@@ -84,9 +84,14 @@ jobs:
       # against the data catalogue. ADR-0018 calls the first "the expensive one with the highest
       # protective value" and puts it here rather than on every pull request (E-11).
       - run: make gate-privacy-full
-      # And the proof that those two bite. `gate-selftest` skips its container-backed probes where
-      # there is no PostgreSQL - which is every pull request - so the machine that has one is the
-      # machine that has to run the whole script (E-11).
+      # And the proof that those two bite - on this architecture.
+      #
+      # The reason written here used to be that `gate-selftest` skips its container-backed probes
+      # "where there is no PostgreSQL, which is every pull request". That was never true: the
+      # script asks `docker info`, every runner has Docker, and the probes run through
+      # Testcontainers - a pull request's selftest ends with "0 skipped" and always has (#944).
+      # What this step is actually for is the arm64 runner underneath it, which is the one thing
+      # the pull request cannot give it.
       - run: make gate-selftest
       - run: make gate-compose
 

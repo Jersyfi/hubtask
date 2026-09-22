@@ -493,18 +493,12 @@ jobs:
     name: Security gates SG-1..SG-12
     needs: quick
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: hubtask
-          POSTGRES_DB: hubtask_test
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres -h 127.0.0.1"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-        ports: ["5432:5432"]
-    env:
-      HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
+    # No service container, deliberately. This job used to start one and set HUBTASK_DB_DSN, and
+    # nothing in it ever connected: the suites here reach a database through test/dbtest, which
+    # starts its own through Testcontainers, and `make verify` runs these same gates on a laptop
+    # with no database at all. Only `integration` genuinely needs one, because `make migrate`
+    # reads that DSN. A declared dependency nobody uses reads as a statement about what these
+    # suites talk to, and it was not true (#944).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -530,18 +524,12 @@ jobs:
     name: Data gates (migration, retention, backup, sync)
     needs: quick
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: hubtask
-          POSTGRES_DB: hubtask_test
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres -h 127.0.0.1"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-        ports: ["5432:5432"]
-    env:
-      HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
+    # No service container, deliberately. This job used to start one and set HUBTASK_DB_DSN, and
+    # nothing in it ever connected: the suites here reach a database through test/dbtest, which
+    # starts its own through Testcontainers, and `make verify` runs these same gates on a laptop
+    # with no database at all. Only `integration` genuinely needs one, because `make migrate`
+    # reads that DSN. A declared dependency nobody uses reads as a statement about what these
+    # suites talk to, and it was not true (#944).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
