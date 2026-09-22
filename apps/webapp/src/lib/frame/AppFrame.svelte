@@ -369,6 +369,13 @@
   /* The pinned navigation, from `expanded`: as wide as the token says, and it stays in view while
      the page scrolls under the bar. Its own scroll, so a long tree does not lengthen the page. */
   .sidenav {
+    /* The frame is its own plane (ADR-0063 decision 3): the bar and the bottom bar already take
+       the surface, and a navigation on the content's canvas read as an indented part of the page
+       rather than as the frame around it. */
+    background: var(--bg-surface);
+    /* A column, so that the navigation's own foot band reaches the bottom of it. */
+    display: flex;
+    flex-direction: column;
     position: sticky;
     inset-block-start: var(--layout-appbar-height);
     flex: none;
