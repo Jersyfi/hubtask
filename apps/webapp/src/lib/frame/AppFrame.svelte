@@ -201,7 +201,7 @@
 
 </script>
 
-<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined}>
+<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined}>
   <!-- The first stop on every page (2.4.1). The keyboard walk of F5-11 counted eleven stops from
        the top of the frame to the first control of the content; this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
@@ -366,9 +366,17 @@
 
   .body { display: flex; flex: 1; min-width: 0; }
 
+
   /* The pinned navigation, from `expanded`: as wide as the token says, and it stays in view while
      the page scrolls under the bar. Its own scroll, so a long tree does not lengthen the page. */
   .sidenav {
+    /* The frame is its own plane (ADR-0063 decision 3): the bar and the bottom bar already take
+       the surface, and a navigation on the content's canvas read as an indented part of the page
+       rather than as the frame around it. */
+    background: var(--bg-surface);
+    /* A column, so that the navigation's own foot band reaches the bottom of it. */
+    display: flex;
+    flex-direction: column;
     position: sticky;
     inset-block-start: var(--layout-appbar-height);
     flex: none;
@@ -398,6 +406,25 @@
   main[data-filled] { padding: 0; }
 
   main[data-filled] .content { max-inline-size: none; }
+
+  /* From `expanded`, where a filled page keeps its own panel beside its canvas, the region is a
+     **height** as well as a width (`milestone-F8.md` decision 31): the page is one screen and
+     what scrolls is inside it, so the frame grows no second scrollbar underneath and a panel as
+     tall as the region really ends where the region does - the rule editor's ended below the
+     window by the height of everything above it. `min-block-size: 0` down the flex chain, or the
+     automatic minimum size lets the region grow with its content anyway. Below that the page
+     scrolls as every page does: the details are a sheet there, and a bar that scrolls away
+     leaves the canvas the screen. */
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
+  @media (width >= 905px) {
+    .frame[data-filled] { box-sizing: border-box; block-size: 100dvh; min-block-size: 0; }
+
+    .frame[data-filled] .body { min-block-size: 0; }
+
+    main[data-filled] { min-block-size: 0; overflow: hidden; }
+
+    main[data-filled] .content { block-size: 100%; }
+  }
 
   main:focus { outline: none; }
 

@@ -9,6 +9,8 @@ export const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER
 export const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000011', kind: 'USER', display_name: 'Mara Lind', email: 'm@example.invalid', status: 'ACTIVE', locale: 'en' };
 export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
 export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
+/** One that was put aside: out of the tree, and the only thing the archive screen should find. */
+export const ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Last winter', order_key: 'a1', version: 1, archived_at: '2026-08-01T09:00:00Z' };
 export const LABELS = [
   { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'label.teal' },
   { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'label.red' },
@@ -42,10 +44,13 @@ export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
 
 export const MANIFEST = {
   product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single',
+  // The three profiles as `domain-model.md` §2 defines them and a real server answers them,
+  // spelling included — the fixture said `ASSIGNEE` for `ASSIGNMENT` and gave a work package two
+  // capabilities of fourteen, which is a fake that agrees with no installation.
   item_types: [
-    { type: 'TASK', capabilities: ['COMPLETION', 'BUCKET', 'DUE_DATE', 'LABELS', 'ASSIGNEE', 'COMMENTS', 'ATTACHMENTS'], allowed_child_types: ['WORK_PACKAGE'], max_depth: 3 },
-    { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE'], allowed_child_types: ['ACTIVITY'], max_depth: 3 },
-    { type: 'ACTIVITY', capabilities: ['COMPLETION'], allowed_child_types: [], max_depth: 3 },
+    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'], allowed_child_types: ['WORK_PACKAGE'], max_depth: 3 },
+    { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'CUSTOM_FIELDS'], allowed_child_types: ['ACTIVITY'], max_depth: 2 },
+    { type: 'ACTIVITY', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'HISTORY'], allowed_child_types: [], max_depth: 1 },
   ],
   supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }],
   query_fields: [
@@ -73,9 +78,15 @@ export function stub(route) {
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${OTHER.id}`)) return route.fulfill({ json: OTHER });
-  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
-  if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
+  // `include_archived` is honoured, because it is the whole of what the archive screen asks and a
+  // stub that ignored it would prove the screen works by handing it rows the product hides.
+  if (path.endsWith('/api/v1/containers')) {
+    const archived = url.searchParams.get('include_archived') === 'true';
+    const rows = url.searchParams.get('type') === 'HUB' ? [HUB] : [COLLECTION, ...(archived ? [ARCHIVED] : [])];
+    return route.fulfill({ json: { ...PAGE, data: rows } });
+  }
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
+  if (path.endsWith(`/api/v1/containers/${ARCHIVED.id}`)) return route.fulfill({ json: ARCHIVED });
   if (path.endsWith(`/api/v1/containers/${HUB.id}`)) return route.fulfill({ json: HUB });
   if (path.endsWith('/labels')) return route.fulfill({ json: LABELS });
   if (path.endsWith('/buckets')) return route.fulfill({ json: BUCKETS });

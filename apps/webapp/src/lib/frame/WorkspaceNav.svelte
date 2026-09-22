@@ -18,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, IconButton, SideNav, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, IconButton, SideNav, Skeleton } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
@@ -26,7 +26,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { TRASH, primary } from '../navigation.ts';
+  import { KEEPING, primary } from '../navigation.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -113,21 +113,40 @@
     })),
   );
 
-  // The trash is content of the workspace (arc42 F-09), so it is the tree's last node - under the
-  // hubs, where somebody looks when something is missing - and it is there before the hubs have
-  // loaded and when there are none.
+  /**
+   * The three bands, in the one order (ADR-0063 decision 1).
+   *
+   * `places` first, then the workspace's own structure under its caption, then `keeping` — the
+   * trash, and the archive when F10-03 gives it a screen — pinned to the foot of the column. The
+   * band is a mark on the first node of each, so the tree stays one list with one keyboard walk
+   * and the drawing still gets the separation: the trash under the last hub read as one more hub,
+   * which is what the owner's walk found.
+   *
+   * The `keeping` band is there before the hubs have loaded and when there are none.
+   */
   const nodes = $derived([
     ...destinationNodes,
-    ...hubNodes,
-    { id: TRASH.id, label: t(TRASH.code), icon: TRASH.icon },
+    ...hubNodes.map((hub, index) => (index === 0 ? { ...hub, band: { caption: t('app.nav.hubs') } } : hub)),
   ]);
+
+  /**
+   * The `keeping` band, drawn as its own tree at the foot of the column.
+   *
+   * Its own, because it is pinned there: a band inside the tree above could only be pushed down by
+   * making that tree fill the column, and then nothing — the control that makes a hub least of all
+   * — could stand between the hubs and it. Two trees in one column are not two navigations: the
+   * list is still `navigation.ts`'s, and the rows are the same rows. What it costs is that the
+   * arrows do not carry from the last hub into the trash, which `Tab` does instead.
+   */
+  const keepingNodes = $derived(KEEPING.map((each) => ({ id: each.id, label: t(each.code), icon: each.icon })));
 
   const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
 
   function navigate(id: string) {
     const destination = primary().find((each) => each.id === id);
     if (destination && destination.target.kind === 'route') return onnavigate(destination.target.path);
-    if (id === TRASH.id) return onnavigate(TRASH.path);
+    const keeping = KEEPING.find((each) => each.id === id);
+    if (keeping) return onnavigate(keeping.path);
     const container = containers.find(id);
     if (!container) return;
     onnavigate(container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
@@ -140,13 +159,15 @@
   );
 </script>
 
-<Stack gap="100">
+<!-- A column rather than a `Stack`, because the tree has to fill it: the `keeping` band is
+     pinned to the foot of the navigation, and `auto` on a margin needs a height to push against. -->
+<div class="column">
   <!-- Not in the rail: a sentence has no room in a column of marks, and the sync line under the
        bar says the same thing on every width. -->
   {#if isTreeReady && !failure && !isRail}
     <ReplicaMark state={containers.hubsState} />
   {/if}
-  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} bind:expanded onnavigate={navigate} />
+  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} flyoutLabel={(name) => t('app.nav.inside', { name })} bind:expanded onnavigate={navigate} />
   {#if !isTreeReady}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if failure}
@@ -182,10 +203,32 @@
       {/if}
     </div>
   {/if}
-</Stack>
+
+  <!-- Where a reader goes when something is missing: at the foot of the column, on every width,
+       never mixed in with the hubs above it (ADR-0063 decision 1). -->
+  <div class="keeping">
+    <SideNav label={t('app.nav.keeping')} nodes={keepingNodes} {current} {isRail} onnavigate={navigate} />
+  </div>
+</div>
 
 <CreateContainerDialog
   bind:isOpen={isCreatingHub}
   type="HUB"
   oncreated={(id) => onnavigate(`/hubs/${id}`)}
 />
+
+<style>
+  .column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-100);
+    min-block-size: 100%;
+  }
+
+  /* Pushed to the bottom of the column, with the hairline that says a band begins. */
+  .keeping {
+    margin-block-start: auto;
+    padding-block-start: var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+</style>

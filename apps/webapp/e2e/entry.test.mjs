@@ -22,11 +22,16 @@ const ENTRY = ITEMS[0];
 const served = await serve(DIST);
 test.after(() => served.close());
 
-/** The rows the details column holds, by their ids and the heading of the editor each opens. */
+/**
+ * The rows a **task** holds, by their ids and the heading of the editor each opens.
+ *
+ * A task, because the column is the capability matrix drawn (issue 916): a work package carries
+ * neither a cover nor a repeat, and an activity carries five capabilities of fourteen. The dates
+ * are one row, because `DuePanel` is one editor.
+ */
 const ROWS = [
   ['assignee', 'Assignee'],
-  ['due', 'Date'],
-  ['start', 'Starts'],
+  ['due', 'Dates'],
   ['labels', 'Labels'],
   ['reminders', 'Reminders'],
   ['recurrence', 'Repeats'],
@@ -211,4 +216,90 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   const indents = await page.locator('.task-row').evaluateAll((rows) => rows.map((row) => getComputedStyle(row).paddingInlineStart));
   assert.deepEqual([...new Set(indents)].sort(), ['0px', '16px'], `the indent steps are ${indents}`);
   assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — the policy chooses only where there is one to choose', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  /** Opens the entry's assignee editor and reads the auto-assign button, with the collection served as given. */
+  const buttonWith = async (policies) => {
+    const { page, context, close } = await signedIn(browser, 1280, 1000);
+    t.after(close);
+    await context.route(`**/api/v1/containers/${COLLECTION.id}`, (route) =>
+      route.fulfill({ json: { ...COLLECTION, policies } }));
+    await page.goto(`${served.origin}/items/${ENTRY.id}`);
+    await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    await page.locator('[data-detail="assignee"]').click();
+    await page.getByRole('dialog', { name: 'Assignee' }).waitFor({ timeout: 5_000 });
+    const state = await page.evaluate(() => {
+      const button = [...document.querySelectorAll('button')].find((each) => each.textContent?.includes('Let the policy choose'));
+      return button ? { disabled: button.disabled, reason: button.nextElementSibling?.textContent ?? null } : null;
+    });
+    await context.close();
+    return state;
+  };
+
+  // Offered where a policy exists, and carrying its reason where none does — rather than
+  // disappearing, because automatic assignment is exactly something somebody might want and be
+  // missing (issue 917, and `domain-model.md` §2's rule that a refusal is never silent).
+  const without = await buttonWith({ completion_policy: 'MANUAL' });
+  assert.equal(without?.disabled, true, 'the policy was offered where the collection has none');
+  assert.match(without?.reason ?? '', /No policy chooses/);
+
+  const with_ = await buttonWith({
+    completion_policy: 'MANUAL',
+    auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: true },
+  });
+  assert.equal(with_?.disabled, false, 'the policy was refused where the collection has one');
+  assert.equal(with_?.reason, null);
+
+  const off = await buttonWith({
+    completion_policy: 'MANUAL',
+    auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: false },
+  });
+  assert.equal(off?.disabled, true, 'a policy that is switched off still offered to choose');
+});
+
+test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, close } = await signedIn(browser, 1280, 1000);
+  t.after(close);
+
+  const rowsOf = async (id) => {
+    await page.goto(`${served.origin}/items/${id}`);
+    await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    return page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')));
+  };
+
+  // A task carries all fourteen; a work package neither a cover nor a repeat; an activity five of
+  // the fourteen, and among them neither notes nor labels. `domain-model.md` §2, which the
+  // manifest answers and this client may not second-guess (issue 916).
+  const task = await rowsOf(ENTRY.id);
+  assert.deepEqual(task, ['assignee', 'due', 'labels', 'reminders', 'recurrence', 'language', 'cover', 'attachments']);
+
+  const pack = await rowsOf(CHILDREN[ENTRY.id][0].id);
+  assert.deepEqual(pack, ['assignee', 'due', 'labels', 'reminders', 'language', 'attachments']);
+  assert.equal(await page.locator('.notes-field').count(), 1, 'a work package carries notes');
+
+  const activity = await rowsOf(CHILDREN[CHILDREN[ENTRY.id][0].id][0].id);
+  assert.deepEqual(activity, ['assignee', 'due', 'reminders', 'language']);
+  assert.equal(await page.locator('.notes-field').count(), 0, 'an activity was offered notes it cannot keep');
+  // And no conversation either: the tab used to stand there with a gate inside it saying so.
+  assert.deepEqual(
+    (await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab').allTextContents()).map((each) => each.trim()),
+    ['History'],
+  );
+
+  // And the dates are one row: pressing it opens the one editor that writes both, which is why
+  // two rows for it showed the reader the other date wherever they pressed.
+  await page.locator('[data-detail="due"]').click();
+  const editor = page.getByRole('dialog', { name: 'Dates' });
+  await editor.waitFor({ timeout: 5_000 });
+  const inside = (await editor.textContent()) ?? '';
+  assert.ok(inside.includes('Date') && inside.includes('Starts'), `the dates editor holds ${inside.slice(0, 120)}`);
+
+  assert.deepEqual(failures, []);
+  await context.close();
 });

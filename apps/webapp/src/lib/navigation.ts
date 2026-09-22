@@ -11,10 +11,9 @@
  * prevent, which is why the frame has no list of its own and why the test beside this file
  * reads the route table rather than trusting the strings here.
  *
- * Two things are deliberately **not** in the list. The search field: `/search` is a destination,
- * and a field in the bar would be a second entry to it. And the trash as a destination: it is
- * content of the workspace (arc42 F-09), so it is the last node of the tree, under the hubs
- * where somebody looks when something is missing — `TRASH` below is what the tree appends.
+ * The list has a **shape**, and the frame draws it and no other (ADR-0063 decision 1): three
+ * bands in one order — the places that are not the tree, the tree itself, and `KEEPING`, pinned
+ * to the foot of the column. They never mix, and nothing is drawn outside one.
  *
  * `area` is ADR-0032's: the mobile build renders the administration row as an entry that says
  * where the capability lives, and nothing else about the list changes.
@@ -25,6 +24,16 @@ import type { IconName } from '@hubtask/design-system/components';
 import type { Area } from './router.ts';
 
 export type Group = 'primary' | 'account';
+
+/**
+ * The three bands the navigation is drawn in, in this order and no other (ADR-0063 decision 1).
+ *
+ * `places` are the rooms of the product that are not the tree; `tree` is the workspace's own
+ * structure; `keeping` is where somebody looks when something is **missing**, and it is pinned to
+ * the foot of the column so that it is never mixed in with the hubs above it. Nothing is drawn
+ * outside a band, and nothing is in two.
+ */
+export type Band = 'places' | 'tree' | 'keeping';
 
 /** What choosing a destination does: goes somewhere, or performs one of the two account verbs. */
 export type Target = { readonly kind: 'route'; readonly path: string } | { readonly kind: 'action'; readonly action: 'tour' | 'sign-out' };
@@ -63,8 +72,31 @@ export const DESTINATIONS: readonly Destination[] = [
   { id: 'sign-out', group: 'account', icon: 'log-out', code: 'app.sign_out', target: { kind: 'action', action: 'sign-out' }, routes: [] },
 ];
 
-/** The tree's last node: the trash, under the hubs, on every width. */
-export const TRASH = { id: 'trash', icon: 'trash' as const, code: 'app.nav.trash', path: '/trash', routes: ['trash'] } as const;
+/**
+ * The `keeping` band: where a reader goes when something is missing, at the foot of the column.
+ *
+ * The archive and the trash. Neither is "the tree's last node" any more — ADR-0063 decision 1
+ * supersedes that sentence of ADR-0061, because a row somebody reaches for when something has gone
+ * should not sit under the last hub as though it were one.
+ */
+export interface KeepingRow {
+  readonly id: string;
+  readonly icon: IconName;
+  /** The message code of its word (ADR-0011). */
+  readonly code: string;
+  readonly path: string;
+  readonly routes: readonly string[];
+}
+
+const ARCHIVE_ROW: KeepingRow = { id: 'archive', icon: 'archive', code: 'app.nav.archive', path: '/archive', routes: ['archive'] };
+const TRASH_ROW: KeepingRow = { id: 'trash', icon: 'trash', code: 'app.nav.trash', path: '/trash', routes: ['trash'] };
+
+// The archive before the trash: what was put aside is the milder of the two, and the one somebody
+// reaches for first when something has gone.
+export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
+
+/** Kept as the name the rest of the client uses for the trash's row. */
+export const TRASH = TRASH_ROW;
 
 /** The word for the account group's head on a phone, where there is no avatar to open. */
 export const YOU_CODE = 'app.nav.you';
@@ -95,6 +127,7 @@ export function account(options: { readonly isAdministrationReachable: boolean }
 export function currentDestination(route: { readonly name: string | null; readonly area: Area }): string | undefined {
   if (route.area === 'administration') return 'administration';
   if (route.name === null) return undefined;
-  if (route.name === TRASH.routes[0]) return TRASH.id;
+  const keeping = KEEPING.find((each) => each.routes.includes(route.name as string));
+  if (keeping) return keeping.id;
   return DESTINATIONS.find((destination) => destination.routes.includes(route.name as string))?.id;
 }

@@ -501,20 +501,19 @@ test('chromium: the gate is edited as one thing, a group is offered from the fir
   const page = await open(browser, written, { width: 1400, height: 1200 });
   const inspector = page.locator('aside.inspector');
 
-  // The gate holds every condition, and so does its panel (decision 28).
-  // The gate's own heading: a click on a condition inside it selects that one alone, which is
-  // the other half of decision 28.
+  // The gate holds the condition, and so does its panel (decision 28). One condition is all
+  // there is to offer: it can say anything the gate can ask (decision 30), so nothing adds a
+  // second beside it.
+  // The gate's own heading: a click on a condition inside it selects that one alone.
   await page.locator('[data-card="gate"] .ghead').click();
   await inspector.locator('[data-condition="0"]').waitFor();
   assert.equal(await inspector.locator('[data-condition]').count(), 1, 'the stored condition is in the gate\'s own panel');
-  await inspector.locator('button', { hasText: 'Add a condition' }).click();
-  await page.waitForTimeout(150);
-  assert.equal(await inspector.locator('[data-condition]').count(), 2, 'adding one keeps the gate, with the new one under it');
-  assert.equal(await page.locator('[data-card="conditions/1"]').count(), 1, 'and the canvas has it too');
+  assert.equal(await inspector.locator('button', { hasText: 'Add a condition' }).count(), 0, 'and nothing offers a second');
+  assert.equal(await page.locator('[data-card="gate"] .add').count(), 0);
 
   // A group is offered from the first sentence, and the mode appears when there is something to
   // hold together.
-  const composer = inspector.locator('[data-condition="1"]');
+  const composer = inspector.locator('[data-condition="0"]');
   assert.deepEqual((await composer.locator('.adds button').allTextContents()).map((text) => text.trim()), ['Add another sentence', 'Add a group']);
   assert.equal(await composer.locator('select.mode').count(), 0, 'one sentence has no mode');
   await composer.locator('.adds button').nth(1).click();
@@ -522,10 +521,14 @@ test('chromium: the gate is edited as one thing, a group is offered from the fir
   assert.equal(await composer.locator('select.mode').count(), 2, 'the root\'s mode and the new group\'s');
   assert.equal(await composer.locator('code.compiled').textContent(), "item.type == 'TASK' && (item.type == 'TASK')");
 
-  // The condition is removed from the same panel.
+  // The condition is removed from the same panel, and only then is one offered again.
   await composer.locator('button', { hasText: 'Remove' }).first().click();
   await page.waitForTimeout(150);
-  assert.equal(await inspector.locator('[data-condition]').count(), 1);
+  assert.equal(await inspector.locator('[data-condition]').count(), 0);
+  await inspector.locator('button', { hasText: 'Add a condition' }).click();
+  await page.waitForTimeout(150);
+  assert.equal(await inspector.locator('[data-condition]').count(), 1, 'one again, and no second offer');
+  assert.equal(await inspector.locator('button', { hasText: 'Add a condition' }).count(), 0);
 
   // A rung carries the trash every other card carries, and what it held as otherwise stays.
   await page.locator('[data-add-rung="1"]').click();
@@ -651,6 +654,110 @@ test('chromium: the sheet keeps its head, is sized by the reader, and keeps that
   await page.locator('[data-card="0"]').click();
   await sheet.waitFor();
   assert.equal(await share(), 85, 'the sheet is where it was left');
+});
+
+test('chromium: the panel ends where the region ends, and the Runs as warning leads to the field', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  await context.route('**/api/v1/**', stubFor([], undefined));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.locator('[data-canvas]').waitFor();
+  const inspector = page.locator('aside.inspector');
+  await inspector.getByRole('tab', { name: 'Rule' }).click();
+
+  // One screen: the page itself does not scroll, and the panel ends inside the window rather
+  // than below it (decision 31).
+  const room = await page.evaluate(() => {
+    const panel = document.querySelector('aside.inspector');
+    return {
+      bottom: Math.round(panel.getBoundingClientRect().bottom),
+      viewport: window.innerHeight,
+      pageScrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+      panelScrolls: panel.scrollHeight > panel.clientHeight,
+    };
+  });
+  assert.ok(room.bottom <= room.viewport, `the panel ends inside the window: ${JSON.stringify(room)}`);
+  assert.equal(room.pageScrolls, false, 'the page does not scroll');
+  assert.equal(room.panelScrolls, true, 'the panel scrolls on its own');
+
+  // Scrolled to its end, the last thing in it is in view.
+  await page.evaluate(() => {
+    const panel = document.querySelector('aside.inspector');
+    panel.scrollTop = panel.scrollHeight;
+  });
+  await page.waitForTimeout(150);
+  const last = await page.evaluate(() => {
+    const el = document.querySelector('aside.inspector .panel > :last-child');
+    return { bottom: Math.round(el.getBoundingClientRect().bottom), viewport: window.innerHeight };
+  });
+  assert.ok(last.bottom <= last.viewport, `the panel's last control is reachable: ${JSON.stringify(last)}`);
+
+  // The warning on the pill leads to the field it is about: scrolled to, focused, and the reason
+  // under it rather than only on the pill.
+  await page.getByRole('button', { name: /^Runs as/ }).click();
+  await page.waitForTimeout(300);
+  assert.equal(await inspector.locator('[role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent(), 'Rule');
+  const field = await page.evaluate(() => {
+    const active = document.activeElement;
+    // The field's own description: what a screen reader reads with the control, and what the
+    // reader sees under it.
+    const described = (active.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ');
+    return { tag: active.tagName, described };
+  });
+  assert.equal(field.tag, 'SELECT', 'the runner select has the focus');
+  assert.match(field.described, /Nobody acts yet/, 'and the reason is at the field');
+});
+
+test('chromium: the editor says what is missing before the probe is pressed', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1100 } });
+  await context.route('**/api/v1/**', stubFor([], undefined));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  // A rule being written, not a stored one: the check has said nothing about it and cannot.
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.locator('[data-canvas]').waitFor();
+  const inspector = page.locator('aside.inspector');
+
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  const notes = inspector.locator('.notes .note');
+  assert.deepEqual(await notes.allTextContents(), [
+    'Nobody acts yet: choose the account this rule runs as.',
+    'The rule does nothing yet: add a block to the chain.',
+  ]);
+
+  // A block with a required parameter nobody filled: said at the card and in the list.
+  const blocks = await openBlocks(page);
+  await blocks.locator('[data-block="ADD_LABEL"]').first().click();
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  assert.ok((await notes.allTextContents()).includes('Add a label needs label id, and nothing is set.'));
+  assert.equal(await page.locator('[data-card="0"] .flag').textContent(), 'Add a label needs label id, and nothing is set.');
+
+  // Each line presses through to the card it is about.
+  await notes.first().click();
+  assert.equal(await inspector.locator('[role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent(), 'Rule');
+
+  // Filled in, the review says so and the probe is nothing but the sample. On the Rule tab the
+  // selects are scope, runs as, then the guardrails'.
+  await inspector.locator('select').nth(1).selectOption({ index: 1 });
+  await page.locator('[data-card="0"]').click();
+  await inspector.locator('select').last().selectOption({ index: 1 });
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  assert.equal(await notes.count(), 0);
+  assert.equal(await inspector.locator('.ready').textContent(), 'Nothing is missing: this rule can run.');
 });
 
 test('chromium: the probe runs the canvas\'s definition through the dry run and draws the answer', async (t) => {

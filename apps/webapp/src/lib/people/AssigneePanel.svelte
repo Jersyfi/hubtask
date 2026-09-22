@@ -17,11 +17,14 @@
   // the server refuses one that cannot see the entry, and that refusal reaches the reader as a
   // sentence rather than being pre-empted badly.
 
+  import { untrack } from 'svelte';
+
   import { AssigneeControl, Button, CapabilityGate, Stack } from '@hubtask/design-system/components';
   import type { AutoAssignOutcome, WorkItem } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { supports } from '../data/capability.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { byName } from '../i18n/collation.ts';
@@ -33,6 +36,26 @@
 
   const assignment = $derived(supports(item.type, 'ASSIGNMENT'));
   const membership = $derived(supports(item.type, 'MEMBERS'));
+
+  /**
+   * Whether anything would choose, if asked.
+   *
+   * The button used to be offered whatever the collection had been set up with, so pressing it
+   * where no policy exists spent a round trip to be told afterwards that nothing happened (issue
+   * 917). The answer is on the collection the client already holds - `policies.auto_assign`, with
+   * its `enabled` - so the reason travels with the control rather than arriving after it.
+   *
+   * The control stays and carries its reason rather than disappearing: `domain-model.md` §2's
+   * rule is that a refusal is never silent, and automatic assignment is exactly something
+   * somebody might want and be missing.
+   */
+  $effect(() => {
+    const wanted = item.collection_id;
+    if (!wanted) return;
+    return untrack(() => containers.openSingle(wanted));
+  });
+  const policy = $derived(containers.find(item.collection_id)?.policies?.auto_assign ?? undefined);
+  const autoAssignReason = $derived(policy && policy.enabled !== false ? undefined : t('app.people.auto_assign_unset'));
 
   const candidateIds = $derived(people.candidates(path));
   // Gathered from four memberships, so the list has no order until this gives it one - the
@@ -120,6 +143,7 @@
         tone="secondary"
         isBusy={isAutoAssigning}
         busyLabel={t('app.people.auto_assigning')}
+        disabledReason={autoAssignReason}
         onclick={runAutoAssign}
       >
         {t('app.people.auto_assign')}
