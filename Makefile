@@ -88,10 +88,24 @@ endef
 
 # ---------------------------------------------------------------- Development
 
+# The pins of `make tools`, by the name of the binary each one leaves in .tools and in the order
+# the recipe installs them. Adding a tool means adding it here too - this is the list that says
+# what a complete `.tools` is (ADR-0062).
+TOOLS_PINS  := golangci-lint@$(GOLANGCI_LINT_VERSION) oapi-codegen@$(OAPI_CODEGEN_VERSION) \
+	sqlc@$(SQLC_VERSION) goose@$(GOOSE_VERSION) govulncheck@$(GOVULNCHECK_VERSION) \
+	actionlint@$(ACTIONLINT_VERSION) helm@$(HELM_VERSION) go-licenses@$(GO_LICENSES_VERSION) \
+	promtool@$(PROMTOOL_VERSION)
+# What the stamp records: the pins, and the Go that compiled them. Eight of the nine are built
+# from source, so a moved toolchain is as much a reason to install again as a moved pin - and a
+# directory restored from a cache says nothing about which Go built it.
+TOOLS_IDENTITY := $(shell $(GO) env GOVERSION) $(TOOLS_PINS)
+TOOLS_STAMP := $(TOOLS_DIR)/.installed
+
 ## tools: Install the development tools into .tools
 .PHONY: tools
 tools:
 	@mkdir -p $(TOOLS_DIR)
+	@rm -f $(TOOLS_STAMP)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
@@ -101,6 +115,35 @@ tools:
 	@$(MAKE) --no-print-directory tools-helm
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
+	@printf '%s\n' "$(TOOLS_IDENTITY)" > $(TOOLS_STAMP)
+	@echo "tools: $(TOOLS_DIR) holds the pinned set"
+
+## tools-ensure: Install the tools unless .tools already holds exactly the pinned set
+# What a restored cache is handed to (ADR-0062). The stamp is the whole check: it is written only
+# by `make tools`, and only after every install in it has succeeded, so a directory whose stamp
+# matches the pins today was built from those pins by a run that finished. Anything else - no
+# stamp, an older set of pins, a binary that went missing - is a full install, which is the answer
+# that is never wrong.
+#
+# It is deliberately not what a contributor is told to run. `make tools` installs; this decides
+# whether it has to, and the only caller that needs the difference is a job with a cache in front
+# of it.
+.PHONY: tools-ensure
+tools-ensure:
+	@if [ ! -f "$(TOOLS_STAMP)" ] || [ "$$(cat $(TOOLS_STAMP))" != "$(TOOLS_IDENTITY)" ]; then \
+		echo "tools: $(TOOLS_DIR) does not hold the pinned set - installing"; \
+		$(MAKE) --no-print-directory tools; \
+		exit $$?; \
+	fi; \
+	for pin in $(TOOLS_PINS); do \
+		tool="$${pin%%@*}"; \
+		if [ ! -x "$(TOOLS_DIR)/$$tool" ]; then \
+			echo "tools: $$tool is missing from $(TOOLS_DIR) - installing"; \
+			$(MAKE) --no-print-directory tools; \
+			exit $$?; \
+		fi; \
+	done; \
+	echo "tools: $(TOOLS_DIR) already holds the pinned set"
 
 ## tools-licenses: Install only go-licenses
 # The narrow counterpart to `make tools`, for the one job that runs unconditionally.
@@ -142,7 +185,12 @@ tools-helm:
 .PHONY: tools-promtool
 tools-promtool:
 	@mkdir -p $(TOOLS_DIR)
-	@if [ -x "$(TOOLS_DIR)/promtool" ]; then exit 0; fi; \
+	@# The version is compared, not just the presence of the file. "it is already there" was the
+	@# whole condition, so moving the pin left the old binary in place - latent while every run
+	@# started from an empty .tools, and reachable the moment one is restored from a cache
+	@# (ADR-0062). `promtool --version` answers `promtool, version 3.6.0 (branch: …)`.
+	@if [ -x "$(TOOLS_DIR)/promtool" ] && \
+		$(TOOLS_DIR)/promtool --version 2>&1 | grep -q "version $(PROMTOOL_VERSION)"; then exit 0; fi; \
 	os="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
 	arch="$$(uname -m)"; \
 	case "$$arch" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; esac; \
