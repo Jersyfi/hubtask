@@ -91,13 +91,19 @@ text is.
 
 While the resolved route's `area` is `profile`, the navigation column is Your settings' own list:
 
-| Group | Screens |
+| Group | The rows, and the screen each opens |
 |---|---|
 | ← The workspace | back to where the reader was |
-| You | How it speaks to you · How it looks |
-| What you are told about | Notifications |
-| How you get in | Sign-in and the second factor · Where you are signed in · Devices that synchronise |
-| What may act for you | Apps you have allowed · Your tokens |
+| You | *Language and clock* → How the product speaks to you · *On this device* |
+| What you are told about | *Notifications* → What you are told about |
+| How you get in | *Second factor* · *Signed in* → Where you are signed in · *Devices* → Devices that synchronise |
+| What may act for you | *Apps* → Apps you have allowed · *Access tokens* |
+
+**A row's word and a screen's heading may differ, and only for room.** "Where you are signed in" is
+the right sentence over a table and four words too many in a column 240 px wide, where it is cut to
+"Where you are sign…". So the row says *Signed in* and the screen says the sentence. Nothing else
+about them may differ: a row and the screen it opens saying two different things is how a
+navigation stops being trustworthy.
 
 `/profile` is the first screen — how the product speaks to this reader: the language, the clock and
 the first day of the week — and every other screen has its own address under it. `/profile/tokens`
