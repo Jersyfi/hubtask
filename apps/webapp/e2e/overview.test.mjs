@@ -21,6 +21,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -66,7 +67,9 @@ async function stub(route) {
   if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: COLLECTION });
   if (path === '/containers') return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
-  return route.fulfill({ json: PAGE });
+  // The frame's own reads, in the shapes the API answers them, and a record of anything this
+  // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.
+  return fallback(route, route.request(), path);
 }
 
 const served = await serve(DIST);

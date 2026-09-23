@@ -41,7 +41,7 @@ const ROWS = [
 ];
 
 async function openEntry(browser, width, written) {
-  const { page, failures, context } = await signedIn(browser, width, 1000);
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, 1000);
   if (written) {
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', async (route) => {
@@ -53,14 +53,14 @@ async function openEntry(browser, width, written) {
   }
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
-  return { page, failures, close: () => context.close() };
+  return { page, failures, close: () => context.close(), unstubbed };
 }
 
 test('chromium: 1280 px — the trail, the head in place, the details rows, the subtree, the tabs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const written = [];
-  const { page, failures, close } = await openEntry(browser, 1280, written);
+  const { page, failures, close, unstubbed } = await openEntry(browser, 1280, written);
   t.after(close);
 
   // One heading, read and not drawn; the trail through the levels.
@@ -183,12 +183,15 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the trail did not navigate');
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 375 px — the title in the bar, the details folded under the head, a row opens a drawer', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await openEntry(browser, 375);
+  const { page, failures, close, unstubbed } = await openEntry(browser, 375);
   t.after(close);
 
   assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent()).trim(), ENTRY.title);
@@ -215,6 +218,9 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   const indents = await page.locator('.task-row').evaluateAll((rows) => rows.map((row) => getComputedStyle(row).paddingInlineStart));
   assert.deepEqual([...new Set(indents)].sort(), ['0px', '16px'], `the indent steps are ${indents}`);
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 1280 px — assignment is two named questions, and the policy is offered only where there is one', async (t) => {
@@ -223,7 +229,7 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
 
   /** Opens the entry's assignee editor with the collection served as given, and reads the panel. */
   const panelWith = async (policies, itemId = ENTRY.id) => {
-    const { page, context, close } = await signedIn(browser, 1280, 1000);
+    const { page, context, close, unstubbed } = await signedIn(browser, 1280, 1000);
     t.after(close);
     await context.route(`**/api/v1/containers/${COLLECTION.id}`, (route) =>
       route.fulfill({ json: { ...COLLECTION, policies } }));
@@ -291,7 +297,7 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
 test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, context, close } = await signedIn(browser, 1280, 1000);
+  const { page, failures, context, close, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(close);
 
   const rowsOf = async (id) => {
@@ -328,6 +334,9 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
   assert.ok(inside.includes('Date') && inside.includes('Starts'), `the dates editor holds ${inside.slice(0, 120)}`);
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
   await context.close();
 });
 
@@ -335,7 +344,7 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const written = [];
-  const { page, failures, close } = await openEntry(browser, 1280, written);
+  const { page, failures, close, unstubbed } = await openEntry(browser, 1280, written);
   t.after(close);
 
   // Nothing above the title for a cover that is not there (ADR-0063 decision 9). Measured rather
@@ -367,4 +376,7 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   assert.deepEqual(write?.body, { kind: 'COLOR', color_token: 'amber', media_id: null });
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });

@@ -26,7 +26,7 @@ test.after(() => served.close());
 test('chromium: 1280 px — a row opens beside the list, stays current and focused; Escape closes; the page is a link away', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   const row = page.getByRole('link', { name: ENTRY.title });
@@ -77,12 +77,15 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   await page.waitForURL(`**/collections/${COLLECTION.id}?item=${ENTRY.id}`, { timeout: 5_000 });
   await page.getByRole('complementary', { name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 905 px — the same address is a redirect to the entry’s page, and the back button skips it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, context } = await signedIn(browser, 905, 900);
+  const { page, failures, context, unstubbed } = await signedIn(browser, 905, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByRole('link', { name: ENTRY.title }).waitFor({ timeout: 15_000 });
@@ -95,4 +98,7 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
   assert.equal(await page.getByRole('complementary', { name: ENTRY.title }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: 'Title' }).first().inputValue(), ENTRY.title);
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });

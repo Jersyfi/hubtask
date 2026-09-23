@@ -23,7 +23,7 @@ test('chromium: 1280 px — the archive holds what the tree does not, and brings
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const written = [];
-  const { page, failures, context, close } = await signedIn(browser, 1280, 1000);
+  const { page, failures, context, close, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(close);
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
@@ -54,12 +54,15 @@ test('chromium: 1280 px — the archive holds what the tree does not, and brings
   // Entries are named rather than left to be wondered about: they stay where they are.
   assert.equal(await page.locator('main').getByText(/Archived entries stay in the list/).count(), 1);
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 375 px — the archive is reached from the drawer, at its foot', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await signedIn(browser, 375, 812);
+  const { page, failures, close, unstubbed } = await signedIn(browser, 375, 812);
   t.after(close);
   await page.goto(`${served.origin}/`);
   await page.getByRole('button', { name: 'Open the navigation' }).click();
@@ -70,4 +73,7 @@ test('chromium: 375 px — the archive is reached from the drawer, at its foot',
   await keeping.getByRole('treeitem', { name: 'Archive' }).click();
   await page.waitForFunction(() => location.pathname === '/archive', undefined, { timeout: 5_000 });
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
