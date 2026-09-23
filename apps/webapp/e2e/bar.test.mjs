@@ -19,6 +19,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -27,20 +28,6 @@ const ACCOUNT = { id: '01a0e2e3-0000-7000-8000-000000000001', kind: 'USER', disp
 const HUB = { id: '01a0e2e3-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
 const COLLECTION = { id: '01a0e2e3-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', order_key: 'a0', version: 1 };
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
-
-/**
- * The reads that answer a bare array rather than a page envelope.
- *
- * Named, because the difference matters to a screen: a page envelope where a list belongs puts an
- * object through `.map` and the screen throws while rendering. The walk visits every route, so it
- * meets every one of these - which the route-specific suites do not.
- */
-const ARRAYS = new Set([
-  '/quotas', '/groups', '/retention-policies', '/oauth/clients', '/oauth/grants',
-  '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
-  '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
-  '/integrations/calendar-feeds',
-]);
 
 async function stub(route) {
   const url = new URL(route.request().url());
@@ -60,13 +47,14 @@ async function stub(route) {
   if (path === '/tenant') {
     return route.fulfill({ json: { id: '01a0e2e3-0000-7000-8000-000000000009', display_name: 'Walk', default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: false, version: 1 } });
   }
-  if (ARRAYS.has(path)) return route.fulfill({ json: [] });
   if (path === '/containers' && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
   if (path === '/containers') return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: COLLECTION });
   if (path === `/containers/${HUB.id}`) return route.fulfill({ json: HUB });
   if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
-  return route.fulfill({ json: PAGE });
+  // The frame's own reads, in the shapes the API answers them, and a record of anything this
+  // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.
+  return fallback(route, route.request(), path);
 }
 
 const served = await serve(DIST);

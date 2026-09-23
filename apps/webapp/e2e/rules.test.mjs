@@ -14,6 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -163,7 +164,9 @@ function stubFor(written, tested = TEST_HELD) {
     }
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [ITEM], items: [ITEM], page: { next_cursor: null, has_more: false } } });
     if (path.endsWith('/api/v1/quotas')) return route.fulfill({ json: [{ quota: 'automation_runs_per_hour', limit: 500, used: 34, ratio: 0.068 }] });
-    return route.fulfill({ json: PAGE });
+    // The frame's own reads, in the shapes the API answers them, and a record of anything this
+  // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.
+  return fallback(route, route.request(), path);
   };
 }
 

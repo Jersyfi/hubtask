@@ -31,16 +31,16 @@ const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => ite
 const MENU = ['Select entries', 'Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
 
 async function openCollection(browser, width) {
-  const { page, failures, context } = await signedIn(browser, width, 900);
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
-  return { page, failures, close: () => context.close() };
+  return { page, failures, unstubbed, close: () => context.close() };
 }
 
 test('chromium: 1280 px — the head, the menu in three groups, and every dialog from it with its focus return', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await openCollection(browser, 1280);
+  const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
   t.after(close);
 
   // One primary, its split, the filter, the menu - and no toolbar of twelve.
@@ -119,12 +119,15 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await page.getByRole('button', { name: 'Filter and sort (1)' }).waitFor({ timeout: 5_000 });
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 375 px — the folded head, the filter as a drawer, the board one column with a strip, the bulk bar above the bottom bar', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await openCollection(browser, 375);
+  const { page, failures, close, unstubbed } = await openCollection(browser, 375);
   t.after(close);
 
   // The bar carries the title; the head reads its heading rather than drawing it.
@@ -194,12 +197,15 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   const labelled = LABELS.length;
   assert.ok(labelled > 0);
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 1280 px — the hub: create a collection primary, import beside it, the shorter menu', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
@@ -211,6 +217,9 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.getByRole('button', { name: 'Create collection' }).click();
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 768 px — the board scrolls inside itself and does not widen the page', async (t) => {
@@ -219,7 +228,7 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
   // pixels on a tablet. The board is positioned now; this holds the page to its viewport.
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await openCollection(browser, 768);
+  const { page, failures, close, unstubbed } = await openCollection(browser, 768);
   t.after(close);
   await page.getByRole('radio', { name: 'Board' }).click();
   await page.getByRole('region', { name: /To do/ }).waitFor({ timeout: 10_000 });
@@ -227,4 +236,7 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
   assert.equal(scroll.page, 0, `the page scrolls sideways by ${scroll.page}px`);
   assert.ok(scroll.board > 0, 'the board has nothing to scroll, so the case is not exercised');
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
