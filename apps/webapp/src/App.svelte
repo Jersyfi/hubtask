@@ -187,7 +187,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'ai'}
     <AiSettingsView />
   {:else if route.name === 'search'}
-    <SearchView />
+    <SearchView query={route.query} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'jumble'}
     <JumbleView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'trash'}

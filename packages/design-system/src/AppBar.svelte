@@ -3,16 +3,21 @@
 <script lang="ts">
   // The bar at the top of every page (ADR-0061 decision 2, the first half of wave 5).
   //
-  // It holds three things and refuses a fourth. At the start, the way into the navigation: a
+  // It holds four things and refuses a fifth. At the start, the way into the navigation: a
   // drawer trigger below `expanded`, the rail toggle above it - the caller says which, because the
   // caller knows the width and this component does not. In the middle, the brand or the page's
   // title: on a phone the title is what the bar carries, because the page head below it has no
-  // room to say it twice. At the end, the account menu, or whatever the caller renders there.
+  // room to say it twice. Then the entry to search, where the caller has room for one. At the
+  // end, the account menu, or whatever the caller renders there.
   //
-  // What it carries **no** slot for is a page action or a search field. A page's actions belong
-  // to `PageHeader`, where one is primary and the rest are a menu; the search is a destination of
-  // the one navigation list, and a field up here would be a second entry to it - the duplication
-  // that list exists to prevent.
+  // **The search slot reverses ADR-0061's "the bar carries no search field" (ADR-0063 decision
+  // 4).** What changed is what the field *is*: not a second destination, but the entry to the one
+  // that exists - typing in it leads to the search page rather than doing the searching here. The
+  // rule it was protecting still holds, and the caller keeps it: one visible entry to search on
+  // every width, so a caller that fills this slot takes the destination out of its list.
+  //
+  // What it still carries **no** slot for is a page action. A page's actions belong to
+  // `PageHeader`, where one is primary and the rest are a menu.
   //
   // Sticky on `layer.sticky` and flat: a bar is not a standalone element in the sense of rule 1,
   // so it takes a hairline and no shadow. The top safe-area inset is *read* into its padding
@@ -48,11 +53,19 @@
     title?: string;
     /** The brand - the wordmark link. Rendered when there is no title. */
     brand?: Snippet;
+    /**
+     * The entry to search, between the lead and the end (ADR-0063 decision 4).
+     *
+     * A slot rather than a field, because the bar knows nothing about what is searched - the same
+     * reason `SearchField` knows nothing about when a request is sent. Omitted where there is no
+     * room for it: on a phone the bar is a title and two controls, and search is a destination.
+     */
+    search?: Snippet;
     /** The controls at the end: the account menu. */
     end?: Snippet;
   }
 
-  const { label, toggle, title, brand, end }: Props = $props();
+  const { label, toggle, title, brand, search, end }: Props = $props();
 </script>
 
 <header class="bar" aria-label={label}>
@@ -76,6 +89,9 @@
         {@render brand()}
       {/if}
     </div>
+    {#if search}
+      <div class="search">{@render search()}</div>
+    {/if}
     {#if end}
       <div class="end">{@render end()}</div>
     {/if}
@@ -119,6 +135,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Centred in the row and bounded: the field is the bar's, not the page's, so it takes a few
+     words' worth and gives the rest back. `min-inline-size: 0` because a flex item's automatic
+     minimum size would otherwise hold the input's default width and push the account menu out. */
+  .search {
+    flex: 1 1 var(--layout-barsearch-width);
+    max-inline-size: var(--layout-barsearch-width);
+    min-inline-size: 0;
   }
 
   .end {
