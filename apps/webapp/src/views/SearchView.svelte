@@ -14,6 +14,8 @@
   // the mapping from a tag to a text search configuration is what its PostgreSQL was built with
   // (ADR-0034).
 
+  import { untrack } from 'svelte';
+
   import {
     Badge,
     Button,
@@ -27,6 +29,7 @@
     Stack,
     Switch,
     TaskRow,
+    canCopy,
   } from '@hubtask/design-system/components';
 
   import FilterChips from '../lib/search/FilterChips.svelte';
@@ -39,7 +42,8 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { health } from '../lib/data/health.svelte.ts';
   import { search, type SearchMode } from '../lib/data/search.svelte.ts';
-  import { fromQuery, toFilter, toQuery, type Chosen } from '../lib/data/searchfilters.ts';
+  import { fromQuery, isNarrowed, toFilter, toQuery, type Chosen } from '../lib/data/searchfilters.ts';
+  import { HANDLE, isHandle, mint } from '../lib/data/searchhandle.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -53,7 +57,34 @@
 
   const { query = {}, onnavigate }: Props = $props();
 
+  /**
+   * The handle this search is known by in the address, and the words kept under it.
+   *
+   * This is what makes a reload keep the words while the address keeps none of them (issue 997):
+   * the address carries the handle, `sessionStorage` carries what was typed under it.
+   *
+   * Three arrivals, one rule. A fresh visit names no handle, so one is minted. A reload or the
+   * back button names one this tab knows, so it is adopted and its words come back. A link
+   * somebody was *sent* names one this tab has never written: the narrowing is restored, the
+   * words are not — that is the promise — and a handle of this tab's own is minted, so that what
+   * this reader types is not written under a name a stranger's link chose.
+   */
+  let handle = $state('');
   let term = $state('');
+
+  $effect(() => {
+    const named = query[HANDLE];
+    untrack(() => {
+      if (named === handle && handle !== '') return;
+      const known = isHandle(named) ? search.recall(named) : undefined;
+      if (isHandle(named) && known !== undefined) {
+        handle = named;
+        term = known;
+        return;
+      }
+      if (handle === '' || isHandle(named)) handle = mint((bytes) => crypto.getRandomValues(bytes));
+    });
+  });
 
   /**
    * The words the app bar handed over, taken as they arrive.
@@ -67,6 +98,13 @@
     if (search.handedOver === undefined) return;
     term = search.takeHandover() ?? term;
   });
+
+  // What was typed, kept under the handle the address carries. Written as it changes rather than
+  // when the search runs: somebody who reloads mid-sentence meant that sentence.
+  $effect(() => {
+    if (handle !== '') search.remember(handle, term);
+  });
+
   /**
    * The narrowing, read from the address and written back to it.
    *
@@ -79,10 +117,25 @@
    */
   const chosen = $derived<Chosen>(fromQuery(query));
 
+  /** The address this search has: the narrowing, and the handle its words are kept under. */
+  const address = $derived.by(() => {
+    const carried = new URLSearchParams({ ...toQuery(chosen), ...(term === '' ? {} : { [HANDLE]: handle }) });
+    const written = carried.toString();
+    return written === '' ? '/search' : `/search?${written}`;
+  });
+
   function narrow(next: Chosen) {
-    const carried = new URLSearchParams(toQuery(next)).toString();
-    onnavigate?.(carried === '' ? '/search' : `/search?${carried}`);
+    const carried = new URLSearchParams({ ...toQuery(next), ...(term === '' ? {} : { [HANDLE]: handle }) });
+    const written = carried.toString();
+    onnavigate?.(written === '' ? '/search' : `/search?${written}`);
   }
+
+  // The handle joins the address as soon as there are words to keep, so that a reload finds them.
+  // Replaced rather than pushed: a search is one place, not a history entry per keystroke.
+  $effect(() => {
+    const wanted = address;
+    if (wanted !== `${location.pathname}${location.search}`) untrack(() => onnavigate?.(wanted));
+  });
   /** Empty is the caller's own locale, which is what the contract does when `language` is absent. */
   let language = $state('');
 
@@ -152,6 +205,29 @@
   const failure = $derived(search.error ? renderProblem(search.error, messages) : undefined);
 
   /**
+   * The link to this search: its narrowing, and nothing of what was typed.
+   *
+   * Built from the chips rather than from the address, which is the same thing said twice on
+   * purpose — the address may carry the handle, and a handle is this tab's, not a link's. Somebody
+   * who receives it opens the search narrowed the same way with an empty field.
+   */
+  let copied = $state(false);
+
+  async function copyLink() {
+    const carried = new URLSearchParams(toQuery(chosen)).toString();
+    const link = `${location.origin}/search${carried === '' ? '' : `?${carried}`}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      copied = true;
+      announcer.say(t('app.search.link_copied'));
+      setTimeout(() => (copied = false), 4_000);
+    } catch {
+      // The clipboard refused. The address is on screen and can be copied by hand, and saying so
+      // through a failure would be a sentence about the browser rather than about the search.
+    }
+  }
+
+  /**
    * A hit is a row like any other, so it can be ticked off where it is found.
    *
    * Re-read rather than predicted, for the reason the list records: with `completionPolicy =
@@ -216,7 +292,22 @@
        answers are chosen (ADR-0063 decision 4). -->
   <FilterChips {chosen} onchange={narrow} />
 
-  <p class="hint">{t('app.search.hint')}</p>
+  <div class="aside">
+    <p class="hint">{t('app.search.hint')}</p>
+    <!-- The link says what it carries, because what it leaves out is the point (issue 997): the
+         narrowing travels, the words do not. Offered only where the clipboard exists - an insecure
+         origin has none, and a control that failed at the press would be worse than one that was
+         never there (`secret.ts`). -->
+    {#if isNarrowed(chosen) && canCopy(navigator.clipboard)}
+      <Button size="sm" tone="subtle" icon="link" onclick={() => void copyLink()}>
+        {t(copied ? 'app.search.link_copied' : 'app.search.copy_link')}
+      </Button>
+    {/if}
+  </div>
+
+  {#if isNarrowed(chosen)}
+    <p class="hint">{t('app.search.link_carries')}</p>
+  {/if}
 
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 

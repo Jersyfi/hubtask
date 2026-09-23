@@ -30,6 +30,7 @@ import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
 import { recents } from './recents.svelte.ts';
+import { search } from './data/search.svelte.ts';
 
 const SESSIONS = '/auth/sessions';
 const VERIFY = '/auth/sessions:verify';
@@ -274,9 +275,11 @@ class Session {
     live.stop();
     platform.releaseBearer();
     engine.reset();
-    // What this device remembered of the person who was signed in. It holds their entries' titles,
-    // so it ends where the replica ends rather than outliving them in `localStorage`.
+    // What this device remembered of the person who was signed in. Both hold their content - the
+    // titles of what they opened, the words they searched for - so both end where the replica ends
+    // rather than outliving them in a browser somebody else also uses.
     recents.forget();
+    search.forget();
     this.#status = 'signed-out';
   }
 }
