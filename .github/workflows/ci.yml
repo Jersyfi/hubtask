@@ -119,6 +119,12 @@ jobs:
               - *workspace-manifests
             website:
               - 'apps/website/**'
+              # The Makefile too, and only here among the packages: `make website` is what the
+              # Website workflow publishes with, and this job is the only thing that runs it
+              # before `main`. That target is a line of the Makefile, which otherwise reaches only
+              # the `go` filter - so the one edit most able to break publishing again is the one
+              # that would have skipped the job proving it (#982).
+              - 'Makefile'
               - *workspace-manifests
             design_system:
               - 'packages/design-system/**'
