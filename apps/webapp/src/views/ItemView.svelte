@@ -6,10 +6,11 @@
   //
   // The head is the entry itself - the completion checkbox, the title and the notes edited in
   // place, the set values as chips. In place means an input that looks like text until it has
-  // focus, the same `PATCH`, the same announcement and the same conflict path the form had; the
-  // form stays behind "edit" in the menu for a reader who wants a form. The subtree is
-  // `EntryList` with a root (decision 6). The details are rows that open the editors the product
-  // already has; comments and activity are tabs. Two columns from `expanded`, one below.
+  // focus, the same `PATCH`, the same announcement and the same conflict path. **There is one
+  // way to edit and it is where the field is shown** (ADR-0063 decision 9): the head's three
+  // fields in place, every other field a details row that opens its own editor, and no "edit"
+  // form writing the same three a second time. The subtree is `EntryList` with a root
+  // (decision 6); comments and activity are tabs. Two columns from `expanded`, one below.
   //
   // **The history is the point of this screen** (F2-15), and the rule that shapes it is
   // `domain-model.md` §3.5: the server stores `item.completed` and sends
@@ -33,10 +34,7 @@
     Checkbox,
     EmptyState,
     ErrorState,
-    focusFirst,
     IconButton,
-    Inline,
-    Input,
     LabelChip,
     LoadMore,
     Menu,
@@ -44,7 +42,6 @@
     Skeleton,
     Stack,
     Tabs,
-    Textarea,
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
@@ -68,7 +65,7 @@
   import { definitionsFor } from '../lib/data/customfields.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
-  import { entryEditOf, type EntryDraft } from '../lib/data/edits.ts';
+  import { entryEditOf } from '../lib/data/edits.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { labels } from '../lib/data/labels.svelte.ts';
   import { attachmentsPath, media } from '../lib/data/media.svelte.ts';
@@ -298,9 +295,8 @@
   let subtree = $state<EntryList | undefined>(undefined);
   let isSubtreeOpen = $state(true);
 
-  /** The entry's own menu: the form for the keyboard, and sharing. */
+  /** The entry's own menu. What the head and the details rows do is not repeated in it. */
   const entryMenu = $derived<MenuItem[]>([
-    { id: 'edit', label: t('app.entries.edit'), icon: 'pencil', disabledReason: item?.archived_at ? t('app.entries.archived') : undefined },
     { id: 'share', label: t('app.people.share'), icon: 'users' },
   ]);
 
@@ -309,8 +305,7 @@
   const shownTab = $derived(activeTab === 'comments' && !carries('COMMENTS') ? 'activity' : activeTab);
 
   function chooseFromMenu(chosen: string) {
-    if (chosen === 'edit') startEditing();
-    else if (chosen === 'share') isSharing = true;
+    if (chosen === 'share') isSharing = true;
   }
 
   /** The language row's draft, written when the reader says so - a picker that wrote on every keystroke of a tag would send "d", "de". */
@@ -504,16 +499,10 @@
   // `POST /search` searches and that the history says somebody changed could not be written here
   // at all. The dogfooding pass set a note with curl in order to search for a word in it.
   //
-  // A form rather than an inline edit, for the reason `ContainerView`'s rename gives: a refusal
-  // needs somewhere to land, and a sentence at the top of a screen is one the reader has to carry
-  // back down to the field they were typing in.
-  let isEditing = $state(false);
-  let draftTitle = $state('');
-  let draftNotes = $state('');
-  /** The entry's language as the editor holds it; empty is "none stated". */
-  let draftLanguage = $state('');
-  /** What the entry held when the form opened, so that the write names only what moved (`edits.ts`). */
-  let opened: EntryDraft = { title: '', notes: '', language: '' };
+  // It was built twice: in place here, and as a form behind "edit" in the menu, both writing the
+  // same three fields. The form is gone (ADR-0063 decision 9). What it was for - a refusal needing
+  // somewhere to land - is answered without it: the sentence is drawn at the field it is about,
+  // the title's under the title and everything else under the notes.
   const languages = $derived(textLanguages(manifest.value));
 
   // The language the entry is written in, where it differs from the page's, so that a screen
@@ -522,7 +511,6 @@
   const entryLang = $derived(
     item?.content_language && item.content_language !== messages.locale ? item.content_language : undefined,
   );
-  let isSaving = $state(false);
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isTitleFailure = $state(false);
 
@@ -552,51 +540,15 @@
     return untrack(() => items.openSubtree(id));
   });
   const children = $derived(takesChildren ? items.childrenOf(id) : []);
-  function startEditing() {
-    if (!item) return;
-    opened = { title: item.title, notes: item.notes ?? '', language: item.content_language ?? '' };
-    draftTitle = opened.title;
-    draftNotes = opened.notes;
-    draftLanguage = opened.language;
-    writeFailure = undefined;
-    isTitleFailure = false;
-    isEditing = true;
-  }
-
-  async function save() {
-    if (!item || draftTitle.trim() === '' || isSaving) return;
-    // Only what moved since the form opened (issue 779, offline-sync.md §4.2): a field repeated
-    // unchanged would be queued with a fresh clock and win a merge it never entered.
-    const body = entryEditOf(opened, { title: draftTitle, notes: draftNotes, language: draftLanguage });
-    if (Object.keys(body).length === 0) {
-      // Nothing moved: no write, and no clock stamped on a value nobody changed.
-      isEditing = false;
-      return;
-    }
-    isSaving = true;
-    writeFailure = undefined;
-    isTitleFailure = false;
-    try {
-      await items.update(item.id, body, item.version);
-      // Both the entry and its history come back on their own: the write invalidates `/items`, and
-      // the engine matches by prefix — so `/items/{id}` and `/items/{id}/activity` are re-read
-      // without either being asked for here. A refresh would be a second read of what is arriving.
-      announcer.say(t('app.entries.saved_announced'));
-      isEditing = false;
-    } catch (error) {
-      const problem = error as { detailCode?: string };
-      writeFailure = renderProblem(error as never, messages);
-      isTitleFailure = writeFailure.fields.has('/title') || problem.detailCode === 'items.title_empty';
-    } finally {
-      isSaving = false;
-    }
-  }
-
   /**
-   * The title and the notes edited in place: the same fields the form has, drawn as text until
-   * they have focus, saved when the reader leaves them or presses Enter in the title, restored by
-   * Escape. The write is `save()`'s - only what moved, the same version, the same announcement,
-   * the same conflict path - so an in-place edit and a form edit cannot disagree.
+   * The title and the notes edited in place: drawn as text until they have focus, saved when the
+   * reader leaves them or presses Enter in the title, restored by Escape. Only what moved is
+   * written (issue 779, offline-sync.md §4.2) - a field repeated unchanged would be queued with a
+   * fresh clock and win a merge it never entered.
+   *
+   * Both the entry and its history come back on their own: the write invalidates `/items`, and the
+   * engine matches by prefix - so `/items/{id}` and `/items/{id}/activity` are re-read without
+   * either being asked for here. A refresh would be a second read of what is arriving.
    */
   let inlineTitle = $state('');
   let inlineNotes = $state('');
@@ -620,7 +572,6 @@
     );
     isInlineDirty = false;
     if (Object.keys(body).length === 0) return;
-    isSaving = true;
     writeFailure = undefined;
     isTitleFailure = false;
     try {
@@ -630,8 +581,6 @@
       const problem = error as { detailCode?: string };
       writeFailure = renderProblem(error as never, messages);
       isTitleFailure = writeFailure.fields.has('/title') || problem.detailCode === 'items.title_empty';
-    } finally {
-      isSaving = false;
     }
   }
 
@@ -702,122 +651,85 @@
       />
     {/if}
 
-    {#if isEditing}
-      <!-- The form, for a reader who asked for one from the menu: it takes the focus (2.4.3). -->
-      <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="entry-menu"]' })}>
-        <Input
-          label={t('app.entries.new_title')}
-          bind:value={draftTitle}
-          error={isTitleFailure ? writeFailure?.message : undefined}
+    <!-- `data-tour`: where the tour points for "what an entry carries" (F6-14). -->
+    <div class="head" data-tour="entry" data-celebrating={moment && moment.item.id === item.id ? '' : undefined}>
+      {#if moment && moment.item.id === item.id}
+        <CelebrationSlot current={moment} />
+      {/if}
+      <!-- The cover, where one is set: the stripe or the picture above the title, as on a card. -->
+      {#if item.cover?.kind === 'IMAGE' && media.coverUrl(coverImageIdOf(item.cover), Date.now())}
+        <img class="cover-image" src={media.coverUrl(coverImageIdOf(item.cover), Date.now())} alt="" />
+      {:else if item.cover?.kind === 'COLOR' && item.cover.color_token}
+        <div class="cover-stripe" data-token={item.cover.color_token} aria-hidden="true"></div>
+      {/if}
+      <div class="title-row">
+        <!-- Completing the entry from its own page: the same control the row has, the same write. -->
+        <Checkbox
+          label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}
+          isLabelHidden
+          checked={item.completion?.is_completed ?? false}
+          disabledReason={frozenReason}
+          onchange={() => void toggleCompleted()}
         />
-        {#if carries('NOTES')}
-          <Textarea label={t('app.entries.notes')} bind:value={draftNotes} rows={6} />
-        {/if}
-        <LanguagePicker
-          {languages}
-          bind:value={draftLanguage}
-          label={t('app.entries.language')}
-          hint={t('app.entries.language_hint')}
-          otherLabel={t('app.entries.language_other')}
-          tagLabel={t('app.entries.language_tag')}
-          tagHint={t('app.entries.language_tag_hint')}
-        />
-        <!-- Everything that is not about the title is a sentence above the buttons: a version
-             conflict is the ordinary case here, and nothing about the title is wrong when the
-             entry moved underneath the reader. -->
-        {#if writeFailure && !isTitleFailure}
-          <p class="failure" role="alert">{writeFailure.message}</p>
-        {/if}
-        <Inline gap="100">
-          <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
-            {t('app.workspace.save')}
-          </Button>
-          <Button tone="secondary" onclick={() => (isEditing = false)}>
-            {t('app.workspace.cancel')}
-          </Button>
-        </Inline>
-      </Stack>
-    {:else}
-      <!-- `data-tour`: where the tour points for "what an entry carries" (F6-14). -->
-      <div class="head" data-tour="entry" data-celebrating={moment && moment.item.id === item.id ? '' : undefined}>
-        {#if moment && moment.item.id === item.id}
-          <CelebrationSlot current={moment} />
-        {/if}
-        <!-- The cover, where one is set: the stripe or the picture above the title, as on a card. -->
-        {#if item.cover?.kind === 'IMAGE' && media.coverUrl(coverImageIdOf(item.cover), Date.now())}
-          <img class="cover-image" src={media.coverUrl(coverImageIdOf(item.cover), Date.now())} alt="" />
-        {:else if item.cover?.kind === 'COLOR' && item.cover.color_token}
-          <div class="cover-stripe" data-token={item.cover.color_token} aria-hidden="true"></div>
-        {/if}
-        <div class="title-row">
-          <!-- Completing the entry from its own page: the same control the row has, the same write. -->
-          <Checkbox
-            label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}
-            isLabelHidden
-            checked={item.completion?.is_completed ?? false}
-            disabledReason={frozenReason}
-            onchange={() => void toggleCompleted()}
-          />
-          <!-- The title, in place: text until it has focus. Enter saves, Escape restores, leaving
-               saves; the label is announced and not drawn, because it is the title. -->
-          <textarea
-            class="title-field"
-            class:done={item.completion?.is_completed}
-            lang={entryLang}
-            aria-label={t('app.entries.new_title')}
-            aria-invalid={isTitleFailure ? 'true' : undefined}
-            rows="1"
-            bind:value={inlineTitle}
-            readonly={frozenReason !== undefined}
-            title={frozenReason}
-            oninput={() => (isInlineDirty = true)}
-            onblur={() => void commitInline()}
-            onkeydown={onTitleKey}
-          ></textarea>
-        </div>
-        {#if writeFailure && isTitleFailure}
-          <p class="failure" role="alert">{writeFailure.message}</p>
-        {/if}
-        <!-- What is set, as chips (decision 4: set before empty). Each is also a row below. -->
-        <div class="marks">
-          <Badge>{typeName(item.type)}</Badge>
-          {#if item.archived_at}
-            <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
-          {/if}
-          <PeopleMarks assigneeId={item.assignee_id} memberIds={item.member_ids ?? []} />
-          <DueMark {item} />
-          {#each carriedLabels as label (label.id)}
-            <LabelChip name={label.name} colorToken={label.color_token} description={label.description} />
-          {/each}
-          {#if repeatValue}<Badge icon="repeat">{repeatValue}</Badge>{/if}
-          {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
-          {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
-        </div>
-        <!-- The notes, in place, for the same reasons; empty, the field says what it is for. An
-             activity carries none (`domain-model.md` §2), and a field whose every save is refused
-             is not a field. -->
-        {#if carries('NOTES')}
+        <!-- The title, in place: text until it has focus. Enter saves, Escape restores, leaving
+             saves; the label is announced and not drawn, because it is the title. -->
         <textarea
-          class="notes-field"
+          class="title-field"
+          class:done={item.completion?.is_completed}
           lang={entryLang}
-          aria-label={t('app.entries.notes')}
-          placeholder={t('app.item.notes_placeholder')}
-          rows="3"
-          bind:value={inlineNotes}
+          aria-label={t('app.entries.new_title')}
+          aria-invalid={isTitleFailure ? 'true' : undefined}
+          rows="1"
+          bind:value={inlineTitle}
           readonly={frozenReason !== undefined}
+          title={frozenReason}
           oninput={() => (isInlineDirty = true)}
           onblur={() => void commitInline()}
-          onkeydown={onNotesKey}
+          onkeydown={onTitleKey}
         ></textarea>
-        {/if}
-        {#if writeFailure && !isTitleFailure}
-          <p class="failure" role="alert">{writeFailure.message}</p>
-        {/if}
-        {#if completionFailure}
-          <p class="failure" role="alert">{completionFailure.message}</p>
-        {/if}
       </div>
-    {/if}
+      {#if writeFailure && isTitleFailure}
+        <p class="failure" role="alert">{writeFailure.message}</p>
+      {/if}
+      <!-- What is set, as chips (decision 4: set before empty). Each is also a row below. -->
+      <div class="marks">
+        <Badge>{typeName(item.type)}</Badge>
+        {#if item.archived_at}
+          <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+        {/if}
+        <PeopleMarks assigneeId={item.assignee_id} memberIds={item.member_ids ?? []} />
+        <DueMark {item} />
+        {#each carriedLabels as label (label.id)}
+          <LabelChip name={label.name} colorToken={label.color_token} description={label.description} />
+        {/each}
+        {#if repeatValue}<Badge icon="repeat">{repeatValue}</Badge>{/if}
+        {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
+        {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
+      </div>
+      <!-- The notes, in place, for the same reasons; empty, the field says what it is for. An
+           activity carries none (`domain-model.md` §2), and a field whose every save is refused
+           is not a field. -->
+      {#if carries('NOTES')}
+      <textarea
+        class="notes-field"
+        lang={entryLang}
+        aria-label={t('app.entries.notes')}
+        placeholder={t('app.item.notes_placeholder')}
+        rows="3"
+        bind:value={inlineNotes}
+        readonly={frozenReason !== undefined}
+        oninput={() => (isInlineDirty = true)}
+        onblur={() => void commitInline()}
+        onkeydown={onNotesKey}
+      ></textarea>
+      {/if}
+      {#if writeFailure && !isTitleFailure}
+        <p class="failure" role="alert">{writeFailure.message}</p>
+      {/if}
+      {#if completionFailure}
+        <p class="failure" role="alert">{completionFailure.message}</p>
+      {/if}
+    </div>
 
     <div class="columns" data-pane={isInPane ? '' : undefined}>
       <!-- The details before the text in the document: after the head they are what the entry

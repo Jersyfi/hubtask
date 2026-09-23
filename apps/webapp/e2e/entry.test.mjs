@@ -107,14 +107,13 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.notes === 'Check the delivery date first.'), `the notes were not written: ${JSON.stringify(written.map((w) => w.body))}`);
 
-  // "Edit" stays in the menu, and opens the form with focus in it.
+  // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
+  // menu offers no second form over the same three fields.
   await page.getByRole('button', { name: /Actions for/ }).click();
-  await page.getByRole('menuitem', { name: 'Edit' }).click();
-  await page.getByRole('button', { name: 'Save' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT');
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute('data-opener') === 'entry-menu', null, { timeout: 5_000 })
-    .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 5_000 });
+  assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Share this entry']);
+  await page.keyboard.press('Escape');
 
   // Every details row opens its editor beside it and gives focus back on Escape.
   for (const [id, heading] of ROWS) {
