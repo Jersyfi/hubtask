@@ -545,7 +545,10 @@
      rather than a row that scrolls sideways. */
   .fields {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(20ch, 1fr));
+    /* As many columns as fit, each the width a field wants rather than a share of the region: a
+       `1fr` track gave two date fields half a 1440 px screen each once the screen stopped standing
+       in a 60ch column (ADR-0065 decision 2). */
+    grid-template-columns: repeat(auto-fit, minmax(20ch, 26ch));
     gap: var(--sp-150);
   }
 

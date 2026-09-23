@@ -561,6 +561,11 @@
 
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
 
+  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
+     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
+     say so themselves - they are a grid of their own. */
+  form.panel { max-inline-size: 52ch; }
+
   .panel {
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
