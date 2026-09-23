@@ -65,6 +65,9 @@ async function stub(route) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
+/** The one link out of the application, by the name a reader sees, wherever it is offered. */
+const STATEMENT = 'Accessibility statement, on hubtask.eu';
+
 /** The destinations every width has to offer, by the name a reader sees. */
 const PRIMARY = ['Overview', 'Search', 'Jumble'];
 /** The same list where the bar carries the entry to search: the row for it would be the second. */
@@ -75,18 +78,23 @@ const PLACES = ['Overview', 'Jumble'];
 // (ADR-0065 decision 5). Signing out is last, because it is the last thing a reader does.
 const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'About Hubtask', 'Sign out'];
 
-async function open(browser, width) {
+async function open(browser, width, options = {}) {
   const context = await browser.newContext({ viewport: { width, height: 800 } });
   await context.route('**/api/v1/**', stub);
-  await context.addInitScript(() => {
-    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
-    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
-  });
+  if (options.signedIn !== false) {
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+  }
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/`);
-  await page.getByRole('button', { name: ACCOUNT.display_name }).or(page.getByRole('link', { name: 'You' })).first().waitFor({ timeout: 15_000 });
+  // Signed out there is no account group to wait for; the screen that asks for a credential is
+  // what arrives, and its heading is what says it has.
+  if (options.signedIn === false) await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15_000 });
+  else await page.getByRole('button', { name: ACCOUNT.display_name }).or(page.getByRole('link', { name: 'You' })).first().waitFor({ timeout: 15_000 });
   // The context travels with the page: `setOffline` is a property of the context, and what a
   // device with no network draws is part of what the frame owes the reader.
   return { context, page, failures, close: () => context.close() };
@@ -104,7 +112,11 @@ async function common(page, width) {
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, `${width}: the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
   assert.equal(await page.getByRole('link', { name: 'Skip to the content' }).count(), 1, `${width}: no skip link`);
-  assert.equal(await page.getByRole('link', { name: 'Accessibility statement, on hubtask.eu' }).count(), 1, `${width}: no footer`);
+  // No footer, on any width and on every screen behind the sign-in: the way to the statement is
+  // "About Hubtask" while there is a session, and a landmark carrying one external link is not
+  // worth the band it takes off a board (F10, `design-system.md` §10). The walk below proves the
+  // way is there; this proves the band is not.
+  assert.equal(await page.getByRole('link', { name: STATEMENT }).count(), 0, `${width}: a footer while signed in`);
   assert.equal(await page.getByRole('status').filter({ hasText: /Connected|Reconnecting|Offline|synced|copy/ }).count() > 0, true, `${width}: no sync line`);
 }
 
@@ -439,5 +451,67 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
 
   await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).click();
   assert.equal(new URL(page.url()).pathname, `/hubs/${EMPTY_HUB.id}`, 'an empty hub is not a place');
+  assert.deepEqual(failures, []);
+});
+
+// The way out to the accessibility statement, which the EAA asks to be findable and
+// `design-system.md` §10 asks the application to offer. It is one link and it is in two places,
+// each of which is the only place its reader has: "About Hubtask" while there is a session, and
+// the foot of the sign-in screen while there is not - a barrier at the door is the one that
+// nothing behind the door makes up for.
+test('chromium: the accessibility statement is reachable, signed in and signed out', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+
+  // Signed in: on the page the account group already offers for the versions, with the two other
+  // pages about the software, and each says where it goes before it is followed.
+  await page.goto(`${served.origin}/installation`);
+  const about = page.getByRole('heading', { name: 'About the software' });
+  await about.waitFor({ timeout: 10_000 });
+  const links = page.locator('main section a');
+  assert.deepEqual((await links.allTextContents()).map((each) => each.trim()), [
+    STATEMENT,
+    'Licence and editions, on hubtask.eu',
+    'Source code, on github.com',
+  ]);
+  const statement = page.getByRole('link', { name: STATEMENT });
+  assert.equal(await statement.getAttribute('href'), 'https://hubtask.eu/accessibility/');
+  assert.equal(await statement.getAttribute('target'), '_blank', 'it replaces what the reader was in the middle of');
+  assert.equal(await statement.getAttribute('rel'), 'noopener');
+
+  // And it is there when the manifest is not: the reader having the worst time of it is the one
+  // a client must not hide the statement from.
+  await page.route('**/api/v1/meta/capabilities', (route) => route.abort());
+  await page.reload();
+  await page.getByRole('heading', { name: 'About the software' }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('link', { name: STATEMENT }).count(), 1, 'the statement went with the manifest');
+
+  const signedOut = await open(browser, 1280, { signedIn: false });
+  t.after(signedOut.close);
+  assert.equal(await signedOut.page.getByRole('contentinfo').getByRole('link', { name: STATEMENT }).count(), 1, 'no way to the statement from the sign-in screen');
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(signedOut.failures, []);
+});
+
+// The band under the sign-in screen on a phone. The frame reserves the bottom bar's height below
+// `medium` so that the last row of a list is reachable rather than under the bar - but the bar is
+// drawn for a session, and the reservation was not conditioned on one. Signed out the screen
+// therefore ended 56 px above the bottom with nothing in the gap, and scrolled into it.
+test('chromium: 375 px — signed out, nothing is reserved for a bar that is not drawn', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 375, { signedIn: false });
+  t.after(close);
+
+  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar without a session');
+  const box = await page.evaluate(() => ({ document: document.documentElement.scrollHeight, window: window.innerHeight }));
+  assert.equal(box.document, box.window, `the sign-in screen scrolls ${box.document - box.window} px into nothing`);
+  // And the one link out is still at the foot of it, which is what the reservation was pushing.
+  assert.equal(await page.getByRole('contentinfo').getByRole('link', { name: STATEMENT }).count(), 1, 'no way to the statement on a phone');
+
   assert.deepEqual(failures, []);
 });
