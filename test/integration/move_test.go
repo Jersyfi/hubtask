@@ -324,6 +324,21 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 		t.Fatalf("the bounds are %q and %q, want a0 and a1", previous, next)
 	}
 
+	// And what a *create* asks, which is the same question with nothing to leave out: the entry
+	// being placed is not in the table yet (issue 992). The empty identifier has to mean "leave
+	// every row in the level" rather than emptying it, or every anchored create is refused with
+	// `items.before_item_not_in_level` - an anchor that is present, reported as missing.
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		previous, next, err = itemRepo().Neighbours(ctx, level, second, "")
+		return err
+	}); err != nil {
+		t.Fatalf("reading the neighbours with nothing moving: %v", err)
+	}
+	if previous != "a0" || next != "a1" {
+		t.Fatalf("with nothing moving the bounds are %q and %q, want a0 and a1", previous, next)
+	}
+
 	moving := findWorkItem(ctx, t, tenantA, third)
 	ranked := moving
 	ranked.OrderKey = "a0V"

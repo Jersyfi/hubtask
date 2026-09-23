@@ -104,12 +104,16 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 --
 -- The moving bucket is excluded from its own board: a reorder would otherwise measure a position
 -- against the rank it is leaving.
+--
+-- "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
+-- nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
+-- for every row, which empties this list and reports an anchor that is present as missing (issue 992).
 WITH level AS (
   SELECT id, order_key
   FROM bucket
   WHERE collection_id = sqlc.arg('collection_id')::uuid
     AND deleted_at IS NULL
-    AND id <> sqlc.arg('moving_id')::uuid
+    AND id IS DISTINCT FROM sqlc.narg('moving_id')::uuid
 ), anchor AS (
   SELECT order_key FROM level WHERE id = sqlc.narg('before_id')::uuid
 )
