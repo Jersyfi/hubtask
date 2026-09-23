@@ -131,13 +131,22 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   const rows = await drawer.getByRole('treeitem').allTextContents();
   assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   assert.equal(await drawer.getByRole('button', { name: 'Create hub' }).count(), 1, 'the drawer has no way to create a hub');
-  // A navigation closes it, and the collection inside the hub is reachable through it.
-  await drawer.getByRole('treeitem', { name: 'House' }).click();
+  // The twist opens a hub where it stands; pressing the hub's row goes to the hub, which is the
+  // whole of issue 1022 - a hub is a place before it is a container, and the only way into one
+  // used to be through a collection and back up the breadcrumb.
+  await drawer.getByRole('button', { name: `Show what is in ${HUB.name}` }).click();
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).waitFor({ timeout: 5_000 });
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).click();
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`);
   assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
+
+  // And the row itself is the hub's own screen, which is what a reader presses a hub for.
+  await toggle.click();
+  await drawer.waitFor({ timeout: 5_000 });
+  await drawer.getByRole('treeitem', { name: HUB.name }).click();
+  await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(new URL(page.url()).pathname, `/hubs/${HUB.id}`, 'pressing a hub does not open the hub');
 
   // "You" opens the account group as a sheet: the name at its head, the five rows, sign out last.
   await bar.getByRole('link', { name: 'You' }).click();
@@ -312,6 +321,24 @@ for (const width of [905, 1280]) {
     await page.keyboard.press('Escape');
     await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
 
+    // The three controls at the end of the bar are drawn as one kind of thing (issue 1022): the
+    // two glyph controls are `IconButton`'s square with its radius, and the avatar is the same
+    // square drawn round, because what is inside it is round. Three shapes for one row of
+    // controls is what the walk found.
+    const shapes = await page.evaluate(() => {
+      const read = (selector) => {
+        const el = document.querySelector(`header ${selector}`);
+        if (!el) return null;
+        const box = el.getBoundingClientRect();
+        return { w: Math.round(box.width), h: Math.round(box.height), radius: getComputedStyle(el).borderRadius };
+      };
+      return { notice: read('.notice-mark button'), sync: read('.trigger'), avatar: read('.account') };
+    });
+    assert.deepEqual(shapes.notice, shapes.sync, `${width}: the two glyph controls are drawn differently`);
+    assert.equal(shapes.avatar.h, shapes.sync.h, `${width}: the avatar is not as tall as the marks beside it`);
+    // From `large` up the trigger carries the name and is a pill; below it is a circle.
+    assert.equal(shapes.avatar.w === shapes.avatar.h, width < 1280, `${width}: the avatar is ${shapes.avatar.w}x${shapes.avatar.h}`);
+
     // A device with no network says so, rather than saying it is trying: `navigator.onLine` is
     // false and the mark is the struck cloud ADR-0063 decision 5 names. Trusted in one direction
     // only - coming back says "reconnecting" until the stream is accepted again, never
@@ -348,6 +375,12 @@ for (const width of [905, 1280]) {
     // Whose menu it is, said where it is opened and nowhere else.
     const whose = page.locator('.surface').filter({ has: page.getByRole('menu', { name: 'You' }) });
     assert.equal(await whose.getByText(ACCOUNT.email).count(), 1, `${width}: the menu does not say whose it is`);
+    // And the name is read in the colour the rows are: the head inherits the surface's quieter
+    // one, which reads on white and disappears on the dark theme's surface (issue 1022). Compared
+    // against a row rather than against a token, so it holds in both themes.
+    const nameColour = await whose.getByText(ACCOUNT.display_name).first().evaluate((el) => getComputedStyle(el).color);
+    const rowColour = await menu.getByRole('menuitem').first().evaluate((el) => getComputedStyle(el).color);
+    assert.equal(nameColour, rowColour, `${width}: the person's name is drawn in ${nameColour}, the rows in ${rowColour}`);
     await menu.getByRole('menuitem', { name: /About Hubtask/ }).click();
     assert.equal(new URL(page.url()).pathname, '/installation');
     assert.deepEqual(failures, []);

@@ -1207,6 +1207,8 @@
   "app.nav.bar": "Application bar",
   "app.nav.title": "Navigation",
   "app.nav.inside": "Inside {name}",
+  "app.nav.open_branch": "Show what is in {name}",
+  "app.nav.close_branch": "Hide what is in {name}",
   "app.nav.hubs": "Hubs",
   "app.nav.keeping": "What is kept",
   "app.nav.open": "Open the navigation",

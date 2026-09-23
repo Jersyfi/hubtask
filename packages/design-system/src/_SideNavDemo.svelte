@@ -79,7 +79,15 @@
      demo's own stylesheet is where a demo's layout belongs. -->
 <div class="pane" data-rail={isRail ? '' : undefined} bind:this={nav}>
   <Box padding="100">
-    <SideNav label="Workspace" {nodes} current="renovation" {isRail} flyoutLabel={(name) => `Inside ${name}`} bind:expanded />
+    <SideNav
+      label="Workspace"
+      {nodes}
+      current="renovation"
+      {isRail}
+      flyoutLabel={(name) => `Inside ${name}`}
+      branchLabel={(name, isOpen) => (isOpen ? `Hide what is in ${name}` : `Show what is in ${name}`)}
+      bind:expanded
+    />
   </Box>
 </div>
 

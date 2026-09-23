@@ -58,3 +58,10 @@ export const railBands: Story = {
     'Folded, a band is the hairline alone. A caption is five words in a column 56 px wide, which is words in a place with no room for any (issue 1012) — so the words wait for the fold to open, exactly as a row’s label does, and what the reader keeps is the grouping.',
   args: { mode: 'bands', isRail: true },
 };
+
+export const branch: Story = {
+  name: 'A branch is a place too',
+  about:
+    'A hub is a screen before it is a container — its settings, its collections, the control that makes another one — so pressing its row goes there and opens it, and the twist at the end of the row is what closes it again. The twist is a control with a name and no tab stop of its own: the tree keeps one stop, the arrows keep expanding, and `aria-expanded` on the row stays the one statement about the state. A caller that names no twist keeps the old behaviour, where the row folds and nothing navigates (issue 1022).',
+  args: { mode: 'tree' },
+};

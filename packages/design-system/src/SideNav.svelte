@@ -61,10 +61,19 @@
      * can render it around a name.
      */
     flyoutLabel?: (name: string) => string;
+    /**
+     * What the twist is called, from the branch's name and whether it is open.
+     *
+     * The twist is a **control** since issue 1022, so it needs a name like any other: pressing a
+     * branch's row goes to the branch, and what opens and closes it is the mark at the end of the
+     * row. A caller that offers no word gets the old behaviour on the row - there is then nothing
+     * to navigate to, and a row that neither opened nor went anywhere would be a dead row.
+     */
+    branchLabel?: (name: string, isExpanded: boolean) => string;
     onnavigate?: (id: string) => void;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, onnavigate }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate }: Props = $props();
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -104,22 +113,37 @@
   }
 
   /**
-   * What pressing a row does. In the rail a branch opens its flyout; everywhere else it unfolds.
+   * What pressing a row does.
    *
-   * The flyout **expands the branch as well**, and that is not a flourish: `expanded` is what a
-   * caller watches to fetch a level that is loaded on demand, so a flyout that only set its own
-   * state would open beside a hub whose collections nobody had asked the server for. It stays
-   * expanded once closed, the way an unfolded tree does.
+   * **A branch is a place before it is a container** (issue 1022). A hub has a screen of its own -
+   * its settings, its collections, the control that makes another one - and while pressing its row
+   * only unfolded it, the only way in was through a collection and back up the breadcrumb. So the
+   * row goes to the branch and opens it, and the twist at the end of the row is what closes it
+   * again; the arrows do what they have always done. A caller that names no twist has no second
+   * control, and keeps the fold on the row.
+   *
+   * In the rail there is no twist, so a branch opens its flyout - the one drawing where the row
+   * cannot do both, and the flyout's own root row is the way to the branch itself. The flyout
+   * **expands the branch as well**, and that is not a flourish: `expanded` is what a caller
+   * watches to fetch a level that is loaded on demand, so a flyout that only set its own state
+   * would open beside a hub whose collections nobody had asked the server for.
    */
   function choose(row: { node: NavNode; isBranch: boolean; isExpanded: boolean }) {
     if (!row.isBranch) return onnavigate?.(row.node.id);
-    if (!isRail) return toggle(row.node.id, !row.isExpanded);
-    if (opened === row.node.id) {
-      opened = null;
+    if (isRail) {
+      if (opened === row.node.id) {
+        opened = null;
+        return;
+      }
+      toggle(row.node.id, true);
+      opened = row.node.id;
       return;
     }
+    if (!branchLabel) return toggle(row.node.id, !row.isExpanded);
+    // Opened as well as opened *into*: a reader who presses a hub is asking to see what is in it,
+    // and the level is fetched by the same `expanded` the twist writes.
     toggle(row.node.id, true);
-    opened = row.node.id;
+    onnavigate?.(row.node.id);
   }
   // Focus follows the current node when the caller moves it, so arrowing after a navigation
   // continues from where the reader is rather than from where they were.
@@ -209,12 +233,34 @@
         {#if !isRail}
           <span class="label" style:--depth={row.depth}>{row.node.label}</span>
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
-               through the logical padding, so it mirrors with the document. -->
-          <span class="twist" aria-hidden="true">
-            {#if row.isBranch}
+               through the logical padding, so it mirrors with the document.
+               A **control** where the caller named one, because the row itself now goes to the
+               branch (issue 1022): it is out of the tab order - the tree keeps its one stop and
+               the arrows keep expanding - and the row's `aria-expanded` is what says the state,
+               so this is a second way to reach it with a pointer rather than a second statement
+               about it. -->
+          {#if row.isBranch && branchLabel}
+            <button
+              type="button"
+              class="twist"
+              tabindex="-1"
+              aria-label={branchLabel(row.node.label, row.isExpanded)}
+              title={branchLabel(row.node.label, row.isExpanded)}
+              onclick={(event) => {
+                event.stopPropagation();
+                active = index;
+                toggle(row.node.id, !row.isExpanded);
+              }}
+            >
               <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
-            {/if}
-          </span>
+            </button>
+          {:else}
+            <span class="twist" aria-hidden="true">
+              {#if row.isBranch}
+                <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
+              {/if}
+            </span>
+          {/if}
         {/if}
       </li>
     {/each}
@@ -310,6 +356,28 @@
     width: var(--sp-300);
     justify-content: center;
     color: var(--text-subtle);
+  }
+
+  /* The twist where it is a control: no chrome of its own until it is under the pointer, so the
+     row still reads as one thing. */
+  button.twist {
+    align-items: center;
+    align-self: stretch;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.twist:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+  /* Rule 5's own ring, drawn outside the twist: the row's is inset because a row fills the column
+     and an outer ring would be cut by it; the twist has room around it. */
+  button.twist:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
   }
 
   /* The indent is the label's, and it is `padding-inline-start`, which mirrors itself: a

@@ -124,6 +124,21 @@ test('chromium: the overview says what is on the reader, from one read', async (
   assert.equal(await mine.getByRole('heading', { name: 'Overdue (1)' }).count(), 1, 'the overdue band does not count what is in it');
   assert.equal(await mine.getByRole('heading', { name: 'Due next' }).count(), 1, 'nothing is due next');
 
+  // **Measured, not assumed** (issue 1022): the band's word stands where the titles under it
+  // start. The inset is arithmetic over `TaskRow`'s leading - the row's padding, the twist, the
+  // completion box, the type mark and the gaps - so if that leading ever changes, this is what
+  // says so. The text's own box, not the heading's: the heading is as wide as the panel and its
+  // padding is what moves the word.
+  const flush = await mine.evaluate((panel) => {
+    const textX = (el) => { const range = document.createRange(); range.selectNodeContents(el); return Math.round(range.getBoundingClientRect().x); };
+    const band = [...panel.querySelectorAll('h3')].map(textX);
+    const titles = [...panel.querySelectorAll('[class*="title"]')].map(textX);
+    return { band, title: titles[0] };
+  });
+  for (const x of flush.band) {
+    assert.equal(x, flush.title, `a band's word is at ${x} and the titles under it at ${flush.title}`);
+  }
+
   // The three panels, and the two that are empty saying so rather than drawing nothing.
   assert.equal(await page.getByText('Nothing is waiting in the jumble.').count(), 1, 'the empty jumble is a blank');
   assert.equal(await page.getByText('What you open is listed here, on this device only.').count(), 1, 'the empty recents panel is a blank');

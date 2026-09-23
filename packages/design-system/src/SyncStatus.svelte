@@ -211,17 +211,23 @@
 
   .panel { min-inline-size: 24ch; }
 
-  /* The one control: a mark, a count where anything waits, and a dot where anything was refused. */
+  /* The one control: a mark, a count where anything waits, and a dot where anything was refused.
+     Drawn as `IconButton` draws one - the same square target, the same radius, the same hover -
+     because it stands in a row with them and a control that is a pill beside two rounded squares
+     is three shapes for one kind of thing (issue 1022). The inline padding is the count's: with
+     nothing waiting the control is square, and it grows around a number rather than reserving
+     room for one. */
   .trigger {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--sp-050);
     position: relative;
     min-inline-size: var(--density-control-sm-min);
     min-block-size: var(--density-control-sm-min);
-    padding-inline: var(--sp-100);
+    padding-inline: var(--sp-050);
     border: 0;
-    border-radius: var(--r-full);
+    border-radius: var(--r-md);
     background: transparent;
     color: var(--text-secondary);
     font: inherit;

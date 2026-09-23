@@ -172,7 +172,20 @@
   {#if isTreeReady && !failure && !isRail}
     <ReplicaMark state={containers.hubsState} />
   {/if}
-  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} flyoutLabel={(name) => t('app.nav.inside', { name })} bind:expanded onnavigate={navigate} />
+  <!-- `branchLabel` is what makes a hub a place: with a word for the twist, pressing the row goes
+       to the hub and the twist at its end opens and closes it (issue 1022). Without one the row
+       would only fold, which is how the hub's own screen came to be reachable solely through a
+       collection and back up the breadcrumb. -->
+  <SideNav
+    label={t('app.workspace.title')}
+    {nodes}
+    {current}
+    {isRail}
+    flyoutLabel={(name) => t('app.nav.inside', { name })}
+    branchLabel={(name, isExpanded) => t(isExpanded ? 'app.nav.close_branch' : 'app.nav.open_branch', { name })}
+    bind:expanded
+    onnavigate={navigate}
+  />
   <!-- Folded, a sentence has nowhere to be drawn: what is waiting, what failed and what an empty
        workspace should do next are all words, and a column of marks has room for none of them
        (ADR-0063 decision 2). The rail draws the marks and the one control; the reader unfolds it

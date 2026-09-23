@@ -127,9 +127,17 @@
   }
 
   /* With the name beside it the control is a pill and the air after the name is the pill's; with
-     the avatar alone it is a circle around the avatar, and the padding that made room for a name
-     that is not drawn is what put a gap on one side of it (issue 1019). */
+     the avatar alone it is a **circle** around the avatar - the target is the control's square
+     minimum and the shape is round, because what is inside it is round (issue 1019, 1022). The
+     two glyph controls beside it are `IconButton`'s rounded square, which is what every other
+     icon control in the product is. */
   .account:has(.name) { padding-inline-end: var(--sp-100); }
+
+  .account:not(:has(.name)) {
+    inline-size: var(--density-control-sm-min);
+    justify-content: center;
+    padding: 0;
+  }
 
   .account:hover { background: var(--bg-surface-hover); }
 
@@ -161,7 +169,10 @@
 
   .names { display: flex; flex-direction: column; min-width: 0; }
 
-  .who .name { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+  /* The name is primary text: the menu's head inherits the surface's quieter colour, which reads
+     on white and disappears on the dark theme's surface - the person's own name, greyed out
+     (issue 1022). The address under it stays subtle, because it is the second line. */
+  .who .name { color: var(--text-primary); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 
   .email { color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
 
