@@ -53,12 +53,15 @@ glyphs has to carry 1792 glyphs.
 
 **That trade does not exist here, and the reason is worth stating precisely.** `build/icons.js`
 holds a *declared list*, and generates `src/icons/base.ts` from it. What is in the repository is
-the subset — 46 icons — so there is nothing for a tree-shaker to remove and nothing a direct import
-would save. An icon nobody declared is not in `src/` at all, which is a stronger guarantee than an
+the subset and nothing else, so there is nothing for a tree-shaker to remove and nothing a direct
+import would save. An icon nobody declared is not in `src/` at all, which is a stronger guarantee than an
 import a bundler may or may not drop.
 
-So: **one `Icon` taking a name**, over one merged set of base icons and our own marks. Measured,
-the whole set is **6,059 bytes of node data for 46 base icons**, plus 14 domain marks.
+So: **one `Icon` taking a name**, over one merged set of base icons and our own marks. The size is
+the cost of the list and nothing more: `make icons` prints it on every run — **12,057 bytes of node
+data for 82 base icons** as of issue 998 — so the figure lives where it is measured rather than
+being copied into a document that cannot notice when it stops being true. It was 46 icons when this
+ADR was written.
 
 `lucide-static` is a **devDependency of the design system alone**, and the generated file is
 committed — for the reason `LabelTokens.go` is ([ADR-0029](./ADR-0029-design-system-tokens.md)): a
@@ -76,6 +79,31 @@ Three smaller decisions follow from the same place:
   `currentColor` and `none`.
 * **The stroke is scaled with the box.** 1.5 at 24 px, 2.25 at 16 px. A 24-grid stroke shrunk to
   16 px reads as 1, which is a different set on the same page.
+
+## When a mark joins the list
+
+The list is what keeps the set a set. Every screen that meets a row without a mark is a small
+pressure to add one, and a list that answers every such pressure is no longer a declared subset —
+it is Lucide with extra steps.
+
+So: **a mark earns its place when it names a concept the product repeats, not when it decorates one
+row.** That is the same reasoning that keeps speculative abstractions out of the domain, applied to
+the vocabulary of marks. A row whose concept appears once takes the nearest mark the set already
+has, and a substitution that reads wrong is a reason to look again at the *concept*, not an
+automatic reason to add a glyph.
+
+Worked example, because the rule is easier to state than to apply. The administration section
+(ADR-0063 decision 7) arrived with eleven rows and no marks for nine of them. Eight took marks that
+were already here — the rules are `automation`, webhooks are `send`, backup is `cloud-upload`,
+restore is `rotate-ccw`. Three did not, and each names something the product says more than once
+(issue 998):
+
+* `key` — a credential. Service accounts, their tokens, and a person's own tokens.
+* `gauge` — a load against a limit. The quotas screen, and what the health report reads.
+* `file-user` — a person's request about their own data. Access, erasure, objection, export.
+
+A mark is added by naming it in `build/icons.js` under the group that asks for it and running
+`make icons`. Nothing else adds one, and the committed output is what proves it.
 
 ## The custom marks
 
