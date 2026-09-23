@@ -1,6 +1,6 @@
 # ADR-0065 — Sections, and where a statement about the application lives
 
-**Status:** proposed · **Date:** 2026-09-23
+**Status:** accepted · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
 
 ## Context
 
