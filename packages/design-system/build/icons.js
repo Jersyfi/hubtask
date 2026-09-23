@@ -136,6 +136,14 @@ export const DECLARED = {
     'square-check', // complete
     'send', // deliver to a webhook
   ],
+  'The administration section — F10-08': [
+    // Three marks the section's five groups asked for and the set did not have (issue 998). The
+    // rest of its rows took marks that were already here; these three name concepts the product
+    // repeats, which is what earns a place in this list.
+    'key', // a credential: a service account, its tokens, a person's own tokens
+    'gauge', // a load against a limit: the quotas screen, and what the health report reads
+    'file-user', // a person's request about their own data: access, erasure, objection, export
+  ],
   'The AI treatment — F5-01': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
