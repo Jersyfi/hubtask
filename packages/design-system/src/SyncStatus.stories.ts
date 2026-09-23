@@ -38,13 +38,6 @@ export const refused: Story = {
   args: { mode: 'refused' },
 };
 
-export const unread: Story = {
-  name: 'The installation could not be read',
-  about:
-    'The other half of what this mark is for. `/meta/capabilities` is the one read a Hubtask client configures itself from — item types and their capabilities, the roles, the limits — and a client that has not read it knows none of them: the entry screen draws no fields, and nothing is refused, it is simply unknown. So the mark carries the same danger dot a refused change does, and the panel says what is missing, the server’s own sentence for why, the reference to quote, and the ask-again. It is here rather than on a page because this mark is on every screen, and a retry the reader has to navigate to is a retry for somebody who already knows where to look (issue 1020).',
-  args: { mode: 'unread' },
-};
-
 export const rows: Story = {
   name: 'A pending entry in a row and on a card',
   about:

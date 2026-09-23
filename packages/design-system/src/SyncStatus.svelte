@@ -7,11 +7,6 @@
   // every waiting change as what and where, and every refused one with its reason and a dismiss,
   // because a rejection is shown and never swallowed (§9.5).
   //
-  // It is also where the application says it could not read the installation itself (`unread`).
-  // That is not a change and it is not the connection either, but it is the same question - is
-  // this copy talking to the server - and it is the one place the frame asks it on every screen,
-  // which is what a retry needs to be reachable from wherever the reader is (issue 1020).
-  //
   // It was a line of every page, and at its quietest that line read "Connected": a row of the
   // screen spent on the ordinary case. Now the ordinary case is a mark that says nothing until it
   // is asked, and what it used to print is behind it, whole.
@@ -44,29 +39,6 @@
     readonly href?: string;
   }
 
-  /**
-   * Something the client could not read **about the installation itself**, and the way to ask
-   * again.
-   *
-   * Not a refused change: nothing was written and nothing is queued. It is the other half of what
-   * this mark is for - whether this copy of the application is talking to the server at all. The
-   * manifest is the one read a Hubtask client configures itself from, and a client that has not
-   * read it knows no type, no role and no limit; until this was here the only retry for it in the
-   * whole product was a button on a page ADR-0063 decision 6 took out of the reader's navigation,
-   * so the only way back from a failed read was a reload (issue 1020).
-   */
-  export interface UnreadInstallation {
-    /** What is missing, in one sentence. Resolved text. */
-    readonly label: string;
-    /** The server's own sentence for why, where there is one. */
-    readonly reason?: string;
-    /** The correlation id, so a support thread can be traced (ADR-0025). */
-    readonly reference?: string;
-    readonly referenceLabel?: string;
-    readonly retryLabel: string;
-    readonly onRetry: () => void;
-  }
-
   /** One change the server refused: what, where, and why - and the way out. */
   export interface RefusedChange {
     readonly id: string;
@@ -94,8 +66,6 @@
     syncedLabel?: string;
     queued?: readonly QueuedChange[];
     refused?: readonly RefusedChange[];
-    /** Absent while the installation is known, which is the ordinary case. */
-    unread?: UnreadInstallation;
     /** What the list is called, for the reader who arrives on it without seeing the trigger. */
     listLabel: string;
     /** "Nothing waiting" - the list when it is empty. */
@@ -123,7 +93,6 @@
     syncedLabel,
     queued = [],
     refused = [],
-    unread,
     listLabel,
     emptyLabel,
     refusedLabel,
@@ -140,9 +109,9 @@
 
   const hasSomething = $derived(queued.length > 0 || refused.length > 0);
   /** What puts the dot on the mark: something to read, whether it was refused or never arrived. */
-  const hasUnread = $derived(refused.length > 0 || unread !== undefined);
+  const hasRefusal = $derived(refused.length > 0);
   /** Nothing to say: connected, nothing waiting, nothing refused. The quietest the mark gets. */
-  const isQuiet = $derived(connection === 'connected' && !hasSomething && unread === undefined);
+  const isQuiet = $derived(connection === 'connected' && !hasSomething);
 
   let isOpen = $state(false);
 </script>
@@ -156,18 +125,6 @@
       <span class="mark"><Icon name={MARKS[connection]} size="sm" /></span>
       <span class="word">{connectionLabel}</span>
     </p>
-    <!-- First, because it is the one thing here that is about the application rather than about
-         a change: what it could not read about the installation, and the ask-again. -->
-    {#if unread}
-      <section class="unread" aria-label={unread.label}>
-        <p class="unread-title">{unread.label}</p>
-        {#if unread.reason}<p class="unread-reason">{unread.reason}</p>{/if}
-        {#if unread.reference && unread.referenceLabel}
-          <p class="unread-reference">{unread.referenceLabel} <code>{unread.reference}</code></p>
-        {/if}
-        <div><Button size="sm" tone="secondary" icon="repeat" onclick={unread.onRetry}>{unread.retryLabel}</Button></div>
-      </section>
-    {/if}
     {#if syncedLabel}<p class="detail">{syncedLabel}</p>{/if}
     {#if pendingLabel && pendingCount > 0}<p class="detail">{pendingLabel}</p>{/if}
     {#if oldestLabel}<p class="detail">{oldestLabel}</p>{/if}
@@ -224,7 +181,7 @@
   >
     <span class="mark" data-spin={connection === 'reconnecting' ? '' : undefined}><Icon name={MARKS[connection]} size="sm" /></span>
     {#if pendingCount > 0}<span class="count">{pendingCount}</span>{/if}
-    {#if hasUnread}<span class="dot" aria-hidden="true"></span>{/if}
+    {#if hasRefusal}<span class="dot" aria-hidden="true"></span>{/if}
   </button>
 {/snippet}
 
@@ -366,20 +323,6 @@
   .where { color: var(--text-secondary); }
 
   .reason { color: var(--text-danger); }
-
-  /* What could not be read about the installation, and the ask-again under it. */
-  .unread {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-050);
-    align-items: flex-start;
-  }
-
-  .unread-title { margin: 0; color: var(--text-primary); }
-
-  .unread-reason { margin: 0; color: var(--text-danger); }
-
-  .unread-reference { margin: 0; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); }
 
   .actions {
     display: flex;

@@ -3,11 +3,18 @@
 <script lang="ts">
   // What the application has to say **about itself**, as one mark in the bar (ADR-0065 decision 4).
   //
-  // Two things qualify, and the rule that lets them in is that they would say the same thing on
+  // Three things qualify, and the rule that lets them in is that they would say the same thing on
   // every screen: the maturity stage, which ADR-0035 §2 requires the application to state while it
-  // is not `stable`, and the health report, where the reader may read one and it says something is
-  // wrong. Both were banners above the page's own head - a statement about a *release* drawn where
-  // a statement about the *page* belongs, taking a row of every screen with it.
+  // is not `stable`; the health report, where the reader may read one and it says something is
+  // wrong; and **the manifest this client could not read**, with the way to ask again. The first
+  // two were banners above the page's own head - a statement about a *release* drawn where a
+  // statement about the *page* belongs, taking a row of every screen with it.
+  //
+  // The third came from `SyncStatus` (issue 1020), which 1022's own "what this does not fix" left
+  // open because this mark did not exist yet. It is a statement about the application rather than
+  // about this copy's changes - but what decides it is simpler than the category: **`SyncLine` is
+  // drawn only with a session, this mark always**, and `/meta/capabilities` is read before
+  // anybody signs in. A retry behind a mark that is not on the screen is no retry.
   //
   // It is the pattern the connection's mark already is (ADR-0063 decision 5): unpressed it says
   // only that there is something; pressed it says all of it. The stage is not dismissible any
@@ -17,17 +24,29 @@
   // A notice about **the page** - a refused write, a check's findings - stays where `PageHeader`
   // draws it. This is for what is true wherever the reader stands.
 
-  import { Drawer, IconButton, Popover, Stack } from '@hubtask/design-system/components';
+  import { Button, Drawer, IconButton, Popover, Stack } from '@hubtask/design-system/components';
 
   import { viewport } from './viewport.svelte.ts';
 
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { health } from '../data/health.svelte.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
+  import { renderProblem } from '../problem.ts';
   import { session } from '../session.svelte.ts';
 
-  // Read again when the session changes: without a bearer there is nothing to read, and the
-  // subscription taken before somebody signed in is one the sign-out already dropped.
+  /**
+   * The health report, subscribed for as long as this mark is drawn and read again when the
+   * session changes: without a bearer there is nothing to read, and the subscription taken before
+   * somebody signed in is one the sign-out already dropped.
+   *
+   * **The manifest deliberately has no effect here.** Both are read again when the actor changes,
+   * by two mechanisms, because they are two kinds of read: a *subscription* is started and stopped
+   * by whoever draws it, which is this component; a *one-shot* read is refreshed by whoever changed
+   * the actor, which is `session.svelte.ts` - it calls `manifest.refresh()` at each of its four
+   * transitions (issue 1020). A second refresh here would be this component asking again for a
+   * read it does not own.
+   */
   $effect(() => {
     void session.status;
     return health.start();
@@ -36,7 +55,22 @@
   /** Whether the stage is worth stating. `lib/maturity.ts` is the one place that decides. */
   const hasStage = $derived(shouldAnnounce());
   /** Whether the report says something is wrong. Nothing at all without a report or a right to it. */
-  const isTroubled = $derived(health.isTroubled);
+  const isUnwell = $derived(health.isTroubled);
+  /**
+   * The manifest, where it could not be read. Absent in the ordinary case, which is every case but
+   * one - and the one is the whole application running on nothing it was told.
+   *
+   * **`failure`, not `state`**: the engine re-reads an unanswered resource on every reconnect and
+   * publishes `loading` over the error, so a mark that read the live state would flicker between
+   * the sentence and nothing - and the retry would go out from under the finger pressing it.
+   */
+  const unread = $derived.by(() => {
+    if (!manifest.failure) return undefined;
+    const problem = renderProblem(manifest.failure, messages);
+    return { reason: problem.message, reference: problem.reference };
+  });
+  /** Anything wrong: the report, or an installation this client never read. */
+  const isTroubled = $derived(isUnwell || unread !== undefined);
   const hasAnything = $derived(hasStage || isTroubled);
 
   /**
@@ -46,7 +80,9 @@
    * degraded or down installation is the one state somebody has to see before they ask, so it
    * takes the dot and the tone - rule 3, which asks for a mark and a word rather than a colour.
    */
-  const label = $derived(isTroubled ? t('app.health.title') : t(`app.maturity.${MATURITY}.title`));
+  const label = $derived(
+    unread ? t('app.installation.unread') : isUnwell ? t('app.health.title') : t(`app.maturity.${MATURITY}.title`),
+  );
 
   let isOpen = $state(false);
 </script>
@@ -54,8 +90,27 @@
 {#snippet inside()}
   <div class="panel">
     <Stack gap="200">
-      <!-- The report first where there is one: what is wrong outranks what the release promises. -->
-      {#if isTroubled}
+      <!-- What this client could not read about the installation, first: a client that has not read
+           the manifest knows no type, no role and no limit, so everything else it says is said on
+           nothing. The ask-again is here because this mark is on every screen, signed in or not. -->
+      {#if unread}
+        <section class="notice" data-tone="danger" aria-label={t('app.installation.unread')}>
+          <Stack gap="050">
+            <h3 class="heading">{t('app.installation.unread')}</h3>
+            {#if unread.reason}<p class="line">{unread.reason}</p>{/if}
+            {#if unread.reference}
+              <p class="line reference">{t('app.reference')} <code>{unread.reference}</code></p>
+            {/if}
+            <div>
+              <Button size="sm" tone="secondary" icon="repeat" onclick={() => void manifest.refresh()}>
+                {t('app.retry')}
+              </Button>
+            </div>
+          </Stack>
+        </section>
+      {/if}
+      <!-- Then the report: what is wrong outranks what the release promises. -->
+      {#if isUnwell}
         <section class="notice" data-tone={health.isDown ? 'danger' : 'warning'} aria-label={t('app.health.title')}>
           <Stack gap="050">
             <h3 class="heading">{t('app.health.title')}</h3>
@@ -132,4 +187,7 @@
   .notice[data-tone='danger'] .heading { color: var(--text-danger); }
 
   .notice[data-tone='warning'] .heading { color: var(--text-warning); }
+
+  /* The correlation id, in the data style: it is quoted into a support thread, not read. */
+  .reference { color: var(--text-subtle); font-family: var(--font-mono); }
 </style>

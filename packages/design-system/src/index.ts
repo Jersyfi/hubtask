@@ -39,7 +39,7 @@ export { default as ParameterTable, type Parameter } from './ParameterTable.svel
 export { default as PermissionMatrix, type MatrixRole } from './PermissionMatrix.svelte';
 export { default as OneTimeSecret } from './OneTimeSecret.svelte';
 export { default as RunStatusBadge, type RunStatus } from './RunStatusBadge.svelte';
-export { default as SyncStatus, type Connection, type QueuedChange, type RefusedChange, type UnreadInstallation } from './SyncStatus.svelte';
+export { default as SyncStatus, type Connection, type QueuedChange, type RefusedChange } from './SyncStatus.svelte';
 export { default as Celebration } from './Celebration.svelte';
 export { default as CoachMark } from './CoachMark.svelte';
 export { default as Tour } from './Tour.svelte';
