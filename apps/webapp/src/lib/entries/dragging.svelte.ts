@@ -36,7 +36,7 @@
  * The single-pointer alternative SC 2.5.7 asks for is the card's own menu, and it is a real one.
  */
 
-import { boundariesOf, dropIndex, hasLeftTheHandle } from '@hubtask/design-system/components';
+import { HOLD_MS, boundariesOf, dropIndex, hasLeftTheHandle } from '@hubtask/design-system/components';
 
 /** The list a dragged element could land in: what it is, and the elements drawn in it. */
 export interface DragLevel {
@@ -46,8 +46,9 @@ export interface DragLevel {
   readonly elements: readonly HTMLElement[];
 }
 
-/** How long a coarse pointer is held still before it is carrying something rather than scrolling. */
-export const HOLD_MS = 300;
+// The hold is the design system's, beside the drag threshold: a board, a list and a timeline all
+// wait the same length, and a second 300 written here is one edit away from disagreeing with it.
+export { HOLD_MS };
 
 export interface DragOptions {
   /**
