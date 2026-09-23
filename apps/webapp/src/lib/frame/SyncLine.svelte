@@ -25,6 +25,9 @@
     return queue.start();
   });
 
+  // The mark's three words, from the store's four states: `off` is drawn by nobody - the line is
+  // only rendered with a session - and `offline` is the device's own answer, which is what the
+  // struck cloud of ADR-0063 decision 5 is for.
   const connection = $derived<Connection>(live.state === 'live' ? 'connected' : live.state === 'reconnecting' ? 'reconnecting' : 'offline');
   const connectionLabel = $derived(t(`app.sync.${connection}`));
 

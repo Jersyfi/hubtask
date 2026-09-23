@@ -26,16 +26,39 @@ import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
 import { pathsFor, revokedContainerOf } from './live.ts';
 
-/** Where the connection stands, for the notice a reader sees. */
-export type LiveState = 'off' | 'live' | 'reconnecting';
+/**
+ * Where the connection stands, for the notice a reader sees.
+ *
+ * `off` is "no stream is running" - before the first start and after a sign-out, which is also
+ * when the mark is not drawn at all. `offline` is the *device's* answer: this machine says it has
+ * no network, and the three states are then not a question about the server.
+ */
+export type LiveState = 'off' | 'live' | 'reconnecting' | 'offline';
 
 class Live {
   #state = $state<LiveState>('off');
+  /**
+   * Whether the device says it has no network.
+   *
+   * `navigator.onLine` is trusted **in one direction only**, which is the only direction it is
+   * worth anything in: `false` means there is demonstrably no network, `true` means the machine
+   * has an interface up and says nothing about whether the server is reachable. So this turns a
+   * failing reconnect into *Offline* when the browser knows why, and never turns *Reconnecting…*
+   * into *Connected*.
+   *
+   * Before this the struck cloud of ADR-0063 decision 5 was drawn by nothing: `off` is the only
+   * other state and the mark is not drawn without a session, so a machine with its network pulled
+   * out read *Reconnecting…* - true, and not the thing the reader needs to be told.
+   */
+  #isDeviceOffline = $state(false);
   /** The containers this reader has lost while the tab was open. */
   #revoked = $state<readonly string[]>([]);
   #stop: (() => void) | undefined;
 
   get state(): LiveState {
+    // The device's answer outranks the stream's, because it explains it: attempts are failing and
+    // this is why. `off` is left alone - there is nothing to be offline from.
+    if (this.#state !== 'off' && this.#isDeviceOffline) return 'offline';
     return this.#state;
   }
 
@@ -60,8 +83,20 @@ class Live {
     this.#state = 'reconnecting';
     let stopped = false;
     let stopListening: (() => void) | undefined;
+
+    // What the device says about its own network, followed while the stream is open. The engine
+    // keeps trying either way - a tab whose network comes back reconnects without being told.
+    const notice = () => {
+      this.#isDeviceOffline = typeof navigator === 'undefined' ? false : navigator.onLine === false;
+    };
+    notice();
+    globalThis.addEventListener?.('online', notice);
+    globalThis.addEventListener?.('offline', notice);
+
     this.#stop = () => {
       stopped = true;
+      globalThis.removeEventListener?.('online', notice);
+      globalThis.removeEventListener?.('offline', notice);
       stopListening?.();
     };
 
@@ -97,6 +132,7 @@ class Live {
     this.#stop?.();
     this.#stop = undefined;
     this.#state = 'off';
+    this.#isDeviceOffline = false;
     this.#revoked = [];
   }
 

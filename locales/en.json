@@ -3704,6 +3704,7 @@
   "app.feeds.caldav_tokens": "Make one on the tokens screen.",
   "app.live.became_live": "Now showing changes as they happen.",
   "app.live.lost": "Not receiving changes at the moment. Trying again.",
+  "app.live.device_offline": "This device has no network. Your changes are kept here and sent when it is back.",
   "app.live.reloaded": "Reloading everything: this tab was away too long to catch up.",
   "app.live.access_revoked": "You no longer have access to this. Somebody changed who may read it.",
   "app.live.access_revoked_short": "Access removed",

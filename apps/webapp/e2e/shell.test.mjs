@@ -87,7 +87,9 @@ async function open(browser, width) {
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/`);
   await page.getByRole('button', { name: ACCOUNT.display_name }).or(page.getByRole('link', { name: 'You' })).first().waitFor({ timeout: 15_000 });
-  return { page, failures, close: () => context.close() };
+  // The context travels with the page: `setOffline` is a property of the context, and what a
+  // device with no network draws is part of what the frame owes the reader.
+  return { context, page, failures, close: () => context.close() };
 }
 
 /** What is common to every width: one search, the tour's target, no sideways scroll. */
@@ -219,7 +221,7 @@ for (const width of [905, 1280]) {
   test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar in the bar`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
-    const { page, failures, close } = await open(browser, width);
+    const { context, page, failures, close } = await open(browser, width);
     t.after(close);
     await common(page, width);
 
@@ -309,6 +311,20 @@ for (const width of [905, 1280]) {
     assert.equal(await surface.getByText('Connected').count(), 1, `${width}: what it opened does not say the state`);
     await page.keyboard.press('Escape');
     await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+
+    // A device with no network says so, rather than saying it is trying: `navigator.onLine` is
+    // false and the mark is the struck cloud ADR-0063 decision 5 names. Trusted in one direction
+    // only - coming back says "reconnecting" until the stream is accepted again, never
+    // "connected" on the browser's word.
+    await context.setOffline(true);
+    await page
+      .waitForFunction(() => document.querySelector('.trigger')?.getAttribute('data-connection') === 'offline', null, { timeout: 5_000 })
+      .catch(() => assert.fail(`${width}: a device with no network does not say it is offline`));
+    assert.equal(await mark.getAttribute('aria-label'), 'Offline');
+    await context.setOffline(false);
+    await page
+      .waitForFunction(() => document.querySelector('.trigger')?.getAttribute('data-connection') !== 'offline', null, { timeout: 5_000 })
+      .catch(() => assert.fail(`${width}: the mark stayed offline after the network came back`));
 
     // Every destination, through the tree and the menu.
     await tree.getByRole('treeitem', { name: 'Jumble' }).click();

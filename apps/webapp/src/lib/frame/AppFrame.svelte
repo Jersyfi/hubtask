@@ -216,7 +216,10 @@
     if (!session.isSignedIn || state === announced) return;
     if (announced !== undefined) {
       if (state === 'live') announcer.say(t('app.live.became_live'));
+      // Losing it is worth saying whichever half lost it: the stream cannot be reached, or the
+      // device says it has no network at all.
       else if (state === 'reconnecting') announcer.say(t('app.live.lost'));
+      else if (state === 'offline') announcer.say(t('app.live.device_offline'));
     }
     announced = state;
   });
