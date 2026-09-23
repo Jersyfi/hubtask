@@ -227,7 +227,7 @@ WITH level AS (
   FROM container
   WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
     AND deleted_at IS NULL
-    AND id <> sqlc.arg('moving_id')::uuid
+    AND id IS DISTINCT FROM sqlc.narg('moving_id')::uuid
 ), anchor AS (
   SELECT order_key FROM level WHERE id = sqlc.narg('before_id')::uuid
 )
@@ -674,13 +674,17 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 --
 -- The level is (collection, parent), and the parent is compared with IS NOT DISTINCT FROM so that an absent
 -- one means the items directly in the collection rather than no filter at all.
+--
+-- "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
+-- nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
+-- for every row, which empties this list and reports an anchor that is present as missing (issue 992).
 WITH level AS (
   SELECT id, order_key
   FROM work_item
   WHERE collection_id = sqlc.arg('collection_id')::uuid
     AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
     AND deleted_at IS NULL
-    AND id <> sqlc.arg('moving_id')::uuid
+    AND id IS DISTINCT FROM sqlc.narg('moving_id')::uuid
 ), anchor AS (
   SELECT order_key FROM level WHERE id = sqlc.narg('before_id')::uuid
 )
