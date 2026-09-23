@@ -300,11 +300,18 @@ workbench-build:
 # It is not embedded into the binary and never will be: it has no API contract with the server and
 # no reason to be in it (ADR-0028). This produces a directory of static files; where that directory
 # is deployed is not decided here.
+#
+# `<package>...` is "this package and everything it consumes", in dependency order. The list used
+# to be written out here - design system, then website - and that is how this target came to be
+# red for a week (#982): P-01 gave the site a build-time import of `@hubtask/api-client`, whose
+# `dist/` is a build output, and nothing here built it. It passed on a developer's machine, where
+# an earlier `pnpm -r build` had left that directory behind, and failed in every fresh checkout,
+# which is every run of the Website workflow. A list that has to be maintained by hand to stay
+# true is a list that goes stale; package.json already knows the answer, so pnpm is asked for it.
 .PHONY: website
 website:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
-	$(PNPM) --filter @hubtask/design-system build
-	$(PNPM) --filter @hubtask/website build
+	$(PNPM) --filter "@hubtask/website..." build
 	@echo "apps/website/dist is ready to deploy"
 
 ## api-client: Regenerate the TypeScript API client from api/openapi.yaml
