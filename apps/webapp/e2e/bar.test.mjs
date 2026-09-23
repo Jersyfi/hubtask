@@ -82,7 +82,10 @@ async function open(browser, width = 375) {
  * reached without a session, where the bar deliberately carries the wordmark and nothing else.
  */
 const ROUTES = [
-  '/', '/search', '/jumble', '/archive', '/trash', '/profile', '/profile/tokens', '/installation',
+  '/', '/search', '/jumble', '/archive', '/trash', '/installation',
+  // Your settings, which is a section of eight screens since ADR-0065 decision 3.
+  '/profile', '/profile/appearance', '/profile/notifications', '/profile/security',
+  '/profile/sessions', '/profile/devices', '/profile/apps', '/profile/tokens',
   '/administration', '/administration/workspace', '/administration/people',
   '/administration/groups', '/administration/permissions', '/administration/service-accounts',
   // `/administration/rules/:id` is not here: the editor is a canvas with a stub of its own in

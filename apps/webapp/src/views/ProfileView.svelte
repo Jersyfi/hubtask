@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // How the product speaks to this reader, and what it tells them about.
+  // How the product speaks to this reader — the first screen of Your settings (ADR-0065
+  // decision 3), and the whole of what this screen is now.
   //
   // **The client has read these three since F1-08 and could never set them.** This is the screen
   // that closes that, and it does the setting only — the frame still applies the language and the
@@ -12,95 +13,32 @@
   // **Clearing is not setting to nothing.** An empty value means the workspace's own applies again,
   // and the field says that rather than going blank and leaving somebody to guess.
   //
-  // **The theme is not here, and the screen says where it is.** ADR-0043 made it a property of the
-  // device rather than of the account, and a reader who looks for it and finds nothing learns
-  // nothing — so they find a sentence instead.
+  // **What used to be under it is a screen each.** The second factor, the sessions, the devices,
+  // the theme, the notifications, the apps and the tokens were sections of one screen of nine;
+  // each is now a row of the section's column with an address of its own.
   //
-  // **Nothing is compiled in.** The languages, the categories and the channels are the manifest's.
-  // A category this version has no phrase for still renders, because `t` humanises an unknown code.
+  // **Nothing is compiled in.** The languages are the manifest's.
 
-  import { untrack } from 'svelte';
+  import { Button, EmptyState, Input, Select, Stack } from '@hubtask/design-system/components';
 
-  import {
-    Button,
-    Checkbox,
-    Dialog,
-    EmptyState,
-    ErrorState,
-    Input,
-    PageHeader,
-    Radio,
-    Select,
-    Skeleton,
-    Stack,
-    Switch,
-  } from '@hubtask/design-system/components';
+  import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
-  import {
-    WEEK_STARTS,
-    categoriesOf,
-    channelsOf,
-    clearedOr,
-    isAlwaysOn,
-    zoneOptions,
-    localesOf,
-    preferenceFor,
-    withWorkspaceChoice,
-  } from '../lib/data/preferences.ts';
-  import { mfa } from '../lib/data/mfa.svelte.ts';
-  import { consent } from '../lib/data/consent.svelte.ts';
-  import { devices } from '../lib/data/devices.svelte.ts';
-  import { sessions } from '../lib/data/sessions.svelte.ts';
+  import { WEEK_STARTS, clearedOr, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { device } from '../lib/device.svelte.ts';
-  import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { session } from '../lib/session.svelte.ts';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const account = $derived(actor.account);
   const accountId = $derived(account?.id);
-
-  $effect(() => {
-    const wanted = accountId;
-    if (!wanted) return;
-    return untrack(() => preferences.open(wanted));
-  });
-
-  // The sessions are the account's own and take no parameter, so the read starts with the screen
-  // rather than with an identifier arriving.
-  $effect(() => untrack(() => sessions.open()));
-  $effect(() => untrack(() => devices.open()));
-  // The grants sit beside the sessions because they are the same question asked about apps:
-  // what is currently able to act as me, and how do I stop it.
-  $effect(() => untrack(() => consent.openGrants()));
-
-  let grantFailure = $state<string | undefined>(undefined);
-
-  async function withdraw(grantId: string): Promise<void> {
-    grantFailure = undefined;
-    try {
-      await consent.withdraw(grantId);
-    } catch (error) {
-      grantFailure = renderProblem(error as never, messages).message;
-    }
-  }
 
   const locales = $derived(localesOf(manifest.value));
   // Whatever the account holds has to be selectable, alias or not — otherwise a zone that is
   // set reads as "use the workspace's".
   const zones = $derived(zoneOptions(account?.time_zone));
-  const categories = $derived(categoriesOf(manifest.value));
-  const channels = $derived(channelsOf(manifest.value));
-  const rows = $derived(accountId ? preferences.of(accountId) : []);
-  const reading = $derived(accountId ? preferences.stateOf(accountId) : undefined);
 
   let locale = $state('');
   let zone = $state('');
@@ -139,521 +77,92 @@
       isSaving = false;
     }
   }
-
-  const held = $derived(sessions.state);
-
-  let disablePassword = $state('');
-  let mfaNotice = $state<string | undefined>(undefined);
-
-  /**
-   * Takes the second factor off, with the password afresh.
-   *
-   * The one case where being signed in is not enough: a stolen session removing the factor is
-   * exactly the attack the factor exists against (`security.md` §5).
-   */
-  async function disableFactor(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const password = disablePassword;
-    disablePassword = '';
-    if (await mfa.disable(password)) {
-      mfaNotice = t('app.mfa.disabled');
-      announcer.say(mfaNotice);
-    }
-  }
-
-  /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
-  function when(at: string): string {
-    return formatDateTime(at, messages.locale);
-  }
-
-  /**
-   * Ends one session.
-   *
-   * Ending the current one is a sign-out and is treated as one: the list would otherwise be
-   * re-read with a credential that has just stopped working, and the reader would meet a refusal
-   * instead of the sign-in screen.
-   */
-  async function endOne(id: string, isCurrent: boolean): Promise<void> {
-    failure = undefined;
-    try {
-      await sessions.end(id);
-      if (isCurrent) await session.signOut();
-      else announcer.say(t('app.sessions.ended_announced'));
-    } catch (error) {
-      failure = renderProblem(error as never, messages);
-    }
-  }
-
-  /** The device a forget is being confirmed for, and the forgetting itself (F6-07). */
-  let forgetting = $state<string | undefined>(undefined);
-  const heldDevices = $derived(devices.state);
-
-  async function forgetDevice(): Promise<void> {
-    const id = forgetting;
-    forgetting = undefined;
-    if (!id) return;
-    failure = undefined;
-    try {
-      await devices.forget(id);
-      announcer.say(t('app.devices.forgotten_announced'));
-    } catch (error) {
-      failure = renderProblem(error as never, messages);
-    }
-  }
-
-  /** Ends every session, this one last by consequence rather than by order. */
-  async function endEverywhere(): Promise<void> {
-    failure = undefined;
-    try {
-      await sessions.endAll();
-      announcer.say(t('app.sessions.ended_all_announced'));
-    } catch (error) {
-      failure = renderProblem(error as never, messages);
-    }
-    // Whatever the server managed, this tab is holding a credential it has been told to stop
-    // trusting. Discarding it is not conditional on the call having succeeded.
-    await session.signOut();
-  }
-
-  async function setRow(category: string, channel: string, next: { enabled?: boolean; include_title?: boolean }) {
-    if (!accountId) return;
-    const current = preferenceFor(rows, category, channel);
-    failure = undefined;
-    try {
-      // Both switches travel: a row is a statement about a category rather than two values that
-      // could drift apart.
-      await preferences.setNotification(accountId, category, channel, {
-        enabled: next.enabled ?? current?.enabled ?? true,
-        include_title: next.include_title ?? current?.include_title ?? false,
-      });
-      announcer.say(t('app.profile.notification_saved_announced'));
-    } catch (error) {
-      failure = renderProblem(error as never, messages);
-    }
-  }
-
-  const THEMES = ['system', 'light', 'dark'] as const;
-  const MOTIONS = ['system', 'reduced'] as const;
-
-  /** The radio groups' bound values; the device store is told when they move, and says so. */
-  let themeChoice = $state<string>(device.theme);
-  let motionChoice = $state<string>(device.motion);
-
-  $effect(() => {
-    const choice = THEMES.find((each) => each === themeChoice) ?? 'system';
-    if (choice === untrack(() => device.theme)) return;
-    device.setTheme(choice);
-    announcer.say(t('app.profile.theme_changed_announced', { choice: t(`app.profile.theme_${choice}`) }));
-  });
-
-  /**
-   * The celebrations switch writes the account's preference (F6-12) and says so. Its position is
-   * the account's, re-seeded when the account arrives or changes - and put back when a write is
-   * refused, so the control never shows a choice the server did not take.
-   */
-  let isSavingCelebrations = $state(false);
-  let celebrationsOn = $state(true);
-  $effect(() => {
-    celebrationsOn = account?.celebrations !== false;
-  });
-  async function setCelebrations(isOn: boolean) {
-    if (!accountId) return;
-    isSavingCelebrations = true;
-    failure = undefined;
-    try {
-      // `true` is written as the default's own value rather than cleared: what the person chose
-      // is a choice, and "on" is not the same fact as "never decided".
-      await preferences.setAccount(accountId, { celebrations: isOn });
-      announcer.say(t(isOn ? 'app.profile.celebrations_on_announced' : 'app.profile.celebrations_off_announced'));
-    } catch (error) {
-      failure = renderProblem(error as never, messages);
-      celebrationsOn = account?.celebrations !== false;
-    } finally {
-      isSavingCelebrations = false;
-    }
-  }
-
-  $effect(() => {
-    const choice = MOTIONS.find((each) => each === motionChoice) ?? 'system';
-    if (choice === untrack(() => device.motion)) return;
-    device.setMotion(choice);
-    announcer.say(t('app.profile.motion_changed_announced', { choice: t(`app.profile.motion_${choice}`) }));
-  });
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.profile.title')));
 </script>
 
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
   <Stack gap="300">
-    <PageHeader title={t('app.profile.title')} isTitleInBar={viewport.isCompact} />
+    <SettingsHead row="profile" />
 
-    <Stack gap="150">
-      {#if locales.length > 0}
+    <form class="panel" onsubmit={(event) => { event.preventDefault(); void save(); }}>
+      <Stack gap="200">
+        {#if locales.length > 0}
+          <Select
+            label={t('app.profile.language')}
+            hint={t('app.profile.language_hint')}
+            bind:value={locale}
+            options={withWorkspaceChoice(
+              locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
+              t('app.profile.use_workspace'),
+            )}
+          />
+        {:else}
+          <!-- An installation that declares no locales has none to choose between, and an empty
+               dropdown says that badly. Found by reading a real manifest, which reports none. -->
+          <Stack gap="050">
+            <span class="label">{t('app.profile.language')}</span>
+            <p class="quiet">{t('app.profile.no_locales')}</p>
+          </Stack>
+        {/if}
+
+        {#if zones.length > 0}
+          <Select
+            label={t('app.profile.zone')}
+            hint={t('app.profile.zone_hint')}
+            bind:value={zone}
+            options={withWorkspaceChoice(
+              zones.map((each) => ({ value: each, label: each })),
+              t('app.profile.use_workspace'),
+            )}
+          />
+        {:else}
+          <!-- A browser that will not list the zones still lets somebody type one, and the server
+               refuses an unknown name. A worse offer, not a broken one. -->
+          <Input label={t('app.profile.zone')} hint={t('app.profile.zone_free')} bind:value={zone} />
+        {/if}
+
         <Select
-          label={t('app.profile.language')}
-          hint={t('app.profile.language_hint')}
-          bind:value={locale}
+          label={t('app.profile.week_start')}
+          hint={t('app.profile.week_start_hint')}
+          bind:value={weekStart}
           options={withWorkspaceChoice(
-            locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
+            WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
             t('app.profile.use_workspace'),
           )}
         />
-      {:else}
-        <!-- An installation that declares no locales has none to choose between, and an empty
-             dropdown says that badly. Found by reading a real manifest, which reports none. -->
-        <Stack gap="050">
-          <span class="label">{t('app.profile.language')}</span>
-          <p class="quiet">{t('app.profile.no_locales')}</p>
-        </Stack>
-      {/if}
 
-      {#if zones.length > 0}
-        <Select
-          label={t('app.profile.zone')}
-          hint={t('app.profile.zone_hint')}
-          bind:value={zone}
-          options={withWorkspaceChoice(
-            zones.map((each) => ({ value: each, label: each })),
-            t('app.profile.use_workspace'),
-          )}
-        />
-      {:else}
-        <!-- A browser that will not list the zones still lets somebody type one, and the server
-             refuses an unknown name. A worse offer, not a broken one. -->
-        <Input label={t('app.profile.zone')} hint={t('app.profile.zone_free')} bind:value={zone} />
-      {/if}
-
-      <Select
-        label={t('app.profile.week_start')}
-        hint={t('app.profile.week_start_hint')}
-        bind:value={weekStart}
-        options={withWorkspaceChoice(
-          WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
-          t('app.profile.use_workspace'),
-        )}
-      />
-
-      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-      {#if notice}<p class="quiet">{notice}</p>{/if}
-
-      <div>
-        <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={() => void save()}>
-          {t('app.profile.save')}
-        </Button>
-      </div>
-    </Stack>
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.mfa.title')}</h2>
-      <!-- Whether one is armed is not something this client is told: no read answers it, and
-           inferring it from a sign-in that did not ask for a code would be inferring from an
-           absence. So the panel offers enrolment, and the server refuses one that is already
-           armed — in its own words, which is the honest answer rather than a guess. -->
-      <TotpEnrollment
-        onarmed={() => {
-          mfaNotice = t('app.mfa.armed');
-          announcer.say(mfaNotice);
-        }}
-      />
-
-      {#if mfaNotice}<p class="quiet">{mfaNotice}</p>{/if}
-
-      <details>
-        <summary>{t('app.mfa.disable')}</summary>
-        <Stack gap="150">
-          <p class="quiet">{t('app.mfa.disable_hint')}</p>
-          <form onsubmit={disableFactor}>
-            <Stack gap="150">
-              <Input
-                label={t('app.step_up.password_label')}
-                bind:value={disablePassword}
-                type="password"
-                autocomplete="current-password"
-                spellcheck={false}
-                isRequired
-              />
-              <div>
-                <Button
-                  type="submit"
-                  tone="danger"
-                  isBusy={mfa.isWorking}
-                  busyLabel={t('app.mfa.disabling')}
-                >
-                  {t('app.mfa.disable')}
-                </Button>
-              </div>
-            </Stack>
-          </form>
-        </Stack>
-      </details>
-    </Stack>
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.sessions.title')}</h2>
-      <p class="quiet">{t('app.sessions.intro')}</p>
-
-      {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
-        <div aria-busy="true"><Skeleton lines={2} /></div>
-      {:else if held.status === 'failed'}
-        <ErrorState
-          title={renderProblem(held.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => sessions.open()}
-        />
-      {:else if sessions.all.length === 0}
-        <p class="quiet">{t('app.sessions.none')}</p>
-      {:else}
-        <ul class="rows">
-          {#each sessions.all as held (held.id)}
-            <li>
-              <div class="row">
-                <div>
-                  <span class="category">
-                    {held.user_agent || t('app.sessions.unknown_client')}
-                    {#if held.current} · {t('app.sessions.this_device')}{/if}
-                  </span>
-                  <span class="meta">
-                    {t('app.sessions.created')} {when(held.created_at)}
-                    {#if held.last_used_at}
-                      · {t('app.sessions.last_used')} {when(held.last_used_at)}
-                    {:else}
-                      · {t('app.sessions.never_used')}
-                    {/if}
-                    {#if held.ip_class} · {held.ip_class}{/if}
-                  </span>
-                </div>
-                <div class="switches">
-                  <Button
-                    tone="danger"
-                    size="sm"
-                    onclick={() => void endOne(held.id, held.current)}
-                  >
-                    {held.current ? t('app.sessions.end_this') : t('app.sessions.end')}
-                  </Button>
-                </div>
-              </div>
-            </li>
-          {/each}
-        </ul>
+        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
+        {#if notice}<p class="quiet">{notice}</p>{/if}
 
         <div>
-          <!-- Said before it is pressed, because it ends this session too: a control whose
-               consequence is "you are about to be signed out" has to say so where the finger is. -->
-          <p class="quiet">{t('app.sign_out.everywhere_warning')}</p>
-          <Button tone="danger" onclick={() => void endEverywhere()}>
-            {t('app.sign_out.everywhere')}
+          <Button type="submit" isBusy={isSaving} busyLabel={t('app.workspace.saving')}>
+            {t('app.profile.save')}
           </Button>
         </div>
-      {/if}
-    </Stack>
-
-    <!-- The devices that hold a copy (F6-07): the sibling list of things that can be ended. A
-         forgotten device is blocked, not erased (N-03), and the row says so rather than going. -->
-    <Stack gap="150">
-      <h2 class="section">{t('app.devices.title')}</h2>
-      <p class="quiet">{t('app.devices.intro')}</p>
-
-      {#if heldDevices === undefined || heldDevices.status === 'loading' || heldDevices.status === 'idle'}
-        <div aria-busy="true"><Skeleton lines={2} /></div>
-      {:else if heldDevices.status === 'failed'}
-        <ErrorState
-          title={renderProblem(heldDevices.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => devices.open()}
-        />
-      {:else if devices.all.length === 0}
-        <p class="quiet">{t('app.devices.none')}</p>
-      {:else}
-        <ul class="rows">
-          {#each devices.all as device (device.id)}
-            <li>
-              <div class="row">
-                <div>
-                  <span class="category">
-                    {device.display_name || t('app.devices.unnamed')}
-                    {#if device.platform} · {device.platform}{/if}
-                    {#if devices.isThisDevice(device.id)} · {t('app.devices.this_device')}{/if}
-                    {#if device.blocked} · {t('app.devices.forgotten')}{/if}
-                  </span>
-                  <span class="meta">
-                    {#if device.last_seen_at}
-                      {t('app.devices.last_seen')} {when(device.last_seen_at)}
-                    {:else}
-                      {t('app.devices.never_seen')}
-                    {/if}
-                  </span>
-                </div>
-                {#if !device.blocked && !devices.isThisDevice(device.id)}
-                  <div class="switches">
-                    <Button tone="danger" size="sm" onclick={() => (forgetting = device.id)}>
-                      {t('app.devices.forget')}
-                    </Button>
-                  </div>
-                {/if}
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </Stack>
-
-    <Dialog
-      title={t('app.devices.confirm_title')}
-      isOpen={forgetting !== undefined}
-      dismissLabel={t('app.devices.cancel')}
-      onClose={() => (forgetting = undefined)}
-    >
-      {#snippet actions()}
-        <Button onclick={() => (forgetting = undefined)}>{t('app.devices.cancel')}</Button>
-        <Button tone="danger" onclick={() => void forgetDevice()}>{t('app.devices.confirm')}</Button>
-      {/snippet}
-      {t('app.devices.confirm_body')}
-    </Dialog>
-
-    <!-- The two preferences that belong to the device rather than to the account (ADR-0043): the
-         theme, and reduced motion beside it (F5-12, §10 row 2.3.3). Each applies at once and is
-         kept in this browser; the account is not asked, because there is nothing above the device
-         to resolve to. A radio group rather than a select: three words, all visible, one press. -->
-    <Stack gap="150" data-tour="profile">
-      <h2 class="section">{t('app.profile.device_section')}</h2>
-      <p class="quiet">{t('app.profile.device_hint')}</p>
-      <Radio
-        label={t('app.profile.theme')}
-        bind:value={themeChoice}
-        options={THEMES.map((each) => ({ value: each, label: t(`app.profile.theme_${each}`) }))}
-      />
-      <Radio
-        label={t('app.profile.motion')}
-        hint={t('app.profile.motion_hint')}
-        bind:value={motionChoice}
-        options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
-      />
-      <!-- The one switch of design-system.md §7, beside the theme's and motion's - and unlike
-           them the account's (ADR-0043, F6-12): a person who switched the moments off has
-           switched them off everywhere. Absent means on. -->
-      <Switch
-        label={t('app.profile.celebrations')}
-        hint={t('app.profile.celebrations_hint')}
-        bind:checked={celebrationsOn}
-        disabledReason={isSavingCelebrations ? t('app.workspace.saving') : undefined}
-        onchange={() => void setCelebrations(celebrationsOn)}
-      />
-    </Stack>
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.profile.notifications')}</h2>
-      <p class="quiet">{t('app.profile.notifications_hint')}</p>
-
-      {#if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
-        <div aria-busy="true"><Skeleton lines={3} /></div>
-      {:else if reading.status === 'failed'}
-        <ErrorState
-          title={renderProblem(reading.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => accountId && preferences.open(accountId)()}
-        />
-      {:else if categories.length === 0}
-        <p class="quiet">{t('app.profile.none')}</p>
-      {:else}
-        <ul class="rows">
-          {#each categories as category (category)}
-            {#each channels as channel (channel)}
-              {@const row = preferenceFor(rows, category, channel)}
-              {@const alwaysOn = isAlwaysOn(category)}
-              <li>
-                <div class="row">
-                  <div>
-                    <!-- A phrase per category the catalogue knows, and `humanise` for one it does
-                         not: an installation that tells people about something newer still reads
-                         readably rather than showing a key. The **list** is the manifest's; only
-                         the wording is the catalogue's. -->
-                    <span class="category">{t(`app.profile.category_${category}`)}</span>
-                    <span class="meta">
-                      {t(`app.profile.channel_${channel}`)}
-                      {#if row?.is_default} · {t('app.profile.is_default')}{/if}
-                    </span>
-                  </div>
-                  <div class="switches">
-                    <Checkbox
-                      label={t('app.profile.enabled')}
-                      checked={row?.enabled ?? true}
-                      disabledReason={alwaysOn ? t('app.profile.always_on') : undefined}
-                      onchange={(event: Event) =>
-                        void setRow(category, channel, {
-                          enabled: (event.currentTarget as HTMLInputElement).checked,
-                        })}
-                    />
-                    <Checkbox
-                      label={t('app.profile.include_title')}
-                      hint={t('app.profile.include_title_hint')}
-                      checked={row?.include_title ?? false}
-                      onchange={(event: Event) =>
-                        void setRow(category, channel, {
-                          include_title: (event.currentTarget as HTMLInputElement).checked,
-                        })}
-                    />
-                  </div>
-                </div>
-              </li>
-            {/each}
-          {/each}
-        </ul>
-      {/if}
-    </Stack>
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.grants.title')}</h2>
-      <p class="quiet">{t('app.grants.intro')}</p>
-      {#if grantFailure}<p class="failure" role="alert">{grantFailure}</p>{/if}
-      <ul class="rows">
-        {#each consent.grants as grant (grant.id)}
-          <li class="row">
-            <span>
-              <span class="category">{grant.client_name}</span>
-              <!-- The scopes as the app holds them. Sentences where this build knows them, and the
-                   identifier where it does not — the same rule as the consent screen. -->
-              <span class="quiet small">{grant.scopes.join(', ')}</span>
-            </span>
-            <Button size="sm" tone="subtle" onclick={() => void withdraw(grant.id)}>
-              {t('app.grants.withdraw')}
-            </Button>
-          </li>
-        {:else}
-          <li class="quiet">{t('app.grants.none')}</li>
-        {/each}
-      </ul>
-      <p class="quiet small">{t('app.grants.next_request')}</p>
-    </Stack>
-
-    <Stack gap="050">
-      <h2 class="section">{t('app.tokens.title')}</h2>
-      <p class="quiet">{t('app.tokens.from_profile')}</p>
-      <!-- A link rather than a panel: minting a credential is its own screen, and burying it under
-           a language chooser would put a one-time secret in the middle of a settings page. -->
-      <p><a href="/profile/tokens">{t('app.tokens.open')}</a></p>
-    </Stack>
+      </Stack>
+    </form>
   </Stack>
 {/if}
 
 <style>
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
+     input as wide as the region is a target nobody aims at, so the fields carry a measure of
+     their own while the lists and tables of the section take the width. */
+  form { margin: 0; max-inline-size: 52ch; }
 
-  .rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-150); }
-
-  .row { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: var(--sp-150); }
-
-  .category { display: block; font-weight: var(--fw-semibold); }
-
-  .meta { display: block; color: var(--text-secondary); font-size: var(--fs-075); max-width: 48ch; }
-
-  .switches { display: flex; flex-wrap: wrap; gap: var(--sp-200); }
+  /* The surface a form stands on, as the other screens of the section draw one: a standalone
+     element in the sense of design-system.md rule 1, on the frame's canvas. */
+  .panel {
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
 
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
-  .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+  .quiet { margin: 0; color: var(--text-secondary); }
 
   .failure { margin: 0; color: var(--text-danger); }
 </style>

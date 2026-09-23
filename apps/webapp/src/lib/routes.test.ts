@@ -70,8 +70,20 @@ test('every route resolves to one of the three areas, and the profile ones are n
     const area = resolve(ROUTES, route.pattern.replaceAll(/:\w+/g, 'x')).area;
     assert.ok(['end-user', 'profile', 'administration'].includes(area), `${route.name} is in ${area}`);
   }
+  // Your settings is a section since ADR-0065 decision 3, so the area is its eight screens rather
+  // than the two it began with. Every one of them is about the reader themselves, which is what
+  // `profile` means and why the mobile shell ships them all.
   const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
-  assert.deepEqual(profile, ['profile', 'tokens']);
+  assert.deepEqual(profile, [
+    'appearance',
+    'devices',
+    'grants',
+    'notifications',
+    'profile',
+    'security',
+    'sessions',
+    'tokens',
+  ]);
 });
 
 test('every route has a unique name and a unique pattern', () => {

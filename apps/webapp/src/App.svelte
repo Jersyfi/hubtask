@@ -27,6 +27,12 @@ import ContainerView from './views/ContainerView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
+  import AppearanceView from './views/AppearanceView.svelte';
+  import NotificationsView from './views/NotificationsView.svelte';
+  import SecurityView from './views/SecurityView.svelte';
+  import SessionsView from './views/SessionsView.svelte';
+  import DevicesView from './views/DevicesView.svelte';
+  import GrantsView from './views/GrantsView.svelte';
   import SearchView from './views/SearchView.svelte';
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
@@ -157,6 +163,18 @@ import ContainerView from './views/ContainerView.svelte';
     <ProfileView />
   {:else if route.name === 'tokens'}
     <MyTokensView />
+  {:else if route.name === 'appearance'}
+    <AppearanceView />
+  {:else if route.name === 'notifications'}
+    <NotificationsView />
+  {:else if route.name === 'security'}
+    <SecurityView />
+  {:else if route.name === 'sessions'}
+    <SessionsView />
+  {:else if route.name === 'devices'}
+    <DevicesView />
+  {:else if route.name === 'grants'}
+    <GrantsView />
   {:else if route.name === 'administration'}
     <!-- The section's front door (ADR-0065 decision 1). The effect above replaces the address with
          the section's first screen, so nothing is drawn here - not even for the tick in between,

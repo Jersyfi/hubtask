@@ -124,7 +124,17 @@ export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
 export interface SectionRow {
   readonly id: string;
   readonly icon: IconName;
+  /** The word the row carries in the column. */
   readonly code: string;
+  /**
+   * The word the screen wears as its heading, where a column has less room than a heading does.
+   *
+   * "Where you are signed in" is the right sentence over a table and four words too many in a
+   * column 240 px wide, where it would be cut to "Where you are sign…". So the row says *Signed
+   * in* and the screen says the sentence; absent, they are the same word, which is what every row
+   * of the administration is.
+   */
+  readonly titleCode?: string;
   readonly path: string;
   /** The route names this row is current for. */
   readonly routes: readonly string[];
@@ -199,6 +209,66 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
   },
 ];
 
+/**
+ * Your settings, as a section of its own (ADR-0065 decision 3).
+ *
+ * The same anatomy the administration has, for the same reason: what is the reader's own was one
+ * screen of nine sections, read by scrolling, with two lists in it that grow without bound. A
+ * section gives each question an address, a heading and a place in a column that says where the
+ * reader is.
+ *
+ * The rows reuse the words the screens already have - "Where you are signed in", "Second factor",
+ * "Apps you have allowed" - because a row and the screen it opens saying two different things is
+ * how a navigation stops being trustworthy.
+ *
+ * Who sees it is nobody's decision: every one of these screens is about the reader themselves, and
+ * the area is ADR-0032's `profile`, which the mobile shell ships in full.
+ */
+export const SETTINGS: readonly SectionGroup[] = [
+  // The way back, first and alone, exactly as the administration's is.
+  {
+    id: 'back',
+    rows: [
+      { id: 'back', icon: 'chevron-left', code: 'app.you.back', path: '/', routes: [] },
+    ],
+  },
+  {
+    id: 'you',
+    code: 'app.you.group_you',
+    rows: [
+      { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile'] },
+      // The theme and reduced motion are the device's (ADR-0043) and the celebrations are the
+      // account's; what they have in common is that they are how the product looks and moves at
+      // the reader, which is what the screen is called.
+      { id: 'appearance', icon: 'sun-moon', code: 'app.profile.device_section', path: '/profile/appearance', routes: ['appearance'] },
+    ],
+  },
+  {
+    id: 'told',
+    code: 'app.you.group_told',
+    rows: [
+      { id: 'notifications', icon: 'bell', code: 'app.you.row_notifications', titleCode: 'app.profile.notifications', path: '/profile/notifications', routes: ['notifications'] },
+    ],
+  },
+  {
+    id: 'entry',
+    code: 'app.you.group_entry',
+    rows: [
+      { id: 'security', icon: 'shield', code: 'app.mfa.title', path: '/profile/security', routes: ['security'] },
+      { id: 'sessions', icon: 'user-check', code: 'app.you.row_sessions', titleCode: 'app.sessions.title', path: '/profile/sessions', routes: ['sessions'] },
+      { id: 'devices', icon: 'arrow-right-left', code: 'app.you.row_devices', titleCode: 'app.devices.title', path: '/profile/devices', routes: ['devices'] },
+    ],
+  },
+  {
+    id: 'acting',
+    code: 'app.you.group_acting',
+    rows: [
+      { id: 'grants', icon: 'link', code: 'app.you.row_grants', titleCode: 'app.grants.title', path: '/profile/apps', routes: ['grants'] },
+      { id: 'tokens', icon: 'key', code: 'app.tokens.title', path: '/profile/tokens', routes: ['tokens'] },
+    ],
+  },
+];
+
 /** Kept as the name the rest of the client uses for the trash's row. */
 export const TRASH = TRASH_ROW;
 
@@ -241,6 +311,9 @@ export function account(options: { readonly isAdministrationReachable: boolean }
  */
 export function currentDestination(route: { readonly name: string | null; readonly area: Area }): string | undefined {
   if (route.area === 'administration') return 'administration';
+  // And the same for Your settings, which is a section of its own since ADR-0065 decision 3: its
+  // screens are the area, and the list should not have to name each of them twice.
+  if (route.area === 'profile') return 'profile';
   if (route.name === null) return undefined;
   const keeping = KEEPING.find((each) => each.routes.includes(route.name as string));
   if (keeping) return keeping.id;

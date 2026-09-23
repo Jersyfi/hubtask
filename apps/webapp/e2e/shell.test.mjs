@@ -142,7 +142,21 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   assert.equal(new URL(page.url()).pathname, '/profile');
   assert.equal(await bar.getByRole('link', { name: 'You' }).getAttribute('aria-current'), 'page');
 
-  // The trash, through the tree, from anywhere.
+  // Your settings is a section of its own (ADR-0065 decision 3), so the drawer here holds the
+  // section's list rather than the workspace's tree - and its first row is the way out, which is
+  // what a section somebody cannot leave would be missing.
+  await toggle.click();
+  const settings = page.locator('dialog[open]');
+  await settings.waitFor({ timeout: 5_000 });
+  assert.equal(await settings.getByRole('treeitem', { name: 'Trash' }).count(), 0, 'the tree is drawn inside the section');
+  await settings.getByRole('treeitem', { name: 'Signed in', exact: true }).click();
+  await settings.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(new URL(page.url()).pathname, '/profile/sessions');
+  await toggle.click();
+  await page.locator('dialog[open]').getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
+
+  // The trash, through the tree, from anywhere in the workspace.
   await toggle.click();
   await page.locator('dialog[open]').getByRole('treeitem', { name: 'Trash' }).click();
   assert.equal(new URL(page.url()).pathname, '/trash');
