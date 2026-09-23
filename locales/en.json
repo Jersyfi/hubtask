@@ -3012,8 +3012,6 @@
   "app.consent.scope.workspace_manage": "Change how this workspace is set up",
   "app.consent.scope.workspace_read": "See how this workspace is set up",
   "app.tokens.title": "Access tokens",
-  "app.tokens.from_profile": "Let a script or a tool act as you, bounded by what you may do.",
-  "app.tokens.open": "Manage your access tokens",
   "app.tokens.intro": "A token lets a script or a tool act as you, bounded by what you may do and by the scopes you give it. Nobody else can see this list, not even an administrator.",
   "app.tokens.reading": "Reading your tokens",
   "app.tokens.none": "You have no tokens.",

@@ -1922,8 +1922,6 @@
   "app.consent.scope.workspace_manage": "Ändern, wie dieser Arbeitsbereich eingerichtet ist",
   "app.consent.scope.workspace_read": "Sehen, wie dieser Arbeitsbereich eingerichtet ist",
   "app.tokens.title": "Zugangstoken",
-  "app.tokens.from_profile": "Ein Skript oder ein Werkzeug als dich handeln lassen, begrenzt durch das, was du darfst.",
-  "app.tokens.open": "Deine Zugangstoken verwalten",
   "app.tokens.intro": "Ein Token lässt ein Skript oder ein Werkzeug als dich handeln, begrenzt durch das, was du darfst, und durch die Scopes, die du ihm gibst. Niemand sonst kann diese Liste sehen, auch kein Administrator.",
   "app.tokens.reading": "Deine Token werden gelesen",
   "app.tokens.none": "Du hast keine Token.",
