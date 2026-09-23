@@ -213,9 +213,11 @@
       if (!(surface instanceof HTMLElement)) return;
       const id = surface.closest<HTMLElement>('[data-row]')?.dataset.row;
       if (id === undefined) return;
-      const grab = (end instanceof HTMLElement ? end.dataset.end : surface.dataset.track ? 'bar' : 'place') as
-        | TimelineCarry['grab']
-        | undefined;
+      // `hasAttribute`, not the dataset value: `data-track` carries no value, and `''` is falsy -
+      // read as a truth test it made every bar drag look like a tray entry being placed.
+      const grab = (
+        end instanceof HTMLElement ? end.dataset.end : surface.hasAttribute('data-track') ? 'bar' : 'place'
+      ) as TimelineCarry['grab'] | undefined;
       if (grab === undefined) return;
       begin(event, id, grab);
     };
@@ -405,11 +407,19 @@
      descendant of an unpositioned scroller overflows the page instead (issue 874). */
   .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); }
 
+  /* `max-content`, so the box is exactly as wide as the columns in it. A grid that filled its
+     container would leave the tracks at their own width inside a wider box, and every measurement
+     taken of it - which is how a drag finds its column - would be of the wrong thing.
+
+     The margin clears the titles *and* the gap after them, so a column on the axis and the same
+     column in a track are the same column. Without the gap in it the whole axis sits one gap to
+     the left of the bars it rules, which at the day scale is a third of a day. */
   .axis {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: var(--column);
-    margin-inline-start: var(--title);
+    inline-size: max-content;
+    margin-inline-start: calc(var(--title) + var(--sp-100));
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
@@ -475,6 +485,7 @@
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: var(--column);
+    inline-size: max-content;
     touch-action: pan-y;
   }
 
@@ -497,6 +508,10 @@
   /* The ends of a bar, which are what a drag of one date takes hold of. They are as wide as the
      column, which at the month scale is narrow - the reader who cannot hit it has the row itself,
      which opens the entry and its date editor (SC 2.5.7). */
+  /* The due end is the far end of the bar. `space-between` puts a lone child at the near one, and
+     a point - an entry with a due date and no start - has exactly one. */
+  .end[data-end='due'] { margin-inline-start: auto; }
+
   .end {
     inline-size: var(--sp-050);
     block-size: var(--sp-150);
