@@ -7,16 +7,24 @@
   // resolved here, and the moments go through the formats F5-09 built. The conflict a refused
   // change may carry opens the resolver, which is the one write this line can lead to - an
   // ordinary PATCH of the notes, performed by `notes.rewrite`.
+  //
+  // It also carries the **manifest that could not be read** and the way to ask again (issue 1020).
+  // `/meta/capabilities` is what the whole client configures itself from, and until this was here
+  // the only retry for it was a button on `/installation` - the page ADR-0063 decision 6 took out
+  // of the reader's navigation - so from an entry screen there was no way back but a reload. This
+  // mark is on every screen, which is what "a retry where the reader is" means.
 
-  import { ConflictResolver, SyncStatus, type Connection, type RefusedChange } from '@hubtask/design-system/components';
+  import { ConflictResolver, SyncStatus, type Connection, type RefusedChange, type UnreadInstallation } from '@hubtask/design-system/components';
 
   import { viewport } from './viewport.svelte.ts';
 
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { live } from '../data/live.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { formatDateTime, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { renderProblem } from '../problem.ts';
   import { session } from '../session.svelte.ts';
   import { items } from '../data/items.svelte.ts';
 
@@ -50,6 +58,23 @@
       href: change.href,
     })),
   );
+
+  /**
+   * The manifest, where it could not be read. Absent in the ordinary case, which is every case
+   * but one - and the one is the whole application running on nothing it was told.
+   */
+  const unread = $derived.by<UnreadInstallation | undefined>(() => {
+    if (!manifest.failure) return undefined;
+    const problem = renderProblem(manifest.failure, messages);
+    return {
+      label: t('app.installation.unread'),
+      reason: problem.message,
+      reference: problem.reference,
+      referenceLabel: t('app.reference'),
+      retryLabel: t('app.retry'),
+      onRetry: () => void manifest.refresh(),
+    };
+  });
 
   /** A conflict on the notes, shown from the list: the entry, and both versions. */
   let resolving = $state<{ itemId: string; conflictId: string; mine: string; theirs: string; preservedCommentId?: string } | undefined>(undefined);
@@ -103,6 +128,7 @@
     syncedLabel={syncedAt !== undefined ? t('app.sync.synced', { moment: formatDateTime(new Date(syncedAt).toISOString(), messages.locale) }) : undefined}
     queued={queue.queued}
     refused={[...conflicts, ...refused]}
+    {unread}
     listLabel={t('app.sync.panel')}
     emptyLabel={t('app.sync.empty')}
     refusedLabel={t('app.sync.refused')}

@@ -9,7 +9,7 @@
   import TaskRow from './TaskRow.svelte';
   import WorkItemCard from './WorkItemCard.svelte';
 
-  const { mode = 'connected', isSheet = false }: { mode?: 'connected' | 'reconnecting' | 'offline' | 'refused' | 'rows'; isSheet?: boolean } = $props();
+  const { mode = 'connected', isSheet = false }: { mode?: 'connected' | 'reconnecting' | 'offline' | 'refused' | 'unread' | 'rows'; isSheet?: boolean } = $props();
 
   const WORDS: Record<Connection, string> = {
     connected: 'Connected',
@@ -29,7 +29,20 @@
   ]);
 
   const connection = $derived<Connection>(mode === 'reconnecting' ? 'reconnecting' : mode === 'offline' ? 'offline' : 'connected');
-  const pending = $derived(mode === 'connected' ? 0 : queued.length);
+  const pending = $derived(mode === 'connected' || mode === 'unread' ? 0 : queued.length);
+
+  /** The manifest the client could not read, and the ask-again. Nothing was written here. */
+  let asked = $state(0);
+  const unread = $derived(mode === 'unread'
+    ? {
+        label: 'This installation could not be read, so this client does not know what it permits.',
+        reason: asked === 0 ? 'The server could not be reached.' : `Asked again ${asked} time(s).`,
+        reference: '01a0e2e0-0000-7000-8000-0000000000ab',
+        referenceLabel: 'Reference',
+        retryLabel: 'Try again',
+        onRetry: () => (asked += 1),
+      }
+    : undefined);
 </script>
 
 {#if mode === 'rows'}
@@ -48,6 +61,7 @@
     syncedLabel={mode === 'connected' ? 'Synchronised at 21:05' : 'Last synchronised at 20:41'}
     queued={pending > 0 ? queued : []}
     refused={mode === 'refused' ? refused : []}
+    {unread}
     listLabel="The copy and the server"
     {isSheet}
     emptyLabel="Nothing is waiting."
