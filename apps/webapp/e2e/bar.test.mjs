@@ -164,6 +164,63 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   assert.deepEqual(failures, []);
 });
 
+/** The section's screens, and the word each puts at the end of its trail. */
+const SECTION = [
+  ['/administration/workspace', 'Workspace'],
+  ['/administration/people', 'People'],
+  ['/administration/groups', 'Groups'],
+  ['/administration/permissions', 'What each role means'],
+  ['/administration/service-accounts', 'Service accounts'],
+  ['/administration/apps', 'Third-party apps'],
+  ['/administration/webhooks', 'Webhooks'],
+  ['/administration/quotas', 'Limits'],
+  ['/administration/backup', 'Backup'],
+  ['/administration/retention', 'Retention and holds'],
+  ['/administration/restore', 'Restore'],
+  ['/administration/audit', 'The trail'],
+  ['/administration/privacy', "People's requests"],
+  ['/administration/identity-provider', 'Sign-in provider'],
+  ['/administration/ai', 'AI'],
+];
+
+test('chromium: every screen of the section says where it is and leads back', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration`);
+  await page.getByRole('navigation', { name: 'Administration', exact: true }).waitFor({ timeout: 15_000 });
+
+  const untrailed = [];
+  const unheaded = [];
+  for (const [route, word] of SECTION) {
+    await page.goto(`${served.origin}${route}`);
+    const trail = page.getByRole('navigation', { name: 'Where you are in the administration' });
+    // By role, not by selector, and that is the point: the trail is in the DOM on a screen whose
+    // head has folded, but it is not in the accessibility tree - which is what "the screen says
+    // where it is" means. A `locator('nav')` would have found it and proved nothing.
+    const shown = await trail.textContent({ timeout: 4_000 }).catch(() => undefined);
+    // The trail names the section and the screen, and its first crumb is the way back.
+    if (!shown || !shown.includes('Administration') || !shown.includes(word)) untrailed.push(route);
+    // One `h1` per screen, whether drawn or read: two headings is two answers to what a page is.
+    if (await page.locator('main h1').count() !== 1) unheaded.push(route);
+  }
+
+  assert.deepEqual(untrailed, [], `these screens do not say where they are: ${untrailed.join(', ')}`);
+  assert.deepEqual(unheaded, [], `these screens do not have exactly one heading: ${unheaded.join(', ')}`);
+
+  // And the trail's first crumb is a link out, not decoration.
+  await page.goto(`${served.origin}/administration/quotas`);
+  await page
+    .getByRole('navigation', { name: 'Where you are in the administration' })
+    .getByRole('link', { name: 'Administration' })
+    .click();
+  await page.waitForFunction(() => location.pathname === '/administration', null, { timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 375 px — the section is behind the drawer, and the bottom bar still leaves it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
