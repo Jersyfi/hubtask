@@ -18,6 +18,7 @@ import {
   capabilityVerdict,
   changeVerdict,
   childVerdict,
+  declaresType,
   itemAccess,
   permissionVerdict,
   rootTypes,
@@ -88,6 +89,17 @@ test('nothing is knowable before the manifest is read', () => {
   assert.equal(capabilityVerdict(undefined, 'TASK', 'BUCKET').status, 'undetermined');
   assert.equal(childVerdict(undefined, 'TASK', 'WORK_PACKAGE').status, 'undetermined');
   assert.equal(permissionVerdict(undefined, 'ADMIN', 'READ').status, 'undetermined');
+});
+
+test('whether a type is offered at all has the same three answers, and a screen needs all three', () => {
+  // The two ways an entry's details column empties, told apart (issue 1020). Both refuse every
+  // capability the type could carry, and a screen that could not distinguish them drew the same
+  // silence for "this workspace does not offer tasks" and for "nobody has said yet".
+  assert.equal(declaresType(manifest, 'TASK'), true);
+  assert.equal(declaresType(manifest, 'MILESTONE'), false);
+  assert.equal(declaresType(undefined, 'TASK'), undefined);
+  // And the answer moves with the manifest, like every other one here.
+  assert.equal(declaresType({ item_types: [] } as unknown as Capabilities, 'TASK'), false);
 });
 
 test('a new type in the manifest is a new answer, with no code change', () => {

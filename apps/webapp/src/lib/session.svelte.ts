@@ -20,10 +20,19 @@
  * **The one refusal is rendered as the one refusal.** A wrong password and an address nobody holds
  * produce the same answer, byte for byte, because whether an account exists is exactly what a
  * guessing client is trying to learn (`security.md` T-02). This module adds nothing to it.
+ *
+ * **Every one of the four ends with the manifest read again**, because every one of them changes
+ * who is asking. `/meta/capabilities` is scoped by the caller — the installation's answer when
+ * nobody is signed in, the actor's when somebody is — so the manifest read before a sign-in is not
+ * the manifest that applies after it; and `engine.reset()`, which each of the four goes through,
+ * clears the subscription that would otherwise deliver the new one. Issue 1020 is what the missing
+ * line looked like: a 401 on the boot read signed the reader out, the sign-in that followed left
+ * the manifest `failed`, and every entry screen drew as though no type carried anything.
  */
 
 import { TransportError } from '@hubtask/sync-engine';
 
+import { manifest } from './data/capabilities.svelte.ts';
 import { engine, whenCredentialRefused } from './data/engine.ts';
 import { live } from './data/live.svelte.ts';
 import { messages } from './i18n/i18n.svelte.ts';
@@ -150,6 +159,7 @@ class Session {
     this.#owed = undefined;
     this.#problem = undefined;
     this.#status = 'signed-in';
+    void manifest.refresh();
   }
 
   /**
@@ -194,6 +204,10 @@ class Session {
       this.#pending = undefined;
       this.#owed = undefined;
       this.#status = 'signed-in';
+      // As this actor now, and not awaited: what a screen does with the answer it is already
+      // reactive to, and a sign-in that waited on a second round trip would be a sign-in that
+      // hangs when the manifest is the thing that is down.
+      void manifest.refresh();
       return true;
     } catch (error) {
       // Everything the engine throws is a `TransportError`; anything else would be a defect in
@@ -281,6 +295,10 @@ class Session {
     recents.forget();
     search.forget();
     this.#status = 'signed-out';
+    // And the manifest, which the reset above unsubscribed with everything else: the sign-in
+    // screen is drawn from its supported locales, and reading it again is also what re-attaches
+    // the listener the next sign-in needs.
+    void manifest.refresh();
   }
 }
 

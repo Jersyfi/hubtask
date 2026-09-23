@@ -15,6 +15,7 @@ import {
   capabilityVerdict,
   changeVerdict,
   childVerdict,
+  declaresType as declaresTypeIn,
   permissionVerdict,
   rootTypes as rootTypesOf,
   typesWith as typesWithOf,
@@ -24,6 +25,10 @@ import { manifest } from './capabilities.svelte.ts';
 /** Whether the type carries the capability, according to this installation. */
 export const supports = (type: string, capability: string): Verdict =>
   capabilityVerdict(manifest.value, type, capability);
+
+/** Whether this installation declares the type at all. `undefined` while the manifest is unread. */
+export const declaresType = (type: string): boolean | undefined =>
+  declaresTypeIn(manifest.value, type);
 
 /** Whether a child of this type may be created there, type and depth both. */
 export const acceptsChild = (parentType: string, childType: string, parentDepth = 0): Verdict =>
