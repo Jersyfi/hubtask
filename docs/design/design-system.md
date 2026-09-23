@@ -578,9 +578,17 @@ repeated before `1.0.0`.
 available in the EU after 28 June 2025: a public statement naming the standard (EN 301 549, which
 carries WCAG 2.2 AA for web content), the conformance status, the known exceptions with their
 reasons and dates, a way to report a barrier, and the date of the last assessment. It is published
-on the website at convergence (`roadmap.md` phase 5, the 1.0 site) and reachable from the app's
-own footer, unversioned like the site, and it is updated whenever an assessment is — a statement
-that describes a walk two releases ago is a statement that is false.
+on the website at convergence (`roadmap.md` phase 5, the 1.0 site) and reachable from the
+application itself, unversioned like the site, and it is updated whenever an assessment is — a
+statement that describes a walk two releases ago is a statement that is false.
+
+**Where the application offers it.** In each of the two places that is the only place its reader
+has, and in neither more than once: *About Hubtask* (`/installation`) while there is a session,
+beside the versions somebody quotes when they report anything; and the foot of the screens before
+one — sign-in, an invitation, a consent — where there is no account group, and where a barrier is
+the one nothing behind the door makes up for. It is deliberately **not** a footer on every screen:
+a landmark carrying one external link takes a band off every page and off the canvas of a board,
+for a link nobody follows while they are working, and no comparable product keeps one.
 
 **What is deliberately not promised.** Level AAA anywhere; a sign-language or audio-description
 provision (the product has no video); and a conformance claim for a third-party client, which

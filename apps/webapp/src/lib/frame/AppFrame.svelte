@@ -362,15 +362,25 @@
     </main>
   </div>
 
-  <!-- The one link out of the application (design-system.md §10, the statement): the accessibility
-       statement lives on the website, unversioned, so that what it says about a walk is not tied
-       to the build that shipped before the walk. A top-level navigation, which `connect-src` does
-       not govern; a new tab, because the application is what the reader was in the middle of. -->
-  <footer class="foot">
-    <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
-      {t('app.footer.accessibility')}
-    </a>
-  </footer>
+  <!-- The way to the accessibility statement on the screens that have no other one
+       (design-system.md §10): signed out there is no account group and no "About Hubtask", so the
+       foot of the sign-in screen is the only place it can be - and it is the place it matters
+       most, because a barrier at the door is the one nothing behind the door makes up for. Signed
+       in the statement is on `/installation` beside the versions, and this footer is gone: a
+       landmark carrying one external link took 51 px off every screen, and off the canvas of a
+       board, for a link nobody follows while they are working.
+
+       The statement lives on the website, unversioned, so that what it says about a walk is not
+       tied to the build that shipped before the walk. A top-level navigation, which `connect-src`
+       does not govern; a new tab, because the application is what the reader was in the middle
+       of. -->
+  {#if !session.isSignedIn}
+    <footer class="foot">
+      <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
+        {t('app.about.accessibility')}
+      </a>
+    </footer>
+  {/if}
 
   <!-- The primary destinations where a thumb is, on `compact` only; "You" opens the account group
        as a sheet from the bottom, because there is no avatar in the bar on a phone. -->
