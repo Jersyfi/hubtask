@@ -59,7 +59,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { childTypes, supports } from '../lib/data/capability.svelte.ts';
+  import { childTypes, declaresType, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor } from '../lib/data/customfields.ts';
@@ -283,6 +283,15 @@
    * "where do I ask again".
    */
   const typeFailure = $derived(manifest.failure ? renderProblem(manifest.failure, messages) : undefined);
+  /**
+   * Whether the installation declares this entry's type at all.
+   *
+   * The other way the column empties, and the one that survives a reload: a manifest that answers
+   * and declares no profile for `TASK` refuses all fourteen capabilities, one by one, and the
+   * screen drew fourteen nothings. The refusal has one cause and the server has one sentence for
+   * it — `items.type_unsupported`, which this client uses rather than inventing a second.
+   */
+  const isTypeOffered = $derived(item ? declaresType(item.type) !== false : true);
   const repeatValue = $derived.by(() => {
     if (!rule) return undefined;
     const frequency = /FREQ=([A-Z]+)/.exec(rule.rrule ?? '')?.[1];
@@ -761,8 +770,12 @@
         <details class="details-fold" open={!viewport.isCompact}>
           <summary class="details-summary">{t('app.item.details')}</summary>
           <div class="rows">
-            {#if isTypeKnown}
+            {#if isTypeKnown && isTypeOffered}
               {@render detailRows()}
+            {:else if isTypeKnown}
+              <!-- The manifest answered and does not declare this type. Its own sentence, once,
+                   rather than fourteen refusals drawn as an empty column. -->
+              <p class="unread" role="status">{t('items.type_unsupported', { item_type: typeName(item.type) })}</p>
             {:else if typeFailure}
               <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
                    on. The rows are missing because the installation could not be read, and that

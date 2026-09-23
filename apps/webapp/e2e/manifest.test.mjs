@@ -109,6 +109,40 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   assert.deepEqual(failures, []);
 });
 
+test('chromium: a manifest that declares no profile for the type says so, once', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  t.after(() => context.close());
+  // The read succeeds and the answer carries no profile for `TASK`. Every capability is refused,
+  // one by one, for one reason — and the reason has one sentence, which is the server's own.
+  await context.route('**/api/v1/**', (route) => (
+    new URL(route.request().url()).pathname.endsWith('/api/v1/meta/capabilities')
+      ? route.fulfill({ json: { ...MANIFEST, item_types: [] } })
+      : stub(route)
+  ));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+
+  await page.getByText('This workspace does not offer Task entries', { exact: false }).waitFor({ timeout: 5_000 })
+    .catch(() => assert.fail('a type the installation does not declare is drawn as a type that carries nothing'));
+  assert.equal(await page.locator('[data-detail]').count(), 0);
+  // Said once. Fourteen refusals is fourteen sentences for one fact.
+  assert.equal(await page.locator('.unread').count(), 1);
+  // And this one is not the bar's business: nothing failed, so nothing is offered to ask again.
+  assert.equal(await markOf(page).locator('.dot').count(), 0, 'an answered manifest put a dot in the bar');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a stale bearer signs the reader out, and the sign-in reads the manifest as that actor', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
