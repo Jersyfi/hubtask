@@ -157,8 +157,33 @@ which of them the frame uses. Elevation stays reserved for overlays (`design-sys
 
 **This reverses ADR-0061's "the bar carries no search field".** The reasoning that changes is
 what the field *is*: not a second destination, but the entry to the one that exists. Typing in it
-and pressing Enter navigates to `/search?q=…`; the page is the same page, at the same address,
-and `/search` keeps working typed into the address bar.
+and pressing Enter leads to the search page; the page is the same page, at the same address, and
+`/search` keeps working typed into the address bar.
+
+> **Corrected 2026-09-23 (issue 997).** This decision first said `/search?q=…`, and that was
+> wrong. `POST /search` has no `GET` precisely so that what somebody is looking for never becomes
+> a query string: a term in the address travels into access logs, proxies and browser history
+> (`security.md` §9, [ADR-0018](./ADR-0018-privacy-by-design.md)), and a screen that reflected it
+> would undo the reason the operation is a `POST` (`api-guidelines.md` §2).
+>
+> **The address carries the narrowing, never the words.** A kind, a state, a label, a collection
+> are structural, and it is they that make a search a link. The words are the reader's content and
+> stay out of it.
+>
+> That leaves one thing the `?q=` was quietly paying for — a reload must not lose what was typed —
+> and it is paid for without the address: the address carries a short, meaningless handle beside
+> the chips, and the words live under that handle in `sessionStorage`, where the bearer already
+> lives. Back, forward and reload restore the search; a copied link carries the narrowing and
+> nothing of the term; signing out leaves nothing behind. The handle is minted, never derived from
+> the term — a hash of the words would be an oracle for them.
+>
+> The fragment (`#q=`) is the obvious alternative and is refused: the invitation token arrives in
+> a fragment and is removed from the history entry *before the first request leaves*
+> ([ADR-0028](./ADR-0028-embedded-web-ui.md)), so this product already treats a fragment as not
+> safe enough for the history.
+>
+> **Sharing and keeping a search is a saved view**, which is a first-class object under the
+> workspace's own permissions — not a URL somebody pastes into a chat.
 
 * From `medium` up the bar carries the field, between the wordmark and the account menu.
 * On `compact` the bar has no room, so the field is not there and **Search stays a destination in
