@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import {
   DRAG_THRESHOLD_PX,
   boundariesOf,
+  columnAt,
   dropIndex,
   hasLeftTheHandle,
   rankIntent,
@@ -132,4 +133,18 @@ test('the threshold is a distance rather than one axis', () => {
   // time would start it late in the direction the reader happened to be moving.
   assert.equal(hasLeftTheHandle({ x: 0, y: 0 }, { x: 5, y: 5 }), true);
   assert.equal(hasLeftTheHandle({ x: 0, y: 0 }, { x: 3, y: 3 }), false);
+});
+
+test('a point on an axis names the column it falls in, clamped to the axis', () => {
+  // Columns of 24 px from x = 100, fourteen of them: the fortnight a day scale draws.
+  assert.equal(columnAt(100, 100, 24, 14), 0);
+  assert.equal(columnAt(123, 100, 24, 14), 0);
+  assert.equal(columnAt(124, 100, 24, 14), 1);
+  // Past either end is the end, not nothing: a pointer dragged off the axis is asking for its
+  // last column.
+  assert.equal(columnAt(0, 100, 24, 14), 0);
+  assert.equal(columnAt(9_000, 100, 24, 14), 13);
+  // Nothing measured yet.
+  assert.equal(columnAt(150, 100, 0, 14), 0);
+  assert.equal(columnAt(150, 100, 24, 0), 0);
 });
