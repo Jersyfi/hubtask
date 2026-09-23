@@ -283,6 +283,19 @@ for (const width of [905, 1280]) {
     await page.getByRole('button', { name: 'Expand the navigation' }).click();
     assert.equal(await aside.evaluate((el) => el.getBoundingClientRect().width), pinned);
 
+    // What the application says about itself is a mark too (ADR-0065 decision 4), and no longer a
+    // banner above the head of every page: the stage is behind it, and the page starts at its own
+    // heading.
+    const notice = page.getByRole('banner', { name: 'Application bar' }).getByRole('button', { name: 'Hubtask is a preview' });
+    assert.equal(await notice.count(), 1, `${width}: the stage is not in the bar`);
+    assert.equal(await page.locator('main').getByText('Hubtask is a preview').count(), 0, `${width}: a banner still says it on the page`);
+    await notice.click();
+    const said = page.getByRole('dialog', { name: 'Hubtask is a preview' });
+    await said.waitFor({ timeout: 5_000 });
+    assert.equal(await said.getByText(/What you see is meant to stay/).count(), 1, `${width}: the mark opened nothing`);
+    await page.keyboard.press('Escape');
+    await said.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+
     // The connection is one mark in the bar, and no line of the page (ADR-0063 decision 5). At its
     // quietest it says nothing until it is pressed; what the line used to print is behind it.
     const mark = page.getByRole('banner', { name: 'Application bar' }).locator('.trigger');
