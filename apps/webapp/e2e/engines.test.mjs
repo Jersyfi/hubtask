@@ -225,7 +225,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     const mark = page.getByRole('status').filter({ hasText: "Shown from this device's copy" });
     await mark.first().waitFor({ state: 'visible', timeout: 15_000 })
       .catch(() => assert.fail(`${name}: the tree was not drawn from the replica while the server was away`));
-    assert.equal(await page.getByRole('link', { name: 'Engines' }).count(), 1, `${name}: the hub in the copy is not in the tree`);
+    // The tree, and the tree alone: the overview stopped listing the hubs when it became what is
+    // on the reader (ADR-0063 decision 1), so a hub drawn from the copy is a row of the navigation
+    // and nothing else on the page draws it a second time.
+    assert.equal(await page.getByRole('treeitem', { name: 'Engines' }).count(), 1, `${name}: the hub in the copy is not in the tree`);
 
     // The server comes back, and the copy's state is replaced by the server's - on the loop's
     // reconnect, which is what the pause is for: long enough for the first attempt to have
