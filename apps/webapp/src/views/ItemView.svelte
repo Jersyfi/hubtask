@@ -282,9 +282,7 @@
    * screen (ADR-0063 decision 5), and a second one on this page would be the second answer to
    * "where do I ask again".
    */
-  const typeFailure = $derived(
-    manifest.state.status === 'failed' ? renderProblem(manifest.state.error, messages) : undefined,
-  );
+  const typeFailure = $derived(manifest.failure ? renderProblem(manifest.failure, messages) : undefined);
   const repeatValue = $derived.by(() => {
     if (!rule) return undefined;
     const frequency = /FREQ=([A-Z]+)/.exec(rule.rrule ?? '')?.[1];

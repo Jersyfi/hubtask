@@ -30,7 +30,7 @@
  * actor, and there is no second method that reads into an entry nobody hears.
  */
 
-import type { Capabilities, ResourceState } from '@hubtask/sync-engine';
+import type { Capabilities, ResourceState, TransportError } from '@hubtask/sync-engine';
 
 import type { SupportedLocale } from '../i18n/locale.ts';
 import { engine } from './engine.ts';
@@ -39,6 +39,7 @@ const PATH = '/meta/capabilities';
 
 class Manifest {
   #state = $state<ResourceState<Capabilities>>({ status: 'idle' });
+  #failure = $state<TransportError | undefined>(undefined);
   /** The listener registered with the engine, so that a second `start` replaces the first. */
   #stop: (() => void) | undefined;
 
@@ -49,6 +50,20 @@ class Manifest {
   /** Whether anything it says may be relied on. Everything else here answers from a guess. */
   get isRead(): boolean {
     return this.#state.status === 'ready';
+  }
+
+  /**
+   * Why the last read failed, until one succeeds. What a screen renders instead of guessing.
+   *
+   * **Held rather than read off `state`**, and for the reason the engine itself gives for not
+   * publishing `loading` over `ready`: it re-reads an unanswered resource whenever the stream
+   * comes back, and that read publishes `loading` over the failure. A screen reading the live
+   * state alone therefore showed a skeleton, then the sentence, then a skeleton again, for as long
+   * as the server was down — and the retry button went with it, mid-press. A read in flight over a
+   * known failure is not news; what is on screen stays until there is an answer.
+   */
+  get failure(): TransportError | undefined {
+    return this.#failure;
   }
 
   /** The manifest itself, or `undefined` while it is being read or if it could not be. */
@@ -91,6 +106,8 @@ class Manifest {
     this.#stop?.();
     const stop = engine.subscribe<Capabilities>({ path: PATH }, (next) => {
       this.#state = next;
+      if (next.status === 'failed') this.#failure = next.error;
+      else if (next.status === 'ready') this.#failure = undefined;
     });
     this.#stop = stop;
     return () => {

@@ -61,8 +61,8 @@
    * but one - and the one is the whole application running on nothing it was told.
    */
   const unread = $derived.by<UnreadInstallation | undefined>(() => {
-    if (manifest.state.status !== 'failed') return undefined;
-    const problem = renderProblem(manifest.state.error, messages);
+    if (!manifest.failure) return undefined;
+    const problem = renderProblem(manifest.failure, messages);
     return {
       label: t('app.installation.unread'),
       reason: problem.message,
