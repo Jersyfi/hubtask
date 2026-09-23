@@ -45,7 +45,7 @@
   import { anchorOf, draggedTo, gridOf, placedBetween, scaleOf, windowOf, type Scale, type Span } from '../data/schedule.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { firstWeekdayOf } from '../i18n/week.ts';
-  import { dateIn, todayIn } from '../i18n/zone.ts';
+  import { dateIn, instantOf, todayIn } from '../i18n/zone.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -195,10 +195,13 @@
     try {
       let version = entry.version;
       if (next.start !== was.start) {
-        // Midnight in the reader's own zone: a start carries none of its own, so the only honest
-        // reading of a day somebody dropped a bar on is the clock they dropped it with.
-        const at = next.start === undefined ? null : new Date(`${next.start}T00:00`).toISOString();
-        version = (await items.update(entry.id, { start_at: at }, version)).version;
+        // Midnight in the reader's account zone, not the device's - which is where this differs
+        // from `DuePanel`'s start field, deliberately. A date typed into a field is a date somebody
+        // wrote on the clock in front of them; a day taken off this axis is a day the axis drew,
+        // and the axis is drawn in the account's zone. Reading it back any other way would move
+        // the bar the moment it was let go.
+        const at = next.start === undefined ? null : instantOf(next.start, undefined, zone);
+        if (at !== undefined) version = (await items.update(entry.id, { start_at: at }, version)).version;
       }
       if (next.due !== was.due && next.due !== undefined) {
         // All-day, because a bar is drawn in days: a drag says which day, and inventing a time for
