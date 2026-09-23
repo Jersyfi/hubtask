@@ -99,3 +99,103 @@ jobs:
             mirror -R --delete --parallel=4 apps/website/dist/ ${REMOTE_DIR:-.};
             bye"
           echo "website: published to $HOST/${REMOTE_DIR:-.}"
+
+  report:
+    name: File what broke, close what mended
+    needs: [publish]
+    # Not `always()`: a cancelled run says nothing about the publish, and this workflow refuses to
+    # cancel a mirror in progress for the same reason.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # This job exists because of how #982 was found: by somebody reading `main`'s run list for an
+    # unrelated reason, seven days and forty-five red runs after the first failure. Nothing here
+    # gates a pull request - by design, publishing is not a review tool - so a failure lands on a
+    # workflow nobody watches, and the website silently stops being published while every check
+    # anybody looks at stays green. The nightly learned this first; the same mechanism, one job.
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'Website: hubtask.eu is not being published';
+
+            // The outcome is read, and anything that is not an outcome stops the job: a reporter
+            // whose failure mode is silence has to say so rather than pass (nightly.yml, #937).
+            const OUTCOMES = ['success', 'failure', 'cancelled', 'skipped'];
+            const publish = ${{ toJSON(needs.publish) }};
+            const result = publish?.result;
+            if (!OUTCOMES.includes(result)) {
+              throw new Error(
+                `the website reporter cannot read an outcome for 'publish': ` +
+                `${JSON.stringify(publish)} - it expected one of ${OUTCOMES.join(', ')} ` +
+                `under .result`
+              );
+            }
+
+            // A phrase match, compared against the title in full: this job both opens and closes,
+            // and closing the wrong thread is worse than filing a duplicate.
+            const found = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
+            });
+            const issue = found.data.items.find((item) => item.title === title);
+
+            if (result === 'failure') {
+              const body = [
+                `The \`publish\` job failed, so the site currently served at hubtask.eu is older`,
+                `than \`main\`. Every merge that touches \`apps/website/\` or`,
+                `\`packages/design-system/\` from now on stays unpublished until this is fixed.`,
+                ``,
+                `* Run: ${run}`,
+                `* Commit: ${context.sha}`,
+                ``,
+                `The build half runs on every pull request that touches the website`,
+                `(\`Workspace (website)\` runs \`make website\` in a clean checkout), so a failure`,
+                `here that is not a build failure is the deploy half: the SFTP host, its pinned`,
+                `host key, or the credentials.`,
+              ].join('\n');
+
+              // One thread, reopened rather than duplicated: a week of failures is one defect.
+              if (issue) {
+                await github.rest.issues.createComment({
+                  ...context.repo, issue_number: issue.number, body,
+                });
+                if (issue.state === 'closed') {
+                  await github.rest.issues.update({
+                    ...context.repo, issue_number: issue.number, state: 'open',
+                  });
+                }
+              } else {
+                await github.rest.issues.create({
+                  ...context.repo, title, body, labels: ['task', 'claude:task'],
+                });
+              }
+              return;
+            }
+
+            // Only a publish that actually ran and passed closes the thread, and only a thread
+            // this workflow filed - an issue somebody opened by hand is theirs to close.
+            if (result !== 'success' || !issue || issue.state === 'closed') {
+              return;
+            }
+            if (!issue.labels.some((label) => (label.name ?? label) === 'claude:task')) {
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issue.number,
+              body: [
+                `The website was published again, so this is closed.`,
+                ``,
+                `* Run: ${run}`,
+                `* Commit: ${context.sha}`,
+                ``,
+                `The next failure reopens this same thread rather than filing a new one.`,
+              ].join('\n'),
+            });
+            await github.rest.issues.update({
+              ...context.repo, issue_number: issue.number, state: 'closed',
+            });
