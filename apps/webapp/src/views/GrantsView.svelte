@@ -24,11 +24,13 @@
 
   let failure = $state<string | undefined>(undefined);
 
-  const columns = [
+  // `$derived`, because the headings are words: a language chosen on the screen beside this one
+  // changes them, and a list built once would keep the language it was built in.
+  const columns = $derived([
     { id: 'app', label: t('app.grants.app_column') },
     { id: 'scopes', label: t('app.grants.scopes_column') },
     { id: 'withdraw', label: t('app.grants.withdraw'), isLabelHidden: true, align: 'end' as const },
-  ];
+  ]);
 
   async function withdraw(grantId: string): Promise<void> {
     failure = undefined;

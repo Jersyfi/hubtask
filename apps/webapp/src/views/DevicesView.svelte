@@ -30,13 +30,15 @@
   /** The device a forget is being confirmed for. */
   let forgetting = $state<string | undefined>(undefined);
 
-  const columns = [
+  // `$derived`, because the headings are words: a language chosen on the screen beside this one
+  // changes them, and a list built once would keep the language it was built in.
+  const columns = $derived([
     { id: 'device', label: t('app.devices.name') },
     { id: 'platform', label: t('app.devices.platform') },
     { id: 'seen', label: t('app.devices.last_seen') },
     { id: 'standing', label: t('app.devices.standing') },
     { id: 'forget', label: t('app.devices.forget'), isLabelHidden: true, align: 'end' as const },
-  ];
+  ]);
 
   const shown = $derived(
     [...devices.all].sort((a, b) => {

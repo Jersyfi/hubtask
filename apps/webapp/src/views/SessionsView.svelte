@@ -36,13 +36,15 @@
   const held = $derived(sessions.state);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
-  const columns = [
+  // `$derived`, because the headings are words: a language chosen on the screen beside this one
+  // changes them, and a list built once would keep the language it was built in.
+  const columns = $derived([
     { id: 'client', label: t('app.sessions.client') },
     { id: 'created', label: t('app.sessions.created') },
     { id: 'used', label: t('app.sessions.last_used') },
     { id: 'network', label: t('app.sessions.network') },
     { id: 'end', label: t('app.sessions.end'), isLabelHidden: true, align: 'end' as const },
-  ];
+  ]);
 
   /**
    * The newest first, and this device first of all.
@@ -111,18 +113,18 @@
         <p class="quiet">{t('app.sessions.none')}</p>
       {:else}
         <Table label={t('app.sessions.title')} isLabelHidden {columns}>
-          {#each shown as held (held.id)}
+          {#each shown as row (row.id)}
             <tr>
               <th scope="row" class="what">
-                {held.user_agent || t('app.sessions.unknown_client')}
-                {#if held.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
+                {row.user_agent || t('app.sessions.unknown_client')}
+                {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
               </th>
-              <td>{when(held.created_at)}</td>
-              <td>{when(held.last_used_at)}</td>
-              <td>{held.ip_class ?? '—'}</td>
+              <td>{when(row.created_at)}</td>
+              <td>{when(row.last_used_at)}</td>
+              <td>{row.ip_class ?? '—'}</td>
               <td class="end">
-                <Button tone="danger" size="sm" onclick={() => void endOne(held.id, held.current)}>
-                  {held.current ? t('app.sessions.end_this') : t('app.sessions.end')}
+                <Button tone="danger" size="sm" onclick={() => void endOne(row.id, row.current)}>
+                  {row.current ? t('app.sessions.end_this') : t('app.sessions.end')}
                 </Button>
               </td>
             </tr>
