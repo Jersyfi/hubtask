@@ -357,3 +357,22 @@ test('chromium: the accessibility statement is reachable, signed in and signed o
   assert.deepEqual(failures, []);
   assert.deepEqual(signedOut.failures, []);
 });
+
+// The band under the sign-in screen on a phone. The frame reserves the bottom bar's height below
+// `medium` so that the last row of a list is reachable rather than under the bar - but the bar is
+// drawn for a session, and the reservation was not conditioned on one. Signed out the screen
+// therefore ended 56 px above the bottom with nothing in the gap, and scrolled into it.
+test('chromium: 375 px — signed out, nothing is reserved for a bar that is not drawn', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 375, { signedIn: false });
+  t.after(close);
+
+  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar without a session');
+  const box = await page.evaluate(() => ({ document: document.documentElement.scrollHeight, window: window.innerHeight }));
+  assert.equal(box.document, box.window, `the sign-in screen scrolls ${box.document - box.window} px into nothing`);
+  // And the one link out is still at the foot of it, which is what the reservation was pushing.
+  assert.equal(await page.getByRole('contentinfo').getByRole('link', { name: STATEMENT }).count(), 1, 'no way to the statement on a phone');
+
+  assert.deepEqual(failures, []);
+});

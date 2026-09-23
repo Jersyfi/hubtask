@@ -237,7 +237,7 @@
 
 </script>
 
-<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined}>
+<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn ? '' : undefined}>
   <!-- The first stop on every page (2.4.1). The keyboard walk of F5-11 counted eleven stops from
        the top of the frame to the first control of the content; this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
@@ -521,12 +521,14 @@
   }
 
   /* Below `medium` the bottom bar is fixed over the end of the page, so the page ends above it -
-     the footer scrolls into view over the bar, not under it. The token's value is written out
-     because a media query cannot read a custom property; it is `primitive.breakpoint.medium` and
-     nothing else, and the token remains the source. */
+     the last row of a list is reachable rather than under the bar. Only where there is a bar:
+     the bar is drawn for a session, and a frame that reserved its height signed out ended the
+     sign-in screen 56 px above the bottom of the screen with nothing in the gap. The token's
+     value is written out because a media query cannot read a custom property; it is
+     `primitive.breakpoint.medium` and nothing else, and the token remains the source. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
-    .frame { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
+    .frame[data-bottombar] { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
 
     main { padding: var(--sp-200); }
 
