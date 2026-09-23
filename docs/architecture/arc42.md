@@ -774,6 +774,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0062 | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted |
 | 0063 | The navigation, the status place, and how a screen is worked | accepted |
 | 0064 | The one read that may ask the whole workspace a narrowed question | accepted |
+| 0065 | Sections, and where a statement about the application lives | proposed |
 
 ---
 
