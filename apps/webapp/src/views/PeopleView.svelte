@@ -171,7 +171,29 @@
 
 <div class="screen">
   <Stack gap="300">
-    <PageHeader title={t('app.people.title')} isTitleInBar={viewport.isCompact} />
+    <!-- The section's page pattern, read once here and applied to the rest in F10-09 (ADR-0063
+         decision 7): the trail says where in the administration this screen is and leads back to
+         its index, the title is read rather than drawn where the bar carries it, and the content
+         keeps the reading measure `.screen` gives it.
+
+         No primary action in the head, and that is the screen rather than the pattern: what one
+         does here is give somebody a role, which is a form on the page. A screen whose one action
+         opens a dialog puts its button here.
+
+         No `onnavigate` either: the crumb carries an `href` and the router takes every same-origin
+         link, so a handler here would be a second way to do what the link already does. -->
+    <PageHeader
+      title={t('app.people.title')}
+      isTitleInBar={viewport.isCompact}
+      breadcrumb={{
+        trail: [
+          { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+          { id: 'people', label: t('app.people.title') },
+        ],
+        label: t('app.admin.trail'),
+        expandLabel: t('app.admin.expand_trail'),
+      }}
+    />
     <p class="quiet">{t('app.people.intro')}</p>
 
     {#if failure}
