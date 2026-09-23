@@ -228,21 +228,11 @@
     line-height: var(--lh-tight);
   }
 
-  /* The band's word stands where the titles under it start (issue 1022). A heading at the row's
-     own edge reads as a label on the panel rather than on the list under it, and "Overdue" is
-     about those rows.
-
-     The inset is the row's leading, in the tokens that draw it: `ListRow`'s inline padding, the
-     twist, the completion box with its border, the type mark, and the three gaps between them.
-     It is arithmetic over somebody else's component, so it is **measured** rather than trusted -
-     `e2e/overview.test.mjs` asserts that a band and the first title under it share an x, and goes
-     red if `TaskRow`'s leading ever changes. */
+  /* The band's word is flush left: the same start as the panel's own heading and as the rows'
+     boxes under it (issue 1022). It was indented to the titles for a day, which read as a label
+     hanging in the middle of the list; `e2e/overview.test.mjs` measures it either way. */
   .band {
     margin: 0;
-    padding-inline-start: calc(
-      var(--sp-150) + var(--sp-400) + var(--sp-250) + var(--bw-hairline) * 2 + var(--sp-400) +
-        var(--density-row-gap) * 3
-    );
     font-size: var(--fs-075);
     font-weight: var(--fw-medium);
     color: var(--text-secondary);
