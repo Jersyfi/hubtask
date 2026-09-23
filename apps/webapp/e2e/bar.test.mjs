@@ -198,13 +198,24 @@ test('chromium: every screen of the section says where it is and leads back', as
   assert.deepEqual(untrailed, [], `these screens do not say where they are: ${untrailed.join(', ')}`);
   assert.deepEqual(unheaded, [], `these screens do not have exactly one heading: ${unheaded.join(', ')}`);
 
-  // And the trail's first crumb is a link out, not decoration.
+  // And the trail's first crumb is a link out, not decoration. It leads to the section's front
+  // door, which is the section's **first screen** (ADR-0065 decision 1): the column lists every
+  // screen, so an index beside it would be that list drawn twice. The address is replaced rather
+  // than added to, so the reader's back button still goes where they came from.
   await page.goto(`${served.origin}/administration/quotas`);
   await page
     .getByRole('navigation', { name: 'Where you are in the administration' })
     .getByRole('link', { name: 'Administration' })
     .click();
-  await page.waitForFunction(() => location.pathname === '/administration', null, { timeout: 5_000 });
+  await page.waitForFunction(() => location.pathname === '/administration/workspace', null, { timeout: 5_000 });
+  // The row the reader lands on is the one the column marks, so arriving says where they are.
+  assert.equal(
+    await page
+      .getByRole('navigation', { name: 'Administration', exact: true })
+      .getByRole('treeitem', { name: 'Workspace', exact: true })
+      .getAttribute('aria-current'),
+    'page',
+  );
 
   assert.deepEqual(failures, []);
 });
