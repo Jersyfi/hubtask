@@ -79,6 +79,8 @@ test.after(() => served.close());
 
 async function open(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 800 } });
+  // The copy control is offered only where the clipboard is, and a headless context is not asked.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await context.route('**/api/v1/**', stub);
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
@@ -104,8 +106,9 @@ test('chromium: the bar leads to the search, and the words are not in the addres
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
 
-  // The words arrived, and the address did not carry them.
-  assert.equal(new URL(page.url()).search, '', 'the term reached the address bar');
+  // The words arrived, and the address carries a handle rather than them (issue 997).
+  assert.equal(new URL(page.url()).searchParams.get('q'), null, 'the term reached the address bar');
+  assert.equal(page.url().includes('milk'), false, `the term is in the address: ${page.url()}`);
   await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('main input[type="search"]').inputValue(), 'milk', 'the screen did not take the words');
   // And the bar's own field emptied itself, so one question is not shown in two places.
@@ -117,7 +120,72 @@ test('chromium: the bar leads to the search, and the words are not in the addres
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => document.querySelector('main input[type="search"]')?.value === 'bread', null, { timeout: 5_000 });
   await page.waitForFunction(() => true);
-  assert.equal(new URL(page.url()).search, '', 'the second term reached the address bar');
+  assert.equal(page.url().includes('bread'), false, `the second term is in the address: ${page.url()}`);
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a reload keeps the words, and the address never held them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+  asked.length = 0;
+
+  await page.locator('header form[role="search"] input').fill('milk');
+  await page.keyboard.press('Enter');
+  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+
+  // The address names a handle and nothing else about the search's content.
+  await page.waitForFunction(() => new URL(location.href).searchParams.get('s') !== null, null, { timeout: 5_000 });
+  const handle = new URL(page.url()).searchParams.get('s');
+  assert.match(handle, /^[0-9a-f]{8}$/, `the handle is ${handle}`);
+  assert.equal(page.url().includes('milk'), false, 'the term is in the address');
+
+  // What a reload is for: the words come back, and so do the results.
+  await page.reload();
+  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('main input[type="search"]').inputValue(), 'milk', 'the reload lost the words');
+  assert.equal(new URL(page.url()).searchParams.get('s'), handle, 'the reload minted a second handle');
+
+  // Going away and coming back is the same promise through the other door.
+  await page.getByRole('link', { name: HIT.title }).click();
+  await page.goBack();
+  await page.waitForFunction(() => document.querySelector('main input[type="search"]')?.value === 'milk', null, { timeout: 10_000 });
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a link carries the narrowing and none of the words', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+  asked.length = 0;
+
+  // A search with both: words typed, and a chip chosen.
+  await page.goto(`${served.origin}/search?type=TASK`);
+  await page.locator('main input[type="search"]').fill('milk');
+  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await page.waitForFunction(() => new URL(location.href).searchParams.get('s') !== null, null, { timeout: 5_000 });
+
+  // The link the screen offers: the chip, and no handle - a handle is this tab's, not a link's.
+  const link = await page.evaluate(async () => {
+    const control = [...document.querySelectorAll('button')].find((each) => each.textContent?.includes('Copy a link'));
+    control?.click();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return navigator.clipboard.readText();
+  });
+  assert.equal(link.includes('type=TASK'), true, `the link lost the narrowing: ${link}`);
+  assert.equal(link.includes('milk'), false, `the link carries the term: ${link}`);
+  assert.equal(link.includes('s='), false, `the link carries a handle: ${link}`);
+
+  // And opening it in a tab that never saw the words shows the narrowing with an empty field.
+  const second = await page.context().newPage();
+  await second.goto(link);
+  await second.getByRole('link', { name: HIT.title }).waitFor({ timeout: 15_000 });
+  assert.equal(await second.locator('main input[type="search"]').inputValue(), '', 'the link carried the words after all');
+  await second.close();
 
   assert.deepEqual(failures, []);
 });

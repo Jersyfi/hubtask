@@ -177,7 +177,10 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   await page.locator('header form[role="search"] input').fill('milk');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
-  assert.equal(new URL(page.url()).search, '', 'the words reached the address bar');
+  // The address carries a handle for the words, never the words (issue 997): what is kept is kept
+  // in this tab, and a link made of this address would carry the narrowing and nothing typed.
+  assert.equal(page.url().includes('milk'), false, `the words reached the address bar: ${page.url()}`);
+  assert.equal(new URL(page.url()).searchParams.get('q'), null, 'the term is in the address as `q`');
 
   await page.getByRole('button', { name: ACCOUNT.display_name }).click();
   const menu = page.getByRole('menu', { name: 'You' });
