@@ -20,13 +20,16 @@
     EmptyState,
     ErrorState,
     Inline,
+    PageHeader,
     SearchField,
     Select,
-    Switch,
     Skeleton,
     Stack,
+    Switch,
     TaskRow,
   } from '@hubtask/design-system/components';
+
+  import FilterChips from '../lib/search/FilterChips.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -36,10 +39,50 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { health } from '../lib/data/health.svelte.ts';
   import { search, type SearchMode } from '../lib/data/search.svelte.ts';
+  import { fromQuery, toFilter, toQuery, type Chosen } from '../lib/data/searchfilters.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
+
+  interface Props {
+    /** What the address carries: the narrowing, never the words (see the note at the top). */
+    query?: Readonly<Record<string, string>>;
+    onnavigate?: (path: string) => void;
+  }
+
+  const { query = {}, onnavigate }: Props = $props();
 
   let term = $state('');
+
+  /**
+   * The words the app bar handed over, taken as they arrive.
+   *
+   * An effect rather than an initial value, because this screen is not remounted when somebody
+   * searches again from the bar while already on it — and that press has to do something. Taken
+   * rather than read: the store empties on the way out, so the same words handed over twice are
+   * two searches (`search.svelte.ts`).
+   */
+  $effect(() => {
+    if (search.handedOver === undefined) return;
+    term = search.takeHandover() ?? term;
+  });
+  /**
+   * The narrowing, read from the address and written back to it.
+   *
+   * The chips are structural — a kind, a state, a label, a collection — so they belong in the
+   * address: a narrowing somebody can link to, bookmark and edit. The **words do not**, and that
+   * is the one sentence of ADR-0063 decision 4 this screen does not do: `POST /search` has no
+   * `GET` because a term is content and a query string travels through access logs, proxies and
+   * browser history, and a screen that reflected the term would undo the reason the operation is
+   * a POST (`api-guidelines.md` §2, `search.svelte.ts`).
+   */
+  const chosen = $derived<Chosen>(fromQuery(query));
+
+  function narrow(next: Chosen) {
+    const carried = new URLSearchParams(toQuery(next)).toString();
+    onnavigate?.(carried === '' ? '/search' : `/search?${carried}`);
+  }
   /** Empty is the caller's own locale, which is what the contract does when `language` is absent. */
   let language = $state('');
 
@@ -73,6 +116,7 @@
    */
   const asked = $derived({
     q: term,
+    filter: toFilter(chosen),
     language: language || undefined,
     mode,
     readerLocale: actor.locale ?? messages.locale,
@@ -85,7 +129,8 @@
 
   $effect(() => {
     const question = asked;
-    if (question.q.trim() === '') {
+    // Either is a question; neither is the empty screen this starts on (ADR-0064).
+    if (question.q.trim() === '' && question.filter === undefined) {
       search.reset();
       return;
     }
@@ -127,10 +172,13 @@
       writeFailure = renderProblem(error as never, messages);
     }
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.search.title')));
 </script>
 
 <Stack gap="300">
-  <h1 class="name">{t('app.search.title')}</h1>
+  <PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />
 
   <!-- `data-tour`: where the tour points for the query language (F6-14). -->
   <Inline gap="150" align="end" data-tour="search">
@@ -164,6 +212,10 @@
     {/if}
   </Inline>
 
+  <!-- What it is narrowed to, under the field: each chip a question, each saying how many of its
+       answers are chosen (ADR-0063 decision 4). -->
+  <FilterChips {chosen} onchange={narrow} />
+
   <p class="hint">{t('app.search.hint')}</p>
 
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
@@ -180,6 +232,10 @@
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if search.status === 'idle'}
     <EmptyState kind="unused" title={t('app.search.start')} icon="search" />
+  {:else if search.hits.length === 0 && term.trim() === ''}
+    <!-- Narrowed and empty is a different sentence from searched and empty: nothing was looked
+         *for*, so nothing "does not match the words" — what excluded everything is the narrowing. -->
+    <EmptyState kind="filtered" title={t('app.search.narrowed_none')} icon="search" />
   {:else if search.hits.length === 0}
     <!-- `filtered`, not `unused`: something excluded everything, and voice-and-tone.md §4.2 is
          about exactly that — the emptiness has a cause and the sentence names it. And when the
@@ -247,14 +303,6 @@
 </Stack>
 
 <style>
-  .name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .term { flex: 1 1 24ch; min-width: 0; max-width: 48ch; }
 
   .hint { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }

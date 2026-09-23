@@ -22,12 +22,14 @@
   // fetch, so no policy directive is involved — and the address is built from the server's answer
   // rather than from anything this screen composed.
 
-  import { Banner, Button, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { consent, type AppSummary } from '../lib/data/consent.svelte.ts';
   import { completionUrl, declineUrl, readRequest } from '../lib/data/oauth.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The request, read once. `undefined` means there is no request in this address at all. */
   const request = $state(readRequest(location.search));
@@ -88,11 +90,14 @@
     // than left waiting.
     leave(declineUrl(request.redirectUri, request.state));
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.consent.title')));
 </script>
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.consent.title')}</h1>
+    <PageHeader title={t('app.consent.title')} isTitleInBar={viewport.isCompact} />
 
     {#if !request}
       <!-- Reached without an authorization request: a bookmark, a reload after the redirect,
@@ -151,14 +156,6 @@
 <style>
   /* Rule 4: a column that grows with its text and stops before it becomes a line nobody can read. */
   .screen { max-width: 60ch; }
-
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
 
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 

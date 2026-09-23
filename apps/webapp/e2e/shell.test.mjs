@@ -5,8 +5,10 @@
 // ways, and the proof that the same destinations are reachable on each. At 375 px the primary
 // group is the bottom bar, the tree is behind ☰ and the account group behind "You"; at 600 px
 // the drawer holds both groups and the avatar is in the bar; at 905 and 1280 px the navigation is
-// pinned and folds to a rail. On every width: the search exists once and the bar has no field for
-// it, `[data-tour="hubs"]` is on something the tour can point at, and nothing scrolls sideways.
+// pinned and folds to a rail. On every width the search exists exactly once (ADR-0063 decision 4):
+// the bar's field from `medium` up, where the tree therefore has no Search row, and the bottom
+// bar's destination on `compact`, where the bar has no room for a field. Also on every width:
+// `[data-tour="hubs"]` is on something the tour can point at, and nothing scrolls sideways.
 //
 // Chromium only: what differs by width is layout, and the layout has no engine-specific part;
 // the engines job loads the bundle in all three.
@@ -55,7 +57,9 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 /** The destinations every width has to offer, by the name a reader sees. */
-const PRIMARY = ['Workspace', 'Search', 'Jumble'];
+const PRIMARY = ['Overview', 'Search', 'Jumble'];
+/** The same list where the bar carries the entry to search: the row for it would be the second. */
+const PLACES = ['Overview', 'Jumble'];
 // The account group, in its order. "This installation" is at the foot as "About Hubtask" with the
 // version beside it (ADR-0063 decision 6) — the same route under a name somebody would look for.
 const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'Sign out', 'About Hubtask · 0.9.0'];
@@ -75,9 +79,14 @@ async function open(browser, width) {
   return { page, failures, close: () => context.close() };
 }
 
-/** What is common to every width: no second search, the tour's target, no sideways scroll. */
+/** What is common to every width: one search, the tour's target, no sideways scroll. */
 async function common(page, width) {
-  assert.equal(await page.locator('header input, header [type=search]').count(), 0, `${width}: the bar carries a search field`);
+  // One entry to search, and which one depends on the width. Counted here rather than asserted
+  // per test, because "exactly one" is the rule both halves of decision 4 exist to keep.
+  const inBar = await page.locator('header form[role="search"] input').count();
+  const inNav = await page.getByRole('treeitem', { name: 'Search' }).count() + await page.getByRole('link', { name: 'Search', exact: true }).count();
+  assert.equal(inBar, width < 600 ? 0 : 1, `${width}: the bar has ${inBar} search fields`);
+  assert.equal(inBar + inNav, 1, `${width}: ${inBar + inNav} entries to search`);
   assert.equal(await page.locator('[data-tour="hubs"]').count(), 1, `${width}: the tour's hubs step has ${await page.locator('[data-tour="hubs"]').count()} targets`);
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, `${width}: the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
@@ -97,7 +106,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
   const bar = page.getByRole('navigation', { name: 'Sections' });
   for (const name of [...PRIMARY, 'You']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
-  assert.equal(await bar.getByRole('link', { name: 'Workspace' }).getAttribute('aria-current'), 'page');
+  assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page');
 
   // ☰ is the tour's target and opens the tree alone: the hub, the trash last, and none of the
   // three destinations the bar below already has.
@@ -115,7 +124,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).click();
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`);
-  assert.equal(await bar.getByRole('link', { name: 'Workspace' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
+  assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
 
   // "You" opens the account group as a sheet: the name at its head, the five rows, sign out last.
   await bar.getByRole('link', { name: 'You' }).click();
@@ -161,10 +170,14 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-  assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
-  await drawer.getByRole('treeitem', { name: 'Search' }).click();
+  assert.deepEqual(rows, [...PLACES, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
+  // Search is the bar's field here, and it leads to the same destination the row used to.
+  await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
-  assert.equal(new URL(page.url()).pathname, '/search');
+  await page.locator('header form[role="search"] input').fill('milk');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
+  assert.equal(new URL(page.url()).search, '', 'the words reached the address bar');
 
   await page.getByRole('button', { name: ACCOUNT.display_name }).click();
   const menu = page.getByRole('menu', { name: 'You' });
@@ -189,7 +202,7 @@ for (const width of [905, 1280]) {
     const tree = page.getByRole('navigation', { name: 'Workspace' });
     const keeping = page.getByRole('navigation', { name: 'What is kept' });
     const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-    assert.deepEqual(rows, [...PRIMARY, 'House'], `${width}: the tree holds ${JSON.stringify(rows)}`);
+    assert.deepEqual(rows, [...PLACES, 'House'], `${width}: the tree holds ${JSON.stringify(rows)}`);
     assert.deepEqual((await keeping.getByRole('treeitem').allTextContents()).map((row) => row.trim()), ['Archive', 'Trash'], `${width}: the keeping band`);
     // And it is at the foot: below every row of the tree above it, and at the bottom of the column.
     const foot = await page.evaluate(() => {
@@ -201,7 +214,7 @@ for (const width of [905, 1280]) {
     assert.ok(foot !== null && foot.below > 100, `${width}: the keeping band is ${JSON.stringify(foot)} from the hubs`);
     assert.ok(foot.toBottom < 40, `${width}: the keeping band is ${foot.toBottom}px above the column's bottom`);
     assert.equal(await page.locator('aside[data-tour="hubs"]').count(), 1, `${width}: the tour's target is not the pinned navigation`);
-    assert.equal(await tree.getByRole('treeitem', { name: 'Workspace' }).getAttribute('aria-current'), 'page');
+    assert.equal(await tree.getByRole('treeitem', { name: 'Overview' }).getAttribute('aria-current'), 'page');
 
     // The rail: the same tree, folded to its marks, and back. The width is the token's.
     const aside = page.locator('aside.sidenav');

@@ -15,9 +15,11 @@
   // The list grows as this milestone adds screens — people, tokens, jumble, automation, backup,
   // retention, audit. Nothing here is a route table: it links to `lib/routes.ts`'s addresses.
 
-  import { ListRow, Stack } from '@hubtask/design-system/components';
+  import { ListRow, PageHeader, Stack } from '@hubtask/design-system/components';
 
   import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const screens = [
     { path: '/administration/workspace', label: 'app.admin.workspace', hint: 'app.admin.workspace_hint' },
@@ -46,11 +48,16 @@
     },
     { path: '/administration/ai', label: 'app.admin.ai', hint: 'app.admin.ai_hint' },
   ];
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.admin.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.admin.title')}</h1>
+<Stack gap="300">
+  <PageHeader title={t('app.admin.title')} isTitleInBar={viewport.isCompact} />
+
+  <div class="screen">
+    <Stack gap="300">
     <p class="quiet">{t('app.admin.intro')}</p>
 
     <Stack gap="100">
@@ -66,20 +73,18 @@
         </ListRow>
       {/each}
     </Stack>
-  </Stack>
-</div>
+    </Stack>
+  </div>
+</Stack>
 
 <style>
   /* Rule 4: a column that grows with its text and stops before it becomes a line nobody can read. */
+  /* The reading measure the section gives a document (ADR-0063 decision 7), and the **head is not
+     in it**: `PageHeader` folds by the width it has rather than by the viewport, so a head inside
+     a 60ch column folds like one on a phone and hides its trail behind the parent link. The trail
+     is what says where in the section a screen is, so the measure belongs to the content under
+     the head rather than to the screen. */
   .screen { max-width: 60ch; }
-
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

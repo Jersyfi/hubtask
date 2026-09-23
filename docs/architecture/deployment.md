@@ -287,7 +287,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE` | `600` | Per token |
 | `HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE` | `3000` | Per tenant |
 | `HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE` | `10` | Login, password reset, invitation |
-| `HUBTASK_RATE_LIMIT_BURST` | `20` | How much of a budget may be spent at once |
+| `HUBTASK_RATE_LIMIT_BURST` | `60` | How much of a budget may be spent at once. A browser opening a page is a burst and does not pace itself: the web app's first paint of a cold entry page is 24 requests, so at 20 two of them were answered `429` and retried. The minute's budget above is what bounds a caller; this decides whether an honest client's first screen stutters |
 | `HUBTASK_LOAD_SHED_INFLIGHT` | `64` | Requests in flight above which deferrable work — bulk, export, search, the query shapes — is refused with `503` and a `Retry-After`, before latency tips over for the interactive path (observability-reliability.md §6, RT-6). Per role rather than per installation: each role is its own deployment with its own resources, and the chart sets the value on the one that serves the API. Several times the pool because not every request in flight holds a connection; `0` switches shedding off, which is the honest setting for an installation whose rate limits are the whole of its admission control |
 | `HUBTASK_LOAD_SHED_RETRY_AFTER` | `5s` | What a shed caller is told to wait |
 | `HUBTASK_MAX_BODY_BYTES` / `HUBTASK_MAX_UPLOAD_BYTES` | `1 MiB` / `64 MiB` | Request and upload limit (T-17) |

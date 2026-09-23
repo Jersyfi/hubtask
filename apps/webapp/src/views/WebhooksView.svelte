@@ -26,17 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import {
-    Badge,
-    Banner,
-    Button,
-    Checkbox,
-    Input,
-    OneTimeSecret,
-    Select,
-    Spinner,
-    Stack,
-  } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, OneTimeSecret, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import {
@@ -49,6 +39,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The outcomes the contract lets a caller narrow to. `DEAD_LETTER` is the one operators want. */
   const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER'];
@@ -146,11 +138,27 @@
     opened = webhookId;
     await attempt(() => webhooks.readDeliveries(webhookId, outcome || undefined));
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.webhooks.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.webhooks.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.webhooks.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'webhooks', label: t('app.webhooks.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+  <div class="screen">
+    <Stack gap="300">
     <p class="quiet">{t('app.webhooks.intro')}</p>
 
     {#if secret}
@@ -502,17 +510,17 @@
         </div>
       </Stack>
     </form>
-  </Stack>
-</div>
+    </Stack>
+  </div>
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The reading measure the section gives a document (ADR-0063 decision 7), and the **head is not
+     in it**: `PageHeader` folds by the width it has rather than by the viewport, so a head inside
+     a 60ch column folds like one on a phone and hides its trail behind the parent link. The trail
+     is what says where in the section a screen is, so the measure belongs to the content under
+     the head rather than to the screen. */
+  .screen { max-width: 60ch; }
 
   .section {
     margin: 0;

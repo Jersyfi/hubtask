@@ -17,7 +17,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
   import { people } from '../lib/data/people.svelte.ts';
@@ -25,6 +25,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
@@ -68,11 +70,27 @@
       isWorking = false;
     }
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.service_accounts.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.service_accounts.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.service_accounts.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'service-accounts', label: t('app.service_accounts.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+  <div class="screen">
+    <Stack gap="300">
     <p class="quiet">{t('app.service_accounts.intro')}</p>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
@@ -144,17 +162,17 @@
       </form>
       <p class="quiet small">{t('app.service_accounts.then_grant')}</p>
     </Stack>
-  </Stack>
-</div>
+    </Stack>
+  </div>
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The reading measure the section gives a document (ADR-0063 decision 7), and the **head is not
+     in it**: `PageHeader` folds by the width it has rather than by the viewport, so a head inside
+     a 60ch column folds like one on a phone and hides its trail behind the parent link. The trail
+     is what says where in the section a screen is, so the measure belongs to the content under
+     the head rather than to the screen. */
+  .screen { max-width: 60ch; }
 
   .section,
   .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }

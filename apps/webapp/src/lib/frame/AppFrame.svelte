@@ -8,9 +8,10 @@
   // `SideNav` pinned beside the content from `expanded` (collapsible to a rail), as the same
   // `SideNav` in a `NavDrawer` behind ☰ below it, and as a `BottomBar` on `compact`, where the
   // drawer then holds the tree alone. The account group is behind the avatar and the name from
-  // `medium` and behind "You" in the bottom bar below it. The bar carries no page action and no
-  // search field: the search is a destination, and a second entry to it is the duplication the
-  // list exists to prevent.
+  // `medium` and behind "You" in the bottom bar below it. The bar carries no page action. It does
+  // carry the entry to search from `medium` up (ADR-0063 decision 4), and that is why `primary()`
+  // is asked for the list *without* Search there: one visible entry to it on every width - the
+  // field up here, or the destination in the bottom bar on `compact`, never both.
   //
   // Two things it deliberately does not do. It knows nothing about a Tauri shell — every platform
   // difference goes through `src/lib/platform/` (ADR-0033), and there is no `isTauri` anywhere in
@@ -20,9 +21,11 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
+  import AdministrationNav from './AdministrationNav.svelte';
+  import BarSearch from './BarSearch.svelte';
   import HealthNotice from './HealthNotice.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import TourGuide from './TourGuide.svelte';
@@ -35,13 +38,14 @@
   import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
-  import { DESTINATIONS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
+  import { ADMINISTRATION, DESTINATIONS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -112,6 +116,11 @@
     return untrack(() => quotas.open());
   });
 
+  // Whose list of recently opened entries this device is holding. The account's id is the key, so
+  // it is adopted when the account arrives and dropped when it changes — two people sharing a
+  // browser never read each other's (`lib/recents.svelte.ts`).
+  $effect(() => recents.adopt(actor.account?.id));
+
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());
 
@@ -123,6 +132,18 @@
    */
   const currentNode = $derived(
     route.name === 'hub' || route.name === 'collection' ? route.params.id : destination,
+  );
+  /**
+   * Whether the reader is inside the administration, which is a section with a navigation of its
+   * own (ADR-0063 decision 7) rather than a corner of the workspace.
+   *
+   * The route's area answers it, which is the same answer `currentDestination` already gives the
+   * account group — one fact, read once.
+   */
+  const isInSection = $derived(route.area === 'administration');
+  /** Which row of the section's list is current, by the id that list gives it. */
+  const sectionRow = $derived(
+    ADMINISTRATION.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
   const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
   /**
@@ -252,6 +273,26 @@
       <!-- A name rather than a message: the product is called Hubtask in every language. -->
       <a class="wordmark" href="/">Hubtask</a>
     {/snippet}
+    {#snippet search()}
+      <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
+           the reader reaches search through the bottom bar instead. -->
+      {#if session.isSignedIn && !viewport.isCompact}
+        <BarSearch onnavigate={go} />
+      {/if}
+    {/snippet}
+    {#snippet menu()}
+      <!-- The page's own menu, at the end of the compact bar (ADR-0061 decision 1's table). The
+           list is the head's own folded one, handed over rather than assembled here: two foldings
+           would eventually disagree about which action is an action and which is an item. -->
+      {#if viewport.isCompact && page.menu}
+        {@const offered = page.menu}
+        <Menu label={offered.label} items={offered.items} placement={{ side: 'block-end', align: 'end' }} onselect={offered.onselect}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label={offered.label} data-opener={offered.opener} {...props} />
+          {/snippet}
+        </Menu>
+      {/if}
+    {/snippet}
     {#snippet end()}
       <!-- The copy and the server, as one mark (ADR-0063 decision 5): connected, reconnecting or
            offline; what waits to be sent and what the server refused; when the copy last
@@ -292,12 +333,23 @@
          finds the bar's ☰ instead. -->
     {#if session.isSignedIn}
       {#if viewport.isBelowExpanded}
-        <NavDrawer bind:isOpen={isDrawerOpen} title={t('app.nav.title')} dismissLabel={t('app.nav.close')}>
-          <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} onnavigate={go} />
+        <NavDrawer bind:isOpen={isDrawerOpen} title={isInSection ? t('app.admin.nav') : t('app.nav.title')} dismissLabel={t('app.nav.close')}>
+          {#if isInSection}
+            <AdministrationNav current={sectionRow} onnavigate={go} />
+          {:else}
+            <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
+          {/if}
         </NavDrawer>
       {:else}
-        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour="hubs">
-          <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
+        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour={isInSection ? undefined : 'hubs'}>
+          {#if isInSection}
+            <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
+                 `hubs` step points at the tree, so it does not point here: a step that pointed at
+                 a column the tree is not in would explain the wrong thing. -->
+            <AdministrationNav current={sectionRow} {isRail} onnavigate={go} />
+          {:else}
+            <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
+          {/if}
         </aside>
       {/if}
     {/if}

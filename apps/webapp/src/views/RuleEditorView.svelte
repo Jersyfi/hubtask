@@ -75,6 +75,12 @@
   // a slab of one colour on a page of another - a box on a page (issue 918).
   $effect(() => page.fill());
 
+  // And the bar carries the rule's name on a phone (ADR-0061 decision 1's table). The canvas keeps
+  // its own heading, because here the heading *is* the control that renames the rule - reading it
+  // rather than drawing it would take the rename away. So this page is the one that hands the bar
+  // a title and draws one too, and the two say the same thing.
+  $effect(() => page.entitle(shownName || t('app.flow.new_title')));
+
   $effect(() => untrack(() => rules.open()));
   $effect(() => untrack(() => containers.start()));
   $effect(() => untrack(() => serviceAccounts.open()));

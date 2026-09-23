@@ -23,7 +23,18 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, JumbleInboxItem, OneTimeSecret, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import {
+    Banner,
+    Button,
+    Input,
+    JumbleInboxItem,
+    OneTimeSecret,
+    PageHeader,
+    Select,
+    Spinner,
+    Stack,
+    Textarea,
+  } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -34,6 +45,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -158,13 +171,16 @@
       capturedBody = '';
     }, t('app.jumble.captured_announced'));
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.jumble.title')));
 </script>
 
 <div class="screen">
   <Stack gap="300">
     <!-- `data-tour`: where the tour points for "where things arrive before they are work". -->
     <div data-tour="jumble">
-      <h1>{t('app.jumble.title')}</h1>
+      <PageHeader title={t('app.jumble.title')} isTitleInBar={viewport.isCompact} />
       <p class="quiet">{t('app.jumble.intro')}</p>
     </div>
 
@@ -337,14 +353,6 @@
 </div>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }

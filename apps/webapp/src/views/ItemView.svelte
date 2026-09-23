@@ -84,6 +84,7 @@
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { recents } from '../lib/recents.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import PeopleMarks from '../lib/people/PeopleMarks.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
@@ -136,6 +137,14 @@
   // The bar carries the title on a phone (ADR-0061 decision 2); on every width the head's `h1`
   // is read rather than drawn, because the title the reader sees is the field they edit it in.
   $effect(() => (isInPane ? undefined : page.entitle(item?.title)));
+
+  // What the overview's "what you had open" is built from. Noted when the entry has a title rather
+  // than when the route resolved: a row naming an entry nothing could name yet would be a blank.
+  // Not in the pane, where the reader is on the list beside it rather than on this.
+  $effect(() => {
+    if (isInPane || !item?.title) return;
+    recents.note({ kind: 'item', id: item.id, title: item.title });
+  });
 
   /**
    * The entries above this one, nearest first, for the breadcrumb through the levels: a work
@@ -686,6 +695,8 @@
       <PageHeader
         title={item.title}
         isTitleInBar={true}
+        isMenuInBar={viewport.isCompact}
+        onmenu={(offered) => page.offer(offered)}
         breadcrumb={{ trail, label: t('app.workspace.trail'), expandLabel: t('app.workspace.expand_trail'), onnavigate: goTo }}
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, opener: 'entry-menu', onselect: chooseFromMenu }}
       />

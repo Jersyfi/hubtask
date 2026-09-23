@@ -72,6 +72,22 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.DueTimeZone != nil {
 		in["due_time_zone"] = *body.DueTimeZone
 	}
+	// Where the entry lands among its siblings, served since F10-17 (issue 896). Sent only when
+	// the caller named one: an absent anchor is "at the end", which is not the same instruction.
+	if body.BeforeItemId != nil {
+		in["before_item_id"] = body.BeforeItemId.String()
+	}
+	// The cover the entry is created with, served since F10-17 (issue 896). What it says travels
+	// whole - the field used to be passed on as an empty document, which refused the request by
+	// name and therefore never had to carry anything.
+	if body.Cover != nil {
+		in["cover"] = coverDocument(*body.Cover)
+	}
+	// And the custom field values, served since F10-17 (issue 896), each judged against the
+	// definition in force for the entry's collection.
+	if body.CustomFields != nil {
+		in["custom_fields"] = map[string]any(*body.CustomFields)
+	}
 	withUnservedItemFields(body, in)
 
 	out, err := c.UseCases.Invoke(r.Context(), createWorkItemUseCase, actor, in)
@@ -252,23 +268,42 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // already assigned, by name or by the collection's policy. `member_ids` stays for the reason
 // `label_ids` stayed after B-09: the endpoint that owns the set is its own
 // (`/items/{id}/members/{accountId}`), and no task has yet decided that a create may seed it.
-// The cover follows in 0.3.0. The bucket left this list with B-09, and the due date with D-01.
+// The cover follows in 0.3.0. The bucket left this list with B-09, the due date with D-01, and
+// `before_item_id`, `cover` and `custom_fields` with F10-17 - the create serves all three now,
+// through the writers that own them, so nothing of `WorkItemCreate` is left in this list but the
+// member set. It is kept rather than deleted because the shape is what the next promise the
+// specification makes ahead of an implementation will need.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
-	if body.BeforeItemId != nil {
-		in["before_item_id"] = body.BeforeItemId.String()
-	}
 	if body.LabelIds != nil {
 		in["label_ids"] = uuidList(*body.LabelIds)
 	}
 	if body.MemberIds != nil {
 		in["member_ids"] = uuidList(*body.MemberIds)
 	}
-	if body.Cover != nil {
-		in["cover"] = map[string]any{}
+}
+
+// coverDocument is the contract's cover as the catalogue's untyped document.
+//
+// Written out member by member rather than marshalled: the generated type holds pointers, and a
+// JSON round trip here would turn an unsent member into a null the catalogue would have to tell
+// apart from an absent one. A member the caller did not send is simply not in the map, which is
+// what every other field on this path does.
+// `Cover` and not `CoverInput`: `WorkItemCreate` references the first, which differs only in
+// leaving `kind` optional. A cover with no kind is then refused by the domain, naming
+// `/cover/kind` - which is a better answer than a schema error, and no reason to change the
+// contract for.
+func coverDocument(cover openapi.Cover) map[string]any {
+	document := map[string]any{}
+	if cover.Kind != nil {
+		document["kind"] = string(*cover.Kind)
 	}
-	if body.CustomFields != nil {
-		in["custom_fields"] = map[string]any(*body.CustomFields)
+	if cover.ColorToken != nil {
+		document["color_token"] = *cover.ColorToken
 	}
+	if cover.MediaId != nil {
+		document["media_id"] = cover.MediaId.String()
+	}
+	return document
 }
 
 func uuidList(values []openapi_types.UUID) []any {

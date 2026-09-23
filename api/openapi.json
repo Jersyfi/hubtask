@@ -9891,16 +9891,13 @@
       },
       "ItemSearchQuery": {
         "type": "object",
-        "required": [
-          "q"
-        ],
-        "description": "One search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.\n**It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.\n`mode` says how much of that to use, and defaults to `AUTO` - the two halves where the installation has both. Semantic search is optional four times over: the database may not carry pgvector, the workspace may have configured no AI provider or not consented to it, and the provider may not answer in the second somebody is waiting. Every one of those is a **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask for - it would be a mode the server could not promise. `/meta/capabilities` answers `semantic_search` for a client that wants to say in its interface which it has.\n",
+        "description": "One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because \"everything\" is not a question this API answers.\n`filter` is the same grammar `POST /items:query` takes, with the same closed field vocabulary, the same operators and the same bounds (ADR-0064). The difference between the two endpoints is not the grammar, it is the anchor: a query is anchored to a container because an unanchored one is a question authorisation cannot answer in one step, and a search is the one read where \"where is this, anywhere\" *is* the question - so it is read and then narrowed to what the caller may see, and its page may be short where a query's would be a refusal.\n**It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.\n`mode` says how much of that to use, and defaults to `AUTO` - the two halves where the installation has both. Semantic search is optional four times over: the database may not carry pgvector, the workspace may have configured no AI provider or not consented to it, and the provider may not answer in the second somebody is waiting. Every one of those is a **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask for - it would be a mode the server could not promise. `/meta/capabilities` answers `semantic_search` for a client that wants to say in its interface which it has.\n",
         "properties": {
           "q": {
             "type": "string",
             "minLength": 1,
             "maxLength": 200,
-            "description": "What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find.\n"
+            "description": "What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find. Optional where a `filter` is sent: a filtered search with no words is a work list rather than a search, and it is ordered rather than ranked.\n"
           },
           "container_id": {
             "type": [
@@ -9919,6 +9916,22 @@
           },
           "mode": {
             "$ref": "#/components/schemas/SearchMode"
+          },
+          "filter": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FilterNode"
+              }
+            ],
+            "description": "Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.\n"
+          },
+          "sort": {
+            "type": "array",
+            "maxItems": 4,
+            "description": "Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.\n",
+            "items": {
+              "$ref": "#/components/schemas/SortTerm"
+            }
           },
           "include_archived": {
             "type": "boolean",
@@ -14996,6 +15009,34 @@
           }
         }
       },
+      "SortTerm": {
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "description": "One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).\n",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "dir": {
+            "type": "string",
+            "enum": [
+              "ASC",
+              "DESC"
+            ],
+            "default": "ASC"
+          },
+          "nulls": {
+            "type": "string",
+            "enum": [
+              "FIRST",
+              "LAST"
+            ],
+            "default": "LAST"
+          }
+        }
+      },
       "FilterNode": {
         "type": "object",
         "required": [
@@ -15077,31 +15118,7 @@
             "maxItems": 4,
             "description": "Ordered, most significant first, and always completed by `id ASC` so that a cursor is unambiguous. Defaults to the manual order (`order_key ASC`).\n",
             "items": {
-              "type": "object",
-              "required": [
-                "field"
-              ],
-              "properties": {
-                "field": {
-                  "type": "string"
-                },
-                "dir": {
-                  "type": "string",
-                  "enum": [
-                    "ASC",
-                    "DESC"
-                  ],
-                  "default": "ASC"
-                },
-                "nulls": {
-                  "type": "string",
-                  "enum": [
-                    "FIRST",
-                    "LAST"
-                  ],
-                  "default": "LAST"
-                }
-              }
+              "$ref": "#/components/schemas/SortTerm"
             }
           },
           "group_by": {

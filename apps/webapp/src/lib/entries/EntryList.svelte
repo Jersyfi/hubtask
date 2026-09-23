@@ -780,6 +780,62 @@
    * `:move` without the reader asking for it. Changing the parent is the menu's, where it is a
    * decision rather than a slip.
    */
+  /**
+   * A press held on a coarse pointer, which is what a finger has where a mouse has a modifier.
+   *
+   * 300 ms and no movement — the same hold the board's drag waits for, deliberately, so that one
+   * gesture cannot mean two things: the drag starts on the grip and this starts anywhere else on
+   * the row. A fine pointer is excluded, because a mouse held still for a third of a second is
+   * somebody reading, not somebody selecting.
+   */
+  const HOLD_MS = 300;
+
+  /**
+   * The two gestures on the level itself, for the reason the key handler beside them is there: a
+   * `<div>` carrying an interaction is a static element with one, and Svelte is right to warn.
+   * One listener for the level rather than one per row, and each finds its row by `data-row`.
+   */
+  $effect(() => {
+    const node = level;
+    if (!node) return;
+    let held: ReturnType<typeof setTimeout> | undefined;
+    const idAt = (target: EventTarget | null) =>
+      (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
+    const release = () => {
+      if (held === undefined) return;
+      clearTimeout(held);
+      held = undefined;
+    };
+    const onDown = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse' || selection.isOn) return;
+      const id = idAt(event.target);
+      if (!id) return;
+      held = setTimeout(() => selection.pick(visibleIds, id), HOLD_MS);
+    };
+    // The capture phase, because the row is a link and the router listens for the click after it.
+    const onClick = (event: MouseEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || selection.isOn) return;
+      const id = idAt(event.target);
+      if (!id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selection.pick(visibleIds, id);
+    };
+    node.addEventListener('pointerdown', onDown);
+    node.addEventListener('pointerup', release);
+    node.addEventListener('pointercancel', release);
+    node.addEventListener('pointermove', release);
+    node.addEventListener('click', onClick, true);
+    return () => {
+      release();
+      node.removeEventListener('pointerdown', onDown);
+      node.removeEventListener('pointerup', release);
+      node.removeEventListener('pointercancel', release);
+      node.removeEventListener('pointermove', release);
+      node.removeEventListener('click', onClick, true);
+    };
+  });
+
   const drag = createDrag({
     start: (grip) => {
       const id = grip.closest('[data-row]')?.getAttribute('data-row');
@@ -952,6 +1008,12 @@
           <CelebrationSlot current={moment} />
         {/if}
         {#each rows as row (row.item.id)}
+          <!-- Two ways into the mode from a row, and they are the two a pointer has. A modifier
+               press is the fine pointer's — and it is caught in the capture phase, because the
+               row is a link and the router listens for the click after it. A press held is the
+               coarse pointer's, which is what a finger has instead of a modifier; the threshold
+               is the drag helper's hold, so the two gestures cannot disagree about what a hold is.
+               Both go through `selection.pick`, which turns the mode on. -->
           <div
             class="row"
             data-row={row.item.id}
@@ -967,9 +1029,11 @@
             style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
           >
             <!-- The pick, first in the row and first in the tab order, so a keyboard reaches it
-                 the way a pointer does. Shift is read from the event rather than from a mode: one
+                 the way a pointer does — and drawn only while somebody is selecting (ADR-0063
+                 decision 8). Shift is read from the event rather than from a mode of its own: one
                  code path for the pointer and the keyboard is what keeps the two from drifting
                  apart, and `selection.pick` is where it lives. -->
+            {#if selection.isOn}
             <span class="pick">
               <Checkbox
                 label={t('app.bulk.select', { title: row.item.title })}
@@ -984,6 +1048,7 @@
                 }}
               />
             </span>
+            {/if}
             <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
                  menu at the end of the row, and it is a real one — so a second focusable element
                  that does nothing for the keyboard would be noise in the tab order rather than
