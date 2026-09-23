@@ -137,12 +137,7 @@ export interface SectionGroup {
   readonly rows: readonly SectionRow[];
 }
 
-/**
- * The marks are chosen from the set ADR-0041 declares, and two of them are approximations: a
- * service account is `zap` because a machine acting is the nearest thing the set has to one, and
- * "People's requests" is `hand` because somebody asking is. Adding marks to the set is
- * `build/icons.js` and `make icons`, which is a design-system change and not this task's.
- */
+/** The marks come from the set ADR-0041 declares; issue 998 added the three it was missing. */
 export const ADMINISTRATION: readonly SectionGroup[] = [
   // The way back, first and alone: a section a reader cannot leave is a trap, and the row that
   // leads out is the one they look for at the top rather than at the foot.
@@ -160,7 +155,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people'] },
       { id: 'groups', icon: 'users', code: 'app.admin.groups', path: '/administration/groups', routes: ['groups'] },
       { id: 'permissions', icon: 'shield', code: 'app.admin.permissions', path: '/administration/permissions', routes: ['permissions'] },
-      { id: 'service-accounts', icon: 'zap', code: 'app.admin.service_accounts', path: '/administration/service-accounts', routes: ['service-accounts'] },
+      { id: 'service-accounts', icon: 'key', code: 'app.admin.service_accounts', path: '/administration/service-accounts', routes: ['service-accounts'] },
       { id: 'apps', icon: 'link', code: 'app.admin.apps', path: '/administration/apps', routes: ['apps'] },
     ],
   },
@@ -177,7 +172,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'holds',
     code: 'app.admin.group_holds',
     rows: [
-      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
+      { id: 'quotas', icon: 'gauge', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
       { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
@@ -188,7 +183,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_record',
     rows: [
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'] },
-      { id: 'privacy', icon: 'hand', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
+      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
     ],
   },
   {
