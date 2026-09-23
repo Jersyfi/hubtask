@@ -1430,7 +1430,7 @@ func run() error {
 		work.SearchItems{
 			Items: items, Containers: containers,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			// The semantic half (J-10). Optional four times over - the extension, the provider,
 			// the consent, and whether it answers in time - and every one of those is a lexical
 			// search rather than a failure.
