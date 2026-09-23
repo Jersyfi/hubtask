@@ -68,6 +68,7 @@
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { recents } from '../lib/recents.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -468,6 +469,13 @@
   // The bar carries the title on a phone (ADR-0061 decision 2); the head then reads its heading
   // rather than drawing it. Cleared when this screen leaves.
   $effect(() => page.entitle(container?.name));
+
+  // What the overview's "what you had open" is built from, for the two container levels. Noted
+  // once the level is known, because the mark on the row is what it says.
+  $effect(() => {
+    if (!container?.name) return;
+    recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name });
+  });
 
   /** The list, for the head's primary action: the form is the list's, the button is the head's. */
   let list = $state<EntryList | undefined>(undefined);
