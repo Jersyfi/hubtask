@@ -223,75 +223,47 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: 1280 px — assignment is two named questions, and the policy is offered only where there is one', async (t) => {
+test('chromium: 1280 px — the policy chooses only where there is one to choose', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
-  /** Opens the entry's assignee editor with the collection served as given, and reads the panel. */
-  const panelWith = async (policies, itemId = ENTRY.id) => {
-    const { page, context, close, unstubbed } = await signedIn(browser, 1280, 1000);
+  /** Opens the entry's assignee editor and reads the auto-assign button, with the collection served as given. */
+  const buttonWith = async (policies) => {
+    const { page, context, close } = await signedIn(browser, 1280, 1000);
     t.after(close);
     await context.route(`**/api/v1/containers/${COLLECTION.id}`, (route) =>
       route.fulfill({ json: { ...COLLECTION, policies } }));
-    await page.goto(`${served.origin}/items/${itemId}`);
+    await page.goto(`${served.origin}/items/${ENTRY.id}`);
     await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
     await page.locator('[data-detail="assignee"]').click();
-    const editor = page.getByRole('dialog', { name: 'Assignee' });
-    await editor.waitFor({ timeout: 5_000 });
-    const read = {
-      // The two parts, by their headings and the sentence under each.
-      parts: (await editor.getByRole('heading', { level: 3 }).allTextContents()).map((each) => each.trim()),
-      says: (await editor.textContent()) ?? '',
-      // Each part names its own list, so a reader arriving by keyboard hears which one they are in.
-      // Named lists a reader may actually reach: a refused gate leaves its control in the page
-      // and `inert`, so the DOM still holds it and the accessibility tree does not.
-      lists: await editor
-        .locator('[role="listbox"]:not([inert] [role="listbox"])')
-        .evaluateAll((lists) => lists.map((list) => list.getAttribute('aria-label'))),
-      refusals: (await editor.locator('[data-status="refused"] .reason').allTextContents()).map((each) => each.trim()),
-      button: await editor.getByRole('button', { name: 'Let the policy choose' }).count(),
-      link: await editor.getByRole('link', { name: 'Open the collection' }).count() === 1
-        ? await editor.getByRole('link', { name: 'Open the collection' }).getAttribute('href')
-        : null,
-    };
+    await page.getByRole('dialog', { name: 'Assignee' }).waitFor({ timeout: 5_000 });
+    const state = await page.evaluate(() => {
+      const button = [...document.querySelectorAll('button')].find((each) => each.textContent?.includes('Let the policy choose'));
+      return button ? { disabled: button.disabled, reason: button.nextElementSibling?.textContent ?? null } : null;
+    });
     await context.close();
-    return read;
+    return state;
   };
 
-  // Two named parts, each with the sentence that distinguishes it (ADR-0063 decision 10).
-  const without = await panelWith({ completion_policy: 'MANUAL' });
-  assert.deepEqual(without.parts, ['Responsible', 'Also on it']);
-  assert.deepEqual(without.lists, ['Responsible', 'Also on it']);
-  assert.match(without.says, /One person\. The entry is theirs/);
-  assert.match(without.says, /Several people\. They follow the entry/);
+  // Offered where a policy exists, and carrying its reason where none does — rather than
+  // disappearing, because automatic assignment is exactly something somebody might want and be
+  // missing (issue 917, and `domain-model.md` §2's rule that a refusal is never silent).
+  const without = await buttonWith({ completion_policy: 'MANUAL' });
+  assert.equal(without?.disabled, true, 'the policy was offered where the collection has none');
+  assert.match(without?.reason ?? '', /No policy chooses/);
 
-  // No policy: no button at all, the sentence saying where one is set, and the way there for a
-  // reader who may set it - this reader owns the hub, so they may.
-  assert.equal(without.button, 0, 'the policy was offered where the collection has none');
-  assert.match(without.says, /No policy chooses for this collection yet/);
-  assert.equal(without.link, `/collections/${COLLECTION.id}`);
-
-  const with_ = await panelWith({
+  const with_ = await buttonWith({
     completion_policy: 'MANUAL',
     auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: true },
   });
-  assert.equal(with_.button, 1, 'the policy was not offered where the collection has one');
-  assert.equal(with_.link, null, 'the way to the policy is offered beside a policy that exists');
+  assert.equal(with_?.disabled, false, 'the policy was refused where the collection has one');
+  assert.equal(with_?.reason, null);
 
-  const off = await panelWith({
+  const off = await buttonWith({
     completion_policy: 'MANUAL',
     auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: false },
   });
-  assert.equal(off.button, 0, 'a policy that is switched off still offered to choose');
-
-  // A type that carries no member list keeps both parts and names the second one's refusal, rather
-  // than dropping a part and leaving the reader to wonder where it went (`domain-model.md` §2).
-  const activityId = CHILDREN[CHILDREN[ENTRY.id][0].id][0].id;
-  const activity = await panelWith({ completion_policy: 'MANUAL' }, activityId);
-  assert.deepEqual(activity.parts, ['Responsible', 'Also on it']);
-  assert.deepEqual(activity.lists, ['Responsible'], 'an activity was offered a member list it can reach');
-  assert.deepEqual(activity.refusals, ['A ACTIVITY has no MEMBERS.']);
-  assert.deepEqual(without.refusals, [], 'a task was refused one of the two');
+  assert.equal(off?.disabled, true, 'a policy that is switched off still offered to choose');
 });
 
 test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {
