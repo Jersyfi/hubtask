@@ -117,9 +117,6 @@ export function stub(route) {
     const target = ALL_ITEMS.find((each) => each.id === id);
     return route.fulfill({ json: { ...target, completion: { is_completed: path.endsWith(':complete') }, version: target.version + 1 } });
   }
-  const covered = ALL_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}/cover`));
-  if (covered && request.method() === 'PUT') return route.fulfill({ json: { ...covered, cover: request.postDataJSON(), version: covered.version + 1 } });
-  if (covered && request.method() === 'DELETE') return route.fulfill({ json: { ...covered, cover: null, version: covered.version + 1 } });
   if (path.match(/\/api\/v1\/items\/[^/]+\/(reminders|attachments|comments|activity)$/)) return route.fulfill({ json: { ...PAGE, data: [] } });
   if (path.match(/\/api\/v1\/items\/[^/]+\/recurrence$/)) return route.fulfill({ status: 404, json: { code: 'recurrence.not_found' } });
   if (/\/(views|templates|custom-fields|policies|feeds)$/.test(path)) return route.fulfill({ json: [] });
