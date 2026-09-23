@@ -24,6 +24,7 @@
   import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
+  import AdministrationNav from './AdministrationNav.svelte';
   import BarSearch from './BarSearch.svelte';
   import HealthNotice from './HealthNotice.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
@@ -44,7 +45,7 @@
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
-  import { DESTINATIONS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
+  import { ADMINISTRATION, DESTINATIONS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -131,6 +132,18 @@
    */
   const currentNode = $derived(
     route.name === 'hub' || route.name === 'collection' ? route.params.id : destination,
+  );
+  /**
+   * Whether the reader is inside the administration, which is a section with a navigation of its
+   * own (ADR-0063 decision 7) rather than a corner of the workspace.
+   *
+   * The route's area answers it, which is the same answer `currentDestination` already gives the
+   * account group — one fact, read once.
+   */
+  const isInSection = $derived(route.area === 'administration');
+  /** Which row of the section's list is current, by the id that list gives it. */
+  const sectionRow = $derived(
+    ADMINISTRATION.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
   const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
   /**
@@ -320,12 +333,23 @@
          finds the bar's ☰ instead. -->
     {#if session.isSignedIn}
       {#if viewport.isBelowExpanded}
-        <NavDrawer bind:isOpen={isDrawerOpen} title={t('app.nav.title')} dismissLabel={t('app.nav.close')}>
-          <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
+        <NavDrawer bind:isOpen={isDrawerOpen} title={isInSection ? t('app.admin.nav') : t('app.nav.title')} dismissLabel={t('app.nav.close')}>
+          {#if isInSection}
+            <AdministrationNav current={sectionRow} onnavigate={go} />
+          {:else}
+            <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
+          {/if}
         </NavDrawer>
       {:else}
-        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour="hubs">
-          <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
+        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour={isInSection ? undefined : 'hubs'}>
+          {#if isInSection}
+            <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
+                 `hubs` step points at the tree, so it does not point here: a step that pointed at
+                 a column the tree is not in would explain the wrong thing. -->
+            <AdministrationNav current={sectionRow} {isRail} onnavigate={go} />
+          {:else}
+            <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
+          {/if}
         </aside>
       {/if}
     {/if}
