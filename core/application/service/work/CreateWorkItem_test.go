@@ -538,6 +538,8 @@ type itemHarness struct {
 	uow         *unitOfWork
 	visibility  *visibility
 	policies    *policyStore
+	media       *mediaObjects
+	fields      *customFieldStore
 }
 
 func newItemHarness() *itemHarness {
@@ -558,6 +560,8 @@ func newItemHarness() *itemHarness {
 		uow:         &unitOfWork{},
 		visibility:  newVisibility(assigneeID, accountID),
 		policies:    newPolicyStore(),
+		media:       newMediaObjects(),
+		fields:      newCustomFieldStore(),
 	}
 	h.handler = CreateWorkItem{
 		Items: store, Containers: containerStore, Profiles: h.profiles,
@@ -599,6 +603,22 @@ func newItemHarness() *itemHarness {
 			Items: store, ItemMembers: h.itemMembers, Containers: containerStore,
 			Profiles: h.profiles, Authorizer: h.authorizer, Visibility: h.visibility,
 			Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		},
+		// The custom field use case, over the same fakes (issue 896): the create path is its
+		// second caller, one key at a time.
+		CustomFields: SetCustomField{
+			Items: store, Containers: containerStore, Profiles: h.profiles, Fields: h.fields,
+			Authorizer: h.authorizer, Visibility: h.visibility,
+			Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		},
+		// The cover writer, over the same fakes (issue 896): the create path is its second caller.
+		Covers: CoverWriter{
+			Items: store, Containers: containerStore, Profiles: h.profiles, Media: h.media,
+			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
@@ -1187,31 +1207,211 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
 		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
-		"calendar_uid", "label_ids", "member_ids",
+		"calendar_uid", "label_ids", "member_ids", "before_item_id", "cover", "custom_fields",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	// The contract promises these on WorkItemCreate too, and no use case writes them at
-	// creation yet (issue 896); they are refused by name rather than accepted and dropped.
-	for _, later := range []string{"cover", "custom_fields", "before_item_id"} {
-		if declared[later] {
-			t.Errorf("%s is declared, though no use case writes it yet", later)
+	// Every member of WorkItemCreate is now declared and written (issue 896, F10-17). What is
+	// checked from here on is the other direction: a name the contract does *not* promise is
+	// still refused rather than accepted and dropped, which is what kept the three honest while
+	// they waited.
+	if err := descriptor.ValidateInput(map[string]any{
+		"type": "TASK", "title": "Buy milk", "colour": "red",
+	}); err == nil {
+		t.Error("a field the contract does not promise was accepted rather than refused by name")
+	}
+	for name, value := range map[string]any{
+		"cover":          map[string]any{"kind": "COLOR", "color_token": "accent.red"},
+		"custom_fields":  map[string]any{"priority": "high"},
+		"before_item_id": "0192f000-0000-7000-8000-00000000000f",
+		"member_ids":     []any{"0192f000-0000-7000-8000-00000000000e"},
+	} {
+		if err := descriptor.ValidateInput(map[string]any{
+			"type": "TASK", "title": "Buy milk", name: value,
+		}); err != nil {
+			t.Errorf("%s, which the contract promises, was refused: %v", name, err)
 		}
 	}
+}
 
-	if err := descriptor.ValidateInput(map[string]any{
-		"type": "TASK", "title": "Buy milk",
-		"cover": map[string]any{"kind": "COLOR", "color_token": "accent.red"},
-	}); err == nil {
-		t.Error("a field nothing writes was accepted rather than refused by name")
+// The anchor the contract has promised since 0.1 and the catalogue refused until F10-17 (issue
+// 896): the entry lands in front of the sibling named, between its neighbours, rather than at the
+// end of the list.
+func TestACreateRanksTheEntryInFrontOfTheSiblingItNames(t *testing.T) {
+	h := newItemHarness()
+	sibling := h.withTask()
+	// What the level answers around the anchor: the key before it, and the anchor's own.
+	h.items.previousKey, h.items.nextKey = "a0", "a1"
+
+	cmd := taskCommand()
+	cmd.BeforeItemID = sibling.ID
+	created, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
 	}
-	if err := descriptor.ValidateInput(map[string]any{
-		"type": "TASK", "title": "Buy milk",
-		"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
-	}); err != nil {
-		t.Errorf("member_ids, which the contract promises, was refused: %v", err)
+
+	if h.items.askedBefore != sibling.ID {
+		t.Errorf("the neighbours were asked around %s", h.items.askedBefore)
+	}
+	if h.items.askedLevel.CollectionID != collectionID || !h.items.askedLevel.ParentID.IsZero() {
+		t.Errorf("the neighbours were asked at %+v", h.items.askedLevel)
+	}
+	if created.OrderKey <= "a0" || created.OrderKey >= "a1" {
+		t.Errorf("order key = %q, which is not between the neighbours", created.OrderKey)
+	}
+}
+
+// A sibling somewhere else is refused by name. A silent append would be the create ignoring the
+// position it was asked for, which is what the move refuses for the same reason.
+func TestASiblingThatIsNotAtTheLevelRefusesTheCreate(t *testing.T) {
+	h := newItemHarness()
+	sibling := h.withTask()
+	// Nothing to the right of the anchor because the anchor is not here: what the query answers
+	// for an identifier that belongs to another collection or another parent.
+	h.items.previousKey, h.items.nextKey = "", ""
+
+	cmd := taskCommand()
+	cmd.BeforeItemID = sibling.ID
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+
+	failure := shared.AsError(err)
+	if failure == nil || failure.DetailCode != "items.before_item_not_in_level" {
+		t.Fatalf("error = %v", err)
+	}
+	if len(failure.Fields) != 1 || failure.Fields[0].Path != "/before_item_id" {
+		t.Errorf("fields = %+v", failure.Fields)
+	}
+	if len(h.items.stored) != 1 {
+		t.Errorf("the entry was created anyway: %d rows", len(h.items.stored))
+	}
+}
+
+// The cover the contract has promised on WorkItemCreate since 0.3 and the catalogue refused until
+// F10-17 (issue 896): the entry is created already carrying it, through the writer that owns it.
+func TestACreateCoversTheEntryThroughTheWriterThatOwnsTheCover(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = coverProfiles()
+
+	cmd := taskCommand()
+	cmd.Cover = &CoverCommand{Kind: domain.CoverColor, ColorToken: "surface.sand"}
+	created, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+
+	if created.Cover == nil || created.Cover.ColorToken != "surface.sand" {
+		t.Fatalf("cover = %+v", created.Cover)
+	}
+	// The writer's own records, not the create's: what a cover set through the route writes is
+	// what a cover set at creation writes.
+	var covered bool
+	for _, entry := range h.audit.entries {
+		covered = covered || entry.Action == ItemCoverSetAction
+	}
+	if !covered {
+		t.Error("the cover was written without the audit entry the route writes")
+	}
+	var told bool
+	for _, entry := range h.history.entries {
+		told = told || entry.Verb == activity.ItemCoverSet
+	}
+	if !told {
+		t.Error("the entry's own history does not say it was covered")
+	}
+}
+
+// A type whose profile carries no COVER refuses, and the refusal takes the creation with it: an
+// entry created without the cover asked for would be an entry the client believes has a picture.
+func TestACoverOnATypeThatHasNoneRefusesTheCreate(t *testing.T) {
+	h := newItemHarness()
+	task := h.withTask()
+
+	cmd := taskCommand()
+	cmd.Type = domain.ItemWorkPackage
+	cmd.CollectionID = ""
+	cmd.ParentID = task.ID
+	cmd.Cover = &CoverCommand{Kind: domain.CoverColor, ColorToken: "surface.sand"}
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+
+	failure := shared.AsError(err)
+	if failure == nil || failure.DetailCode != "items.capability_not_supported" {
+		t.Fatalf("error = %v", err)
+	}
+	// Reported where the caller wrote it: `/cover`, not the body of a route they did not call.
+	if len(failure.Fields) == 0 || !strings.HasPrefix(failure.Fields[0].Path, "/cover") {
+		t.Errorf("fields = %+v", failure.Fields)
+	}
+	// That the row goes with the refusal is the unit of work's doing, and this fake does not roll
+	// back - a test here that counted rows would be testing the fake. The integration suite is
+	// where a half-applied create would show, against a database that really rolls back.
+}
+
+// withFieldDefinition puts one definition in scope for the create's collection, so that a value
+// sent with a creation has something to be judged against.
+func (h *itemHarness) withFieldDefinition(
+	t *testing.T, key string, kind domain.CustomFieldKind, options ...string,
+) domain.CustomFieldDefinition {
+	t.Helper()
+
+	definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-000000000b01"),
+		TenantID:     tenantID,
+		CollectionID: collectionID, Key: key, Kind: kind, Options: options,
+		AppliesTo: []domain.ItemType{domain.ItemTask}, Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.fields.stored[definition.ID] = definition
+	return definition
+}
+
+// The values the contract has promised on WorkItemCreate since 0.4 and the catalogue refused until
+// F10-17 (issue 896): judged against the definition in force, written one key at a time.
+func TestACreateFillsCustomFieldsThroughTheUseCaseThatOwnsThem(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = fieldProfiles()
+	h.withFieldDefinition(t, "priority", domain.CustomFieldSelect, "high", "low")
+
+	cmd := taskCommand()
+	cmd.CustomFields = map[string]any{"priority": "high"}
+	created, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+
+	if created.CustomFields["priority"] != "high" {
+		t.Fatalf("custom fields = %+v", created.CustomFields)
+	}
+	// Its own change entry, with its own key: the per-key merge rule, kept whichever door the
+	// value arrives through (offline-sync.md §4.2).
+	var announced bool
+	for _, entry := range h.changes.recorded {
+		announced = announced || strings.Contains(entry.Field, "priority")
+	}
+	if !announced {
+		t.Error("the value was written without a change entry naming the key")
+	}
+}
+
+// A key nothing defines refuses, and the refusal names the member of the document it arrived in
+// rather than the body of a route the caller never called.
+func TestAValueForAKeyNothingDefinesRefusesTheCreate(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = fieldProfiles()
+
+	cmd := taskCommand()
+	cmd.CustomFields = map[string]any{"priority": "high"}
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+
+	failure := shared.AsError(err)
+	if failure == nil || failure.DetailCode != "fields.not_in_scope" {
+		t.Fatalf("error = %v", err)
+	}
+	if len(failure.Fields) == 0 || failure.Fields[0].Path != "/custom_fields/priority/key" {
+		t.Errorf("fields = %+v", failure.Fields)
 	}
 }
 

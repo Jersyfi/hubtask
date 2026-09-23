@@ -16,6 +16,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -87,6 +88,24 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 		Members: work.ItemMemberWriter{
 			Items: itemRepo(), ItemMembers: itemMemberRepo(), Containers: containerRepo(),
 			Profiles: postgres.NewCapabilityProfileRepository(), Authorizer: authorizer, Visibility: authorizer,
+			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(), Audit: sink,
+			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
+			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+		},
+		// The cover writer and the custom field use case (issue 896), over the same adapters:
+		// `cover` and `custom_fields` dispatch into them inside the create's transaction.
+		Covers: work.CoverWriter{
+			Items: itemRepo(), Containers: containerRepo(),
+			Profiles: postgres.NewCapabilityProfileRepository(), Media: mediaRepo(),
+			Authorizer: authorizer, Events: postgres.NewOutbox(jobQueue(t)),
+			Changes: postgres.NewChangeLog(), Audit: sink,
+			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
+			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+		},
+		CustomFields: work.SetCustomField{
+			Items: itemRepo(), Containers: containerRepo(),
+			Profiles: postgres.NewCapabilityProfileRepository(), Fields: fieldRepo(),
+			Authorizer: authorizer, Visibility: authorizer,
 			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(), Audit: sink,
 			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
@@ -335,26 +354,30 @@ func TestANoteOnAnActivityIsRefusedByTheSeededProfile(t *testing.T) {
 	}
 }
 
-// A field no use case writes yet is refused by name rather than accepted and dropped.
+// A field the contract does not promise is refused by name rather than accepted and dropped.
+//
+// It used to be `cover` that proved this, because `cover` was one of three the contract promised
+// and no use case wrote (issue 896). All three are written since F10-17, so what is left to prove
+// is the invariant that kept them honest while they waited: a name the catalogue does not declare
+// comes back naming itself, rather than a `201` for an entry that is not what the caller asked
+// for.
 func TestAFieldNoUseCaseWritesYetIsRefusedByName(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	collection := collectionFor(ctx, t, tenantB, authorB)
 
-	// `cover` is one of the three fields the contract promises and no use case writes at creation
-	// yet (issue 896); `member_ids` moved from this list to the written ones with issue 878.
 	_, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
 		usecase.Input{
 			"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
-			"cover": map[string]any{"kind": "COLOR", "color_token": "accent.red"},
+			"colour": "red",
 		})
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error = %v, want a validation error", err)
 	}
 
 	fields := shared.AsError(err).Fields
-	if len(fields) != 1 || fields[0].Path != "/cover" {
-		t.Errorf("field errors = %v, want one naming /cover", fields)
+	if len(fields) != 1 || fields[0].Path != "/colour" {
+		t.Errorf("field errors = %v, want one naming /colour", fields)
 	}
 }
 
@@ -458,5 +481,92 @@ func TestAnAccountWithoutARoleCannotCreateAnItem(t *testing.T) {
 	if after != before+1 {
 		t.Errorf("%d denied entries, want %d - a refusal that leaves no record is invisible to an auditor",
 			after, before)
+	}
+}
+
+// The three fields `WorkItemCreate` promised and the catalogue refused until F10-17 (issue 896),
+// against a real database: the position, the cover and the custom field values, in one creation.
+//
+// Against the real adapters rather than the fakes, because what the fakes cannot show is exactly
+// what was in doubt: the rank comes from the neighbours query the database answers, the cover
+// moves a reference counter the schema constrains, and each custom field value lands in a jsonb
+// document the repository merges key by key.
+func TestACreateServesThePositionTheCoverAndTheValues(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	definedField(ctx, t, tenantB, collection, "priority", domainwork.CustomFieldSelect, "high", "low")
+	registry := itemCatalogueFor(ctx, t)
+	actor := itemWriter(tenantB, authorB)
+
+	// Two siblings, so that "before the second" is a position with a neighbour on each side.
+	first, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": collection.String(), "title": "Weekly shop",
+	})
+	if err != nil {
+		t.Fatalf("the first sibling: %v", err)
+	}
+	second, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": collection.String(), "title": "Cellar",
+	})
+	if err != nil {
+		t.Fatalf("the second sibling: %v", err)
+	}
+
+	created, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
+		"before_item_id": second.String("id"),
+		"cover":          map[string]any{"kind": "COLOR", "color_token": "surface.sand"},
+		"custom_fields":  map[string]any{"priority": "high"},
+	})
+	if err != nil {
+		t.Fatalf("the creation: %v", err)
+	}
+
+	// Between the two, which is what the anchor asked for.
+	if created.String("order_key") <= first.String("order_key") ||
+		created.String("order_key") >= second.String("order_key") {
+		t.Errorf("order key %q is not between %q and %q",
+			created.String("order_key"), first.String("order_key"), second.String("order_key"))
+	}
+
+	// And the entry as the database holds it says all three.
+	stored := findItem(ctx, t, tenantB, shared.MustParseID(created.String("id")))
+	if stored.Cover == nil || stored.Cover.ColorToken != "surface.sand" {
+		t.Errorf("cover = %+v", stored.Cover)
+	}
+	if stored.CustomFields["priority"] != "high" {
+		t.Errorf("custom fields = %+v", stored.CustomFields)
+	}
+}
+
+// A key nothing defines takes the whole creation with it - and this is the half no fake can show,
+// because it is the transaction that rolls the row back rather than the code.
+func TestARefusedValueLeavesNoEntryBehind(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	registry := itemCatalogueFor(ctx, t)
+	actor := itemWriter(tenantB, authorB)
+
+	title := "Nothing should be left of this"
+	_, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": collection.String(), "title": title,
+		"custom_fields": map[string]any{"nothing_defines_this": "value"},
+	})
+	if err == nil {
+		t.Fatal("a value for a key nothing defines was accepted")
+	}
+	if code := shared.AsError(err); code == nil || code.DetailCode != "fields.not_in_scope" {
+		t.Fatalf("error = %v", err)
+	}
+
+	// Counted rather than listed, because the package shares a database and this collection is
+	// this test's own: a row with that title would be the half-applied create.
+	left := countIn(ctx, t,
+		`SELECT count(*) FROM work_item WHERE tenant_id = $1 AND collection_id = $2 AND title = $3`,
+		tenantB.String(), collection.String(), title)
+	if left != 0 {
+		t.Fatalf("the entry was created although its values were refused: %d rows", left)
 	}
 }

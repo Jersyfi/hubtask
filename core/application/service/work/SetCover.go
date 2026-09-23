@@ -225,6 +225,31 @@ func (w CoverWriter) change(
 	return changed, nil
 }
 
+// setWithin covers an entry that is being created, inside the creator's transaction (issue 896):
+// the same guards and the same four records as `PUT /items/{id}/cover`, minus the permission
+// question, which the creation has already asked of the same path with the same permission.
+//
+// A refusal takes the whole creation with it, as the due date and the labels do - a request half
+// applied is a state nobody asked for - and it is reported at `/cover`, because that is the field
+// the caller sent rather than the body of a route they did not call.
+func (w CoverWriter) setWithin(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+	profile domain.CapabilityProfile, cmd CoverCommand, now time.Time,
+) (domain.WorkItem, error) {
+	// A work package or an activity has no cover by default, and says so rather than storing a
+	// picture nothing renders (domain-model.md §2, §3.4).
+	if err := item.EnsureCoverable(profile); err != nil {
+		return domain.WorkItem{}, atField(err, "/cover")
+	}
+	wanted, err := w.wanted(ctx, item, cmd, covering, now)
+	if err != nil {
+		return domain.WorkItem{}, atField(err, "/cover")
+	}
+	// The version in hand is the one the creation just wrote, so zero is what "whatever is there"
+	// means here - there is nobody else to have moved it between the two writes.
+	return w.write(ctx, actor, item, wanted, 0, profile, covering, now)
+}
+
 // wanted builds the state the caller asked for, and refuses an image the media context will not
 // stand behind.
 func (w CoverWriter) wanted(
