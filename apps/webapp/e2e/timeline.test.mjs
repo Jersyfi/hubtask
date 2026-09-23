@@ -43,7 +43,7 @@ const dayIn = (iso, zone) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, 
  */
 async function timeline(browser, { width = 1280, rows } = {}) {
   const written = [];
-  const { page, failures, context } = await signedIn(browser, width, 900);
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -57,7 +57,7 @@ async function timeline(browser, { width = 1280, rows } = {}) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByRole('radio', { name: 'Timeline' }).click();
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
-  return { page, failures, written, close: () => context.close() };
+  return { page, failures, written, close: () => context.close(), unstubbed };
 }
 
 /** A pointer press carried from one point to another, in steps, as a hand would. */
@@ -85,7 +85,7 @@ async function axisOf(page) {
 test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray that folds', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await timeline(browser);
+  const { page, failures, close, unstubbed } = await timeline(browser);
   t.after(close);
 
   // The scale is the three the decision names, and it is a real control.
@@ -119,12 +119,15 @@ test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray t
     .catch(() => assert.fail(`the row led to ${page.url()} rather than to the entry`));
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 1280 px — a point dragged moves the one date it has, and invents no other', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close } = await timeline(browser);
+  const { page, failures, written, close, unstubbed } = await timeline(browser);
   t.after(close);
 
   await page.getByLabel('Scale').selectOption('day');
@@ -150,6 +153,9 @@ test('chromium: 1280 px — a point dragged moves the one date it has, and inven
   assert.equal(written.some((each) => each.method === 'PATCH' && 'start_at' in (each.body ?? {})), false);
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 1280 px — a bar moves both dates and an end moves one', async (t) => {
@@ -162,7 +168,7 @@ test('chromium: 1280 px — a bar moves both dates and an end moves one', async 
 
   /** One drag on the span, and the writes it made. */
   const dragged = async (which, columns) => {
-    const { page, written, close } = await timeline(browser, { rows: [spanned] });
+    const { page, written, close, unstubbed } = await timeline(browser, { rows: [spanned] });
     t.after(close);
     await page.getByLabel('Scale').selectOption('day');
     await page.waitForTimeout(200);
@@ -236,7 +242,7 @@ test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends
 test('chromium: 1280 px — a tray entry carried across the axis is given its first dates', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close } = await timeline(browser);
+  const { page, failures, written, close, unstubbed } = await timeline(browser);
   t.after(close);
 
   await page.getByLabel('Scale').selectOption('day');
@@ -263,6 +269,9 @@ test('chromium: 1280 px — a tray entry carried across the axis is given its fi
   assert.ok(patched.body.start_at < dued.body.due_at, 'the entry was given a due date before its start');
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 /** The second half of a carry, for a gesture that began somewhere else. */
@@ -283,7 +292,7 @@ test('chromium: 1280 px — a collection whose work is a season away opens on it
   // 2026-09-22 found: the entry was outside the window with nothing saying so.
   const today = new Date().toISOString().slice(0, 10);
   const far = addDays(today, 240);
-  const { page, failures, close } = await timeline(browser, {
+  const { page, failures, close, unstubbed } = await timeline(browser, {
     rows: [{ ...ITEMS[0], due_at: `${far}T09:00:00Z`, start_at: `${addDays(far, -4)}T09:00:00Z` }],
   });
   t.after(close);
@@ -297,12 +306,15 @@ test('chromium: 1280 px — a collection whose work is a season away opens on it
   assert.equal(await page.locator('.timeline .axis .tick[data-today]').count(), 0);
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: 375 px — the scale is reachable and the axis shows a usable range', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await timeline(browser, { width: 375 });
+  const { page, failures, close, unstubbed } = await timeline(browser, { width: 375 });
   t.after(close);
 
   await page.getByLabel('Scale').selectOption('day');
@@ -316,4 +328,7 @@ test('chromium: 375 px — the scale is reachable and the axis shows a usable ra
   assert.equal(scroll.width, scroll.viewport, 'the timeline widens the page');
 
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });

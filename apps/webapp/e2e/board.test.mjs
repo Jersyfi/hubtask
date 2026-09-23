@@ -22,7 +22,7 @@ test.after(() => served.close());
 /** The board, with every write recorded. */
 async function board(browser, { hasTouch = false } = {}) {
   const written = [];
-  const { page, failures, context, close } = await signedIn(browser, 1280, 900, { hasTouch });
+  const { page, failures, context, close, unstubbed } = await signedIn(browser, 1280, 900, { hasTouch });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -32,7 +32,7 @@ async function board(browser, { hasTouch = false } = {}) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByRole('radio', { name: 'Board' }).click();
   await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
-  return { page, failures, written, close };
+  return { page, failures, written, close, unstubbed };
 }
 
 /** A pointer press carried from one point to another, in steps, as a hand would. */
@@ -50,7 +50,7 @@ async function carry(page, from, to, { steps = 12, hold = 0 } = {}) {
 test('chromium: a card is carried from anywhere on it, and the click that ends the carry opens nothing', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close } = await board(browser);
+  const { page, failures, written, close, unstubbed } = await board(browser);
   t.after(close);
 
   // No grip anywhere: the card is the handle.
@@ -70,12 +70,15 @@ test('chromium: a card is carried from anywhere on it, and the click that ends t
   // And letting go did not also open the entry it had just filed.
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the drag ended by opening the entry');
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: a press that does not travel is still the click it always was', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close } = await board(browser);
+  const { page, failures, written, close, unstubbed } = await board(browser);
   t.after(close);
 
   await page.locator(`[data-card="${ITEMS[0].id}"] a`).first().click();
@@ -89,12 +92,15 @@ test('chromium: a press that does not travel is still the click it always was', 
   );
   assert.deepEqual(written.filter((each) => each.method === 'PATCH'), [], 'a click wrote something');
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
 
 test('chromium: a finger that moves at once is scrolling, and one that waits is carrying', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close } = await board(browser, { hasTouch: true });
+  const { page, failures, written, close, unstubbed } = await board(browser, { hasTouch: true });
   t.after(close);
 
   const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
@@ -115,4 +121,7 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
   const move = written.find((each) => each.method === 'PATCH' && 'bucket_id' in (each.body ?? {}));
   assert.ok(move !== undefined, `a held carry did not land: ${JSON.stringify(written)}`);
   assert.deepEqual(failures, []);
+  // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
+  // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
 });
