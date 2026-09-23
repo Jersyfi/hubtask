@@ -103,7 +103,9 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/`);
-    const createHub = page.getByRole('button', { name: 'Create hub' });
+    // The workspace page's primary action (issue 879); the tree at the side offers the same
+    // verb, which is why the name alone is not enough.
+    const createHub = page.locator('[data-opener="add-hub"]');
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 
@@ -214,23 +216,40 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     // synchronisation. What the copy does not hold is named `sync.needs_connection`.
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', (route) => route.abort('connectionfailed'));
+    // Counted while the server is away: a read that fails is read again on the reconnect and
+    // not before (issue 881 found a loop that read the account nine hundred times instead).
+    let accountReads = 0;
+    const countAccountReads = (request) => { if (new URL(request.url()).pathname.endsWith('/accounts/me')) accountReads += 1; };
+    page.on('request', countAccountReads);
     await page.reload();
     const mark = page.getByRole('status').filter({ hasText: "Shown from this device's copy" });
     await mark.first().waitFor({ state: 'visible', timeout: 15_000 })
       .catch(() => assert.fail(`${name}: the tree was not drawn from the replica while the server was away`));
-    assert.equal(await page.getByRole('link', { name: 'Engines' }).count(), 1, `${name}: the hub in the copy is not in the tree`);
+    // The tree, and the tree alone: the overview stopped listing the hubs when it became what is
+    // on the reader (ADR-0063 decision 1), so a hub drawn from the copy is a row of the navigation
+    // and nothing else on the page draws it a second time.
+    assert.equal(await page.getByRole('treeitem', { name: 'Engines' }).count(), 1, `${name}: the hub in the copy is not in the tree`);
 
     // The server comes back, and the copy's state is replaced by the server's - on the loop's
     // reconnect, which is what the pause is for: long enough for the first attempt to have
     // failed, so the replacement is the retry's and not the first attempt's luck.
     await page.waitForTimeout(1_500);
+    page.off('request', countAccountReads);
+    assert.ok(accountReads <= 4, `${name}: the account was read ${accountReads} times while the server was away`);
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', stub);
     await page.waitForFunction(() => ![...document.querySelectorAll('[role=status]')].some((el) => el.textContent?.includes("Shown from this device's copy")), null, { timeout: 30_000 })
       .catch(() => assert.fail(`${name}: the replica's state was not replaced after the server came back`));
 
-    // Sign-out deletes the database, not its rows.
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    // The account, which the copy does not hold, comes back with the server too (issue 881):
+    // the engine reads again what it could not answer, so the menu says the name and not "You".
+    await page.getByRole('button', { name: 'Engine Walker' }).waitFor({ timeout: 15_000 })
+      .catch(() => assert.fail(`${name}: the account was not read again after the server came back`));
+
+    // Sign-out deletes the database, not its rows. The verb is the last item of the account
+    // menu, behind the name (ADR-0061 decision 1).
+    await page.getByRole('button', { name: 'Engine Walker' }).click();
+    await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await page.waitForFunction(async (name) => !(await indexedDB.databases()).some((d) => d.name === name), database, { timeout: 10_000 })
       .catch(() => assert.fail(`${name}: the replica's database survived the sign-out`));
     assert.deepEqual(failures, [], `${name}: the bundle threw during the walk`);

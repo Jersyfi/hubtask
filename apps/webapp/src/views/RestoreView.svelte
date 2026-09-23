@@ -32,6 +32,7 @@
     Button,
     Checkbox,
     Input,
+    PageHeader,
     ProgressBar,
     Select,
     Spinner,
@@ -53,6 +54,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** What a collision may become. `SKIP` is the contract's default and the safe one. */
   const CONFLICT_RULES = ['SKIP', 'OVERWRITE', 'DUPLICATE'];
@@ -229,11 +232,26 @@
     });
   });
 
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.restore.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.restore.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.restore.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'restore', label: t('app.restore.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+    <Stack gap="300">
     <p class="quiet">{t('app.restore.intro')}</p>
 
     <!-- Stated rather than left as an absence: a control that is simply missing tells a reader
@@ -504,17 +522,14 @@
         </Stack>
       </section>
     {/if}
-  </Stack>
-</div>
+    </Stack>
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
+     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
+     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
+     screen that is not a document. */
 
   .section {
     margin: 0;
@@ -538,6 +553,11 @@
     gap: var(--sp-100);
     color: var(--text-secondary);
   }
+
+  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
+     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
+     say so themselves - they are a grid of their own. */
+  form.panel { max-inline-size: 52ch; }
 
   .panel {
     padding: var(--sp-200);

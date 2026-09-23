@@ -282,8 +282,25 @@ export function moveStep(actions: readonly Step[], from: Path, list: string, ind
   let target = index;
   if (source.list === list && source.index < index) target -= 1;
   const without = removeAt(actions, from);
-  if (!canPlace(without, list, target, step.kind)) return undefined;
-  return insertAt(without, list, target, step);
+  const shifted = shiftedList(list, from);
+  if (!canPlace(without, shifted, target, step.kind)) return undefined;
+  return insertAt(without, shifted, target, step);
+}
+
+/**
+ * A list's path once the step at `from` is lifted out: a list inside a branch that follows the
+ * lifted step in the same parent moves up one - `1/else` is `0/else` once `0` is gone. Without
+ * this a card could never be moved into a branch below it (the final check of F8-20).
+ */
+export function shiftedList(list: string, from: Path): string {
+  const source = parentOf(from);
+  const prefix = source.list === '' ? '' : `${source.list}/`;
+  if (!list.startsWith(prefix)) return list;
+  const rest = list.slice(prefix.length);
+  const head = rest.split('/')[0] ?? '';
+  const at = Number(head);
+  if (rest === '' || !Number.isInteger(at) || at <= source.index) return list;
+  return `${prefix}${at - 1}${rest.slice(head.length)}`;
 }
 
 /** The chain with the step at `path` moved one place up or down inside its own list; unchanged at the end. */
@@ -294,35 +311,108 @@ export function nudge(actions: readonly Step[], path: Path, direction: -1 | 1): 
   const target = index + direction;
   if (target < 0 || target >= siblings.length) return clone(actions);
   const step = siblings[index];
-  // A stop stays the terminus (decision 14): it does not move up past a step, and no step moves
-  // down past it.
-  if (step?.kind === 'STOP' || siblings[target]?.kind === 'STOP') return clone(actions);
+  // What ends the run stays the terminus (decision 19): it does not move up past a step, and no
+  // step moves down past it.
+  if (endsAllPaths(step) || endsAllPaths(siblings[target])) return clone(actions);
   return moveStep(actions, path, list, direction > 0 ? target + 1 : target) ?? clone(actions);
 }
 
 /**
- * Whether a step of `kind` may take the gap at `index` of `list` (decision 14): a stop only as
- * the last step, and nothing after a stop - the run would never reach it, and the canvas cannot
- * draw "never" honestly. A list the chain does not have takes nothing.
+ * Whether every path through a step ends the run (decision 19): *End the run* does; a branch does
+ * when each of its arms does - every rung of a ladder and the else. Nothing may follow such a
+ * step in its list, and the canvas draws the list's end right there.
+ */
+export function endsAllPaths(step: Step | undefined): boolean {
+  if (!step) return false;
+  if (step.kind === 'STOP') return true;
+  if (step.kind !== 'BRANCH') return false;
+  return endsRun(step.then ?? []) && endsRun(step.else ?? []);
+}
+
+/** Whether a list ends the run on every path: its last step does. */
+export const endsRun = (list: readonly Step[]): boolean => list.length > 0 && endsAllPaths(list[list.length - 1]);
+
+/**
+ * Whether a step of `kind` may take the gap at `index` of `list` (decision 19): *End the run*
+ * only as the last step of an arm, once - the chain's end ends the run anyway - and nothing
+ * after a step that ends the run on every path, because the run would never reach it and the
+ * canvas cannot draw "never" honestly. A list the chain does not have takes nothing.
  */
 export function canPlace(actions: readonly Step[], list: string, index: number, kind: string): boolean {
   const target = listAt(actions, list);
   if (!target) return false;
   const at = Math.max(0, Math.min(index, target.length));
-  const endsInStop = target.length > 0 && target[target.length - 1]?.kind === 'STOP';
-  if (kind === 'STOP') return at === target.length && !endsInStop;
-  return !(endsInStop && at === target.length);
+  const ended = endsRun(target);
+  if (kind === 'STOP') return list !== '' && at === target.length && !ended;
+  return !(ended && at === target.length);
 }
 
-/** The first index of a list a run never reaches - the step after a stop - or -1 for none. */
+/** The first index of a list a run never reaches - the step after one that ends every path - or -1 for none. */
 export function unreachableFrom(steps: readonly Step[]): number {
-  const stop = steps.findIndex((step) => step.kind === 'STOP');
-  return stop === -1 || stop === steps.length - 1 ? -1 : stop + 1;
+  const end = steps.findIndex((step) => endsAllPaths(step));
+  return end === -1 || end === steps.length - 1 ? -1 : end + 1;
 }
 
-/** A fresh step of a kind, with a branch's two empty arms. */
+/* ---------- The ladder: if / else if / else ---------- */
+
+/** A rung: an else arm whose only step is a branch (decision 19). The reader and the canvas know the shape alike. */
+export const isRung = (step: Step | undefined): boolean => step?.kind === 'BRANCH' && (step.else?.length ?? 0) === 1 && step.else?.[0]?.kind === 'BRANCH';
+
+/**
+ * The rungs of the ladder that starts at `path`: the branch itself, then every branch that is the
+ * sole step of the previous one's else arm, with their paths. A plain branch is a ladder of one.
+ */
+export function rungsOf(step: Step, path: Path): { step: Step; path: Path }[] {
+  const rungs = [{ step, path }];
+  let current = step;
+  let at = path;
+  while (isRung(current)) {
+    at = `${at}/else/0`;
+    current = current.else![0]!;
+    rungs.push({ step: current, path: at });
+  }
+  return rungs;
+}
+
+/**
+ * The chain with an *else if* added under the ladder at `path` (decision 19): a fresh branch
+ * becomes the sole step of the last rung's else arm, and whatever that arm held becomes the new
+ * rung's else - the steps keep their place as the last resort, and the engine runs the shape
+ * today. Unchanged where `path` is not a branch.
+ */
+export function addRung(actions: readonly Step[], path: Path): Step[] {
+  const step = stepAt(actions, path);
+  if (!step || step.kind !== 'BRANCH') return clone(actions);
+  const last = rungsOf(step, path).at(-1)!;
+  const rung = newStep('BRANCH');
+  rung.else = last.step.else ?? [];
+  return replaceAt(actions, last.path, { ...last.step, else: [rung] });
+}
+
+/**
+ * The chain with one rung of a ladder removed (decision 28): the rung's *otherwise* is handed to
+ * the rung above, exactly as *+ Else if* took it, so the ladder closes rather than losing the
+ * last resort. The rung's own *then* goes with it - those steps were what its condition decided,
+ * and no other rung means them. Removing the ladder's first rung is removing the branch itself,
+ * which `removeAt` already does; this answers the chain unchanged for a path that is not a rung.
+ */
+export function removeRung(actions: readonly Step[], path: Path): Step[] {
+  const { list, index } = parentOf(path);
+  if (!list.endsWith('/else') || index !== 0) return clone(actions);
+  const owner = stepAt(actions, list.slice(0, -'/else'.length));
+  const rung = stepAt(actions, path);
+  if (!owner || owner.kind !== 'BRANCH' || !rung || rung.kind !== 'BRANCH') return clone(actions);
+  if ((owner.else?.length ?? 0) !== 1) return clone(actions);
+  return replaceAt(actions, list.slice(0, -'/else'.length), { ...owner, else: rung.else ?? [] });
+}
+
+/**
+ * A fresh step of a kind, with a branch's two empty arms. A branch starts with the composer's own
+ * first sentence compiled, so the card and the panel say the same thing from the first moment
+ * and a branch saved untouched carries a condition the server accepts (F8-18).
+ */
 export function newStep(kind: string): Step {
-  return kind === 'BRANCH' ? { kind, params: { condition: '' }, then: [], else: [] } : { kind, params: {} };
+  return kind === 'BRANCH' ? { kind, params: { condition: compileSentence(defaultSentence()) }, then: [], else: [] } : { kind, params: {} };
 }
 
 /* ---------- The generated name ---------- */
@@ -353,11 +443,11 @@ export const isAutomatic = (name: string, generated: string): boolean => name.tr
  * an expression the composer did not write is shown as an expression (decision 3).
  *
  * The subjects are the fields the run's `item` document carries (`condition.ItemDocument`), the
- * actor, and the hour of `now`. Labels are not among them: the run's document has no `labels` key
- * today (issue 807), and a subject the run cannot answer would compile into a rule that fails.
+ * labels beside it (`item.labels`, read with the entry since issue 807), the actor, and the hour
+ * of `now`.
  */
 export type Subject =
-  | 'type' | 'title' | 'notes' | 'completed' | 'archived' | 'due' | 'assignee' | 'bucket' | 'parent' | 'depth' | 'actor' | 'hour' | 'field';
+  | 'type' | 'title' | 'notes' | 'completed' | 'archived' | 'due' | 'label' | 'assignee' | 'bucket' | 'parent' | 'depth' | 'actor' | 'hour' | 'field';
 
 export interface Sentence {
   subject: Subject;
@@ -374,6 +464,7 @@ export const OPERATORS: Record<Subject, readonly string[]> = {
   completed: ['yes', 'no'],
   archived: ['yes', 'no'],
   due: ['has', 'lacks', 'past', 'future', 'within'],
+  label: ['on', 'not_on'],
   assignee: ['has', 'lacks', 'is', 'is_not'],
   bucket: ['is', 'is_not'],
   parent: ['has', 'lacks'],
@@ -389,6 +480,7 @@ export function takes(subject: Subject, op: string): 'none' | 'value' | 'number'
   if (subject === 'field') return 'key_value';
   if (subject === 'depth') return 'number';
   if (subject === 'due') return op === 'within' ? 'days' : 'none';
+  if (subject === 'label') return 'value';
   if (op === 'has' || op === 'lacks' || op === 'yes' || op === 'no' || op === 'empty' || op === 'not_empty') return 'none';
   return 'value';
 }
@@ -431,6 +523,8 @@ export function compileSentence(sentence: Sentence): string {
       if (op === 'past') return 'has(item.due_at) && item.due_at < now';
       if (op === 'future') return 'has(item.due_at) && item.due_at > now';
       return `has(item.due_at) && item.due_at < now + duration(${quote(`${days(a) * 24}h`)})`;
+    case 'label':
+      return `${op === 'not_on' ? '!' : ''}item.labels.exists(l, l == ${quote(a)})`;
     case 'parent':
       return op === 'has' ? 'has(item.parent_id)' : '!has(item.parent_id)';
     case 'depth':
@@ -463,6 +557,7 @@ const SHAPES: readonly { pattern: RegExp; read: (m: RegExpExecArray) => Sentence
   { pattern: /^(!?)has\(item\.due_at\)$/, read: (m) => ({ subject: 'due', op: m[1] ? 'lacks' : 'has' }) },
   { pattern: /^has\(item\.due_at\) && item\.due_at (<|>) now$/, read: (m) => ({ subject: 'due', op: m[1] === '<' ? 'past' : 'future' }) },
   { pattern: /^has\(item\.due_at\) && item\.due_at < now \+ duration\('(\d+)h'\)$/, read: (m) => ({ subject: 'due', op: 'within', a: String(Math.floor(Number(m[1]) / 24)) }) },
+  { pattern: new RegExp(`^(!?)item\\.labels\\.exists\\(l, l == ${QUOTED}\\)$`), read: (m) => ({ subject: 'label', op: m[1] ? 'not_on' : 'on', a: unquote(m[2]) }) },
   { pattern: /^(!?)has\(item\.parent_id\)$/, read: (m) => ({ subject: 'parent', op: m[1] ? 'lacks' : 'has' }) },
   { pattern: /^item\.depth (==|<=) (\d+)$/, read: (m) => ({ subject: 'depth', op: m[1] === '==' ? 'is' : 'at_most', a: m[2] }) },
   { pattern: /^(!?)has\(item\.assignee_id\)$/, read: (m) => ({ subject: 'assignee', op: m[1] ? 'lacks' : 'has' }) },

@@ -238,7 +238,7 @@ structural, not reviewed.
 | `CommentThread` | Nested, with "removed" as its own state |
 | `UploadField` | The three-step upload has to be **started** by something. Built: it moves no bytes — it hands the caller a `File` and renders the progress the caller reports, because the staging, the `PUT` and the confirmation are all requests and this package makes none. The native file input stays in the accessibility tree and the drop target is an addition to it, never the only way in; the size limit is handed in and **announced**, because what an installation accepts is the installation's answer and a component that refused locally would refuse a file the server would have taken |
 | `ActivityFeed` | `verb` is an i18n code, not a finished sentence. Built: the component **never sees one** — every sentence arrives resolved, because a feed that wrote "Completed" would be the message catalogue growing a second copy inside a component. An ordered list with a real `<time datetime>`, since the order is the content; a step with no change set is a shorter sentence rather than an empty panel, because an activity's history is compact by the capability matrix |
-| `Timeline` | The layout `ViewSwitcher` reports and nothing drew. Built: a **span** where `start_at` and `due_at` both exist and a **point** where only the due date does — two different statements, and a bar for a date with no beginning invents one. What it cannot place it **lists** beside the axis, because a timeline that hid the undated would be a filter nobody chose. No drag in this milestone: a bar dragged is a date changed, and F2-12 puts the command before the gesture. The track is one cell per day and a span *marks* the cells it covers, because `style-src 'self'` refuses the arithmetic an inline `grid-column` would need |
+| `Timeline` | The layout `ViewSwitcher` reports, drawn as a **schedule**: an axis ruled by dated gridlines at the caller's `scale` (day · week · month, one column width each) with **today marked across every row**, a **span** where `start_at` and `due_at` both exist and a **point** where only the due date does — two different statements, and a bar for a date with no beginning invents one. What it cannot place it **trays**, folded beside the axis, because a timeline that hid the undated would be a filter nobody chose. **A drag names columns, never dates** (ADR-0063 decision 12): the component knows the grid and the application knows the calendar, the same split `reorder.ts` makes for a rank. A bar moves both ends, an end moves one, a trayed entry carried onto the axis is asking for its first dates — and the span **redraws where it would land** rather than being carried, so nothing translates and there is no motion to reduce. Decision 13's pointer rules are the drag helper's: movement for a fine pointer, `HOLD_MS` for a coarse one, and SC 2.5.7's alternative is the row itself, which opens the entry's date editor. A bar one column wide carries **no** end handles — the same cell would be both ends — so a one-day span and a point are dragged as bars, which is the only reading either has. The handle's target is the whole cell and the mark drawn in it is smaller, so the target reaches §6 rule 1's floor without the bar getting thicker (§11, 2.5.8). The track is one cell per column and a span *marks* the cells it covers, because `style-src 'self'` refuses the arithmetic an inline `grid-column` would need |
 | `ViewSwitcher` | `LIST_COLLAPSED`, `LIST_EXPANDED`, `KANBAN`, `TIMELINE`. Built: a **radio group**, not a tab strip — a tab switches between subjects and owns the panel it reveals, this switches between renderings of one subject and owns nothing. A layout the manifest reports and the client cannot draw is shown **with the reason**; leaving it out would make the switcher disagree with the installation |
 | `QueryBuilder` | The query DSL made visible. Built: it knows **no grammar** — the fields, the comparisons each permits and whether a comparison takes a value are all handed to it, because `query_fields` grows with the installation and a component that spelled the operators out would be the hard-coded list the manifest exists to replace. Changing the field resets the comparison: the operators belong to the field |
 | `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion. The subject, the body and the sender **arrived from outside**, so they are drawn as text and never as markup — an intake address is public, and `{@html}` is refused package-wide rather than avoided per component. `PROCESSED` links to what the conversion produced; `DISMISSED` is a state and not a deletion, and the card says so rather than fading the row towards invisible |
@@ -284,6 +284,30 @@ the two rules worth repeating here are that `AppBar` carries **no page action an
 (the search is a destination of the one navigation list, and a second entry to it is the
 duplication that list exists to prevent), and that `PageHeader` has no way to draw a fourth
 button — a caller with more actions hands them in as the menu's items.
+
+#### A section, and the widths a section's screen has
+
+Two places in the product are **sections**: the administration
+([ADR-0063](../adr/ADR-0063-navigation-and-the-working-surface.md) decision 7) and Your settings
+([ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md) decision 3). A section has one
+anatomy, and it is the same one twice:
+
+* While the resolved route's **area** is the section's, the navigation column is the section's own
+  list and the workspace's tree is not drawn at all — the reader is in a place, not in a corner of
+  the workspace.
+* **The first row leads out.** A section somebody cannot leave is a trap, and the way back is
+  looked for at the top rather than at the foot.
+* **The section's own address opens its first screen.** The column lists every screen in it, so an
+  index beside it is that list drawn twice.
+* Every screen carries `PageHeader` with the trail *the section › this screen*, one primary action
+  and the rest in the menu, and it **takes the region it is given**. The reading measure belongs to
+  running text, which `app.css` gives every paragraph; a form keeps a measure of its own, because
+  an input as wide as the region is a target nobody aims at; a table, a list and a matrix take the
+  width.
+
+A row's word and a screen's heading may differ where a column has less room than a heading — the
+row says *Signed in*, the screen says *Where you are signed in* — and nothing else about them is
+allowed to.
 
 ---
 
@@ -472,11 +496,19 @@ teaches the screenshots.
   unfinished` story shows the idea (three nested planes, the innermost in bordeaux) but is not a
   finished mark. It moved there with the page that used to hold it, because it was the only drawn
   record of it.
-- **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
-  Narrowed by [ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md): the web app's phone
-  layout — the shell, the bottom bar, the one-column entry, the board one column at a time — is
-  F9's and no longer waits for a shell. What stays open is only what a shell can do: the
-  conventions of the installed clients, in F7.
+- ~~**Platform adaptation, for the web**~~ — closed by F9
+  ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md), walked in
+  [F9-2026-09-21.md](../evidence/F9-2026-09-21.md)): the web app's phone layout is built and is
+  the layout the shells will render as it is — one list of destinations drawn as a pinned side
+  nav, a drawer and a bottom bar by width; a page head with one primary action and a menu; the
+  entry as head, subtree, details beside the text and the history as tabs; the board one column
+  at a time; the detail pane from `large`; `density.spacious` below `medium` and under a coarse
+  pointer; the safe-area insets read by the bars. Width is the whole condition — nothing under
+  `src/lib/platform/` decides a layout — so the desktop shell dragged to a phone's width is the
+  phone. **What stays open is only what a shell can do**, and it stays with F7: the system
+  conventions of the installed clients — the back gesture and the swipe as the history they
+  already are, the share sheet, the keyboard's accessory row, the status bar's colour, and the
+  administration row rendered as ADR-0032's affordance in a build that excludes the routes.
 - ~~**A browser support row**~~ — closed by
   [ADR-0044](../adr/ADR-0044-browser-support-row.md): the current and the previous major of
   Chromium, Gecko and WebKit, in `support-matrix.md` §5. It was affordable because nothing had to be
@@ -517,7 +549,8 @@ teaches the screenshots.
   about is the `attach` role; and the tone in `voice-and-tone.md` §7 — offered, never asserted.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: the wordmark in `F1`, because the website needs it; platform adaptation in `F7`, with the mobile shell that raises the question.
+list: the wordmark in `F1`, because the website needs it; what is left of platform adaptation in
+`F7`, with the mobile shell that raises the question.
 
 ---
 
@@ -549,7 +582,7 @@ rule is the proof; where it needs a walk, the walk is evidence in `docs/evidence
 | 2.4.3 Focus order | The order of the DOM is the order that makes sense | Every route at `F5-11`; the six places focus fell to `body` — every write from a list, five inline editors, a card that changed column — fixed there (`SyncEngine` keeps a `ready` state through a reload; `focusFirst()`) |
 | 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6); every stop at `F5-11` matched `:focus-visible` and drew the ring, none under a sticky region; the one transparent stop (`UploadField`'s input) left the tab order |
 | 2.5.7 Dragging movements | Every drag has a keyboard or button alternative — ordering by drag and drop is also ordering by a menu | `F2`'s ordering surfaces; walked at `F5-11`: the row's menu, the card's menu, the collection's toolbar — each announced, focus kept |
-| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§9) and its token test; not re-walked at `F5` |
+| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§9) and its token test; not re-walked at `F5`. **One documented exception**: a `Timeline` bar's end handles are one column wide, which is 24 px at the day scale and 8 or 4 px at the week and month scales. The column is the data's own width and cannot be widened — 24 px on a 4 px column would cover six days of the picture it exists to edit — so this rests on SC 2.5.8's **Equivalent** clause, and the equivalent is the row's title: it opens the entry, where `DueDateControl` sets both dates with fields that meet the floor. Measured 2026-09-23: 24 × 24 / 8 × 24 / 4 × 24 |
 | 2.3.3 Animation from interactions | Reduced motion honoured from the media query and from the product's own preference — the switch on the profile, kept on the device (`F5-12`) | Rule 6; `[data-motion="reduced"]` (ADR-0037); `lib/motion.ts` |
 | 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry rendered in another language (`content_language`) | `i18n-l10n.md` §6, lines 1 and 9; `F5-06` (the picker, `lang` on title and notes) and the tree at `F5-13` (`h1[lang=pt-BR]`) |
 | 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | Reviewed per story; read in the source at `F5-11`: no `onfocus` handler in either client tree, no `onchange` that navigates |
@@ -569,9 +602,17 @@ repeated before `1.0.0`.
 available in the EU after 28 June 2025: a public statement naming the standard (EN 301 549, which
 carries WCAG 2.2 AA for web content), the conformance status, the known exceptions with their
 reasons and dates, a way to report a barrier, and the date of the last assessment. It is published
-on the website at convergence (`roadmap.md` phase 5, the 1.0 site) and reachable from the app's
-own footer, unversioned like the site, and it is updated whenever an assessment is — a statement
-that describes a walk two releases ago is a statement that is false.
+on the website at convergence (`roadmap.md` phase 5, the 1.0 site) and reachable from the
+application itself, unversioned like the site, and it is updated whenever an assessment is — a
+statement that describes a walk two releases ago is a statement that is false.
+
+**Where the application offers it.** In each of the two places that is the only place its reader
+has, and in neither more than once: *About Hubtask* (`/installation`) while there is a session,
+beside the versions somebody quotes when they report anything; and the foot of the screens before
+one — sign-in, an invitation, a consent — where there is no account group, and where a barrier is
+the one nothing behind the door makes up for. It is deliberately **not** a footer on every screen:
+a landmark carrying one external link takes a band off every page and off the canvas of a board,
+for a link nobody follows while they are working, and no comparable product keeps one.
 
 **What is deliberately not promised.** Level AAA anywhere; a sign-language or audio-description
 provision (the product has no video); and a conformance claim for a third-party client, which

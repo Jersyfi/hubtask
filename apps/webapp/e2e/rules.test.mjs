@@ -14,6 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -55,6 +56,7 @@ const RULE = {
   created_at: '2026-09-01T00:00:00Z',
   updated_at: '2026-09-01T00:00:00Z',
   findings: [],
+  last_run: { at: '2026-09-20T15:00:00Z', status: 'SUCCEEDED' },
 };
 const MANIFEST = {
   product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single',
@@ -67,7 +69,12 @@ const MANIFEST = {
     actions: ['ADD_COMMENT', 'ADD_LABEL', 'CREATE_ACCESS_TOKEN', 'SEND_WEBHOOK'],
     action_fields: {
       CREATE_ACCESS_TOKEN: [],
-      ADD_COMMENT: [{ name: 'item_id', kind: 'id', required: true }, { name: 'body', kind: 'string', required: true }],
+      ADD_COMMENT: [
+        { name: 'id', kind: 'id', required: false, rule: false },
+        { name: 'item_id', kind: 'id', required: true },
+        { name: 'body', kind: 'string', required: true },
+        { name: 'remind_at', kind: 'string', required: false, format: 'date-time' },
+      ],
       ADD_LABEL: [{ name: 'item_id', kind: 'id', required: true }, { name: 'label_id', kind: 'id', required: true }],
       SEND_WEBHOOK: [{ name: 'subscription_id', kind: 'id', required: true }],
     },
@@ -106,10 +113,13 @@ const STALE = {
   id: '01a0e2e0-0000-7000-8000-000000000011',
   name: 'Flag blocked work',
   enabled: false,
+  last_run: null,
   // A stop with a step stored after it: the server accepts the shape, the run never reaches it.
-  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'STOP' }, { kind: 'ADD_ATTACHMENT_FROM_URL' }],
+  actions: [{ kind: 'ADD_LABEL', params: { label_id: '01a0e2e0-0000-7000-8000-0000000000ff' } }, { kind: 'STOP' }, { kind: 'ADD_ATTACHMENT_FROM_URL' }, { kind: 'ADD_COMMENT', params: {} }],
   findings: [
+    { level: 'ATTENTION', path: '/run_as', code: 'automation.finding.runner_without_role', params: { account_id: RULE.run_as, scope: 'TENANT' } },
     { level: 'ATTENTION', path: '/actions/0/params/label_id', code: 'automation.finding.reference_gone', params: { kind: 'label', id: '01a0e2e0-0000-7000-8000-0000000000ff' } },
+    { level: 'ATTENTION', path: '/actions/3/params/body', code: 'automation.finding.parameter_missing', params: { kind: 'ADD_COMMENT', parameter: 'body' } },
     { level: 'BROKEN', path: '/actions/2/kind', code: 'automation.finding.action_unknown', params: { kind: 'ADD_ATTACHMENT_FROM_URL' } },
   ],
   checked_at: '2026-09-20T15:00:00Z',
@@ -153,12 +163,23 @@ function stubFor(written, tested = TEST_HELD) {
       return route.fulfill({ json: { ...PAGE, data: RUNS } });
     }
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [ITEM], items: [ITEM], page: { next_cursor: null, has_more: false } } });
-    return route.fulfill({ json: PAGE });
+    if (path.endsWith('/api/v1/quotas')) return route.fulfill({ json: [{ quota: 'automation_runs_per_hour', limit: 500, used: 34, ratio: 0.068 }] });
+    // The frame's own reads, in the shapes the API answers them, and a record of anything this
+  // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.
+  return fallback(route, route.request(), path);
   };
 }
 
 const served = await serve(DIST);
 test.after(() => served.close());
+
+/** The panel's Blocks tab, opened: where every block is dragged or clicked from (decision 17). */
+async function openBlocks(page) {
+  await page.locator('aside.inspector').getByRole('tab', { name: 'Blocks' }).click();
+  const blocks = page.locator('aside.inspector [data-blocks]');
+  await blocks.waitFor();
+  return blocks;
+}
 
 async function open(browser, written, viewport, tested) {
   const context = await browser.newContext({ viewport });
@@ -207,17 +228,174 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
   assert.ok(written.some((body) => body.check), 'the editor checked after the save');
 });
 
+test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowhere else', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 900 });
+
+  // The canvas draws the run's path and nothing that is not on it (decision 24).
+  assert.equal(await page.locator('[data-canvas] [data-card="guardrails"]').count(), 0, 'no guardrails card on the canvas');
+
+  // The chip says what the card said, and leads to the one place they are set.
+  const chip = page.getByRole('button', { name: /^Guardrails/ });
+  assert.match(await chip.textContent(), /Carry on|at most 100 runs an hour/);
+  await chip.click();
+  const panel = page.locator('aside.inspector');
+  assert.equal(await panel.locator('[role="tab"][aria-selected="true"]').textContent(), 'Rule');
+  await panel.getByLabel("At most this many runs an hour").fill('7');
+  await page.waitForTimeout(200);
+  assert.match(await chip.textContent(), /at most 7 runs an hour/, 'the chip follows the panel');
+});
+
+test('chromium: at the narrowest width beside the panel a selected card keeps its ring, and the background deselects', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  // Just above the expanded breakpoint: the canvas and the panel side by side with the least
+  // room between them, which is where a content-box card overhung its column (decision 25).
+  const page = await open(browser, written, { width: 960, height: 1000 });
+  await page.locator('[data-card="0"]').click();
+
+  const room = await page.evaluate(() => {
+    const canvas = document.querySelector('.canvas');
+    const card = document.querySelector('[data-card="0"]');
+    const outer = canvas.getBoundingClientRect();
+    const inner = card.getBoundingClientRect();
+    return { start: Math.round(inner.left - outer.left), end: Math.round(outer.right - inner.right), clipped: canvas.scrollWidth > canvas.clientWidth };
+  });
+  assert.ok(room.start >= 4 && room.end >= 4, `the ring has room on both sides: ${JSON.stringify(room)}`);
+  assert.equal(room.clipped, false, 'nothing overflows the canvas sideways');
+
+  // The background deselects (decision 26): the panel leaves Details for Blocks, because what one
+  // does after letting a card go is add another.
+  const selected = () => page.locator('aside.inspector [role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent();
+  assert.equal(await selected(), 'Details');
+  // The canvas's own gutter beside the flow: background, not a card.
+  const gutter = await page.evaluate(() => {
+    const canvas = document.querySelector('.canvas').getBoundingClientRect();
+    const card = document.querySelector('[data-card="0"]').getBoundingClientRect();
+    return { x: Math.round(canvas.left + 2), y: Math.round(card.top + card.height / 2) };
+  });
+  await page.mouse.click(gutter.x, gutter.y);
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-canvas] .card.selected').count(), 0, 'nothing is selected');
+  assert.equal(await selected(), 'Blocks');
+
+  // And Escape from a card does the same, without a pointer.
+  await page.locator('[data-card="1"]').click();
+  assert.equal(await selected(), 'Details');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-canvas] .card.selected').count(), 0);
+  assert.equal(await selected(), 'Blocks');
+});
+
+test('chromium: a deep link into the editor reads each resource once, and only what the first paint needs', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  const seen = [];
+  const stub = stubFor([]);
+  await context.route('**/api/v1/**', (route) => {
+    const url = new URL(route.request().url());
+    seen.push(`${route.request().method()} ${url.pathname}${url.search}`);
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.waitForFunction(() => document.querySelector('[data-canvas]') !== null);
+  await page.waitForTimeout(1500);
+
+  // Issue 818: the boot read every subscription twice - once on subscribing, once when the
+  // snapshot ended - and the editor opened every picker's store at once; 32 requests met the
+  // credential's burst of 20. Now each GET once, and the labels, buckets, groups, templates and
+  // webhooks only when a field of the rule names their kind.
+  const gets = seen.filter((line) => line.startsWith('GET ') && !line.endsWith('/stream'));
+  assert.deepEqual(gets.filter((line, index) => gets.indexOf(line) !== index), [], 'no resource read twice on open');
+  for (const path of ['/labels', '/buckets', '/templates', '/groups', '/integrations/webhooks']) {
+    assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
+  }
+  assert.ok(gets.length <= 12, `${gets.length} reads on open: ${gets.join(', ')}`);
+
+  // And the canvas meets the content region rather than standing in its padding: the editor drew
+  // a slab of one colour on a page of another, which read as a border no other screen has
+  // (issue 918). Its start is the navigation's end and its end is the window's.
+  const edges = await page.evaluate(() => {
+    const editor = document.querySelector('main .editor')?.getBoundingClientRect();
+    const nav = document.querySelector('aside.sidenav')?.getBoundingClientRect();
+    return editor && nav ? { start: Math.round(editor.left - nav.right), end: Math.round(window.innerWidth - editor.right) } : null;
+  });
+  assert.deepEqual(edges, { start: 0, end: 0 }, 'the editor stands inside the frame\'s padding');
+});
+
+test('chromium: a step\'s form shows what a rule can decide: no plumbing, the run\'s fields in one line, a date as a date', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 1000 });
+  await page.locator('[data-card="1/then/0"]').click();
+  const inspector = page.locator('aside.inspector');
+  const labels = await inspector.locator('label').allTextContents();
+  assert.equal(labels.some((label) => label.trim() === 'id'), false, 'the caller-minted id is not offered');
+  assert.equal(labels.some((label) => label.trim() === 'item id'), false, 'what the run supplies is not a field');
+  assert.equal(labels.some((label) => label.trim() === 'body'), true);
+  await inspector.getByText('The run supplies item id').waitFor();
+  assert.equal(await inspector.locator('input[type="datetime-local"]').count(), 1, 'a date-time is a date and time field');
+});
+
+test('chromium: a card moves by drag into a branch below it, arms and all', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 1400, height: 1200 });
+  const cards = async () => page.locator('[data-canvas] [data-card]').evaluateAll((els) => els.map((el) => el.getAttribute('data-card')));
+
+  // The label, above the branch, into the branch's else arm: the arm's path is one shorter
+  // once the label is out, which is what the gap has to know to light (the final check of F8-20).
+  const dt = await page.evaluateHandle(() => new DataTransfer());
+  await page.dispatchEvent('[data-card="0"]', 'dragstart', { dataTransfer: dt });
+  assert.equal(await page.locator('.gap[data-list="1/else"][data-index="2"]').count(), 0, 'after the end: no gap at all');
+  const above = page.locator('.gap[data-list="1/else"][data-index="0"]');
+  assert.equal(await above.evaluate((el) => el.classList.contains('target')), true, 'before the wait: a target');
+  await above.dispatchEvent('dragover', { dataTransfer: dt });
+  await above.dispatchEvent('drop', { dataTransfer: dt });
+  await page.dispatchEvent('[data-card="0"]', 'dragend', { dataTransfer: dt });
+  assert.deepEqual((await cards()).filter((card) => /^0/.test(card)), ['0', '0/then/0', '0/else/0', '0/else/1', '0/else/2'], 'the label leads the else arm; the branch is now first');
+  assert.equal(await page.locator('[data-card="0/else/0"] .title').textContent(), 'Add a label');
+
+  // And the branch itself, with its arms, down past the webhook.
+  const dt2 = await page.evaluateHandle(() => new DataTransfer());
+  await page.dispatchEvent('[data-card="0"]', 'dragstart', { dataTransfer: dt2 });
+  const end = page.locator('.gap[data-list=""][data-index="2"]');
+  await end.dispatchEvent('dragover', { dataTransfer: dt2 });
+  await end.dispatchEvent('drop', { dataTransfer: dt2 });
+  await page.dispatchEvent('[data-card="0"]', 'dragend', { dataTransfer: dt2 });
+  assert.equal(await page.locator('[data-card="0"] .title').textContent(), 'Deliver to a webhook');
+  assert.equal(await page.locator('[data-card="1/else/0"] .title').textContent(), 'Add a label', 'the arms travelled with the branch');
+});
+
 test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const page = await open(browser, [], { width: 1400, height: 900 });
 
-  // The palette: an icon in every item, and the curated groups only.
-  const items = page.locator('aside.palette .pitem');
-  assert.equal(await items.count(), await items.locator('svg').count(), 'every palette item has an icon');
-  assert.equal(await page.locator('aside.palette .pitem', { hasText: 'Create access token' }).count(), 0, 'the rest is not in the palette');
+  // The Blocks tab of the panel (decision 17): an icon in every item; the curated groups on the
+  // first sub-tab, every served kind on the second - nothing hidden.
+  const blocks = await openBlocks(page);
+  const items = blocks.locator('.item');
+  assert.equal(await items.count(), await items.locator('svg').count(), 'every block has an icon');
+  assert.equal(await blocks.locator('.item', { hasText: 'Create access token' }).count(), 0, 'the rest is not among the blocks');
+  await blocks.getByRole('tab', { name: /^All/ }).click();
+  assert.equal(await blocks.locator('.item', { hasText: 'Create access token' }).count(), 1, 'and is in All, by eye');
+  await blocks.locator('.item', { hasText: 'Create access token' }).click();
+  assert.equal(await page.locator('[data-canvas] [data-card="3"] .title').textContent(), 'Create access token', 'a click appends to the chain');
+  await openBlocks(page);
+  await blocks.getByRole('tab', { name: 'Blocks', exact: true }).click();
 
-  // The + menu: the same, and the search reaches what the palette leaves out.
+  // The + menu: the same list, and typing reaches what the blocks leave out.
   await page.locator('.gap[data-list=""][data-index="0"] [data-slot]').click();
   const menu = page.locator('.menu');
   assert.equal(await menu.locator('.item').count(), await menu.locator('.item svg').count(), 'every menu item has an icon');
@@ -227,34 +405,55 @@ test('chromium: every building block carries its icon, and a kind outside the gr
   assert.equal(await page.locator('[data-canvas] [data-card="0"] .title').textContent(), 'Create access token');
 });
 
-test('chromium: a stop goes last - refused in the middle, landing at the end, and a stored one draws what follows faded', async (t) => {
+test('chromium: End the run belongs at the end of an arm, a branch ending on every path ends the chain, and + Else if adds a rung', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const page = await open(browser, [], { width: 1400, height: 1200 });
   const titles = async () => page.locator('[data-canvas] [data-card="0"] .title, [data-canvas] [data-card="1"] .title, [data-canvas] [data-card="2"] .title, [data-canvas] [data-card="3"] .title').allTextContents();
 
-  // Into a middle gap: refused with the stop's own sentence, the chain unchanged.
-  await page.getByRole('button', { name: 'Stop', exact: true }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
-  await page.getByText('A stop goes last.', { exact: false }).waitFor();
+  // Into the chain: refused with its own sentence in the hint line, the chain unchanged.
+  // Frequent and Flow both list it; the block under Flow is the one dragged.
+  const blocks = await openBlocks(page);
+  const endTheRun = blocks.locator('[data-block="STOP"]').last();
+  await endTheRun.dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
+  await page.locator('.dragline span', { hasText: 'goes at the end of an arm' }).waitFor();
   assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook']);
+  await endTheRun.dragTo(page.locator('.gap[data-list=""][data-index="3"]'));
+  assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook'], 'the chain ends the run anyway');
 
-  // The + menu of a middle gap does not offer it; the last gap does, and after it the line ends.
-  await page.locator('.gap[data-list=""][data-index="1"] [data-slot]').click();
-  assert.equal(await page.locator('.menu .item', { hasText: 'Stop' }).count(), 0);
-  await page.keyboard.press('Escape');
+  // The + menu of the chain's last gap does not offer it; the last gap of an arm does. The else
+  // arm already ends; once the then arm ends too, the branch ends on every path: no gap after it,
+  // the end mark says so, and the step stored after it is never reached.
   await page.locator('.gap[data-list=""][data-index="3"] [data-slot]').click();
-  await page.locator('.menu .item', { hasText: 'Stop' }).click();
-  assert.deepEqual(await titles(), ['Add a label', 'Branch', 'Deliver to a webhook', 'Stop']);
-  assert.equal(await page.locator('.gap[data-list=""][data-index="4"]').count(), 0, 'no gap after the stop');
-  assert.equal(await page.locator('[data-card="3"] button[aria-label="Move up"]').isDisabled(), true, 'the stop does not move up');
-  assert.equal(await page.locator('[data-card="2"] button[aria-label="Move down"]').isDisabled(), true, 'nothing moves below it');
+  assert.equal(await page.locator('.menu .item', { hasText: 'End the run' }).count(), 0);
+  await page.keyboard.press('Escape');
+  await page.locator('.gap[data-list="1/then"][data-index="1"] [data-slot]').click();
+  await page.locator('.menu .item', { hasText: 'End the run' }).last().click();
+  await page.locator('[data-card="1/then/1"]').waitFor();
+  assert.equal(await page.locator('[data-branch="1"] .join.none').count(), 1, 'no join under a fork whose arms both end');
+  assert.equal(await page.locator('.gap[data-list=""][data-index="2"]').count(), 0, 'no gap after a branch that ends every path');
+  assert.equal(await page.locator('[data-end="1"]').count(), 1, 'the end mark stands after the branch');
+  assert.equal(await page.locator('.never').count(), 1);
+  assert.equal(await page.locator('[data-card="2"].unreachable').count(), 1, 'what was stored after it is never reached');
+  assert.equal(await page.locator('[data-card="1/then/1"] button[aria-label="Move up"]').isDisabled(), true, 'the end does not move up');
+  assert.equal(await page.locator('[data-card="1/then/0"] button[aria-label="Move down"]').isDisabled(), true, 'nothing moves below it');
 
-  // A stored rule with a step after a stop: drawn faded, with the word once.
+  // + Else if: a rung under the branch, the former else arm as the last resort, drawn as a ladder.
+  await page.locator('[data-add-rung="1"]').click();
+  await page.locator('[data-ladder="1"]').waitFor();
+  assert.equal(await page.locator('[data-rung="1"]').count(), 1);
+  assert.equal(await page.locator('[data-rung="1/else/0"]').count(), 1, 'the new rung');
+  assert.equal(await page.locator('[data-rung="1/else/0/else"]').count(), 1, 'the else after it');
+  assert.equal(await page.locator('[data-card="1/else/0/else/0"] .title').textContent(), 'Wait', 'what the else held travelled down');
+  assert.equal(await page.locator('[data-rung="1/else/0"] .rcond.selected').count(), 1, 'the rung is selected for its condition');
+
+  // A stored rule with a step after an end: drawn faded, with the word once.
   await page.goto(`${served.origin}/administration/rules/${STALE.id}`);
   await page.locator('[data-card="2"]').waitFor();
   assert.equal(await page.locator('.never').count(), 1);
   assert.equal(await page.locator('[data-card="2"].unreachable').count(), 1);
   assert.equal(await page.locator('[data-card="1"].unreachable').count(), 0);
+  assert.equal(await page.locator('[data-end=""]').count(), 0, 'the chain drew no second end mark');
 });
 
 test('chromium: a condition is composed as a tree in the gate and in a branch, and the write carries the CEL', async (t) => {
@@ -273,7 +472,16 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
   await inspector.locator('[data-group="2"] select.mode').selectOption('none');
   await inspector.locator('[data-sentence="2/0"] select').nth(0).selectOption('archived');
   assert.equal(await inspector.locator('code.compiled').textContent(), "item.type == 'TASK' || item.completed == true || (!(item.archived == true))");
-  assert.equal(await page.locator('[data-card="conditions/0"] .words').textContent(), "the entry's type is TASK or completion yes or (none of: archived yes)");
+  // On the canvas: the sentences in words, the modes as chips, the group marked (F8-18).
+  const shown = page.locator('[data-card="conditions/0"] .words');
+  assert.equal(await shown.locator('.w').allTextContents().then((texts) => texts.join(' | ')), "the entry's type is TASK | completion yes | archived yes");
+  assert.equal(await shown.locator('.chip').allTextContents().then((chips) => chips.join(',')), 'or,or,none of');
+  assert.equal(await shown.locator('.group').count(), 1);
+  assert.equal(await shown.locator('code').count(), 0, 'no raw expression on the canvas');
+
+  // The branch card says its condition the same way, and the branch is a flow card.
+  assert.equal(await page.locator('[data-card="1"] .cond .w').textContent(), 'a due date is set');
+  assert.equal(await page.locator('[data-card="1"] .mark.flow').count(), 1);
 
   // A branch's condition takes the same composer.
   await page.locator('[data-card="1"]').click();
@@ -289,6 +497,64 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
   assert.equal(patch.actions[1].params.condition, "has(item.due_at) && item.title.matches('(?i)urgent')");
 });
 
+test('chromium: the gate is edited as one thing, a group is offered from the first sentence, and a rung has a trash', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 1200 });
+  const inspector = page.locator('aside.inspector');
+
+  // The gate holds the condition, and so does its panel (decision 28). One condition is all
+  // there is to offer: it can say anything the gate can ask (decision 30), so nothing adds a
+  // second beside it.
+  // The gate's own heading: a click on a condition inside it selects that one alone.
+  await page.locator('[data-card="gate"] .ghead').click();
+  await inspector.locator('[data-condition="0"]').waitFor();
+  assert.equal(await inspector.locator('[data-condition]').count(), 1, 'the stored condition is in the gate\'s own panel');
+  assert.equal(await inspector.locator('button', { hasText: 'Add a condition' }).count(), 0, 'and nothing offers a second');
+  assert.equal(await page.locator('[data-card="gate"] .add').count(), 0);
+  // One is the most there can be, so the head says nothing about how they join, and the
+  // condition is not a second thing to click: it is the gate.
+  assert.deepEqual(await page.locator('[data-card="gate"] .ghead .hint').allTextContents(), []);
+  assert.equal(await page.locator('[data-card="conditions/0"]').getAttribute('role'), null);
+  await page.locator('[data-card="conditions/0"]').click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('.gate.selected').count(), 1, 'the click reaches the gate');
+  assert.equal(await page.locator('.condition.selected').count(), 0, 'and selects no condition of its own');
+  assert.equal(await inspector.locator('h3').first().textContent(), 'Only when');
+
+  // A group is offered from the first sentence, and the mode appears when there is something to
+  // hold together.
+  const composer = inspector.locator('[data-condition="0"]');
+  assert.deepEqual((await composer.locator('.adds button').allTextContents()).map((text) => text.trim()), ['Add another sentence', 'Add a group']);
+  assert.equal(await composer.locator('select.mode').count(), 0, 'one sentence has no mode');
+  await composer.locator('.adds button').nth(1).click();
+  await page.waitForTimeout(150);
+  assert.equal(await composer.locator('select.mode').count(), 2, 'the root\'s mode and the new group\'s');
+  assert.equal(await composer.locator('code.compiled').textContent(), "item.type == 'TASK' && (item.type == 'TASK')");
+
+  // The condition is removed from the same panel, and only then is one offered again.
+  await composer.locator('button', { hasText: 'Remove' }).first().click();
+  await page.waitForTimeout(150);
+  assert.equal(await inspector.locator('[data-condition]').count(), 0);
+  await inspector.locator('button', { hasText: 'Add a condition' }).click();
+  await page.waitForTimeout(150);
+  assert.equal(await inspector.locator('[data-condition]').count(), 1, 'one again, and no second offer');
+  assert.equal(await inspector.locator('button', { hasText: 'Add a condition' }).count(), 0);
+
+  // A rung carries the trash every other card carries, and what it held as otherwise stays.
+  await page.locator('[data-add-rung="1"]').click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('[data-remove-rung]').count(), 1, 'the first rung is the branch itself');
+  await page.locator('[data-card="1"] button[aria-label="Fold the arms"]').click();
+  assert.match(await page.locator('.folded').textContent(), /Conditions · 2/, 'a folded ladder counts its rungs, not the next one as a step');
+  await page.locator('.folded').click();
+  await page.locator('[data-remove-rung]').first().click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('[data-remove-rung]').count(), 0, 'the ladder closed over it');
+  assert.equal(await page.locator('[data-card="1/else/0"] .title').textContent(), 'Wait', 'and the last resort is where it was');
+});
+
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -296,20 +562,21 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
 
   // While the piece is lifted: the hint on its own line, whole; the trigger card's strip inside
   // the card; the gap's pill readable on one line (F8-12).
+  await openBlocks(page);
   const dt = await page.evaluateHandle(() => new DataTransfer());
-  await page.dispatchEvent('aside.palette button:has-text("A schedule")', 'dragstart', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="T:SCHEDULE"]', 'dragstart', { dataTransfer: dt });
   assert.equal(await page.locator('.dragline').textContent(), 'A trigger goes at the top: let it go on the trigger card, and it replaces the one there.');
   const strip = page.locator('[data-card="trigger"] .dropword');
   assert.equal(await strip.textContent(), 'Replace the trigger');
   const [card, badge] = await Promise.all([page.locator('[data-card="trigger"]').boundingBox(), strip.boundingBox()]);
   assert.ok(badge.y >= card.y && badge.y + badge.height <= card.y + card.height, 'the strip sits inside the card');
-  await page.dispatchEvent('aside.palette button:has-text("A schedule")', 'dragend', { dataTransfer: dt });
-  await page.dispatchEvent('aside.palette button:has-text("Add a label")', 'dragstart', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="T:SCHEDULE"]', 'dragend', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="ADD_LABEL"]', 'dragstart', { dataTransfer: dt });
   const pill = page.locator('.gap[data-list=""][data-index="1"] [data-slot]');
   const pillBox = await pill.boundingBox();
   assert.ok(pillBox.width > pillBox.height * 2, 'the pill is wide, not a circle with two lines in it');
   assert.equal(await pill.evaluate((el) => el.scrollWidth <= el.clientWidth), true, 'nothing clipped');
-  await page.dispatchEvent('aside.palette button:has-text("Add a label")', 'dragend', { dataTransfer: dt });
+  await page.dispatchEvent('[data-blocks] [data-block="ADD_LABEL"]', 'dragend', { dataTransfer: dt });
   assert.equal(await page.locator('.dragline').textContent(), '', 'the line stays and empties');
 
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('.gap[data-list=""][data-index="1"]'));
@@ -324,7 +591,9 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
   assert.deepEqual(await eventSelect.locator('option').allTextContents().then((texts) => texts.map((text) => text.trim())), ['Choose an event', 'An entry is created', 'An entry becomes overdue']);
   await page.getByText('On the wire: de.hubtask.work.item.overdue.v1').waitFor();
 
-  // And on the trigger card it lands: the kind changes.
+  // And on the trigger card it lands: the kind changes. Clicking the card opened Details; the
+  // blocks are a tab away.
+  await openBlocks(page);
   await page.getByRole('button', { name: 'A schedule' }).dragTo(page.locator('[data-card="trigger"]'));
   assert.equal(await page.locator('[data-card="trigger"] .title').textContent(), 'A schedule');
 });
@@ -351,6 +620,176 @@ test('chromium: at phone width the details come as a sheet and a branch shows on
   assert.ok(await sheet.getByText('Add a label').first().isVisible());
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+});
+
+test('chromium: the sheet keeps its head, is sized by the reader, and keeps that size', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const page = await open(browser, [], { width: 375, height: 812 });
+
+  await page.locator('[data-card="0"]').click();
+  const sheet = page.locator('dialog[open]');
+  await sheet.waitFor();
+  const share = () => page.evaluate(() => {
+    const open = document.querySelector('dialog[open]');
+    return Math.round((open.getBoundingClientRect().height / window.innerHeight) * 100);
+  });
+  assert.equal(await share(), 50, 'it opens at half the screen');
+
+  // The head and the tabs stay while the body scrolls: closing it never means scrolling back up.
+  await page.evaluate(() => {
+    const body = document.querySelector('dialog[open] .body');
+    body.scrollTop = body.scrollHeight;
+  });
+  await page.waitForTimeout(150);
+  assert.ok(await sheet.locator('header button[title="Close"]').isVisible(), 'the close is still there');
+  assert.ok(await sheet.locator('[role="tab"][aria-selected="true"]').isVisible(), 'and so are the tabs');
+
+  // The handle sizes it by keyboard, and says where it stands.
+  const grip = sheet.locator('[role="separator"]');
+  await grip.focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await page.waitForTimeout(150);
+  assert.equal(await grip.getAttribute('aria-valuenow'), '60');
+  assert.equal(await share(), 60);
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(150);
+  assert.equal(await share(), 90, 'Home is as tall as it goes');
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(150);
+  assert.equal(await share(), 85);
+
+  // Nothing of the sheet stands past its own bottom edge: scrolled to the end, the last control
+  // is whole and the panel's own room is under it.
+  await page.evaluate(() => {
+    const body = document.querySelector('dialog[open] .body');
+    body.scrollTop = body.scrollHeight;
+  });
+  await page.waitForTimeout(150);
+  const foot = await page.evaluate(() => {
+    const open = document.querySelector('dialog[open]');
+    const body = open.querySelector('.body');
+    const last = body.lastElementChild;
+    return {
+      sheet: Math.round(open.getBoundingClientRect().bottom),
+      body: Math.round(body.getBoundingClientRect().bottom),
+      last: Math.round(last.getBoundingClientRect().bottom),
+    };
+  });
+  assert.ok(foot.body <= foot.sheet, `the body ends inside the sheet: ${JSON.stringify(foot)}`);
+  assert.ok(foot.last <= foot.body, `and the last control inside the body: ${JSON.stringify(foot)}`);
+
+  // Closed and opened again: the size the reader left it at.
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+  await page.locator('[data-card="0"]').click();
+  await sheet.waitFor();
+  assert.equal(await share(), 85, 'the sheet is where it was left');
+});
+
+test('chromium: the panel ends where the region ends, and the Runs as warning leads to the field', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  await context.route('**/api/v1/**', stubFor([], undefined));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.locator('[data-canvas]').waitFor();
+  const inspector = page.locator('aside.inspector');
+  await inspector.getByRole('tab', { name: 'Rule' }).click();
+
+  // One screen: the page itself does not scroll, and the panel ends inside the window rather
+  // than below it (decision 31).
+  const room = await page.evaluate(() => {
+    const panel = document.querySelector('aside.inspector');
+    return {
+      bottom: Math.round(panel.getBoundingClientRect().bottom),
+      viewport: window.innerHeight,
+      pageScrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+      panelScrolls: panel.scrollHeight > panel.clientHeight,
+    };
+  });
+  assert.ok(room.bottom <= room.viewport, `the panel ends inside the window: ${JSON.stringify(room)}`);
+  assert.equal(room.pageScrolls, false, 'the page does not scroll');
+  assert.equal(room.panelScrolls, true, 'the panel scrolls on its own');
+
+  // Scrolled to its end, the last thing in it is in view.
+  await page.evaluate(() => {
+    const panel = document.querySelector('aside.inspector');
+    panel.scrollTop = panel.scrollHeight;
+  });
+  await page.waitForTimeout(150);
+  const last = await page.evaluate(() => {
+    const el = document.querySelector('aside.inspector .panel > :last-child');
+    return { bottom: Math.round(el.getBoundingClientRect().bottom), viewport: window.innerHeight };
+  });
+  assert.ok(last.bottom <= last.viewport, `the panel's last control is reachable: ${JSON.stringify(last)}`);
+
+  // The warning on the pill leads to the field it is about: scrolled to, focused, and the reason
+  // under it rather than only on the pill.
+  await page.getByRole('button', { name: /^Runs as/ }).click();
+  await page.waitForTimeout(300);
+  assert.equal(await inspector.locator('[role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent(), 'Rule');
+  const field = await page.evaluate(() => {
+    const active = document.activeElement;
+    // The field's own description: what a screen reader reads with the control, and what the
+    // reader sees under it.
+    const described = (active.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ');
+    return { tag: active.tagName, described };
+  });
+  assert.equal(field.tag, 'SELECT', 'the runner select has the focus');
+  assert.match(field.described, /Nobody acts yet/, 'and the reason is at the field');
+});
+
+test('chromium: the editor says what is missing before the probe is pressed', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1100 } });
+  await context.route('**/api/v1/**', stubFor([], undefined));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  // A rule being written, not a stored one: the check has said nothing about it and cannot.
+  await page.goto(`${served.origin}/administration/rules/new`);
+  await page.locator('[data-canvas]').waitFor();
+  const inspector = page.locator('aside.inspector');
+
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  const notes = inspector.locator('.notes .note');
+  assert.deepEqual(await notes.allTextContents(), [
+    'Nobody acts yet: choose the account this rule runs as.',
+    'The rule does nothing yet: add a block to the chain.',
+  ]);
+
+  // A block with a required parameter nobody filled: said at the card and in the list.
+  const blocks = await openBlocks(page);
+  await blocks.locator('[data-block="ADD_LABEL"]').first().click();
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  assert.ok((await notes.allTextContents()).includes('Add a label needs label id, and nothing is set.'));
+  assert.equal(await page.locator('[data-card="0"] .flag').textContent(), 'Add a label needs label id, and nothing is set.');
+
+  // Each line presses through to the card it is about.
+  await notes.first().click();
+  assert.equal(await inspector.locator('[role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent(), 'Rule');
+
+  // Filled in, the review says so and the probe is nothing but the sample. On the Rule tab the
+  // selects are scope, runs as, then the guardrails'.
+  await inspector.locator('select').nth(1).selectOption({ index: 1 });
+  await page.locator('[data-card="0"]').click();
+  await inspector.locator('select').last().selectOption({ index: 1 });
+  await inspector.getByRole('tab', { name: 'Probe' }).click();
+  assert.equal(await notes.count(), 0);
+  assert.equal(await inspector.locator('.ready').textContent(), 'Nothing is missing: this rule can run.');
 });
 
 test('chromium: the probe runs the canvas\'s definition through the dry run and draws the answer', async (t) => {
@@ -425,7 +864,19 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('The check found one rule that needs your attention.').waitFor();
   assert.ok(written.some((body) => body.check), 'the list asked for the check');
   await page.getByText('Broken', { exact: true }).waitFor();
-  await page.getByText('Step 0: The label this step points at no longer exists; the step would find nothing.').waitFor();
+  await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
+  await page.getByText('Works', { exact: true }).waitFor();
+  // The last run under the word (F8-21): the rule that ran says when and how, the other says never.
+  assert.match(await page.locator('article', { hasText: RULE.name }).textContent(), /Last run.*Succeeded/);
+  assert.match(await page.locator('article', { hasText: STALE.name }).textContent(), /Last run\s*never/);
+
+  // On the shell (issue 880): one heading, from the PageHeader; the check's banner among its
+  // notices; *Write a rule* the primary action, which opens the editor at its address.
+  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Automation');
+  await page.locator('[data-opener="new-rule"]').click();
+  await page.waitForURL(/\/administration\/rules\/new$/, { timeout: 5_000 });
+  await page.goBack();
   await page.getByText('Works', { exact: true }).waitFor();
 
   // The rule itself: the findings at their cards, and the switch refused with the reason.
@@ -433,6 +884,10 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.locator('[data-card="2"] .flag').waitFor();
   assert.match(await page.locator('[data-card="2"] .flag').textContent(), /no action ADD_ATTACHMENT_FROM_URL/);
   assert.match(await page.locator('[data-card="0"] .flag').textContent(), /no longer exists/);
+  // The two findings of F8-19: the missing parameter at its step, the roleless runner at the pill.
+  assert.match(await page.locator('[data-card="3"] .flag').textContent(), /needs body/);
+  assert.match(await page.locator('.chip-flag').textContent(), /holds no role/, 'the sentence is there for a screen reader');
+  assert.match(await page.locator('.chip.flagged').getAttribute('title'), /holds no role/, 'and on hover');
   const enable = page.getByRole('button', { name: 'Switch it on' });
   assert.equal(await enable.isDisabled(), true);
 });
@@ -452,6 +907,9 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   await page.locator('[data-strip]').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-strip] dd')?.textContent === '3');
   assert.ok(written.some((body) => body.runs?.rule_id === RULE.id), 'the listing was asked for the rule');
+  // On the shell (issue 880): one heading, from the PageHeader.
+  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'What the rules did');
 
   await page.getByLabel('From').fill('2026-09-20T00:00');
   await page.getByLabel('To').fill('2026-09-21T00:00');
@@ -461,4 +919,8 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.ok(windowed, 'the listing was asked for the window');
   assert.ok(windowed.runs.to > windowed.runs.from, `to ${windowed.runs.to} after from ${windowed.runs.from}`);
   assert.equal(await page.locator('[data-strip] .stat').count(), 5);
+  // The hour's standing and the link to Limits (F8-21).
+  await page.locator('[data-hourly]').waitFor();
+  assert.match(await page.locator('[data-hourly]').textContent(), /This hour: 34 of 500 runs/);
+  assert.equal(await page.locator('[data-hourly] a').getAttribute('href'), '/administration/quotas');
 });

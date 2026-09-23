@@ -29,11 +29,13 @@ class ContainerPage(TypedDict, total=False):
     page: Required["PageInfo"]
 
 class ItemSearchQuery(TypedDict, total=False):
-    """One search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for."""
-    q: Required[str]
+    """One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers."""
+    q: str
     container_id: str | None
     language: str | None
     mode: "SearchMode"
+    filter: "FilterNode"
+    sort: list["SortTerm"]
     include_archived: bool
     include_trashed: bool
     page: dict[str, Any]
@@ -731,6 +733,8 @@ class AutomationActionField(TypedDict, total=False):
     required: Required[bool]
     enum: list[str]
     description: str
+    rule: bool
+    format: str
 
 class RuleAction(TypedDict, total=False):
     """One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything."""
@@ -758,6 +762,7 @@ class AutomationRule(TypedDict, total=False):
     inbound_rotated_at: str | None
     findings: list["RuleFinding"]
     checked_at: str | None
+    last_run: dict[str, Any] | None
     created_by: Required[str]
     created_at: Required[str]
     updated_at: Required[str]
@@ -1099,6 +1104,12 @@ class DroppedReference(TypedDict, total=False):
     id: Required[str]
     code: Required[str]
 
+class SortTerm(TypedDict, total=False):
+    """One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064)."""
+    field: Required[str]
+    dir: Literal["ASC", "DESC"]
+    nulls: Literal["FIRST", "LAST"]
+
 class FilterNode(TypedDict, total=False):
     """Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with"""
     op: Required[Literal["AND", "OR", "NOT", "EQ", "NEQ", "IN", "NOT_IN", "LT", "LTE", "GT", "GTE", "BETWEEN", "IS_NULL", "CONTAINS", "CONTAINS_ANY", "CONTAINS_ALL", "STARTS_WITH", "MATCHES"]]
@@ -1109,7 +1120,7 @@ class FilterNode(TypedDict, total=False):
 class ItemQuery(TypedDict, total=False):
     scope: Required[dict[str, Any]]
     filter: "FilterNode"
-    sort: list[dict[str, Any]]
+    sort: list["SortTerm"]
     group_by: dict[str, Any]
     expand: list[str]
     page: dict[str, Any]

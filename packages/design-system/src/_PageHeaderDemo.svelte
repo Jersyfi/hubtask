@@ -58,7 +58,15 @@
       title={isLong ? 'Renovierung der Küche im Erdgeschoss' : 'Renovation'}
       subtitle={isLong ? 'Alles, was vor dem Einzug im September fertig sein muss.' : undefined}
       breadcrumb={{ trail, label: 'Where you are', expandLabel: 'Show every level' }}
-      primary={{ label: isLong ? 'Eintrag anlegen' : 'Create an entry', icon: 'plus', onclick: () => (chosen = 'create'), tour: 'create' }}
+      primary={{
+        label: isLong ? 'Eintrag anlegen' : 'Create an entry',
+        icon: 'plus',
+        onclick: () => (chosen = 'create'),
+        tour: 'create',
+        // The daily way to a template, beside the verb (backlog decision 5); the set-up way is in
+        // the page menu below. Folded, this list joins that menu.
+        menu: { label: isLong ? 'Weitere Wege' : 'More ways to create', items: [{ id: 'template', label: isLong ? 'Aus einer Vorlage…' : 'From a template…', icon: 'layout-template' }], onselect: (id) => (chosen = id) },
+      }}
       secondary={[{ label: isLong ? 'Filtern' : 'Filter', icon: 'funnel', onclick: () => (chosen = 'filter') }]}
       menu={{ label: isLong ? 'Mehr für diese Sammlung' : 'More for this collection', items: menu, onselect: (id) => (chosen = id) }}
       isTitleInBar={mode === 'phone'}

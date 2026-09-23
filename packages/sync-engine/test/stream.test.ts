@@ -164,6 +164,41 @@ test('the reconnect asks for the position the stream last sent', async () => {
   assert.equal(transport.streams[1]?.token, 'tok', 'the reconnect went out without a bearer');
 });
 
+test('a read the server could not answer is read again when the stream comes back', async () => {
+  // Issue 881: the account is subscribed to once at start, and a tab whose server went away kept
+  // the failed state until a reload - the tree came back on the reconnect, the name did not.
+  const transport = new FakeTransport()
+    .answer('/accounts/me', { id: 'me', display_name: 'Engine Walker' })
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'refused' })
+    .streamSessions({ refuse: new TransportError('offline') }, { open: true });
+  const engine = new SyncEngine({ transport });
+  const pause = pauses();
+
+  // The server is away: the account cannot be reached, the entry is refused by the server itself.
+  transport.fail('/accounts/me', new TransportError('offline'));
+  transport.fail(`/items/${ITEM}`, new TransportError('problem', { status: 403, code: 'forbidden' }));
+  const seen: string[] = [];
+  engine.subscribe<{ display_name: string }>({ path: '/accounts/me' }, (state) => {
+    if (state.status === 'ready') seen.push(state.data.display_name);
+    if (state.status === 'failed') seen.push(`failed:${state.error.kind}`);
+  });
+  engine.subscribe({ path: `/items/${ITEM}` }, () => {});
+  await settle();
+  assert.deepEqual(seen, ['failed:offline']);
+  const before = transport.calls.length;
+
+  // The stream cannot open either; then the server comes back and the second connection holds.
+  transport.recover('/accounts/me');
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  await settle(12);
+  pause.end();
+
+  assert.deepEqual(seen, ['failed:offline', 'Engine Walker'], 'the failed read was left failed after the reconnect');
+  const reads = transport.calls.slice(before).map((call) => call.path);
+  assert.equal(reads.filter((path) => path === '/accounts/me').length, 1, 'read again exactly once, on the reconnect');
+  assert.equal(reads.includes(`/items/${ITEM}`), false, 'a refusal the server answered was retried');
+});
+
 test('the cursor advances on a frame this client has no mapping for', async () => {
   const transport = new FakeTransport().streamSessions(
     { events: [frame('11', { entity: 'identity_provider', entity_id: OTHER })] },
@@ -364,4 +399,43 @@ test('stopping the listener ends the connection and keeps what was read', async 
   assert.equal(transport.streams.length, 1, 'the loop reopened a connection after it was stopped');
   // Stopping the stream is not signing out: `reset` is what empties the engine.
   assert.equal(engine.peek({ path: `/items/${ITEM}` }).status, 'ready');
+});
+
+test('the connection says when it is attached, and when an attempt failed', async () => {
+  // Issue 1017: the client had no way to ask, so it inferred - "live" became true when the first
+  // record arrived, and an open stream that nobody wrote to read *Reconnecting…* for ever. What
+  // the callback reports is the connection, and a record is not one.
+  const transport = new FakeTransport()
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })
+    .streamSessions(
+      { refuse: new TransportError('offline') },
+      { events: [], open: true },
+    );
+  const engine = new SyncEngine({ transport });
+  const clock = pauses();
+  const seen: boolean[] = [];
+
+  const stop = engine.listen({ pathsFor, wait: clock.wait, onConnection: (isOpen) => seen.push(isOpen) });
+  clock.hold(stop);
+  await settle(10);
+
+  // The first attempt failed and the second was accepted: false, then true, and nothing else -
+  // it is called when the answer changes rather than on every turn of the loop.
+  assert.deepEqual(seen, [false, true]);
+  assert.deepEqual(clock.seen, [RECONNECT_BASE_MS]);
+  stop();
+});
+
+test('an open stream with nothing on it is attached, and says so without a record', async () => {
+  const transport = new FakeTransport().streamSessions({ events: [], open: true });
+  const engine = new SyncEngine({ transport });
+  const seen: boolean[] = [];
+
+  const stop = engine.listen({ pathsFor, onConnection: (isOpen) => seen.push(isOpen) });
+  await settle();
+
+  // The whole of the finding: no record has arrived, nothing has been read, and the connection is
+  // up - which is what the mark in the bar draws.
+  assert.deepEqual(seen, [true]);
+  stop();
 });

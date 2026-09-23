@@ -21,9 +21,11 @@ Which means:
 | File | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
-| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and the whole of `make gate-selftest`, whose probes for those two are skipped where there is no PostgreSQL, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
+| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and `make gate-selftest` on the other architecture, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
+| `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Build `apps/website/dist`, prove it is plain static files, mirror it to the webspace over SFTP (§CI-4). A failure files an issue labelled `claude:task` |
+| `workbench.yml` | Push to `main` touching `packages/design-system/` | Publish the component workbench to `workbench.hubtask.eu` from its own scoped account ([ADR-0038](../adr/ADR-0038-workbench-published.md)) |
 | `codeql.yml` | PR, schedule | Static security analysis |
 | `scorecard.yml` | Schedule | OpenSSF supply chain scorecard |
 | `claude-review.yml` | Pull request, unless it is a draft or Dependabot's | **Switched off** — posts the review checklist as the record that no automated reviewer ran (§5) |
@@ -37,7 +39,7 @@ Staggered by runtime: whatever fails fastest runs first.
 
 | Job | Contents | Gate |
 |---|---|---|
-| `quick` | `gofmt`, `go vet`, `golangci-lint`, `make generate` with no diff | Format, lint, generation |
+| `quick` | `gofmt`, `go vet`, `golangci-lint`, `make generate` with no diff, and `make gate-sdk` — the generated Python SDK parsed by a Python, which nothing did until #943: `tools/sdkgen`'s own test compares strings, and a file that does not parse passes that as readily as one that does | Format, lint, generation |
 | `build` | `go build ./...` for linux/amd64 and linux/arm64 | Buildability |
 | `unit` | Domain and application tests, coverage thresholds (85% / 75%) | Unit gate |
 | `integration` | Service container PostgreSQL 16, `goose up`, repository and use case tests; object storage and the other backup targets come from Testcontainers | Integration |
@@ -99,12 +101,25 @@ outputs whether it has work to do.
 | `design_system` | Additionally: all token targets are regenerated and the committed `LabelTokens.go` must not move |
 | `webapp`, `website`, `design_system`, `api_client` | Lint, typecheck, test and build — for the affected packages and the packages they consume |
 | `webapp`, `design_system`, `api_client`, `go`, `deploy` | The container build, because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
-| documentation only | The documentation gate, and nothing else |
+| documentation only | The documentation gate, the secret scan, the dependency review and the licence gate — the four that are behind no filter |
 | `.github/**` | Everything, no exceptions |
 
-Three jobs are behind no filter at all — `secrets`, `dependencies` and `licences`. A key and a
-copyleft dependency get in through any path, including a stylesheet and a README, so a filter that
-could skip them is a filter that will.
+Four jobs are behind no filter at all — `secrets`, `dependencies`, `licences` and `docs`. A key
+and a copyleft dependency get in through any path, including a stylesheet and a README, so a
+filter that could skip them is a filter that will. `docs` joined them for the same reason and a
+second one: it takes 24 seconds, and `checkdocs` reconciles the Go version across `go.mod`, the
+workflows and the Dockerfile, reconciles the support matrix with the nightly's jobs, and resolves
+ADR citations in `.go`, `.md`, `.sql`, `.yaml` and `.tpl` — so a change confined to `db/` or
+`deploy/` used to skip the gate that reads it.
+
+**The filters name trees, and `test/architecture` checks that they name all of them.** They used
+to name patterns — `**/*.go` and a list of manifests — which left every non-Go file a Go test
+reads outside the `go` filter: the golden archives under `test/backup`, the adapters' testdata,
+the load guard's baseline, the Go SDK's templates. A pull request that changed one of them alone
+ran no Go job and reported green, because `ci-required` counts a skip as a pass, and the test that
+exists to notice a changed archive format was the one that did not run (#941). Two tests now ask
+it from both ends: every tracked file is claimed by some filter or named in a short list of paths
+that deliberately trigger nothing, and every pattern a filter names matches something that exists.
 
 On a push to `main` and on a tag every filter output is `true` and the whole pipeline runs. There
 is no filtering on the branch that gets released.
@@ -139,6 +154,24 @@ skipping and stays green. It starts biting the moment the first package appears 
 lets the milestone build all gates up front and fill them in task by task. What must never happen
 is the reverse: a gate that swallows a real failure. Whether the difference still holds is exactly
 what the `selftest` job checks.
+
+### 3.3 What a job no longer compiles again
+
+Eight jobs need the pinned tool set, and each one compiled it: `make tools` installs nine tools,
+eight of them from source, and took **215 seconds** — 29 of a Go pull request's 69 runner-minutes,
+twice on the critical path. `actions/setup-go`'s cache was supposed to pay for that and could not:
+it saves only when the key is not yet present, so the entry belonged to the first job to finish,
+which is one of the two that compile nothing.
+
+So the tools are cached as tools ([ADR-0062](../adr/ADR-0062-cached-tool-binaries.md)). The jobs
+call `make tools-ensure`, which installs the whole set unless `.tools/.installed` names exactly
+today's pins and the Go that built them, and every binary those pins name is there. The cache
+decides nothing: a restored directory that does not match is thrown away and installed again, and
+`release.yml` compiles its own set from the pins of the tagged commit, with no cache near it.
+
+The same reasoning has not yet been applied to the *project's* build and module caches, which is
+where the rest of a job's cold start lives. That is measured work of its own, because thirteen
+jobs each keeping a build cache is a real question against the repository's 10 GB.
 
 ---
 
@@ -261,6 +294,18 @@ build red, and deleting one does too.
 A failing nightly job files an issue with the `claude:task` label rather than staying a red run in
 a tab nobody opens; one issue per job, reopened rather than duplicated, so a platform that has been
 broken for a week is one thread instead of seven.
+
+`website.yml` files under the same rule, and for a sharper version of the same reason. It runs
+after the merge and gates nothing — publishing is not a review tool — so its failures land where
+nobody looks: it was red for seven days and forty-five runs before anybody noticed, and hubtask.eu
+quietly stopped being published while every check that is actually read stayed green. The first
+publish that succeeds closes the thread again.
+
+Its build half is not left to that workflow alone. `Workspace (website)` runs `make website`
+itself, before it builds anything else, so the deploy command is exercised in a checkout with no
+`dist/` in it — the condition CI gets and a developer's machine never has. That asymmetry is what
+broke it: the target named its own dependency list, the list went stale when the site gained a
+build-time import, and it passed locally on leftovers for as long as it took to notice.
 
 The nightly image scan targets `ghcr.io/<repo>:latest`, which only exists once `release.yml` has
 run on a `v*` tag. Before the first release the scan is skipped rather than failed, with a notice

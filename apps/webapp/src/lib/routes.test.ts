@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ADMINISTRATION_PREFIX, ROUTES } from './routes.ts';
+import { ADMINISTRATION_PREFIX, ROUTES, paneFor } from './routes.ts';
 import { normalisePath, resolve } from './router.ts';
 
 test('the administration area is exactly the routes under its prefix', () => {
@@ -70,8 +70,20 @@ test('every route resolves to one of the three areas, and the profile ones are n
     const area = resolve(ROUTES, route.pattern.replaceAll(/:\w+/g, 'x')).area;
     assert.ok(['end-user', 'profile', 'administration'].includes(area), `${route.name} is in ${area}`);
   }
+  // Your settings is a section since ADR-0065 decision 3, so the area is its eight screens rather
+  // than the two it began with. Every one of them is about the reader themselves, which is what
+  // `profile` means and why the mobile shell ships them all.
   const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
-  assert.deepEqual(profile, ['profile', 'tokens']);
+  assert.deepEqual(profile, [
+    'appearance',
+    'devices',
+    'grants',
+    'notifications',
+    'profile',
+    'security',
+    'sessions',
+    'tokens',
+  ]);
 });
 
 test('every route has a unique name and a unique pattern', () => {
@@ -108,4 +120,18 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/administration/retention').name, 'retention');
   assert.equal(resolve(ROUTES, '/administration/restore').name, 'restore');
   assert.equal(resolve(ROUTES, '/administration/identity-provider').name, 'identity-provider');
+});
+
+test('the detail pane is a place, not a feature: a pane from large, a redirect below, the entry page untouched', () => {
+  // ADR-0061 decision 4. `/collections/:id?item=:itemId` is the collection with an entry open;
+  // below `large` there is no room beside the list, and the entry's own address is where it goes.
+  const open = resolve(ROUTES, '/collections/c1?item=i1');
+  assert.deepEqual(paneFor(open, { isLarge: true }), { kind: 'pane', collectionId: 'c1', itemId: 'i1' });
+  assert.deepEqual(paneFor(open, { isLarge: false }), { kind: 'redirect', path: '/items/i1' });
+  // Without the parameter there is nothing to open, on any width.
+  assert.deepEqual(paneFor(resolve(ROUTES, '/collections/c1'), { isLarge: true }), { kind: 'none' });
+  // The entry's own address is not a pane and is not redirected, whatever its query says.
+  assert.deepEqual(paneFor(resolve(ROUTES, '/items/i1?item=i2'), { isLarge: false }), { kind: 'none' });
+  // A hub has no list of entries to open one beside.
+  assert.deepEqual(paneFor(resolve(ROUTES, '/hubs/h1?item=i1'), { isLarge: true }), { kind: 'none' });
 });

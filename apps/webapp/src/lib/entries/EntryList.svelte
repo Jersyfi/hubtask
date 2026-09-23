@@ -67,11 +67,22 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { textLanguages } from '../data/query.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { humanise } from '../i18n/messages.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
     collectionId: string;
+    /**
+     * The entry whose subtree this list is, instead of the collection's top level (ADR-0061,
+     * backlog decision 6): the same flatten, the same rows, the same menus, mounted one level
+     * down. With a root, the top level is the root's children, "add" creates under the root with
+     * the types the manifest lets it take, direct children open and deeper levels start closed,
+     * and the expansion is kept per entry on this device (decision 7). The id is what decision 6
+     * calls `rootId`; the type and the parent travel with it because the add form and "move out"
+     * need them and the list should not read the entry a second time.
+     */
+    root?: Pick<WorkItem, 'id' | 'type' | 'parent_id'>;
     /** Whether the collection is archived — the entries in it are then read-only too (I-C3). */
     isReadOnly?: boolean;
     /** What the reader has asked of this level: a filter, an order. Built from the manifest. */
@@ -93,6 +104,14 @@
      */
     lastResults?: ReadonlyMap<string, BulkResult>;
     /**
+     * Asked to open an entry beside the list rather than on its page (ADR-0061 decision 4). The
+     * view decides, because whether there is room beside the list is the view's width; a list
+     * without it leaves the rows as the links they are.
+     */
+    onopen?: (itemId: string) => void;
+    /** The entry open beside the list, so its row is announced as current. */
+    currentId?: string;
+    /**
      * Asked to copy an entry.
      *
      * Handed up rather than handled here, because a duplicate ends on the copy — and navigation is
@@ -104,12 +123,31 @@
 
   const {
     collectionId,
+    root,
     isReadOnly = false,
     query,
     isExpanded = false,
     lastResults,
+    onopen,
+    currentId,
     onduplicate,
   }: Props = $props();
+
+  /** The types the top level of this list may hold: the collection's roots, or the root's children. */
+  const topTypes = () => (root ? childTypes(root.type) : rootTypes());
+
+  /** Where this device keeps which levels of a subtree are open (decision 7). */
+  const expansionKey = $derived(root ? `hubtask.subtree.${root.id}` : undefined);
+
+  function rememberedExpansion(): string[] | undefined {
+    if (!expansionKey) return undefined;
+    try {
+      const kept = sessionStorage.getItem(expansionKey);
+      return kept ? (JSON.parse(kept) as string[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   /** The entry whose dates are being changed from the row, if one is. */
   let dating = $state<WorkItem | undefined>(undefined);
@@ -128,15 +166,48 @@
   }
 
   /** The entries whose children are shown. Expanding one is what reads its level. */
-  let expanded = $state<string[]>([]);
+  let expanded = $state<string[]>(rememberedExpansion() ?? []);
+  /** Whether the subtree's default - direct children open - has been applied once they arrived. */
+  let hasDefaultExpansion = rememberedExpansion() !== undefined;
 
   // `untrack` for the reason F2-08 records: the listener writes the store and writing it reads it,
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
+  // A subtree is read whole - every level under the root in one query, unfiltered as every child
+  // level is (issue 877: a level per branch was a request per branch, twice after every write).
   $effect(() => {
     const wanted = collectionId;
     const asked = query;
-    return untrack(() => items.openCollection(wanted, asked));
+    const under = root?.id;
+    return untrack(() => (under ? items.openSubtree(under) : items.openCollection(wanted, asked)));
   });
+
+  // In a subtree, the direct children that take children start open and deeper levels closed
+  // (decision 7) - applied once, when the first level has arrived, unless this device remembers
+  // a choice. Kept whenever it changes, and only for a subtree.
+  $effect(() => {
+    if (!root || hasDefaultExpansion) return;
+    const first = items.childrenOf(root.id);
+    if (first.length === 0) return;
+    hasDefaultExpansion = true;
+    expanded = first.filter((item) => childTypes(item.type).length > 0).map((item) => item.id);
+  });
+  $effect(() => {
+    // Read first, so the effect follows `expanded` from its first run and not only once the
+    // default has been applied - an early return before the read would track nothing.
+    const kept = JSON.stringify(expanded);
+    if (!expansionKey || !hasDefaultExpansion) return;
+    try {
+      sessionStorage.setItem(expansionKey, kept);
+    } catch {
+      // A browser that refuses storage keeps the choice for as long as the page is open.
+    }
+  });
+
+  /** Opens or closes every level of the subtree: the section head's one control over all of them. */
+  export function expandAll(isOpen: boolean) {
+    hasDefaultExpansion = true;
+    expanded = isOpen ? rows.filter((row) => row.takesChildren).map((row) => row.item.id) : [];
+  }
 
   // What `LIST_EXPANDED` means, one row at a time: a row that takes children is opened, and
   // opening it is what reads its level — so the rows that arrive are opened in turn rather than a
@@ -149,15 +220,7 @@
     if (opened.length > 0) expanded = [...expanded, ...opened];
   });
 
-  $effect(() => {
-    const open = [...expanded];
-    return untrack(() => {
-      const stops = open.map((id) => items.openChildren(id));
-      return () => {
-        for (const stop of stops) stop();
-      };
-    });
-  });
+
 
   // The collection's labels, read once for the whole list: every row picks from the same set,
   // because a label belongs to a collection (I-W3).
@@ -256,7 +319,30 @@
     return rows;
   }
 
-  const rows = $derived(flatten(items.inCollection(collectionId), 0, null, isReadOnly));
+  const rows = $derived(flatten(root ? items.childrenOf(root.id) : items.inCollection(collectionId), 0, root?.id ?? null, isReadOnly));
+
+  // In the collection's list only an open row's level is read; a subtree arrived whole, so a
+  // closed row there already knows what it hides and nothing more is read.
+  const readIds = $derived(root ? [] : expanded);
+  // Keyed by the ids as one string: reading a level writes the store, the store rebuilds the rows,
+  // and a fresh array of the same ids would re-run this effect and re-read the level - forever.
+  const readKey = $derived(readIds.join(' '));
+  $effect(() => {
+    const open = readKey === '' ? [] : readKey.split(' ');
+    return untrack(() => {
+      const stops = open.map((id) => items.openChildren(id));
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
+  });
+
+  /** What a row hides or shows: its direct children's completion, once they have been read. */
+  function progressOf(itemId: string): { done: number; total: number } | undefined {
+    if (!items.hasChildrenOf(itemId)) return undefined;
+    const children = items.childrenOf(itemId);
+    return { done: children.filter((child) => child.completion?.is_completed).length, total: children.length };
+  }
 
   /** The moment standing, and which row of this level carries it (F6-13). */
   const moment = $derived(celebration.current);
@@ -285,7 +371,7 @@
   });
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
-  const levelState = $derived(items.stateOf(`container:${collectionId}`));
+  const levelState = $derived(items.stateOf(root ? `subtree:${root.id}` : `container:${collectionId}`));
   const failure = $derived(
     levelState?.status === 'failed' ? renderProblem(levelState.error, messages) : undefined,
   );
@@ -301,13 +387,34 @@
     addingUnder === null
       ? []
       : addingUnder === 'root'
-        ? rootTypes()
+        ? topTypes()
         : childTypes(rows.find((row) => row.item.id === addingUnder)?.item.type ?? ''),
+  );
+
+  /**
+   * What the control at the end of the top level says: "Add an entry" in a collection; in a
+   * subtree the name of what it adds, as the manifest names the type, because "+ Work package"
+   * under a task says which level the reader is adding to.
+   */
+  /** A type as words: the manifest's identifier, read as `humanise` reads a code ("Work package"). */
+  const typeName = (type: string) => humanise(type.toLowerCase());
+  const addLabel = $derived(
+    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: typeName(topTypes()[0] ?? '') }) : t('app.entries.add'),
   );
 
   /** The language a new entry is written in: the person's own, preselected, and changeable. */
   let draftLanguage = $state('');
   const languages = $derived(textLanguages(manifest.value));
+
+  /**
+   * The page head's primary action (F9-07): opens the form at the list's end and focuses into it,
+   * exactly as the button at the end does. Exported so the view can ask without owning the
+   * form's state, which is the list's.
+   */
+  export function addEntry() {
+    if (isReadOnly || topTypes().length === 0) return;
+    startAdding('root');
+  }
 
   function startAdding(under: string) {
     addingUnder = under;
@@ -317,7 +424,7 @@
     // The first type the manifest offers, so the common case needs no choice at all.
     draftType =
       (under === 'root'
-        ? rootTypes()
+        ? topTypes()
         : childTypes(rows.find((row) => row.item.id === under)?.item.type ?? ''))[0] ?? '';
   }
 
@@ -331,7 +438,9 @@
       const language = draftLanguage.trim() ? { content_language: draftLanguage.trim() } : {};
       await items.create(
         addingUnder === 'root'
-          ? { type: draftType, collection_id: collectionId, title: draftTitle.trim(), ...language }
+          ? root
+            ? { type: draftType, parent_id: root.id, title: draftTitle.trim(), ...language }
+            : { type: draftType, collection_id: collectionId, title: draftTitle.trim(), ...language }
           : { type: draftType, parent_id: addingUnder, title: draftTitle.trim(), ...language },
         crypto.randomUUID(),
       );
@@ -564,7 +673,8 @@
   function moveOut(row: Row) {
     if (!row.parentId) return;
     const parent = rows.find((each) => each.item.id === row.parentId);
-    const grandParentId = parent?.parentId ?? null;
+    // In a subtree the top level's parent is the root, which is not a row: its parent is the root's.
+    const grandParentId = parent ? parent.parentId : root && row.parentId === root.id ? root.parent_id ?? null : null;
     void move(
       row,
       grandParentId === null ? { parentId: null, collectionId } : { parentId: grandParentId },
@@ -670,6 +780,62 @@
    * `:move` without the reader asking for it. Changing the parent is the menu's, where it is a
    * decision rather than a slip.
    */
+  /**
+   * A press held on a coarse pointer, which is what a finger has where a mouse has a modifier.
+   *
+   * 300 ms and no movement — the same hold the board's drag waits for, deliberately, so that one
+   * gesture cannot mean two things: the drag starts on the grip and this starts anywhere else on
+   * the row. A fine pointer is excluded, because a mouse held still for a third of a second is
+   * somebody reading, not somebody selecting.
+   */
+  const HOLD_MS = 300;
+
+  /**
+   * The two gestures on the level itself, for the reason the key handler beside them is there: a
+   * `<div>` carrying an interaction is a static element with one, and Svelte is right to warn.
+   * One listener for the level rather than one per row, and each finds its row by `data-row`.
+   */
+  $effect(() => {
+    const node = level;
+    if (!node) return;
+    let held: ReturnType<typeof setTimeout> | undefined;
+    const idAt = (target: EventTarget | null) =>
+      (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
+    const release = () => {
+      if (held === undefined) return;
+      clearTimeout(held);
+      held = undefined;
+    };
+    const onDown = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse' || selection.isOn) return;
+      const id = idAt(event.target);
+      if (!id) return;
+      held = setTimeout(() => selection.pick(visibleIds, id), HOLD_MS);
+    };
+    // The capture phase, because the row is a link and the router listens for the click after it.
+    const onClick = (event: MouseEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || selection.isOn) return;
+      const id = idAt(event.target);
+      if (!id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selection.pick(visibleIds, id);
+    };
+    node.addEventListener('pointerdown', onDown);
+    node.addEventListener('pointerup', release);
+    node.addEventListener('pointercancel', release);
+    node.addEventListener('pointermove', release);
+    node.addEventListener('click', onClick, true);
+    return () => {
+      release();
+      node.removeEventListener('pointerdown', onDown);
+      node.removeEventListener('pointerup', release);
+      node.removeEventListener('pointercancel', release);
+      node.removeEventListener('pointermove', release);
+      node.removeEventListener('click', onClick, true);
+    };
+  });
+
   const drag = createDrag({
     start: (grip) => {
       const id = grip.closest('[data-row]')?.getAttribute('data-row');
@@ -783,7 +949,7 @@
       reference={failure.reference}
       referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')}
-      onRetry={() => items.openCollection(collectionId)()}
+      onRetry={() => (root ? items.openSubtree(root.id) : items.openCollection(collectionId))()}
     />
   {:else}
     <ReplicaMark state={levelState} />
@@ -825,8 +991,8 @@
       {:else}
         <EmptyState kind="unused" title={t('app.entries.none')} icon="task">
           {#snippet action()}
-            {#if !isReadOnly && rootTypes().length > 0}
-              <Button data-opener="add-entry" onclick={() => startAdding('root')}>{t('app.entries.add')}</Button>
+            {#if !isReadOnly && topTypes().length > 0}
+              <Button data-opener="add-entry" onclick={() => startAdding('root')}>{addLabel}</Button>
             {/if}
           {/snippet}
         </EmptyState>
@@ -842,6 +1008,12 @@
           <CelebrationSlot current={moment} />
         {/if}
         {#each rows as row (row.item.id)}
+          <!-- Two ways into the mode from a row, and they are the two a pointer has. A modifier
+               press is the fine pointer's — and it is caught in the capture phase, because the
+               row is a link and the router listens for the click after it. A press held is the
+               coarse pointer's, which is what a finger has instead of a modifier; the threshold
+               is the drag helper's hold, so the two gestures cannot disagree about what a hold is.
+               Both go through `selection.pick`, which turns the mode on. -->
           <div
             class="row"
             data-row={row.item.id}
@@ -857,9 +1029,11 @@
             style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
           >
             <!-- The pick, first in the row and first in the tab order, so a keyboard reaches it
-                 the way a pointer does. Shift is read from the event rather than from a mode: one
+                 the way a pointer does — and drawn only while somebody is selecting (ADR-0063
+                 decision 8). Shift is read from the event rather than from a mode of its own: one
                  code path for the pointer and the keyboard is what keeps the two from drifting
                  apart, and `selection.pick` is where it lives. -->
+            {#if selection.isOn}
             <span class="pick">
               <Checkbox
                 label={t('app.bulk.select', { title: row.item.title })}
@@ -874,6 +1048,7 @@
                 }}
               />
             </span>
+            {/if}
             <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
                  menu at the end of the row, and it is a real one — so a second focusable element
                  that does nothing for the keyboard would be noise in the tab order rather than
@@ -891,6 +1066,8 @@
               title={row.item.title}
               depth={row.depth}
               href={`/items/${row.item.id}`}
+              onOpen={onopen ? () => onopen(row.item.id) : undefined}
+              isCurrent={currentId === row.item.id}
               pendingLabel={queue.isPending(row.item.id) ? t('app.sync.pending_entry') : undefined}
               isCompleted={row.item.completion?.is_completed ?? false}
               expansion={!row.takesChildren
@@ -914,6 +1091,14 @@
                   : [...expanded, row.item.id])}
             >
               {#snippet trailing()}
+                <!-- What a row that takes children holds, done of total, once its level has been
+                     read (ADR-0061 decision 4): a closed branch still says how much is inside. -->
+                {#if row.takesChildren}
+                  {@const progress = progressOf(row.item.id)}
+                  {#if progress && progress.total > 0}
+                    <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
+                  {/if}
+                {/if}
                 <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
                      already carries: the names come from the accounts cache rather than from an
                      expansion this server does not serve. -->
@@ -977,7 +1162,9 @@
                        competing with its title for width. -->
                   <IconButton
                     icon="plus"
-                    label={t('app.entries.add_child', { title: row.item.title })}
+                    label={childTypes(row.item.type).length === 1
+                      ? t('app.entries.add_typed_inside', { type: typeName(childTypes(row.item.type)[0] ?? ''), title: row.item.title })
+                      : t('app.entries.add_child', { title: row.item.title })}
                     size="sm"
                     onclick={() => startAdding(row.item.id)}
                   />
@@ -1015,13 +1202,13 @@
         {/each}
       </div>
 
-      {#if !isReadOnly && rootTypes().length > 0}
+      {#if !isReadOnly && topTypes().length > 0}
         {#if addingUnder === 'root'}
           {@render addForm()}
         {:else}
           <div>
             <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root')}>
-              {t('app.entries.add')}
+              {addLabel}
             </Button>
           </div>
         {/if}
@@ -1113,7 +1300,18 @@
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
 
+  /* The level is what a row's indent is measured against (`TaskRow` caps it below `medium` by a
+     container query), so it is a container: the width of the tree, not of the screen, decides. */
+  .level { container-type: inline-size; }
+
   .row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  .progress {
+    font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-subtle);
+    white-space: nowrap;
+  }
 
   /* The rows and the level are the slots a moment sits over (F6-13). */
   .level { position: relative; }
@@ -1124,6 +1322,18 @@
   .row[data-archived] { color: var(--text-subtle); }
 
   .row > :global(*:last-child) { flex: 1; min-width: 0; }
+
+  /* In a narrow tree the task row stacks its controls under its title (`TaskRow`), so the pick
+     and the grip keep to the title's line rather than floating beside the middle of the block:
+     aligned to the start, and as tall as the title's line is - the spacious control and the
+     row's padding - so the checkbox sits centred on it. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .row { align-items: start; }
+
+    .pick,
+    .grip { min-block-size: calc(var(--density-control-md-min) + 2 * var(--density-row-block)); }
+  }
 
   /* `touch-action: none` is what makes a drag possible on a touch screen at all: without it the
      browser claims the gesture for scrolling and the pointer events stop arriving after the first

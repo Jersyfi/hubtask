@@ -128,3 +128,26 @@ export function hasLeftTheHandle(
 ): boolean {
   return Math.hypot(to.x - from.x, to.y - from.y) >= threshold;
 }
+
+/**
+ * How long a coarse pointer is held still before it is carrying something rather than scrolling.
+ *
+ * A finger that moves is scrolling the surface under it, so a drag that began on movement would
+ * take every scroll. This much stillness is what says "this one" (ADR-0063 decision 13), and it is
+ * one number so that a board, a list and a timeline cannot come to disagree about what a hold is.
+ */
+export const HOLD_MS = 300;
+
+/**
+ * Which column of a grid a point falls in, clamped to the grid.
+ *
+ * The counterpart of `dropIndex` for an axis rather than a list: a timeline's columns are equal
+ * and adjacent, so the answer is arithmetic rather than a search through measured extents. Clamped
+ * rather than refused, because a pointer dragged past the end of the axis is asking for its last
+ * column, not for nothing.
+ */
+export function columnAt(along: number, start: number, width: number, count: number): number {
+  if (!(width > 0) || count <= 0) return 0;
+  const column = Math.floor((along - start) / width);
+  return Math.max(0, Math.min(count - 1, column));
+}

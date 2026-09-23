@@ -78,8 +78,11 @@ from the same commit and cannot be a version apart.
 * **The frame decides once, and views consume it.** `src/lib/frame/` holds the shell every view
   sits inside; beside it, four modules hold what the application knows about itself and may not
   answer twice:
-  `lib/data/capabilities.svelte.ts` reads `/meta/capabilities` **once at boot** — nothing may
-  hard-code what the manifest answers; `lib/data/account.svelte.ts` reads `GET /accounts/me` when
+  `lib/data/capabilities.svelte.ts` reads `/meta/capabilities` **at boot and again on every change
+  of actor** — nothing may hard-code what the manifest answers, and nothing may assume one read
+  per page: the route takes no credential but the request carries one, so a stale bearer is
+  answered `401`, and the answer is scoped by the caller, so an anonymous read is not the one that
+  applies after a sign-in (issue 1020); `lib/data/account.svelte.ts` reads `GET /accounts/me` when
   there is a bearer, and its `locale` outranks the browser's (`i18n-l10n.md` §2);
   `lib/data/health.svelte.ts` reads `/meta/health` **only where the actor may read it** — no
   bearer means no request, a `401` or `403` is silence rather than a message, and there is no

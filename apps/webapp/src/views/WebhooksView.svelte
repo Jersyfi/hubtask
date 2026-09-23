@@ -26,17 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import {
-    Badge,
-    Banner,
-    Button,
-    Checkbox,
-    Input,
-    OneTimeSecret,
-    Select,
-    Spinner,
-    Stack,
-  } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, OneTimeSecret, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import {
@@ -49,6 +39,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The outcomes the contract lets a caller narrow to. `DEAD_LETTER` is the one operators want. */
   const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER'];
@@ -146,11 +138,26 @@
     opened = webhookId;
     await attempt(() => webhooks.readDeliveries(webhookId, outcome || undefined));
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.webhooks.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.webhooks.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.webhooks.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'webhooks', label: t('app.webhooks.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+    <Stack gap="300">
     <p class="quiet">{t('app.webhooks.intro')}</p>
 
     {#if secret}
@@ -502,17 +509,14 @@
         </div>
       </Stack>
     </form>
-  </Stack>
-</div>
+    </Stack>
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
+     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
+     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
+     screen that is not a document. */
 
   .section {
     margin: 0;
@@ -534,6 +538,11 @@
     gap: var(--sp-100);
     color: var(--text-secondary);
   }
+
+  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
+     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
+     say so themselves - they are a grid of their own. */
+  form.panel { max-inline-size: 52ch; }
 
   .panel {
     padding: var(--sp-200);

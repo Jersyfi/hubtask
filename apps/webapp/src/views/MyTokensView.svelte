@@ -8,25 +8,18 @@
   import { Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
+  import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import { t } from '../lib/i18n/i18n.svelte.ts';
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.tokens.title')}</h1>
-    <p class="quiet">{t('app.tokens.intro')}</p>
-    <TokensView />
-  </Stack>
-</div>
+<Stack gap="300">
+  <!-- The section's head: the title, the trail and the entitling are one component for all eight
+       screens of Your settings (ADR-0065 decision 3). -->
+  <SettingsHead row="tokens" />
+  <p class="quiet">{t('app.tokens.intro')}</p>
+  <TokensView />
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .quiet { margin: 0; color: var(--text-secondary); }
 </style>

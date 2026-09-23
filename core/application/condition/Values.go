@@ -19,6 +19,13 @@ type Entries interface {
 	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
 }
 
+// Sets is the read `item.labels` and `item.members` need: the identifiers an entry carries, which
+// live beside the aggregate rather than on it (issue 807). Narrow, like Entries, so that nothing
+// holding an activation can write through it; the label and the member repositories both fit.
+type Sets interface {
+	List(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
+}
+
 // Containers is the read `collection` and `hub` need: a container by its identifier. Narrow rather
 // than a repository, so that nothing holding an activation can write through it.
 type Containers interface {
@@ -50,6 +57,12 @@ type Values struct {
 	Payload    map[string]any
 	Entries    Entries
 	Containers Containers
+	// Labels and Members answer the entry's two sets beside it, so that `item.labels` and
+	// `item.members` are the lists automation.md §1 promises rather than absent keys (issue 807).
+	// Read only when `item` is - the same laziness - and optional: without them the document is
+	// the entry alone, as it was.
+	Labels  Sets
+	Members Sets
 	// JumbleID names the entry a JUMBLE_ENTRY run is about; `payload` is rendered from it, lazily
 	// and as data (G-10). Zero everywhere else - the envelope's own subject still lets an EVENT
 	// rule on a jumble event read the same names.
@@ -126,7 +139,35 @@ func (v Values) item(ctx context.Context) (any, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	return ItemDocument(item), true, nil
+	if v.Labels == nil && v.Members == nil {
+		return ItemDocument(item), true, nil
+	}
+	// The sets beside the entry, as identifiers: what a rule names a label by, and what the
+	// composer compiles (`item.labels.exists(l, l == '<id>')`).
+	labels, err := idsOf(ctx, v.Labels, id)
+	if err != nil {
+		return nil, false, err
+	}
+	members, err := idsOf(ctx, v.Members, id)
+	if err != nil {
+		return nil, false, err
+	}
+	return LabelledItemDocument(item, labels, members), true, nil
+}
+
+func idsOf(ctx context.Context, sets Sets, itemID shared.ID) ([]string, error) {
+	if sets == nil {
+		return []string{}, nil
+	}
+	ids, err := sets.List(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, id.String())
+	}
+	return out, nil
 }
 
 func (v Values) parent(ctx context.Context) (any, bool, error) {

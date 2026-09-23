@@ -14,19 +14,25 @@
   // the mapping from a tag to a text search configuration is what its PostgreSQL was built with
   // (ADR-0034).
 
+  import { untrack } from 'svelte';
+
   import {
     Badge,
     Button,
     EmptyState,
     ErrorState,
     Inline,
+    PageHeader,
     SearchField,
     Select,
-    Switch,
     Skeleton,
     Stack,
+    Switch,
     TaskRow,
+    canCopy,
   } from '@hubtask/design-system/components';
+
+  import FilterChips from '../lib/search/FilterChips.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -36,10 +42,100 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { health } from '../lib/data/health.svelte.ts';
   import { search, type SearchMode } from '../lib/data/search.svelte.ts';
+  import { fromQuery, isNarrowed, toFilter, toQuery, type Chosen } from '../lib/data/searchfilters.ts';
+  import { HANDLE, isHandle, mint } from '../lib/data/searchhandle.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
+  interface Props {
+    /** What the address carries: the narrowing, never the words (see the note at the top). */
+    query?: Readonly<Record<string, string>>;
+    onnavigate?: (path: string) => void;
+  }
+
+  const { query = {}, onnavigate }: Props = $props();
+
+  /**
+   * The handle this search is known by in the address, and the words kept under it.
+   *
+   * This is what makes a reload keep the words while the address keeps none of them (issue 997):
+   * the address carries the handle, `sessionStorage` carries what was typed under it.
+   *
+   * Three arrivals, one rule. A fresh visit names no handle, so one is minted. A reload or the
+   * back button names one this tab knows, so it is adopted and its words come back. A link
+   * somebody was *sent* names one this tab has never written: the narrowing is restored, the
+   * words are not — that is the promise — and a handle of this tab's own is minted, so that what
+   * this reader types is not written under a name a stranger's link chose.
+   */
+  let handle = $state('');
   let term = $state('');
+
+  $effect(() => {
+    const named = query[HANDLE];
+    untrack(() => {
+      if (named === handle && handle !== '') return;
+      const known = isHandle(named) ? search.recall(named) : undefined;
+      if (isHandle(named) && known !== undefined) {
+        handle = named;
+        term = known;
+        return;
+      }
+      if (handle === '' || isHandle(named)) handle = mint((bytes) => crypto.getRandomValues(bytes));
+    });
+  });
+
+  /**
+   * The words the app bar handed over, taken as they arrive.
+   *
+   * An effect rather than an initial value, because this screen is not remounted when somebody
+   * searches again from the bar while already on it — and that press has to do something. Taken
+   * rather than read: the store empties on the way out, so the same words handed over twice are
+   * two searches (`search.svelte.ts`).
+   */
+  $effect(() => {
+    if (search.handedOver === undefined) return;
+    term = search.takeHandover() ?? term;
+  });
+
+  // What was typed, kept under the handle the address carries. Written as it changes rather than
+  // when the search runs: somebody who reloads mid-sentence meant that sentence.
+  $effect(() => {
+    if (handle !== '') search.remember(handle, term);
+  });
+
+  /**
+   * The narrowing, read from the address and written back to it.
+   *
+   * The chips are structural — a kind, a state, a label, a collection — so they belong in the
+   * address: a narrowing somebody can link to, bookmark and edit. The **words do not**, and that
+   * is the one sentence of ADR-0063 decision 4 this screen does not do: `POST /search` has no
+   * `GET` because a term is content and a query string travels through access logs, proxies and
+   * browser history, and a screen that reflected the term would undo the reason the operation is
+   * a POST (`api-guidelines.md` §2, `search.svelte.ts`).
+   */
+  const chosen = $derived<Chosen>(fromQuery(query));
+
+  /** The address this search has: the narrowing, and the handle its words are kept under. */
+  const address = $derived.by(() => {
+    const carried = new URLSearchParams({ ...toQuery(chosen), ...(term === '' ? {} : { [HANDLE]: handle }) });
+    const written = carried.toString();
+    return written === '' ? '/search' : `/search?${written}`;
+  });
+
+  function narrow(next: Chosen) {
+    const carried = new URLSearchParams({ ...toQuery(next), ...(term === '' ? {} : { [HANDLE]: handle }) });
+    const written = carried.toString();
+    onnavigate?.(written === '' ? '/search' : `/search?${written}`);
+  }
+
+  // The handle joins the address as soon as there are words to keep, so that a reload finds them.
+  // Replaced rather than pushed: a search is one place, not a history entry per keystroke.
+  $effect(() => {
+    const wanted = address;
+    if (wanted !== `${location.pathname}${location.search}`) untrack(() => onnavigate?.(wanted));
+  });
   /** Empty is the caller's own locale, which is what the contract does when `language` is absent. */
   let language = $state('');
 
@@ -73,6 +169,7 @@
    */
   const asked = $derived({
     q: term,
+    filter: toFilter(chosen),
     language: language || undefined,
     mode,
     readerLocale: actor.locale ?? messages.locale,
@@ -85,7 +182,8 @@
 
   $effect(() => {
     const question = asked;
-    if (question.q.trim() === '') {
+    // Either is a question; neither is the empty screen this starts on (ADR-0064).
+    if (question.q.trim() === '' && question.filter === undefined) {
       search.reset();
       return;
     }
@@ -105,6 +203,29 @@
   });
 
   const failure = $derived(search.error ? renderProblem(search.error, messages) : undefined);
+
+  /**
+   * The link to this search: its narrowing, and nothing of what was typed.
+   *
+   * Built from the chips rather than from the address, which is the same thing said twice on
+   * purpose — the address may carry the handle, and a handle is this tab's, not a link's. Somebody
+   * who receives it opens the search narrowed the same way with an empty field.
+   */
+  let copied = $state(false);
+
+  async function copyLink() {
+    const carried = new URLSearchParams(toQuery(chosen)).toString();
+    const link = `${location.origin}/search${carried === '' ? '' : `?${carried}`}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      copied = true;
+      announcer.say(t('app.search.link_copied'));
+      setTimeout(() => (copied = false), 4_000);
+    } catch {
+      // The clipboard refused. The address is on screen and can be copied by hand, and saying so
+      // through a failure would be a sentence about the browser rather than about the search.
+    }
+  }
 
   /**
    * A hit is a row like any other, so it can be ticked off where it is found.
@@ -127,19 +248,26 @@
       writeFailure = renderProblem(error as never, messages);
     }
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.search.title')));
 </script>
 
 <Stack gap="300">
-  <h1 class="name">{t('app.search.title')}</h1>
+  <PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />
 
   <!-- `data-tour`: where the tour points for the query language (F6-14). -->
   <Inline gap="150" align="end" data-tour="search">
-    <SearchField
-      label={t('app.search.label')}
-      clearLabel={t('app.search.clear')}
-      bind:value={term}
-      onclear={() => search.reset()}
-    />
+    <!-- The field takes the room the line has - the whole width on a phone, a few words' worth
+         beside the language and the switch on a desk - rather than the width a bare input picks. -->
+    <div class="term">
+      <SearchField
+        label={t('app.search.label')}
+        clearLabel={t('app.search.clear')}
+        bind:value={term}
+        onclear={() => search.reset()}
+      />
+    </div>
     <!-- Offered only where the installation reports more than one, because a picker with a single
          option is a decision nobody has. -->
     {#if languages.length > 1}
@@ -160,7 +288,26 @@
     {/if}
   </Inline>
 
-  <p class="hint">{t('app.search.hint')}</p>
+  <!-- What it is narrowed to, under the field: each chip a question, each saying how many of its
+       answers are chosen (ADR-0063 decision 4). -->
+  <FilterChips {chosen} onchange={narrow} />
+
+  <div class="aside">
+    <p class="hint">{t('app.search.hint')}</p>
+    <!-- The link says what it carries, because what it leaves out is the point (issue 997): the
+         narrowing travels, the words do not. Offered only where the clipboard exists - an insecure
+         origin has none, and a control that failed at the press would be worse than one that was
+         never there (`secret.ts`). -->
+    {#if isNarrowed(chosen) && canCopy(navigator.clipboard)}
+      <Button size="sm" tone="subtle" icon="link" onclick={() => void copyLink()}>
+        {t(copied ? 'app.search.link_copied' : 'app.search.copy_link')}
+      </Button>
+    {/if}
+  </div>
+
+  {#if isNarrowed(chosen)}
+    <p class="hint">{t('app.search.link_carries')}</p>
+  {/if}
 
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
@@ -176,6 +323,10 @@
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if search.status === 'idle'}
     <EmptyState kind="unused" title={t('app.search.start')} icon="search" />
+  {:else if search.hits.length === 0 && term.trim() === ''}
+    <!-- Narrowed and empty is a different sentence from searched and empty: nothing was looked
+         *for*, so nothing "does not match the words" — what excluded everything is the narrowing. -->
+    <EmptyState kind="filtered" title={t('app.search.narrowed_none')} icon="search" />
   {:else if search.hits.length === 0}
     <!-- `filtered`, not `unused`: something excluded everything, and voice-and-tone.md §4.2 is
          about exactly that — the emptiness has a cause and the sentence names it. And when the
@@ -243,13 +394,7 @@
 </Stack>
 
 <style>
-  .name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  .term { flex: 1 1 24ch; min-width: 0; max-width: 48ch; }
 
   .hint { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }
 

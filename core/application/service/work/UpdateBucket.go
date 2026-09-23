@@ -489,7 +489,7 @@ func (h UpdateBucket) Descriptor() usecase.Descriptor {
 					"leaves it as it is.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST. Omitted " +
 					"means the caller read none and accepts whatever is there.",
 			},
@@ -574,7 +574,7 @@ func (h ReorderBucket) Descriptor() usecase.Descriptor {
 					"right hand end.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST.",
 			},
 		},

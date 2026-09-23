@@ -273,7 +273,7 @@ func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
 				Description: "An IANA zone, for the same position in the same chain."},
 			{Name: "require_admin_totp", Kind: usecase.KindBool,
 				Description: "Whether an OWNER or ADMIN has to hold a second factor."},
-			{Name: "expected_version", Kind: usecase.KindInt,
+			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller named none."},
 		},
 		Audit: usecase.AuditDeclaration{

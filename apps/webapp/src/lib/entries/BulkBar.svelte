@@ -182,7 +182,10 @@
   }
 </script>
 
-<div class="bar">
+<!-- Drawn only while somebody is selecting (ADR-0063 decision 8). It used to stand above every
+     list saying "select every entry on screen" whether or not anybody was selecting anything. -->
+{#if selection.isOn}
+<div class="bar" data-active={count > 0 || op === 'CREATE_ITEM' ? '' : undefined}>
   <!-- The way in, and the only control here that is drawn with nothing selected: without it a
        keyboard reader would have to press every row to act on a screenful. -->
   <Checkbox
@@ -275,7 +278,16 @@
 
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   {/if}
+
+  <!-- The way out, always drawn while the mode is on: a mode with no visible end is one somebody
+       is stuck in. `Escape` does the same, from anywhere on the screen. -->
+  <span class="done">
+    <Button size="sm" tone="subtle" icon="x" onclick={() => selection.stop()}>
+      {t('app.bulk.done')}
+    </Button>
+  </span>
 </div>
+{/if}
 
 <Dialog
   bind:isOpen={confirming}
@@ -294,7 +306,17 @@
 </Dialog>
 
 <style>
+  /* Pushed to the end of the row, because it is the way out rather than one of the verbs. */
+  .done { margin-inline-start: auto; }
+
+  /* Sticky once something is selected (ADR-0061 decision 4): the bar is about the rows below it,
+     and a reader who picked forty entries should not scroll back up to act on them. Under the app
+     bar from `medium`; on a phone above the bottom bar, where the thumb is. `raised`, because it
+     sits over the rows it scrolls past and under every overlay. */
   .bar {
+    position: sticky;
+    inset-block-start: calc(var(--layout-appbar-height) + var(--sp-100));
+    z-index: var(--z-raised);
     display: flex;
     flex-wrap: wrap;
     align-items: end;
@@ -303,6 +325,29 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
+  }
+
+  /* On a phone the bar sits above the rows in the flow until something is picked, and then it is
+     fixed above the bottom bar: a sticky element that stands *before* what scrolls cannot stick to
+     the bottom, so this is `fixed` for as long as there is a selection to act on. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .bar { position: static; }
+
+    .bar[data-active] {
+      position: fixed;
+      inset-inline: var(--sp-200);
+      inset-block-start: auto;
+      inset-block-end: calc(var(--layout-bottombar-height) + var(--sp-100) + env(safe-area-inset-bottom, 0));
+      /* A sheet of controls, one under the other: a row that wraps five controls at a phone's
+         width is five lines of uneven height. */
+      flex-direction: column;
+      align-items: stretch;
+      max-block-size: 60vh;
+      overflow: auto;
+      /* Rule 1: raised, because it stands over the rows; not an overlay, because it is not temporary. */
+      box-shadow: var(--shadow-raised);
+    }
   }
 
   .count { align-self: center; font-size: var(--fs-075); font-weight: var(--fw-semibold); }

@@ -23,14 +23,44 @@ func TestParseSearchTrimsAndNothingElse(t *testing.T) {
 	}
 }
 
-func TestASearchNeedsWords(t *testing.T) {
+// Nothing to look for and nothing to narrow by is the one request a search refuses. Which of the
+// two is missing is Search.Validate's question rather than the parser's, because only the whole
+// request can see whether a filter came with the words (ADR-0064).
+func TestASearchNeedsWordsOrAFilter(t *testing.T) {
 	for _, raw := range []string{"", "   ", "\t\n"} {
-		_, err := ParseSearch(raw, "/q")
+		words, err := ParseSearch(raw, "/q")
+		if err != nil || words != "" {
+			t.Fatalf("the parser refused %q on its own: %q, %v", raw, words, err)
+		}
+
+		err = Search{Words: words}.Validate("")
 
 		var domainErr *shared.Error
 		if !errors.As(err, &domainErr) || domainErr.DetailCode != "search.words_required" {
 			t.Errorf("a search for %q answered %v", raw, err)
 		}
+	}
+}
+
+// And a filter alone is a search: a work list, ordered rather than ranked.
+func TestAFilterIsEnoughOnItsOwn(t *testing.T) {
+	filter := &Node{Op: OpEq, Field: Field{Name: FieldIsCompleted, Kind: KindBool}, Values: []Value{{Kind: KindBool, Bool: false}}}
+	if err := (Search{Filter: filter}).Validate(""); err != nil {
+		t.Fatalf("a filtered search with no words was refused: %v", err)
+	}
+	if (Search{Filter: filter}).IsRanked() {
+		t.Error("a search with no words claims a ranking")
+	}
+}
+
+// A sort beside words is refused rather than ignored: with words there is a ranking and it is the
+// ranking, so an order asked for beside them is an order the answer cannot be in.
+func TestASortBesideWordsIsRefused(t *testing.T) {
+	err := Search{Words: "tiles", Sort: DefaultSearchSort()}.Validate("")
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "search.sort_with_words" {
+		t.Errorf("a sort beside words answered %v", err)
 	}
 }
 

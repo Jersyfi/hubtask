@@ -28,6 +28,7 @@
 import type { TransportError, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { keyFor, keysIn } from './searchhandle.ts';
 import {
   canOfferRest,
   readerLanguages,
@@ -55,6 +56,14 @@ export interface SearchAsked {
   readonly language?: string;
   /** A hub or a collection to look in. Omitted searches everything the caller may see. */
   readonly containerId?: string;
+  /**
+   * What narrows the hits, in the grammar the item query uses (ADR-0064).
+   *
+   * It travels as it was built — `searchfilters.ts` composes it and the domain reads it — and it
+   * is what makes a search askable without words at all: a filter with no term is a work list,
+   * ordered by when it is due rather than ranked.
+   */
+  readonly filter?: unknown;
   /**
    * The reader's own language, and the ones this installation indexes text in.
    *
@@ -88,6 +97,14 @@ class Search {
   #remaining = $state<readonly string[]>([]);
   /** Which search the answers on screen belong to, so a slower earlier one cannot overwrite them. */
   #generation = 0;
+  /**
+   * The words the app bar handed over, waiting for the screen they were handed to.
+   *
+   * In memory rather than in the address: the address carries the *narrowing* and never the words
+   * (ADR-0063 decision 4 as corrected, issue 997). What makes them survive a reload is not this —
+   * it is the handle below.
+   */
+  #handedOver = $state<string | undefined>(undefined);
 
   get hits(): readonly WorkItem[] {
     return this.#hits;
@@ -131,6 +148,71 @@ class Search {
       : 0;
   }
 
+  /** Whether the bar has words waiting for the search screen. */
+  get handedOver(): string | undefined {
+    return this.#handedOver;
+  }
+
+  /** The bar's own verb: hand the words to the screen it is about to navigate to. */
+  handOver(term: string): void {
+    this.#handedOver = term;
+  }
+
+  /**
+   * The screen's own verb: take them, and leave nothing behind.
+   *
+   * Taken rather than read, because the same words handed over twice are two searches — somebody
+   * who searches for the same term again from the bar has asked again, and a value that stayed
+   * would make the second press do nothing.
+   */
+  takeHandover(): string | undefined {
+    const term = this.#handedOver;
+    this.#handedOver = undefined;
+    return term;
+  }
+
+  /**
+   * Keeps the words under the handle the address carries, so that a reload finds them again.
+   *
+   * `sessionStorage` for what a search is — the thing somebody is doing now: it survives a reload
+   * and the back button, and dies with the tab, exactly as the credential does. A browser that
+   * refuses storage still searches; it just forgets across a reload, which is where this started.
+   */
+  remember(handle: string, term: string): void {
+    try {
+      if (term === '') globalThis.sessionStorage?.removeItem(keyFor(handle));
+      else globalThis.sessionStorage?.setItem(keyFor(handle), term);
+    } catch {
+      // No storage. The search still works; it does not survive a reload.
+    }
+  }
+
+  /** What was typed under this handle, or nothing — another tab's handle, or a cleared one. */
+  recall(handle: string): string | undefined {
+    try {
+      return globalThis.sessionStorage?.getItem(keyFor(handle)) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Drops every search this tab remembered. Called where the session is discarded.
+   *
+   * A search term is the reader's content, so it ends with their session rather than with the tab
+   * — a shared browser is a real thing, and `sessionStorage` alone would keep it until the tab
+   * closed.
+   */
+  forget(): void {
+    try {
+      const storage = globalThis.sessionStorage;
+      if (!storage) return;
+      for (const key of keysIn(storage)) storage.removeItem(key);
+    } catch {
+      // Nothing to forget from, which is the same outcome.
+    }
+  }
+
   /** Empties it. What clearing the field does, and what leaving the screen should do. */
   reset(): void {
     this.#generation += 1;
@@ -153,7 +235,9 @@ class Search {
    */
   async run(asked: SearchAsked): Promise<void> {
     const term = asked.q.trim();
-    if (term === '') {
+    // Neither words nor a narrowing is not a search; it is the empty screen this started on. With
+    // one of the two it is a question the contract answers (ADR-0064).
+    if (term === '' && asked.filter === undefined) {
       this.reset();
       return;
     }
@@ -183,7 +267,10 @@ class Search {
         asked.textLanguages ?? [],
         asked.preferredLanguages ?? [],
       );
-      if (shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
+      // Only a search for *words* is widened by language. A filter with none found nothing
+      // because nothing matches it, and asking the same filter under thirty configurations would
+      // be thirty identical answers (ADR-0034's widening is about how a query is read).
+      if (term !== '' && shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
         if (!(await this.#widen(term, asked, wider, mine))) return;
       }
 
@@ -281,7 +368,8 @@ class Search {
         'POST',
         '/search',
         {
-          q: term,
+          ...(term === '' ? {} : { q: term }),
+          ...(asked.filter === undefined ? {} : { filter: asked.filter }),
           // The chosen language wins over the widening one: somebody who picked asked a precise
           // question. Neither ever reaches a URL — this is a `POST` because a search term is
           // content and a query string travels through access logs (security.md §9).

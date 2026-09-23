@@ -772,6 +772,16 @@ func run() error {
 		HLC: hybrid,
 	}
 
+	// One custom field use case, registered once and dispatched into by the create (issue 896):
+	// what judges a value is the definition in force for the entry's collection, and a second
+	// resolution of that would be a second answer to what a key means.
+	setCustomField := work.SetCustomField{
+		Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
+		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+	}
+
 	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the
 	// same find, the same visibility, the same ownership question (D-07). `authorizer` appears
 	// twice on purpose - the audited permission question and the silent visibility question are
@@ -1050,9 +1060,10 @@ func run() error {
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
 	// because the job a deletion seeds runs the same check the route serves.
 	ruleCheck := automationservice.CheckRules{
-		Rules:      postgres.NewAutomationRuleRepository(cursors),
-		References: postgres.NewAutomationReferenceRepository(),
-		Catalogue:  ruleCatalogue, Conditions: celexpression.New(),
+		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		References:  postgres.NewAutomationReferenceRepository(),
+		Memberships: postgres.NewMembershipRepository(),
+		Catalogue:   ruleCatalogue, Conditions: celexpression.New(),
 		Authorizer: authorizer, Audit: auditSink,
 		Owners: notification.RecordRuleDisabled{
 			Notifications: notifications, Accounts: accounts,
@@ -1236,7 +1247,7 @@ func run() error {
 		automationservice.TestRule{
 			Rules:     postgres.NewAutomationRuleRepository(cursors),
 			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
-			Entries: items, Containers: containers,
+			Entries: items, Containers: containers, Labels: itemLabels, Members: itemMembers,
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
@@ -1285,24 +1296,28 @@ func run() error {
 			Text:       forms,
 		}.Descriptor(),
 		work.CreateWorkItem{
-			Items:      items,
-			Quota:      quotaGuard,
-			Buckets:    buckets,
-			Containers: containers,
-			Profiles:   profiles,
-			Authorizer: authorizer,
-			Ownership:  authorizer,
-			Events:     outbox,
-			Changes:    changes,
-			Audit:      auditSink,
-			Activity:   journal,
-			UnitOfWork: unitOfWork,
-			Clock:      clockadapter.System{},
-			IDs:        ids,
-			HLC:        hybrid,
-			AutoAssign: autoAssign,
-			DueDates:   dueDateWriter,
-			Text:       forms,
+			Items:        items,
+			Quota:        quotaGuard,
+			Buckets:      buckets,
+			Containers:   containers,
+			Profiles:     profiles,
+			Authorizer:   authorizer,
+			Ownership:    authorizer,
+			Events:       outbox,
+			Changes:      changes,
+			Audit:        auditSink,
+			Activity:     journal,
+			UnitOfWork:   unitOfWork,
+			Clock:        clockadapter.System{},
+			IDs:          ids,
+			HLC:          hybrid,
+			AutoAssign:   autoAssign,
+			DueDates:     dueDateWriter,
+			Labels:       itemLabelWriter,
+			Members:      itemMemberWriter,
+			Covers:       coverWriter,
+			CustomFields: setCustomField,
+			Text:         forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -1415,7 +1430,7 @@ func run() error {
 		work.SearchItems{
 			Items: items, Containers: containers,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			// The semantic half (J-10). Optional four times over - the extension, the provider,
 			// the consent, and whether it answers in time - and every one of those is a lexical
 			// search rather than a failure.
@@ -1589,12 +1604,7 @@ func run() error {
 		work.UpdateSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.DeleteSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.ShareSavedView{Writer: savedViewWriter}.Descriptor(),
-		work.SetCustomField{
-			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
-			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
-			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
-		}.Descriptor(),
+		setCustomField.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{
@@ -1857,8 +1867,9 @@ func run() error {
 			Scopes: catalogue.Scopes(),
 			// And the action kinds, for the same reason: the rule writer validates against the
 			// catalogue this manifest would otherwise have to describe from a copy (issue 542).
-			Actions:      catalogue.AutomationActions(),
-			ActionFields: catalogue.AutomationActionFields(),
+			Actions:         catalogue.AutomationActions(),
+			ActionFields:    catalogue.AutomationActionFields(),
+			ActionSummaries: catalogue.AutomationActionSummaries(),
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
@@ -2239,6 +2250,10 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// The subjects that are not an entry (issue 814): the rule that was switched off,
+			// the subscription that stopped being called.
+			Rules:         postgres.NewAutomationRuleRepository(cursors),
+			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 			// The workspace's default language for a recipient who has not chosen one (#603),
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
@@ -2502,6 +2517,8 @@ func run() error {
 			Conditions: celexpression.New(),
 			Entries:    items,
 			Containers: containers,
+			Labels:     itemLabels,
+			Members:    itemMembers,
 			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:    metrics,

@@ -36,6 +36,15 @@ export const ROUTES: readonly Route[] = [
   // list them, and an administrator who could would learn which of somebody's automations to
   // attack (F4-10, `security.md` §5).
   { name: 'tokens', pattern: '/profile/tokens', area: 'profile' },
+  // The rest of Your settings, which is a section since ADR-0065 decision 3: one screen per
+  // question, each with an address of its own, all of them the reader's own and therefore
+  // `profile` - the area the mobile shell ships in full (ADR-0032).
+  { name: 'appearance', pattern: '/profile/appearance', area: 'profile' },
+  { name: 'notifications', pattern: '/profile/notifications', area: 'profile' },
+  { name: 'security', pattern: '/profile/security', area: 'profile' },
+  { name: 'sessions', pattern: '/profile/sessions', area: 'profile' },
+  { name: 'devices', pattern: '/profile/devices', area: 'profile' },
+  { name: 'grants', pattern: '/profile/apps', area: 'profile' },
   // ADR-0032's administration area. Every route this milestone adds under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,
@@ -73,6 +82,7 @@ export const ROUTES: readonly Route[] = [
   // `AUTOMATION`, and the server refuses that on the screen.
   { name: 'jumble', pattern: '/jumble' },
   { name: 'trash', pattern: '/trash' },
+  { name: 'archive', pattern: '/archive' },
   // The address the board's cards and the search results have linked to since F2-11. An entry is
   // a thing with its own history (F2-15), so it is a screen rather than a row somewhere.
   { name: 'item', pattern: '/items/:id' },
@@ -82,3 +92,26 @@ export const ROUTES: readonly Route[] = [
 
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */
 export const ADMINISTRATION_PREFIX = '/administration';
+
+/**
+ * What `/collections/:id?item=:itemId` means at a width (ADR-0061 decision 4): from `large` up,
+ * the collection with the entry open in the detail pane beside its list; below `large`, the
+ * entry's own page - the address the client redirects to, replacing the one it was given, so
+ * the back button goes to where the reader came from. `/items/:id` is the entry's address on
+ * every width and is not touched by this. Pure, so the redirect has a test without a browser.
+ */
+export type PaneResolution =
+  | { readonly kind: 'pane'; readonly collectionId: string; readonly itemId: string }
+  | { readonly kind: 'redirect'; readonly path: string }
+  | { readonly kind: 'none' };
+
+export function paneFor(
+  route: { readonly name: string | null; readonly params: Readonly<Record<string, string>>; readonly query: Readonly<Record<string, string>> },
+  options: { readonly isLarge: boolean },
+): PaneResolution {
+  const itemId = route.query['item'];
+  const collectionId = route.params['id'];
+  if (route.name !== 'collection' || !itemId || !collectionId) return { kind: 'none' };
+  if (!options.isLarge) return { kind: 'redirect', path: `/items/${encodeURIComponent(itemId)}` };
+  return { kind: 'pane', collectionId, itemId };
+}

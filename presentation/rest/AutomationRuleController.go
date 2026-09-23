@@ -335,6 +335,14 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 	if at, present := out["checked_at"].(time.Time); present {
 		rule.CheckedAt = &at
 	}
+	if last, present := out["last_run"].(map[string]any); present {
+		at, _ := last["at"].(time.Time)
+		status, _ := last["status"].(string)
+		rule.LastRun = &struct {
+			At     time.Time             `json:"at"`
+			Status openapi.RuleRunStatus `json:"status"`
+		}{At: at, Status: openapi.RuleRunStatus(status)}
+	}
 	return rule
 }
 

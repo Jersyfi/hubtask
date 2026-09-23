@@ -1,13 +1,22 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The frame's one line about the copy and the server (F6-06): `SyncStatus`, fed by the stream's
-  // state `live` already reads and by `engine.queue()` through `queue`. Every word it shows is
+  // The frame's **one mark** about the copy and the server (F6-06, ADR-0063 decision 5):
+  // `SyncStatus` in the app bar, fed by the stream's state `live` already reads and by
+  // `engine.queue()` through `queue`. Every word it shows is
   // resolved here, and the moments go through the formats F5-09 built. The conflict a refused
   // change may carry opens the resolver, which is the one write this line can lead to - an
   // ordinary PATCH of the notes, performed by `notes.rewrite`.
+  //
+  // What it does **not** carry is the manifest that could not be read. That moved to `NoticeMark`
+  // (ADR-0065 decision 4): it is a statement about the application rather than about this copy's
+  // changes, and - the half that decides it - this line is drawn only with a session, while the
+  // manifest is read before anybody signs in. A retry behind a mark that is not on the screen is
+  // no retry (issue 1020).
 
   import { ConflictResolver, SyncStatus, type Connection, type RefusedChange } from '@hubtask/design-system/components';
+
+  import { viewport } from './viewport.svelte.ts';
 
   import { engine } from '../data/engine.ts';
   import { live } from '../data/live.svelte.ts';
@@ -22,6 +31,9 @@
     return queue.start();
   });
 
+  // The mark's three words, from the store's four states: `off` is drawn by nobody - the line is
+  // only rendered with a session - and `offline` is the device's own answer, which is what the
+  // struck cloud of ADR-0063 decision 5 is for.
   const connection = $derived<Connection>(live.state === 'live' ? 'connected' : live.state === 'reconnecting' ? 'reconnecting' : 'offline');
   const connectionLabel = $derived(t(`app.sync.${connection}`));
 
@@ -97,11 +109,12 @@
     syncedLabel={syncedAt !== undefined ? t('app.sync.synced', { moment: formatDateTime(new Date(syncedAt).toISOString(), messages.locale) }) : undefined}
     queued={queue.queued}
     refused={[...conflicts, ...refused]}
-    listLabel={t('app.sync.list')}
+    listLabel={t('app.sync.panel')}
     emptyLabel={t('app.sync.empty')}
     refusedLabel={t('app.sync.refused')}
     dismissLabel={t('app.sync.dismiss')}
     onDismiss={(id) => (id.startsWith('conflict-') ? queue.dismissConflict(id.slice('conflict-'.length)) : queue.dismiss(id))}
+    isSheet={viewport.isCompact}
   />
   {#if resolving}
     <ConflictResolver

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-import { canPlace, parentOf, removeAt, stepAt, type Step } from './model.ts';
+import { canPlace, parentOf, removeAt, shiftedList, stepAt, type Step } from './model.ts';
 
 /** What is selected on the canvas, and therefore what the inspector shows (F8-04). */
 export type Selection =
+  /** Nothing is selected: the canvas's background was clicked, or Escape was pressed on it (decision 26). */
+  | { kind: 'none' }
   | { kind: 'rule' }
   | { kind: 'trigger' }
   | { kind: 'scope' }
@@ -23,7 +25,7 @@ export type Drag = { src: 'trigger'; kind: string } | { src: 'condition' } | { s
 
 /**
  * Whether a gap of the chain may take what is being dragged: a step, unless into its own arm and
- * unless where a stop forbids it (decision 14).
+ * unless where an end forbids it (decision 19).
  */
 export function gapTakes(drag: Drag | undefined, list: string, index: number, actions: readonly Step[]): boolean {
   if (!drag) return false;
@@ -35,7 +37,7 @@ export function gapTakes(drag: Drag | undefined, list: string, index: number, ac
     const source = parentOf(drag.path);
     const without = removeAt(actions, drag.path);
     const at = source.list === list && source.index < index ? index - 1 : index;
-    return canPlace(without, list, at, stepAt(actions, drag.path)?.kind ?? '');
+    return canPlace(without, shiftedList(list, drag.path), at, stepAt(actions, drag.path)?.kind ?? '');
   }
   return false;
 }

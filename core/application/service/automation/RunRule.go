@@ -109,6 +109,10 @@ type RunRule struct {
 	Conditions expression.Compiler
 	Entries    Entries
 	Containers Containers
+	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
+	// `item.members` (issue 807). Optional, as in condition.Values.
+	Labels  condition.Sets
+	Members condition.Sets
 	// Jumble is the read `payload` costs on a JUMBLE_ENTRY run: the entry, rendered as data for
 	// the conditions (G-10). Optional; without it the name resolves to an empty document.
 	Jumble condition.JumbleEntries
@@ -527,7 +531,7 @@ func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) con
 	values := condition.Values{
 		Envelope: envelope, Now: now,
 		Subject: cmd.SubjectID, Payload: cmd.Payload,
-		Entries: h.Entries, Containers: h.Containers,
+		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members,
 		Jumble: h.Jumble,
 	}
 	if cmd.Trigger == domain.TriggerJumbleEntry {
@@ -649,6 +653,14 @@ func (h RunRule) act(
 // gate and the chain of one run cannot be about two different entries. Before F8's walk nothing
 // supplied it, and every entry action on an event rule failed at the run with
 // `usecase.input_invalid` - the one input the registry validates in full, missing.
+// suppliedFields is every name supplied ever writes: what a rule may leave unset and still run.
+// The check reads it to tell a parameter the run brings from one nothing brings (F8-19), and a
+// test holds supplied to it.
+var suppliedFields = map[string]bool{"event_id": true, "item_id": true, "entry_id": true}
+
+// SuppliedByRun says whether a run may supply the named parameter.
+func SuppliedByRun(name string) bool { return suppliedFields[name] }
+
 func (c Command) supplied(values condition.Values) map[string]any {
 	supplied := map[string]any{}
 	if !c.EventID.IsZero() {

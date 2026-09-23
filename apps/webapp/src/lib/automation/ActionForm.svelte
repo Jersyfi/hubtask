@@ -14,6 +14,7 @@
 
   import { Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
+  import { REFERENCE, SUPPLIED } from './words.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   /** One declared field, as the manifest answers it. */
@@ -23,6 +24,10 @@
     readonly required: boolean;
     readonly enum?: readonly string[];
     readonly description?: string;
+    /** False for the caller's plumbing a rule never sets (F8-15): hidden here. */
+    readonly rule?: boolean;
+    /** `date-time` for an RFC 3339 instant (F8-15): drawn as a date and time. */
+    readonly format?: string;
   }
 
   /** What an identifier may point at, offered by name. */
@@ -40,24 +45,27 @@
 
   const { fields, params, pickers, errors, onchange }: Props = $props();
 
-  /** The reference table's client half: which store answers an identifier's name (ADR-0060). */
-  const REFERENCE: Readonly<Record<string, string>> = {
-    label_id: 'label',
-    bucket_id: 'bucket',
-    container_id: 'container',
-    parent_id: 'container',
-    collection_id: 'container',
-    template_id: 'template',
-    subscription_id: 'subscription',
-    group_id: 'group',
-    account_id: 'account',
-    assignee_id: 'account',
-  };
 
   /** The JSON of a document field as it is being typed: a half-written object is still visible. */
   let texts = $state<Record<string, string>>({});
 
   const set = (name: string, value: unknown): void => onchange({ ...params, [name]: value });
+
+  /**
+   * What the form shows (decision 21): not the caller's plumbing, and not a field the run
+   * supplies unless the rule set it itself - those are said in one line under the form.
+   */
+  const shown = $derived(fields.filter((field) => field.rule !== false && !(SUPPLIED.has(field.name) && params[field.name] === undefined)));
+  const supplied = $derived(fields.filter((field) => field.rule !== false && SUPPLIED.has(field.name) && params[field.name] === undefined));
+
+  /** An RFC 3339 instant as `datetime-local` shows it, in the device's zone, and back. */
+  const localOf = (iso: unknown): string => {
+    const at = typeof iso === 'string' ? new Date(iso) : undefined;
+    if (!at || Number.isNaN(at.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  };
+  const isoOf = (local: string): string | undefined => (local === '' ? undefined : new Date(local).toISOString());
 
   const label = (field: Field): string => field.name.replace(/_/g, ' ');
 
@@ -91,7 +99,7 @@
   <p class="quiet">{t('app.flow.action_no_fields')}</p>
 {:else}
   <Stack gap="150">
-    {#each fields as field (field.name)}
+    {#each shown as field (field.name)}
       {@const reference = REFERENCE[field.name]}
       {@const choices: readonly Choice[] = reference ? (pickers[reference] ?? []) : []}
       {@const error = errors?.get(field.name)}
@@ -161,6 +169,15 @@
           value={documentText(field)}
           oninput={(event: Event) => setDocument(field, (event.currentTarget as HTMLTextAreaElement).value)}
         />
+      {:else if field.format === 'date-time'}
+        <Input
+          label={label(field)}
+          hint={hint(field)}
+          {error}
+          type="datetime-local"
+          value={localOf(params[field.name])}
+          oninput={(event: Event) => set(field.name, isoOf((event.currentTarget as HTMLInputElement).value))}
+        />
       {:else}
         <Input
           label={label(field)}
@@ -174,7 +191,11 @@
         />
       {/if}
     {/each}
-    <p class="quiet">{t('app.flow.action_run_supplies')}</p>
+    {#if supplied.length > 0}
+      <p class="quiet">{t('app.flow.action_run_supplies_named', { fields: supplied.map((field) => label(field)).join(', ') })}</p>
+    {:else}
+      <p class="quiet">{t('app.flow.action_run_supplies')}</p>
+    {/if}
   </Stack>
 {/if}
 

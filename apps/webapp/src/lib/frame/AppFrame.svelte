@@ -1,8 +1,17 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What every view sits inside: the header with the navigation, the notices the application owes
-  // the reader about itself, and the region the view is rendered into.
+  // What every view sits inside: the shell wave drawn from the five widths (ADR-0061), the marks
+  // the application owes the reader about itself, and the region the view is rendered into.
+  //
+  // One navigation, three drawings. `lib/navigation.ts` is the list; this frame draws it as a
+  // `SideNav` pinned beside the content from `expanded` (collapsible to a rail), as the same
+  // `SideNav` in a `NavDrawer` behind ☰ below it, and as a `BottomBar` on `compact`, where the
+  // drawer then holds the tree alone. The account group is behind the avatar and the name from
+  // `medium` and behind "You" in the bottom bar below it. The bar carries no page action. It does
+  // carry the entry to search from `medium` up (ADR-0063 decision 4), and that is why `primary()`
+  // is asked for the list *without* Search there: one visible entry to it on every width - the
+  // field up here, or the destination in the bottom bar on `compact`, never both.
   //
   // Two things it deliberately does not do. It knows nothing about a Tauri shell — every platform
   // difference goes through `src/lib/platform/` (ADR-0033), and there is no `isTauri` anywhere in
@@ -12,24 +21,30 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Inline, Menu, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
-  import HealthNotice from './HealthNotice.svelte';
+  import AccountMenu from './AccountMenu.svelte';
+  import SectionNav from './SectionNav.svelte';
+  import BarSearch from './BarSearch.svelte';
+  import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
+  import { page } from './page.svelte.ts';
+  import { viewport } from './viewport.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { MATURITY, shouldAnnounce } from '../maturity.ts';
+  import { ADMINISTRATION, DESTINATIONS, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -41,11 +56,6 @@
 
   const { route, onnavigate, children }: Props = $props();
 
-  // Dismissed for as long as this page is open, and no longer. ADR-0035 §2 asks for a banner that
-  // is not in the way; it does not ask the client to remember a decision across visits, and a
-  // client that did would need somewhere to keep it - which is the platform seam's question and
-  // F6's storage port, not this component's.
-  let dismissed = $state(false);
   /** The landmark the skip link lands on. */
   let mainElement = $state<HTMLElement | null>(null);
 
@@ -100,19 +110,99 @@
     return untrack(() => quotas.open());
   });
 
-  const links = $derived([
-    { path: '/', name: 'home', label: 'app.nav.home' },
-    { path: '/search', name: 'search', label: 'app.nav.search' },
-    { path: '/jumble', name: 'jumble', label: 'app.nav.jumble' },
-    { path: '/trash', name: 'trash', label: 'app.nav.trash' },
-    { path: '/installation', name: 'installation', label: 'app.nav.installation' },
-    ...(quotas.isReachable === true
-      ? [{ path: '/administration', name: 'administration', label: 'app.nav.administration' }]
-      : []),
-    // Reachable from every screen, because it is where somebody goes when the product is speaking
-    // to them in the wrong language — which is exactly the moment a buried link is no use.
-    { path: '/profile', name: 'profile', label: 'app.nav.profile' },
+  // Whose list of recently opened entries this device is holding. The account's id is the key, so
+  // it is adopted when the account arrives and dropped when it changes — two people sharing a
+  // browser never read each other's (`lib/recents.svelte.ts`).
+  $effect(() => recents.adopt(actor.account?.id));
+
+  // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
+  $effect(() => viewport.start());
+
+  /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
+  const destination = $derived(currentDestination(route));
+  /**
+   * The node the tree marks: the container the reader is in, or the destination they are on. On
+   * the workspace page the workspace row; inside a collection the collection, not the row above it.
+   */
+  const currentNode = $derived(
+    route.name === 'hub' || route.name === 'collection' ? route.params.id : destination,
+  );
+  /**
+   * The section the reader is inside, or nothing while they are in the workspace.
+   *
+   * Two of them: the administration (ADR-0063 decision 7) and Your settings (ADR-0065 decision 3).
+   * A section has a navigation of its own and the workspace's tree is not drawn beside it - the
+   * reader is in a place, not in a corner of the workspace. The route's **area** answers which,
+   * which is the same answer `currentDestination` gives the account group: one fact, read once.
+   */
+  const section = $derived(
+    route.area === 'administration'
+      ? { label: t('app.admin.nav'), groups: ADMINISTRATION }
+      : route.area === 'profile'
+        ? { label: t('app.nav.profile'), groups: SETTINGS }
+        : undefined,
+  );
+  /** Which row of the section's list is current, by the id that list gives it. */
+  const sectionRow = $derived(
+    section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
+  );
+  const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
+  /** The bottom bar: the primary group and "You", the account group's head on a phone. */
+  const bottomDestinations = $derived([
+    ...primary().map((each) => ({
+      id: each.id,
+      label: t(each.code),
+      icon: each.icon,
+      href: each.target.kind === 'route' ? each.target.path : '/',
+    })),
+    { id: 'you', label: t(YOU_CODE), icon: 'user' as const, href: '/profile' },
   ]);
+  const bottomCurrent = $derived(
+    accountGroup.some((each) => each.id === destination) ? 'you' : destination === 'trash' ? 'workspace' : destination,
+  );
+
+  /** The drawer below `expanded`, closed by a navigation; focus returns to ☰. */
+  let isDrawerOpen = $state(false);
+  /** The account sheet on `compact`, opened by "You" in the bottom bar. */
+  let isAccountOpen = $state(false);
+
+  /**
+   * The pinned navigation folded to its marks, from `expanded` up. A device convenience like the
+   * theme (ADR-0043): kept in this browser, never in the account, because how much of the screen
+   * a navigation may have is a question about this screen.
+   */
+  const RAIL_KEY = 'hubtask.nav';
+  let isRail = $state(false);
+  $effect(() => {
+    try {
+      isRail = localStorage.getItem(RAIL_KEY) === 'rail';
+    } catch {
+      isRail = false;
+    }
+  });
+  function toggleRail() {
+    isRail = !isRail;
+    try {
+      localStorage.setItem(RAIL_KEY, isRail ? 'rail' : 'pinned');
+    } catch {
+      // A browser that refuses storage still gets the fold, for as long as the page is open.
+    }
+  }
+
+  function go(path: string) {
+    isDrawerOpen = false;
+    onnavigate(path);
+  }
+
+  /** What choosing a row of the account group does: the frame's verbs, and nothing of its own. */
+  function chooseAccount(id: string) {
+    const chosen = DESTINATIONS.find((each) => each.id === id);
+    if (!chosen) return;
+    if (chosen.target.kind === 'route') go(chosen.target.path);
+    else if (chosen.target.action === 'tour') void tour.restart();
+    else void session.signOut();
+  }
+
   /**
    * The two transitions worth hearing, announced through the region that already exists.
    *
@@ -126,14 +216,17 @@
     if (!session.isSignedIn || state === announced) return;
     if (announced !== undefined) {
       if (state === 'live') announcer.say(t('app.live.became_live'));
+      // Losing it is worth saying whichever half lost it: the stream cannot be reached, or the
+      // device says it has no network at all.
       else if (state === 'reconnecting') announcer.say(t('app.live.lost'));
+      else if (state === 'offline') announcer.say(t('app.live.device_offline'));
     }
     announced = state;
   });
 
 </script>
 
-<div class="frame">
+<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn ? '' : undefined}>
   <!-- The first stop on every page (2.4.1). The keyboard walk of F5-11 counted eleven stops from
        the top of the frame to the first control of the content; this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
@@ -151,101 +244,133 @@
       {t('app.skip_to_content')}
     </a>
   </VisuallyHidden>
-  <header class="bar">
-    <!-- A name rather than a message: the product is called Hubtask in every language. -->
-    <a class="wordmark" href="/">Hubtask</a>
-    <!-- Signed out there is nowhere to go but the token screen, so the frame offers nothing that
-         would land there under another name. -->
-    {#if session.isSignedIn}
-      <!-- Named for what it is, not after its first link: a landmark called "Home" is a landmark
-           a reader of landmarks cannot tell from the link (F5-13). -->
-      <nav aria-label={t('app.nav.label')}>
-        <ul>
-          {#each links as link (link.path)}
-            <li>
-              <a href={link.path} aria-current={route.name === link.name ? 'page' : undefined}>
-                {t(link.label)}
-              </a>
-            </li>
-          {/each}
-        </ul>
-      </nav>
-      <div class="actor">
-        <Inline gap="150" align="center">
-          {#if actor.account}
-            <span class="who">{t('app.signed_in_as', { name: actor.account.display_name })}</span>
-          {/if}
-          <!-- The help menu (§8): where the tour is taken again. One entry today, a menu rather
-               than a button so that the second entry has somewhere to go. -->
-          <Menu
-            label={t('app.help.label')}
-            items={[{ id: 'tour', label: t('app.help.tour_again'), icon: 'info' }]}
-            placement={{ side: 'block-end', align: 'end' }}
-            onselect={(id) => {
-              if (id === 'tour') void tour.restart();
-            }}
-          >
-            {#snippet trigger(props)}
-              <Button size="sm" tone="subtle" icon="info" {...props}>{t('app.help.label')}</Button>
-            {/snippet}
-          </Menu>
-          <Button size="sm" tone="subtle" icon="log-out" onclick={() => void session.signOut()}>
-            {t('app.sign_out')}
-          </Button>
-        </Inline>
-      </div>
-    {/if}
-  </header>
 
-  <div class="notices">
-    <Stack gap="150">
-      {#if shouldAnnounce() && !dismissed}
-        <!-- ADR-0035 §2: while the stage is not `stable` the application says so itself. The
-             stage comes from `lib/maturity.ts` and from nowhere else. -->
-        <Banner
-          tone="info"
-          title={t(`app.maturity.${MATURITY}.title`)}
-          dismissLabel={t('app.dismiss')}
-          onDismiss={() => (dismissed = true)}
-        >
-          {t(`app.maturity.${MATURITY}.body`)}
-        </Banner>
+  <!-- Signed out there is nowhere to go but the token screen, so the bar offers nothing that
+       would land there under another name: no toggle, no account, the wordmark alone. -->
+  <!-- On a phone the bar carries the page's title where the page told the frame one
+       (`page.svelte.ts`); the head then reads its heading rather than drawing it. -->
+  <AppBar
+    label={t('app.nav.bar')}
+    title={viewport.isCompact ? page.title : undefined}
+    toggle={!session.isSignedIn
+      ? undefined
+      : viewport.isBelowExpanded
+        ? { kind: 'drawer', label: isDrawerOpen ? t('app.nav.close') : t('app.nav.open'), isExpanded: isDrawerOpen, onToggle: () => (isDrawerOpen = !isDrawerOpen), tour: 'hubs' }
+        : { kind: 'rail', label: isRail ? t('app.nav.expand') : t('app.nav.collapse'), isExpanded: !isRail, onToggle: toggleRail }}
+  >
+    {#snippet brand()}
+      <!-- A name rather than a message: the product is called Hubtask in every language. -->
+      <a class="wordmark" href="/">Hubtask</a>
+    {/snippet}
+    {#snippet search()}
+      <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
+           the reader reaches search through the bottom bar instead. -->
+      {#if session.isSignedIn && !viewport.isCompact}
+        <BarSearch onnavigate={go} />
       {/if}
-      <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
-      <HealthNotice />
-      <!-- The copy and the server, on every route (F6-06): connected, reconnecting or offline;
-           what waits to be sent and what the server refused; when the copy last synchronised.
-           `SyncLine` feeds `SyncStatus` from the stream's state and the engine's queue. -->
-      <div class="live">
-        <SyncLine />
-      </div>
-    </Stack>
-  </div>
+    {/snippet}
+    {#snippet menu()}
+      <!-- The page's own menu, at the end of the compact bar (ADR-0061 decision 1's table). The
+           list is the head's own folded one, handed over rather than assembled here: two foldings
+           would eventually disagree about which action is an action and which is an item. -->
+      {#if viewport.isCompact && page.menu}
+        {@const offered = page.menu}
+        <Menu label={offered.label} items={offered.items} placement={{ side: 'block-end', align: 'end' }} onselect={offered.onselect}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label={offered.label} data-opener={offered.opener} {...props} />
+          {/snippet}
+        </Menu>
+      {/if}
+    {/snippet}
+    {#snippet end()}
+      <!-- The copy and the server, as one mark (ADR-0063 decision 5): connected, reconnecting or
+           offline; what waits to be sent and what the server refused; when the copy last
+           synchronised. It was a line of every page that read "Connected" at its quietest; now the
+           ordinary case says nothing until it is pressed, and what it said is behind it, whole. -->
+      <!-- What the application has to say about itself - the stage, and the health report where
+           the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
+           banners above the head of every page; now it is a mark that says nothing until it is
+           pressed, and nothing at all when there is nothing to say. -->
+      <NoticeMark />
+      <SyncLine />
+      <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
+           to be reachable while the server is away, and the name is "You" until it is known. -->
+      {#if session.isSignedIn && !viewport.isCompact}
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
+      {/if}
+    {/snippet}
+  </AppBar>
 
   <div class="body">
-    <!-- The sidebar is the frame's, not a view's: it is the same tree on every screen, and a view
-         that rendered it would rebuild it on every navigation. -->
+    <!-- The navigation is the frame's, not a view's: it is the same tree on every screen, and a
+         view that rendered it would rebuild it on every navigation. Pinned from `expanded`, where
+         the tour's `hubs` step finds it; below that the same tree is in the drawer and the step
+         finds the bar's ☰ instead. -->
     {#if session.isSignedIn}
-      <aside class="sidebar" data-tour="hubs">
-        <WorkspaceNav currentId={route.params.id} {onnavigate} />
-      </aside>
+      {#if viewport.isBelowExpanded}
+        <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
+          {#if section}
+            <SectionNav label={section.label} groups={section.groups} current={sectionRow} onnavigate={go} />
+          {:else}
+            <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
+          {/if}
+        </NavDrawer>
+      {:else}
+        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour={section ? undefined : 'hubs'}>
+          {#if section}
+            <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
+                 `hubs` step points at the tree, so it does not point here: a step that pointed at
+                 a column the tree is not in would explain the wrong thing. -->
+            <SectionNav label={section.label} groups={section.groups} current={sectionRow} {isRail} onnavigate={go} />
+          {:else}
+            <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
+          {/if}
+        </aside>
+      {/if}
     {/if}
     <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
          so it draws no ring when it does. -->
-    <main id="main" tabindex="-1" bind:this={mainElement}>
-      {@render children()}
+    <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
+      <div class="content">
+        {@render children()}
+      </div>
     </main>
   </div>
 
-  <!-- The one link out of the application (design-system.md §10, the statement): the accessibility
-       statement lives on the website, unversioned, so that what it says about a walk is not tied
-       to the build that shipped before the walk. A top-level navigation, which `connect-src` does
-       not govern; a new tab, because the application is what the reader was in the middle of. -->
-  <footer class="foot">
-    <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
-      {t('app.footer.accessibility')}
-    </a>
-  </footer>
+  <!-- The way to the accessibility statement on the screens that have no other one
+       (design-system.md §10): signed out there is no account group and no "About Hubtask", so the
+       foot of the sign-in screen is the only place it can be - and it is the place it matters
+       most, because a barrier at the door is the one nothing behind the door makes up for. Signed
+       in the statement is on `/installation` beside the versions, and this footer is gone: a
+       landmark carrying one external link took 51 px off every screen, and off the canvas of a
+       board, for a link nobody follows while they are working.
+
+       The statement lives on the website, unversioned, so that what it says about a walk is not
+       tied to the build that shipped before the walk. A top-level navigation, which `connect-src`
+       does not govern; a new tab, because the application is what the reader was in the middle
+       of. -->
+  {#if !session.isSignedIn}
+    <footer class="foot">
+      <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
+        {t('app.about.accessibility')}
+      </a>
+    </footer>
+  {/if}
+
+  <!-- The primary destinations where a thumb is, on `compact` only; "You" opens the account group
+       as a sheet from the bottom, because there is no avatar in the bar on a phone. -->
+  {#if session.isSignedIn && viewport.isCompact}
+    <BottomBar
+      label={t('app.nav.label')}
+      destinations={bottomDestinations}
+      current={bottomCurrent}
+      onnavigate={(id) => {
+        if (id === 'you') isAccountOpen = true;
+        else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
+      }}
+    />
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
+  {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
        the prompt belongs to the frame rather than to whichever screen made the request (H-03). -->
@@ -263,25 +388,12 @@
 </div>
 
 <style>
-  .live { display: flex; }
-
   .frame {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-300);
     min-height: 100vh;
-    padding: var(--sp-300);
     background: var(--bg-canvas);
     color: var(--text-primary);
-  }
-
-  .bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-300);
-    padding-block-end: var(--sp-200);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
   .wordmark {
@@ -292,31 +404,6 @@
     text-decoration: none;
   }
 
-  nav ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-200);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  nav a {
-    color: var(--text-secondary);
-    font-size: var(--fs-100);
-    text-decoration: none;
-  }
-
-  nav a:hover { color: var(--text-primary); }
-
-  /* The current page is not marked by colour alone (rule 3): `aria-current` carries it for a
-     screen reader, and the underline carries it for everyone else. */
-  nav a[aria-current='page'] {
-    color: var(--text-primary);
-    text-decoration: underline;
-    text-underline-offset: var(--sp-050);
-  }
-
   /* Rule 5, on every focusable thing in the frame. */
   a:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
@@ -324,17 +411,76 @@
     border-radius: var(--r-xs);
   }
 
-  .notices:empty { display: none; }
+  .body { display: flex; flex: 1; min-width: 0; }
 
-  /* Pushed to the far edge of the bar, in both directions. */
-  .actor { margin-inline-start: auto; }
 
-  .who { color: var(--text-subtle); font-size: var(--fs-075); }
+  /* The pinned navigation, from `expanded`: as wide as the token says, and it stays in view while
+     the page scrolls under the bar. Its own scroll, so a long tree does not lengthen the page. */
+  .sidenav {
+    /* The frame is its own plane (ADR-0063 decision 3): the bar and the bottom bar already take
+       the surface, and a navigation on the content's canvas read as an indented part of the page
+       rather than as the frame around it. */
+    background: var(--bg-surface);
+    /* A column, so that the navigation's own foot band reaches the bottom of it. */
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    inset-block-start: var(--layout-appbar-height);
+    flex: none;
+    /* The token is the whole column, padding included: at exactly `expanded` the content beside
+       it has to be `medium` wide, or the page head folds as if on a phone. */
+    box-sizing: border-box;
+    inline-size: var(--layout-sidenav-width);
+    max-block-size: calc(100vh - var(--layout-appbar-height));
+    min-width: 0;
+    padding: var(--sp-200) var(--sp-150);
+    overflow: auto;
+    border-inline-end: var(--bw-hairline) solid var(--border-subtle);
+  }
 
-  .body { display: flex; flex: 1; gap: var(--sp-300); min-width: 0; }
+  /* Folded to its marks: the same tree, clipped to the rail's width. Nothing is removed and the
+     keyboard reaches every row; only the words wait for the fold to open. */
+  .sidenav[data-rail] {
+    inline-size: var(--layout-sidenav-rail);
+    padding-inline: var(--sp-050);
+    overflow-x: hidden;
+  }
+
+  main { flex: 1; min-width: 0; padding: var(--sp-300); }
+
+  /* A page that draws its own edges takes the region whole: no padding around it and no reading
+     measure, because a canvas is not a document (`page.svelte.ts`). */
+  main[data-filled] { padding: 0; }
+
+  main[data-filled] .content { max-inline-size: none; }
+
+  /* From `expanded`, where a filled page keeps its own panel beside its canvas, the region is a
+     **height** as well as a width (`milestone-F8.md` decision 31): the page is one screen and
+     what scrolls is inside it, so the frame grows no second scrollbar underneath and a panel as
+     tall as the region really ends where the region does - the rule editor's ended below the
+     window by the height of everything above it. `min-block-size: 0` down the flex chain, or the
+     automatic minimum size lets the region grow with its content anyway. Below that the page
+     scrolls as every page does: the details are a sheet there, and a bar that scrolls away
+     leaves the canvas the screen. */
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
+  @media (width >= 905px) {
+    .frame[data-filled] { box-sizing: border-box; block-size: 100dvh; min-block-size: 0; }
+
+    .frame[data-filled] .body { min-block-size: 0; }
+
+    main[data-filled] { min-block-size: 0; overflow: hidden; }
+
+    main[data-filled] .content { block-size: 100%; }
+  }
+
+  main:focus { outline: none; }
+
+  /* Above `xlarge` the content is capped and centred rather than stretched across the screen;
+     the cap is the token's and applies from wherever the screen is wider than it. */
+  .content { max-inline-size: var(--layout-content-max); margin-inline: auto; }
 
   .foot {
-    padding-block-start: var(--sp-200);
+    padding: var(--sp-200) var(--sp-300);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
     font-size: var(--fs-075);
     color: var(--text-subtle);
@@ -347,43 +493,18 @@
     outline-offset: var(--sp-025);
   }
 
-  .sidebar {
-    flex: none;
-    /* Composed from the space scale rather than a width of its own: three of the largest step is
-       a sidebar, and a number written here would be a value outside tokens.json (rule 15). */
-    inline-size: calc(var(--sp-1000) * 3);
-    max-inline-size: 40%;
-    min-width: 0;
-    border-inline-end: var(--bw-hairline) solid var(--border-subtle);
-    padding-inline-end: var(--sp-200);
+  /* Below `medium` the bottom bar is fixed over the end of the page, so the page ends above it -
+     the last row of a list is reachable rather than under the bar. Only where there is a bar:
+     the bar is drawn for a session, and a frame that reserved its height signed out ended the
+     sign-in screen 56 px above the bottom of the screen with nothing in the gap. The token's
+     value is written out because a media query cannot read a custom property; it is
+     `primitive.breakpoint.medium` and nothing else, and the token remains the source. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .frame[data-bottombar] { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
+
+    main { padding: var(--sp-200); }
   }
-
-  /* `expanded` is where the sidebar is pinned, and that is the token's own description rather than
-     a width chosen here — `primitive.breakpoint.expanded` says "tablet landscape, sidebar pinned".
-     Below it the tokens ask for the sidebar as an **overlay**, which is what `Drawer` is for; this
-     stacks instead, which is honest and smaller, and the overlay belongs with the platform
-     adaptation §9 still lists as open.
-
-     A media query cannot read a custom property — `@media (max-width: var(--bp-expanded))` is not
-     valid CSS in any engine — so the token's value is written out. It is
-     `primitive.breakpoint.expanded` minus one and nothing else; the token remains the source. */
-  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
-  @media (max-width: 904px) {
-    .body { flex-direction: column; }
-
-    .sidebar {
-      inline-size: auto;
-      max-inline-size: none;
-      border-inline-end: 0;
-      border-block-end: var(--bw-hairline) solid var(--border-subtle);
-      padding-inline-end: 0;
-      padding-block-end: var(--sp-200);
-    }
-  }
-
-  main { flex: 1; min-width: 0; }
-
-  main:focus { outline: none; }
 
   .skip {
     display: inline-block;

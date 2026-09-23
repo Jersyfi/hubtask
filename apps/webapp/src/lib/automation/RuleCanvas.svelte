@@ -6,8 +6,9 @@
   // **The canvas is a vertical flow, in this order and no other:** the trigger card; the gate,
   // one block holding every condition; the chain of steps, each a card, with `BRANCH` drawn as a
   // fork into *then* and *otherwise* that rejoins, `WAIT` as a pause with its duration written on
-  // the line below it, and `STOP` as a terminus that draws no line onward; the guardrails last.
-  // Every gap between two cards is exactly one line with one insertion point in its middle.
+  // the line below it, and `STOP` as a terminus that draws no line onward. Every gap between two
+  // cards is exactly one line with one insertion point in its middle. What bounds the rule rather
+  // than travelling it - the guardrails - is the head's chip and the *Rule* tab (decision 24).
   //
   // **It draws, it does not decide.** A click selects into the inspector, a `+` inserts, the
   // tools remove or fold; every change goes back through a callback and the parent holds the
@@ -20,18 +21,22 @@
   import { Icon, type IconName } from '@hubtask/design-system/components';
 
   import InsertMenu from './InsertMenu.svelte';
+  import ConditionWords from './ConditionWords.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
-  import type { Draft, Step } from './model.ts';
+  import { endsRun, unreachableFrom, type Draft, type Step } from './model.ts';
   import type { Drag, Selection } from './selection.ts';
-  import { TRIGGER_ICONS, conditionWords, type Names } from './words.ts';
+  import { TRIGGER_ICONS, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     draft: Draft;
     selection: Selection;
     /** The action kinds this installation serves. */
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it, for the `+` popover's list. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     names: Names;
     /** The text under the trigger's title: the event, the schedule, the address. */
     triggerMeta: string;
@@ -45,6 +50,8 @@
     onfold: (path: string) => void;
     onaddcondition: () => void;
     onnudge: (path: string, direction: -1 | 1) => void;
+    onaddrung: (path: string) => void;
+    onremoverung: (path: string) => void;
     /** The drag in flight (F8-05, decision 7), and where it may land. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
@@ -62,8 +69,8 @@
   }
 
   const {
-    draft, selection, kinds, names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
-    onnudge, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
+    draft, selection, kinds, summaries = {}, usage = new Map(), names, triggerMeta, marks, describe, onselect, oninsert, onremove, onfold, onaddcondition,
+    onnudge, onaddrung, onremoverung, drag, ondragchange, ondrop, onreplacetrigger, onrefuse, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
   const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
@@ -87,8 +94,6 @@
     ondragchange(undefined);
   }
 
-  const words = { t, has: (code: string) => messages.has(code) };
-
   const TRIGGER_ICON: Record<string, IconName> = TRIGGER_ICONS as Record<string, IconName>;
 
   const isSelected = (kind: Selection['kind'], index?: number): boolean =>
@@ -105,8 +110,22 @@
   }
 </script>
 
+<!-- The background of the canvas deselects (decision 26): a click that reached no card, and
+     Escape while the focus is anywhere on the canvas. Both leave the panel with nothing to show
+     in *Details*, which is the view's to answer. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flow" data-canvas ondragover={(event) => { if (drag) event.preventDefault(); }} ondrop={refuse}>
+<div
+  class="flow"
+  data-canvas
+  ondragover={(event) => { if (drag) event.preventDefault(); }}
+  ondrop={refuse}
+  onclick={(event) => { if (event.target === event.currentTarget) onselect({ kind: 'none' }); }}
+  onkeydown={(event) => {
+    if (event.key !== 'Escape' || selection.kind === 'none') return;
+    event.preventDefault();
+    onselect({ kind: 'none' });
+  }}
+>
   <!-- The trigger: the one card in the signature colour, because it is where the run comes from. -->
   <div
     class="card trigger"
@@ -173,10 +192,19 @@
     <span class="ghead">
       <span class="mark condition-mark"><Icon name="funnel" size="sm" /></span>
       <span class="title">{t('app.flow.card_only_when')}</span>
-      <span class="hint">{draft.conditions.length > 0 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
+      <!-- Nothing to say where there is one condition: one is the most there can be (decision 30).
+           A stored rule from before may carry several, and then how they join is worth saying. -->
+      {#if draft.conditions.length !== 1}
+        <span class="hint">{draft.conditions.length > 1 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
+      {/if}
     </span>
+    <!-- One condition is the gate itself (decision 30): it is not a second thing to click, and
+         the click goes through to the gate, whose panel is where it is edited. Only a stored rule
+         with several keeps them apart, one card each. -->
     {#each draft.conditions as expr, index (index)}
+      {@const several = draft.conditions.length > 1}
       {@const verdict = verdicts?.get(`conditions/${index}`)}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="condition"
         class:selected={isSelected('condition', index)}
@@ -185,65 +213,57 @@
         class:no={verdict?.state === 'no'}
         class:faded={dimUnvisited && verdict === undefined}
         data-card={`conditions/${index}`}
-        role="button"
-        tabindex="0"
-        onclick={(event) => {
-          event.stopPropagation();
-          onselect({ kind: 'condition', index });
-        }}
-        onkeydown={(event) => {
-          event.stopPropagation();
-          onkey(event, () => onselect({ kind: 'condition', index }));
-        }}
+        role={several ? 'button' : undefined}
+        tabindex={several ? 0 : undefined}
+        onclick={several
+          ? (event) => {
+              event.stopPropagation();
+              onselect({ kind: 'condition', index });
+            }
+          : undefined}
+        onkeydown={several
+          ? (event) => {
+              event.stopPropagation();
+              onkey(event, () => onselect({ kind: 'condition', index }));
+            }
+          : undefined}
       >
         {#if index > 0}<span class="and">{t('app.flow.sentence_and').trim()}</span>{/if}
         <span class="body">
-          <span class="words">{conditionWords(words, names, expr)}</span>
-          <code class="expr">{expr}</code>
+          <span class="words"><ConditionWords {expr} {names} /></span>
           {#if marks?.get(`conditions/${index}`)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(`conditions/${index}`)}</span>{/if}
         </span>
         {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
       </div>
     {/each}
-    <button
-      class="add"
-      type="button"
-      onclick={(event) => {
-        event.stopPropagation();
-        onaddcondition();
-      }}
-    >
-      <Icon name="plus" size="sm" />{t('app.flow.add_condition')}
-    </button>
+    <!-- One condition, and it can hold everything (decision 30): a condition is a tree of
+         sentences under *all of* / *any of* / *none of*, so a second one beside it would be a
+         second way to write the same *and*. The way in is offered while there is none. -->
+    {#if draft.conditions.length === 0}
+      <button
+        class="add"
+        type="button"
+        onclick={(event) => {
+          event.stopPropagation();
+          onaddcondition();
+        }}
+      >
+        <Icon name="plus" size="sm" />{t('app.flow.add_condition')}
+      </button>
+    {/if}
   </div>
 
-  <InsertMenu {kinds} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
+  <InsertMenu {kinds} {summaries} {usage} actions={draft.actions} list="" index={0} onpick={oninsert} {drag} {ondrop} />
 
-  <RuleCanvasList steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+  <RuleCanvasList {summaries} {usage} steps={draft.actions} actions={draft.actions} prefix="" {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
 
-  <!-- The guardrails: what bounds the rule, drawn as the end of the path. -->
-  <div
-    class="card guardrails"
-    class:apart={draft.actions.length > 0 && draft.actions[draft.actions.length - 1]?.kind === 'STOP'}
-    class:selected={isSelected('guardrails')}
-    class:inert={drag !== undefined}
-    data-card="guardrails"
-    role="button"
-    tabindex="0"
-    onclick={() => onselect({ kind: 'guardrails' })}
-    onkeydown={(event) => onkey(event, () => onselect({ kind: 'guardrails' }))}
-  >
-    <span class="mark settings-mark"><Icon name="settings" size="sm" /></span>
-    <span class="body">
-      <span class="kind">{t('app.flow.card_guardrails')}</span>
-      <span class="title">{t(`app.rules.on_error_${draft.onError.toLowerCase()}`)}</span>
-      <span class="meta">
-        {draft.throttle.maxRunsPerHour
-          ? t('app.flow.card_guardrails_runs', { count: draft.throttle.maxRunsPerHour })
-          : t('app.flow.card_guardrails_unbounded')}{#if draft.throttle.dedupeKeyExpr}{' · '}{t('app.flow.card_guardrails_dedupe', { expr: draft.throttle.dedupeKeyExpr })}{/if}
-      </span>
-    </span>
-  </div>
+  <!-- The run ends where the chain ends (decision 19): the end mark, unless the chain already
+       ended on every path above - where the list drew its own, or where a stored rule's steps
+       after the end are drawn as never reached. -->
+  {#if !endsRun(draft.actions) && unreachableFrom(draft.actions) === -1}
+    <span class="endcap" data-end=""><i></i>{t('app.flow.run_ends')}</span>
+  {/if}
+
 </div>
 
 <style>
@@ -252,9 +272,13 @@
   .stub { width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); border-radius: var(--r-full); flex: 0 0 auto; }
 
   /* One card shape for every step (design-system.md §6 rule 1: raised = standalone). The trigger
-     alone carries the signature colour, and the guardrails are recessed: a bound, not a step. */
+     alone carries the signature colour, because it is where the run comes from. */
   .card {
     position: relative;
+    /* The width is the border box (decision 25): under the project's content-box default a card
+       at `100%` stood its padding and border wider than the column, and the scroll container cut
+       the selection ring off in the canvas's own gutter. */
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     gap: var(--sp-150);
@@ -270,10 +294,9 @@
 
   .card.trigger { border-color: var(--accent-signature); border-width: var(--bw-thick); }
 
-  .card.guardrails { border-style: dashed; box-shadow: none; background: var(--bg-surface-sunken); }
+  .endcap { display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-050); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
 
-  /* After a stop the path has ended; the guardrails stand apart from it rather than hanging off nothing. */
-  .card.guardrails.apart { margin-block-start: var(--sp-300); }
+  .endcap i { display: block; width: var(--sp-150); height: var(--sp-150); border-radius: var(--r-xs); background: var(--border-strong); }
 
   .card.selected, .gate.selected, .condition.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
 
@@ -331,12 +354,11 @@
 
   .condition-mark { background: var(--label-amber-bg); color: var(--label-amber-fg); }
 
-  .settings-mark { background: var(--label-slate-bg); color: var(--label-slate-fg); }
-
   .flag { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); color: var(--text-warning); }
 
   .gate {
     position: relative;
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     flex-direction: column;
@@ -366,9 +388,8 @@
     background: var(--bg-surface-sunken);
   }
 
-  .condition .words { font-size: var(--fs-100); color: var(--text-primary); }
+  .condition .words { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); font-size: var(--fs-100); color: var(--text-primary); }
 
-  .expr { display: block; font-family: var(--font-mono); font-size: var(--fs-050); color: var(--text-subtle); overflow-wrap: anywhere; }
 
   .and {
     position: absolute;

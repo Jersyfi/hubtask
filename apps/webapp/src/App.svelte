@@ -13,21 +13,29 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
-  import { ROUTES } from './lib/routes.ts';
+  import { ROUTES, paneFor } from './lib/routes.ts';
+  import { ADMINISTRATION, firstScreen } from './lib/navigation.ts';
+  import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
-  import ContainerView from './views/ContainerView.svelte';
+  import ArchiveView from './views/ArchiveView.svelte';
+import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
+  import AppearanceView from './views/AppearanceView.svelte';
+  import NotificationsView from './views/NotificationsView.svelte';
+  import SecurityView from './views/SecurityView.svelte';
+  import SessionsView from './views/SessionsView.svelte';
+  import DevicesView from './views/DevicesView.svelte';
+  import GrantsView from './views/GrantsView.svelte';
   import SearchView from './views/SearchView.svelte';
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
-  import AdministrationView from './views/AdministrationView.svelte';
   import AppsView from './views/AppsView.svelte';
   import ConsentView from './views/ConsentView.svelte';
   import GroupsView from './views/GroupsView.svelte';
@@ -66,6 +74,31 @@
     };
   });
 
+  /**
+   * The detail pane's address (ADR-0061 decision 4): `/collections/:id?item=:itemId` is the list
+   * with the entry beside it from `large` up, and below `large` the entry's own page - a redirect
+   * that replaces the address, so the back button goes to where the reader came from. Width, not
+   * platform: the desktop shell dragged narrow redirects like a phone. `paneFor` is the pure
+   * answer and has the test; this is only the effect that acts on it.
+   */
+  const pane = $derived(paneFor(route, { isLarge: viewport.isLarge }));
+  $effect(() => {
+    if (pane.kind === 'redirect') router.replace(pane.path);
+  });
+
+  /**
+   * A section's own address opens its first screen (ADR-0065 decision 1).
+   *
+   * `/administration` is linked from the account menu and from the trail of every screen under it,
+   * so it keeps its address; what it no longer has is an index, which was the column's list drawn
+   * a second time. `replace` rather than `navigate`, for the reason the pane's redirect uses it:
+   * the address the reader came from is the one the back button should return to, not the door
+   * they were sent through.
+   */
+  $effect(() => {
+    if (session.isSignedIn && route.name === 'administration') router.replace(firstScreen(ADMINISTRATION));
+  });
+
   // Signing in again returns the reader to what they were looking at when the session ended. The
   // path is taken once: one that navigated twice would fight the reader's next click.
   $effect(() => {
@@ -83,12 +116,20 @@
    * reader who navigates from a board to an entry does not want the connection torn down and made
    * again. `live.stop()` is called by the sign-out itself, so the teardown here is only for a tab
    * that closes.
+   *
+   * The effect follows the account's **id** and nothing else about it (issue 881). It used to read
+   * `actor.account` directly, and so re-ran on every state the account passed through - and with
+   * the server away, each re-run tore the stream down and attached the store again, each attach
+   * read the failed account again, each failure was a new state: a loop as tight as the network
+   * let it be, nine hundred reads of `/accounts/me` in the seconds an outage lasted in the walk.
    */
-  $effect(() => {
-    if (!session.isSignedIn) return;
+  const liveAccountId = $derived(
     // The account from `/accounts/me`, or the one remembered beside the pair when the server
     // cannot be reached: a tab reloading offline still opens its replica (F6-04).
-    const accountId = actor.account?.id ?? platform.lastAccount();
+    session.isSignedIn ? (actor.account?.id ?? platform.lastAccount()) : undefined,
+  );
+  $effect(() => {
+    const accountId = liveAccountId;
     if (!accountId) return;
     live.start(accountId);
     return () => live.stop();
@@ -115,15 +156,29 @@
   {:else if !session.isSignedIn}
     <SignInView />
   {:else if route.name === 'home'}
-    <HomeView />
+    <HomeView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
     <InstallationView />
   {:else if route.name === 'profile'}
     <ProfileView />
   {:else if route.name === 'tokens'}
     <MyTokensView />
+  {:else if route.name === 'appearance'}
+    <AppearanceView />
+  {:else if route.name === 'notifications'}
+    <NotificationsView />
+  {:else if route.name === 'security'}
+    <SecurityView />
+  {:else if route.name === 'sessions'}
+    <SessionsView />
+  {:else if route.name === 'devices'}
+    <DevicesView />
+  {:else if route.name === 'grants'}
+    <GrantsView />
   {:else if route.name === 'administration'}
-    <AdministrationView />
+    <!-- The section's front door (ADR-0065 decision 1). The effect above replaces the address with
+         the section's first screen, so nothing is drawn here - not even for the tick in between,
+         which is what a screen saying "not found" under a real address would be. -->
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
   {:else if route.name === 'people'}
@@ -137,7 +192,7 @@
   {:else if route.name === 'apps'}
     <AppsView />
   {:else if route.name === 'rules'}
-    <RulesView />
+    <RulesView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule-new'}
     <RuleEditorView id="new" onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule'}
@@ -165,21 +220,23 @@
   {:else if route.name === 'ai'}
     <AiSettingsView />
   {:else if route.name === 'search'}
-    <SearchView />
+    <SearchView query={route.query} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'jumble'}
     <JumbleView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'trash'}
     <TrashView />
+  {:else if route.name === 'archive'}
+    <ArchiveView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <ItemView id={route.params.id ?? ''} />
+      <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else if route.name === 'hub' || route.name === 'collection'}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
          that navigating from one collection to another rebuilds rather than reusing the state of
          the one before — a draft rename would otherwise follow the reader to a different name. -->
     {#key route.params.id}
-      <ContainerView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+      <ContainerView id={route.params.id ?? ''} openItemId={pane.kind === 'pane' ? pane.itemId : undefined} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else}
     <!-- The server's own code for a path that reaches nothing, at the same address - as the

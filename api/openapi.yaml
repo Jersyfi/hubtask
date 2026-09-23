@@ -7135,11 +7135,18 @@ components:
 
     ItemSearchQuery:
       type: object
-      required: [q]
       description: >
-        One search. Everything but `q` narrows or pages it; there is no filter grammar here, because
-        a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which
-        is the same index and is what that endpoint is for.
+        One search of the whole workspace, or of one hub or collection. **At least one of `q` and
+        `filter`** - a request with neither is refused by `search.words_required`, because
+        "everything" is not a question this API answers.
+
+        `filter` is the same grammar `POST /items:query` takes, with the same closed field
+        vocabulary, the same operators and the same bounds (ADR-0064). The difference between the
+        two endpoints is not the grammar, it is the anchor: a query is anchored to a container
+        because an unanchored one is a question authorisation cannot answer in one step, and a
+        search is the one read where "where is this, anywhere" *is* the question - so it is read
+        and then narrowed to what the caller may see, and its page may be short where a query's
+        would be a refusal.
 
         **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The
         two are one ranked page with one cursor: a hit on the words somebody typed outranks one that
@@ -7160,7 +7167,9 @@ components:
           maxLength: 200
           description: >
             What to look for. Quoted phrases, `or` between words and a leading minus for exclusion
-            work as they do in a web search box; anything else is read as words to find.
+            work as they do in a web search box; anything else is read as words to find. Optional
+            where a `filter` is sent: a filtered search with no words is a work list rather than a
+            search, and it is ordered rather than ranked.
         container_id:
           type: [string, "null"]
           format: uuid
@@ -7173,6 +7182,25 @@ components:
             read. Omitted takes the caller's locale.
         mode:
           $ref: "#/components/schemas/SearchMode"
+        filter:
+          allOf:
+            - $ref: "#/components/schemas/FilterNode"
+          description: >
+            Narrows the search, in the grammar `POST /items:query` uses: the fields
+            `/meta/capabilities` names, the operators each one permits, at most five levels of
+            nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is
+            `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`,
+            refused before it runs.
+        sort:
+          type: array
+          maxItems: 4
+          description: >
+            Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent
+            with words it is refused by `search.sort_with_words`, rather than being ignored.
+            Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read
+            with no words is a work list and a work list is ordered by when it is due. Always
+            completed by `id ASC`, so a cursor is unambiguous.
+          items: { $ref: "#/components/schemas/SortTerm" }
         include_archived: { type: boolean, default: false }
         include_trashed: { type: boolean, default: false }
         page:
@@ -9125,6 +9153,21 @@ components:
           description: >
             Protocol documentation, in English, as the descriptions in this document are - never
             display text (ADR-0011).
+        rule:
+          type: boolean
+          description: >
+            Whether a rule sets this field. `false` for the caller's plumbing - the identifier a
+            client minted for offline work, the version it last read for If-Match, a reserved
+            switch - which a person typing a call supplies and a rule never does, because a run
+            has no version it read and mints nothing (F8-15). A rule editor hides such a field;
+            the call still accepts it. Absent means `true`.
+        format:
+          type: string
+          description: >
+            The shape of a string field where a form draws it better than as text, in the
+            vocabulary of this document's own `format` keyword: `date-time` for an RFC 3339
+            instant. Absent for a string that is just a string; a client tolerates a value it does
+            not know and draws the field as text.
 
     RuleAction:
       type: object
@@ -9251,6 +9294,16 @@ components:
             When the check last ran over this rule, and absent for a rule it never has — or
             for one edited since: an edit leaves the rule unchecked and its findings empty,
             because they described the definition the check read, not this one.
+        last_run:
+          type: [object, "null"]
+          description: >
+            The rule's most recent run — when it started and how it ended — read beside the
+            rule so that a list of rules says it without a page of runs per rule (F8-21).
+            Absent for a rule that never ran. Not part of the definition: a write ignores it.
+          required: [at, status]
+          properties:
+            at: { type: string, format: date-time }
+            status: { $ref: "#/components/schemas/RuleRunStatus" }
         created_by: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -10199,6 +10252,17 @@ components:
             that does not define it.
         code: { type: string, description: A stable message code saying why. }
 
+    SortTerm:
+      type: object
+      required: [field]
+      description: >
+        One ordering. Named once and read twice: `POST /items:query` sorts a view of a container,
+        and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
+      properties:
+        field: { type: string }
+        dir: { type: string, enum: [ASC, DESC], default: ASC }
+        nulls: { type: string, enum: [FIRST, LAST], default: LAST }
+
     FilterNode:
       type: object
       required: [op]
@@ -10270,13 +10334,7 @@ components:
           description: >
             Ordered, most significant first, and always completed by `id ASC` so that a cursor is
             unambiguous. Defaults to the manual order (`order_key ASC`).
-          items:
-            type: object
-            required: [field]
-            properties:
-              field: { type: string }
-              dir: { type: string, enum: [ASC, DESC], default: ASC }
-              nulls: { type: string, enum: [FIRST, LAST], default: LAST }
+          items: { $ref: "#/components/schemas/SortTerm" }
         group_by:
           type: object
           required: [field]
@@ -12467,6 +12525,16 @@ components:
               additionalProperties:
                 type: array
                 items: { $ref: "#/components/schemas/AutomationActionField" }
+            action_summaries:
+              type: object
+              description: >
+                For every kind in `actions`, the one sentence its use case declares - the same
+                sentence the MCP tool for it carries, derived from the same declaration (F8-15).
+                A rule editor's catalogue says it under the kind's name, so that every kind the
+                installation serves is readable without a copy of the sentences compiled into a
+                client. Protocol documentation in English, as every description in this document
+                is; a client that lacks it shows the name alone. Always present.
+              additionalProperties: { type: string }
         event_types:
           type: array
           items: { type: string }

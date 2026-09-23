@@ -390,12 +390,12 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 					"left alone.",
 			},
 			{
-				Name: "start_at", Kind: usecase.KindString,
+				Name: "start_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the work begins, RFC 3339 - the timeline view's field. Empty " +
 					"clears it, omitted leaves it as it is.",
 			},
 			{
-				Name: "due_at", Kind: usecase.KindString,
+				Name: "due_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the entry is due, RFC 3339. Empty clears the due date, the " +
 					"all-day flag and the zone together; omitted leaves the trio as it is.",
 			},
@@ -410,7 +410,7 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 					"Refused without a due date.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST. Omitted means the " +
 					"caller read none and accepts whatever is there; a version that has moved on since is " +
 					"refused rather than overwritten.",

@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -27,6 +27,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
@@ -108,11 +110,26 @@
   async function setMembers(groupId: string, members: readonly string[]): Promise<void> {
     await attempt(() => groups.update(groupId, { members }), t('app.groups.members_announced'));
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.groups.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.groups.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.groups.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'groups', label: t('app.groups.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+    <Stack gap="300">
     <p class="quiet">{t('app.groups.intro')}</p>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
@@ -227,7 +244,7 @@
 
     <Stack gap="150">
       <h2 class="section">{t('app.groups.new_title')}</h2>
-      <form onsubmit={create}>
+      <form class="panel" onsubmit={create}>
         <Stack gap="150">
           <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired />
           <div>
@@ -238,17 +255,14 @@
         </Stack>
       </form>
     </Stack>
-  </Stack>
-</div>
+    </Stack>
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
+     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
+     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
+     screen that is not a document. */
 
   .section,
   .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
@@ -276,5 +290,17 @@
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
-  form { margin: 0; }
+  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
+     input as wide as the region is a target nobody aims at, so the fields carry a measure of
+     their own while the lists and tables beside them take the width. */
+  form { margin: 0; max-inline-size: 52ch; }
+
+  /* The surface a form stands on, as the other screens of the section draw one: a standalone
+     element in the sense of design-system.md rule 1, on the frame's canvas. */
+  .panel {
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
 </style>

@@ -383,6 +383,7 @@ func (h AddComment) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{
 				Name: "id", Kind: usecase.KindID,
+				CallerOnly: true,
 				Description: "The identifier the caller minted, a UUIDv7; offline clients assign " +
 					"their own. Leave it out and the server mints one.",
 			},

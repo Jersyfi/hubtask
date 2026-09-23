@@ -22,17 +22,7 @@
 
   import { untrack } from 'svelte';
 
-  import {
-    Badge,
-    Banner,
-    Button,
-    Checkbox,
-    Input,
-    ProgressBar,
-    Select,
-    Spinner,
-    Stack,
-  } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, PageHeader, ProgressBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { audit, readAnchor, readVerification, type Entry, type Query } from '../lib/data/audit.svelte.ts';
@@ -44,6 +34,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const OUTCOMES = ['SUCCESS', 'DENIED', 'FAILED'];
   const FORMATS = ['JSONL', 'CSV'];
@@ -177,11 +169,26 @@
       };
     });
   });
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.audit.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.audit.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.audit.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'audit', label: t('app.audit.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+    <Stack gap="300">
     <p class="quiet">{t('app.audit.intro')}</p>
 
     {#if failure}
@@ -495,17 +502,14 @@
         {/if}
       {/if}
     </Stack>
-  </Stack>
-</div>
+    </Stack>
+</Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
+     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
+     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
+     screen that is not a document. */
 
   .section {
     margin: 0;
@@ -541,7 +545,10 @@
      rather than a row that scrolls sideways. */
   .fields {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(20ch, 1fr));
+    /* As many columns as fit, each the width a field wants rather than a share of the region: a
+       `1fr` track gave two date fields half a 1440 px screen each once the screen stopped standing
+       in a 60ch column (ADR-0065 decision 2). */
+    grid-template-columns: repeat(auto-fit, minmax(20ch, 26ch));
     gap: var(--sp-150);
   }
 

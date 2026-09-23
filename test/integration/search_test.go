@@ -401,3 +401,84 @@ func collectionBeside(ctx context.Context, t *testing.T, tenant, author, hub sha
 	}
 	return id
 }
+
+// ADR-0064: a search may be narrowed by the query's own filter, and a narrowed one needs no words.
+//
+// Three things in one fixture, because they are one statement's three questions: the filter
+// narrows what the words found; a filter with no words answers at all, which is the half the
+// product had no read for; and what it answers is in the order the sort asked for rather than in
+// whatever order the rows came back.
+func TestAFilterNarrowsASearchAndNeedsNoWords(t *testing.T) {
+	ctx := context.Background()
+	f := newSearchFixture(ctx, t)
+
+	// With words: the filter takes one of the two hits away.
+	both := searched(ctx, t, tenantA, searchWithin(f.collection, "quarterly", "en"))
+	if len(both.Hits) != 2 {
+		t.Fatalf("the search found %d entries, want two to narrow between", len(both.Hits))
+	}
+	narrowed := searchWithin(f.collection, "quarterly", "en")
+	narrowed.Request.Filter = &view.Node{
+		Op:     view.OpEq,
+		Field:  view.Field{Name: view.FieldTitle, Kind: view.KindText},
+		Values: []view.Value{{Kind: view.KindText, Text: "Quarterly report"}},
+	}
+	one := searched(ctx, t, tenantA, narrowed)
+	if len(one.Hits) != 1 || one.Hits[0].Item.Title != "Quarterly report" {
+		t.Errorf("the filter did not narrow the words: %d hits", len(one.Hits))
+	}
+
+	// With no words at all: the filter is the whole question, and the answer is a work list.
+	wordless := repository.TextSearch{
+		Anchor: repository.Anchor{
+			Kind: repository.AnchorCollection, CollectionID: f.collection, IncludeDescendants: true,
+		},
+		Request: view.Search{
+			Language: "en",
+			Size:     50,
+			Sort:     view.DefaultSearchSort(),
+			Filter: &view.Node{
+				Op:     view.OpEq,
+				Field:  view.Field{Name: view.FieldIsCompleted, Kind: view.KindBool},
+				Values: []view.Value{{Kind: view.KindBool, Bool: false}},
+			},
+		},
+	}
+	open := searched(ctx, t, tenantA, wordless)
+	if len(open.Hits) != 5 {
+		t.Errorf("a filtered search with no words found %d of the five entries", len(open.Hits))
+	}
+	for _, hit := range open.Hits {
+		if hit.Rank != 0 {
+			t.Errorf("a wordless search ranked %q at %v", hit.Item.Title, hit.Rank)
+		}
+	}
+}
+
+// And the tenant boundary holds on the new statement, which is gate SG-3's question of every
+// repository path: the same filter, asked in the other workspace, answers nothing.
+func TestAWordlessSearchStaysInsideItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	f := newSearchFixture(ctx, t)
+
+	wordless := repository.TextSearch{
+		Anchor: repository.Anchor{
+			Kind: repository.AnchorCollection, CollectionID: f.collection, IncludeDescendants: true,
+		},
+		Request: view.Search{
+			Language: "en",
+			Size:     50,
+			Sort:     view.DefaultSearchSort(),
+			Filter: &view.Node{
+				Op:     view.OpEq,
+				Field:  view.Field{Name: view.FieldIsCompleted, Kind: view.KindBool},
+				Values: []view.Value{{Kind: view.KindBool, Bool: false}},
+			},
+		},
+	}
+
+	elsewhere := searched(ctx, t, tenantB, wordless)
+	if len(elsewhere.Hits) != 0 {
+		t.Errorf("the other workspace's search found %d of this one's entries", len(elsewhere.Hits))
+	}
+}

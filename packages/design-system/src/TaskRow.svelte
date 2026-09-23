@@ -37,6 +37,13 @@
     depth?: number;
     expansion?: Expansion;
     href?: string;
+    /**
+     * What a plain press on the title does instead of following `href`: opening the entry beside
+     * the list (ADR-0061 decision 4). The link keeps its address for a new tab.
+     */
+    onOpen?: () => void;
+    /** Whether this row is the one open beside the list. Announced as current, not only tinted. */
+    isCurrent?: boolean;
     /** The name of the control that ticks it off. Required: it is a control, so it has a name. */
     completeLabel: string;
     /** Why completion is unavailable — archived, or a role that may not. There is no boolean. */
@@ -62,6 +69,8 @@
     depth = 0,
     expansion = 'leaf',
     href,
+    onOpen,
+    isCurrent = false,
     completeLabel,
     completeDisabledReason,
     expandLabel,
@@ -87,7 +96,7 @@
 </script>
 
 <div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
-  <ListRow {href} {trailing}>
+  <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
       <span class="twist">
@@ -127,12 +136,31 @@
      Arabic is indented from the right. */
   .task-row { padding-inline-start: calc(var(--depth) * var(--sp-300)); }
 
+  /* In a narrow tree - a phone, a 400 px pane - the step is smaller and stops at the third level:
+     deeper rows keep that indent and their type mark says the level (ADR-0061). A container query
+     on the tree's width, not a media query: the tree is what has the room or lacks it. The caller
+     makes the tree a container; a row on its own is measured against nothing and keeps the step. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .task-row { padding-inline-start: calc(min(var(--depth), 3) * var(--sp-200)); }
+  }
+
   .twist,
   .mark { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
 
   .mark { color: var(--text-subtle); }
 
-  .title { overflow-wrap: anywhere; }
+  /* A title takes a few lines and then loses its end (issue 838): the row is a row, and the whole
+     text is on the entry's own page. The prefixed form is what every engine on the browser row
+     implements; the standard property stands beside it for the day they take it. */
+  .title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
 
   /* A change waiting to be sent: the `pending` role on the mark - a continuous indicator with
      no end - and the word beside it, because a pulse alone is a colour argument (rule 3) and is

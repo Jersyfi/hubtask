@@ -13,18 +13,21 @@
   // link survives a reload, and a trail assembled from navigation history would be empty after one.
 
   import {
-    Breadcrumb,
+    AvatarGroup,
     Button,
+    DetailPane,
     Dialog,
+    Drawer,
     EmptyState,
     focusFirst,
     IconButton,
     Inline,
     Input,
     ListRow,
+    PageHeader,
     Skeleton,
     Stack,
-    Toolbar,
+    type MenuItem,
   } from '@hubtask/design-system/components';
 
   import { untrack } from 'svelte';
@@ -42,12 +45,15 @@
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
+  import LayoutSwitch from '../lib/entries/LayoutSwitch.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import PoliciesDialog from '../lib/workspace/PoliciesDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
-  import { holds } from '../lib/data/capability.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { items } from '../lib/data/items.svelte.ts';
+  import { holds, rootTypes } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -58,8 +64,12 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { recents } from '../lib/recents.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -75,14 +85,43 @@
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { humanise } from '../lib/i18n/messages.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
     id: string;
+    /**
+     * The entry open beside the list (ADR-0061 decision 4): `?item=` on the collection's address,
+     * from `large` up. The frame's router resolved it and `App.svelte` redirected below `large`,
+     * so here it is only ever a pane. Opening from a row sets it; closing clears it; both are
+     * navigations, so the address, a reload and the back button agree.
+     */
+    openItemId?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, onnavigate }: Props = $props();
+  const { id, openItemId, onnavigate }: Props = $props();
+
+  /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
+  const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
+
+  function openBeside(itemId: string) {
+    onnavigate(`/collections/${id}?item=${encodeURIComponent(itemId)}`);
+  }
+
+  /**
+   * Closing the pane puts the focus back on the row it came from - the reader who opened it from
+   * the list is still in the list, which is the point of a pane. The row is found after the
+   * navigation has redrawn, when nothing has focus but the body.
+   */
+  function closePane() {
+    const rowId = openItemId;
+    onnavigate(`/collections/${id}`);
+    queueMicrotask(() => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      document.querySelector<HTMLElement>(`[data-row="${rowId}"] a`)?.focus();
+    });
+  }
 
   // Its own read as well as the levels. A deep link to a collection may be the first thing this
   // client ever asks for, and its hub is then not loaded either — looking only in the levels would
@@ -156,6 +195,20 @@
 
   /** The entry being copied, if one is. The dialog is open exactly while this is set. */
   let duplicating = $state<WorkItem | undefined>(undefined);
+
+  // `Escape` leaves the selection mode, from anywhere on the screen: a mode with no way out but a
+  // small button is one somebody is stuck in (ADR-0063 decision 8). It is on the window rather
+  // than on a node, because the reader may be anywhere — a filter panel, a dialog's trigger, the
+  // page head — and a dialog that is open takes the key first, as its own overlay should.
+  $effect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !selection.isOn) return;
+      if (document.querySelector('dialog[open], [role="dialog"], [role="menu"]')) return;
+      selection.stop();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   // A selection is about what is in front of somebody, so it does not survive the screen.
   $effect(() => {
@@ -413,6 +466,118 @@
    */
   let isNameFailure = $state(false);
 
+  // The bar carries the title on a phone (ADR-0061 decision 2); the head then reads its heading
+  // rather than drawing it. Cleared when this screen leaves.
+  $effect(() => page.entitle(container?.name));
+
+  // What the overview's "what you had open" is built from, for the two container levels. Noted
+  // once the level is known, because the mark on the row is what it says.
+  $effect(() => {
+    if (!container?.name) return;
+    recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name });
+  });
+
+  /** The list, for the head's primary action: the form is the list's, the button is the head's. */
+  let list = $state<EntryList | undefined>(undefined);
+
+  /** The filter: open inline from `expanded`, in a drawer below it; the count is the panel's. */
+  let isFilterOpen = $state(false);
+  let filterCount = $state(0);
+
+  /** Why an entry cannot be created here, or nothing. The gate is the list's; the words are shared. */
+  const addDisabledReason = $derived(
+    isReadOnly
+      ? t('app.workspace.archived')
+      : rootTypes().length === 0
+        ? t('items.capability_not_supported', { type: '', capability: 'CREATE' })
+        : undefined,
+  );
+
+  /** Creating from the head: on a board or the timeline, the list is where the form lives. */
+  function addFromHead() {
+    if (!container || addDisabledReason) return;
+    if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+    // After the layout switch the list is mounted on the next tick.
+    queueMicrotask(() => list?.addEntry());
+  }
+
+  /** Who holds a role here, for the faces in the head: the same dialog the menu opens. */
+  const memberIds = $derived([...new Set(people.along(containerPath).map((membership) => membership.account_id))]);
+  $effect(() => {
+    accounts.resolve(memberIds);
+  });
+
+  /**
+   * The page menu, in the three groups backlog decision 5 fixed: act on the object, set it up,
+   * and trash - last and alone. A reason stays a reason: the rank at the top of its level and
+   * the move of a hub are offered with why they cannot be used, not left out.
+   */
+  const pageMenu = $derived<MenuItem[]>(
+    container === undefined
+      ? []
+      : [
+          // The way into the selection mode, where a screen's verbs are (ADR-0063 decision 8).
+          // Only on a collection: a hub holds collections, and nothing acts on those in bulk.
+          ...(container.type === 'COLLECTION'
+            ? [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, hasSeparatorBefore: false }]
+            : []),
+          {
+            id: 'rename',
+            label: t('app.workspace.rename'),
+            icon: 'pencil',
+            disabledReason: isReadOnly
+              ? archival === 'archived'
+                ? t('app.workspace.archived')
+                : t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' })
+              : undefined,
+          },
+          {
+            id: 'move',
+            label: t('app.move.to_hub'),
+            disabledReason: container.type === 'HUB' ? t('app.move.hub_only') : isReadOnly ? t('app.workspace.archived') : undefined,
+          },
+          ...(archival !== 'inherited'
+            ? [{ id: 'archive', label: archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
+            : []),
+          { id: 'up', label: t('app.rank.up'), icon: 'chevron-up', disabledReason: canMoveUp ? undefined : t('app.rank.already_first') },
+          { id: 'down', label: t('app.rank.down'), icon: 'chevron-down', disabledReason: canMoveDown ? undefined : t('app.rank.already_last') },
+          ...(container.type === 'COLLECTION'
+            ? [
+                { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                { id: 'fields', label: t('app.fields.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                { id: 'views', label: t('app.views.title'), icon: 'star' as const },
+                { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                { id: 'policies', label: t('app.policies.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                { id: 'people', label: t('app.people.title'), icon: 'users' as const },
+              ]
+            : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
+          {
+            id: 'trash',
+            label: t('app.workspace.trash'),
+            icon: 'trash',
+            isDestructive: true,
+            hasSeparatorBefore: true,
+            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+          },
+        ],
+  );
+
+  function choseFromMenu(id: string) {
+    if (id === 'select') selection.start();
+    else if (id === 'rename') startRename();
+    else if (id === 'move') isMovingHub = true;
+    else if (id === 'archive') void toggleArchived();
+    else if (id === 'up') void moveBy(-1);
+    else if (id === 'down') void moveBy(1);
+    else if (id === 'labels') isManagingLabels = true;
+    else if (id === 'fields') isManagingFields = true;
+    else if (id === 'views') isManagingViews = true;
+    else if (id === 'templates') isUsingTemplates = true;
+    else if (id === 'policies') isManagingPolicies = true;
+    else if (id === 'people') isManagingMembers = true;
+    else if (id === 'trash') isTrashing = true;
+  }
+
   function startRename() {
     draft = container?.name ?? '';
     failure = undefined;
@@ -455,19 +620,112 @@
   <EmptyState kind="filtered" title={t('app.workspace.not_loaded')} />
 {:else}
   <Stack gap="300">
-    <Breadcrumb
-      label={t('app.workspace.trail')}
-      {trail}
-      expandLabel={t('app.workspace.expand_trail')}
-      onnavigate={(crumbId) => {
-        const crumb = containers.find(crumbId);
-        if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
+    <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
+         here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
+         for - a collection - with import beside it; the collection's is an entry, with the filter
+         beside it and the templates as the verb's own list. The title is read rather than drawn
+         where the bar shows it. -->
+    <PageHeader
+      title={container.name}
+      subtitle={container.description ?? undefined}
+      isTitleInBar={viewport.isCompact}
+      isMenuInBar={viewport.isCompact}
+      onmenu={(offered) => page.offer(offered)}
+      breadcrumb={{
+        trail,
+        label: t('app.workspace.trail'),
+        expandLabel: t('app.workspace.expand_trail'),
+        onnavigate: (crumbId) => {
+          const crumb = containers.find(crumbId);
+          if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
+        },
       }}
-    />
+      primary={container.type === 'HUB'
+        ? {
+            label: t('app.workspace.create_collection'),
+            icon: 'plus',
+            onclick: () => (isCreatingCollection = true),
+            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+            opener: 'add-collection',
+          }
+        : {
+            label: t('app.entries.add'),
+            icon: 'plus',
+            onclick: addFromHead,
+            disabledReason: addDisabledReason,
+            opener: 'add-entry',
+            menu: {
+              label: t('app.entries.add_ways'),
+              items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
+              onselect: () => (isUsingTemplates = true),
+            },
+          }}
+      secondary={container.type === 'HUB'
+        ? [
+            {
+              label: t('app.import.open'),
+              onclick: () => (isImporting = true),
+              disabledReason: isReadOnly
+                ? t('app.workspace.archived')
+                : structure.status === 'permitted'
+                  ? undefined
+                  : structure.status === 'refused'
+                    ? t(structure.code, structure.params)
+                    : t('app.import.deciding'),
+            },
+          ]
+        : [
+            {
+              label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
+              icon: 'funnel',
+              onclick: () => (isFilterOpen = !isFilterOpen),
+              opener: 'filter',
+            },
+          ]}
+      menu={{ label: t('app.workspace.actions', { name: container.name }), items: pageMenu, onselect: choseFromMenu, opener: 'container-menu' }}
+    >
+      {#snippet notices()}
+        <!-- The two archive states say different things and offer different controls, which is the
+             whole reason `archivalOf` distinguishes them. -->
+        {#if archival === 'archived'}
+          <p class="notice">{t('app.workspace.archived')}</p>
+        {:else if archival === 'inherited'}
+          <p class="notice">
+            {t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' })}
+          </p>
+        {/if}
+        {#if failure && !isRenaming}
+          <p class="failure" role="alert">{failure.message}</p>
+        {/if}
+      {/snippet}
+      {#snippet views()}
+        {#if container.type === 'COLLECTION'}
+          <!-- The three layouts, with "show what is inside" within the list; the star beside them
+               is the saved views where they are used daily (decision 5), the same panel the menu
+               opens. -->
+          <LayoutSwitch {layout} drawable={DRAWABLE} onlayout={(id) => (layout = id)} />
+          <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
+        {/if}
+        {#if memberIds.length > 0}
+          <!-- Who holds a role here, as faces; pressing them opens the same dialog the menu's
+               "People" does. The faces are decoration on the button: its name is the word. -->
+          <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
+            <span aria-hidden="true">
+              <AvatarGroup
+                people={memberIds.map((accountId) => ({ name: accounts.nameOf(accountId) ?? t('app.people.unnamed') }))}
+                size="sm"
+                max={4}
+                overflowLabel={t('app.people.more_members', { count: String(Math.max(memberIds.length - 4, 0)) })}
+              />
+            </span>
+          </button>
+        {/if}
+      {/snippet}
+    </PageHeader>
 
     {#if isRenaming}
       <!-- The field takes the place of the control that opened it, so it takes the focus too (2.4.3). -->
-      <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="rename"]' })}>
+      <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="container-menu"]' })}>
         <Input
           label={container.type === 'HUB' ? t('app.workspace.hub_name') : t('app.workspace.collection_name')}
           bind:value={draft}
@@ -487,159 +745,6 @@
             {t('app.workspace.cancel')}
           </Button>
         </Inline>
-      </Stack>
-    {:else}
-      <Stack gap="150">
-        <h1 class="name">{container.name}</h1>
-        {#if container.description}<p class="description">{container.description}</p>{/if}
-
-        <!-- The two archive states say different things and offer different controls, which is the
-             whole reason `archivalOf` distinguishes them. -->
-        {#if archival === 'archived'}
-          <p class="notice">{t('app.workspace.archived')}</p>
-        {:else if archival === 'inherited'}
-          <p class="notice">
-            {t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' })}
-          </p>
-        {/if}
-
-        {#if failure && !isRenaming}
-          <p class="failure" role="alert">{failure.message}</p>
-        {/if}
-
-        <Toolbar label={t('app.workspace.title')}>
-          <Button
-            size="sm"
-            tone="secondary"
-            data-opener="rename"
-            onclick={startRename}
-            disabledReason={isReadOnly
-              ? (archival === 'archived' ? t('app.workspace.archived') : t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' }))
-              : undefined}
-          >
-            {t('app.workspace.rename')}
-          </Button>
-          {#if archival !== 'inherited'}
-            <Button
-              size="sm"
-              tone="secondary"
-              onclick={() => void toggleArchived()}
-            >
-              {archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive')}
-            </Button>
-          {/if}
-          <!-- The rank, as a command. There is no `disabled` boolean: at the top of a level there
-               is nowhere up to go, and the reason says so rather than the control going grey for
-               no stated cause. -->
-          <IconButton
-            icon="chevron-up"
-            label={t('app.rank.up')}
-            size="sm"
-            onclick={() => moveBy(-1)}
-            disabledReason={canMoveUp ? undefined : t('app.rank.already_first')}
-          />
-          <IconButton
-            icon="chevron-down"
-            label={t('app.rank.down')}
-            size="sm"
-            onclick={() => moveBy(1)}
-            disabledReason={canMoveDown ? undefined : t('app.rank.already_last')}
-          />
-          <!-- The placement no position can express. A hub is offered it with the reason it cannot
-               be used rather than not at all: it sits in nothing, so there is nowhere to move it
-               to, and a control that quietly disappeared would leave the reader wondering. -->
-          <!-- A label belongs to a collection (I-W3), so this is the screen it is managed on. The
-               picker on an entry chooses among what exists; what exists is decided here. -->
-          {#if container.type === 'COLLECTION'}
-            <Button
-              size="sm"
-              tone="secondary"
-              onclick={() => (isManagingLabels = true)}
-              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-            >
-              {t('app.labels.choose')}
-            </Button>
-            <!-- What F2-13 kept on the device, saved. The button is here rather than in the query
-                 panel because a view is a property of the collection, like its labels. -->
-            <Button size="sm" tone="secondary" onclick={() => (isManagingViews = true)}>
-              {t('app.views.title')}
-            </Button>
-            <!-- The templates that apply here, for the same reason: a collection's own, its hub's
-                 and the workspace-wide ones are one question asked from one screen. -->
-            <Button
-              size="sm"
-              tone="secondary"
-              onclick={() => (isUsingTemplates = true)}
-              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-            >
-              {t('app.templates.title')}
-            </Button>
-            <!-- A custom field belongs to a collection or to the workspace, and what applies here
-                 is one question — so this is the screen it is answered on, beside the labels. -->
-            <Button
-              size="sm"
-              tone="secondary"
-              onclick={() => (isManagingFields = true)}
-              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-            >
-              {t('app.fields.title')}
-            </Button>
-            <!-- How the collection works - the completion roll-up and the assignment policy -
-                 as opposed to what it is called (issue 773). A hub carries none. -->
-            <Button
-              size="sm"
-              tone="secondary"
-              onclick={() => (isManagingPolicies = true)}
-              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-            >
-              {t('app.policies.title')}
-            </Button>
-          {/if}
-          {#if container.type === 'HUB'}
-            <!-- Somebody else's file, landed as collections here (decision 15). Under STRUCTURE,
-                 because that is what creating a collection takes; the reason is shown, not the
-                 absence. -->
-            <Button
-              size="sm"
-              tone="secondary"
-              onclick={() => (isImporting = true)}
-              disabledReason={isReadOnly
-                ? t('app.workspace.archived')
-                : structure.status === 'permitted'
-                  ? undefined
-                  : structure.status === 'refused'
-                    ? t(structure.code, structure.params)
-                    : t('app.import.deciding')}
-            >
-              {t('app.import.open')}
-            </Button>
-          {/if}
-          <!-- Who holds which role here. Offered on both a hub and a collection, because a
-               membership applies downwards from wherever it was granted and both are scopes. -->
-          <Button size="sm" tone="secondary" onclick={() => (isManagingMembers = true)}>
-            {t('app.people.title')}
-          </Button>
-          <Button
-            size="sm"
-            tone="danger"
-            onclick={() => (isTrashing = true)}
-            disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-          >
-            {t('app.workspace.trash')}
-          </Button>
-          <Button
-            size="sm"
-            tone="secondary"
-            onclick={() => (isMovingHub = true)}
-            disabledReason={container.type === 'HUB'
-              ? t('app.move.hub_only')
-              : isReadOnly
-                ? t('app.workspace.archived')
-                : undefined}
-          >
-            {t('app.move.to_hub')}
-          </Button>
-        </Toolbar>
       </Stack>
     {/if}
 
@@ -665,34 +770,27 @@
           {/snippet}
         </EmptyState>
       {:else}
+        <!-- The way to a new collection is the head's primary action now; the list is the list. -->
         <Stack gap="050">
           {#each collections as collection (collection.id)}
             <ListRow href={`/collections/${collection.id}`}>{collection.name}</ListRow>
           {/each}
-          <div>
-            <Button
-              tone="secondary"
-              size="sm"
-              icon="plus"
-              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-              onclick={() => (isCreatingCollection = true)}
-            >
-              {t('app.workspace.create_collection')}
-            </Button>
-          </div>
         </Stack>
       {/if}
     {:else}
-      <!-- The layouts the installation reports, and what the reader has asked of the entries. Both
-           come from the manifest: `view_layouts` decides what is offered and `query_fields` decides
-           what can be asked, and neither is a list written here. -->
-      <QueryPanel
-        {layout}
-        drawable={DRAWABLE}
-        onlayout={(id) => (layout = id)}
-        onquery={(asked) => (query = asked)}
-        custom={customFieldFilters}
-      />
+      <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
+           `query_fields` decides what can be asked, and nothing here is a list written down. The
+           panel stays mounted while it is hidden, because the conditions are its state; inline from
+           `expanded`, a drawer from the bottom below it. -->
+      {#if viewport.isBelowExpanded}
+        <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
+          <QueryPanel {layout} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+        </Drawer>
+      {:else}
+        <div class="filter" hidden={!isFilterOpen}>
+          <QueryPanel {layout} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+        </div>
+      {/if}
 
       <!-- Above the entries, because it is about the ones below it. It draws itself only when
            something is picked, so a reader who never selects anything never sees it. -->
@@ -703,33 +801,58 @@
           (lastResults = byItem(operations, results))}
       />
 
-      {#if layout === 'TIMELINE'}
-        <TimelineView
-          collectionId={container.id}
-          {query}
-          onopen={(itemId) => onnavigate(`/items/${itemId}`)}
-        />
-      {:else if layout === 'KANBAN'}
-        <Board
-          collectionId={container.id}
-          isReadOnly={isReadOnly}
-          {query}
-          {lastResults}
-          onduplicate={(item) => (duplicating = item)}
-        />
-      {:else}
-        <!-- Read-only follows the container: an archived collection's entries are archived with
-             it (I-C3), and the reason travels with the controls rather than the controls
-             disappearing. -->
-        <EntryList
-          collectionId={container.id}
-          isReadOnly={isReadOnly}
-          {query}
-          isExpanded={layout === 'LIST_EXPANDED'}
-          {lastResults}
-          onduplicate={(item) => (duplicating = item)}
-        />
-      {/if}
+      <!-- The list, and from `large` the pane beside it (ADR-0061 decision 4): the entry the
+           address names, in the same form it takes on a phone. The pane is a place, not a
+           feature - `/items/:id` is still the entry's address and this only draws it here. -->
+      <div class="split" data-pane={openItemId ? '' : undefined}>
+        <div class="entries">
+          {#if layout === 'TIMELINE'}
+            <TimelineView
+              collectionId={container.id}
+              {query}
+              onopen={(itemId) => onnavigate(`/items/${itemId}`)}
+            />
+          {:else if layout === 'KANBAN'}
+            <Board
+              collectionId={container.id}
+              isReadOnly={isReadOnly}
+              {query}
+              {lastResults}
+              onduplicate={(item) => (duplicating = item)}
+            />
+          {:else}
+            <!-- Read-only follows the container: an archived collection's entries are archived with
+                 it (I-C3), and the reason travels with the controls rather than the controls
+                 disappearing. From `large` a row opens beside the list and stays current. -->
+            <EntryList
+              bind:this={list}
+              collectionId={container.id}
+              isReadOnly={isReadOnly}
+              {query}
+              isExpanded={layout === 'LIST_EXPANDED'}
+              {lastResults}
+              onopen={viewport.isLarge ? openBeside : undefined}
+              currentId={openItemId}
+              onduplicate={(item) => (duplicating = item)}
+            />
+          {/if}
+        </div>
+        {#if openItemId}
+          {#key openItemId}
+            <DetailPane
+              title={openItem?.title ?? ''}
+              kind={openItem ? humanise(openItem.type.toLowerCase()) : undefined}
+              dismissLabel={t('app.pane.close')}
+              pageLabel={t('app.pane.open_page')}
+              pageHref={`/items/${openItemId}`}
+              onOpenPage={() => onnavigate(`/items/${openItemId}`)}
+              onClose={closePane}
+            >
+              <ItemView id={openItemId} {onnavigate} isInPane />
+            </DetailPane>
+          {/key}
+        {/if}
+      </div>
     {/if}
   </Stack>
 {/if}
@@ -862,16 +985,43 @@
 {/if}
 
 <style>
-  .name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-    overflow-wrap: anywhere;
+  .split { display: flex; align-items: flex-start; gap: var(--sp-300); min-width: 0; }
+
+  .entries { flex: 1; min-width: 0; }
+
+  /* The pane keeps to the top while the list scrolls under it, and scrolls inside itself. */
+  .split[data-pane] > :global(aside) {
+    position: sticky;
+    inset-block-start: calc(var(--layout-appbar-height) + var(--sp-200));
+    max-block-size: calc(100vh - var(--layout-appbar-height) - var(--sp-400));
+    overflow: auto;
   }
 
-  .description { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+  .filter[hidden] { display: none; }
+
+  .filter {
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+  }
+
+  .members {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sp-025);
+    border: 0;
+    border-radius: var(--r-full);
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .members:hover { background: var(--bg-surface-hover); }
+
+  .members:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
 
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }
 

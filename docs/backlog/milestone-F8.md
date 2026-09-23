@@ -487,6 +487,380 @@ the role half).
 **Acceptance:** the evidence's second section exists; every issue of the round closed by its
 pull request; the leftovers named in the pull request body with a question each.
 
+---
+
+## The third round — the whole concept, redrawn
+
+The second round fixed spots, and the owner refused the third set of spots: *"Grundsätzlich soll
+es einen Visuellen Editor geben. Die Benutzererfahrung ist ein wichtiger Punkt und die
+Konfigurationsvielfalt. Das Konzept muss gesamtheitlich passen."* So the concept was redrawn as
+one picture — the prototype's fourth edition, walked by the owner through four passes on
+2026-09-21 and approved with *"bring our progress to main"*. What that edition settled is written
+here, as the first one was, so that the code is built from the decisions. Six tasks, each one
+pull request in milestone 20; the engine and the run stay as they are, the manifest grows three
+additive things, the check two findings. Eight decisions:
+
+16. **The canvas shows, the panel sets.** No form on the canvas. The trigger, the gate, a step,
+    a branch and a rung of a ladder are *selected* on the canvas and *edited* in the panel; the
+    canvas draws their state in words. One panel, the same on every width, five tabs: **Rule**
+    (name, description, scope, runs as, the guardrails — the head shows them and its pencil and
+    pills lead here), **Blocks** (decision 17), **Details** (what is selected), **Probe**,
+    **Runs**. The panel reaches the bottom of the viewport and scrolls on its own, the canvas
+    scrolls on its own and takes every other pixel of width; below `bp.expanded` the same panel
+    is the bottom sheet, opened by the same five tabs in the bar. The palette on the left is gone.
+17. **One list, three ways in — and nothing hidden.** Decision 12's *folded behind the search*
+    is withdrawn: the owner wants every kind the installation serves reachable by eye, not only
+    by typing. The *Blocks* tab holds one list with two sub-tabs and a search above both:
+    **Blocks** — *Frequent* (the six kinds this workspace's rules use most, counted on the
+    client from the rules it already loaded, each with its count), *Starts at* (the trigger
+    kinds), then the curated categories in this fixed order: *Entries, Assignment, Structure,
+    Content, Outbound, AI, Flow* — and **All** — every kind in `automation.actions`, grouped by
+    the use case's area, each with its one sentence. Both sub-tabs drag and click alike (a click
+    appends to the chain). The `+` in a gap opens the same list as a popover, with the same two
+    sub-tabs and search, filtered to what that gap may take (decision 19: no trigger, *End the
+    run* only at an arm's end), and says so under the list. The sentence comes from the manifest:
+    `action_summaries` maps each kind to its use case's `Summary` — the sentence the MCP tool for
+    it already carries, protocol documentation in English like every description in the contract
+    (ADR-0011 is not touched: it is the same text the agent reads, shown as a hint under a name
+    in the person's language, and a client that lacks the summary shows the name alone). The
+    name is what decision 13's rule for events gives a kind: the catalogue's word where the
+    curated table has one, the kind's segments otherwise. Nothing is compiled in that the
+    manifest does not serve.
+18. **The colour says what the card is.** Seven families, the same in the list, the popover and
+    on the card: the trigger in the signature colour, the gate amber, *flow* violet — the branch,
+    the wait and *End the run* — entries blue, assignment teal, outbound slate, AI green. The
+    branch is a flow card, not a condition block: its condition stands on the card in the gate's
+    notation (the funnel, the sentences, small chips for *and* / *or*), and only the gate itself
+    is amber. The list offers no *Condition* or *Only if* block — the gate is always there, and
+    a condition is a property of the gate or of a branch, never a piece of its own.
+19. **The branch is *if / else*, a rung is a `+`, and the run ends where the chain ends.**
+    Under every branch stands **+ Else if**. It appends a rung — a branch as the sole step of
+    the else arm, which the engine runs today — and the canvas draws a chain of such branches as
+    a *ladder*: then / else if / … / else, each rung selected like a card and edited in Details,
+    each rung's arm taking steps like any arm. There is no block *Else if*, and the reader takes
+    a ladder back apart by the same rule: an else arm whose only step is a branch is a rung.
+    The chain's end draws the end mark *Run ends*. The block `STOP` is called **End the run**,
+    because that is what it does — it ends the run, not the arm — and it may stand only as the
+    last step of an arm, once; in the chain it is refused with a sentence, since the chain's end
+    ends anyway. When *every* arm ends so (every rung of a ladder too), nothing may follow the
+    branch: no gap, no `+`, the end mark *Run ends — on every path* stands there, and steps a
+    stored rule carries after it draw faded with *never reached* (decision 14's rule, now for
+    the branch as well as the stop). Every card is movable — along the chain, into an arm, out
+    of one, into a rung, a whole branch with its arms — to every *Insert here* that may take it,
+    and the arrows on a card move it within its list; a move that may not happen (a card into
+    its own branch, anything after an end) is refused with its sentence in the hint line.
+20. **The hint line takes no room until it speaks.** It stays between the header and the canvas
+    but is zero height while empty and sticky at the canvas's top edge while a piece is lifted,
+    so it covers nothing, leaves no gap and is read while scrolling. The branch is drawn with
+    lines that are lines: a stem from the card to a bar, the bar between the two arms' centres
+    with a corner at each end, a lead from each arm's pill to its first card, the join per arm
+    (whole, half with its corner, or none), a stem after the join, a stem above every end mark;
+    the arm pills *then* / *else* with icon and word centred; the arms with a gap between them.
+21. **A step's form shows what a rule can decide.** Issue 855, way (a): `usecase.Field` gains
+    `Rule bool` — false for the caller's plumbing (`id` minted by the caller, `expected_version`,
+    the reserved `cascade_children`) — and `Format string` (`date-time`, `date`, `duration`,
+    `uri`) where a string has a shape; `AutomationActionField` carries both as `rule` and
+    `format`, additively. The form hides a `rule: false` field, draws a `date-time` as a date
+    and time field, a `duration` as a select of spans, and keeps what the run supplies as its
+    one line. A field the manifest does not mark is drawn as today.
+22. **Two more findings.** `automation.finding.parameter_missing` (issue 856): a required
+    parameter the rule does not carry and the run cannot supply, `ATTENTION`, at
+    `/actions/N/params/<field>`, drawn at the card. `automation.finding.runner_without_role`
+    (issue 817): the acting account holds no membership covering the rule's scope, `ATTENTION`,
+    at `/run_as`, drawn at the *Runs as* pill with `run_as_hint` saying what to do about it.
+    Both inside ADR-0060's frame — the check names them, the run is untouched. The rest of
+    §2.1 (the writer's rights, per-action permissions) stays with the run, as ADR-0060 says.
+23. **The owner's four answers, 2026-09-21.** *The list card:* the word stays, and under it one
+    line *last run* — when, and how it ended; the bars the concept drew were only the words,
+    coloured and side by side, and are not missed until somebody misses them. The rule carries
+    its last run (`last_run`, additive) so the list still costs one request. *The runs page:*
+    one line under the strip — this hour's runs against `automation_runs_per_hour` from
+    `GET /quotas`, with the link to *Limits*; no new endpoint. *Issue 814:* the notification
+    gets a subject of its own — `item_id` becomes optional beside a `rule_id`, exactly one set
+    (expand-only migration, check constraint), no pseudo-entry — as its own pull request before
+    the third walk. *The deploy:* not a decision — everything on `main` is on the integration
+    environment, and no release is being held back for it.
+24. **The guardrails are the rule's, not a card on the canvas.** The canvas draws the run's
+    path — what starts it, what it has to pass, what it does, where it ends — and nothing that is
+    not on that path. `on_error` and the throttle are properties of the rule like its name, its
+    scope and the account it runs as, and those three are already said in the head and set on the
+    *Rule* tab. So the guardrails card leaves the canvas and becomes the head's third chip, beside
+    *Applies in* and *Runs as*, saying what they are in the same words the card said; pressing it
+    opens the *Rule* tab where they are set. One place to change them, the same place as the other
+    three, and the reader learns the pattern once: **the head is the rule, the canvas is the run.**
+25. **A card's width is its border box.** Every card on the canvas declared `width: min(44ch, 100%)`
+    under the project's `content-box` default, so at a width where `100%` won it stood its padding
+    and border wider than the column that holds it — the selection ring fell into the canvas's own
+    gutter and the scroll container cut it. The canvas's cards, the gate, the ladder and the folded
+    line are `border-box`, and the canvas keeps a gutter no smaller than the ring it has to show.
+26. **Empty canvas deselects.** A click on the canvas's background, and `Escape` while the canvas
+    has the focus, clear the selection: the *Details* tab has nothing to show and is not the place
+    to leave the reader, so the panel moves to *Blocks* — what one does next after letting go of a
+    card is add another — unless it is on *Probe* or *Runs*, which are about the whole rule and
+    stay. On a narrow screen the sheet closes instead, because there the panel is over the canvas
+    and nothing is behind it to read.
+27. **The sheet is sized by the reader, and keeps its size.** Below the expanded breakpoint the
+    panel is a sheet over the canvas, and a sheet that scrolls its own header away is a sheet one
+    cannot close without scrolling back up. The sheet's head — its title, its tabs, its close —
+    stays put and only the body scrolls; above the head sits a handle, and the handle is dragged
+    to size the sheet between a third and nine tenths of the screen, let go below the third to
+    close it. Half the screen is what it opens at; the size the reader dragged it to is kept in
+    this browser for the next time. `Drawer` gains `resizable` and a bindable `size` for it; where
+    the size is kept is the caller's, never the component's.
+28. **The gate is one thing, a group is offered from the first sentence, and a rung is a card
+    like any other.** Four things the owner's test found in the conditions: the *Only when* block
+    holds every condition, so its *Details* holds every condition too — each composer under its
+    *and*, added and removed there — and clicking a single condition on the canvas still opens
+    that one; the composer offers *Add a sentence* **and** *Add a group* from the first sentence,
+    the group's mode appearing when there is something to hold together, rather than the group
+    becoming possible only once a second sentence exists; an *else if* rung carries the trash
+    every other card carries, and removing it hands its *otherwise* on to the rung above, exactly
+    as *+ Else if* took it; and a folded ladder counts its rungs rather than reporting
+    *otherwise 1*, which was the next rung counted as a step.
+29. **The editor says what is missing before the probe is pressed.** ADR-0060's check runs on a
+    *stored* rule against what exists in the workspace; it cannot speak about the draft under the
+    hands, which is where writing a rule actually goes wrong: an event trigger with no event, an
+    action whose required parameter is empty, a branch with two empty arms, a schedule that feeds
+    a step needing the entry no schedule has. The client reads the draft against the manifest it
+    already holds and says so itself — the same marks at the same cards the check's findings use,
+    and a list in the *Probe* tab above the button, each line pressing through to the card it is
+    about. Its codes are the client's (`app.flow.review_*`), never the server's, because it is the
+    draft they are about and no server was asked; where the server's own finding says the same
+    thing at the same card, the finding wins. Nothing is refused: the probe still runs, and a rule
+    that a review complains about can still be saved — the review says what will happen, it does
+    not decide.
+
+**Two more, from his second pass over the round:**
+
+30. **The gate holds one condition.** Decision 28 gave the gate's panel every condition, each
+    under its *and* — and the owner asked why there are several at all, since the first one can
+    already say everything: a condition is a tree of sentences under *all of* / *any of* /
+    *none of*, nested as deep as the writer likes (decision 3). A second condition beside it is a
+    second way to write the same *and*, and two ways to write one thing is what this concept
+    keeps refusing. So the editor offers exactly one: the way in is there while there is none,
+    and gone once there is one. **Nothing about the contract changes** — `conditions` stays an
+    array and the engine still ands them — and a stored rule that carries several keeps them,
+    each with its own remove, because the client does not silently rewrite what somebody wrote.
+    It follows that **the one condition is the gate**: it is not a card of its own to select
+    beside it, the gate's head says nothing about how conditions join where there is only one to
+    join, and a click anywhere in the block opens the one panel that edits it. Only a rule that
+    carries several keeps them apart, one card each.
+31. **A page that fills the region takes its height too.** `page.fill()` (issue 918) said a
+    canvas draws its own edges; it did not say how tall the region is, so the editor grew past
+    the fold and the panel — as tall as the viewport but starting below everything above it —
+    ended out of reach, cut off at the bottom. A filled page is one screen: the frame gives it a
+    region of a definite height, and what scrolls inside it is the canvas and the panel, each on
+    its own. The page itself does not scroll.
+
+
+## F8-15 — The manifest says more about each action: summary, rule flag, format **[L]**
+
+*Depends on: nothing. Issue #863.*
+
+Decisions 17 and 21, the server half. `Descriptor.Summary` is already what the MCP tool reads;
+the manifest answers it once per kind as `action_summaries` (object, kind → sentence, always
+present, every kind in `actions` in it). `usecase.Field` gains `Rule` (default true; the
+registry's field check is untouched) and `Format`; the three plumbing fields of the use cases
+the second walk saw — and every other descriptor whose field is one of `id`, `expected_version`,
+`cascade_children` — are marked `Rule: false` in the descriptor, and every RFC 3339 field
+`Format: "date-time"`, every ISO 8601 span `"duration"`. `AutomationActionField` gains `rule`
+and `format`; the manifest test asserts both and the summaries; `make generate` clean,
+`make api-client`.
+
+**Acceptance:** `GET /manifest` answers a summary for every kind in `actions`, `rule: false` on
+the plumbing fields, `format` on the date and duration fields; the contract test covers it; a
+descriptor that marks a field `Rule: false` still accepts it from a caller; `make verify` green.
+
+## F8-16 — The panel: five tabs, the blocks and the catalogue **[L]**
+
+*Depends on: F8-15. Issue #864.*
+
+Decisions 16 and 17, the panel. `RuleInspector` becomes the one panel with the five tabs
+(*Rule, Blocks, Details, Probe, Runs*; `app.flow.tab_*`), to the bottom, scrolling on its own;
+the *Rule* tab takes name, description, scope, runs as and the guardrails from the head, which
+keeps showing them and leads there; the palette component goes and its list becomes the
+*Blocks* tab — sub-tabs *Blocks* / *All*, the search over both, *Frequent* counted from the
+loaded rules, the fixed category order, *All* from `automation.actions` grouped by area with
+`action_summaries` as the sentence; `InsertMenu` draws the same list through the same component,
+filtered by `gapTakes` with the line under it; below `bp.expanded` the panel is the sheet with
+the same tabs. Drag and click from every item in every place.
+
+**Acceptance:** at 1400 px the panel reaches the bottom and the canvas has the rest; every
+served kind is found in *All* by eye and by typing; *Frequent* names the workspace's most used
+kinds with their counts; the `+` popover offers no trigger and, from a middle gap, no *End the
+run*; the e2e inserts a catalogue kind from *All* and one from the popover; `pnpm -r …` green,
+the catalogue complete.
+
+## F8-17 — The flow: End the run, the ladder, moving, and lines that are lines **[L]**
+
+*Depends on: nothing. Issue #865.*
+
+Decisions 19 and 20. `model.ts`: `endsAllPaths`, `canPlace(list, at, kind, moving)` as the one
+rule for insert, move and the `+` (a stop only at an arm's end, nothing after an end), the
+rung as a shape the reader and the compiler both know; `STOP` reads *End the run*
+(`app.flow.kind_stop`), and the refusal sentences say why. `RuleCanvas`: the end mark at the
+chain's end, *on every path* after an all-ending branch with the never-reached fade after it,
+the ladder drawn as rungs, **+ Else if** under every branch, every card draggable including a
+branch with its arms, the arrows on the card; the fork's stem, bar, corners, leads, joins and
+after-stem as decision 20 draws them; the hint line zero-height and sticky.
+
+**Acceptance:** a stop dropped in the chain is refused with its sentence; after a branch whose
+arms both end nothing can be inserted and the end mark says *on every path*; *+ Else if* appends
+a rung and the canvas draws a ladder that the reader rebuilds from the stored actions; a branch
+is moved with its arms; at 1400 px and 375 px the fork's lines meet the cards (screenshots in
+the pull request); `pnpm -r …` green.
+
+## F8-18 — Conditions in Details, and the branch as a flow card **[L]**
+
+*Depends on: F8-16. Issue #866.*
+
+Decisions 16 and 18. The composer leaves the canvas: the gate and a branch draw their tree in
+words with the *and* / *or* chips (`nodeWords`) and are edited in the *Details* tab through the
+same `Composer`; a rung's Details says *Else if*. The branch takes the flow family's colour
+everywhere (list, popover, card), the condition on it in the gate's notation; the gate alone
+stays amber; `InsertMenu` and the blocks list offer no condition block. The findings a condition
+carries (a label that is gone) stay at the card.
+
+**Acceptance:** clicking the gate or a branch opens Details with the tree; the canvas has no
+input in it; the compiled CEL on the write is unchanged for every fixture of F8-13; a branch's
+colour is the flow family's in all three places; the e2e edits a branch's condition from
+Details; `pnpm -r …` green.
+
+## F8-19 — The check names a missing parameter and a runner without a role **[L]**
+
+*Depends on: nothing. Issue #867.*
+
+Decision 22. `Check.go`, `inspectActions`: for every action, a `Required` field of its
+descriptor that is not in the run's supplied set and not in the params is
+`automation.finding.parameter_missing` at `/actions/N/params/<field>`; `inspect`: the acting
+account's memberships read through the existing port, none covering the scope is
+`automation.finding.runner_without_role` at `/run_as`. Both `ATTENTION`. Table tests for each,
+the catalogue sentences in `en` and `de`, `run_as_hint` reworded; the client draws the first at
+the card (it already draws findings by path) and the second at the *Runs as* pill.
+
+**Acceptance:** a rule with an `ADD_COMMENT` step and no `body` is found at the write and by the
+check; a rule running as a service account without a membership is found at `/run_as`; the
+e2e sees both at their places; `make verify` green.
+
+## F8-20 — The third walk **[L]**
+
+*Depends on: F8-15 to F8-19 and F8-21, and issue 814 fixed. Issue #868.*
+
+The editor walked a third time on a local server with the round merged and 814 fixed — this
+time the BROKEN path as well, since the notification no longer violates the key — and the
+evidence appended to `docs/evidence/F8-2026-09-20.md` as a third section; the documents read
+once more against the build (`automation.md` §1, the client's `CLAUDE.md`, the milestone's
+Definition of Done). Anything the walk finds is an issue.
+
+**Acceptance:** the third section exists with the BROKEN path walked; every issue of the round
+closed by its pull request; the leftovers of decision 23 restated with what the owner decided
+where he did.
+
+## F8-21 — The list card's last run, and the runs page's line to Limits **[L]**
+
+*Depends on: nothing. Issue #871.*
+
+Decision 23, the two small halves. `AutomationRule` gains `last_run` (`{ at, outcome }`,
+absent for a rule that never ran) — additive, read with the rule from the runs table's latest
+row, so the list keeps costing one request; the list card says it in one line under the word
+(`app.flow.last_run`, *never ran* when absent). The runs page draws one line under the strip:
+this hour's runs against `automation_runs_per_hour` from `GET /quotas` — *34 of 500 this hour*,
+*no limit* when the limit is null — and the link to *Limits* (`/administration/quotas`).
+
+**Acceptance:** `GET /automation/rules` answers `last_run` for a rule that ran and omits it for
+one that never did (contract and repository test); the card shows the line; the runs page shows
+the hour's number and the link, and the e2e reads both; `make verify` green, `make generate`
+clean, the catalogue complete.
+
+## The fourth round — what the owner's own testing found
+
+The third round was built, walked and merged; the owner then wrote rules with it himself and
+came back with six things — one of them a concept fault (the guardrails set in two places), two
+visual (a ring cut off, a ring overlapping), two about reaching what is there (a sheet whose
+close scrolls away, conditions that take a second click each), and one about the hardest moment
+of writing a rule: **finding out why the probe does nothing.** Nothing here reopens the concept;
+all six are it, held to. Six decisions, five tasks, each one pull request in milestone 20.
+
+## F8-22 — The guardrails in one place **[L]**
+
+*Depends on: nothing. Issue #921.*
+
+Decision 24. The guardrails card leaves `RuleCanvas`; the head gets a third chip that says
+`on_error` and the throttle in the card's words and selects `{ kind: 'guardrails' }`, which the
+view already maps to the *Rule* tab. `RuleInspector`'s standalone guardrails panel goes with the
+card — the *Rule* tab is the one place — and `app.flow.card_guardrails*` keep their words, now on
+the chip. The e2e presses the chip and sets a bound.
+
+**Acceptance:** the canvas ends at the end mark and draws no guardrails card; the chip says the
+same sentence the card said; pressing it opens *Rule* with the guardrails on it; nothing else
+sets them; `pnpm -r …` green, the catalogue complete.
+
+## F8-23 — The canvas: the ring fits, and empty space deselects **[L]**
+
+*Depends on: nothing. Issue #922.*
+
+Decisions 25 and 26. `box-sizing: border-box` on every card, the gate, the ladder, the rungs and
+the folded line; the canvas's inline padding is at least the ring's offset and width, so a
+selected card at the narrowest side-by-side width is drawn whole. A click on the canvas's
+background clears the selection (`{ kind: 'none' }`), `Escape` on the canvas does the same; the
+panel leaves *Details* for *Blocks* and stays where it is on *Probe* and *Runs*; on a narrow
+screen the sheet closes. The *Details* tab with nothing selected keeps its sentence.
+
+**Acceptance:** at 960 px a selected card's ring is inside the canvas on both sides (measured in
+the pull request); clicking the background deselects and the panel shows *Blocks*; `Escape`
+does the same; on a phone the sheet closes; `pnpm -r …` green.
+
+## F8-24 — The sheet the reader sizes **[L]**
+
+*Depends on: nothing. Issue #923.*
+
+Decision 27. `Drawer` at `block-end` gains a sticky head — the panel is a column, the body the
+only scroller — and, with `resizable`, a handle above it: pointer and keyboard (arrow keys, Home,
+End) size the sheet between `0.33` and `0.9` of the screen, a drag let go below the floor closes
+it, `size` is bindable so the caller keeps it. The story shows both. The rule editor opens the
+sheet at half the screen and keeps what the reader dragged in `localStorage`, falling back in
+silence where storage is refused.
+
+**Acceptance:** the sheet's tabs and close stay visible while its body scrolls; the handle sizes
+the sheet by pointer and by keyboard; dragging it to the bottom closes it; the size is there on
+the next open of the same browser; `prefers-reduced-motion` is respected; the workbench story
+exists; `pnpm -r …` green.
+
+## F8-25 — The gate as one panel, a group from the first sentence, the rung's trash **[L]**
+
+*Depends on: nothing. Issue #924.*
+
+Decision 28. The gate's *Details* draws every condition, each with its *and*, a remove beside it
+and *Add a condition* under them; a condition selected on the canvas still opens alone.
+`Composer` renders its root as a group from the first sentence — both adds always, the mode
+select from the second item — with `compileNode` unchanged, so no stored expression moves.
+`removeRung` in `model.ts` with its table tests; the rung's head carries the trash; the rungs get
+the room the selection ring needs; `card_folded` counts a ladder's rungs
+(`app.flow.card_folded_ladder`).
+
+**Acceptance:** the gate's Details edits and removes every condition without a second click on
+the canvas; a fresh sentence offers both adds; the mode appears with the second item; every F8-13
+fixture compiles to the same CEL; an *else if* is removed by its trash and its *otherwise* stays;
+a folded ladder says its rungs; `pnpm -r …` green, the catalogue complete.
+
+## F8-26 — What is missing, before the probe runs **[L]**
+
+*Depends on: F8-15 (the manifest's `rule` flag and required fields). Issue #925.*
+
+Decision 29. `review.ts`: a pure pass over the draft and the manifest answering a list of
+`{ level, card, code, params }` — no trigger event, no schedule, no address minted, no runner, no
+step at all, a required parameter that is empty and the run does not supply, an empty condition, a
+branch with two empty arms, a step that needs the entry a scheduled run has not. The view merges
+them into the marks the canvas already draws (a server finding at the same card wins), and the
+*Probe* tab lists them above the button, each line selecting its card, with the sample's own
+mismatch — an event other than the one the rule starts on — said there too. `app.flow.review_*`
+in `en` and `de`, table tests per rule.
+
+**Acceptance:** a new rule with an empty `ADD_LABEL` says so at the card and in the list before
+anything is saved; a schedule feeding a step that needs an entry is named; the probe still runs
+and the rule still saves; the list's line selects the card it is about; `pnpm -r …` green, the
+catalogue complete.
+
 ## The order at a glance
 
 ```
@@ -502,6 +876,17 @@ F8-10 ─┤
 F8-11 ─┼── F8-14          (the second round, after the owner's walk)
 F8-12 ─┤
 F8-13 ─┘
+
+F8-15 ──── F8-16 ──── F8-18 ─┐
+F8-17 ──────────────────────┼── F8-20      (the third round; #814 before F8-20)
+F8-19 ──────────────────────┤
+F8-21 ──────────────────────┘
+
+F8-22 ─┐
+F8-23 ─┤
+F8-24 ─┼──                                 (the fourth round; F8-26 needs F8-15's fields)
+F8-25 ─┤
+F8-26 ─┘
 ```
 
 Three tasks depend on nothing and can start at once: the three core tasks **F8-01**, **F8-02**

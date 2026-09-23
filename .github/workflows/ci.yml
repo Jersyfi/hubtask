@@ -46,7 +46,11 @@ jobs:
       n8n_node: ${{ github.event_name != 'pull_request' || steps.filter.outputs.n8n_node == 'true' }}
       zapier_app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.zapier_app == 'true' }}
       sdk_typescript: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sdk_typescript == 'true' }}
-      docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
+      # `docs` is deliberately not an output any more: the documentation job runs unconditionally
+      # (see it below), and an output nothing reads is a filter nobody maintains. The `docs:`
+      # entry in the filter list stays, because the coverage check in test/architecture reads the
+      # filters to decide whether every tracked path is claimed by one - and `**/*.md` is how
+      # most of them are.
       ci: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,16 +70,38 @@ jobs:
               # The workspace dependency lint (ADR-0033): a change to the checker re-proves
               # every package against the map, exactly like a manifest change.
               - 'build/**'
+            # Trees, not patterns. This used to say `**/*.go` and a list of manifests, which meant
+            # that every non-Go file a Go test reads was outside it: the thirty golden archives
+            # under test/backup, the adapters' testdata, the load guard's baseline, the embedded
+            # web placeholder, the Go SDK's templates. A pull request that changed one of them
+            # alone ran no Go job at all and reported green, because `ci-required` counts a skip
+            # as a pass - the golden file being the sharpest case, since the test that exists to
+            # notice a changed archive format is exactly the test that did not run (#941).
+            #
+            # A tree covers a file by where it is, so a fixture added beside its test is covered
+            # by being there. `**/*.go` stays as well, for a Go file somewhere none of these
+            # names reach - it costs nothing and rule 14 already forbids the place it would be.
             go:
               - '**/*.go'
+              - 'core/**'
+              - 'infrastructure/**'
+              - 'presentation/**'
+              - 'cmd/**'
+              - 'test/**'
+              - 'tools/**'
+              - 'scripts/**'
+              - 'sdk/go/**'
+              - 'sdk/python/**'
+              - 'third-party/**'
+              - 'locales/**'
+              - 'k8s/**'
               - 'go.mod'
               - 'go.sum'
               - '.golangci.yml'
               - 'Makefile'
-              - 'scripts/**'
-              - 'tools/**'
-              - 'locales/**'
-              - 'k8s/**'
+              - 'LICENSE'
+              - 'LICENSE-APACHE'
+              - 'NOTICE'
             openapi:
               - 'api/**'
             db:
@@ -93,6 +119,12 @@ jobs:
               - *workspace-manifests
             website:
               - 'apps/website/**'
+              # The Makefile too, and only here among the packages: `make website` is what the
+              # Website workflow publishes with, and this job is the only thing that runs it
+              # before `main`. That target is a line of the Makefile, which otherwise reaches only
+              # the `go` filter - so the one edit most able to break publishing again is the one
+              # that would have skipped the job proving it (#982).
+              - 'Makefile'
               - *workspace-manifests
             design_system:
               - 'packages/design-system/**'
@@ -199,8 +231,30 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062). `make tools` installs nine
+      # tools, eight of them from source, and took 215 seconds in every one of the eight jobs that
+      # needed them - 29 of a Go pull request's 69 runner-minutes, twice on the critical path.
+      # setup-go's own cache could not pay for it: it saves only when the key is not yet present,
+      # so the first job to finish won it, and the first job to finish is the one that compiles
+      # nothing (#911).
+      #
+      # The key holds the Makefile, which is where every pin lives, and the Go that compiles them.
+      # The restore key is the same without the Makefile's hash, so a moved pin starts from the
+      # last set rather than from nothing - what makes that safe is that `tools-ensure` decides
+      # from the stamp, not from the cache: anything that is not exactly the pinned set, built by
+      # this Go, is installed again in full.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       - run: make gate-quick
+      # The generated Python SDK, parsed. `make generate` writes it and the step above fails on a
+      # drift, so what the contract produces is checked; that it is valid Python was not, by
+      # anything, ever (#943). Python is on the runner image and is already what the Compose gate
+      # reads JSON with.
+      - run: make gate-sdk
 
   build:
     name: Build (${{ matrix.goarch }})
@@ -242,8 +296,14 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       # actionlint is one of the pinned tools now, because this gate also reads the workflows.
-      - run: make tools
+      - run: make tools-ensure
       # Checks: layer boundaries, the bare-goroutine ban, mandatory authorisation, use case
       # parity across REST/MCP/automation, observability and audit completeness, and that every
       # workflow expression parses.
@@ -259,9 +319,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       # goose, because the RT tests that need a database migrate their own container the way
       # production does - a schema loaded any other way would be a schema nobody deploys.
-      - run: make tools
+      - run: make tools-ensure
       # The RT series is a PR gate wherever it can be (observability-reliability.md §12), and
       # since G-12 that is a measured decision rather than a habit: this job takes about four and
       # a half minutes beside jobs that take six and eight, so it costs no wall clock, and a
@@ -295,9 +361,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
       # helm comes through the module proxy like every other tool, so the gate is the same
       # command here and on a laptop (ADR-0022, ci-cd.md).
-      - run: make tools
+      - run: make tools-ensure
       - run: make gate-chart
 
   # This is also the container build. The image contains both halves now (ADR-0028), so a change
@@ -376,7 +448,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       # Writes a deliberate violation per configured rule and expects a red result. Without
       # this, a rule broken by a config change would simply stop reporting anything.
       - run: make gate-selftest
@@ -406,7 +484,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       - run: make migrate
       - run: make gate-integration
       - run: make gate-contract
@@ -415,25 +499,25 @@ jobs:
     name: Security gates SG-1..SG-12
     needs: quick
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: hubtask
-          POSTGRES_DB: hubtask_test
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres -h 127.0.0.1"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-        ports: ["5432:5432"]
-    env:
-      HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
+    # No service container, deliberately. This job used to start one and set HUBTASK_DB_DSN, and
+    # nothing in it ever connected: the suites here reach a database through test/dbtest, which
+    # starts its own through Testcontainers, and `make verify` runs these same gates on a laptop
+    # with no database at all. Only `integration` genuinely needs one, because `make migrate`
+    # reads that DSN. A declared dependency nobody uses reads as a statement about what these
+    # suites talk to, and it was not true (#944).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       # SG-7 is not here any more: secret scanning runs unconditionally in the `secrets` job,
       # because a key can be committed by a change that touches no Go file at all.
       - run: make gate-security
@@ -446,35 +530,37 @@ jobs:
     name: Data gates (migration, retention, backup, sync)
     needs: quick
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: hubtask
-          POSTGRES_DB: hubtask_test
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres -h 127.0.0.1"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-        ports: ["5432:5432"]
-    env:
-      HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
+    # No service container, deliberately. This job used to start one and set HUBTASK_DB_DSN, and
+    # nothing in it ever connected: the suites here reach a database through test/dbtest, which
+    # starts its own through Testcontainers, and `make verify` runs these same gates on a laptop
+    # with no database at all. Only `integration` genuinely needs one, because `make migrate`
+    # reads that DSN. A declared dependency nobody uses reads as a statement about what these
+    # suites talk to, and it was not true (#944).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # The pinned tool set, restored rather than compiled (ADR-0062, and the `quick` job above).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-${{ hashFiles('Makefile') }}
+          restore-keys: tools-${{ runner.os }}-${{ runner.arch }}-go${{ env.GO_VERSION }}-
+      - run: make tools-ensure
       # The backup targets come from Testcontainers, not from a service container - see the
       # integration job.
       - run: make gate-data
 
   docs:
     name: Documentation
-    needs: changes
-    # Also on a Go change: checkdocs resolves the ADR numbers cited in code comments, so a typo
-    # in a comment is its business too. The licence check left this job - it now runs always.
-    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.go == 'true' || needs.changes.outputs.ci == 'true'
+    # Behind no filter at all, like `secrets` and `licences`. It took 24 seconds and it was the
+    # only thing standing behind three claims that a filter could skip: checkdocs reconciles the
+    # Go version across go.mod, the workflows and the Dockerfile, reconciles the support matrix
+    # with the nightly's jobs, and resolves ADR citations in `.go`, `.md`, `.sql`, `.yaml` and
+    # `.tpl` alike. A change confined to `db/` or `deploy/` therefore skipped the gate that reads
+    # it (#941). A job this cheap has no business having a filter to get wrong.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -570,6 +656,18 @@ jobs:
           restore-keys: pnpm-${{ runner.os }}-
       - if: ${{ matrix.run }}
         run: pnpm install --frozen-lockfile
+      # `make website` is the command the Website workflow runs to produce what it publishes, and
+      # until now nothing ran it before `main`: it named its own dependency list, missed
+      # `@hubtask/api-client` when P-01 added the import, and was red for a week on a post-merge
+      # workflow nobody watches (#982) while this job stayed green - because this job derives the
+      # list from package.json and the Makefile did not.
+      #
+      # The position is the point. It runs before the builds below, so no `dist/` exists yet:
+      # that is the condition the deploy gets and the one a developer's machine never has. Moving
+      # it after them would make it pass on leftovers, which is exactly the way this broke.
+      - name: The command that publishes the website builds it here first
+        if: ${{ matrix.run && matrix.package == 'website' }}
+        run: make website
       # `^...` is "everything this package depends on, but not the package itself". For a package
       # with no workspace dependencies the selection is empty and pnpm exits 0.
       - name: Build what this package consumes

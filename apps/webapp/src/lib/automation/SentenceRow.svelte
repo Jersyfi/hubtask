@@ -14,6 +14,7 @@
     types: readonly { value: string; label: string }[];
     buckets: readonly { value: string; label: string }[];
     accounts: readonly { value: string; label: string }[];
+    labels: readonly { value: string; label: string }[];
   }
 
   interface Props {
@@ -24,7 +25,7 @@
 
   const { sentence, choices, onchange }: Props = $props();
 
-  const SUBJECTS: readonly Subject[] = ['type', 'title', 'notes', 'completed', 'archived', 'due', 'assignee', 'bucket', 'parent', 'depth', 'actor', 'hour', 'field'];
+  const SUBJECTS: readonly Subject[] = ['type', 'title', 'notes', 'completed', 'archived', 'due', 'label', 'assignee', 'bucket', 'parent', 'depth', 'actor', 'hour', 'field'];
 
   function setSubject(subject: Subject): void {
     const op = OPERATORS[subject][0] ?? 'is';
@@ -35,6 +36,7 @@
       fresh.b = '18';
     }
     if (subject === 'bucket') fresh.a = choices.buckets[0]?.value ?? '';
+    if (subject === 'label') fresh.a = choices.labels[0]?.value ?? '';
     if (subject === 'depth') fresh.a = '0';
     onchange(fresh);
   }
@@ -51,6 +53,7 @@
   const valueOptions = $derived.by(() => {
     if (sentence.subject === 'type') return choices.types;
     if (sentence.subject === 'bucket') return choices.buckets;
+    if (sentence.subject === 'label') return choices.labels;
     if (sentence.subject === 'assignee' || sentence.subject === 'actor') return choices.accounts;
     return [];
   });

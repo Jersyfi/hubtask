@@ -770,7 +770,11 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0058 | The connector packages: generated, dependency-free here, typed there | accepted |
 | 0059 | Licensing phases and Licensing Start | proposed |
 | 0060 | The check: a rule's references resolved before they fail | accepted |
-| 0061 | Page anatomy: one navigation, the shell wave, and status as a surface | proposed |
+| 0061 | Page anatomy: one navigation, the shell wave, and status as a surface | accepted |
+| 0062 | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted |
+| 0063 | The navigation, the status place, and how a screen is worked | accepted |
+| 0064 | The one read that may ask the whole workspace a narrowed question | accepted |
+| 0065 | Sections, and where a statement about the application lives | accepted |
 
 ---
 

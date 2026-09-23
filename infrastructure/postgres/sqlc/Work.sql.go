@@ -172,7 +172,7 @@ WITH level AS (
   FROM container
   WHERE parent_id IS NOT DISTINCT FROM $1::uuid
     AND deleted_at IS NULL
-    AND id <> $2::uuid
+    AND id IS DISTINCT FROM $2::uuid
 ), anchor AS (
   SELECT order_key FROM level WHERE id = $3::uuid
 )
@@ -1261,7 +1261,7 @@ WITH level AS (
   WHERE collection_id = $1::uuid
     AND parent_id IS NOT DISTINCT FROM $2::uuid
     AND deleted_at IS NULL
-    AND id <> $3::uuid
+    AND id IS DISTINCT FROM $3::uuid
 ), anchor AS (
   SELECT order_key FROM level WHERE id = $4::uuid
 )
@@ -1300,6 +1300,10 @@ type OrderKeyNeighboursRow struct {
 //
 // The level is (collection, parent), and the parent is compared with IS NOT DISTINCT FROM so that an absent
 // one means the items directly in the collection rather than no filter at all.
+//
+// "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
+// nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
+// for every row, which empties this list and reports an anchor that is present as missing (issue 992).
 func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighboursParams) (OrderKeyNeighboursRow, error) {
 	row := q.db.QueryRow(ctx, orderKeyNeighbours,
 		arg.CollectionID,

@@ -1566,42 +1566,6 @@ func (e ItemQueryCount) Valid() bool {
 	}
 }
 
-// Defines values for ItemQuerySortDir.
-const (
-	ASC  ItemQuerySortDir = "ASC"
-	DESC ItemQuerySortDir = "DESC"
-)
-
-// Valid indicates whether the value is a known member of the ItemQuerySortDir enum.
-func (e ItemQuerySortDir) Valid() bool {
-	switch e {
-	case ASC:
-		return true
-	case DESC:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ItemQuerySortNulls.
-const (
-	FIRST ItemQuerySortNulls = "FIRST"
-	LAST  ItemQuerySortNulls = "LAST"
-)
-
-// Valid indicates whether the value is a known member of the ItemQuerySortNulls enum.
-func (e ItemQuerySortNulls) Valid() bool {
-	switch e {
-	case FIRST:
-		return true
-	case LAST:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ItemType.
 const (
 	ItemTypeACTIVITY    ItemType = "ACTIVITY"
@@ -2820,6 +2784,42 @@ func (e SessionTokensTokenType) Valid() bool {
 	}
 }
 
+// Defines values for SortTermDir.
+const (
+	ASC  SortTermDir = "ASC"
+	DESC SortTermDir = "DESC"
+)
+
+// Valid indicates whether the value is a known member of the SortTermDir enum.
+func (e SortTermDir) Valid() bool {
+	switch e {
+	case ASC:
+		return true
+	case DESC:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SortTermNulls.
+const (
+	FIRST SortTermNulls = "FIRST"
+	LAST  SortTermNulls = "LAST"
+)
+
+// Valid indicates whether the value is a known member of the SortTermNulls enum.
+func (e SortTermNulls) Valid() bool {
+	switch e {
+	case FIRST:
+		return true
+	case LAST:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
@@ -3831,10 +3831,16 @@ type AutomationActionField struct {
 	Description *string `json:"description,omitempty"`
 
 	// Enum The closed set of values the field takes, where it takes one.
-	Enum     *[]string                 `json:"enum,omitempty"`
+	Enum *[]string `json:"enum,omitempty"`
+
+	// Format The shape of a string field where a form draws it better than as text, in the vocabulary of this document's own `format` keyword: `date-time` for an RFC 3339 instant. Absent for a string that is just a string; a client tolerates a value it does not know and draws the field as text.
+	Format   *string                   `json:"format,omitempty"`
 	Kind     AutomationActionFieldKind `json:"kind"`
 	Name     string                    `json:"name"`
 	Required bool                      `json:"required"`
+
+	// Rule Whether a rule sets this field. `false` for the caller's plumbing - the identifier a client minted for offline work, the version it last read for If-Match, a reserved switch - which a person typing a call supplies and a rule never does, because a run has no version it read and mints nothing (F8-15). A rule editor hides such a field; the call still accepts it. Absent means `true`.
+	Rule *bool `json:"rule,omitempty"`
 }
 
 // AutomationActionFieldKind defines model for AutomationActionField.Kind.
@@ -3864,7 +3870,15 @@ type AutomationRule struct {
 
 	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
 	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
-	Name             string     `json:"name"`
+
+	// LastRun The rule's most recent run — when it started and how it ended — read beside the rule so that a list of rules says it without a page of runs per rule (F8-21). Absent for a rule that never ran. Not part of the definition: a write ignores it.
+	LastRun *struct {
+		At time.Time `json:"at"`
+
+		// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
+		Status RuleRunStatus `json:"status"`
+	} `json:"last_run,omitempty"`
+	Name string `json:"name"`
 
 	// NextRunAt When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
 	NextRunAt *time.Time            `json:"next_run_at,omitempty"`
@@ -4311,6 +4325,9 @@ type Capabilities struct {
 	Automation *struct {
 		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time (F8-01). A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest (automation.md §2.2), so `required` describes the call, not the rule.
 		ActionFields *map[string][]AutomationActionField `json:"action_fields,omitempty"`
+
+		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration (F8-15). A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.
+		ActionSummaries *map[string]string `json:"action_summaries,omitempty"`
 
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
 		Actions *[]string `json:"actions,omitempty"`
@@ -5109,21 +5126,11 @@ type ItemQuery struct {
 	} `json:"scope"`
 
 	// Sort Ordered, most significant first, and always completed by `id ASC` so that a cursor is unambiguous. Defaults to the manual order (`order_key ASC`).
-	Sort *[]struct {
-		Dir   *ItemQuerySortDir   `json:"dir,omitempty"`
-		Field string              `json:"field"`
-		Nulls *ItemQuerySortNulls `json:"nulls,omitempty"`
-	} `json:"sort,omitempty"`
+	Sort *[]SortTerm `json:"sort,omitempty"`
 }
 
 // ItemQueryCount `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
 type ItemQueryCount string
-
-// ItemQuerySortDir defines model for ItemQuery.Sort.Dir.
-type ItemQuerySortDir string
-
-// ItemQuerySortNulls defines model for ItemQuery.Sort.Nulls.
-type ItemQuerySortNulls string
 
 // ItemQueryGroup One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor.
 type ItemQueryGroup struct {
@@ -5148,14 +5155,18 @@ type ItemQueryResult struct {
 	Total *int `json:"total"`
 }
 
-// ItemSearchQuery One search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.
+// ItemSearchQuery One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers.
+// `filter` is the same grammar `POST /items:query` takes, with the same closed field vocabulary, the same operators and the same bounds (ADR-0064). The difference between the two endpoints is not the grammar, it is the anchor: a query is anchored to a container because an unanchored one is a question authorisation cannot answer in one step, and a search is the one read where "where is this, anywhere" *is* the question - so it is read and then narrowed to what the caller may see, and its page may be short where a query's would be a refusal.
 // **It searches by words and, where the installation can, by meaning** (J-10, ADR-0050). The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.
 // `mode` says how much of that to use, and defaults to `AUTO` - the two halves where the installation has both. Semantic search is optional four times over: the database may not carry pgvector, the workspace may have configured no AI provider or not consented to it, and the provider may not answer in the second somebody is waiting. Every one of those is a **lexical search rather than an error**, which is why there is no `SEMANTIC` value to ask for - it would be a mode the server could not promise. `/meta/capabilities` answers `semantic_search` for a client that wants to say in its interface which it has.
 type ItemSearchQuery struct {
 	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
-	ContainerId     *openapi_types.UUID `json:"container_id,omitempty"`
-	IncludeArchived *bool               `json:"include_archived,omitempty"`
-	IncludeTrashed  *bool               `json:"include_trashed,omitempty"`
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+
+	// Filter Narrows the search, in the grammar `POST /items:query` uses: the fields `/meta/capabilities` names, the operators each one permits, at most five levels of nesting and fifty nodes, and the same cost estimate capped at 50. An unknown field is `422 invalid_query_field`; too expensive a tree is `422 query.filter_too_expensive`, refused before it runs.
+	Filter          *FilterNode `json:"filter,omitempty"`
+	IncludeArchived *bool       `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
 
 	// Language BCP-47. The language the *words* are in, not the entries: it decides how the query is read. Omitted takes the caller's locale.
 	Language *string `json:"language,omitempty"`
@@ -5168,8 +5179,11 @@ type ItemSearchQuery struct {
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
 
-	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find.
-	Q string `json:"q"`
+	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find. Optional where a `filter` is sent: a filtered search with no words is a work list rather than a search, and it is ordered rather than ranked.
+	Q *string `json:"q,omitempty"`
+
+	// Sort Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.
+	Sort *[]SortTerm `json:"sort,omitempty"`
 }
 
 // ItemType Extensible; /meta/capabilities returns the valid values.
@@ -6491,6 +6505,19 @@ type SignInCompletion struct {
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
+
+// SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
+type SortTerm struct {
+	Dir   *SortTermDir   `json:"dir,omitempty"`
+	Field string         `json:"field"`
+	Nulls *SortTermNulls `json:"nulls,omitempty"`
+}
+
+// SortTermDir defines model for SortTerm.Dir.
+type SortTermDir string
+
+// SortTermNulls defines model for SortTerm.Nulls.
+type SortTermNulls string
 
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {

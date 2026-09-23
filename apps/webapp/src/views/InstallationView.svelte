@@ -5,18 +5,23 @@
   // rather than fetched and ignored - and it is also the deep link the reload test uses, because
   // it is a real second route rather than a fragment.
 
-  import { Badge, Button, Inline, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Icon, Inline, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const state = $derived(manifest.state);
   const problem = $derived(state.status === 'failed' ? renderProblem(state.error, messages) : undefined);
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.installation.title')));
 </script>
 
 <Stack gap="300">
-  <h1>{t('app.installation.title')}</h1>
+  <PageHeader title={t('app.installation.title')} isTitleInBar={viewport.isCompact} />
 
   {#if state.status === 'loading' || state.status === 'idle'}
     <Inline gap="150" align="center">
@@ -58,17 +63,45 @@
       </dd>
     </dl>
   {/if}
+
+  <!-- The three pages about the software, and the reason they are on the page that already
+       carries the versions: what somebody quotes when they report a problem and where they report
+       a barrier are the same errand, and this is the route the account group offers for it
+       ("About Hubtask"). Until F10 the statement was in a footer on every screen; one link does
+       not earn a landmark on a board (design-system.md §10).
+
+       Outside the manifest's three states on purpose. The statement has to be reachable when the
+       server is not - a client that hid the way to the accessibility statement because
+       `/meta/capabilities` timed out would hide it exactly from the reader who is having the
+       worst time of it.
+
+       They say `hubtask.eu` in the words because they leave the application, and they are about
+       Hubtask rather than about this installation - the note says so, because on somebody's own
+       server the operator, not the project, is who answers for the service. -->
+  <section class="about">
+    <h2>{t('app.about.title')}</h2>
+    <p class="note">{t('app.about.note')}</p>
+    <ul>
+      <li>
+        <a href="https://hubtask.eu/accessibility/" target="_blank" rel="noopener">
+          <Icon name="external-link" size="sm" />{t('app.about.accessibility')}
+        </a>
+      </li>
+      <li>
+        <a href="https://hubtask.eu/licence/" target="_blank" rel="noopener">
+          <Icon name="external-link" size="sm" />{t('app.about.licence')}
+        </a>
+      </li>
+      <li>
+        <a href="https://github.com/Jersyfi/hubtask" target="_blank" rel="noopener">
+          <Icon name="external-link" size="sm" />{t('app.about.source')}
+        </a>
+      </li>
+    </ul>
+  </section>
 </Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   dl {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -82,4 +115,46 @@
 
   .detail { color: var(--text-secondary); }
   .reference { color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); }
+
+  .about h2 {
+    margin: 0 0 var(--sp-050);
+    font-family: var(--font-display);
+    font-size: var(--fs-300);
+    font-weight: var(--fw-semibold);
+  }
+
+  .about .note {
+    margin: 0 0 var(--sp-150);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
+
+  .about ul {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    gap: var(--sp-050);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .about a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-100);
+    padding: var(--sp-050) 0;
+    color: var(--text-brand);
+    font-size: var(--fs-100);
+    text-decoration: none;
+  }
+
+  .about a:hover { text-decoration: underline; }
+
+  /* Rule 5's ring, on a link that sits at the left edge of the column. */
+  .about a:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+    border-radius: var(--r-xs);
+  }
 </style>

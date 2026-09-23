@@ -67,8 +67,11 @@ async function one(storage: Storage, collection: string, id: string): Promise<Do
   return record ? withSets(record) : undefined;
 }
 
-/** The plain level question, or nothing for one the copy would have to understand. */
-function levelScope(body: unknown): { container_id?: string; item_id?: string; group?: boolean } | undefined {
+/**
+ * The plain level question - or an entry's whole subtree, which the entry page asks for in one
+ * read (issue 877) - or nothing for one the copy would have to understand.
+ */
+function levelScope(body: unknown): { container_id?: string; item_id?: string; group?: boolean; descendants?: boolean } | undefined {
   if (body === null || typeof body !== 'object') return undefined;
   const query = body as Record<string, unknown>;
   if (query.filter !== undefined) return undefined;
@@ -79,18 +82,29 @@ function levelScope(body: unknown): { container_id?: string; item_id?: string; g
   const group = query.group_by as Document | undefined;
   if (group !== undefined && group.field !== 'bucket_id') return undefined;
   const scope = query.scope as Document | undefined;
-  if (!scope || scope.include_descendants) return undefined;
+  if (!scope) return undefined;
   const containerId = typeof scope.container_id === 'string' ? scope.container_id : undefined;
   const itemId = typeof scope.item_id === 'string' ? scope.item_id : undefined;
   if (!containerId && !itemId) return undefined;
-  return { container_id: containerId, item_id: itemId, group: group !== undefined };
+  // A whole collection or hub at once is a question no screen asks of the copy; an entry's
+  // subtree is bounded by the levels below it and is what its page shows.
+  if (scope.include_descendants && (!itemId || group !== undefined)) return undefined;
+  return { container_id: containerId, item_id: itemId, group: group !== undefined, descendants: scope.include_descendants === true };
 }
 
-/** The entries of one level: a collection's own, or one entry's children, in the manual order. */
-async function level(storage: Storage, scope: { container_id?: string; item_id?: string }): Promise<Document[]> {
+/**
+ * The entries of one level - a collection's own, or one entry's children - in the manual order;
+ * or everything under one entry, the anchor left out as the server leaves it out.
+ */
+async function level(storage: Storage, scope: { container_id?: string; item_id?: string; descendants?: boolean }): Promise<Document[]> {
   const items = await documents(storage, 'items');
-  const own = items.filter((item) => {
-    if (item.deleted_at) return false;
+  const live = items.filter((item) => !item.deleted_at);
+  if (scope.item_id && scope.descendants) {
+    const under = (parentId: string): Document[] =>
+      live.filter((item) => item.parent_id === parentId).flatMap((child) => [child, ...under(child.id as string)]);
+    return under(scope.item_id).sort(byOrderKey);
+  }
+  const own = live.filter((item) => {
     if (scope.item_id) return item.parent_id === scope.item_id;
     return item.collection_id === scope.container_id && !item.parent_id;
   });
@@ -257,8 +271,10 @@ export async function mutationFor(
       case 'reopen':
         return { kind: 'ITEM_PATCH', itemId, fields: { completion: { is_completed: false } } };
       case 'assign':
-        return typeof fields.assignee_id === 'string'
-          ? { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: fields.assignee_id } }
+        // The body names the account (`Assignment.account_id`); the field it sets on the entry
+        // is `assignee_id` (issue 876).
+        return typeof fields.account_id === 'string'
+          ? { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: fields.account_id } }
           : undefined;
       case 'unassign':
         return { kind: 'ITEM_PATCH', itemId, fields: { assignee_id: null } };

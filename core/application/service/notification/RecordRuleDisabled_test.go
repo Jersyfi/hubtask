@@ -56,9 +56,10 @@ func TestADisabledRuleTellsItsAuthor(t *testing.T) {
 	if record.Category != domain.CategoryIntegration {
 		t.Errorf("category %q", record.Category)
 	}
-	// The rule stands in for the item: it is what the message is about.
-	if record.ItemID != disabledRule(anna).ID {
-		t.Errorf("the record is about %s", record.ItemID)
+	// The rule is the subject, in its own column (issue 814): a rule in item_id met work_item's
+	// foreign key, and the check's whole transaction failed on it.
+	if record.RuleID != disabledRule(anna).ID || !record.ItemID.IsZero() {
+		t.Errorf("the record is about rule %s, item %s", record.RuleID, record.ItemID)
 	}
 	if len(jobs.requests) != 1 || jobs.requests[0].Kind != queue.KindNotificationDeliver {
 		t.Fatalf("the delivery was not queued: %+v", jobs.requests)

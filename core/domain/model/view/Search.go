@@ -25,6 +25,11 @@ import (
 // one is a question authorisation cannot answer in one step (Scope). A search is the one read
 // where that is the question being asked - "where is this, anywhere" - so it is answered the way
 // the trash is: read, then narrowed to what the actor may see (ListTrash, C-04).
+//
+// And because it is that read, it is the one that may also be **narrowed** (ADR-0064). It takes
+// the same filter tree Spec does - the same closed vocabulary, the same bounds, the same cost cap
+// - and its words become optional beside one. What a filtered search with no words is, is a work
+// list: there is nothing to rank, so it is ordered rather than ranked, and Sort is what orders it.
 type Search struct {
 	// Words are what the caller is looking for, as they typed them. They reach the database as a
 	// bound parameter and are parsed there, by the text search configuration the language names:
@@ -46,6 +51,22 @@ type Search struct {
 	// Mode is how much of the search to use (J-10, ADR-0050). Empty means SearchAuto, so a caller
 	// that predates the field - and a client that never sends it - keeps getting the whole search.
 	Mode SearchMode
+	// Filter narrows the hits, in Spec's grammar and with Spec's bounds. Nil is no narrowing.
+	Filter *Node
+	// Sort orders a search that has no words to rank. Meaningless with words and refused
+	// there: with words there is a ranking and it *is* the ranking, so a sort beside them
+	// would be a caller asking for an order the answer cannot be in.
+	Sort []SortTerm
+}
+
+// IsRanked reports whether this search has words, and therefore a relevance to order by.
+func (s Search) IsRanked() bool { return s.Words != "" }
+
+// DefaultSearchSort is the order of a filtered search with no words: a work list, by when it
+// is due, with the entries that have no date last. Completed by the identifier wherever it is
+// used, as every ordering in this model is, so that a cursor is unambiguous.
+func DefaultSearchSort() []SortTerm {
+	return []SortTerm{{Field: Field{Name: FieldDueAt, Kind: KindTimestamp}}}
 }
 
 // SearchMode says whether a search may also ask what the words mean.
@@ -98,10 +119,11 @@ func ParseSearch(words string, path string) (string, error) {
 
 	switch {
 	case trimmed == "":
-		// An empty search is not "everything": that is what the query endpoint answers, with a
-		// scope and an order somebody chose. Ranking a whole collection by how well it matches
-		// nothing would be a list in an arbitrary order.
-		return "", fieldError(path, "search.words_required", nil)
+		// Empty is allowed *here*, and Search.Validate decides it - the one place that can see
+		// whether a filter came with it (ADR-0064). Neither still means "everything", which is not
+		// a question this API answers: ranking a whole workspace by how well it matches nothing
+		// would be a list in an arbitrary order.
+		return "", nil
 
 	case utf8.RuneCountInString(trimmed) > MaxSearchWordsLength:
 		return "", fieldError(path, "search.words_too_long", map[string]string{
@@ -139,8 +161,13 @@ func (s Search) WithoutWordBoundaries() bool {
 
 // Validate holds the parts of a search that are not the words.
 func (s Search) Validate(path string) error {
-	if s.Words == "" {
+	if s.Words == "" && s.Filter == nil {
 		return fieldError(path+"/q", "search.words_required", nil)
+	}
+	// Refused rather than ignored: silent ignoring is what this project has a rule against, and a
+	// caller who sent both asked for an order the answer cannot be in.
+	if s.Words != "" && len(s.Sort) > 0 {
+		return fieldError(path+"/sort", "search.sort_with_words", nil)
 	}
 	return nil
 }

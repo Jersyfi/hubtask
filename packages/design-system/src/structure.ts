@@ -60,6 +60,18 @@ export interface NavNode {
    * would collapse itself under the reader, taking the twist away at the moment they pressed it.
    */
   readonly isBranch?: boolean;
+  /**
+   * A band this node opens, drawn with a hairline above it and its caption over the rows.
+   *
+   * A band is a property of the *list* rather than of a node, which is why it is a mark on the
+   * first node of one and not a second structure: the tree stays one list, one flattening and one
+   * keyboard walk, and the drawing still gets the separation (ADR-0063 decision 1).
+   *
+   * The caption is optional, because a band does not need a name to be one: the foot of a
+   * navigation is a hairline and the air above it, and inventing a word for that group would be
+   * naming what the separation already says.
+   */
+  readonly band?: { readonly caption?: string };
 }
 
 /**

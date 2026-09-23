@@ -4,16 +4,20 @@
   // One list of steps on the canvas: the chain, or one arm of a branch (F8-04, decision 1).
   //
   // Recursive, because a branch's arm is a list of steps like the chain is - the self-import is
-  // how Svelte 5 recurses. Every gap carries one insertion point; a stop at the end of a list
-  // draws no gap after it, because nothing runs after a stop.
+  // how Svelte 5 recurses. Every gap carries one insertion point; a step that ends the run on
+  // every path draws no gap after it but the end mark, because nothing runs after it
+  // (decision 19). A branch whose else arm holds only another branch is a ladder - if, else if,
+  // else - and is drawn as rungs rather than as arms inside arms; *+ Else if* under a branch
+  // appends one.
 
   import { Icon, type IconName } from '@hubtask/design-system/components';
 
+  import ConditionWords from './ConditionWords.svelte';
   import InsertMenu from './InsertMenu.svelte';
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
-  import { countSteps, depthOf, unreachableFrom, type Step } from './model.ts';
-  import { conditionWords, kindIcon, kindWord, type Names } from './words.ts';
+  import { countSteps, depthOf, endsAllPaths, endsRun, isRung, rungsOf, unreachableFrom, type Step } from './model.ts';
+  import { kindIcon, kindWord, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -24,6 +28,9 @@
     /** The list's own path: `''` for the chain, `2/then` for an arm. */
     prefix: string;
     kinds: readonly string[];
+    /** Each kind's sentence and how often the workspace uses it, for the `+` popover's list. */
+    summaries?: Readonly<Record<string, string>>;
+    usage?: ReadonlyMap<string, number>;
     names: Names;
     selection: Selection;
     marks?: ReadonlyMap<string, string>;
@@ -35,6 +42,10 @@
     onfold: (path: string) => void;
     /** Move one place up or down inside its list - what the drag does, by keyboard (F8-05). */
     onnudge: (path: string, direction: -1 | 1) => void;
+    /** Append a rung - an *else if* - under the ladder that starts at the branch (decision 19). */
+    onaddrung: (path: string) => void;
+    /** Remove one rung of a ladder, its *otherwise* going to the rung above (decision 28). */
+    onremoverung: (path: string) => void;
     /** The drag in flight, and what happens when it starts, ends, or lands on a gap. */
     drag?: Drag;
     ondragchange: (drag: Drag | undefined) => void;
@@ -48,8 +59,8 @@
   }
 
   const {
-    steps, actions, prefix, kinds, names, selection, marks, describe, onselect, oninsert, onremove, onfold,
-    onnudge, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
+    steps, actions, prefix, kinds, summaries = {}, usage = new Map(), names, selection, marks, describe, onselect, oninsert, onremove, onfold,
+    onnudge, onaddrung, onremoverung, drag, ondragchange, ondrop, segmented, armChoice, onpickarm, verdicts, dimUnvisited = false,
   }: Props = $props();
 
   const verdictWord = (verdict: Verdict): string => t(verdict.code, verdict.params);
@@ -74,7 +85,6 @@
   const iconOf = (kind: string): IconName => kindIcon(kind);
 
   function meta(step: Step): string {
-    if (step.kind === 'BRANCH') return t('app.flow.card_branch_if', { condition: conditionWords(words, names, String(step.params.condition ?? '')) });
     if (step.kind === 'STOP') return t('app.flow.card_stop_hint');
     if (step.kind === 'WAIT') return String(step.params.duration ?? '');
     return describe?.(step) ?? '';
@@ -86,7 +96,15 @@
     { arm: 'else', list: step.else ?? [] },
   ];
 
-  const endsInStop = (list: readonly Step[] | undefined): boolean => (list?.length ?? 0) > 0 && list?.[list.length - 1]?.kind === 'STOP';
+  /** Whether an arm continues to the join: it does unless it ends the run on every path. */
+  const continues = (list: readonly Step[] | undefined): boolean => !endsRun(list ?? []);
+
+  /** The join under a fork: whole, one half with its corner, or none - never two lines over each other. */
+  const joinOf = (step: Step): 'both' | 'l' | 'r' | 'none' => {
+    const left = continues(step.then);
+    const right = continues(step.else);
+    return left && right ? 'both' : left ? 'l' : right ? 'r' : 'none';
+  };
 
   function onkey(event: KeyboardEvent, select: () => void): void {
     // A key on a tool inside the card is the tool's, not the card's: the card's own handler
@@ -99,6 +117,11 @@
   }
 </script>
 
+{#if prefix !== '' && steps.length > 0}
+  <!-- A gap before an arm's first card too, so that a card can be dropped first without a
+       second move (the final check of F8-20); the chain's own leading gap is the canvas's. -->
+  <InsertMenu {kinds} {summaries} {usage} {actions} list={prefix} index={0} onpick={oninsert} {drag} {ondrop} />
+{/if}
 {#each steps as step, index (pathOf(index))}
   {@const path = pathOf(index)}
   {@const isFlow = step.kind in FLOW_ICON}
@@ -134,7 +157,9 @@
     <span class="body">
       <span class="kind">{step.kind === 'BRANCH' ? t('app.flow.card_branch') : isFlow ? t('app.flow.card_flow') : t('app.flow.card_action')}</span>
       <span class="title">{kindWord(words, step.kind)}</span>
-      {#if meta(step)}<span class="meta">{meta(step)}</span>{/if}
+      {#if step.kind === 'BRANCH'}
+        <span class="cond"><span class="cmark"><Icon name="funnel" size="sm" /></span><ConditionWords expr={String(step.params.condition ?? '')} {names} /></span>
+      {:else if meta(step)}<span class="meta">{meta(step)}</span>{/if}
       {#if marks?.get(path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(path)}</span>{/if}
     </span>
     {#if verdict}<span class="verdict" class:yes={verdict.state === 'yes'} class:no={verdict.state === 'no'}><Icon name={verdict.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(verdict)}</span>{/if}
@@ -143,7 +168,7 @@
         class="tool"
         type="button"
         aria-label={t('app.flow.card_move_up')}
-        disabled={index === 0 || step.kind === 'STOP'}
+        disabled={index === 0 || endsAllPaths(step) || endsAllPaths(steps[index - 1])}
         onclick={(event) => {
           event.stopPropagation();
           onnudge(path, -1);
@@ -155,7 +180,7 @@
         class="tool"
         type="button"
         aria-label={t('app.flow.card_move_down')}
-        disabled={index === steps.length - 1 || steps[index + 1]?.kind === 'STOP'}
+        disabled={index === steps.length - 1 || endsAllPaths(step) || endsAllPaths(steps[index + 1])}
         onclick={(event) => {
           event.stopPropagation();
           onnudge(path, 1);
@@ -191,17 +216,92 @@
   </div>
 
   {#if step.kind === 'BRANCH'}
-    <span class="stub"></span>
     {#if step.collapsed}
+      <span class="stub"></span>
       <button class="folded" type="button" onclick={() => onfold(path)}>
         <Icon name="git-branch" size="sm" />
         <span>
-          {t('app.flow.card_folded', { then: countSteps(step.then ?? []), else: countSteps(step.else ?? []) })}
+          <!-- A ladder folded says how many conditions it asks and how many steps hang off them:
+               counting the next rung as one step of *otherwise* was the line the owner read as
+               wrong, and it was (decision 28). -->
+          {#if isRung(step)}
+            {@const ladder = rungsOf(step, path)}
+            {t('app.flow.card_folded_ladder', {
+              rungs: ladder.length,
+              steps: ladder.reduce((sum, rung) => sum + countSteps(rung.step.then ?? []), 0) + countSteps(ladder[ladder.length - 1]?.step.else ?? []),
+            })}
+          {:else}
+            {t('app.flow.card_folded', { then: countSteps(step.then ?? []), else: countSteps(step.else ?? []) })}
+          {/if}
         </span>
       </button>
+    {:else if isRung(step)}
+      <!-- The ladder: if / else if / … / else. Every rung but the first is the branch that is the
+           sole step of the previous else arm; its condition is a card of its own, selected like
+           any card and edited in the panel (decision 19). -->
+      {@const rungs = rungsOf(step, path)}
+      {@const last = rungs[rungs.length - 1]!}
+      <span class="stub"></span>
+      <div class="ladder" data-ladder={path}>
+        {#each rungs as rung, at (rung.path)}
+          <div class="rung" data-rung={rung.path}>
+            <div class="rhead">
+              <span class="rpill">{at === 0 ? t('app.flow.card_then') : t('app.flow.card_else_if')}</span>
+              {#if at > 0}
+                <button
+                  class="rcond"
+                  class:selected={isSelected(rung.path)}
+                  class:flagged={marks?.has(rung.path)}
+                  type="button"
+                  data-card={rung.path}
+                  onclick={() => onselect({ kind: 'step', path: rung.path })}
+                >
+                  <Icon name="funnel" size="sm" /><ConditionWords expr={String(rung.step.params.condition ?? '')} {names} />
+                  {#if verdicts?.get(rung.path)}{@const v = verdicts.get(rung.path)!}<span class="verdict inline" class:yes={v.state === 'yes'} class:no={v.state === 'no'}><Icon name={v.state === 'yes' ? 'check' : 'x'} size="sm" />{verdictWord(v)}</span>{/if}
+                </button>
+                <!-- A rung is removed where every other card is removed: by its own trash. What
+                     it held as *otherwise* goes to the rung above (decision 28). -->
+                <button
+                  class="rtool"
+                  type="button"
+                  aria-label={t('app.flow.remove_else_if')}
+                  data-remove-rung={rung.path}
+                  onclick={() => onremoverung(rung.path)}
+                >
+                  <Icon name="trash" size="sm" />
+                </button>
+                {#if marks?.get(rung.path)}<span class="flag"><Icon name="triangle-alert" size="sm" />{marks.get(rung.path)}</span>{/if}
+              {/if}
+            </div>
+            <div class="rsteps">
+              {#if (rung.step.then ?? []).length === 0}
+                <span class="empty">{t('app.flow.card_arm_empty')}</span>
+                <InsertMenu {kinds} {summaries} {usage} {actions} list={`${rung.path}/then`} index={0} onpick={oninsert} {drag} {ondrop} />
+              {:else}
+                <RuleCanvasList {summaries} {usage} steps={rung.step.then ?? []} {actions} prefix={`${rung.path}/then`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+              {/if}
+            </div>
+          </div>
+        {/each}
+        <div class="rung else" data-rung={`${last.path}/else`}>
+          <div class="rhead"><span class="rpill">{t('app.flow.card_otherwise')}</span></div>
+          <div class="rsteps">
+            {#if (last.step.else ?? []).length === 0}
+              <span class="empty">{t('app.flow.card_arm_empty')}</span>
+              <InsertMenu {kinds} {summaries} {usage} {actions} list={`${last.path}/else`} index={0} onpick={oninsert} {drag} {ondrop} />
+            {:else}
+              <RuleCanvasList {summaries} {usage} steps={last.step.else ?? []} {actions} prefix={`${last.path}/else`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+            {/if}
+          </div>
+        </div>
+      </div>
+      <button class="addrung" type="button" data-add-rung={path} onclick={() => onaddrung(path)}><Icon name="plus" size="sm" />{t('app.flow.add_else_if')}</button>
+      {#if !endsAllPaths(step)}<span class="stub"></span>{/if}
     {:else}
       {@const seg = segmented || depthOf(`${path}/then`) >= 2}
       {@const shown = armChoice.get(path) ?? 'then'}
+      {@const join = joinOf(step)}
+      <span class="stub"></span>
       <div class="arms" class:seg data-branch={path}>
         {#if seg}
           <div class="seghead" role="tablist">
@@ -211,31 +311,44 @@
               </button>
             {/each}
           </div>
+        {:else}
+          <!-- The fork's bar, from the one arm's centre to the other's, a corner at each end. -->
+          <span class="bar"></span>
         {/if}
         {#each arms(step) as { arm, list } (arm)}
           {#if !seg || shown === arm}
             <div class="arm" data-arm={`${path}/${arm}`}>
-              <span class="stub"></span>
-              {#if !seg}<span class="armlabel"><Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')}</span>{/if}
+              {#if !seg}<span class="stub"></span><span class="armlabel"><Icon name={arm === 'then' ? 'check' : 'x'} size="sm" />{arm === 'then' ? t('app.flow.card_then') : t('app.flow.card_otherwise')}</span>{/if}
+              {#if list.length === 0}<span class="stub"></span>{/if}
               {#if list.length === 0}
                 <span class="empty">{t('app.flow.card_arm_empty')}</span>
-                <InsertMenu {kinds} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
+                <InsertMenu {kinds} {summaries} {usage} {actions} list={`${path}/${arm}`} index={0} onpick={oninsert} {drag} {ondrop} />
               {:else}
-                <RuleCanvasList steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
+                <RuleCanvasList {summaries} {usage} steps={list} {actions} prefix={`${path}/${arm}`} {kinds} {names} {selection} {marks} {describe} {onselect} {oninsert} {onremove} {onfold} {onnudge} {onaddrung} {onremoverung} {drag} {ondragchange} {ondrop} {segmented} {armChoice} {onpickarm} {verdicts} {dimUnvisited} />
               {/if}
-              {#if !endsInStop(list)}<span class="tail"></span>{/if}
+              {#if continues(list)}<span class="tail"></span>{/if}
             </div>
           {/if}
         {/each}
-        {#if !seg}<span class="join"></span>{/if}
+        {#if !seg}
+          <!-- The join, drawn per arm: whole, half with its corner, or none; then the stem on. -->
+          <span class="join {join}"></span>
+          {#if join !== 'none'}<span class="after"></span>{/if}
+        {/if}
       </div>
+      <button class="addrung" type="button" data-add-rung={path} onclick={() => onaddrung(path)}><Icon name="plus" size="sm" />{t('app.flow.add_else_if')}</button>
+      {#if !endsAllPaths(step)}<span class="stub"></span>{/if}
     {/if}
-    <span class="stub"></span>
   {/if}
 
-  {#if step.kind !== 'STOP'}
+  {#if step.kind === 'BRANCH' && endsAllPaths(step)}
+    <!-- Every arm ends the run: the list ends here, and nothing may follow (decision 19). -->
+    <span class="endcap" data-end={path}><i></i>{t('app.flow.run_ends_every_path')}</span>
+  {:else if !endsAllPaths(step)}
     <InsertMenu
       {kinds}
+      {summaries}
+      {usage}
       {actions}
       list={prefix}
       index={index + 1}
@@ -254,6 +367,8 @@
 <style>
   .card {
     position: relative;
+    /* The border box is the width (decision 25), here as in `RuleCanvas`. */
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     gap: var(--sp-150);
@@ -280,6 +395,11 @@
   .title { font-weight: var(--fw-medium); color: var(--text-primary); overflow-wrap: anywhere; }
 
   .meta { font-size: var(--fs-075); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+  /* The branch's condition on its card, in the gate's notation: the funnel, the sentences, the chips. */
+  .cond { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); }
+
+  .cmark { display: inline-grid; place-items: center; width: var(--sp-200); height: var(--sp-200); border-radius: var(--r-xs); background: var(--label-amber-bg); color: var(--label-amber-fg); }
 
   .flag { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); color: var(--text-warning); }
 
@@ -350,28 +470,47 @@
 
   .arms.seg .arm { width: 100%; }
 
-  .stub, .tail { width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); border-radius: var(--r-full); flex: 0 0 auto; }
+  .stub, .tail, .after { width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); border-radius: var(--r-full); flex: 0 0 auto; }
 
   .tail { flex: 1 1 auto; min-height: var(--sp-150); }
 
-  /* The fork: a bar across the arms' centres, one column each, equal in height so both tails
-     reach the join. `grid-column: 1 / -1` on the join, or it would sit in the first column. */
+  /* The fork: one column per arm with a gap between them, so the arms never touch. The bar runs
+     from the one arm's centre to the other's - (W - gap) / 4 in from each edge - with a corner
+     turning down at each end; the join is the same bar drawn per arm; the stem after it carries
+     on to the chain (decision 20). `grid-column: 1 / -1` on every line, or it sits in a column. */
   .arms {
     position: relative;
+    box-sizing: border-box;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: var(--sp-300);
     width: min(92ch, 100%);
+    --half: calc(25% - var(--sp-300) / 4);
   }
 
-  .arms::before {
-    content: '';
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline: calc(25% - var(--sp-300) / 4);
-    height: var(--bw-ring);
-    background: var(--border-default);
-  }
+  .bar, .join, .after { grid-column: 1 / -1; justify-self: stretch; }
+
+  .after { justify-self: center; }
+
+  .bar, .join { position: relative; height: var(--bw-ring); margin-inline: var(--half); background: var(--border-default); border-radius: var(--r-full); }
+
+  .bar::before, .bar::after, .join::before, .join::after { content: ''; position: absolute; width: var(--bw-ring); height: var(--sp-050); background: var(--border-default); }
+
+  .bar::before, .bar::after { inset-block-start: 0; }
+
+  .join::before, .join::after { inset-block-end: 0; }
+
+  .bar::before, .join::before { inset-inline-start: 0; }
+
+  .bar::after, .join::after { inset-inline-end: 0; }
+
+  .join.l { margin-inline: var(--half) 50%; }
+
+  .join.r { margin-inline: 50% var(--half); }
+
+  .join.none { background: transparent; }
+
+  .join.l::after, .join.r::before, .join.none::before, .join.none::after { display: none; }
 
   .arm { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 
@@ -383,24 +522,74 @@
     display: inline-flex;
     align-items: center;
     gap: var(--sp-050);
-    margin-block: var(--sp-050);
-    padding: var(--sp-025) var(--sp-100);
+    padding: var(--sp-050) var(--sp-100);
     border-radius: var(--r-full);
     background: var(--label-violet-bg);
     color: var(--label-violet-fg);
     font-size: var(--fs-050);
     font-weight: var(--fw-medium);
-   
+    line-height: 1;
     text-transform: uppercase;
   }
 
+  .armlabel :global(svg) { display: block; }
+
   .empty { padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-default); border-radius: var(--r-md); text-align: center; font-size: var(--fs-075); color: var(--text-subtle); }
 
-  .join { grid-column: 1 / -1; position: relative; height: var(--bw-ring); }
+  /* The ladder: rungs one under the other, each a pill and its steps indented behind a rail;
+     an else-if rung's condition is a card of its own in the gate's notation. */
+  .ladder { box-sizing: border-box; width: min(56ch, 100%); display: flex; flex-direction: column; gap: var(--sp-050); }
 
-  .join::before { content: ''; position: absolute; inset-block: 0; inset-inline: calc(25% - var(--sp-300) / 4); background: var(--border-default); }
+  /* The gap is the room the selected condition's ring needs (decision 25): at `--sp-050` the
+     ring met the rail of the steps underneath. */
+  .rung { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-100); border: var(--bw-hairline) solid var(--label-violet-fg); border-radius: var(--r-md); background: var(--bg-surface); }
+
+  .rung.else { border-style: dashed; }
+
+  .rhead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+
+  .rpill { flex: 0 0 auto; padding: var(--sp-025) var(--sp-100); border-radius: var(--r-full); background: var(--label-violet-bg); color: var(--label-violet-fg); font-size: var(--fs-050); font-weight: var(--fw-medium); line-height: 1; text-transform: uppercase; }
+
+  .rcond { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-050); padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid transparent; border-radius: var(--r-sm); background: var(--label-amber-bg); color: var(--text-primary); font-size: var(--fs-075); text-align: start; cursor: pointer; }
+
+  .rcond :global(svg) { color: var(--label-amber-fg); }
+
+  .rcond:hover { border-color: var(--label-amber-fg); }
+
+  .rcond.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
+
+  .rcond.flagged { border-color: var(--status-warning-border); }
+
+  .rtool { flex: 0 0 auto; width: var(--sp-300); height: var(--sp-300); padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--text-subtle); cursor: pointer; }
+
+  .rtool:hover { background: var(--bg-surface-hover); color: var(--text-danger); }
+
+  .rtool:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .rcond:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .rsteps { display: flex; flex-direction: column; align-items: stretch; min-width: 0; margin-inline-start: var(--sp-200); padding-inline-start: var(--sp-150); border-inline-start: var(--bw-ring) solid var(--border-subtle); }
+
+  .rsteps :global(.card) { width: 100%; }
+
+  .verdict.inline { position: static; }
+
+  /* + Else if, under every branch. */
+  .addrung { display: inline-flex; align-items: center; gap: var(--sp-050); margin-block: var(--sp-050); padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) dashed var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-075); cursor: pointer; }
+
+  .addrung:hover { border-color: var(--label-violet-fg); color: var(--label-violet-fg); }
+
+  .addrung:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* The end mark: a stem and a square, where every path of the list has ended. */
+  .endcap { display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-050); font-size: var(--fs-050); font-weight: var(--fw-medium); text-transform: uppercase; color: var(--text-subtle); }
+
+  .endcap::before { content: ''; display: block; width: var(--bw-ring); height: var(--sp-150); background: var(--border-default); }
+
+  .endcap i { display: block; width: var(--sp-150); height: var(--sp-150); border-radius: var(--r-xs); background: var(--border-strong); }
 
   .folded {
+    box-sizing: border-box;
     width: min(44ch, 100%);
     display: flex;
     align-items: center;

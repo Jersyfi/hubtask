@@ -31,7 +31,7 @@ graph LR
   "run_as": "service-account:automation-default",
   "trigger": { "kind": "EVENT", "event_type": "de.hubtask.work.item.overdue.v1" },
   "conditions": [
-    { "expr": "item.labels.exists(l, l == 'label:approval') && item.type == 'TASK'" },
+    { "expr": "item.labels.exists(l, l == '01936f2a-7c1e-7000-8000-0000000000a1') && item.type == 'TASK'" },
     { "expr": "now.hour >= 8 && now.hour < 18" }
   ],
   "actions": [
@@ -284,8 +284,11 @@ A client that writes rules builds its editor from the manifest and compiles noth
 (F8, [`milestone-F8.md`](../backlog/milestone-F8.md) decision 2). `GET /meta/capabilities`
 answers `automation.triggers`, `automation.actions` and - since F8-01 - `automation.action_fields`:
 for every kind, the fields its use case declares (`usecase.Field`: name, kind, required, enum,
-description), derived from the descriptor exactly as the MCP tool schema is and declared a second
-time nowhere. An action's form is rendered from that declaration by kind; a field of kind `id`
+description - and, since F8-15, `rule`, false for the caller's plumbing a rule never sets, and
+`format`, `date-time` for an RFC 3339 instant), derived from the descriptor exactly as the MCP
+tool schema is and declared a second time nowhere; and `automation.action_summaries`, the use
+case's one sentence per kind, so that a catalogue of every served kind reads as words rather than
+as ninety names. An action's form is rendered from that declaration by kind; a field of kind `id`
 whose name the reference table of §2.3 knows is offered as a picker over the client's own store
 of that kind, so that a rule names things by their identifier and a renamed label keeps working.
 An installation that serves one more use case therefore gets one more card without a release of
@@ -294,13 +297,25 @@ the client, which is the whole reason the vocabulary is answered rather than ass
 
 Three things the web client decided about the shape of a rule on screen, and every client may
 copy: the rule is drawn as a path - the trigger, a gate holding every condition, the chain of
-actions with `BRANCH` as a fork that rejoins and `STOP` as a terminus, the guardrails last -
-because §1's model is a list with nested branches and a free graph would draw freedoms the engine
-does not have; a condition is composed as a sentence over a bounded set of subjects and stored as
+actions with `BRANCH` as a fork that rejoins (or as a ladder, *if / else if / else*, where an
+else arm holds only another branch) and `STOP` - *End the run* - only at the end of an arm, the
+run ending where the chain ends and nothing after a step that ends every path; the canvas shows
+and a panel beside it sets (`milestone-F8.md`, the third round, decisions 16-20), and what bounds
+the rule rather than travelling it - the account it runs as, where it applies, `on_error` and the
+throttle - is said in the head and set in one place, never drawn as a card on the path
+(decision 24) - because §1's model is a list with nested branches and a free graph would draw
+freedoms the engine does not have; a condition is composed as a sentence over a bounded set of subjects and stored as
 the CEL of §1.2, read back by the shapes the composer writes and shown as an expression
 otherwise; and the name is generated from the trigger and the first steps until somebody owns it,
 with the sentence the whole rule reads as beside it. `POST /automation/rules:test` takes the
-definition as it stands, so a probe tests the canvas and not the stored rule.
+definition as it stands, so a probe tests the canvas and not the stored rule. Beside the check,
+which runs on a *stored* rule against what the workspace holds, the client reads the **draft**
+against the manifest it already has and says what is missing before the probe is pressed - no
+event on an event trigger, a required parameter nothing fills, a branch with two empty arms, a
+schedule feeding a step that acts on an entry (`milestone-F8.md` decision 29). Those notes carry
+the client's own codes, are drawn at the same cards a finding is, and refuse nothing: a server
+finding at the same card wins, because the server knows the workspace and the client knows only
+the draft.
 
 ## 2. Execution, security, observability
 
@@ -372,8 +387,10 @@ it once more.
 including a skip and a throttle. A rule whose conditions said no is a rule that is working, and
 counting that towards being switched off would disable the most careful rules first. At five
 consecutive failures the rule switches itself off and its **author** is told, through the same
-notification path everything else uses. The author rather than the account it runs as: a service
-account has nobody behind it to read a message.
+notification path everything else uses - a notification whose subject is the rule (`rule_id`,
+its own column and key since migration 0096; issue 814 is what happened while it was written
+into `item_id`), rendered with the rule's name and a link to its screen. The author rather than
+the account it runs as: a service account has nobody behind it to read a message.
 
 **No rule fires for a replay.** `eventbus.TakesReplays` is opt-in and the engine does not implement
 it, which is how backup-restore.md §8.4 is kept rather than remembered. The engine also refuses its
@@ -463,7 +480,10 @@ keys against the descriptor, every condition and branch condition against the co
 `run_as` account against the workspace's accounts, and every parameter of kind `id` whose name
 the reference table knows (`label_id`, `bucket_id`, `container_id`, `parent_id`, `collection_id`,
 `template_id`, `subscription_id`, `group_id`, `account_id`) against the store of its kind through
-one `References` port - and writes what it found **on the rule**: `findings`, a list of
+one `References` port; and, since F8-19, it names a required parameter the rule does not carry and
+the run cannot supply (`automation.finding.parameter_missing`) and an acting account that holds
+no membership anywhere on the rule's scope path (`automation.finding.runner_without_role`) - and
+writes what it found **on the rule**: `findings`, a list of
 `{level, path, code, params}`, and `checked_at`. `path` is the JSON pointer a write-time refusal's
 field errors carry, so an editor points at one place for both. `ATTENTION` means the rule runs and
 one step would find nothing where it points; `BROKEN` means it cannot run, and the check switches
@@ -482,9 +502,10 @@ unchecked** - the findings described the definition the check read, so the updat
 and clears `checked_at` - and the web client asks for the check right after a save, so the writer
 learns at the card whether the repair held (issue 815).
 
-What the walk of F8-08 found is in [`F8-2026-09-20.md`](../evidence/F8-2026-09-20.md): the
-check's BROKEN path is blocked at its notification (issue 814), and a runner without a role is
-a finding the check does not yet make (issue 817).
+What the three walks found is in [`F8-2026-09-20.md`](../evidence/F8-2026-09-20.md). The
+first found the check's BROKEN path blocked at its notification (issue 814) and a runner without
+a role unnamed (issue 817); the third, after the round that fixed both, walked the BROKEN path to
+its end - the rule switched off, the audit entry, the notification with the rule as its subject.
 
 ## 3. External automation
 

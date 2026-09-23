@@ -8,6 +8,11 @@
   // It draws nothing itself: the result goes back to the view, which lays it onto the canvas
   // frame by frame. What this panel owns is the sample, and the honest sentence that nothing is
   // written.
+  //
+  // Above the button stands what the draft is missing (F8-26, decision 29): the review's notes,
+  // each pressing through to the card it is about, and the sample's own mismatch where it is not
+  // the event the rule starts on. Nothing here refuses the run - a probe of a rule with something
+  // missing is exactly how one finds out what it does.
 
   import { Button, Callout, RunStatusBadge, SearchField, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
@@ -20,15 +25,21 @@
     /** The event types this installation publishes, and the trigger's own where it has one. */
     eventTypes: readonly string[];
     defaultType: string;
+    /** What the draft is missing (decision 29), in the order the canvas draws the cards. */
+    notes?: readonly { level: 'broken' | 'attention'; card: string; text: string }[];
+    /** The card a note is about, pressed. */
+    onpick?: (card: string) => void;
     /** Whether the rule is an inbound one, which takes a payload. */
     takesPayload: boolean;
+    /** Whether anything in the rule reads the entry: then a sample without one answers nothing. */
+    readsEntry?: boolean;
     isRunning: boolean;
     outcome?: Outcome;
     onrun: (sample: { type: string; subject?: string; payload?: Record<string, unknown> }) => void;
     onclear: () => void;
   }
 
-  const { eventTypes, defaultType, takesPayload, isRunning, outcome, onrun, onclear }: Props = $props();
+  const { eventTypes, defaultType, notes = [], onpick, takesPayload, readsEntry = false, isRunning, outcome, onrun, onclear }: Props = $props();
 
   const words = { t, has: (code: string) => messages.has(code) };
 
@@ -70,6 +81,22 @@
   <h3>{t('app.flow.tab_probe')}</h3>
   <p class="quiet">{t('app.flow.probe_intro')}</p>
 
+  <!-- What is missing, before the button (decision 29): the rule's own reading of the draft,
+       each line the card it is about. -->
+  {#if notes.length > 0}
+    <Callout tone={notes.some((note) => note.level === 'broken') ? 'warning' : 'info'} title={t('app.flow.review_title')}>
+      <ul class="notes">
+        {#each notes as note, index (index)}
+          <li>
+            <button class="note" type="button" onclick={() => onpick?.(note.card)}>{note.text}</button>
+          </li>
+        {/each}
+      </ul>
+    </Callout>
+  {:else}
+    <p class="ready">{t('app.flow.review_none')}</p>
+  {/if}
+
   <Select label={t('app.flow.probe_event')} hint={type ? t('app.flow.event_wire_name', { type }) : undefined} bind:value={type} options={[]} groups={eventGroups(words, eventTypes)} />
 
   <Stack gap="050">
@@ -95,6 +122,19 @@
 
   {#if takesPayload}
     <Textarea label={t('app.flow.probe_payload')} hint={t('app.flow.probe_payload_hint')} error={payloadError ? t('app.rules.action_params_hint') : undefined} rows={4} spellcheck={false} bind:value={payloadText} />
+  {/if}
+
+  {#if readsEntry && !chosen}
+    <!-- The commonest reason a probe answers nothing: a condition that reads the entry, and a
+         sample that is about none. The run then records the condition as unreadable, which is
+         true and tells the writer nothing they were looking for. -->
+    <Callout tone="info">{t('app.flow.probe_subject_needed')}</Callout>
+  {/if}
+
+  {#if defaultType && type && type !== defaultType}
+    <!-- A sample of another event runs to the trigger and stops there; said before the run rather
+         than read out of the frames afterwards. -->
+    <Callout tone="info">{t('app.flow.probe_event_mismatch')}</Callout>
   {/if}
 
   <div>
@@ -132,4 +172,12 @@
   .hit[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
 
   .hit:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-050); }
+
+  .note { width: 100%; padding: 0; border: 0; background: none; color: inherit; font-size: var(--fs-075); text-align: start; text-decoration: underline; text-underline-offset: var(--sp-025); cursor: pointer; }
+
+  .note:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
+
+  .ready { margin: 0; font-size: var(--fs-075); color: var(--text-success); }
 </style>

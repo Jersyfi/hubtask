@@ -139,7 +139,7 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 				Description: "The new behaviour on failure. Omitted leaves it.",
 			},
 			{
-				Name: "expected_version", Kind: usecase.KindInt,
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. A mismatch is a conflict rather than an overwrite.",
 			},
 		},
@@ -472,6 +472,11 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	out["checked_at"] = nil
 	if !rule.CheckedAt.IsZero() {
 		out["checked_at"] = rule.CheckedAt
+	}
+	// The last run, where there was one (F8-21): the list card's line under the word.
+	out["last_run"] = nil
+	if rule.LastRun != nil {
+		out["last_run"] = map[string]any{"at": rule.LastRun.At, "status": string(rule.LastRun.Status)}
 	}
 	return out
 }

@@ -20,7 +20,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -28,6 +28,8 @@
   import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let displayName = $state('');
   let locale = $state('');
@@ -100,11 +102,26 @@
       isWorking = false;
     }
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.workspace.title')));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.workspace.title')}</h1>
+<Stack gap="300">
+  <PageHeader
+    title={t('app.workspace.title')}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'workspace', label: t('app.workspace.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+
+    <Stack gap="300">
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="quiet">
@@ -124,7 +141,7 @@
         <Banner tone="success">{t('app.workspace.saved')}</Banner>
       {/if}
 
-      <form onsubmit={save}>
+      <form class="panel" onsubmit={save}>
         <Stack gap="200">
           <Input
             label={t('app.workspace.name')}
@@ -196,20 +213,14 @@
         </Stack>
       </form>
     {/if}
-  </Stack>
-</div>
+    </Stack>
+</Stack>
 
 <style>
-  /* Rule 4: a column that grows with its text and stops before it becomes a line nobody can read. */
-  .screen { max-width: 60ch; }
-
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
+     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
+     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
+     screen that is not a document. */
 
   .quiet {
     margin: 0;
@@ -225,5 +236,17 @@
 
   .fixed { margin: 0; font-family: var(--font-mono); color: var(--text-primary); }
 
-  form { margin: 0; }
+  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
+     input as wide as the region is a target nobody aims at, so the fields carry a measure of
+     their own while the lists and tables beside them take the width. */
+  form { margin: 0; max-inline-size: 52ch; }
+
+  /* The surface a form stands on, as the other screens of the section draw one: a standalone
+     element in the sense of design-system.md rule 1, on the frame's canvas. */
+  .panel {
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
 </style>

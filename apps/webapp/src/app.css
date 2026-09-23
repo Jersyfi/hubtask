@@ -5,15 +5,34 @@
    is a value that will disagree with tokens.json sooner or later (ADR-0029), and `pnpm lint`
    fails on one. */
 
+/* No padding: the shell (ADR-0061) runs edge to edge - the bar along the top, the navigation
+   along the start edge, the bottom bar along the bottom - and the frame's `main` is what gives
+   the content its air. */
 body {
   margin: 0;
-  padding: var(--sp-600);
+  padding: 0;
   background: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--fs-100);
   font-weight: var(--fw-text);
   line-height: var(--lh-normal);
+}
+
+/* What a focused control scrolls clear of (2.4.11): the bar that sticks to the top on every
+   width, and on a phone the bar fixed to the bottom - a `Tab` that lands under either would land
+   on a control the reader cannot see. The keyboard walk of the entry (F9-08) found four stops
+   under the bottom bar before this. The token's value is written out because a media query cannot
+   read a custom property; it is `primitive.breakpoint.medium` and nothing else. */
+html {
+  scroll-padding-block-start: calc(var(--layout-appbar-height) + var(--sp-200));
+}
+
+/* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+@media (width < 600px) {
+  html {
+    scroll-padding-block-end: calc(var(--layout-bottombar-height) + var(--sp-200) + env(safe-area-inset-bottom, 0));
+  }
 }
 
 h1 {

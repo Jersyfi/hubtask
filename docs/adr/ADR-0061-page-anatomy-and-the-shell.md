@@ -1,6 +1,6 @@
 # ADR-0061 — Page anatomy: one navigation, the shell wave, and status as a surface
 
-**Status:** proposed · **Date:** 2026-09-21
+**Status:** accepted · **Date:** 2026-09-21 · **Accepted:** 2026-09-21
 
 ## Context
 
@@ -109,7 +109,10 @@ something is missing, not under the account. Every width draws this one list and
 
 **Search exists once.** It is a primary destination and nothing else; the app bar carries no
 search field on any width, because a second entry to `/search` is the duplication this list
-exists to prevent. On `compact` the drawer holds only the tree — the destinations are in the bar
+exists to prevent. *(The second half of that sentence is superseded by
+[ADR-0063](./ADR-0063-navigation-and-the-working-surface.md) decision 4: from `medium` up the bar
+carries the field and the list drops the row, so search still exists once — the rule holds, the
+place it is kept has moved.)* On `compact` the drawer holds only the tree — the destinations are in the bar
 below — so no destination is drawn twice on any width. The administration entry is one row of
 this list with `area: 'administration'`; the mobile build that ADR-0032 describes renders that row
 as an entry naming where the capability lives, linked to the web app of the server the client is
@@ -121,7 +124,9 @@ Wave 5 of `design-system.md` §4: `AppBar`, `NavDrawer`, `BottomBar`, `PageHeade
 
 * **`AppBar`** — the bar at the top on every width: the drawer trigger below `expanded` or the
   rail toggle above it, the wordmark or the page title, the account menu from `medium` up. Sticky
-  on `layer.sticky`, a `<header>` landmark, and it carries no page action and no search.
+  on `layer.sticky`, a `<header>` landmark, and it carries no page action. It gained a slot for
+  the entry to search in ADR-0063 decision 4; the caller that fills it takes Search out of its
+  navigation list.
 * **`NavDrawer`** — `Drawer` holding `SideNav`, below `expanded`. Composition only; no second
   overlay code and no second tree.
 * **`BottomBar`** — three to five destinations with a mark and a word, `aria-current`, the bottom

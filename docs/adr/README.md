@@ -67,4 +67,8 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0058](./ADR-0058-connector-packages.md) | The connector packages: generated, dependency-free here, typed there | accepted | ecosystem, supply chain, automation |
 | [0059](./ADR-0059-licensing-phases-and-licensing-start.md) | Licensing phases and Licensing Start | proposed | Legal, product, process |
 | [0060](./ADR-0060-rule-check.md) | The check: a rule's references resolved before they fail | accepted | Automation, data model |
-| [0061](./ADR-0061-page-anatomy-and-the-shell.md) | Page anatomy: one navigation, the shell wave, and status as a surface | proposed | Design system, client |
+| [0061](./ADR-0061-page-anatomy-and-the-shell.md) | Page anatomy: one navigation, the shell wave, and status as a surface | accepted | Design system, client |
+| [0062](./ADR-0062-cached-tool-binaries.md) | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted | CI, supply chain, tooling |
+| [0063](./ADR-0063-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |
+| [0064](./ADR-0064-the-workspace-wide-read.md) | The one read that may ask the whole workspace a narrowed question | accepted | API, domain, search |
+| [0065](./ADR-0065-the-second-walk-of-the-shell.md) | Sections, and where a statement about the application lives | accepted | Design system, client, product |

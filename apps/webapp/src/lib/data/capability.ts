@@ -85,6 +85,24 @@ export function capabilityVerdict(
 }
 
 /**
+ * Whether the manifest declares a profile for this type at all. `undefined` while it is unread.
+ *
+ * The three-valued answer again, and for the same reason: "this installation does not offer
+ * tasks" and "nobody has told us yet what it offers" look identical on a screen that only knows
+ * true and false, and both of them look like a type that simply carries nothing (issue 1020).
+ * `capabilityVerdict` already refuses every capability of an undeclared type — this is what lets
+ * a screen say *why* every one of them is refused, once, instead of drawing nothing fourteen
+ * times.
+ */
+export function declaresType(
+  manifest: Capabilities | undefined,
+  type: ItemType,
+): boolean | undefined {
+  if (!manifest) return undefined;
+  return profileOf(manifest, type) !== undefined;
+}
+
+/**
  * The types that may be created directly in a collection.
  *
  * Derived rather than named: a collection takes the types **nothing else claims as a child**. The
