@@ -72,8 +72,8 @@ async function stub(route) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser) {
-  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+async function open(browser, width = 375) {
+  const context = await browser.newContext({ viewport: { width, height: 812 } });
   await context.route('**/api/v1/**', stub);
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
@@ -127,6 +127,62 @@ test('chromium: 375 px — every page hands its title to the bar', async (t) => 
   }
 
   assert.deepEqual(silent, [], `these pages show the wordmark above their own heading: ${silent.join(', ')}`);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the administration is a section, and the tree is not in it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+
+  // Outside the section: the workspace's tree, with the hub in it.
+  await page.goto(`${served.origin}/`);
+  await page.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 15_000 });
+
+  await page.goto(`${served.origin}/administration/people`);
+  // Exact, because the trail on the screen is a landmark too and its name contains the word.
+  const section = page.getByRole('navigation', { name: 'Administration', exact: true });
+  await section.waitFor({ timeout: 10_000 });
+
+  // The section's own list replaces the tree rather than joining it (ADR-0063 decision 7).
+  assert.equal(await page.getByRole('navigation', { name: 'Workspace' }).count(), 0, 'the workspace tree is drawn inside the section');
+  assert.equal(await page.getByRole('treeitem', { name: HUB.name }).count(), 0, 'a hub is drawn inside the section');
+
+  // The way out is the first row, and the row the reader is on is announced as current.
+  const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
+  assert.equal(rows.length, 18, `the section holds ${rows.length} rows`);
+  // Exact again: "People" and "People's requests" are both rows of this list.
+  assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
+
+  // And it leads out: back to the overview, where the tree is again.
+  await section.getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
+  await page.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 375 px — the section is behind the drawer, and the bottom bar still leaves it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/quotas`);
+  await page.getByRole('button', { name: 'Open the navigation' }).click();
+  const drawer = page.locator('dialog[open]');
+  await drawer.waitFor({ timeout: 10_000 });
+  assert.equal(await drawer.getByRole('treeitem', { name: 'Limits' }).count(), 1, 'the section is not in the drawer');
+  assert.equal(await drawer.getByRole('treeitem', { name: HUB.name }).count(), 0, 'the tree is in the drawer inside the section');
+  await page.keyboard.press('Escape');
+
+  // The bottom bar is the frame's and stays whatever section the reader is in - it is how they
+  // leave one on a phone.
+  const bar = page.getByRole('navigation', { name: 'Sections' });
+  assert.equal(await bar.getByRole('link', { name: 'Overview' }).count(), 1, 'no way out of the section on a phone');
+
   assert.deepEqual(failures, []);
 });
 

@@ -109,6 +109,98 @@ const TRASH_ROW: KeepingRow = { id: 'trash', icon: 'trash', code: 'app.nav.trash
 // reaches for first when something has gone.
 export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
 
+/**
+ * The administration's own navigation, in the five groups ADR-0063 decision 7 names.
+ *
+ * A second list rather than a band of the first, because it is a second *place*: while the route's
+ * area is `administration` the column shows this and the workspace's tree is not drawn at all. The
+ * reader is inside the section, and a tree of hubs beside sixteen settings screens would say they
+ * are somewhere they are not.
+ *
+ * Who sees it is not decided here and not by this list. The area is offered where `GET /quotas` is
+ * not refused, which is the area's condition exactly (ADR-0061 decision 1); a reader without it has
+ * no row, no section and no route, and the server refuses the screens regardless.
+ */
+export interface SectionRow {
+  readonly id: string;
+  readonly icon: IconName;
+  readonly code: string;
+  readonly path: string;
+  /** The route names this row is current for. */
+  readonly routes: readonly string[];
+}
+
+export interface SectionGroup {
+  readonly id: string;
+  /** The group's caption, or nothing for the head, which is one row and needs none. */
+  readonly code?: string;
+  readonly rows: readonly SectionRow[];
+}
+
+/**
+ * The marks are chosen from the set ADR-0041 declares, and two of them are approximations: a
+ * service account is `zap` because a machine acting is the nearest thing the set has to one, and
+ * "People's requests" is `hand` because somebody asking is. Adding marks to the set is
+ * `build/icons.js` and `make icons`, which is a design-system change and not this task's.
+ */
+export const ADMINISTRATION: readonly SectionGroup[] = [
+  // The way back, first and alone: a section a reader cannot leave is a trap, and the row that
+  // leads out is the one they look for at the top rather than at the foot.
+  {
+    id: 'back',
+    rows: [
+      { id: 'back', icon: 'chevron-left', code: 'app.admin.back', path: '/', routes: [] },
+    ],
+  },
+  {
+    id: 'workspace',
+    code: 'app.admin.group_workspace',
+    rows: [
+      { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people'] },
+      { id: 'groups', icon: 'users', code: 'app.admin.groups', path: '/administration/groups', routes: ['groups'] },
+      { id: 'permissions', icon: 'shield', code: 'app.admin.permissions', path: '/administration/permissions', routes: ['permissions'] },
+      { id: 'service-accounts', icon: 'zap', code: 'app.admin.service_accounts', path: '/administration/service-accounts', routes: ['service-accounts'] },
+      { id: 'apps', icon: 'link', code: 'app.admin.apps', path: '/administration/apps', routes: ['apps'] },
+    ],
+  },
+  {
+    id: 'automatic',
+    code: 'app.admin.group_automatic',
+    rows: [
+      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule-editor', 'rule-new'] },
+      { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
+      { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
+    ],
+  },
+  {
+    id: 'holds',
+    code: 'app.admin.group_holds',
+    rows: [
+      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
+      { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
+      { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
+      { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
+    ],
+  },
+  {
+    id: 'record',
+    code: 'app.admin.group_record',
+    rows: [
+      { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'] },
+      { id: 'privacy', icon: 'hand', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
+    ],
+  },
+  {
+    id: 'entry',
+    code: 'app.admin.group_entry',
+    rows: [
+      { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
+      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai-settings'] },
+    ],
+  },
+];
+
 /** Kept as the name the rest of the client uses for the trash's row. */
 export const TRASH = TRASH_ROW;
 
