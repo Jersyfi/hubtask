@@ -107,14 +107,13 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.notes === 'Check the delivery date first.'), `the notes were not written: ${JSON.stringify(written.map((w) => w.body))}`);
 
-  // "Edit" stays in the menu, and opens the form with focus in it.
+  // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
+  // menu offers no second form over the same three fields.
   await page.getByRole('button', { name: /Actions for/ }).click();
-  await page.getByRole('menuitem', { name: 'Edit' }).click();
-  await page.getByRole('button', { name: 'Save' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT');
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute('data-opener') === 'entry-menu', null, { timeout: 5_000 })
-    .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 5_000 });
+  assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Share this entry']);
+  await page.keyboard.press('Escape');
 
   // Every details row opens its editor beside it and gives focus back on Escape.
   for (const [id, heading] of ROWS) {
@@ -218,47 +217,75 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — the policy chooses only where there is one to choose', async (t) => {
+test('chromium: 1280 px — assignment is two named questions, and the policy is offered only where there is one', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
-  /** Opens the entry's assignee editor and reads the auto-assign button, with the collection served as given. */
-  const buttonWith = async (policies) => {
+  /** Opens the entry's assignee editor with the collection served as given, and reads the panel. */
+  const panelWith = async (policies, itemId = ENTRY.id) => {
     const { page, context, close } = await signedIn(browser, 1280, 1000);
     t.after(close);
     await context.route(`**/api/v1/containers/${COLLECTION.id}`, (route) =>
       route.fulfill({ json: { ...COLLECTION, policies } }));
-    await page.goto(`${served.origin}/items/${ENTRY.id}`);
+    await page.goto(`${served.origin}/items/${itemId}`);
     await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
     await page.locator('[data-detail="assignee"]').click();
-    await page.getByRole('dialog', { name: 'Assignee' }).waitFor({ timeout: 5_000 });
-    const state = await page.evaluate(() => {
-      const button = [...document.querySelectorAll('button')].find((each) => each.textContent?.includes('Let the policy choose'));
-      return button ? { disabled: button.disabled, reason: button.nextElementSibling?.textContent ?? null } : null;
-    });
+    const editor = page.getByRole('dialog', { name: 'Assignee' });
+    await editor.waitFor({ timeout: 5_000 });
+    const read = {
+      // The two parts, by their headings and the sentence under each.
+      parts: (await editor.getByRole('heading', { level: 3 }).allTextContents()).map((each) => each.trim()),
+      says: (await editor.textContent()) ?? '',
+      // Each part names its own list, so a reader arriving by keyboard hears which one they are in.
+      // Named lists a reader may actually reach: a refused gate leaves its control in the page
+      // and `inert`, so the DOM still holds it and the accessibility tree does not.
+      lists: await editor
+        .locator('[role="listbox"]:not([inert] [role="listbox"])')
+        .evaluateAll((lists) => lists.map((list) => list.getAttribute('aria-label'))),
+      refusals: (await editor.locator('[data-status="refused"] .reason').allTextContents()).map((each) => each.trim()),
+      button: await editor.getByRole('button', { name: 'Let the policy choose' }).count(),
+      link: await editor.getByRole('link', { name: 'Open the collection' }).count() === 1
+        ? await editor.getByRole('link', { name: 'Open the collection' }).getAttribute('href')
+        : null,
+    };
     await context.close();
-    return state;
+    return read;
   };
 
-  // Offered where a policy exists, and carrying its reason where none does — rather than
-  // disappearing, because automatic assignment is exactly something somebody might want and be
-  // missing (issue 917, and `domain-model.md` §2's rule that a refusal is never silent).
-  const without = await buttonWith({ completion_policy: 'MANUAL' });
-  assert.equal(without?.disabled, true, 'the policy was offered where the collection has none');
-  assert.match(without?.reason ?? '', /No policy chooses/);
+  // Two named parts, each with the sentence that distinguishes it (ADR-0063 decision 10).
+  const without = await panelWith({ completion_policy: 'MANUAL' });
+  assert.deepEqual(without.parts, ['Responsible', 'Also on it']);
+  assert.deepEqual(without.lists, ['Responsible', 'Also on it']);
+  assert.match(without.says, /One person\. The entry is theirs/);
+  assert.match(without.says, /Several people\. They follow the entry/);
 
-  const with_ = await buttonWith({
+  // No policy: no button at all, the sentence saying where one is set, and the way there for a
+  // reader who may set it - this reader owns the hub, so they may.
+  assert.equal(without.button, 0, 'the policy was offered where the collection has none');
+  assert.match(without.says, /No policy chooses for this collection yet/);
+  assert.equal(without.link, `/collections/${COLLECTION.id}`);
+
+  const with_ = await panelWith({
     completion_policy: 'MANUAL',
     auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: true },
   });
-  assert.equal(with_?.disabled, false, 'the policy was refused where the collection has one');
-  assert.equal(with_?.reason, null);
+  assert.equal(with_.button, 1, 'the policy was not offered where the collection has one');
+  assert.equal(with_.link, null, 'the way to the policy is offered beside a policy that exists');
 
-  const off = await buttonWith({
+  const off = await panelWith({
     completion_policy: 'MANUAL',
     auto_assign: { strategy: 'FIXED', candidates: [{ kind: 'ACCOUNT', id: ENTRY.id }], enabled: false },
   });
-  assert.equal(off?.disabled, true, 'a policy that is switched off still offered to choose');
+  assert.equal(off.button, 0, 'a policy that is switched off still offered to choose');
+
+  // A type that carries no member list keeps both parts and names the second one's refusal, rather
+  // than dropping a part and leaving the reader to wonder where it went (`domain-model.md` §2).
+  const activityId = CHILDREN[CHILDREN[ENTRY.id][0].id][0].id;
+  const activity = await panelWith({ completion_policy: 'MANUAL' }, activityId);
+  assert.deepEqual(activity.parts, ['Responsible', 'Also on it']);
+  assert.deepEqual(activity.lists, ['Responsible'], 'an activity was offered a member list it can reach');
+  assert.deepEqual(activity.refusals, ['A ACTIVITY has no MEMBERS.']);
+  assert.deepEqual(without.refusals, [], 'a task was refused one of the two');
 });
 
 test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {
@@ -302,4 +329,42 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 
   assert.deepEqual(failures, []);
   await context.close();
+});
+
+test('chromium: 1280 px — the cover row offers both kinds, and no cover takes no room above the title', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const { page, failures, close } = await openEntry(browser, 1280, written);
+  t.after(close);
+
+  // Nothing above the title for a cover that is not there (ADR-0063 decision 9). Measured rather
+  // than read from the markup: an element with no height is still an element, and what the
+  // decision is about is the room it takes.
+  const above = await page.evaluate(() => {
+    const head = document.querySelector('[data-tour="entry"]');
+    const title = head?.querySelector('.title-row');
+    if (!head || !title) return 'missing';
+    return Math.round(title.getBoundingClientRect().top - head.getBoundingClientRect().top);
+  });
+  assert.equal(above, 0, 'the head keeps room above the title for a cover that is not set');
+
+  await page.locator('[data-detail="cover"]').click();
+  const editor = page.getByRole('dialog', { name: 'Cover' });
+  await editor.waitFor({ timeout: 5_000 });
+
+  // The row says where a cover goes, rather than only what is missing.
+  assert.match((await editor.textContent()) ?? '', /drawn at the top of this entry and on its card/);
+
+  // Both kinds are offered: the ten colours of the design system, and a picture.
+  assert.equal(await editor.locator('button[aria-pressed]').count(), 10, 'the ten colours are not all offered');
+  assert.equal(await editor.getByText('A picture').count(), 1, 'the picture half of the row is missing');
+
+  // One press is one write, and it is a COLOR cover - the kind no client could set before.
+  await editor.locator('button[aria-pressed][data-token="amber"]').click();
+  await page.waitForTimeout(300);
+  const write = written.find((w) => w.method === 'PUT' && w.path.endsWith('/cover'));
+  assert.deepEqual(write?.body, { kind: 'COLOR', color_token: 'amber', media_id: null });
+
+  assert.deepEqual(failures, []);
 });
