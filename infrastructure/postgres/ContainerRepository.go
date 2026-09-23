@@ -354,7 +354,9 @@ func (r ContainerRepository) Neighbours(
 	if err != nil {
 		return "", "", err
 	}
-	moving, err := uuidOf(movingID)
+	// Optional, because a create excludes nothing: the query reads a NULL here as "leave every
+	// row in the level" (issue 992). `uuidOf` would refuse the empty identifier outright.
+	moving, err := optionalUUID(movingID)
 	if err != nil {
 		return "", "", err
 	}

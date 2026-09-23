@@ -589,9 +589,7 @@ func (h CreateWorkItem) build(
 			WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
 	}
 
-	// After the identifier, because the rank may need it: an anchored create excludes the entry
-	// being placed from the level it is measuring, and for a create that entry is this one.
-	orderKey, err := h.itemOrderKey(ctx, collection.ID, placement.ParentID, cmd.BeforeItemID, id)
+	orderKey, err := h.itemOrderKey(ctx, collection.ID, placement.ParentID, cmd.BeforeItemID)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -712,19 +710,16 @@ func (h CreateWorkItem) findParent(ctx context.Context, id shared.ID) (domain.Wo
 // somewhere else, and one place where a fractional index is computed from two neighbours
 // (offline-sync.md §4.2).
 func (h CreateWorkItem) itemOrderKey(
-	ctx context.Context, collectionID, parentID, beforeID, newID shared.ID,
+	ctx context.Context, collectionID, parentID, beforeID shared.ID,
 ) (string, error) {
 	if beforeID.IsZero() {
 		return h.nextItemOrderKey(ctx, collectionID, parentID)
 	}
 
-	// The entry being placed is excluded from the level it is measured against - the move's rule,
-	// and for a create the entry is this one, which is not in the table yet, so nothing is
-	// excluded in practice. The identifier is passed rather than a zero one because the query
-	// excludes with `id <> moving_id`: a NULL there is a predicate that is NULL for every row,
-	// which would answer "the level is empty" and refuse every anchored create.
+	// Nothing is excluded: the entry being placed is not in the table yet, and the query reads a
+	// zero identifier as "leave every row in the level" (issue 992).
 	previous, next, err := h.Items.Neighbours(
-		ctx, repository.Level{CollectionID: collectionID, ParentID: parentID}, beforeID, newID,
+		ctx, repository.Level{CollectionID: collectionID, ParentID: parentID}, beforeID, "",
 	)
 	if err != nil {
 		return "", err

@@ -262,6 +262,12 @@ func TestBucketNeighboursBoundAPosition(t *testing.T) {
 		{name: "before the second", before: second.ID, moving: third.ID, previous: "a0", follow: "a1"},
 		{name: "before the first", before: first.ID, moving: third.ID, previous: "", follow: "a0"},
 		{name: "at the end", before: "", moving: third.ID, previous: "a1", follow: ""},
+		// What a *create* asks: place a new column before the second, with nothing to leave out
+		// because the column being placed is not on the board yet (issue 992). The empty moving
+		// identifier has to mean "leave every row in the level" - it used to mean a refused UUID
+		// conversion, and every positioned create answered 500.
+		{name: "before the second, nothing moving", before: second.ID, moving: "", previous: "a0", follow: "a1"},
+		{name: "at the end, nothing moving", before: "", moving: "", previous: "a2", follow: ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var previous, follow string
