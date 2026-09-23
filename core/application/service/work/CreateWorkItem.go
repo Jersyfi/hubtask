@@ -105,6 +105,13 @@ type CreateWorkItemCommand struct {
 	// Empty for none.
 	LabelIDs  []shared.ID
 	MemberIDs []shared.ID
+	// BeforeItemID is the sibling the new entry is ranked in front of, and empty puts it at the
+	// end (issue 896). The contract has promised it since 0.1 and the catalogue refused it by
+	// name; it is the move's own anchor, answered by the same neighbours query and the same
+	// refusal - a sibling that is not at this level is `items.before_item_not_in_level` rather
+	// than a silent append, because a client that asked for a position and got the end of the
+	// list has been ignored.
+	BeforeItemID shared.ID
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -513,7 +520,7 @@ func (h CreateWorkItem) build(
 		}
 	}
 
-	orderKey, err := h.nextItemOrderKey(ctx, collection.ID, placement.ParentID)
+	orderKey, err := h.itemOrderKey(ctx, collection.ID, placement.ParentID, cmd.BeforeItemID)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -634,6 +641,40 @@ func (h CreateWorkItem) findParent(ctx context.Context, id shared.ID) (domain.Wo
 		return domain.WorkItem{}, err
 	}
 	return parent, nil
+}
+
+// itemOrderKey ranks the new item: in front of the sibling the caller named, or after the last one.
+//
+// The anchored half is the move's `rankAt` with nothing moving out of the way, and deliberately so
+// - one meaning of "before this entry" across creating and moving, one refusal when the sibling is
+// somewhere else, and one place where a fractional index is computed from two neighbours
+// (offline-sync.md §4.2).
+func (h CreateWorkItem) itemOrderKey(
+	ctx context.Context, collectionID, parentID, beforeID shared.ID,
+) (string, error) {
+	if beforeID.IsZero() {
+		return h.nextItemOrderKey(ctx, collectionID, parentID)
+	}
+
+	// Nothing is being moved out of the list, so the moving id is the zero one: the neighbours of
+	// the anchor are the neighbours the new entry lands between.
+	previous, next, err := h.Items.Neighbours(
+		ctx, repository.Level{CollectionID: collectionID, ParentID: parentID}, beforeID, shared.ID(""),
+	)
+	if err != nil {
+		return "", err
+	}
+	if next == "" {
+		// The sibling named is not at this level - another collection, another parent, or nothing
+		// at all. Its own answer rather than a silent append, which is what the move says too.
+		return "", shared.ErrValidation.
+			WithDetail("items.before_item_not_in_level").
+			WithParams(map[string]string{"before_item_id": beforeID.String()}).
+			WithFields(shared.FieldError{
+				Path: "/before_item_id", Code: "items.before_item_not_in_level",
+			})
+	}
+	return service.OrderKeyBetween(previous, next)
 }
 
 // nextItemOrderKey ranks the new item after its last sibling.
@@ -948,6 +989,13 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"names the element and takes the whole creation with it.",
 			},
 			{
+				Name: "before_item_id", Kind: usecase.KindID,
+				Description: "The sibling to rank the new entry in front of, at the level it is " +
+					"created at. Omitted puts it at the end. A sibling that is not at that " +
+					"level is refused by name rather than appended silently, which is what a " +
+					"move says too.",
+			},
+			{
 				Name: "member_ids", Kind: usecase.KindIDList,
 				Description: "Accounts to put on the entry's member list as it is created, with " +
 					"the rules of PUT /items/{id}/members/{accountId}: only a type whose " +
@@ -997,6 +1045,10 @@ func (h CreateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	beforeItemID, err := in.ID("before_item_id")
+	if err != nil {
+		return nil, err
+	}
 
 	cmd := CreateWorkItemCommand{
 		ID:              id,
@@ -1012,6 +1064,7 @@ func (h CreateWorkItem) invoke(
 		CalendarUID:     in.String("calendar_uid"),
 		LabelIDs:        labelIDs,
 		MemberIDs:       memberIDs,
+		BeforeItemID:    beforeItemID,
 	}
 	if raw := in.String("start_at"); raw != "" {
 		startAt, err := parseInstantField(raw, "start_at")

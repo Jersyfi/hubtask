@@ -72,6 +72,11 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.DueTimeZone != nil {
 		in["due_time_zone"] = *body.DueTimeZone
 	}
+	// Where the entry lands among its siblings, served since F10-17 (issue 896). Sent only when
+	// the caller named one: an absent anchor is "at the end", which is not the same instruction.
+	if body.BeforeItemId != nil {
+		in["before_item_id"] = body.BeforeItemId.String()
+	}
 	withUnservedItemFields(body, in)
 
 	out, err := c.UseCases.Invoke(r.Context(), createWorkItemUseCase, actor, in)
@@ -252,11 +257,10 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // already assigned, by name or by the collection's policy. `member_ids` stays for the reason
 // `label_ids` stayed after B-09: the endpoint that owns the set is its own
 // (`/items/{id}/members/{accountId}`), and no task has yet decided that a create may seed it.
-// The cover follows in 0.3.0. The bucket left this list with B-09, and the due date with D-01.
+// The cover follows in 0.3.0. The bucket left this list with B-09, the due date with D-01, and
+// `before_item_id` with F10-17 - the create ranks the entry in front of the sibling it names,
+// with the move's own neighbours query and the move's own refusal.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
-	if body.BeforeItemId != nil {
-		in["before_item_id"] = body.BeforeItemId.String()
-	}
 	if body.LabelIds != nil {
 		in["label_ids"] = uuidList(*body.LabelIds)
 	}

@@ -1187,7 +1187,7 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
 		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
-		"calendar_uid", "label_ids", "member_ids",
+		"calendar_uid", "label_ids", "member_ids", "before_item_id",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
@@ -1195,7 +1195,7 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	}
 	// The contract promises these on WorkItemCreate too, and no use case writes them at
 	// creation yet (issue 896); they are refused by name rather than accepted and dropped.
-	for _, later := range []string{"cover", "custom_fields", "before_item_id"} {
+	for _, later := range []string{"cover", "custom_fields"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}
@@ -1212,6 +1212,58 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 		"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
 	}); err != nil {
 		t.Errorf("member_ids, which the contract promises, was refused: %v", err)
+	}
+}
+
+// The anchor the contract has promised since 0.1 and the catalogue refused until F10-17 (issue
+// 896): the entry lands in front of the sibling named, between its neighbours, rather than at the
+// end of the list.
+func TestACreateRanksTheEntryInFrontOfTheSiblingItNames(t *testing.T) {
+	h := newItemHarness()
+	sibling := h.withTask()
+	// What the level answers around the anchor: the key before it, and the anchor's own.
+	h.items.previousKey, h.items.nextKey = "a0", "a1"
+
+	cmd := taskCommand()
+	cmd.BeforeItemID = sibling.ID
+	created, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+
+	if h.items.askedBefore != sibling.ID {
+		t.Errorf("the neighbours were asked around %s", h.items.askedBefore)
+	}
+	if h.items.askedLevel.CollectionID != collectionID || !h.items.askedLevel.ParentID.IsZero() {
+		t.Errorf("the neighbours were asked at %+v", h.items.askedLevel)
+	}
+	if created.OrderKey <= "a0" || created.OrderKey >= "a1" {
+		t.Errorf("order key = %q, which is not between the neighbours", created.OrderKey)
+	}
+}
+
+// A sibling somewhere else is refused by name. A silent append would be the create ignoring the
+// position it was asked for, which is what the move refuses for the same reason.
+func TestASiblingThatIsNotAtTheLevelRefusesTheCreate(t *testing.T) {
+	h := newItemHarness()
+	sibling := h.withTask()
+	// Nothing to the right of the anchor because the anchor is not here: what the query answers
+	// for an identifier that belongs to another collection or another parent.
+	h.items.previousKey, h.items.nextKey = "", ""
+
+	cmd := taskCommand()
+	cmd.BeforeItemID = sibling.ID
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+
+	failure := shared.AsError(err)
+	if failure == nil || failure.DetailCode != "items.before_item_not_in_level" {
+		t.Fatalf("error = %v", err)
+	}
+	if len(failure.Fields) != 1 || failure.Fields[0].Path != "/before_item_id" {
+		t.Errorf("fields = %+v", failure.Fields)
+	}
+	if len(h.items.stored) != 1 {
+		t.Errorf("the entry was created anyway: %d rows", len(h.items.stored))
 	}
 }
 
