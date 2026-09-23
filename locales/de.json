@@ -871,7 +871,6 @@
   "app.nav.trash": "Papierkorb",
   "app.nav.archive": "Archiv",
     "app.nav.about": "Über Hubtask",
-  "app.nav.about_version": "Über Hubtask · {version}",
   "app.archive.title": "Archiv",
   "app.archive.intro": "Was hier beiseitegelegt wurde. Ein archivierter Hub und eine archivierte Sammlung sind schreibgeschützt und aus der Navigation genommen; sie behalten alles und kommen so zurück, wie sie gegangen sind.",
   "app.archive.none": "Es wurde nichts beiseitegelegt",

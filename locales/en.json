@@ -1961,7 +1961,6 @@
   "app.nav.trash": "Trash",
   "app.nav.archive": "Archive",
     "app.nav.about": "About Hubtask",
-  "app.nav.about_version": "About Hubtask · {version}",
   "app.archive.title": "Archive",
   "app.archive.intro": "What has been put aside here. An archived hub or collection is read-only and out of the navigation; it keeps everything in it and comes back the way it went.",
   "app.archive.none": "Nothing has been put aside",

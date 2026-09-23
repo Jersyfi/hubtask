@@ -77,13 +77,21 @@ export const DESTINATIONS: readonly Destination[] = [
   { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
   { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
   { id: 'tour', group: 'account', icon: 'compass', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
-  { id: 'sign-out', group: 'account', icon: 'log-out', code: 'app.sign_out', target: { kind: 'action', action: 'sign-out' }, routes: [] },
-  // The installation, at the foot and in the subtle voice: four facts — the product version, the
-  // API version, the tenancy and the languages — that nobody navigates to and everybody quotes
-  // when they report a problem. It keeps its address and its page; what it loses is a place in
-  // somebody's navigation. Everyone may see it: it names no person and no content, and a reader
-  // who cannot read their own product's version cannot file a useful report.
+  // The installation: four facts — the product version, the API version, the tenancy and the
+  // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
+  // its address and its page; what it loses is a place in somebody's navigation. Everyone may see
+  // it: it names no person and no content, and a reader who cannot read their own product's
+  // version cannot file a useful report.
+  //
+  // **The row does not carry the version** (ADR-0065 decision 5). `product_version` is a release
+  // version on a release and a build reference - `main-<40 hex>` - on everything else, and a build
+  // reference is forty characters of noise where a menu row's name belongs. The row names the
+  // destination; the page behind it quotes the version whole, which is what that page is for.
   { id: 'about', group: 'account', icon: 'info', code: 'app.nav.about', target: { kind: 'route', path: '/installation' }, routes: ['installation'] },
+  // Signing out is the **last** row, which reverses ADR-0063 decision 6's order (ADR-0065
+  // decision 5): it is the last thing a reader does in a session, and a row under it is a row
+  // somebody reaches past.
+  { id: 'sign-out', group: 'account', icon: 'log-out', code: 'app.sign_out', target: { kind: 'action', action: 'sign-out' }, routes: [] },
 ];
 
 /**

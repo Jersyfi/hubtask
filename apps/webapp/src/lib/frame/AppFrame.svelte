@@ -147,21 +147,6 @@
     section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
   const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
-  /**
-   * The word for an account row, with the product's version in the one that names it.
-   *
-   * "About Hubtask · 0.9.0" rather than a destination called "This installation": four facts —
-   * the version, the API version, the tenancy and the languages — that nobody navigates to and
-   * everybody quotes when they report a problem (ADR-0063 decision 6). The version comes from the
-   * manifest this client reads once, and the page keeps its address.
-   */
-  const accountWord = (destination: { id: string; code: string }) => {
-    const version = manifest.value?.product_version;
-    // Two codes rather than one with an empty parameter: "About Hubtask · " with nothing after
-    // the separator is what a sentence assembled around a missing value looks like.
-    if (destination.id === 'about' && version) return t('app.nav.about_version', { version });
-    return t(destination.code);
-  };
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
   const bottomDestinations = $derived([
     ...primary().map((each) => ({
@@ -308,7 +293,7 @@
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} word={accountWord} onchoose={chooseAccount} />
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -371,7 +356,7 @@
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} word={accountWord} onchoose={chooseAccount} />
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so

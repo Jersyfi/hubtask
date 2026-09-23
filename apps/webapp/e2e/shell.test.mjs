@@ -69,9 +69,11 @@ test.after(() => served.close());
 const PRIMARY = ['Overview', 'Search', 'Jumble'];
 /** The same list where the bar carries the entry to search: the row for it would be the second. */
 const PLACES = ['Overview', 'Jumble'];
-// The account group, in its order. "This installation" is at the foot as "About Hubtask" with the
-// version beside it (ADR-0063 decision 6) — the same route under a name somebody would look for.
-const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'Sign out', 'About Hubtask · 0.9.0'];
+// The account group, in its order. "This installation" is "About Hubtask" — the same route under
+// a name somebody would look for (ADR-0063 decision 6) — and it carries no version: a build
+// reference is not what a menu row is called, and the page behind it quotes the version whole
+// (ADR-0065 decision 5). Signing out is last, because it is the last thing a reader does.
+const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'About Hubtask', 'Sign out'];
 
 async function open(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 800 } });
