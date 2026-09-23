@@ -138,7 +138,14 @@
 {/if}
 
 <style>
-  .what { font-weight: var(--fw-regular); }
+  /* The category is the column that grows, so the two questions stand together at the end of the
+     row rather than being pushed to opposite edges by a table sharing its width evenly. */
+  .what { inline-size: 100%; font-weight: var(--fw-regular); }
+
+  /* The one row nobody can switch off says why under its switch, and the column that carries that
+     sentence keeps room for it - a reason wrapped one word to a line is a row four times as tall
+     as its neighbours. Odd cells, because every channel draws "tell me" before "name the entry". */
+  td:nth-of-type(odd) { min-inline-size: 24ch; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
