@@ -24,7 +24,7 @@
  * would be a window nobody asked for.
  */
 
-import { addDays, contains, daysBetween, monthOf, weekOf, type Window } from './due.ts';
+import { addDays, contains, daysBetween, weekOf, type Window } from './due.ts';
 
 /** How far the timeline looks, and how finely it is ruled. */
 export type Scale = 'day' | 'week' | 'month';
@@ -78,10 +78,11 @@ export function windowOf(anchor: string, scale: Scale, weekStart: number): Windo
 export function anchorOf(days: readonly string[], today: string, scale: Scale, weekStart: number): string {
   if (days.length === 0) return today;
   if (days.some((day) => contains(windowOf(today, scale, weekStart), day))) return today;
-  return [...days].sort((left, right) => {
+  const nearest = [...days].sort((left, right) => {
     const distance = Math.abs(daysBetween(today, left)) - Math.abs(daysBetween(today, right));
     return distance !== 0 ? distance : left < right ? -1 : 1;
   })[0];
+  return nearest ?? today;
 }
 
 /**
