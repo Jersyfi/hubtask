@@ -20,11 +20,12 @@
     EmptyState,
     ErrorState,
     Inline,
+    PageHeader,
     SearchField,
     Select,
-    Switch,
     Skeleton,
     Stack,
+    Switch,
     TaskRow,
   } from '@hubtask/design-system/components';
 
@@ -41,6 +42,8 @@
   import { fromQuery, toFilter, toQuery, type Chosen } from '../lib/data/searchfilters.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   interface Props {
     /** What the address carries: the narrowing, never the words (see the note at the top). */
@@ -169,10 +172,13 @@
       writeFailure = renderProblem(error as never, messages);
     }
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.search.title')));
 </script>
 
 <Stack gap="300">
-  <h1 class="name">{t('app.search.title')}</h1>
+  <PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />
 
   <!-- `data-tour`: where the tour points for the query language (F6-14). -->
   <Inline gap="150" align="end" data-tour="search">
@@ -297,14 +303,6 @@
 </Stack>
 
 <style>
-  .name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .term { flex: 1 1 24ch; min-width: 0; max-width: 48ch; }
 
   .hint { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }

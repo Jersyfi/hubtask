@@ -16,8 +16,11 @@
   // rule it was protecting still holds, and the caller keeps it: one visible entry to search on
   // every width, so a caller that fills this slot takes the destination out of its list.
   //
-  // What it still carries **no** slot for is a page action. A page's actions belong to
-  // `PageHeader`, where one is primary and the rest are a menu.
+  // What it still carries **no** slot for is a page *action*. A page's actions belong to
+  // `PageHeader`, where one is primary and the rest are a menu — and it is that menu, folded,
+  // which the last slot draws: ADR-0061 decision 1's table says the compact bar holds
+  // ☰ · the page title · the page menu, and the head hands its own folded list up rather than
+  // drawing a second one.
   //
   // Sticky on `layer.sticky` and flat: a bar is not a standalone element in the sense of rule 1,
   // so it takes a hairline and no shadow. The top safe-area inset is *read* into its padding
@@ -63,9 +66,18 @@
     search?: Snippet;
     /** The controls at the end: the account menu. */
     end?: Snippet;
+    /**
+     * The page's own menu, at the very end (ADR-0061 decision 1: on `compact` the bar holds
+     * ☰ · the page title · the page menu).
+     *
+     * A slot rather than a list, because what the page's actions are is the page's business and
+     * this component draws frames rather than pages. The head hands its folded list over through
+     * the caller, which is what keeps one folding rather than two.
+     */
+    menu?: Snippet;
   }
 
-  const { label, toggle, title, brand, search, end }: Props = $props();
+  const { label, toggle, title, brand, search, end, menu }: Props = $props();
 </script>
 
 <header class="bar" aria-label={label}>
@@ -94,6 +106,9 @@
     {/if}
     {#if end}
       <div class="end">{@render end()}</div>
+    {/if}
+    {#if menu}
+      <div class="page-menu" data-bar="menu">{@render menu()}</div>
     {/if}
   </div>
 </header>
@@ -153,4 +168,16 @@
     flex: none;
     margin-inline-start: auto;
   }
+
+  /* After the end, and pushed there itself when the end is absent: the page's menu is the last
+     thing in the row on every width that draws it. */
+  .page-menu {
+    display: flex;
+    align-items: center;
+    flex: none;
+    margin-inline-start: auto;
+  }
+
+  /* With both present the end has already taken the free space, so the menu sits against it. */
+  .end + .page-menu { margin-inline-start: 0; }
 </style>

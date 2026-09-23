@@ -16,10 +16,12 @@
   // **Nothing here is editable, and that is not a missing feature.** Changing what a role carries
   // is not an operation this product has: a role is granted, and this says what the grant means.
 
-  import { PermissionMatrix, Stack, type MatrixRole } from '@hubtask/design-system/components';
+  import { PageHeader, PermissionMatrix, Stack, type MatrixRole } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The permissions this build has wording for. One it does not is shown as its own token. */
   const DESCRIBED = new Set([
@@ -72,11 +74,14 @@
     ASSIGNED: t('app.permissions.access_assigned'),
     NONE: t('app.permissions.access_none'),
   });
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.permissions.title')));
 </script>
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.permissions.title')}</h1>
+    <PageHeader title={t('app.permissions.title')} isTitleInBar={viewport.isCompact} />
     <p class="quiet">{t('app.permissions.intro')}</p>
 
     {#if roles.length === 0}
@@ -100,14 +105,6 @@
 </div>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }

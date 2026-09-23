@@ -21,7 +21,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import BarSearch from './BarSearch.svelte';
@@ -265,6 +265,19 @@
            the reader reaches search through the bottom bar instead. -->
       {#if session.isSignedIn && !viewport.isCompact}
         <BarSearch onnavigate={go} />
+      {/if}
+    {/snippet}
+    {#snippet menu()}
+      <!-- The page's own menu, at the end of the compact bar (ADR-0061 decision 1's table). The
+           list is the head's own folded one, handed over rather than assembled here: two foldings
+           would eventually disagree about which action is an action and which is an item. -->
+      {#if viewport.isCompact && page.menu}
+        {@const offered = page.menu}
+        <Menu label={offered.label} items={offered.items} placement={{ side: 'block-end', align: 'end' }} onselect={offered.onselect}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label={offered.label} data-opener={offered.opener} {...props} />
+          {/snippet}
+        </Menu>
       {/if}
     {/snippet}
     {#snippet end()}

@@ -23,17 +23,7 @@
 
   import { untrack } from 'svelte';
 
-  import {
-    Badge,
-    Banner,
-    Button,
-    Input,
-    ProgressBar,
-    Select,
-    Spinner,
-    Stack,
-    Switch,
-  } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
 
   import { backup, type Archive, type Schedule, type Target } from '../lib/data/backup.svelte.ts';
   import { generations, readRule } from '../lib/data/backup.ts';
@@ -44,6 +34,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The kinds a `config` shape is written for here. The rest are the operator's, through hubctl. */
   const KINDS = ['LOCAL', 'S3', 'SFTP'] as const;
@@ -257,11 +249,14 @@
       for (const archive of list.data) await backup.readRun(archive.archive_id);
     });
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.backup.title')));
 </script>
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.backup.title')}</h1>
+    <PageHeader title={t('app.backup.title')} isTitleInBar={viewport.isCompact} />
     <p class="quiet">{t('app.backup.intro')}</p>
 
     {#if failure}
@@ -675,14 +670,6 @@
 </div>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .section {
     margin: 0;
     font-family: var(--font-display);
