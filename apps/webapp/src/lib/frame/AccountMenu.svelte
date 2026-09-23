@@ -30,26 +30,30 @@
     isSheet: boolean;
     /** Whether the trigger carries the name beside the avatar. Only where there is room for it. */
     hasName?: boolean;
-    /**
-     * The word for one row, where the frame has something to put in it — the product's version in
-     * "About Hubtask · 0.9.0". A resolver rather than a map of ids, so that this component stays
-     * ignorant of which row is which.
-     */
-    word?: (destination: Destination) => string;
     /** The sheet's state, owned by the frame because the bottom bar is what opens it. */
     isSheetOpen?: boolean;
     onchoose: (id: string) => void;
   }
 
-  let { destinations, name, email, isSheet, hasName = false, word, isSheetOpen = $bindable(false), onchoose }: Props = $props();
+  let { destinations, name, email, isSheet, hasName = false, isSheetOpen = $bindable(false), onchoose }: Props = $props();
 
-  // The two verbs at the end stand apart from the three places above them.
+  /**
+   * The list in three bands: the places that are the reader's own, the ways through, and signing
+   * out - which is the last row and stands alone (ADR-0065 decision 5).
+   *
+   * Both rules are about the *shape* of the list rather than about which row is which, so this
+   * component still knows no ids: a separator opens the first row that performs something rather
+   * than going somewhere, and another opens the last row, because the last thing a reader does in
+   * a session has nothing under it.
+   */
+  const firstAction = $derived(destinations.find((each) => each.target.kind === 'action')?.id);
   const items = $derived(
-    destinations.map((destination) => ({
+    destinations.map((destination, index) => ({
       id: destination.id,
-      label: word ? word(destination) : t(destination.code),
+      label: t(destination.code),
       icon: destination.icon,
-      hasSeparatorBefore: destination.target.kind === 'action' && destination.id === destinations.find((each) => each.target.kind === 'action')?.id,
+      hasSeparatorBefore:
+        index > 0 && (destination.id === firstAction || index === destinations.length - 1),
     })),
   );
 
@@ -62,7 +66,9 @@
 <!-- Who this is: the same head in both drawings, because the question "whose menu is this" has
      one answer. The address is here and nowhere else. -->
 {#snippet who()}
-  <div class="who">
+  <!-- `Menu` draws the hairline under its own head, so this draws one only in the sheet, where
+       nothing else does. Two rules under the name is what the walk found (issue 1019). -->
+  <div class="who" data-sheet={isSheet ? '' : undefined}>
     <Avatar {name} size="md" />
     <div class="names">
       <span class="name">{name}</span>
@@ -111,14 +117,26 @@
     gap: var(--sp-100);
     max-inline-size: 100%;
     min-block-size: var(--density-control-sm-min);
-    padding-block: var(--sp-025);
-    padding-inline: var(--sp-025) var(--sp-100);
+    padding: var(--sp-025);
     border: 0;
     border-radius: var(--r-full);
     background: transparent;
     color: var(--text-primary);
     font: inherit;
     cursor: pointer;
+  }
+
+  /* With the name beside it the control is a pill and the air after the name is the pill's; with
+     the avatar alone it is a **circle** around the avatar - the target is the control's square
+     minimum and the shape is round, because what is inside it is round (issue 1019, 1022). The
+     two glyph controls beside it are `IconButton`'s rounded square, which is what every other
+     icon control in the product is. */
+  .account:has(.name) { padding-inline-end: var(--sp-100); }
+
+  .account:not(:has(.name)) {
+    inline-size: var(--density-control-sm-min);
+    justify-content: center;
+    padding: 0;
   }
 
   .account:hover { background: var(--bg-surface-hover); }
@@ -142,13 +160,19 @@
     display: flex;
     align-items: center;
     gap: var(--sp-150);
+  }
+
+  .who[data-sheet] {
     padding-block-end: var(--sp-150);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
   .names { display: flex; flex-direction: column; min-width: 0; }
 
-  .who .name { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+  /* The name is primary text: the menu's head inherits the surface's quieter colour, which reads
+     on white and disappears on the dark theme's surface - the person's own name, greyed out
+     (issue 1022). The address under it stays subtle, because it is the second line. */
+  .who .name { color: var(--text-primary); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 
   .email { color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
 

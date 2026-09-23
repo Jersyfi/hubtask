@@ -17,6 +17,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -53,6 +54,9 @@ type SearchItems struct {
 	// provider, no consent, or a provider that does not answer - and every one of those is a
 	// lexical search rather than a failure.
 	Meaning QueryMeaning
+	// Clock is what `@today` is resolved against, as it is for the query (rule 4, arc42 §8.13).
+	// A filter arrives here since ADR-0064, and a filter may carry a placeholder.
+	Clock clock.Clock
 }
 
 // QueryMeaning turns what somebody typed into a vector, or says it cannot.
@@ -108,6 +112,12 @@ func (h SearchItems) Execute(
 	}
 	sort, err := view.ParseSortOrNone(query.Sort, "/sort")
 	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	// One grammar read twice is one *resolution* twice: `@me` and the date anchors are values only
+	// the server knows, and a placeholder that reaches the compiler is a defect rather than a bad
+	// request (issue 1018). The query has resolved them since it was written; this had not.
+	if filter, err = resolveFilter(h.Clock, actor, filter, "/filter"); err != nil {
 		return repository.ItemHitPage{}, err
 	}
 

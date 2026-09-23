@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
 // The search, at the level this layer owns: what it asks the repository for, and what it does with
@@ -337,5 +338,43 @@ func TestASearchSurvivesAProviderThatWillNotAnswer(t *testing.T) {
 	}
 	if len(store.searchedText[0].Meaning) != 0 {
 		t.Error("a vector reached the statement from a provider that refused")
+	}
+}
+
+// The placeholders, which is what one grammar read twice costs when only one reader resolves them.
+//
+// `POST /search` takes a filter since ADR-0064, and a filter may carry `@me` or a date anchor. The
+// query has resolved them since it was written; this did not, so the value travelled to the
+// compiler as a placeholder - where it is `ErrInternal`, because a placeholder at the adapter is a
+// defect in the use case rather than a bad request. The overview's one read is exactly this
+// filter, so the first panel of the first screen after signing in answered a 500 with a reference
+// (issue 1018).
+func TestSearchResolvesThePlaceholdersItParses(t *testing.T) {
+	handler, store, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9))
+	handler.Clock = clock.Fixed(now)
+	permitted.permit = map[shared.ID]bool{taskID: true}
+
+	actor := itemActor()
+	actor.TimeZone = "Europe/Berlin"
+
+	_, err := handler.Execute(t.Context(), actor, SearchItemsQuery{
+		Filter: map[string]any{"op": "AND", "nodes": []any{
+			map[string]any{"field": "assignee_id", "op": "EQ", "value": "@me"},
+			map[string]any{"field": "due_at", "op": "LTE", "value": "@today"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("searching was refused: %v", err)
+	}
+
+	filter := store.searchedText[0].Request.Filter
+	if filter == nil || len(filter.Nodes) != 2 {
+		t.Fatalf("the filter arrived as %+v", filter)
+	}
+	if got := filter.Nodes[0].Values[0]; got.IsPlaceholder() || got.ID != accountID {
+		t.Errorf("@me resolved to %+v", got)
+	}
+	if got := filter.Nodes[1].Values[0]; got.IsPlaceholder() {
+		t.Errorf("@today reached the repository unresolved: %+v", got)
 	}
 }

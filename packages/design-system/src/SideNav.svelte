@@ -49,9 +49,10 @@
      * was drawn from 44 to 68 with the half past the edge clipped.
      *
      * **Depth is the one thing a rail cannot draw**, so it does not try: it lists the roots, and
-     * a branch pressed there opens its own subtree in a flyout beside the column — this same
-     * component, unfolded, with the branch as its root. Nothing is unreachable while the
-     * navigation is folded, and there is no second tree.
+     * a branch pressed there goes to the branch *and* opens its own subtree in a flyout beside the
+     * column — this same component, unfolded, with the branch as its root. Nothing is unreachable
+     * while the navigation is folded, there is no second tree, and a press means what it means
+     * unfolded (issue 1026).
      */
     isRail?: boolean;
     /**
@@ -61,10 +62,19 @@
      * can render it around a name.
      */
     flyoutLabel?: (name: string) => string;
+    /**
+     * What the twist is called, from the branch's name and whether it is open.
+     *
+     * The twist is a **control** since issue 1022, so it needs a name like any other: pressing a
+     * branch's row goes to the branch, and what opens and closes it is the mark at the end of the
+     * row. A caller that offers no word gets the old behaviour on the row - there is then nothing
+     * to navigate to, and a row that neither opened nor went anywhere would be a dead row.
+     */
+    branchLabel?: (name: string, isExpanded: boolean) => string;
     onnavigate?: (id: string) => void;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, onnavigate }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate }: Props = $props();
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -104,22 +114,42 @@
   }
 
   /**
-   * What pressing a row does. In the rail a branch opens its flyout; everywhere else it unfolds.
+   * What pressing a row does.
+   *
+   * **A branch is a place before it is a container** (issue 1022). A hub has a screen of its own -
+   * its settings, its collections, the control that makes another one - and while pressing its row
+   * only unfolded it, the only way in was through a collection and back up the breadcrumb. So the
+   * row goes to the branch and opens it, and the twist at the end of the row is what closes it
+   * again; the arrows do what they have always done. A caller that names no twist has no second
+   * control, and keeps the fold on the row.
+   *
+   * **Pressing a branch means the same thing in both drawings** (issue 1026): go to it, and open
+   * it. Unfolded, "open it" is the subtree in place; folded, it is the flyout beside the column,
+   * because a rail has nowhere to put a level. A rail whose mark only opened the flyout was a
+   * navigation where a hub could be looked into and never entered.
    *
    * The flyout **expands the branch as well**, and that is not a flourish: `expanded` is what a
    * caller watches to fetch a level that is loaded on demand, so a flyout that only set its own
-   * state would open beside a hub whose collections nobody had asked the server for. It stays
-   * expanded once closed, the way an unfolded tree does.
+   * state would open beside a hub whose collections nobody had asked the server for.
    */
   function choose(row: { node: NavNode; isBranch: boolean; isExpanded: boolean }) {
     if (!row.isBranch) return onnavigate?.(row.node.id);
-    if (!isRail) return toggle(row.node.id, !row.isExpanded);
-    if (opened === row.node.id) {
-      opened = null;
+    if (isRail) {
+      // A second press on the mark the flyout belongs to closes it; the branch is already open.
+      if (opened === row.node.id) {
+        opened = null;
+        return;
+      }
+      toggle(row.node.id, true);
+      opened = row.node.id;
+      if (branchLabel) onnavigate?.(row.node.id);
       return;
     }
+    if (!branchLabel) return toggle(row.node.id, !row.isExpanded);
+    // Opened as well as opened *into*: a reader who presses a hub is asking to see what is in it,
+    // and the level is fetched by the same `expanded` the twist writes.
     toggle(row.node.id, true);
-    opened = row.node.id;
+    onnavigate?.(row.node.id);
   }
   // Focus follows the current node when the caller moves it, so arrowing after a navigation
   // continues from where the reader is rather than from where they were.
@@ -163,11 +193,20 @@
          A navigation tree is the one place the two coincide, and a screen reader is told each in
          its own vocabulary. -->
     {#each rows as row, index (row.node.id)}
-      {#if row.depth === 0 && row.node.band?.caption}
-        <!-- A band's caption. `role="none"` because it is not a node of the tree: it says what the
-             rows under it are, and the arrows walk past it the way they walk past a heading. -->
+      {#if row.depth === 0 && row.node.band !== undefined}
+        <!-- Where a band begins, as an element of its own: the hairline, the air above it, and the
+             caption where there is one. `role="none"` because it is not a node of the tree — it
+             says what the rows under it are, and the arrows walk past it the way they walk past a
+             heading.
+             **The separation is never drawn on a row.** It was, and a row carrying
+             `padding-block-start` for it had to have that padding taken off again at the head of
+             the column — which took the row's own vertical padding with it, and drew the first row
+             of every band short and its background against its text (issue 1010).
+             Folded, the caption is not drawn: a rail is a column of marks, and a five-word group
+             name in it is words in a place that has no room for any (issue 1012). What separates
+             one group of marks from the next is the hairline, which is what is left here. -->
         <li class="band" role="none">
-          <span>{row.node.band.caption}</span>
+          {#if row.node.band.caption && !isRail}<span>{row.node.band.caption}</span>{/if}
         </li>
       {/if}
       <li
@@ -175,7 +214,6 @@
         role="treeitem"
         data-index={index}
         data-node={row.node.id}
-        data-band={row.depth === 0 && row.node.band !== undefined ? '' : undefined}
         title={isRail ? row.node.label : undefined}
         aria-label={isRail ? row.node.label : undefined}
         aria-expanded={row.isBranch ? (isRail ? opened === row.node.id : row.isExpanded) : undefined}
@@ -201,12 +239,34 @@
         {#if !isRail}
           <span class="label" style:--depth={row.depth}>{row.node.label}</span>
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
-               through the logical padding, so it mirrors with the document. -->
-          <span class="twist" aria-hidden="true">
-            {#if row.isBranch}
+               through the logical padding, so it mirrors with the document.
+               A **control** where the caller named one, because the row itself now goes to the
+               branch (issue 1022): it is out of the tab order - the tree keeps its one stop and
+               the arrows keep expanding - and the row's `aria-expanded` is what says the state,
+               so this is a second way to reach it with a pointer rather than a second statement
+               about it. -->
+          {#if row.isBranch && branchLabel}
+            <button
+              type="button"
+              class="twist"
+              tabindex="-1"
+              aria-label={branchLabel(row.node.label, row.isExpanded)}
+              title={branchLabel(row.node.label, row.isExpanded)}
+              onclick={(event) => {
+                event.stopPropagation();
+                active = index;
+                toggle(row.node.id, !row.isExpanded);
+              }}
+            >
               <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
-            {/if}
-          </span>
+            </button>
+          {:else}
+            <span class="twist" aria-hidden="true">
+              {#if row.isBranch}
+                <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
+              {/if}
+            </span>
+          {/if}
         {/if}
       </li>
     {/each}
@@ -236,30 +296,26 @@
   .tree { margin: 0; padding: 0; list-style: none; }
 
   /* Where a band begins: a hairline and the air that says "these are a different kind of thing".
-     The first row of the column opens no band, whatever it carries. */
-  .row[data-band],
+     Its own element, so that no row's geometry depends on which band it opens. */
   .band {
     margin-block-start: var(--sp-200);
     padding-block-start: var(--sp-200);
+    padding-inline: var(--sp-100);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
 
-  .tree > :first-child {
+  /* The column's own head opens no band, whatever the first node carries: there is nothing above
+     it to be separated from. */
+  .tree > .band:first-child {
     margin-block-start: 0;
     padding-block-start: 0;
     border-block-start: 0;
   }
 
-  /* A captioned band is opened by its caption; the row under it only follows. */
-  .band + .row[data-band] {
-    margin-block-start: 0;
-    padding-block-start: 0;
-    border-block-start: 0;
-  }
-
-  /* The caption, in the `label` role §3 gives a field name and a group title. */
-  .band {
-    padding-inline: var(--sp-100);
+  /* The caption, in the `label` role §3 gives a field name and a group title. The air under it is
+     the caption's, so a band with none is the hairline and the space above it and nothing else. */
+  .band > span {
+    display: block;
     padding-block-end: var(--sp-050);
     color: var(--text-subtle);
     font-size: var(--fs-075);
@@ -306,6 +362,28 @@
     width: var(--sp-300);
     justify-content: center;
     color: var(--text-subtle);
+  }
+
+  /* The twist where it is a control: no chrome of its own until it is under the pointer, so the
+     row still reads as one thing. */
+  button.twist {
+    align-items: center;
+    align-self: stretch;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.twist:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+  /* Rule 5's own ring, drawn outside the twist: the row's is inset because a row fills the column
+     and an outer ring would be cut by it; the twist has room around it. */
+  button.twist:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
   }
 
   /* The indent is the label's, and it is `padding-inline-start`, which mirrors itself: a

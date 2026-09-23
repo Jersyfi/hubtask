@@ -285,6 +285,30 @@ the two rules worth repeating here are that `AppBar` carries **no page action an
 duplication that list exists to prevent), and that `PageHeader` has no way to draw a fourth
 button — a caller with more actions hands them in as the menu's items.
 
+#### A section, and the widths a section's screen has
+
+Two places in the product are **sections**: the administration
+([ADR-0063](../adr/ADR-0063-navigation-and-the-working-surface.md) decision 7) and Your settings
+([ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md) decision 3). A section has one
+anatomy, and it is the same one twice:
+
+* While the resolved route's **area** is the section's, the navigation column is the section's own
+  list and the workspace's tree is not drawn at all — the reader is in a place, not in a corner of
+  the workspace.
+* **The first row leads out.** A section somebody cannot leave is a trap, and the way back is
+  looked for at the top rather than at the foot.
+* **The section's own address opens its first screen.** The column lists every screen in it, so an
+  index beside it is that list drawn twice.
+* Every screen carries `PageHeader` with the trail *the section › this screen*, one primary action
+  and the rest in the menu, and it **takes the region it is given**. The reading measure belongs to
+  running text, which `app.css` gives every paragraph; a form keeps a measure of its own, because
+  an input as wide as the region is a target nobody aims at; a table, a list and a matrix take the
+  width.
+
+A row's word and a screen's heading may differ where a column has less room than a heading — the
+row says *Signed in*, the screen says *Where you are signed in* — and nothing else about them is
+allowed to.
+
 ---
 
 ## 5. Naming in code

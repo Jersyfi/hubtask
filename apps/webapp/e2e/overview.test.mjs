@@ -124,6 +124,20 @@ test('chromium: the overview says what is on the reader, from one read', async (
   assert.equal(await mine.getByRole('heading', { name: 'Overdue (1)' }).count(), 1, 'the overdue band does not count what is in it');
   assert.equal(await mine.getByRole('heading', { name: 'Due next' }).count(), 1, 'nothing is due next');
 
+  // **Measured, not assumed** (issue 1022): the band's word is flush left - the same start as the
+  // panel's own heading and as the rows' boxes. The text's own box, not the heading's: the heading
+  // is as wide as the panel, and padding on it is what would move the word.
+  const flush = await mine.evaluate((panel) => {
+    const textX = (el) => { const range = document.createRange(); range.selectNodeContents(el); return Math.round(range.getBoundingClientRect().x); };
+    const band = [...panel.querySelectorAll('h3')].map(textX);
+    const row = panel.querySelector('[class*="task-row"] [class*="row"]') ?? panel.querySelector('[class*="task-row"]');
+    return { band, head: textX(panel.querySelector('h2')), rowBox: Math.round(row.getBoundingClientRect().x) };
+  });
+  for (const x of flush.band) {
+    assert.equal(x, flush.head, `a band's word is at ${x} and the panel's heading at ${flush.head}`);
+    assert.equal(x, flush.rowBox, `a band's word is at ${x} and the rows under it at ${flush.rowBox}`);
+  }
+
   // The three panels, and the two that are empty saying so rather than drawing nothing.
   assert.equal(await page.getByText('Nothing is waiting in the jumble.').count(), 1, 'the empty jumble is a blank');
   assert.equal(await page.getByText('What you open is listed here, on this device only.').count(), 1, 'the empty recents panel is a blank');

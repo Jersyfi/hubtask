@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -86,20 +86,24 @@ test('the search exists once', () => {
 
 test('the administration row is offered only where the server says so', () => {
   const ids = (reachable: boolean) => account({ isAdministrationReachable: reachable }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'administration', 'tour', 'sign-out', 'about']);
-  assert.deepEqual(ids(false), ['profile', 'tour', 'sign-out', 'about']);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'tour', 'about', 'sign-out']);
+  assert.deepEqual(ids(false), ['profile', 'tour', 'about', 'sign-out']);
 });
 
-test('the installation is still in the list, at the foot and under another name', () => {
-  // It stopped being a destination called "This installation" and became "About Hubtask" at the
+test('the installation is still in the list, under another name, and signing out is last', () => {
+  // It stopped being a destination called "This installation" and became "About Hubtask" near the
   // end of the menu (ADR-0063 decision 6) — a move, not a removal: the route is the same, the
   // page is the same, and every reader still reaches it. Parity (ADR-0032) is about what a
   // person can do, and nothing here is one thing fewer.
   const about = DESTINATIONS.find((destination) => destination.id === 'about');
   assert.equal(about?.target.kind === 'route' && about.target.path, '/installation');
   assert.deepEqual(about?.routes, ['installation']);
-  assert.equal(about, account({ isAdministrationReachable: false }).at(-1), 'it is not at the foot');
   assert.equal(about?.area, undefined, 'everyone may read what this installation is');
+  // ADR-0065 decision 5 reverses decision 6's order: signing out is the last thing a reader does
+  // in a session, and a row under it is a row somebody reaches past.
+  const group = account({ isAdministrationReachable: false });
+  assert.equal(group.at(-1)?.id, 'sign-out', 'something is drawn under signing out');
+  assert.equal(group.at(-2)?.id, 'about');
 });
 
 test('every screen under the administration is the administration destination', () => {
@@ -109,4 +113,37 @@ test('every screen under the administration is the administration destination', 
   // And a screen outside the list belongs to nothing: the bar marks no destination current.
   assert.equal(currentDestination(resolve(ROUTES, '/redeem')), undefined);
   assert.equal(currentDestination({ name: null, area: 'end-user' }), undefined);
+});
+
+test('a section\u2019s address opens its first screen, which is never the way out', () => {
+  // ADR-0065 decision 1: the column is the overview, so the section's own address answers with a
+  // screen rather than with a list of the rows beside it. The way back is a row with no route of
+  // its own, and a front door that led out of the section would be a door somebody falls through.
+  const front = firstScreen(ADMINISTRATION);
+  assert.equal(front, '/administration/workspace');
+  const resolution = resolve(ROUTES, front);
+  assert.equal(resolution.name, 'workspace-settings');
+  assert.equal(resolution.area, 'administration');
+  // And it is a row of the list, so the column marks it current the moment the reader lands.
+  const rows = ADMINISTRATION.flatMap((group) => group.rows);
+  assert.ok(rows.some((row) => row.path === front && row.routes.includes(resolution.name as string)));
+  assert.equal(rows.find((row) => row.path === front)?.id !== 'back', true);
+});
+
+test('every row of the section resolves to a route it claims, and every screen is reachable', () => {
+  for (const group of ADMINISTRATION) {
+    for (const row of group.rows) {
+      const resolution = resolve(ROUTES, row.path);
+      assert.ok(resolution.name, `${row.id} points at ${row.path}, which resolves to nothing`);
+      if (row.routes.length === 0) continue;
+      assert.ok(row.routes.includes(resolution.name), `${row.id} lands on ${resolution.name} but does not claim it`);
+    }
+  }
+  // Every screen of the area has a row, so the column is the whole of the section (ADR-0065
+  // decision 1): with the index gone, a screen nothing lists is a screen nobody can reach.
+  const claimed = new Set(ADMINISTRATION.flatMap((group) => group.rows).flatMap((row) => row.routes));
+  const unlisted = ROUTES.filter((route) => route.area === 'administration' && route.name !== 'administration')
+    .map((route) => route.name)
+    .filter((name) => !claimed.has(name));
+  assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 });

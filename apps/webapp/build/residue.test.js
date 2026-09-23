@@ -197,7 +197,12 @@ async function views() {
     ['installation', await load('InstallationView'), {}],
     ['profile', await load('ProfileView'), {}],
     ['tokens', await load('MyTokensView'), {}],
-    ['administration', await load('AdministrationView'), {}],
+    ['appearance', await load('AppearanceView'), {}],
+    ['notifications', await load('NotificationsView'), {}],
+    ['security', await load('SecurityView'), {}],
+    ['sessions', await load('SessionsView'), {}],
+    ['devices', await load('DevicesView'), {}],
+    ['grants', await load('GrantsView'), {}],
     ['workspace-settings', await load('WorkspaceSettingsView'), {}],
     ['people', await load('PeopleView'), {}],
     ['groups', await load('GroupsView'), {}],
@@ -236,8 +241,9 @@ test('the route table and this test name the same screens', async () => {
   const named = (await views()).map(([name]) => name).filter((name) => name !== 'sign-in').sort();
   const routed = ROUTES.map((route) => route.name)
     // `hub` is `ContainerView` as `collection` is; `oidc-callback` finishes an exchange and draws
-    // nothing of the product.
-    .filter((name) => name !== 'hub' && name !== 'oidc-callback')
+    // nothing of the product; `administration` is a section's front door and draws nothing either -
+    // it replaces the address with the section's first screen (ADR-0065 decision 1).
+    .filter((name) => name !== 'hub' && name !== 'oidc-callback' && name !== 'administration')
     .sort();
   assert.deepEqual(named, routed);
 });

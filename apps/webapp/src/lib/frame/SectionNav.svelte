@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The administration's own navigation column (ADR-0063 decision 7).
+  // A section's own navigation column (ADR-0063 decision 7, ADR-0065 decision 3).
   //
-  // **It replaces the workspace's tree rather than joining it.** While the route's area is
-  // `administration` the reader is in a section, not in a corner of the workspace; a tree of hubs
+  // **It replaces the workspace's tree rather than joining it.** While the route's area is a
+  // section the reader is in a place of its own, not in a corner of the workspace; a tree of hubs
   // beside sixteen settings screens would say they are somewhere they are not, and the tree's
   // reads - one level per open hub - would run for a reader who is not looking at any of it.
   //
@@ -15,15 +15,20 @@
   // One `SideNav` and one list, banded the way the workspace's is: the bands are a mark on the
   // first row of each rather than five components, so the keyboard walks the section in one pass.
   //
-  // Who reaches this is not decided here. The area is offered where `GET /quotas` is not refused,
-  // which is the frame's question and the area's condition exactly (ADR-0061 decision 1).
+  // It knows no section. The administration and Your settings hand it their own `SectionGroup[]`,
+  // which is what makes "a section" a shape rather than a screen with a copy of a column beside
+  // it; who reaches either is decided by the frame, not here.
 
   import { SideNav } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
-  import { ADMINISTRATION } from '../navigation.ts';
+  import type { SectionGroup } from '../navigation.ts';
 
   interface Props {
+    /** What this navigation is called, for the landmark. Resolved text (ADR-0011). */
+    label: string;
+    /** The section's list, in its groups. */
+    groups: readonly SectionGroup[];
     /** The row the reader is on, by the id the list gives it. The frame decides, because it has the route. */
     current?: string;
     /** Folded to its marks, from `expanded` up: the same list, drawing its marks alone. */
@@ -31,12 +36,12 @@
     onnavigate: (path: string) => void;
   }
 
-  const { current, isRail = false, onnavigate }: Props = $props();
+  const { label, groups, current, isRail = false, onnavigate }: Props = $props();
 
-  // The five groups as one list: each group's first row opens a band, and the way back opens
-  // none - it is one row above everything and needs no caption to say so.
+  // The groups as one list: each group's first row opens a band, and the way back opens none - it
+  // is one row above everything and needs no caption to say so.
   const nodes = $derived(
-    ADMINISTRATION.flatMap((group) =>
+    groups.flatMap((group) =>
       group.rows.map((row, index) => ({
         id: row.id,
         label: t(row.code),
@@ -47,9 +52,9 @@
   );
 
   function navigate(id: string) {
-    const row = ADMINISTRATION.flatMap((group) => group.rows).find((each) => each.id === id);
+    const row = groups.flatMap((group) => group.rows).find((each) => each.id === id);
     if (row) onnavigate(row.path);
   }
 </script>
 
-<SideNav label={t('app.admin.nav')} {nodes} {current} {isRail} onnavigate={navigate} />
+<SideNav {label} {nodes} {current} {isRail} onnavigate={navigate} />

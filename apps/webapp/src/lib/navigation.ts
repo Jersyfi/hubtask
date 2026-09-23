@@ -77,13 +77,21 @@ export const DESTINATIONS: readonly Destination[] = [
   { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
   { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
   { id: 'tour', group: 'account', icon: 'compass', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
-  { id: 'sign-out', group: 'account', icon: 'log-out', code: 'app.sign_out', target: { kind: 'action', action: 'sign-out' }, routes: [] },
-  // The installation, at the foot and in the subtle voice: four facts — the product version, the
-  // API version, the tenancy and the languages — that nobody navigates to and everybody quotes
-  // when they report a problem. It keeps its address and its page; what it loses is a place in
-  // somebody's navigation. Everyone may see it: it names no person and no content, and a reader
-  // who cannot read their own product's version cannot file a useful report.
+  // The installation: four facts — the product version, the API version, the tenancy and the
+  // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
+  // its address and its page; what it loses is a place in somebody's navigation. Everyone may see
+  // it: it names no person and no content, and a reader who cannot read their own product's
+  // version cannot file a useful report.
+  //
+  // **The row does not carry the version** (ADR-0065 decision 5). `product_version` is a release
+  // version on a release and a build reference - `main-<40 hex>` - on everything else, and a build
+  // reference is forty characters of noise where a menu row's name belongs. The row names the
+  // destination; the page behind it quotes the version whole, which is what that page is for.
   { id: 'about', group: 'account', icon: 'info', code: 'app.nav.about', target: { kind: 'route', path: '/installation' }, routes: ['installation'] },
+  // Signing out is the **last** row, which reverses ADR-0063 decision 6's order (ADR-0065
+  // decision 5): it is the last thing a reader does in a session, and a row under it is a row
+  // somebody reaches past.
+  { id: 'sign-out', group: 'account', icon: 'log-out', code: 'app.sign_out', target: { kind: 'action', action: 'sign-out' }, routes: [] },
 ];
 
 /**
@@ -124,7 +132,17 @@ export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
 export interface SectionRow {
   readonly id: string;
   readonly icon: IconName;
+  /** The word the row carries in the column. */
   readonly code: string;
+  /**
+   * The word the screen wears as its heading, where a column has less room than a heading does.
+   *
+   * "Where you are signed in" is the right sentence over a table and four words too many in a
+   * column 240 px wide, where it would be cut to "Where you are sign…". So the row says *Signed
+   * in* and the screen says the sentence; absent, they are the same word, which is what every row
+   * of the administration is.
+   */
+  readonly titleCode?: string;
   readonly path: string;
   /** The route names this row is current for. */
   readonly routes: readonly string[];
@@ -163,7 +181,10 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'automatic',
     code: 'app.admin.group_automatic',
     rows: [
-      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule-editor', 'rule-new'] },
+      // The editor's two routes are the rules' row as well: a reader inside a rule is inside
+      // automation, and a column that marked nothing current there would say they are nowhere.
+      // `rule-editor` was a name no route has, which is exactly what it said.
+      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
       { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
     ],
@@ -191,7 +212,67 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_entry',
     rows: [
       { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
-      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai-settings'] },
+      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
+    ],
+  },
+];
+
+/**
+ * Your settings, as a section of its own (ADR-0065 decision 3).
+ *
+ * The same anatomy the administration has, for the same reason: what is the reader's own was one
+ * screen of nine sections, read by scrolling, with two lists in it that grow without bound. A
+ * section gives each question an address, a heading and a place in a column that says where the
+ * reader is.
+ *
+ * The rows reuse the words the screens already have - "Where you are signed in", "Second factor",
+ * "Apps you have allowed" - because a row and the screen it opens saying two different things is
+ * how a navigation stops being trustworthy.
+ *
+ * Who sees it is nobody's decision: every one of these screens is about the reader themselves, and
+ * the area is ADR-0032's `profile`, which the mobile shell ships in full.
+ */
+export const SETTINGS: readonly SectionGroup[] = [
+  // The way back, first and alone, exactly as the administration's is.
+  {
+    id: 'back',
+    rows: [
+      { id: 'back', icon: 'chevron-left', code: 'app.you.back', path: '/', routes: [] },
+    ],
+  },
+  {
+    id: 'you',
+    code: 'app.you.group_you',
+    rows: [
+      { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile'] },
+      // The theme and reduced motion are the device's (ADR-0043) and the celebrations are the
+      // account's; what they have in common is that they are how the product looks and moves at
+      // the reader, which is what the screen is called.
+      { id: 'appearance', icon: 'sun-moon', code: 'app.profile.device_section', path: '/profile/appearance', routes: ['appearance'] },
+    ],
+  },
+  {
+    id: 'told',
+    code: 'app.you.group_told',
+    rows: [
+      { id: 'notifications', icon: 'bell', code: 'app.you.row_notifications', titleCode: 'app.profile.notifications', path: '/profile/notifications', routes: ['notifications'] },
+    ],
+  },
+  {
+    id: 'entry',
+    code: 'app.you.group_entry',
+    rows: [
+      { id: 'security', icon: 'shield', code: 'app.mfa.title', path: '/profile/security', routes: ['security'] },
+      { id: 'sessions', icon: 'user-check', code: 'app.you.row_sessions', titleCode: 'app.sessions.title', path: '/profile/sessions', routes: ['sessions'] },
+      { id: 'devices', icon: 'arrow-right-left', code: 'app.you.row_devices', titleCode: 'app.devices.title', path: '/profile/devices', routes: ['devices'] },
+    ],
+  },
+  {
+    id: 'acting',
+    code: 'app.you.group_acting',
+    rows: [
+      { id: 'grants', icon: 'link', code: 'app.you.row_grants', titleCode: 'app.grants.title', path: '/profile/apps', routes: ['grants'] },
+      { id: 'tokens', icon: 'key', code: 'app.tokens.title', path: '/profile/tokens', routes: ['tokens'] },
     ],
   },
 ];
@@ -238,8 +319,32 @@ export function account(options: { readonly isAdministrationReachable: boolean }
  */
 export function currentDestination(route: { readonly name: string | null; readonly area: Area }): string | undefined {
   if (route.area === 'administration') return 'administration';
+  // And the same for Your settings, which is a section of its own since ADR-0065 decision 3: its
+  // screens are the area, and the list should not have to name each of them twice.
+  if (route.area === 'profile') return 'profile';
   if (route.name === null) return undefined;
   const keeping = KEEPING.find((each) => each.routes.includes(route.name as string));
   if (keeping) return keeping.id;
   return DESTINATIONS.find((destination) => destination.routes.includes(route.name as string))?.id;
+}
+
+/**
+ * The screen a section's own address opens (ADR-0065 decision 1).
+ *
+ * A section with a navigation column needs no overview, because the column *is* the overview: an
+ * index beside it is the same list drawn twice, and arriving at it means arriving at a page of
+ * links to where the reader was already going. So `/administration` answers with the section's
+ * first screen.
+ *
+ * The first row with a route of its own, which is what skips the way back: that row leads out of
+ * the section, and a front door that led out would be a door somebody falls through.
+ */
+export function firstScreen(groups: readonly SectionGroup[]): string {
+  for (const group of groups) {
+    for (const row of group.rows) {
+      if (row.routes.length > 0) return row.path;
+    }
+  }
+  // Unreachable for a section that has a screen; a section that has none has nothing to open.
+  return '/';
 }

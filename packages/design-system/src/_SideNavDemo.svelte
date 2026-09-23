@@ -4,7 +4,7 @@
   import Box from './Box.svelte';
   import SideNav, { type NavNode } from './SideNav.svelte';
 
-  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long'; isRail?: boolean; opened?: string } = $props();
+  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
   // shape F2-08 will hand this component for real.
@@ -49,6 +49,17 @@
     },
   ];
 
+  // The same list in bands: the places, the workspace's own structure under its caption, and a
+  // band with no caption at all - which is what the foot of a navigation is, where the hairline
+  // says "a different kind of thing" and there is nothing to call the group.
+  const bands: NavNode[] = [
+    { id: 'overview', label: 'Overview', icon: 'workspace', href: '/' },
+    { id: 'jumble', label: 'Jumble', icon: 'jumble', href: '/jumble' },
+    { ...tree[0], band: { caption: 'Hubs' } } as NavNode,
+    tree[1] as NavNode,
+    { id: 'trash', label: 'Trash', icon: 'trash', href: '/trash', band: {} },
+  ];
+
   let expanded = $state(['private', 'work']);
   let nav = $state<HTMLElement | null>(null);
 
@@ -60,7 +71,7 @@
     const row = nav.querySelector(`[data-node="${opened}"]`);
     if (row instanceof HTMLElement) row.click();
   });
-  const nodes = $derived(mode === 'flat' ? flat : mode === 'long' ? long : tree);
+  const nodes = $derived(mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : tree);
 </script>
 
 <!-- No inline `style` on the primitive: ADR-0028's `style-src` has no `'unsafe-inline'`, so a
@@ -68,7 +79,15 @@
      demo's own stylesheet is where a demo's layout belongs. -->
 <div class="pane" data-rail={isRail ? '' : undefined} bind:this={nav}>
   <Box padding="100">
-    <SideNav label="Workspace" {nodes} current="renovation" {isRail} flyoutLabel={(name) => `Inside ${name}`} bind:expanded />
+    <SideNav
+      label="Workspace"
+      {nodes}
+      current="renovation"
+      {isRail}
+      flyoutLabel={(name) => `Inside ${name}`}
+      branchLabel={(name, isOpen) => (isOpen ? `Hide what is in ${name}` : `Show what is in ${name}`)}
+      bind:expanded
+    />
   </Box>
 </div>
 

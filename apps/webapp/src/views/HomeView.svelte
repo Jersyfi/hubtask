@@ -228,6 +228,9 @@
     line-height: var(--lh-tight);
   }
 
+  /* The band's word is flush left: the same start as the panel's own heading and as the rows'
+     boxes under it (issue 1022). It was indented to the titles for a day, which read as a label
+     hanging in the middle of the list; `e2e/overview.test.mjs` measures it either way. */
   .band {
     margin: 0;
     font-size: var(--fs-075);

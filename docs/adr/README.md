@@ -71,3 +71,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0062](./ADR-0062-cached-tool-binaries.md) | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted | CI, supply chain, tooling |
 | [0063](./ADR-0063-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |
 | [0064](./ADR-0064-the-workspace-wide-read.md) | The one read that may ask the whole workspace a narrowed question | accepted | API, domain, search |
+| [0065](./ADR-0065-the-second-walk-of-the-shell.md) | Sections, and where a statement about the application lives | accepted | Design system, client, product |

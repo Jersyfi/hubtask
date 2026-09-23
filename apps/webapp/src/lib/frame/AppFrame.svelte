@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What every view sits inside: the shell wave drawn from the five widths (ADR-0061), the notices
+  // What every view sits inside: the shell wave drawn from the five widths (ADR-0061), the marks
   // the application owes the reader about itself, and the region the view is rendered into.
   //
   // One navigation, three drawings. `lib/navigation.ts` is the list; this frame draws it as a
@@ -21,12 +21,12 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
-  import AdministrationNav from './AdministrationNav.svelte';
+  import SectionNav from './SectionNav.svelte';
   import BarSearch from './BarSearch.svelte';
-  import HealthNotice from './HealthNotice.svelte';
+  import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
@@ -44,8 +44,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { MATURITY, shouldAnnounce } from '../maturity.ts';
-  import { ADMINISTRATION, DESTINATIONS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
+  import { ADMINISTRATION, DESTINATIONS, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -57,11 +56,6 @@
 
   const { route, onnavigate, children }: Props = $props();
 
-  // Dismissed for as long as this page is open, and no longer. ADR-0035 §2 asks for a banner that
-  // is not in the way; it does not ask the client to remember a decision across visits, and a
-  // client that did would need somewhere to keep it - which is the platform seam's question and
-  // F6's storage port, not this component's.
-  let dismissed = $state(false);
   /** The landmark the skip link lands on. */
   let mainElement = $state<HTMLElement | null>(null);
 
@@ -134,33 +128,25 @@
     route.name === 'hub' || route.name === 'collection' ? route.params.id : destination,
   );
   /**
-   * Whether the reader is inside the administration, which is a section with a navigation of its
-   * own (ADR-0063 decision 7) rather than a corner of the workspace.
+   * The section the reader is inside, or nothing while they are in the workspace.
    *
-   * The route's area answers it, which is the same answer `currentDestination` already gives the
-   * account group — one fact, read once.
+   * Two of them: the administration (ADR-0063 decision 7) and Your settings (ADR-0065 decision 3).
+   * A section has a navigation of its own and the workspace's tree is not drawn beside it - the
+   * reader is in a place, not in a corner of the workspace. The route's **area** answers which,
+   * which is the same answer `currentDestination` gives the account group: one fact, read once.
    */
-  const isInSection = $derived(route.area === 'administration');
+  const section = $derived(
+    route.area === 'administration'
+      ? { label: t('app.admin.nav'), groups: ADMINISTRATION }
+      : route.area === 'profile'
+        ? { label: t('app.nav.profile'), groups: SETTINGS }
+        : undefined,
+  );
   /** Which row of the section's list is current, by the id that list gives it. */
   const sectionRow = $derived(
-    ADMINISTRATION.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
+    section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
   const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
-  /**
-   * The word for an account row, with the product's version in the one that names it.
-   *
-   * "About Hubtask · 0.9.0" rather than a destination called "This installation": four facts —
-   * the version, the API version, the tenancy and the languages — that nobody navigates to and
-   * everybody quotes when they report a problem (ADR-0063 decision 6). The version comes from the
-   * manifest this client reads once, and the page keeps its address.
-   */
-  const accountWord = (destination: { id: string; code: string }) => {
-    const version = manifest.value?.product_version;
-    // Two codes rather than one with an empty parameter: "About Hubtask · " with nothing after
-    // the separator is what a sentence assembled around a missing value looks like.
-    if (destination.id === 'about' && version) return t('app.nav.about_version', { version });
-    return t(destination.code);
-  };
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
   const bottomDestinations = $derived([
     ...primary().map((each) => ({
@@ -230,7 +216,10 @@
     if (!session.isSignedIn || state === announced) return;
     if (announced !== undefined) {
       if (state === 'live') announcer.say(t('app.live.became_live'));
+      // Losing it is worth saying whichever half lost it: the stream cannot be reached, or the
+      // device says it has no network at all.
       else if (state === 'reconnecting') announcer.say(t('app.live.lost'));
+      else if (state === 'offline') announcer.say(t('app.live.device_offline'));
     }
     announced = state;
   });
@@ -298,33 +287,19 @@
            offline; what waits to be sent and what the server refused; when the copy last
            synchronised. It was a line of every page that read "Connected" at its quietest; now the
            ordinary case says nothing until it is pressed, and what it said is behind it, whole. -->
+      <!-- What the application has to say about itself - the stage, and the health report where
+           the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
+           banners above the head of every page; now it is a mark that says nothing until it is
+           pressed, and nothing at all when there is nothing to say. -->
+      <NoticeMark />
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} word={accountWord} onchoose={chooseAccount} />
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
-
-  <div class="notices">
-    <Stack gap="150">
-      {#if shouldAnnounce() && !dismissed}
-        <!-- ADR-0035 §2: while the stage is not `stable` the application says so itself. The
-             stage comes from `lib/maturity.ts` and from nowhere else. -->
-        <Banner
-          tone="info"
-          title={t(`app.maturity.${MATURITY}.title`)}
-          dismissLabel={t('app.dismiss')}
-          onDismiss={() => (dismissed = true)}
-        >
-          {t(`app.maturity.${MATURITY}.body`)}
-        </Banner>
-      {/if}
-      <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
-      <HealthNotice />
-    </Stack>
-  </div>
 
   <div class="body">
     <!-- The navigation is the frame's, not a view's: it is the same tree on every screen, and a
@@ -333,20 +308,20 @@
          finds the bar's ☰ instead. -->
     {#if session.isSignedIn}
       {#if viewport.isBelowExpanded}
-        <NavDrawer bind:isOpen={isDrawerOpen} title={isInSection ? t('app.admin.nav') : t('app.nav.title')} dismissLabel={t('app.nav.close')}>
-          {#if isInSection}
-            <AdministrationNav current={sectionRow} onnavigate={go} />
+        <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
+          {#if section}
+            <SectionNav label={section.label} groups={section.groups} current={sectionRow} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
           {/if}
         </NavDrawer>
       {:else}
-        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour={isInSection ? undefined : 'hubs'}>
-          {#if isInSection}
+        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour={section ? undefined : 'hubs'}>
+          {#if section}
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
                  `hubs` step points at the tree, so it does not point here: a step that pointed at
                  a column the tree is not in would explain the wrong thing. -->
-            <AdministrationNav current={sectionRow} {isRail} onnavigate={go} />
+            <SectionNav label={section.label} groups={section.groups} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
           {/if}
@@ -394,7 +369,7 @@
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} word={accountWord} onchoose={chooseAccount} />
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
@@ -435,8 +410,6 @@
     outline-offset: var(--sp-025);
     border-radius: var(--r-xs);
   }
-
-  .notices { padding-block-start: var(--sp-200); padding-inline: var(--sp-300); }
 
   .body { display: flex; flex: 1; min-width: 0; }
 
@@ -531,8 +504,6 @@
     .frame[data-bottombar] { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
 
     main { padding: var(--sp-200); }
-
-    .notices { padding-inline: var(--sp-200); }
   }
 
   .skip {

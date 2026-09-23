@@ -14,6 +14,7 @@
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { ROUTES, paneFor } from './lib/routes.ts';
+  import { ADMINISTRATION, firstScreen } from './lib/navigation.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
@@ -26,10 +27,15 @@ import ContainerView from './views/ContainerView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import ProfileView from './views/ProfileView.svelte';
+  import AppearanceView from './views/AppearanceView.svelte';
+  import NotificationsView from './views/NotificationsView.svelte';
+  import SecurityView from './views/SecurityView.svelte';
+  import SessionsView from './views/SessionsView.svelte';
+  import DevicesView from './views/DevicesView.svelte';
+  import GrantsView from './views/GrantsView.svelte';
   import SearchView from './views/SearchView.svelte';
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
-  import AdministrationView from './views/AdministrationView.svelte';
   import AppsView from './views/AppsView.svelte';
   import ConsentView from './views/ConsentView.svelte';
   import GroupsView from './views/GroupsView.svelte';
@@ -78,6 +84,19 @@ import ContainerView from './views/ContainerView.svelte';
   const pane = $derived(paneFor(route, { isLarge: viewport.isLarge }));
   $effect(() => {
     if (pane.kind === 'redirect') router.replace(pane.path);
+  });
+
+  /**
+   * A section's own address opens its first screen (ADR-0065 decision 1).
+   *
+   * `/administration` is linked from the account menu and from the trail of every screen under it,
+   * so it keeps its address; what it no longer has is an index, which was the column's list drawn
+   * a second time. `replace` rather than `navigate`, for the reason the pane's redirect uses it:
+   * the address the reader came from is the one the back button should return to, not the door
+   * they were sent through.
+   */
+  $effect(() => {
+    if (session.isSignedIn && route.name === 'administration') router.replace(firstScreen(ADMINISTRATION));
   });
 
   // Signing in again returns the reader to what they were looking at when the session ended. The
@@ -144,8 +163,22 @@ import ContainerView from './views/ContainerView.svelte';
     <ProfileView />
   {:else if route.name === 'tokens'}
     <MyTokensView />
+  {:else if route.name === 'appearance'}
+    <AppearanceView />
+  {:else if route.name === 'notifications'}
+    <NotificationsView />
+  {:else if route.name === 'security'}
+    <SecurityView />
+  {:else if route.name === 'sessions'}
+    <SessionsView />
+  {:else if route.name === 'devices'}
+    <DevicesView />
+  {:else if route.name === 'grants'}
+    <GrantsView />
   {:else if route.name === 'administration'}
-    <AdministrationView />
+    <!-- The section's front door (ADR-0065 decision 1). The effect above replaces the address with
+         the section's first screen, so nothing is drawn here - not even for the tick in between,
+         which is what a screen saying "not found" under a real address would be. -->
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
   {:else if route.name === 'people'}

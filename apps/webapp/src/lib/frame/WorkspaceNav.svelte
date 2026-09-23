@@ -103,10 +103,14 @@
       id: hub.id,
       label: hub.name,
       icon: 'hub' as const,
-      // Every hub is a branch, whether or not its collections are loaded — because whether it has
-      // any is not known until it is opened, and a hub with no twist is a hub nobody can open to
-      // find out. `isBranch` is what says so without inventing a placeholder child.
-      isBranch: true,
+      // A hub is a branch until its level says otherwise. Whether it has collections is not known
+      // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
+      // carries one, and **loses it once the level has been read and is empty** (issue 1026): a
+      // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
+      // the hub, which is where a collection is made.
+      isBranch:
+        containers.isLevelLoading(hub.id) ||
+        containers.collectionsOf(hub.id).filter((collection) => !live.hasLost(collection.id)).length > 0,
       children: containers
         .collectionsOf(hub.id)
         .filter((collection) => !live.hasLost(collection.id))
@@ -172,10 +176,27 @@
   {#if isTreeReady && !failure && !isRail}
     <ReplicaMark state={containers.hubsState} />
   {/if}
-  <SideNav label={t('app.workspace.title')} {nodes} {current} {isRail} flyoutLabel={(name) => t('app.nav.inside', { name })} bind:expanded onnavigate={navigate} />
+  <!-- `branchLabel` is what makes a hub a place: with a word for the twist, pressing the row goes
+       to the hub and the twist at its end opens and closes it (issue 1022). Without one the row
+       would only fold, which is how the hub's own screen came to be reachable solely through a
+       collection and back up the breadcrumb. -->
+  <SideNav
+    label={t('app.workspace.title')}
+    {nodes}
+    {current}
+    {isRail}
+    flyoutLabel={(name) => t('app.nav.inside', { name })}
+    branchLabel={(name, isExpanded) => t(isExpanded ? 'app.nav.close_branch' : 'app.nav.open_branch', { name })}
+    bind:expanded
+    onnavigate={navigate}
+  />
+  <!-- Folded, a sentence has nowhere to be drawn: what is waiting, what failed and what an empty
+       workspace should do next are all words, and a column of marks has room for none of them
+       (ADR-0063 decision 2). The rail draws the marks and the one control; the reader unfolds it
+       to be told anything. -->
   {#if !isTreeReady}
-    <div aria-busy="true"><Skeleton lines={4} /></div>
-  {:else if failure}
+    {#if !isRail}<div aria-busy="true"><Skeleton lines={4} /></div>{/if}
+  {:else if failure && !isRail}
     <ErrorState
       title={failure.message}
       reference={failure.reference}
@@ -183,7 +204,7 @@
       retryLabel={t('app.retry')}
       onRetry={() => containers.refresh()}
     />
-  {:else if containers.hasNoHubs}
+  {:else if containers.hasNoHubs && !isRail}
     <!-- `unused` and not `filtered`: nothing is filtering the sidebar, and voice-and-tone.md §4.2 is
          about a filter that excluded something. §4.1 is the other half of that rule - say what this
          place is for, and offer the one action. Before this the empty state was a dead end, and the
@@ -197,8 +218,10 @@
     </EmptyState>
   {:else}
     <!-- In a block of its own so that the control keeps its width at the start of the line
-         rather than stretching across the column with its label in the middle. -->
-    <div>
+         rather than stretching across the column with its label in the middle. Folded, it stands
+         in the rail's one column with the marks above it: everything drawn in a rail is in that
+         column, or it is the one thing in the navigation that is not (issue 1011). -->
+    <div class="create" data-rail={isRail ? '' : undefined}>
       {#if isRail}
         <IconButton icon="plus" label={t('app.workspace.create_hub')} size="sm" onclick={() => (isCreatingHub = true)} />
       {:else}
@@ -229,6 +252,9 @@
     gap: var(--sp-100);
     min-block-size: 100%;
   }
+
+  /* Folded, the control is in the rail's column like every mark above it. */
+  .create[data-rail] { display: flex; justify-content: center; }
 
   /* Pushed to the bottom of the column, with the hairline that says a band begins. */
   .keeping {

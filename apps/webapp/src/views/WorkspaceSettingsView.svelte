@@ -121,7 +121,6 @@
     }}
   />
 
-  <div class="screen">
     <Stack gap="300">
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -142,7 +141,7 @@
         <Banner tone="success">{t('app.workspace.saved')}</Banner>
       {/if}
 
-      <form onsubmit={save}>
+      <form class="panel" onsubmit={save}>
         <Stack gap="200">
           <Input
             label={t('app.workspace.name')}
@@ -215,17 +214,13 @@
       </form>
     {/if}
     </Stack>
-  </div>
 </Stack>
 
 <style>
-  /* Rule 4: a column that grows with its text and stops before it becomes a line nobody can read. */
-  /* The reading measure the section gives a document (ADR-0063 decision 7), and the **head is not
-     in it**: `PageHeader` folds by the width it has rather than by the viewport, so a head inside
-     a 60ch column folds like one on a phone and hides its trail behind the parent link. The trail
-     is what says where in the section a screen is, so the measure belongs to the content under
-     the head rather than to the screen. */
-  .screen { max-width: 60ch; }
+  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
+     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
+     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
+     screen that is not a document. */
 
   .quiet {
     margin: 0;
@@ -241,5 +236,17 @@
 
   .fixed { margin: 0; font-family: var(--font-mono); color: var(--text-primary); }
 
-  form { margin: 0; }
+  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
+     input as wide as the region is a target nobody aims at, so the fields carry a measure of
+     their own while the lists and tables beside them take the width. */
+  form { margin: 0; max-inline-size: 52ch; }
+
+  /* The surface a form stands on, as the other screens of the section draw one: a standalone
+     element in the sense of design-system.md rule 1, on the frame's canvas. */
+  .panel {
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
 </style>

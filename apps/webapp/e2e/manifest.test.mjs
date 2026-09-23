@@ -8,8 +8,10 @@
 // Three roads to that screen are walked here, because they are three different defects:
 //
 //   1. the read failed and stayed failed — the column has to say so rather than be empty;
-//   2. the reader has to be able to ask again from where they are, which is the one mark in the
-//      bar (ADR-0063 decision 5) and not a page ADR-0063 decision 6 took out of the navigation;
+//   2. the reader has to be able to ask again from where they are, which is the mark the frame
+//      keeps for what the application says about **itself** (ADR-0065 decision 4) and not a page
+//      ADR-0063 decision 6 took out of the navigation. It moved there from the connection's mark:
+//      that one is drawn only with a session, and the manifest is read before anybody signs in;
 //   3. a stale bearer at boot signs the reader out through the manifest's own request, and the
 //      sign-in that follows has to read it again — as that actor, because the server scopes the
 //      answer by the caller.
@@ -40,8 +42,14 @@ const problem = (status, code) => ({
   body: JSON.stringify({ type: 'about:blank', title: code, status, code }),
 });
 
-/** The bar's one mark, and what it opens. */
-const markOf = (page) => page.getByRole('banner', { name: 'Application bar' }).locator('.trigger');
+/**
+ * The mark that carries what the application says about itself, and what it opens.
+ *
+ * `NoticeMark`, not the connection's `SyncStatus`: what is unread here is the installation rather
+ * than a change of this copy's, and - the half that decides it - this mark is drawn on every
+ * screen while the connection's needs a session (ADR-0065 decision 4).
+ */
+const markOf = (page) => page.getByRole('banner', { name: 'Application bar' }).locator('.notice-mark');
 
 test('chromium: the manifest never answers — the entry says so, and the bar can ask again', async (t) => {
   const browser = await chromium.launch();
@@ -84,14 +92,18 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   // The server's own sentence beside it, rather than this screen's paraphrase of a status code.
   assert.equal(await page.locator('.unread-detail').count() >= 1, true, 'the reason the server gave is not shown');
 
-  // The mark in the bar carries the dot: there is something to read, without a count (decision 5).
+  // The mark in the bar carries the dot: there is something to read, without a count.
   const mark = markOf(page);
   assert.equal(await mark.locator('.dot').count(), 1, 'the bar does not say there is something to read');
-  assert.equal(await mark.evaluate((el) => el.hasAttribute('data-quiet')), false, 'the mark is still quiet');
+  assert.equal(
+    await mark.getByRole('button', { name: /This installation could not be read/ }).count(),
+    1,
+    'the mark does not name what is wrong',
+  );
 
   // And it is where the retry is. `/installation` has no navigation entry; this is on every screen.
-  await mark.click();
-  const surface = page.getByRole('dialog', { name: 'The copy and the server' });
+  await mark.locator('button').click();
+  const surface = page.getByRole('dialog', { name: /This installation could not be read/ });
   await surface.waitFor({ timeout: 5_000 });
   assert.equal(await surface.getByText('This installation could not be read', { exact: false }).count(), 1);
   answers = true;
