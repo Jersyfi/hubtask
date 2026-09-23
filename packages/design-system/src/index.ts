@@ -106,6 +106,7 @@ export { default as UploadField } from './UploadField.svelte';
 export { default as DueDateControl, type DueDate } from './DueDateControl.svelte';
 export {
   default as Timeline,
+  type TimelineCarry,
   type TimelineRow,
   type TimelineTick,
 } from './Timeline.svelte';
@@ -133,7 +134,9 @@ export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
 
 export {
   DRAG_THRESHOLD_PX,
+  HOLD_MS,
   boundariesOf,
+  columnAt,
   dropIndex,
   hasLeftTheHandle,
   rankIntent,
