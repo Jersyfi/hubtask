@@ -163,11 +163,20 @@
          A navigation tree is the one place the two coincide, and a screen reader is told each in
          its own vocabulary. -->
     {#each rows as row, index (row.node.id)}
-      {#if row.depth === 0 && row.node.band?.caption}
-        <!-- A band's caption. `role="none"` because it is not a node of the tree: it says what the
-             rows under it are, and the arrows walk past it the way they walk past a heading. -->
+      {#if row.depth === 0 && row.node.band !== undefined}
+        <!-- Where a band begins, as an element of its own: the hairline, the air above it, and the
+             caption where there is one. `role="none"` because it is not a node of the tree — it
+             says what the rows under it are, and the arrows walk past it the way they walk past a
+             heading.
+             **The separation is never drawn on a row.** It was, and a row carrying
+             `padding-block-start` for it had to have that padding taken off again at the head of
+             the column — which took the row's own vertical padding with it, and drew the first row
+             of every band short and its background against its text (issue 1010).
+             Folded, the caption is not drawn: a rail is a column of marks, and a five-word group
+             name in it is words in a place that has no room for any (issue 1012). What separates
+             one group of marks from the next is the hairline, which is what is left here. -->
         <li class="band" role="none">
-          <span>{row.node.band.caption}</span>
+          {#if row.node.band.caption && !isRail}<span>{row.node.band.caption}</span>{/if}
         </li>
       {/if}
       <li
@@ -175,7 +184,6 @@
         role="treeitem"
         data-index={index}
         data-node={row.node.id}
-        data-band={row.depth === 0 && row.node.band !== undefined ? '' : undefined}
         title={isRail ? row.node.label : undefined}
         aria-label={isRail ? row.node.label : undefined}
         aria-expanded={row.isBranch ? (isRail ? opened === row.node.id : row.isExpanded) : undefined}
@@ -236,30 +244,26 @@
   .tree { margin: 0; padding: 0; list-style: none; }
 
   /* Where a band begins: a hairline and the air that says "these are a different kind of thing".
-     The first row of the column opens no band, whatever it carries. */
-  .row[data-band],
+     Its own element, so that no row's geometry depends on which band it opens. */
   .band {
     margin-block-start: var(--sp-200);
     padding-block-start: var(--sp-200);
+    padding-inline: var(--sp-100);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
 
-  .tree > :first-child {
+  /* The column's own head opens no band, whatever the first node carries: there is nothing above
+     it to be separated from. */
+  .tree > .band:first-child {
     margin-block-start: 0;
     padding-block-start: 0;
     border-block-start: 0;
   }
 
-  /* A captioned band is opened by its caption; the row under it only follows. */
-  .band + .row[data-band] {
-    margin-block-start: 0;
-    padding-block-start: 0;
-    border-block-start: 0;
-  }
-
-  /* The caption, in the `label` role §3 gives a field name and a group title. */
-  .band {
-    padding-inline: var(--sp-100);
+  /* The caption, in the `label` role §3 gives a field name and a group title. The air under it is
+     the caption's, so a band with none is the hairline and the space above it and nothing else. */
+  .band > span {
+    display: block;
     padding-block-end: var(--sp-050);
     color: var(--text-subtle);
     font-size: var(--fs-075);
