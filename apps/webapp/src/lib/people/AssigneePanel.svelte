@@ -8,6 +8,11 @@
   // control that wrote both would be a client deciding which merge rule applies. So one picker
   // sets the assignee and another adds and removes members, one call at a time.
   //
+  // **And two named parts, because that is two questions** (ADR-0063 decision 10). The panel drew
+  // the two pickers with nothing between them, so the difference the model makes was invisible:
+  // the reader saw one list of people and then another. Each part now carries its name and the one
+  // sentence that distinguishes it from the other — who the entry is *theirs*, and who is along.
+  //
   // **The manifest decides which of them exist.** An activity carries an assignee and no member
   // list, and this component learns that from `/meta/capabilities` rather than from a list of
   // types written here. A type that carries neither shows the reason, because a control that is
@@ -40,14 +45,8 @@
   /**
    * Whether anything would choose, if asked.
    *
-   * The button used to be offered whatever the collection had been set up with, so pressing it
-   * where no policy exists spent a round trip to be told afterwards that nothing happened (issue
-   * 917). The answer is on the collection the client already holds - `policies.auto_assign`, with
-   * its `enabled` - so the reason travels with the control rather than arriving after it.
-   *
-   * The control stays and carries its reason rather than disappearing: `domain-model.md` §2's
-   * rule is that a refusal is never silent, and automatic assignment is exactly something
-   * somebody might want and be missing.
+   * The answer is on the collection the client already holds - `policies.auto_assign`, with its
+   * `enabled` - rather than a round trip that ends in "nothing happened" (issue 917).
    */
   $effect(() => {
     const wanted = item.collection_id;
@@ -117,68 +116,78 @@
   }
 </script>
 
-<Stack gap="200">
-  <CapabilityGate
-    status={assignment.status}
-    reason={assignment.status === 'refused' ? t(assignment.code, assignment.params) : undefined}
-    pendingLabel={t('app.people.deciding')}
-  >
-    <AssigneeControl
-      label={t('app.people.assignee')}
-      {candidates}
-      selection="single"
-      selected={item.assignee_id ? [item.assignee_id] : []}
-      filterLabel={t('app.people.filter')}
-      locale={messages.locale}
-      emptyLabel={t('app.people.no_candidates')}
-      noMatchLabel={t('app.people.no_match')}
-      chosenLabel={t('app.people.assigned_to')}
-      unassignedLabel={t('app.people.unassigned')}
-      onSelect={setAssignee}
-    />
+<Stack gap="250">
+  <!-- Responsible: one person, the entry is theirs. -->
+  <section class="part">
+    <h3 class="name">{t('app.people.responsible')}</h3>
+    <p class="says">{t('app.people.responsible_hint')}</p>
+    <CapabilityGate
+      status={assignment.status}
+      reason={assignment.status === 'refused' ? t(assignment.code, assignment.params) : undefined}
+      pendingLabel={t('app.people.deciding')}
+    >
+      <AssigneeControl
+        label={t('app.people.responsible')}
+        {candidates}
+        selection="single"
+        selected={item.assignee_id ? [item.assignee_id] : []}
+        filterLabel={t('app.people.filter')}
+        locale={messages.locale}
+        emptyLabel={t('app.people.no_candidates')}
+        noMatchLabel={t('app.people.no_match')}
+        chosenLabel={t('app.people.assigned_to')}
+        unassignedLabel={t('app.people.unassigned')}
+        onSelect={setAssignee}
+      />
 
-    <div class="auto">
-      <Button
-        size="sm"
-        tone="secondary"
-        isBusy={isAutoAssigning}
-        busyLabel={t('app.people.auto_assigning')}
-        disabledReason={autoAssignReason}
-        onclick={runAutoAssign}
-      >
-        {t('app.people.auto_assign')}
-      </Button>
-      {#if outcome}
-        <!-- A result, not a failure. "Nobody was eligible" is the policy having run and found no
-             one, and rendering it as an error would say something broke. -->
-        <p class="outcome">
-          {outcome.assigned
-            ? t('app.people.auto_assigned', { strategy: outcome.strategy })
-            : t(outcome.code ?? 'app.people.auto_assign_none', { strategy: outcome.strategy })}
-        </p>
-      {/if}
-    </div>
-  </CapabilityGate>
+      <div class="auto">
+        <Button
+          size="sm"
+          tone="secondary"
+          isBusy={isAutoAssigning}
+          busyLabel={t('app.people.auto_assigning')}
+          disabledReason={autoAssignReason}
+          onclick={runAutoAssign}
+        >
+          {t('app.people.auto_assign')}
+        </Button>
+        {#if outcome}
+          <!-- A result, not a failure. "Nobody was eligible" is the policy having run and found
+               no one, and rendering it as an error would say something broke. -->
+          <p class="outcome">
+            {outcome.assigned
+              ? t('app.people.auto_assigned', { strategy: outcome.strategy })
+              : t(outcome.code ?? 'app.people.auto_assign_none', { strategy: outcome.strategy })}
+          </p>
+        {/if}
+      </div>
+    </CapabilityGate>
+  </section>
 
-  <CapabilityGate
-    status={membership.status}
-    reason={membership.status === 'refused' ? t(membership.code, membership.params) : undefined}
-    pendingLabel={t('app.people.deciding')}
-  >
-    <AssigneeControl
-      label={t('app.people.members')}
-      {candidates}
-      selection="multiple"
-      selected={memberIds}
-      filterLabel={t('app.people.filter')}
-      locale={messages.locale}
-      emptyLabel={t('app.people.no_candidates')}
-      noMatchLabel={t('app.people.no_match')}
-      chosenLabel={t('app.people.members')}
-      unassignedLabel={t('app.people.no_members')}
-      onSelect={setMembers}
-    />
-  </CapabilityGate>
+  <!-- Also on it: several people, who follow the entry rather than own it. -->
+  <section class="part">
+    <h3 class="name">{t('app.people.also_on_it')}</h3>
+    <p class="says">{t('app.people.also_on_it_hint')}</p>
+    <CapabilityGate
+      status={membership.status}
+      reason={membership.status === 'refused' ? t(membership.code, membership.params) : undefined}
+      pendingLabel={t('app.people.deciding')}
+    >
+      <AssigneeControl
+        label={t('app.people.also_on_it')}
+        {candidates}
+        selection="multiple"
+        selected={memberIds}
+        filterLabel={t('app.people.filter')}
+        locale={messages.locale}
+        emptyLabel={t('app.people.no_candidates')}
+        noMatchLabel={t('app.people.no_match')}
+        chosenLabel={t('app.people.members')}
+        unassignedLabel={t('app.people.no_members')}
+        onSelect={setMembers}
+      />
+    </CapabilityGate>
+  </section>
 
   {#if failure}
     <p class="failure" role="alert">{failure}</p>
@@ -186,6 +195,20 @@
 </Stack>
 
 <style>
+  .part { display: flex; flex-direction: column; gap: var(--sp-100); }
+
+  /* The part's name. The `label` row of design-system.md §3, which is what every other field
+     name in this panel's neighbours is drawn as. */
+  .name {
+    margin: 0;
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+    color: var(--text-subtle);
+  }
+
+  /* The sentence that distinguishes one part from the other. */
+  .says { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); max-width: 48ch; }
+
   .auto { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .outcome { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
