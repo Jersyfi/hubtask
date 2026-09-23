@@ -36,7 +36,7 @@ WITH level AS (
   FROM bucket
   WHERE collection_id = $1::uuid
     AND deleted_at IS NULL
-    AND id <> $2::uuid
+    AND id IS DISTINCT FROM $2::uuid
 ), anchor AS (
   SELECT order_key FROM level WHERE id = $3::uuid
 )
@@ -70,6 +70,10 @@ type BucketOrderKeyNeighboursRow struct {
 //
 // The moving bucket is excluded from its own board: a reorder would otherwise measure a position
 // against the rank it is leaving.
+//
+// "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
+// nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
+// for every row, which empties this list and reports an anchor that is present as missing (issue 992).
 func (q *Queries) BucketOrderKeyNeighbours(ctx context.Context, arg BucketOrderKeyNeighboursParams) (BucketOrderKeyNeighboursRow, error) {
 	row := q.db.QueryRow(ctx, bucketOrderKeyNeighbours, arg.CollectionID, arg.MovingID, arg.BeforeID)
 	var i BucketOrderKeyNeighboursRow
