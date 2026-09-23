@@ -650,6 +650,18 @@ jobs:
           restore-keys: pnpm-${{ runner.os }}-
       - if: ${{ matrix.run }}
         run: pnpm install --frozen-lockfile
+      # `make website` is the command the Website workflow runs to produce what it publishes, and
+      # until now nothing ran it before `main`: it named its own dependency list, missed
+      # `@hubtask/api-client` when P-01 added the import, and was red for a week on a post-merge
+      # workflow nobody watches (#982) while this job stayed green - because this job derives the
+      # list from package.json and the Makefile did not.
+      #
+      # The position is the point. It runs before the builds below, so no `dist/` exists yet:
+      # that is the condition the deploy gets and the one a developer's machine never has. Moving
+      # it after them would make it pass on leftovers, which is exactly the way this broke.
+      - name: The command that publishes the website builds it here first
+        if: ${{ matrix.run && matrix.package == 'website' }}
+        run: make website
       # `^...` is "everything this package depends on, but not the package itself". For a package
       # with no workspace dependencies the selection is empty and pnpm exits 0.
       - name: Build what this package consumes
