@@ -28,6 +28,7 @@
 import type { TransportError, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { keyFor, keysIn } from './searchhandle.ts';
 import {
   canOfferRest,
   readerLanguages,
@@ -99,11 +100,9 @@ class Search {
   /**
    * The words the app bar handed over, waiting for the screen they were handed to.
    *
-   * In memory rather than in the address, and that is the one sentence of ADR-0063 decision 4 this
-   * client does not do: the decision says the bar navigates to `/search?q=…`, and a `?q=` would
-   * undo the reason `/search` is a `POST` with no `GET` (the note at the top of this file). So the
-   * bar hands the words over here and the screen takes them, once. The address still carries the
-   * *narrowing*, which is structural rather than content — `searchfilters.ts` is what writes it.
+   * In memory rather than in the address: the address carries the *narrowing* and never the words
+   * (ADR-0063 decision 4 as corrected, issue 997). What makes them survive a reload is not this —
+   * it is the handle below.
    */
   #handedOver = $state<string | undefined>(undefined);
 
@@ -170,6 +169,48 @@ class Search {
     const term = this.#handedOver;
     this.#handedOver = undefined;
     return term;
+  }
+
+  /**
+   * Keeps the words under the handle the address carries, so that a reload finds them again.
+   *
+   * `sessionStorage` for what a search is — the thing somebody is doing now: it survives a reload
+   * and the back button, and dies with the tab, exactly as the credential does. A browser that
+   * refuses storage still searches; it just forgets across a reload, which is where this started.
+   */
+  remember(handle: string, term: string): void {
+    try {
+      if (term === '') globalThis.sessionStorage?.removeItem(keyFor(handle));
+      else globalThis.sessionStorage?.setItem(keyFor(handle), term);
+    } catch {
+      // No storage. The search still works; it does not survive a reload.
+    }
+  }
+
+  /** What was typed under this handle, or nothing — another tab's handle, or a cleared one. */
+  recall(handle: string): string | undefined {
+    try {
+      return globalThis.sessionStorage?.getItem(keyFor(handle)) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Drops every search this tab remembered. Called where the session is discarded.
+   *
+   * A search term is the reader's content, so it ends with their session rather than with the tab
+   * — a shared browser is a real thing, and `sessionStorage` alone would keep it until the tab
+   * closed.
+   */
+  forget(): void {
+    try {
+      const storage = globalThis.sessionStorage;
+      if (!storage) return;
+      for (const key of keysIn(storage)) storage.removeItem(key);
+    } catch {
+      // Nothing to forget from, which is the same outcome.
+    }
   }
 
   /** Empties it. What clearing the field does, and what leaving the screen should do. */
