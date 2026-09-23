@@ -77,6 +77,12 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.BeforeItemId != nil {
 		in["before_item_id"] = body.BeforeItemId.String()
 	}
+	// The cover the entry is created with, served since F10-17 (issue 896). What it says travels
+	// whole - the field used to be passed on as an empty document, which refused the request by
+	// name and therefore never had to carry anything.
+	if body.Cover != nil {
+		in["cover"] = coverDocument(*body.Cover)
+	}
 	withUnservedItemFields(body, in)
 
 	out, err := c.UseCases.Invoke(r.Context(), createWorkItemUseCase, actor, in)
@@ -267,12 +273,33 @@ func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	if body.MemberIds != nil {
 		in["member_ids"] = uuidList(*body.MemberIds)
 	}
-	if body.Cover != nil {
-		in["cover"] = map[string]any{}
-	}
 	if body.CustomFields != nil {
 		in["custom_fields"] = map[string]any(*body.CustomFields)
 	}
+}
+
+// coverDocument is the contract's cover as the catalogue's untyped document.
+//
+// Written out member by member rather than marshalled: the generated type holds pointers, and a
+// JSON round trip here would turn an unsent member into a null the catalogue would have to tell
+// apart from an absent one. A member the caller did not send is simply not in the map, which is
+// what every other field on this path does.
+// `Cover` and not `CoverInput`: `WorkItemCreate` references the first, which differs only in
+// leaving `kind` optional. A cover with no kind is then refused by the domain, naming
+// `/cover/kind` - which is a better answer than a schema error, and no reason to change the
+// contract for.
+func coverDocument(cover openapi.Cover) map[string]any {
+	document := map[string]any{}
+	if cover.Kind != nil {
+		document["kind"] = string(*cover.Kind)
+	}
+	if cover.ColorToken != nil {
+		document["color_token"] = *cover.ColorToken
+	}
+	if cover.MediaId != nil {
+		document["media_id"] = cover.MediaId.String()
+	}
+	return document
 }
 
 func uuidList(values []openapi_types.UUID) []any {

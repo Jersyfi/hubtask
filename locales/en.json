@@ -262,6 +262,8 @@
   "items.cover_kind_unknown": "{value} is not a kind of cover. Use COLOR or IMAGE.",
   "items.cover_contradictory": "A COLOR cover carries a colour token and an IMAGE cover a media identifier - exactly one of the two.",
   "items.cover_token_malformed": "The colour token has to fit on one line.",
+  "items.cover_malformed": "The cover has to be an object saying what it is: a kind, and a colour token or a media identifier.",
+  "items.cover_media_id_malformed": "That is not a media identifier.",
   "fields.kind_unknown": "{value} is not a kind of custom field. Use TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER or URL.",
   "fields.key_required": "A custom field needs a key.",
   "fields.key_too_long": "A key may be at most {maximum} characters long.",

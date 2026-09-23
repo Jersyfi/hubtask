@@ -538,6 +538,7 @@ type itemHarness struct {
 	uow         *unitOfWork
 	visibility  *visibility
 	policies    *policyStore
+	media       *mediaObjects
 }
 
 func newItemHarness() *itemHarness {
@@ -558,6 +559,7 @@ func newItemHarness() *itemHarness {
 		uow:         &unitOfWork{},
 		visibility:  newVisibility(assigneeID, accountID),
 		policies:    newPolicyStore(),
+		media:       newMediaObjects(),
 	}
 	h.handler = CreateWorkItem{
 		Items: store, Containers: containerStore, Profiles: h.profiles,
@@ -599,6 +601,13 @@ func newItemHarness() *itemHarness {
 			Items: store, ItemMembers: h.itemMembers, Containers: containerStore,
 			Profiles: h.profiles, Authorizer: h.authorizer, Visibility: h.visibility,
 			Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		},
+		// The cover writer, over the same fakes (issue 896): the create path is its second caller.
+		Covers: CoverWriter{
+			Items: store, Containers: containerStore, Profiles: h.profiles, Media: h.media,
+			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
@@ -1187,7 +1196,7 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
 		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
-		"calendar_uid", "label_ids", "member_ids", "before_item_id",
+		"calendar_uid", "label_ids", "member_ids", "before_item_id", "cover",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
@@ -1195,7 +1204,7 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	}
 	// The contract promises these on WorkItemCreate too, and no use case writes them at
 	// creation yet (issue 896); they are refused by name rather than accepted and dropped.
-	for _, later := range []string{"cover", "custom_fields"} {
+	for _, later := range []string{"custom_fields"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}
@@ -1203,9 +1212,15 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 
 	if err := descriptor.ValidateInput(map[string]any{
 		"type": "TASK", "title": "Buy milk",
-		"cover": map[string]any{"kind": "COLOR", "color_token": "accent.red"},
+		"custom_fields": map[string]any{"priority": "high"},
 	}); err == nil {
 		t.Error("a field nothing writes was accepted rather than refused by name")
+	}
+	if err := descriptor.ValidateInput(map[string]any{
+		"type": "TASK", "title": "Buy milk",
+		"cover": map[string]any{"kind": "COLOR", "color_token": "accent.red"},
+	}); err != nil {
+		t.Errorf("the cover, which the contract promises, was refused: %v", err)
 	}
 	if err := descriptor.ValidateInput(map[string]any{
 		"type": "TASK", "title": "Buy milk",
@@ -1265,6 +1280,66 @@ func TestASiblingThatIsNotAtTheLevelRefusesTheCreate(t *testing.T) {
 	if len(h.items.stored) != 1 {
 		t.Errorf("the entry was created anyway: %d rows", len(h.items.stored))
 	}
+}
+
+// The cover the contract has promised on WorkItemCreate since 0.3 and the catalogue refused until
+// F10-17 (issue 896): the entry is created already carrying it, through the writer that owns it.
+func TestACreateCoversTheEntryThroughTheWriterThatOwnsTheCover(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = coverProfiles()
+
+	cmd := taskCommand()
+	cmd.Cover = &CoverCommand{Kind: domain.CoverColor, ColorToken: "surface.sand"}
+	created, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+
+	if created.Cover == nil || created.Cover.ColorToken != "surface.sand" {
+		t.Fatalf("cover = %+v", created.Cover)
+	}
+	// The writer's own records, not the create's: what a cover set through the route writes is
+	// what a cover set at creation writes.
+	var covered bool
+	for _, entry := range h.audit.entries {
+		covered = covered || entry.Action == ItemCoverSetAction
+	}
+	if !covered {
+		t.Error("the cover was written without the audit entry the route writes")
+	}
+	var told bool
+	for _, entry := range h.history.entries {
+		told = told || entry.Verb == activity.ItemCoverSet
+	}
+	if !told {
+		t.Error("the entry's own history does not say it was covered")
+	}
+}
+
+// A type whose profile carries no COVER refuses, and the refusal takes the creation with it: an
+// entry created without the cover asked for would be an entry the client believes has a picture.
+func TestACoverOnATypeThatHasNoneRefusesTheCreate(t *testing.T) {
+	h := newItemHarness()
+	task := h.withTask()
+
+	cmd := taskCommand()
+	cmd.Type = domain.ItemWorkPackage
+	cmd.CollectionID = ""
+	cmd.ParentID = task.ID
+	cmd.Cover = &CoverCommand{Kind: domain.CoverColor, ColorToken: "surface.sand"}
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+
+	failure := shared.AsError(err)
+	if failure == nil || failure.DetailCode != "items.capability_not_supported" {
+		t.Fatalf("error = %v", err)
+	}
+	// Reported where the caller wrote it: `/cover`, not the body of a route they did not call.
+	if len(failure.Fields) == 0 || !strings.HasPrefix(failure.Fields[0].Path, "/cover") {
+		t.Errorf("fields = %+v", failure.Fields)
+	}
+	// That the row goes with the refusal is the unit of work's doing, and this fake does not roll
+	// back - a test here that counted rows would be testing the fake. The integration suite is
+	// where a half-applied create would show, against a database that really rolls back.
 }
 
 // The output is the contract's shape, in the contract's words, so that all three channels

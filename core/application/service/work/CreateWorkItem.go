@@ -105,6 +105,12 @@ type CreateWorkItemCommand struct {
 	// Empty for none.
 	LabelIDs  []shared.ID
 	MemberIDs []shared.ID
+	// Cover creates the entry already covered (issue 896): a colour token or an image, with the
+	// rules and the records of `PUT /items/{id}/cover`, in the same transaction as the creation.
+	// Nil for an entry with no cover. `ItemID` is filled at the dispatch - the caller of a create
+	// does not know the identifier yet, which is half of why this field had to be written here
+	// rather than left to a second request.
+	Cover *CoverCommand
 	// BeforeItemID is the sibling the new entry is ranked in front of, and empty puts it at the
 	// end (issue 896). The contract has promised it since 0.1 and the catalogue refused it by
 	// name; it is the move's own anchor, answered by the same neighbours query and the same
@@ -158,6 +164,10 @@ type CreateWorkItem struct {
 	// audit entry as one put on a moment later.
 	Labels  ItemLabelWriter
 	Members ItemMemberWriter
+	// Covers is the writer the declared cover dispatches into (issue 896), reused whole for the
+	// same reason: one place decides what a cover may be, what an image has to be before it may
+	// become one, and what the change owes.
+	Covers CoverWriter
 	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5, M-07).
 	Text text.Normalizer
 }
@@ -298,6 +308,22 @@ func (h CreateWorkItem) Execute(
 					return err
 				}
 			}
+		}
+		// And its cover, through the writer that owns it (issue 896): a type whose profile
+		// carries no COVER, a malformed token or an image the media context will not stand
+		// behind refuses here and takes the creation with it.
+		if cmd.Cover != nil {
+			profile, err := profileOf(ctx, h.Profiles, created.Type)
+			if err != nil {
+				return err
+			}
+			asked := *cmd.Cover
+			asked.ItemID = created.ID
+			covered, err := h.Covers.setWithin(ctx, actor, created, profile, asked, now)
+			if err != nil {
+				return err
+			}
+			created = covered
 		}
 		// And its labels and its members, through the writers that own the two sets (issue
 		// 878): a label from another collection, or a type whose profile carries no LABELS,
@@ -989,6 +1015,14 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"names the element and takes the whole creation with it.",
 			},
 			{
+				Name: "cover", Kind: usecase.KindObject,
+				Description: "The cover the entry is created with: {kind: COLOR, color_token} " +
+					"or {kind: IMAGE, media_id}, with the rules of PUT /items/{id}/cover. Only a " +
+					"type whose profile carries COVER has one; a token the design system does " +
+					"not name, or an image the media context will not stand behind, refuses the " +
+					"whole creation rather than creating an entry without the cover asked for.",
+			},
+			{
 				Name: "before_item_id", Kind: usecase.KindID,
 				Description: "The sibling to rank the new entry in front of, at the level it is " +
 					"created at. Omitted puts it at the end. A sibling that is not at that " +
@@ -1049,6 +1083,10 @@ func (h CreateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	cover, err := coverOf(in)
+	if err != nil {
+		return nil, err
+	}
 
 	cmd := CreateWorkItemCommand{
 		ID:              id,
@@ -1065,6 +1103,7 @@ func (h CreateWorkItem) invoke(
 		LabelIDs:        labelIDs,
 		MemberIDs:       memberIDs,
 		BeforeItemID:    beforeItemID,
+		Cover:           cover,
 	}
 	if raw := in.String("start_at"); raw != "" {
 		startAt, err := parseInstantField(raw, "start_at")
@@ -1107,6 +1146,67 @@ func customFieldsOutput(values map[string]any) map[string]any {
 // the standalone route refuses at `/label_id` was, on a create, the second entry of `/label_ids`,
 // and a client puts the message under the control that sent it (api-guidelines.md §3). Anything
 // that is not a validation error passes through as it is.
+// coverOf reads the cover document the catalogue only checked the shape of.
+//
+// The members are read one by one rather than through a JSON round trip, for the reason the filter
+// tree is: the catalogue's input is a map that came from three channels, and a marshal-unmarshal
+// here would be a fourth spelling of the same document. What each member may be is the domain's
+// question - `NewCover` refuses a contradiction - and this only says which member is which.
+func coverOf(in usecase.Input) (*CoverCommand, error) {
+	raw, sent := in["cover"]
+	if !sent || raw == nil {
+		return nil, nil
+	}
+	document, isDocument := raw.(map[string]any)
+	if !isDocument {
+		return nil, shared.ErrValidation.
+			WithDetail("items.cover_malformed").
+			WithFields(shared.FieldError{Path: "/cover", Code: "items.cover_malformed"})
+	}
+	cmd := CoverCommand{
+		Kind:       domain.CoverKind(coverText(document, "kind")),
+		ColorToken: coverText(document, "color_token"),
+	}
+	if raw := coverText(document, "media_id"); raw != "" {
+		mediaID, err := shared.ParseID(raw)
+		if err != nil {
+			return nil, shared.ErrValidation.
+				WithDetail("items.cover_media_id_malformed").
+				WithFields(shared.FieldError{
+					Path: "/cover/media_id", Code: "items.cover_media_id_malformed",
+				})
+		}
+		cmd.MediaID = mediaID
+	}
+	return &cmd, nil
+}
+
+// coverText reads one member as a string, and reads anything else as absent: a number where a
+// token belongs is a contradiction the domain names, not something to guess the spelling of.
+func coverText(document map[string]any, member string) string {
+	text, isText := document[member].(string)
+	if !isText {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
+
+// atField re-reports a writer's field findings under the name the create's own request used: a
+// refusal that said `/kind` on `PUT /items/{id}/cover` is, on a create, something inside `/cover`.
+func atField(err error, field string) error {
+	var typed *shared.Error
+	if !errors.As(err, &typed) || len(typed.Fields) == 0 {
+		return err
+	}
+	fields := make([]shared.FieldError, 0, len(typed.Fields))
+	for _, each := range typed.Fields {
+		fields = append(fields, shared.FieldError{
+			Path: field + each.Path, Code: each.Code, Params: each.Params,
+		})
+	}
+	return typed.WithFields(fields...)
+}
+
 func atListElement(err error, list string, position int) error {
 	var typed *shared.Error
 	if !errors.As(err, &typed) || len(typed.Fields) == 0 {

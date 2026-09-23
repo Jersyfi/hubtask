@@ -1305,6 +1305,7 @@ func run() error {
 			DueDates:   dueDateWriter,
 			Labels:     itemLabelWriter,
 			Members:    itemMemberWriter,
+			Covers:     coverWriter,
 			Text:       forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{
