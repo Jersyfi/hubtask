@@ -1952,7 +1952,7 @@
   "app.tour.search.caption": "Ask for entries in one line",
   "app.tour.search.body": "Words find titles and notes. Add is:open, due:today or label:name to narrow it — the whole query language fits in this field.",
   "app.tour.profile.caption": "Yours to set",
-  "app.tour.profile.body": "Language, time zone and the first day of the week follow you; the theme and motion belong to this device. The moments are marked unless you say otherwise.",
+  "app.tour.profile.body": "Language, time zone and the first day of the week follow you, wherever you sign in. The theme, the motion and the moments are on the next row of this column, because they belong to the device in front of you.",
   "app.tour.make.caption": "Now make one",
   "app.tour.make.body": "Add an entry and tick it off. That first completion is the moment this tour has been leading to.",
   "app.entries.reopened_announced": "{title} is open again.",

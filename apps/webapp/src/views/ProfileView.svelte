@@ -85,7 +85,9 @@
   <Stack gap="300">
     <SettingsHead row="profile" />
 
-    <form class="panel" onsubmit={(event) => { event.preventDefault(); void save(); }}>
+    <!-- Where the tour's `profile` step points (F6-14). It goes to `/profile`, which is the
+         section's first screen, and what is on the next row of the column its sentence names. -->
+    <form class="panel" data-tour="profile" onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="200">
         {#if locales.length > 0}
           <Select

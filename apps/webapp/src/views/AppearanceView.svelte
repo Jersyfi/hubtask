@@ -82,7 +82,7 @@
   <Stack gap="300">
     <SettingsHead row="appearance" />
 
-    <div class="panel" data-tour="profile">
+    <div class="panel">
       <Stack gap="200">
         <p class="quiet">{t('app.profile.device_hint')}</p>
         <Radio
