@@ -67,6 +67,10 @@ async function stub(route) {
     asked.push(route.request().postDataJSON());
     return route.fulfill({ json: { ...PAGE, data: [HIT] } });
   }
+  // The entry itself, because this walk opens one: the back button is half of what it proves. A
+  // page envelope here would put `undefined` where the screen reads a type, and the entry screen
+  // throws while rendering - on a slow machine, where it gets far enough to try.
+  if (path.endsWith(`/api/v1/items/${HIT.id}`)) return route.fulfill({ json: HIT });
   if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
   if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
@@ -148,8 +152,12 @@ test('chromium: a reload keeps the words, and the address never held them', asyn
   assert.equal(await page.locator('main input[type="search"]').inputValue(), 'milk', 'the reload lost the words');
   assert.equal(new URL(page.url()).searchParams.get('s'), handle, 'the reload minted a second handle');
 
-  // Going away and coming back is the same promise through the other door.
+  // Going away and coming back is the same promise through the other door. The entry is waited
+  // for rather than raced past: a `goBack()` issued while the entry is still rendering passes on a
+  // fast machine and fails on a slow one, which is how this walk first went red only in CI.
   await page.getByRole('link', { name: HIT.title }).click();
+  await page.waitForFunction(() => location.pathname.startsWith('/items/'), null, { timeout: 10_000 });
+  await page.getByRole('heading', { name: HIT.title }).first().waitFor({ timeout: 10_000 });
   await page.goBack();
   await page.waitForFunction(() => document.querySelector('main input[type="search"]')?.value === 'milk', null, { timeout: 10_000 });
 
