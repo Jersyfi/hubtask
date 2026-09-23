@@ -5,18 +5,23 @@
   // rather than fetched and ignored - and it is also the deep link the reload test uses, because
   // it is a real second route rather than a fragment.
 
-  import { Badge, Button, Inline, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Inline, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const state = $derived(manifest.state);
   const problem = $derived(state.status === 'failed' ? renderProblem(state.error, messages) : undefined);
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.installation.title')));
 </script>
 
 <Stack gap="300">
-  <h1>{t('app.installation.title')}</h1>
+  <PageHeader title={t('app.installation.title')} isTitleInBar={viewport.isCompact} />
 
   {#if state.status === 'loading' || state.status === 'idle'}
     <Inline gap="150" align="center">
@@ -61,14 +66,6 @@
 </Stack>
 
 <style>
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   dl {
     display: grid;
     grid-template-columns: auto 1fr;

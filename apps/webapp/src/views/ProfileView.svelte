@@ -28,6 +28,7 @@
     EmptyState,
     ErrorState,
     Input,
+    PageHeader,
     Radio,
     Select,
     Skeleton,
@@ -61,6 +62,8 @@
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { session } from '../lib/session.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const account = $derived(actor.account);
   const accountId = $derived(account?.id);
@@ -276,13 +279,16 @@
     device.setMotion(choice);
     announcer.say(t('app.profile.motion_changed_announced', { choice: t(`app.profile.motion_${choice}`) }));
   });
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.profile.title')));
 </script>
 
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
   <Stack gap="300">
-    <h1 class="name">{t('app.profile.title')}</h1>
+    <PageHeader title={t('app.profile.title')} isTitleInBar={viewport.isCompact} />
 
     <Stack gap="150">
       {#if locales.length > 0}
@@ -633,13 +639,6 @@
 {/if}
 
 <style>
-  .name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-  }
-
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-150); }

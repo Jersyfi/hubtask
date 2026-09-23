@@ -18,13 +18,15 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
   import type { AiJurisdiction, AiProviderKind } from '@hubtask/sync-engine';
 
   import { aiProvider } from '../lib/data/aiprovider.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let kind = $state<AiProviderKind | ''>('');
   let baseUrl = $state('');
@@ -135,11 +137,14 @@
       ? renderProblem(cause, messages)
       : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
   }
+  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
+  // reads its heading rather than drawing it, so the screen keeps one heading.
+  $effect(() => page.entitle(t('app.ai.title')));
 </script>
 
 <div class="screen">
   <Stack gap="300">
-    <h1>{t('app.ai.title')}</h1>
+    <PageHeader title={t('app.ai.title')} isTitleInBar={viewport.isCompact} />
     <p class="quiet">{t('app.ai.intro')}</p>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -233,7 +238,6 @@
 
 <style>
   .screen { max-width: 60ch; }
-  h1 { margin: 0; font-family: var(--font-display); font-size: var(--fs-400); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
