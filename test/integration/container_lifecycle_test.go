@@ -431,6 +431,19 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 		t.Errorf("bounds (%q, %q), want (a3, \"\") - the mover was counted as its own neighbour",
 			previous, next)
 	}
+
+	// And with nothing moving, which is what a create asks: the mover's own rank counts again,
+	// because there is no mover (issue 992). An empty identifier has to leave the level whole.
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		previous, next, err = repo.Neighbours(ctx, hubID, "", "")
+		return err
+	}); err != nil {
+		t.Fatalf("reading the bounds with nothing moving: %v", err)
+	}
+	if previous != "a5" || next != "" {
+		t.Errorf("with nothing moving the bounds are (%q, %q), want (a5, \"\")", previous, next)
+	}
 }
 
 // Ranking a **hub**, against a real database, which is the test that was missing.
