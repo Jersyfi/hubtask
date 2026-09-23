@@ -160,6 +160,15 @@
   );
   const undated = $derived(rows.filter((row) => placement(row) === undefined));
 
+  /**
+   * Whether a bar has two ends worth taking hold of separately.
+   *
+   * One column wide, it has not: the same cell would be both ends, so the whole bar would answer
+   * to whichever handle was drawn on top of it and a drag of the bar could never move both dates.
+   * A one-day span is dragged as a bar, which is the only reading it has.
+   */
+  const hasEnds = (at: { first: number; last: number }) => at.last > at.first;
+
   /** The undated entry being carried onto the axis, and the span it would be given. */
   const placing = $derived.by(() => {
     const held = carry;
@@ -332,13 +341,13 @@
                     ? ''
                     : undefined}
                 >
-                  {#if isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
+                  {#if hasEnds(entry.at) && isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
                     <!-- `tabindex="-1"`: the keyboard path to a date is the entry's own editor, not
                          a handle that would have to invent key bindings for a calendar. -->
                     <button type="button" class="end" data-end="start" aria-label={startHandleLabel} tabindex="-1"
                     ></button>
                   {/if}
-                  {#if isFilled && entry.row.due && column === entry.at.last && dueHandleLabel}
+                  {#if hasEnds(entry.at) && isFilled && entry.row.due && column === entry.at.last && dueHandleLabel}
                     <button type="button" class="end" data-end="due" aria-label={dueHandleLabel} tabindex="-1"
                     ></button>
                   {/if}
@@ -503,22 +512,44 @@
     cursor: grab;
   }
 
+  /* The handle is taller than the bar it sits on, so that the target reaches the floor without the
+     bar getting thicker. It overflows into the row's own `--sp-300` and no further. */
+  .cell[data-filled]:has(.end) { overflow: visible; }
+
   .cell[data-point] { border-radius: var(--r-full); }
 
-  /* The ends of a bar, which are what a drag of one date takes hold of. They are as wide as the
-     column, which at the month scale is narrow - the reader who cannot hit it has the row itself,
-     which opens the entry and its date editor (SC 2.5.7). */
-  /* The due end is the far end of the bar. `space-between` puts a lone child at the near one, and
-     a point - an entry with a due date and no start - has exactly one. */
-  .end[data-end='due'] { margin-inline-start: auto; }
+  /* The ends of a bar, which are what a drag of one date takes hold of.
+     **The target is the cell; the mark is what is drawn in it.** A cell is `--sp-300` on the block
+     axis at every scale and one column on the inline one, so at the day scale the target is
+     24 x 24 - exactly where design-system.md §6 rule 1 puts the floor (WCAG 2.2 SC 2.5.8). At the
+     week and month scales the column is narrower and cannot be widened: 24 px on a 4 px column
+     would cover six days of the picture it exists to edit. That is SC 2.5.8's **Equivalent**
+     exception, and the equivalent is real - the row's title opens the entry, where
+     `DueDateControl` sets both dates with fields that do meet the floor (§11, 2.5.7 and 2.5.8).
 
+     Taller than the bar it sits on, deliberately: the target reaches the floor without the bar
+     getting thicker, and it overflows into the row's own `--sp-300` and no further. */
   .end {
-    inline-size: var(--sp-050);
-    block-size: var(--sp-150);
+    display: flex;
+    align-items: center;
+    inline-size: var(--column);
+    block-size: var(--sp-300);
     border: 0;
     padding: 0;
-    background: var(--accent-primary-pressed);
+    background: transparent;
     cursor: ew-resize;
+  }
+
+  /* Each end's mark sits at the bar's outer edge, so it reads as the end rather than as a notch
+     somewhere inside the last day. */
+  .end[data-end='start'] { justify-content: start; }
+  .end[data-end='due'] { justify-content: end; }
+
+  .end::before {
+    content: '';
+    inline-size: var(--sp-050);
+    block-size: var(--sp-150);
+    background: var(--accent-primary-pressed);
   }
 
   .undated { display: flex; flex-direction: column; gap: var(--sp-050); }

@@ -339,7 +339,13 @@ The layout is a question of width alone, and stays so — `viewport.svelte.ts` a
 nothing reads the platform seam. What the *pointer* changes is written down here and nowhere else:
 
 * `pointer: coarse` takes `density.spacious` and the 48 px control floor at every width. Already
-  true; this ADR keeps it and forbids a second rule.
+  true; this ADR keeps it and forbids a second rule. **That floor governs controls in the frame,
+  not marks drawn inside a data picture** — a Gantt bar's end is positioned and sized by the dates
+  it stands for, and a 24 px target on a 4 px column would cover six days of what it exists to
+  edit. Where a mark cannot reach the floor, WCAG 2.2 SC 2.5.8's *Equivalent* clause applies and
+  the equivalent has to be named: for the timeline it is the row's own title, which opens the
+  entry's date editor (`design-system.md` §11). The accessibility floor itself is 24 px, SC 2.5.8's;
+  the 48 px here is `density.spacious`'s control size (ADR-0061) and not a second a11y rule.
 * Nothing that only appears on hover may be the only way to reach a function. A row's actions are
   its menu, which is a real control on every input.
 * A drag starts on movement for a fine pointer and on a hold for a coarse one (decision 11).
