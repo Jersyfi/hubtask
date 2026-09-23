@@ -3306,6 +3306,7 @@
   "app.item.children": "Under this entry",
   "app.item.no_children": "Nothing sits under this entry yet.",
   "app.item.details": "Details",
+  "app.item.type_unread": "What this kind of entry can hold could not be read, so its fields are not shown. The mark beside your account, at the top, can ask again.",
   "app.pane.close": "Close the pane",
   "app.pane.open_page": "Open as a page",
   "app.item.tabs": "The entry's history",

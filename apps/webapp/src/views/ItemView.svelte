@@ -260,10 +260,31 @@
    * What this entry's **type** carries, from `/meta/capabilities` and from nowhere else
    * (`domain-model.md` §2). A row is drawn only where the answer is `permitted`: a field the
    * profile refuses is answered with 422 by the server, and offering it is offering a refusal.
-   * `pending` — before the manifest has arrived — draws nothing either, because nothing is
-   * knowable yet and a row that appeared late is better than one that was wrong.
    */
   const carries = $derived((capability: string) => (item ? supports(item.type, capability).status === 'permitted' : false));
+  /**
+   * Whether `carries` is answering at all — and the reason this screen asks separately.
+   *
+   * `supports` has three answers and `carries` collapses them into two. `refused` and
+   * `undetermined` both come back as `false`, and for `refused` that is right: the profile says
+   * no and a control nobody can use is a control nobody is offered. For `undetermined` it is a
+   * lie the screen told silently. Until the manifest is read **nothing about any type is known**,
+   * so every row went missing at once and the entry read as a title with a language under it —
+   * with no error, no hint and no pending state to say why (issue 1020). The manifest is read at
+   * boot, so this is a moment on an ordinary load and the whole screen while the read failed.
+   */
+  const isTypeKnown = $derived(manifest.isRead);
+  /**
+   * Why it is not known, where the read failed rather than merely not landed yet.
+   *
+   * The difference decides what is drawn: a skeleton that never resolves is the same silence with
+   * a pulse on it. The retry is not here — it is the one mark in the bar, which is on every
+   * screen (ADR-0063 decision 5), and a second one on this page would be the second answer to
+   * "where do I ask again".
+   */
+  const typeFailure = $derived(
+    manifest.state.status === 'failed' ? renderProblem(manifest.state.error, messages) : undefined,
+  );
   const repeatValue = $derived.by(() => {
     if (!rule) return undefined;
     const frequency = /FREQ=([A-Z]+)/.exec(rule.rrule ?? '')?.[1];
@@ -708,8 +729,11 @@
       </div>
       <!-- The notes, in place, for the same reasons; empty, the field says what it is for. An
            activity carries none (`domain-model.md` §2), and a field whose every save is refused
-           is not a field. -->
-      {#if carries('NOTES')}
+           is not a field. While the manifest has not been read, which type this is decides
+           nothing yet, so the field is pending rather than absent. -->
+      {#if !isTypeKnown}
+        {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
+      {:else if carries('NOTES')}
       <textarea
         class="notes-field"
         lang={entryLang}
@@ -739,7 +763,20 @@
         <details class="details-fold" open={!viewport.isCompact}>
           <summary class="details-summary">{t('app.item.details')}</summary>
           <div class="rows">
-            {@render detailRows()}
+            {#if isTypeKnown}
+              {@render detailRows()}
+            {:else if typeFailure}
+              <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
+                   on. The rows are missing because the installation could not be read, and that
+                   is what it says — with the sentence the server gave, and where to ask again. -->
+              <p class="unread" role="status">{t('app.item.type_unread')}</p>
+              <p class="unread-detail">{typeFailure.message}</p>
+              {#if typeFailure.reference}
+                <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
+              {/if}
+            {:else}
+              <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
+            {/if}
           </div>
         </details>
       </aside>
@@ -753,7 +790,11 @@
           </Stack>
         {/if}
 
-        {#if takesChildren}
+        {#if !isTypeKnown}
+          <!-- What a type holds is the manifest's answer too, so "nothing sits under this" is
+               not something this screen may say before it has one. -->
+          {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={4} /></div>{/if}
+        {:else if takesChildren}
           <!-- The whole subtree (decisions 6 and 7): the same tree the expanded list draws, one
                level down, headed by what it holds and how much of it is done. -->
           <Stack gap="150">
@@ -1046,4 +1087,12 @@
   .pane-menu { display: flex; justify-content: flex-end; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+
+  /* What is missing and why, where the rows would be. Inside the fold's padding, because it
+     stands in for the rows rather than beside them. */
+  .pending { padding: var(--sp-150) 0; }
+
+  .unread { margin: var(--sp-150) 0 0; color: var(--text-primary); font-size: var(--fs-075); }
+
+  .unread-detail { margin: var(--sp-050) 0 var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 </style>

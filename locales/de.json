@@ -2216,6 +2216,7 @@
   "app.item.children": "Unter diesem Eintrag",
   "app.item.no_children": "Unter diesem Eintrag liegt noch nichts.",
   "app.item.details": "Details",
+  "app.item.type_unread": "Was diese Art von Eintrag tragen kann, konnte nicht gelesen werden, darum werden seine Felder nicht gezeigt. Das Zeichen oben neben deinem Konto kann noch einmal fragen.",
   "app.pane.close": "Die Seitenleiste schließen",
   "app.pane.open_page": "Als Seite öffnen",
   "app.item.tabs": "Der Verlauf des Eintrags",
