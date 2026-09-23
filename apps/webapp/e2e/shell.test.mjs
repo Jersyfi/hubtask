@@ -278,10 +278,13 @@ for (const width of [905, 1280]) {
     // The label is announced although it is not drawn, so the rail is navigable by name.
     assert.equal(await tree.getByRole('treeitem', { name: 'Jumble' }).count(), 1, `${width}: the rail's rows lost their names`);
 
-    // A branch pressed in the rail opens its subtree beside the column, so nothing is unreachable
-    // while the navigation is folded (ADR-0063 decision 2). Escape closes it and focus comes back.
+    // A branch pressed in the rail **goes to the branch and** opens its subtree beside the column,
+    // so a press means what it means unfolded and nothing is unreachable while the navigation is
+    // folded (ADR-0063 decision 2, issue 1026). Escape closes the flyout and focus comes back.
     const hubMark = aside.locator(`[data-node="${HUB.id}"]`);
     await hubMark.click();
+    await page.waitForFunction((id) => location.pathname === `/hubs/${id}`, HUB.id, { timeout: 5_000 })
+      .catch(() => assert.fail(`${width}: a hub pressed in the rail did not open the hub`));
     const flyout = page.locator('.flyout');
     await flyout.waitFor({ timeout: 5_000 });
     // Opening it is also what asks the server for the level, so the collections arrive after the
@@ -386,3 +389,55 @@ for (const width of [905, 1280]) {
     assert.deepEqual(failures, []);
   });
 }
+
+/** A second hub, with nothing in it: the case the twist must not promise anything about. */
+const EMPTY_HUB = { id: '01a0e2e0-0000-7000-8000-00000000000e', type: 'HUB', parent_id: null, name: 'Nothing here', order_key: 'a1', version: 1 };
+
+test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and is still a place', async (t) => {
+  // Issue 1026. Every hub carries a twist before its level is read, because "has collections" is
+  // not known until it is opened. Once it **is** read and empty, the twist has to go: a control
+  // that opens nothing is a promise the navigation cannot keep, and pressing it twice is what the
+  // owner did before finding out there was nothing behind it.
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/api/v1/containers')) {
+      if (url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB, EMPTY_HUB] } });
+      // The level of the empty hub answers an empty page; the other hub keeps its collection.
+      const parent = url.searchParams.get('parent_id');
+      return route.fulfill({ json: { ...PAGE, data: parent === EMPTY_HUB.id ? [] : [COLLECTION] } });
+    }
+    if (url.pathname.endsWith(`/api/v1/containers/${EMPTY_HUB.id}`)) return route.fulfill({ json: EMPTY_HUB });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/`);
+
+  const tree = page.getByRole('navigation', { name: 'Workspace' });
+  await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).waitFor({ timeout: 15_000 });
+  // Unread, so it carries one: the tree cannot know yet, and a hub nobody can open is a hub
+  // nobody can look into.
+  assert.equal(await tree.getByRole('button', { name: `Show what is in ${EMPTY_HUB.name}` }).count(), 1, 'an unread hub has no way to be opened');
+
+  // Opened, read, empty: the twist goes, and the row is still the way to the hub's own screen -
+  // which is where a collection is made.
+  await tree.getByRole('button', { name: `Show what is in ${EMPTY_HUB.name}` }).click();
+  await page
+    .waitForFunction((name) => !document.querySelector(`[aria-label="Show what is in ${name}"], [aria-label="Hide what is in ${name}"]`), EMPTY_HUB.name, { timeout: 10_000 })
+    .catch(() => assert.fail('a hub that was read and holds nothing still offers to be opened'));
+  // The hub beside it kept its own, because it has something behind it.
+  assert.equal(await tree.getByRole('button', { name: `Show what is in ${HUB.name}` }).count(), 1, 'a hub with a collection lost its twist');
+
+  await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).click();
+  assert.equal(new URL(page.url()).pathname, `/hubs/${EMPTY_HUB.id}`, 'an empty hub is not a place');
+  assert.deepEqual(failures, []);
+});

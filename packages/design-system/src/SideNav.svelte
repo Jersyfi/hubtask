@@ -49,9 +49,10 @@
      * was drawn from 44 to 68 with the half past the edge clipped.
      *
      * **Depth is the one thing a rail cannot draw**, so it does not try: it lists the roots, and
-     * a branch pressed there opens its own subtree in a flyout beside the column — this same
-     * component, unfolded, with the branch as its root. Nothing is unreachable while the
-     * navigation is folded, and there is no second tree.
+     * a branch pressed there goes to the branch *and* opens its own subtree in a flyout beside the
+     * column — this same component, unfolded, with the branch as its root. Nothing is unreachable
+     * while the navigation is folded, there is no second tree, and a press means what it means
+     * unfolded (issue 1026).
      */
     isRail?: boolean;
     /**
@@ -122,21 +123,26 @@
    * again; the arrows do what they have always done. A caller that names no twist has no second
    * control, and keeps the fold on the row.
    *
-   * In the rail there is no twist, so a branch opens its flyout - the one drawing where the row
-   * cannot do both, and the flyout's own root row is the way to the branch itself. The flyout
-   * **expands the branch as well**, and that is not a flourish: `expanded` is what a caller
-   * watches to fetch a level that is loaded on demand, so a flyout that only set its own state
-   * would open beside a hub whose collections nobody had asked the server for.
+   * **Pressing a branch means the same thing in both drawings** (issue 1026): go to it, and open
+   * it. Unfolded, "open it" is the subtree in place; folded, it is the flyout beside the column,
+   * because a rail has nowhere to put a level. A rail whose mark only opened the flyout was a
+   * navigation where a hub could be looked into and never entered.
+   *
+   * The flyout **expands the branch as well**, and that is not a flourish: `expanded` is what a
+   * caller watches to fetch a level that is loaded on demand, so a flyout that only set its own
+   * state would open beside a hub whose collections nobody had asked the server for.
    */
   function choose(row: { node: NavNode; isBranch: boolean; isExpanded: boolean }) {
     if (!row.isBranch) return onnavigate?.(row.node.id);
     if (isRail) {
+      // A second press on the mark the flyout belongs to closes it; the branch is already open.
       if (opened === row.node.id) {
         opened = null;
         return;
       }
       toggle(row.node.id, true);
       opened = row.node.id;
+      if (branchLabel) onnavigate?.(row.node.id);
       return;
     }
     if (!branchLabel) return toggle(row.node.id, !row.isExpanded);

@@ -103,10 +103,14 @@
       id: hub.id,
       label: hub.name,
       icon: 'hub' as const,
-      // Every hub is a branch, whether or not its collections are loaded — because whether it has
-      // any is not known until it is opened, and a hub with no twist is a hub nobody can open to
-      // find out. `isBranch` is what says so without inventing a placeholder child.
-      isBranch: true,
+      // A hub is a branch until its level says otherwise. Whether it has collections is not known
+      // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
+      // carries one, and **loses it once the level has been read and is empty** (issue 1026): a
+      // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
+      // the hub, which is where a collection is made.
+      isBranch:
+        containers.isLevelLoading(hub.id) ||
+        containers.collectionsOf(hub.id).filter((collection) => !live.hasLost(collection.id)).length > 0,
       children: containers
         .collectionsOf(hub.id)
         .filter((collection) => !live.hasLost(collection.id))
