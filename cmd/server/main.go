@@ -772,6 +772,16 @@ func run() error {
 		HLC: hybrid,
 	}
 
+	// One custom field use case, registered once and dispatched into by the create (issue 896):
+	// what judges a value is the definition in force for the entry's collection, and a second
+	// resolution of that would be a second answer to what a key means.
+	setCustomField := work.SetCustomField{
+		Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
+		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+	}
+
 	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the
 	// same find, the same visibility, the same ownership question (D-07). `authorizer` appears
 	// twice on purpose - the audited permission question and the silent visibility question are
@@ -1286,27 +1296,28 @@ func run() error {
 			Text:       forms,
 		}.Descriptor(),
 		work.CreateWorkItem{
-			Items:      items,
-			Quota:      quotaGuard,
-			Buckets:    buckets,
-			Containers: containers,
-			Profiles:   profiles,
-			Authorizer: authorizer,
-			Ownership:  authorizer,
-			Events:     outbox,
-			Changes:    changes,
-			Audit:      auditSink,
-			Activity:   journal,
-			UnitOfWork: unitOfWork,
-			Clock:      clockadapter.System{},
-			IDs:        ids,
-			HLC:        hybrid,
-			AutoAssign: autoAssign,
-			DueDates:   dueDateWriter,
-			Labels:     itemLabelWriter,
-			Members:    itemMemberWriter,
-			Covers:     coverWriter,
-			Text:       forms,
+			Items:        items,
+			Quota:        quotaGuard,
+			Buckets:      buckets,
+			Containers:   containers,
+			Profiles:     profiles,
+			Authorizer:   authorizer,
+			Ownership:    authorizer,
+			Events:       outbox,
+			Changes:      changes,
+			Audit:        auditSink,
+			Activity:     journal,
+			UnitOfWork:   unitOfWork,
+			Clock:        clockadapter.System{},
+			IDs:          ids,
+			HLC:          hybrid,
+			AutoAssign:   autoAssign,
+			DueDates:     dueDateWriter,
+			Labels:       itemLabelWriter,
+			Members:      itemMemberWriter,
+			Covers:       coverWriter,
+			CustomFields: setCustomField,
+			Text:         forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -1593,12 +1604,7 @@ func run() error {
 		work.UpdateSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.DeleteSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.ShareSavedView{Writer: savedViewWriter}.Descriptor(),
-		work.SetCustomField{
-			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
-			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
-			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
-		}.Descriptor(),
+		setCustomField.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{

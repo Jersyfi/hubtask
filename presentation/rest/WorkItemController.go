@@ -83,6 +83,11 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.Cover != nil {
 		in["cover"] = coverDocument(*body.Cover)
 	}
+	// And the custom field values, served since F10-17 (issue 896), each judged against the
+	// definition in force for the entry's collection.
+	if body.CustomFields != nil {
+		in["custom_fields"] = map[string]any(*body.CustomFields)
+	}
 	withUnservedItemFields(body, in)
 
 	out, err := c.UseCases.Invoke(r.Context(), createWorkItemUseCase, actor, in)
@@ -264,17 +269,16 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // `label_ids` stayed after B-09: the endpoint that owns the set is its own
 // (`/items/{id}/members/{accountId}`), and no task has yet decided that a create may seed it.
 // The cover follows in 0.3.0. The bucket left this list with B-09, the due date with D-01, and
-// `before_item_id` with F10-17 - the create ranks the entry in front of the sibling it names,
-// with the move's own neighbours query and the move's own refusal.
+// `before_item_id`, `cover` and `custom_fields` with F10-17 - the create serves all three now,
+// through the writers that own them, so nothing of `WorkItemCreate` is left in this list but the
+// member set. It is kept rather than deleted because the shape is what the next promise the
+// specification makes ahead of an implementation will need.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	if body.LabelIds != nil {
 		in["label_ids"] = uuidList(*body.LabelIds)
 	}
 	if body.MemberIds != nil {
 		in["member_ids"] = uuidList(*body.MemberIds)
-	}
-	if body.CustomFields != nil {
-		in["custom_fields"] = map[string]any(*body.CustomFields)
 	}
 }
 

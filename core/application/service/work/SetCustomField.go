@@ -177,6 +177,50 @@ func (h SetCustomField) Execute(
 	return written, nil
 }
 
+// setWithin writes one custom field on an entry that is being created, inside the creator's
+// transaction (issue 896): the same definition lookup, the same judgement and the same five
+// records as `PUT /items/{id}/custom-fields/{key}`, minus the permission question, which the
+// creation has already asked of the same path with the same permission.
+//
+// One key per call here too, and the caller loops. That is the merge rule made unavoidable rather
+// than a convenience: a create that wrote the document as one scalar would give every key one HLC,
+// and the later of two devices would erase the other's key (offline-sync.md §4.2). Several keys in
+// one create are therefore several writes, and the entry's version moves once per key.
+func (h SetCustomField) setWithin(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+	collection domain.Container, profile domain.CapabilityProfile,
+	key string, value any, now time.Time,
+) (domain.WorkItem, error) {
+	// A type whose profile carries no CUSTOM_FIELDS says so rather than storing a document
+	// nothing reads (domain-model.md §2).
+	if err := item.EnsureCustomisable(profile); err != nil {
+		return domain.WorkItem{}, atCustomField(err, key)
+	}
+
+	cmd := SetCustomFieldCommand{ItemID: item.ID, Key: key, Value: value}
+	definition, judged, err := h.judge(ctx, actor, item, collection, cmd)
+	if err != nil {
+		return domain.WorkItem{}, atCustomField(err, key)
+	}
+
+	wanted, moved := item.WithCustomField(key, judged, now)
+	if !moved {
+		// The value the entry already holds - which on a fresh entry means the caller sent the
+		// key's empty state. Nothing written, no version spent, nothing announced.
+		return item, nil
+	}
+	if err := ensureFieldCount(wanted); err != nil {
+		return domain.WorkItem{}, atCustomField(err, key)
+	}
+	return h.write(ctx, actor, item, wanted, cmd, definition, profile, now)
+}
+
+// atCustomField re-reports a refusal under the member of `custom_fields` it belongs to: what said
+// `/key` or `/value` on the standalone route is, on a create, `/custom_fields/<key>`.
+func atCustomField(err error, key string) error {
+	return atField(err, "/custom_fields/"+key)
+}
+
 // judge resolves the definition in force and holds the value against it.
 //
 // The definition is the entry's collection's own, or the workspace-wide one under the same key -

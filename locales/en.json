@@ -259,6 +259,7 @@
   "items.assignee_must_be_the_creator": "You may only create entries assigned to yourself.",
   "items.custom_fields_unserialisable": "This installation could not store those custom field values.",
   "items.custom_fields_unreadable": "The custom field values of that entry could not be read.",
+  "items.custom_fields_malformed": "The custom field values have to be an object of keys and values.",
   "items.cover_kind_unknown": "{value} is not a kind of cover. Use COLOR or IMAGE.",
   "items.cover_contradictory": "A COLOR cover carries a colour token and an IMAGE cover a media identifier - exactly one of the two.",
   "items.cover_token_malformed": "The colour token has to fit on one line.",

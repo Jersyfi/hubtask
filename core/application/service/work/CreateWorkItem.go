@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -105,6 +106,10 @@ type CreateWorkItemCommand struct {
 	// Empty for none.
 	LabelIDs  []shared.ID
 	MemberIDs []shared.ID
+	// CustomFields creates the entry already carrying values (issue 896), each judged against the
+	// definition in force for its collection and each written as its own change - the per-key
+	// merge rule the standalone route exists to keep. Nil for none.
+	CustomFields map[string]any
 	// Cover creates the entry already covered (issue 896): a colour token or an image, with the
 	// rules and the records of `PUT /items/{id}/cover`, in the same transaction as the creation.
 	// Nil for an entry with no cover. `ItemID` is filled at the dispatch - the caller of a create
@@ -168,6 +173,11 @@ type CreateWorkItem struct {
 	// same reason: one place decides what a cover may be, what an image has to be before it may
 	// become one, and what the change owes.
 	Covers CoverWriter
+	// CustomFields is the use case the declared values dispatch into, one key at a time (issue
+	// 896). Whole rather than a slice of it, because what judges a value is the definition in
+	// force for the entry's collection, and that resolution is the thing that may not be
+	// duplicated.
+	CustomFields SetCustomField
 	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5, M-07).
 	Text text.Normalizer
 }
@@ -324,6 +334,30 @@ func (h CreateWorkItem) Execute(
 				return err
 			}
 			created = covered
+		}
+		// And its custom field values, one key at a time through the use case that owns them
+		// (issue 896). Sorted, so that a document with several keys writes its changes in one
+		// order whatever order the request's map was read in - two runs of one request would
+		// otherwise announce the same facts in different sequences.
+		if len(cmd.CustomFields) > 0 {
+			profile, err := profileOf(ctx, h.Profiles, created.Type)
+			if err != nil {
+				return err
+			}
+			keys := make([]string, 0, len(cmd.CustomFields))
+			for key := range cmd.CustomFields {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				filled, err := h.CustomFields.setWithin(
+					ctx, actor, created, collection, profile, key, cmd.CustomFields[key], now,
+				)
+				if err != nil {
+					return err
+				}
+				created = filled
+			}
 		}
 		// And its labels and its members, through the writers that own the two sets (issue
 		// 878): a label from another collection, or a type whose profile carries no LABELS,
@@ -546,11 +580,6 @@ func (h CreateWorkItem) build(
 		}
 	}
 
-	orderKey, err := h.itemOrderKey(ctx, collection.ID, placement.ParentID, cmd.BeforeItemID)
-	if err != nil {
-		return domain.WorkItem{}, err
-	}
-
 	id := cmd.ID
 	if id.IsZero() {
 		id = h.IDs.NewID()
@@ -558,6 +587,13 @@ func (h CreateWorkItem) build(
 		return domain.WorkItem{}, shared.ErrValidation.
 			WithDetail("sync.id_not_uuidv7").
 			WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
+	}
+
+	// After the identifier, because the rank may need it: an anchored create excludes the entry
+	// being placed from the level it is measuring, and for a create that entry is this one.
+	orderKey, err := h.itemOrderKey(ctx, collection.ID, placement.ParentID, cmd.BeforeItemID, id)
+	if err != nil {
+		return domain.WorkItem{}, err
 	}
 	return domain.NewWorkItem(domain.NewWorkItemInput{
 		ID:           id,
@@ -676,16 +712,19 @@ func (h CreateWorkItem) findParent(ctx context.Context, id shared.ID) (domain.Wo
 // somewhere else, and one place where a fractional index is computed from two neighbours
 // (offline-sync.md §4.2).
 func (h CreateWorkItem) itemOrderKey(
-	ctx context.Context, collectionID, parentID, beforeID shared.ID,
+	ctx context.Context, collectionID, parentID, beforeID, newID shared.ID,
 ) (string, error) {
 	if beforeID.IsZero() {
 		return h.nextItemOrderKey(ctx, collectionID, parentID)
 	}
 
-	// Nothing is being moved out of the list, so the moving id is the zero one: the neighbours of
-	// the anchor are the neighbours the new entry lands between.
+	// The entry being placed is excluded from the level it is measured against - the move's rule,
+	// and for a create the entry is this one, which is not in the table yet, so nothing is
+	// excluded in practice. The identifier is passed rather than a zero one because the query
+	// excludes with `id <> moving_id`: a NULL there is a predicate that is NULL for every row,
+	// which would answer "the level is empty" and refuse every anchored create.
 	previous, next, err := h.Items.Neighbours(
-		ctx, repository.Level{CollectionID: collectionID, ParentID: parentID}, beforeID, shared.ID(""),
+		ctx, repository.Level{CollectionID: collectionID, ParentID: parentID}, beforeID, newID,
 	)
 	if err != nil {
 		return "", err
@@ -1015,6 +1054,15 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"names the element and takes the whole creation with it.",
 			},
 			{
+				Name: "custom_fields", Kind: usecase.KindObject,
+				Description: "The custom field values the entry is created with, as a map of " +
+					"key to value, with the rules of PUT /items/{id}/custom-fields/{key}: a key " +
+					"nothing defines in the collection's scope, a definition this type does not " +
+					"carry, or a value of the wrong kind refuses the whole creation. Each key is " +
+					"written as its own change, which is the per-key merge rule offline " +
+					"synchronisation depends on.",
+			},
+			{
 				Name: "cover", Kind: usecase.KindObject,
 				Description: "The cover the entry is created with: {kind: COLOR, color_token} " +
 					"or {kind: IMAGE, media_id}, with the rules of PUT /items/{id}/cover. Only a " +
@@ -1087,6 +1135,10 @@ func (h CreateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	customFields, err := customFieldsOf(in)
+	if err != nil {
+		return nil, err
+	}
 
 	cmd := CreateWorkItemCommand{
 		ID:              id,
@@ -1104,6 +1156,7 @@ func (h CreateWorkItem) invoke(
 		MemberIDs:       memberIDs,
 		BeforeItemID:    beforeItemID,
 		Cover:           cover,
+		CustomFields:    customFields,
 	}
 	if raw := in.String("start_at"); raw != "" {
 		startAt, err := parseInstantField(raw, "start_at")
@@ -1146,6 +1199,22 @@ func customFieldsOutput(values map[string]any) map[string]any {
 // the standalone route refuses at `/label_id` was, on a create, the second entry of `/label_ids`,
 // and a client puts the message under the control that sent it (api-guidelines.md §3). Anything
 // that is not a validation error passes through as it is.
+// customFieldsOf reads the values document the catalogue only checked the shape of. What each
+// value may be is the definition's question, and the definition is data a tenant wrote (C-07).
+func customFieldsOf(in usecase.Input) (map[string]any, error) {
+	raw, sent := in["custom_fields"]
+	if !sent || raw == nil {
+		return nil, nil
+	}
+	values, isDocument := raw.(map[string]any)
+	if !isDocument {
+		return nil, shared.ErrValidation.
+			WithDetail("items.custom_fields_malformed").
+			WithFields(shared.FieldError{Path: "/custom_fields", Code: "items.custom_fields_malformed"})
+	}
+	return values, nil
+}
+
 // coverOf reads the cover document the catalogue only checked the shape of.
 //
 // The members are read one by one rather than through a JSON round trip, for the reason the filter
