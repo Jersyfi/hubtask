@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What every view sits inside: the shell wave drawn from the five widths (ADR-0061), the notices
+  // What every view sits inside: the shell wave drawn from the five widths (ADR-0061), the marks
   // the application owes the reader about itself, and the region the view is rendered into.
   //
   // One navigation, three drawings. `lib/navigation.ts` is the list; this frame draws it as a
@@ -21,12 +21,12 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
   import BarSearch from './BarSearch.svelte';
-  import HealthNotice from './HealthNotice.svelte';
+  import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
@@ -44,7 +44,6 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { MATURITY, shouldAnnounce } from '../maturity.ts';
   import { ADMINISTRATION, DESTINATIONS, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
@@ -57,11 +56,6 @@
 
   const { route, onnavigate, children }: Props = $props();
 
-  // Dismissed for as long as this page is open, and no longer. ADR-0035 §2 asks for a banner that
-  // is not in the way; it does not ask the client to remember a decision across visits, and a
-  // client that did would need somewhere to keep it - which is the platform seam's question and
-  // F6's storage port, not this component's.
-  let dismissed = $state(false);
   /** The landmark the skip link lands on. */
   let mainElement = $state<HTMLElement | null>(null);
 
@@ -305,6 +299,11 @@
            offline; what waits to be sent and what the server refused; when the copy last
            synchronised. It was a line of every page that read "Connected" at its quietest; now the
            ordinary case says nothing until it is pressed, and what it said is behind it, whole. -->
+      <!-- What the application has to say about itself - the stage, and the health report where
+           the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
+           banners above the head of every page; now it is a mark that says nothing until it is
+           pressed, and nothing at all when there is nothing to say. -->
+      <NoticeMark />
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
@@ -313,25 +312,6 @@
       {/if}
     {/snippet}
   </AppBar>
-
-  <div class="notices">
-    <Stack gap="150">
-      {#if shouldAnnounce() && !dismissed}
-        <!-- ADR-0035 §2: while the stage is not `stable` the application says so itself. The
-             stage comes from `lib/maturity.ts` and from nowhere else. -->
-        <Banner
-          tone="info"
-          title={t(`app.maturity.${MATURITY}.title`)}
-          dismissLabel={t('app.dismiss')}
-          onDismiss={() => (dismissed = true)}
-        >
-          {t(`app.maturity.${MATURITY}.body`)}
-        </Banner>
-      {/if}
-      <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
-      <HealthNotice />
-    </Stack>
-  </div>
 
   <div class="body">
     <!-- The navigation is the frame's, not a view's: it is the same tree on every screen, and a
@@ -433,8 +413,6 @@
     border-radius: var(--r-xs);
   }
 
-  .notices { padding-block-start: var(--sp-200); padding-inline: var(--sp-300); }
-
   .body { display: flex; flex: 1; min-width: 0; }
 
 
@@ -526,8 +504,6 @@
     .frame { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
 
     main { padding: var(--sp-200); }
-
-    .notices { padding-inline: var(--sp-200); }
   }
 
   .skip {
