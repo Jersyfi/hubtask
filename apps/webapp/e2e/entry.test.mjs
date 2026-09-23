@@ -302,3 +302,41 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
   assert.deepEqual(failures, []);
   await context.close();
 });
+
+test('chromium: 1280 px — the cover row offers both kinds, and no cover takes no room above the title', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const { page, failures, close } = await openEntry(browser, 1280, written);
+  t.after(close);
+
+  // Nothing above the title for a cover that is not there (ADR-0063 decision 9). Measured rather
+  // than read from the markup: an element with no height is still an element, and what the
+  // decision is about is the room it takes.
+  const above = await page.evaluate(() => {
+    const head = document.querySelector('[data-tour="entry"]');
+    const title = head?.querySelector('.title-row');
+    if (!head || !title) return 'missing';
+    return Math.round(title.getBoundingClientRect().top - head.getBoundingClientRect().top);
+  });
+  assert.equal(above, 0, 'the head keeps room above the title for a cover that is not set');
+
+  await page.locator('[data-detail="cover"]').click();
+  const editor = page.getByRole('dialog', { name: 'Cover' });
+  await editor.waitFor({ timeout: 5_000 });
+
+  // The row says where a cover goes, rather than only what is missing.
+  assert.match((await editor.textContent()) ?? '', /drawn at the top of this entry and on its card/);
+
+  // Both kinds are offered: the ten colours of the design system, and a picture.
+  assert.equal(await editor.locator('button[aria-pressed]').count(), 10, 'the ten colours are not all offered');
+  assert.equal(await editor.getByText('A picture').count(), 1, 'the picture half of the row is missing');
+
+  // One press is one write, and it is a COLOR cover - the kind no client could set before.
+  await editor.locator('button[aria-pressed][data-token="amber"]').click();
+  await page.waitForTimeout(300);
+  const write = written.find((w) => w.method === 'PUT' && w.path.endsWith('/cover'));
+  assert.deepEqual(write?.body, { kind: 'COLOR', color_token: 'amber', media_id: null });
+
+  assert.deepEqual(failures, []);
+});
