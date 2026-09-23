@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -109,4 +109,37 @@ test('every screen under the administration is the administration destination', 
   // And a screen outside the list belongs to nothing: the bar marks no destination current.
   assert.equal(currentDestination(resolve(ROUTES, '/redeem')), undefined);
   assert.equal(currentDestination({ name: null, area: 'end-user' }), undefined);
+});
+
+test('a section\u2019s address opens its first screen, which is never the way out', () => {
+  // ADR-0065 decision 1: the column is the overview, so the section's own address answers with a
+  // screen rather than with a list of the rows beside it. The way back is a row with no route of
+  // its own, and a front door that led out of the section would be a door somebody falls through.
+  const front = firstScreen(ADMINISTRATION);
+  assert.equal(front, '/administration/workspace');
+  const resolution = resolve(ROUTES, front);
+  assert.equal(resolution.name, 'workspace-settings');
+  assert.equal(resolution.area, 'administration');
+  // And it is a row of the list, so the column marks it current the moment the reader lands.
+  const rows = ADMINISTRATION.flatMap((group) => group.rows);
+  assert.ok(rows.some((row) => row.path === front && row.routes.includes(resolution.name as string)));
+  assert.equal(rows.find((row) => row.path === front)?.id !== 'back', true);
+});
+
+test('every row of the section resolves to a route it claims, and every screen is reachable', () => {
+  for (const group of ADMINISTRATION) {
+    for (const row of group.rows) {
+      const resolution = resolve(ROUTES, row.path);
+      assert.ok(resolution.name, `${row.id} points at ${row.path}, which resolves to nothing`);
+      if (row.routes.length === 0) continue;
+      assert.ok(row.routes.includes(resolution.name), `${row.id} lands on ${resolution.name} but does not claim it`);
+    }
+  }
+  // Every screen of the area has a row, so the column is the whole of the section (ADR-0065
+  // decision 1): with the index gone, a screen nothing lists is a screen nobody can reach.
+  const claimed = new Set(ADMINISTRATION.flatMap((group) => group.rows).flatMap((row) => row.routes));
+  const unlisted = ROUTES.filter((route) => route.area === 'administration' && route.name !== 'administration')
+    .map((route) => route.name)
+    .filter((name) => !claimed.has(name));
+  assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 });

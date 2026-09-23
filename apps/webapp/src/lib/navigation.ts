@@ -163,7 +163,10 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'automatic',
     code: 'app.admin.group_automatic',
     rows: [
-      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule-editor', 'rule-new'] },
+      // The editor's two routes are the rules' row as well: a reader inside a rule is inside
+      // automation, and a column that marked nothing current there would say they are nowhere.
+      // `rule-editor` was a name no route has, which is exactly what it said.
+      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
       { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
     ],
@@ -191,7 +194,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_entry',
     rows: [
       { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
-      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai-settings'] },
+      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
     ],
   },
 ];
@@ -242,4 +245,25 @@ export function currentDestination(route: { readonly name: string | null; readon
   const keeping = KEEPING.find((each) => each.routes.includes(route.name as string));
   if (keeping) return keeping.id;
   return DESTINATIONS.find((destination) => destination.routes.includes(route.name as string))?.id;
+}
+
+/**
+ * The screen a section's own address opens (ADR-0065 decision 1).
+ *
+ * A section with a navigation column needs no overview, because the column *is* the overview: an
+ * index beside it is the same list drawn twice, and arriving at it means arriving at a page of
+ * links to where the reader was already going. So `/administration` answers with the section's
+ * first screen.
+ *
+ * The first row with a route of its own, which is what skips the way back: that row leads out of
+ * the section, and a front door that led out would be a door somebody falls through.
+ */
+export function firstScreen(groups: readonly SectionGroup[]): string {
+  for (const group of groups) {
+    for (const row of group.rows) {
+      if (row.routes.length > 0) return row.path;
+    }
+  }
+  // Unreachable for a section that has a screen; a section that has none has nothing to open.
+  return '/';
 }
