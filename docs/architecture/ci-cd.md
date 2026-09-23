@@ -24,6 +24,8 @@ Which means:
 | `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and `make gate-selftest` on the other architecture, the point-in-time recovery drill against a real operator and object store (`make gate-pitr`, H-10), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
+| `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Build `apps/website/dist`, prove it is plain static files, mirror it to the webspace over SFTP (§CI-4). A failure files an issue labelled `claude:task` |
+| `workbench.yml` | Push to `main` touching `packages/design-system/` | Publish the component workbench to `workbench.hubtask.eu` from its own scoped account ([ADR-0038](../adr/ADR-0038-workbench-published.md)) |
 | `codeql.yml` | PR, schedule | Static security analysis |
 | `scorecard.yml` | Schedule | OpenSSF supply chain scorecard |
 | `claude-review.yml` | Pull request, unless it is a draft or Dependabot's | **Switched off** — posts the review checklist as the record that no automated reviewer ran (§5) |
@@ -292,6 +294,18 @@ build red, and deleting one does too.
 A failing nightly job files an issue with the `claude:task` label rather than staying a red run in
 a tab nobody opens; one issue per job, reopened rather than duplicated, so a platform that has been
 broken for a week is one thread instead of seven.
+
+`website.yml` files under the same rule, and for a sharper version of the same reason. It runs
+after the merge and gates nothing — publishing is not a review tool — so its failures land where
+nobody looks: it was red for seven days and forty-five runs before anybody noticed, and hubtask.eu
+quietly stopped being published while every check that is actually read stayed green. The first
+publish that succeeds closes the thread again.
+
+Its build half is not left to that workflow alone. `Workspace (website)` runs `make website`
+itself, before it builds anything else, so the deploy command is exercised in a checkout with no
+`dist/` in it — the condition CI gets and a developer's machine never has. That asymmetry is what
+broke it: the target named its own dependency list, the list went stale when the site gained a
+build-time import, and it passed locally on leftovers for as long as it took to notice.
 
 The nightly image scan targets `ghcr.io/<repo>:latest`, which only exists once `release.yml` has
 run on a `v*` tag. Before the first release the scan is skipped rather than failed, with a notice
