@@ -44,9 +44,11 @@ device.start();
 startLocale();
 
 // …and the one read the whole application configures itself from (F1-10). Started here rather
-// than in a component, because it is read once for the lifetime of the page and because what it
-// answers changes the language of the first paint. It needs no token: the manifest is the one
-// unauthenticated route in the contract.
+// than in a component, because what it answers changes the language of the first paint. The
+// *route* needs no token - the manifest is the one unauthenticated route in the contract - but the
+// *request* carries whatever bearer this tab still holds, and a stale one is answered `401` rather
+// than anonymously. So this is the first read and not the only one: the session reads it again on
+// every change of actor (issue 1020).
 manifest.start();
 
 const root = document.querySelector<HTMLDivElement>('#app');
