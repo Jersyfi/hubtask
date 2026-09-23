@@ -97,6 +97,18 @@ export function imageCover(mediaId: string): CoverInput {
 }
 
 /**
+ * The document that sets a colour cover. The other half of the same rule.
+ *
+ * The token is one of the design system's ten (`labelTokens`), not a value: theming belongs to the
+ * client, and a colour written here would be a decision the design system cannot revisit
+ * (ADR-0029). The server takes any token it is given and the client paints the ones it knows, so
+ * the vocabulary is the caller's to hold.
+ */
+export function colourCover(token: string): CoverInput {
+  return { kind: 'COLOR', color_token: token, media_id: null };
+}
+
+/**
  * What the file dialog offers first for a usage.
  *
  * A hint to the platform and never a check: the judgement is the server's, made from the bytes at

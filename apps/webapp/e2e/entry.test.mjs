@@ -107,14 +107,13 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.notes === 'Check the delivery date first.'), `the notes were not written: ${JSON.stringify(written.map((w) => w.body))}`);
 
-  // "Edit" stays in the menu, and opens the form with focus in it.
+  // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
+  // menu offers no second form over the same three fields.
   await page.getByRole('button', { name: /Actions for/ }).click();
-  await page.getByRole('menuitem', { name: 'Edit' }).click();
-  await page.getByRole('button', { name: 'Save' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT');
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute('data-opener') === 'entry-menu', null, { timeout: 5_000 })
-    .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 5_000 });
+  assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Share this entry']);
+  await page.keyboard.press('Escape');
 
   // Every details row opens its editor beside it and gives focus back on Escape.
   for (const [id, heading] of ROWS) {
@@ -302,4 +301,42 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 
   assert.deepEqual(failures, []);
   await context.close();
+});
+
+test('chromium: 1280 px — the cover row offers both kinds, and no cover takes no room above the title', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const { page, failures, close } = await openEntry(browser, 1280, written);
+  t.after(close);
+
+  // Nothing above the title for a cover that is not there (ADR-0063 decision 9). Measured rather
+  // than read from the markup: an element with no height is still an element, and what the
+  // decision is about is the room it takes.
+  const above = await page.evaluate(() => {
+    const head = document.querySelector('[data-tour="entry"]');
+    const title = head?.querySelector('.title-row');
+    if (!head || !title) return 'missing';
+    return Math.round(title.getBoundingClientRect().top - head.getBoundingClientRect().top);
+  });
+  assert.equal(above, 0, 'the head keeps room above the title for a cover that is not set');
+
+  await page.locator('[data-detail="cover"]').click();
+  const editor = page.getByRole('dialog', { name: 'Cover' });
+  await editor.waitFor({ timeout: 5_000 });
+
+  // The row says where a cover goes, rather than only what is missing.
+  assert.match((await editor.textContent()) ?? '', /drawn at the top of this entry and on its card/);
+
+  // Both kinds are offered: the ten colours of the design system, and a picture.
+  assert.equal(await editor.locator('button[aria-pressed]').count(), 10, 'the ten colours are not all offered');
+  assert.equal(await editor.getByText('A picture').count(), 1, 'the picture half of the row is missing');
+
+  // One press is one write, and it is a COLOR cover - the kind no client could set before.
+  await editor.locator('button[aria-pressed][data-token="amber"]').click();
+  await page.waitForTimeout(300);
+  const write = written.find((w) => w.method === 'PUT' && w.path.endsWith('/cover'));
+  assert.deepEqual(write?.body, { kind: 'COLOR', color_token: 'amber', media_id: null });
+
+  assert.deepEqual(failures, []);
 });
