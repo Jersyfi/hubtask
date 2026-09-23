@@ -68,7 +68,13 @@ export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
-  if (path.endsWith('/api/v1/stream')) return route.abort();
+  // The stream, **accepted and empty**: the connection is what the mark in the bar reads since
+  // issue 1017, so a walk that refused it would draw *Reconnecting…* on every screenshot of every
+  // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
+  // from the stream is that it was opened.
+  if (path.endsWith('/api/v1/stream')) {
+    return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
+  }
   if (path.endsWith('/api/v1/sync:snapshot')) {
     const records = [HUB, COLLECTION].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });

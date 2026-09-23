@@ -237,10 +237,14 @@
   }
 
   /* Rule 3: the state is a colour *and* a mark of its own, and the accessible name says it in
-     words. Connected with nothing waiting is the quietest the frame gets — the ordinary case
-     spends no colour on itself. Offline is the one state somebody has to see first. */
-  .trigger[data-quiet] { color: var(--text-subtle); }
-  .trigger[data-connection='connected']:not([data-quiet]) { color: var(--status-success-text); }
+     words. Offline is the one state somebody has to see first.
+
+     **Connected is coloured, including the quiet case.** ADR-0063 decision 5's table says the
+     quiet state is `status.success.accent`, and this drew it in `text.subtle` instead - so the one
+     state that means *everything is fine* was the one state with no colour at all, which is what
+     the owner's walk found (issue 1017). `data-quiet` stays what it always was: whether there is
+     anything waiting behind the mark. It is not a reason to say nothing in colour. */
+  .trigger[data-connection='connected'] { color: var(--status-success-text); }
   .trigger[data-connection='reconnecting'] { color: var(--status-warning-text); }
   .trigger[data-connection='offline'] {
     background: var(--status-warning-accent);

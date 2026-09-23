@@ -400,3 +400,42 @@ test('stopping the listener ends the connection and keeps what was read', async 
   // Stopping the stream is not signing out: `reset` is what empties the engine.
   assert.equal(engine.peek({ path: `/items/${ITEM}` }).status, 'ready');
 });
+
+test('the connection says when it is attached, and when an attempt failed', async () => {
+  // Issue 1017: the client had no way to ask, so it inferred - "live" became true when the first
+  // record arrived, and an open stream that nobody wrote to read *Reconnecting…* for ever. What
+  // the callback reports is the connection, and a record is not one.
+  const transport = new FakeTransport()
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })
+    .streamSessions(
+      { refuse: new TransportError('offline') },
+      { events: [], open: true },
+    );
+  const engine = new SyncEngine({ transport });
+  const clock = pauses();
+  const seen: boolean[] = [];
+
+  const stop = engine.listen({ pathsFor, wait: clock.wait, onConnection: (isOpen) => seen.push(isOpen) });
+  clock.hold(stop);
+  await settle(10);
+
+  // The first attempt failed and the second was accepted: false, then true, and nothing else -
+  // it is called when the answer changes rather than on every turn of the loop.
+  assert.deepEqual(seen, [false, true]);
+  assert.deepEqual(clock.seen, [RECONNECT_BASE_MS]);
+  stop();
+});
+
+test('an open stream with nothing on it is attached, and says so without a record', async () => {
+  const transport = new FakeTransport().streamSessions({ events: [], open: true });
+  const engine = new SyncEngine({ transport });
+  const seen: boolean[] = [];
+
+  const stop = engine.listen({ pathsFor, onConnection: (isOpen) => seen.push(isOpen) });
+  await settle();
+
+  // The whole of the finding: no record has arrived, nothing has been read, and the connection is
+  // up - which is what the mark in the bar draws.
+  assert.deepEqual(seen, [true]);
+  stop();
+});

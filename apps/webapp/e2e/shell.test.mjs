@@ -34,7 +34,13 @@ const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false }
 async function stub(route) {
   const url = new URL(route.request().url());
   const path = url.pathname;
-  if (path.endsWith('/api/v1/stream')) return route.abort();
+  // The stream, **accepted and empty**: the connection is what the mark in the bar reads since
+  // issue 1017, so a walk that refused it would draw *Reconnecting…* on every screenshot of every
+  // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
+  // from the stream is that it was opened.
+  if (path.endsWith('/api/v1/stream')) {
+    return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
+  }
   if (path.endsWith('/api/v1/sync:snapshot')) {
     const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB.id, container_id: null, payload: HUB });
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });

@@ -78,6 +78,14 @@ class Live {
       if (stopped) return;
       stopListening = engine.listen({
         pathsFor,
+        // What the mark in the bar reads, and it is the **connection's** state rather than the
+        // traffic's (issue 1017). This used to become `live` on the first record, so a stream that
+        // was open and idle - a workspace nobody else is writing in - said *Reconnecting…* until
+        // somebody changed something. A record proves the stream delivers; the engine is what
+        // knows whether it is attached, and now it says so.
+        onConnection: (isOpen) => {
+          this.#state = isOpen ? 'live' : 'reconnecting';
+        },
         onRecord: (record) => this.#notice(record),
       });
     };
@@ -95,14 +103,14 @@ class Live {
   /**
    * Every record, before the engine acts on it.
    *
-   * Two things happen here and neither is a merge: the notice becomes `live` — a record arriving is
-   * the only honest proof that the connection works — and a revocation is remembered so the screen
-   * it concerns can say so. What the record *contains* is untouched; the engine's invalidation is
+   * One thing happens here and it is not a merge: a revocation is remembered so the screen it
+   * concerns can say so. What the record *contains* is untouched; the engine's invalidation is
    * what makes the screen right.
+   *
+   * It no longer touches the notice. Whether the connection is up is `onConnection`'s answer, and
+   * a record is not one - it is a change that arrived through a connection that was already up.
    */
   #notice(record: ChangeRecord): void {
-    if (this.#state !== 'live') this.#state = 'live';
-
     const lost = revokedContainerOf(record);
     if (lost && !this.#revoked.includes(lost)) {
       this.#revoked = [...this.#revoked, lost];

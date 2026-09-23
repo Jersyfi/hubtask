@@ -200,6 +200,22 @@ export interface ListenOptions {
    */
   readonly onRecord?: (record: ChangeRecord) => void;
   /**
+   * Whether the stream is attached, called when that changes and not otherwise.
+   *
+   * `true` the moment the server accepts the connection, `false` when an attempt fails and the
+   * engine is about to wait and try again. A clean close the engine reconnects through is not a
+   * change: what the caller is being told is whether the connection is *working*, and a
+   * deployment closing a stream that is straight back up never stopped working.
+   *
+   * It exists because the alternative is what the client did instead, and what it did was wrong:
+   * it turned "reconnecting" into "live" **when the first record arrived**. A record arriving
+   * proves the stream delivers; it is not the definition of being connected, so an open and idle
+   * stream - the normal state of a workspace nobody else is writing in - read *Reconnecting…* for
+   * as long as nobody changed anything (issue 1017). Only this loop knows the connection's state,
+   * and now it can say so.
+   */
+  readonly onConnection?: (isOpen: boolean) => void;
+  /**
    * How the engine waits between attempts, injected so a test does not spend the wait.
    *
    * The default is a timer that ends early when the listener is stopped — a tab closing must not
@@ -815,6 +831,7 @@ export class SyncEngine {
         // The connection was accepted, so whatever went wrong before is over - and without a
         // store this is the first moment the engine knows it, so what failed is read again here.
         attempt = 0;
+        options.onConnection?.(true);
         if (!this.#replica) this.#recover();
 
         for await (const event of connection.events) {
@@ -870,6 +887,9 @@ export class SyncEngine {
         }
         attempt += 1;
         pause = error.retryAfterMs ?? backoff(attempt - 1);
+        // An attempt failed and the next one is a wait away: the caller is told, once per change,
+        // so that what it draws says what is true rather than what last arrived through it.
+        options.onConnection?.(false);
       }
 
       if (signal.aborted) return;
