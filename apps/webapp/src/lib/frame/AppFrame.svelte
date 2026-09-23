@@ -37,6 +37,7 @@
   import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -113,6 +114,11 @@
     if (!session.isSignedIn) return;
     return untrack(() => quotas.open());
   });
+
+  // Whose list of recently opened entries this device is holding. The account's id is the key, so
+  // it is adopted when the account arrives and dropped when it changes — two people sharing a
+  // browser never read each other's (`lib/recents.svelte.ts`).
+  $effect(() => recents.adopt(actor.account?.id));
 
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());

@@ -59,7 +59,10 @@ export interface Destination {
 export const DESTINATIONS: readonly Destination[] = [
   // The primary group: the three spaces one moves between. The word for the first is the
   // workspace's own title rather than "Home", because the destination *is* the workspace.
-  { id: 'workspace', group: 'primary', icon: 'workspace', code: 'app.workspace.title', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
+  // `app.nav.overview` and not `app.workspace.title`: since ADR-0063 decision 1 the first
+  // destination is the overview - what is on the reader - rather than a list of the hubs the tree
+  // below it lists. The workspace keeps its own name for what the workspace is called.
+  { id: 'workspace', group: 'primary', icon: 'workspace', code: 'app.nav.overview', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
   { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'] },
   { id: 'jumble', group: 'primary', icon: 'jumble', code: 'app.nav.jumble', target: { kind: 'route', path: '/jumble' }, routes: ['jumble'] },
   // The account group: what the avatar opens. Reachable from every screen, because the profile

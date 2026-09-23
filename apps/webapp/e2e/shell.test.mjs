@@ -57,9 +57,9 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 /** The destinations every width has to offer, by the name a reader sees. */
-const PRIMARY = ['Workspace', 'Search', 'Jumble'];
+const PRIMARY = ['Overview', 'Search', 'Jumble'];
 /** The same list where the bar carries the entry to search: the row for it would be the second. */
-const PLACES = ['Workspace', 'Jumble'];
+const PLACES = ['Overview', 'Jumble'];
 // The account group, in its order. "This installation" is at the foot as "About Hubtask" with the
 // version beside it (ADR-0063 decision 6) — the same route under a name somebody would look for.
 const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'Sign out', 'About Hubtask · 0.9.0'];
@@ -106,7 +106,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
   const bar = page.getByRole('navigation', { name: 'Sections' });
   for (const name of [...PRIMARY, 'You']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
-  assert.equal(await bar.getByRole('link', { name: 'Workspace' }).getAttribute('aria-current'), 'page');
+  assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page');
 
   // ☰ is the tour's target and opens the tree alone: the hub, the trash last, and none of the
   // three destinations the bar below already has.
@@ -124,7 +124,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).click();
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`);
-  assert.equal(await bar.getByRole('link', { name: 'Workspace' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
+  assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
 
   // "You" opens the account group as a sheet: the name at its head, the five rows, sign out last.
   await bar.getByRole('link', { name: 'You' }).click();
@@ -214,7 +214,7 @@ for (const width of [905, 1280]) {
     assert.ok(foot !== null && foot.below > 100, `${width}: the keeping band is ${JSON.stringify(foot)} from the hubs`);
     assert.ok(foot.toBottom < 40, `${width}: the keeping band is ${foot.toBottom}px above the column's bottom`);
     assert.equal(await page.locator('aside[data-tour="hubs"]').count(), 1, `${width}: the tour's target is not the pinned navigation`);
-    assert.equal(await tree.getByRole('treeitem', { name: 'Workspace' }).getAttribute('aria-current'), 'page');
+    assert.equal(await tree.getByRole('treeitem', { name: 'Overview' }).getAttribute('aria-current'), 'page');
 
     // The rail: the same tree, folded to its marks, and back. The width is the token's.
     const aside = page.locator('aside.sidenav');

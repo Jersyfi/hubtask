@@ -29,6 +29,7 @@ import { live } from './data/live.svelte.ts';
 import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
+import { recents } from './recents.svelte.ts';
 
 const SESSIONS = '/auth/sessions';
 const VERIFY = '/auth/sessions:verify';
@@ -273,6 +274,9 @@ class Session {
     live.stop();
     platform.releaseBearer();
     engine.reset();
+    // What this device remembered of the person who was signed in. It holds their entries' titles,
+    // so it ends where the replica ends rather than outliving them in `localStorage`.
+    recents.forget();
     this.#status = 'signed-out';
   }
 }
