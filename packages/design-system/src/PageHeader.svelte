@@ -67,6 +67,22 @@
     menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string };
     /** The bar that shows the title asks for it to be read, not drawn, below `medium`. */
     isTitleInBar?: boolean;
+    /**
+     * Whether the frame draws this page's menu in the app bar instead of here (ADR-0061 §1's
+     * table, issue 904).
+     *
+     * The head still decides *what* is in it - the folding is this component's, and two foldings
+     * would eventually disagree about which action is an action and which is an item - so it
+     * hands the folded list over through `onmenu` and draws no control of its own.
+     */
+    isMenuInBar?: boolean;
+    /**
+     * What the head would have drawn, handed to whoever draws it instead.
+     *
+     * Called with the folded list while `isMenuInBar`, and with nothing when the menu comes back
+     * here or the head leaves - so the bar never keeps a menu belonging to a page that is gone.
+     */
+    onmenu?: (menu: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string } | undefined) => void;
     /** Lines under the title: an archived notice, a refusal. The caller's `role="alert"` travels with them. */
     notices?: Snippet;
     /** The second row: a `ViewSwitcher`, `Tabs`, or nothing. */
@@ -81,6 +97,8 @@
     secondary = [],
     menu,
     isTitleInBar = false,
+    isMenuInBar = false,
+    onmenu,
     notices,
     views,
   }: Props = $props();
@@ -125,6 +143,19 @@
   let head = $state<HTMLElement | null>(null);
   let isFolded = $state(false);
 
+  // The menu, handed to the frame while the frame is the one drawing it. An effect rather than a
+  // call at render time: what is in the list depends on the props, and the cleanup is what takes
+  // the menu out of the bar when this page leaves.
+  $effect(() => {
+    if (!isMenuInBar || foldedItems.length === 0) {
+      onmenu?.(undefined);
+      return;
+    }
+    const label = menu?.label ?? secondary[0]?.label ?? '';
+    onmenu?.({ label, items: foldedItems, onselect: onFoldedSelect, opener: menu?.opener });
+    return () => onmenu?.(undefined);
+  });
+
   $effect(() => {
     const element = head;
     if (!element || typeof ResizeObserver === 'undefined') return;
@@ -163,7 +194,7 @@
           </Button>
         </span>
       {/each}
-      {#if menu && menu.items.length > 0}
+      {#if menu && menu.items.length > 0 && !isMenuInBar}
         <span class="menu menu-full">
           <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
             {#snippet trigger(props)}
@@ -172,7 +203,7 @@
           </Menu>
         </span>
       {/if}
-      {#if foldedItems.length > 0}
+      {#if foldedItems.length > 0 && !isMenuInBar}
         <span class="menu menu-folded">
           <Menu label={menu?.label ?? secondary[0]?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
             {#snippet trigger(props)}

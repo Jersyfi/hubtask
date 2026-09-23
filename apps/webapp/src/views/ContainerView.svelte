@@ -629,6 +629,8 @@
       title={container.name}
       subtitle={container.description ?? undefined}
       isTitleInBar={viewport.isCompact}
+      isMenuInBar={viewport.isCompact}
+      onmenu={(offered) => page.offer(offered)}
       breadcrumb={{
         trail,
         label: t('app.workspace.trail'),

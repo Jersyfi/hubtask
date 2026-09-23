@@ -695,6 +695,8 @@
       <PageHeader
         title={item.title}
         isTitleInBar={true}
+        isMenuInBar={viewport.isCompact}
+        onmenu={(offered) => page.offer(offered)}
         breadcrumb={{ trail, label: t('app.workspace.trail'), expandLabel: t('app.workspace.expand_trail'), onnavigate: goTo }}
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, opener: 'entry-menu', onselect: chooseFromMenu }}
       />

@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What the current page tells the frame about itself: its title, for the bar on a phone, and
- * whether it draws its own edges.
+ * What the current page tells the frame about itself: its title and its menu, for the bar on a
+ * phone, and whether it draws its own edges.
  *
  * Below `medium` the app bar carries the page's title in place of the wordmark, and the page head
  * asks for its `h1` to be read rather than drawn (`PageHeader`'s `isTitleInBar`), so a screen
@@ -13,8 +13,19 @@
  * is called. A view that sets nothing keeps its heading and the bar keeps the wordmark.
  */
 
+import type { MenuItem } from '@hubtask/design-system/components';
+
+/** A page's own menu, in the shape `PageHeader` folds it into and `Menu` draws it from. */
+export interface PageMenu {
+  readonly label: string;
+  readonly items: readonly MenuItem[];
+  readonly onselect: (id: string) => void;
+  readonly opener?: string;
+}
+
 class Page {
   #title = $state<string | undefined>(undefined);
+  #menu = $state<PageMenu | undefined>(undefined);
   #fills = $state(false);
 
   get title(): string | undefined {
@@ -27,6 +38,23 @@ class Page {
     return () => {
       if (this.#title === title) this.#title = undefined;
     };
+  }
+
+  get menu(): PageMenu | undefined {
+    return this.#menu;
+  }
+
+  /**
+   * Takes the page's menu, or takes it away.
+   *
+   * The head is what offers it: on `compact` ADR-0061 §1's table puts the menu in the bar, and the
+   * head hands its **folded** list over rather than a second one assembled here — the folding is
+   * `PageHeader`'s, and two foldings would eventually disagree about which action is an action and
+   * which is an item. A plain setter rather than a scope like `entitle`, because the head calls it
+   * from an effect that already has a cleanup and passes `undefined` there.
+   */
+  offer(menu: PageMenu | undefined): void {
+    this.#menu = menu;
   }
 
   /**
