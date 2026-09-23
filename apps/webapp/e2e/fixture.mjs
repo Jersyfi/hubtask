@@ -123,7 +123,84 @@ export function stub(route) {
   if (path.match(/\/api\/v1\/items\/[^/]+\/(reminders|attachments|comments|activity)$/)) return route.fulfill({ json: { ...PAGE, data: [] } });
   if (path.match(/\/api\/v1\/items\/[^/]+\/recurrence$/)) return route.fulfill({ status: 404, json: { code: 'recurrence.not_found' } });
   if (/\/(views|templates|custom-fields|policies|feeds)$/.test(path)) return route.fulfill({ json: [] });
+  return fallback(route, request, path);
+}
+
+/**
+ * The reads the frame makes on every screen, and a record of everything else.
+ *
+ * **Shapes, because a wrong one is silent.** The API answers an array where the client maps over
+ * one and an object where it reads a field; a page envelope in either place puts an object through
+ * `.find`, or `undefined` where a field belongs, and the screen throws *while rendering*. That is
+ * a failure a fast machine hides: the next navigation usually wins the race, and the slower CI
+ * runner is where the screen gets far enough to try. Measured before this was written, the silent
+ * catch-all was answering `/quotas`, `/meta/health` and `/integrations/calendar-feeds` — three
+ * reads the frame makes on *every* screen — in a shape none of them has.
+ *
+ * **A record, because a guess nobody notices is the whole problem.** Anything this fixture was
+ * never asked for is still answered — a walk that died here would say less than one that finishes
+ * — but its path is kept, and `signedIn` hands the record to the test. `unstubbed()` beside
+ * `failures` is the assertion: the same shape the walks already use for what the page threw.
+ *
+ * Exported, so that a walk with a stub of its own ends with this rather than inventing a second
+ * catch-all. Every one of them had the same wrong shapes for the same reason.
+ */
+export function fallback(route, request, path) {
+  const read = path.replace(/^.*\/api\/v1/, '');
+
+  // Bringing a container back, which is what the archive is for. Answered with the container it
+  // makes rather than with a page: the record below found this being guessed at in the walk whose
+  // subject it is.
+  if (read === `/containers/${ARCHIVED.id}:unarchive`) {
+    const { archived_at: _put, ...back } = ARCHIVED;
+    return route.fulfill({ json: { ...back, version: ARCHIVED.version + 1 } });
+  }
+  if (read === '/search') return route.fulfill({ json: { ...PAGE, data: [] } });
+
+  // The three writes the walks make and had been guessing at, each answered with the entry it
+  // makes. Two of them are the subject of the walk that makes them - the timeline's drag sets a
+  // due date, the board's carry reorders - so a guess here is a walk that cannot claim to have
+  // exercised what it is named after.
+  const due = ALL_ITEMS.find((each) => read === `/items/${each.id}/due`);
+  if (due) return route.fulfill({ json: { ...due, ...request.postDataJSON(), version: due.version + 1 } });
+  const ranked = ALL_ITEMS.find((each) => read === `/items/${each.id}:reorder`);
+  if (ranked) return route.fulfill({ json: { ...ranked, ...request.postDataJSON(), version: ranked.version + 1 } });
+  if (read === '/items' && request.method() === 'POST') {
+    return route.fulfill({ status: 201, json: { ...ALL_ITEMS[0], id: '01a0e2e0-0000-7000-8000-0000000000ff', ...request.postDataJSON(), version: 1 } });
+  }
+
+  if (ARRAYS.has(read)) return route.fulfill({ json: [] });
+  if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
+  if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
+
+  unstubbed.push(`${request.method()} ${read}`);
   return route.fulfill({ json: PAGE });
+}
+
+/**
+ * The reads that answer a bare array rather than a page envelope.
+ *
+ * One list, because the mistake is one mistake: every walk that wrote its own had the same three
+ * wrong. A walk that visits the administration meets most of them without ever naming one.
+ */
+const ARRAYS = new Set([
+  '/quotas', '/groups', '/retention-policies', '/oauth/clients', '/oauth/grants',
+  '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
+  '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
+  '/integrations/calendar-feeds',
+]);
+
+/** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */
+let unstubbed = [];
+
+/** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
+export function forgetUnstubbed() {
+  unstubbed = [];
+}
+
+/** What was asked for and guessed at, without repeats. */
+export function unstubbedSoFar() {
+  return [...new Set(unstubbed)];
 }
 
 /** A signed-in tab at a width, with the failures the bundle throws collected. */
@@ -134,5 +211,6 @@ export async function signedIn(browser, width, height = 800) {
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  return { context, page, failures };
+  forgetUnstubbed();
+  return { context, page, failures, unstubbed: unstubbedSoFar };
 }
