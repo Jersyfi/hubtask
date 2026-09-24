@@ -776,7 +776,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0064 | The one read that may ask the whole workspace a narrowed question | accepted |
 | 0065 | Sections, and where a statement about the application lives | accepted |
 | 0066 | Search is one question, and the document holds every word form | accepted |
-| 0067 | The S3-compatible server the tests run against is SeaweedFS, in one place | proposed |
+| 0067 | The S3-compatible server the tests run against is SeaweedFS, in one place | accepted |
 
 ---
 

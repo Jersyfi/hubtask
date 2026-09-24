@@ -1,6 +1,6 @@
 # ADR-0067 — The S3-compatible server the tests run against is SeaweedFS, in one place
 
-**Status:** proposed (2026-09-24) · **Date:** 2026-09-24
+**Status:** accepted (2026-09-24) · **Date:** 2026-09-24
 
 ## Context
 
