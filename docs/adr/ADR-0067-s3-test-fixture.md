@@ -107,19 +107,44 @@ next decision, not this one.
 
 ## What the helper has to defend against
 
-Two behaviours of `weed shell`, both found by trying rather than by reading:
+**Four ways to report a success that did not happen.** All four were found by trying rather than by
+reading, and none of them announces itself — each one ends in a green step with no bucket:
 
-* **It exits 0 on a command it does not know**, printing the complaint instead. A bucket creation
-  that silently did nothing would leave a green gate with no bucket, so `s3test.CreateBucket` reads
-  the listing back and requires the name in it. The Kubernetes job in the PITR drill does the same
-  with `grep`.
-* **It blocks indefinitely when it cannot reach the master** rather than failing. The Go helper
-  carries its own 30-second deadline; the drill's job carries `activeDeadlineSeconds`.
+* **`weed shell` exits 0 on a command it does not know**, printing the complaint instead. So
+  `s3test.CreateBucket` reads the listing back rather than trusting the exit code.
+* **It blocks indefinitely when it cannot reach the master** rather than failing. So "the call
+  returned" is not evidence either: the Go helper carries its own 30-second deadline, independent
+  of the caller's context.
+* **`container.Exec` hands back Docker's multiplexed attach stream.** Its eight-byte frame headers
+  land *inside* the text, where they read as a shell prompt glued to the first line
+  (`/  written-immediately`), so any check that looks at *where* a word sits breaks. The reader
+  passes `tcexec.Multiplexed()`. A lenient `strings.Contains` had hidden this completely — it found
+  the name despite the frame bytes. The strict whole-name check is what surfaced it.
+* **`weed shell` is a gRPC client on `port + 10000`.** It is *given* the master's HTTP port, 9333,
+  but does its work on **19333**, and the filer's on **18888**. A Job beside the server, talking to
+  a Service that published 8333 and 9333 only, exited **0 having printed nothing at all** — no
+  error, no output, no bucket — and then sat until its deadline. So the drill makes its buckets
+  **inside the object store's own pod**, where every port is on localhost. Publishing the two gRPC
+  ports would also have worked and was rejected deliberately: it would tie the drill to an
+  arithmetic SeaweedFS is free to change.
+
+The last of those was found only by running `gate-pitr` in full, on a real cluster — the one part
+of this change no pull-request gate reaches. It is the argument for running it before merging
+rather than discovering it in a nightly.
+
+**The shape of the defence is one rule**: read the result back through a second channel, and match
+the whole name. `s3.bucket.create` then `s3.bucket.list`, and the bucket counts as made only if the
+listing names it exactly — `media` must not be found in a listing that holds only `hubtask-media`.
+A loose assertion inside a helper hides bugs in the helper, and the helper is what every suite
+trusts.
 
 ## Consequences
 
 * The three red gates go green with no assertion changed, no fake introduced, and nothing skipped.
 * The next registry or vendor move is one line in `test/s3test` plus one default in the drill.
+* `test/s3test` has its own suite, in `gate-integration`: a container helper that silently does
+  nothing takes every suite that leans on it down with it, green. Three of the four traps above
+  have a test that triggers them.
 * `HUBTASK_TEST_MINIO_IMAGE` no longer exists. No workflow referenced it. The RT-1 evidence records
   under `docs/evidence/` still name it and are left alone — they are records of what ran then.
 * The suite names change from `s3 against MinIO` to `s3 against SeaweedFS`.
