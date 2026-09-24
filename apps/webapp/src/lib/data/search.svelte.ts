@@ -18,23 +18,19 @@
  * page per press, which is right for a list a person is paging and wrong for a read whose pages
  * are short for a reason that has nothing to do with the reader.
  *
- * **Two languages are in play.** The entry is indexed under the language it was written in; the
- * *query* is read under the caller's, which is this request's `language`. `text_languages` is what
- * a picker for it is built from — the installation's answer rather than the product's, because the
- * mapping from a tag to a text search configuration is what its PostgreSQL was built with
- * (ADR-0034).
+ * **No language is chosen here, and that is deliberate** (ADR-0066 decision 1). An entry used to be
+ * indexed under the language it was written in while the query was read under the caller's, which
+ * is why a workspace written in one language and read in another could answer "nothing matches"
+ * about an entry plainly there — and why this screen grew a picker, a widening and a badge to work
+ * around it. The fix is where the asymmetry was: the stored document carries the entry's own
+ * configuration *and* `simple`, so every word form is found whoever asks. `ItemSearchQuery.language`
+ * is still in the contract and is simply not sent.
  */
 
 import type { TransportError, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { keyFor, keysIn } from './searchhandle.ts';
-import {
-  canOfferRest,
-  readerLanguages,
-  remainingLanguages,
-  shouldWiden,
-} from './searchlanguages.ts';
 
 /** How many pages one search walks at most, so a slow installation cannot be asked forever. */
 const MAX_PAGES = 10;
@@ -52,29 +48,26 @@ export interface SearchAsked {
    * deliberately no `SEMANTIC`.
    */
   readonly mode?: SearchMode;
-  /** BCP-47, from `text_languages`. Empty means the caller's own locale, which is the default. */
-  readonly language?: string;
   /** A hub or a collection to look in. Omitted searches everything the caller may see. */
   readonly containerId?: string;
   /**
    * What narrows the hits, in the grammar the item query uses (ADR-0064).
    *
-   * It travels as it was built — `searchfilters.ts` composes it and the domain reads it — and it
-   * is what makes a search askable without words at all: a filter with no term is a work list,
+   * It travels as it was built — `searchquery.ts` compiles it and the domain reads it — and it is
+   * what makes a search askable without words at all: a filter with no term is a work list,
    * ordered by when it is due rather than ranked.
    */
   readonly filter?: unknown;
   /**
-   * The reader's own language, and the ones this installation indexes text in.
+   * The order of a search that has no words to rank, and how far it reaches.
    *
-   * Handed in rather than read here, for the reason every other store gives: the manifest is read
-   * once in one place, and a data module that reached for it would be the second answer to what
-   * the installation says about itself.
+   * All three are the contract's own (`ItemSearchQuery`, ADR-0064) and none of them had a control
+   * until the filter language: a sort is refused beside words by name, and the two flags are what
+   * `is:archived` and `is:trashed` mean.
    */
-  readonly readerLocale?: string;
-  readonly textLanguages?: readonly string[];
-  /** The languages the reader's own browser says they read. Asked first, where indexed. */
-  readonly preferredLanguages?: readonly string[];
+  readonly sort?: readonly { readonly field: string; readonly direction: 'ASC' | 'DESC' }[];
+  readonly includeArchived?: boolean;
+  readonly includeTrashed?: boolean;
 }
 
 class Search {
@@ -83,18 +76,6 @@ class Search {
   #error = $state<TransportError | undefined>(undefined);
   /** Whether the walk stopped at `MAX_PAGES` rather than at the end of the results. */
   #isPartial = $state(false);
-  /**
-   * Which language found each hit, for the ones the reader's own did not.
-   *
-   * Only the widened ones are in here: a hit found under the reader's language needs no label,
-   * because that is the question they asked.
-   */
-  #foundUnder = $state<Record<string, string>>({});
-  /** The question the answers on screen belong to, so the offered widening can re-ask it. */
-  #asked = $state<SearchAsked | undefined>(undefined);
-  /** The languages already asked, and the ones left to offer. */
-  #alreadyAsked: string[] = [];
-  #remaining = $state<readonly string[]>([]);
   /** Which search the answers on screen belong to, so a slower earlier one cannot overwrite them. */
   #generation = 0;
   /**
@@ -122,31 +103,6 @@ class Search {
     return this.#isPartial;
   }
 
-  /** The language that found this hit, when it was not the reader's own. */
-  languageOf(itemId: string): string | undefined {
-    return this.#foundUnder[itemId];
-  }
-
-  /** Whether anything on screen was found by asking a language the reader did not ask for. */
-  get didWiden(): boolean {
-    return Object.keys(this.#foundUnder).length > 0;
-  }
-
-  /**
-   * How many languages are left to look in, when looking in them is worth offering.
-   *
-   * Zero means there is nothing to offer — either something was found, or the reader chose a
-   * language, or this installation indexes nothing else.
-   */
-  get remainingCount(): number {
-    return canOfferRest({
-      found: this.#hits.length,
-      chosenLanguage: this.#asked?.language,
-      remaining: this.#remaining,
-    })
-      ? this.#remaining.length
-      : 0;
-  }
 
   /** Whether the bar has words waiting for the search screen. */
   get handedOver(): string | undefined {
@@ -220,10 +176,6 @@ class Search {
     this.#status = 'idle';
     this.#error = undefined;
     this.#isPartial = false;
-    this.#foundUnder = {};
-    this.#asked = undefined;
-    this.#alreadyAsked = [];
-    this.#remaining = [];
   }
 
   /**
@@ -247,37 +199,11 @@ class Search {
     this.#status = 'searching';
     this.#error = undefined;
     this.#isPartial = false;
-    this.#foundUnder = {};
-    this.#asked = asked;
-    this.#alreadyAsked = [];
-    this.#remaining = [];
 
     try {
-      const own = await this.#ask(term, asked, undefined, mine);
-      if (own === undefined) return;
-
-      this.#hits = own;
-
-      // R-08 step 8: a workspace written in one language and read in another answered "nothing
-      // matches" until somebody changed a control they had no reason to look at. So a silence is
-      // what widens, and the reader's own other languages are what it widens to — cheap, and a hit
-      // in one of them is a hit they can act on.
-      const wider = readerLanguages(
-        asked.readerLocale,
-        asked.textLanguages ?? [],
-        asked.preferredLanguages ?? [],
-      );
-      // Only a search for *words* is widened by language. A filter with none found nothing
-      // because nothing matches it, and asking the same filter under thirty configurations would
-      // be thirty identical answers (ADR-0034's widening is about how a query is read).
-      if (term !== '' && shouldWiden({ found: own.length, chosenLanguage: asked.language, wider })) {
-        if (!(await this.#widen(term, asked, wider, mine))) return;
-      }
-
-      // What is left, for the control that offers it. Thirty round trips is not something to spend
-      // without being asked, and a subset of an alphabetical list is a guess.
-      this.#alreadyAsked = [...wider];
-      this.#remaining = remainingLanguages(asked.readerLocale, asked.textLanguages ?? [], wider);
+      const found = await this.#ask(term, asked, mine);
+      if (found === undefined) return;
+      this.#hits = found;
       this.#status = 'done';
     } catch (error) {
       if (mine !== this.#generation) return;
@@ -287,79 +213,46 @@ class Search {
   }
 
   /**
-   * Looks in every language left, because the reader asked for it.
+   * One page, for the menu in the bar.
    *
-   * Unbounded on purpose: a subset of a list that arrives alphabetically is a guess, and the whole
-   * of it is an answer. It costs what it costs because somebody pressed a control that said so.
+   * A separate verb rather than `run` with a bound, because the two are different reads and only
+   * one of them belongs to a screen. The menu shows the first few hits while somebody is still
+   * typing; it must not touch `hits`, `status` or the generation, or the search screen behind it
+   * would flicker on every keystroke made in the bar.
+   *
+   * It does not walk. A short page is the unanchored read's own shape, so what a menu shows is
+   * "some of what matches" - which is what a menu promises anyway. The screen it leads to is where
+   * completeness is owed.
    */
-  async widenToRest(): Promise<void> {
-    const asked = this.#asked;
-    if (!asked || this.#remaining.length === 0) return;
-
-    this.#generation += 1;
-    const mine = this.#generation;
-    this.#status = 'searching';
-    this.#error = undefined;
-
-    const rest = this.#remaining;
-    try {
-      if (!(await this.#widen(asked.q.trim(), asked, rest, mine))) return;
-      this.#alreadyAsked = [...this.#alreadyAsked, ...rest];
-      this.#remaining = [];
-      this.#status = 'done';
-    } catch (error) {
-      if (mine !== this.#generation) return;
-      this.#error = error as TransportError;
-      this.#status = 'failed';
-    }
+  async peek(asked: SearchAsked, limit: number): Promise<readonly WorkItem[]> {
+    const term = asked.q.trim();
+    if (term === '' && asked.filter === undefined) return [];
+    const answer = await engine.mutate<WorkItemPage>(
+      'POST',
+      '/search',
+      {
+        ...(term === '' ? {} : { q: term }),
+        ...(asked.filter === undefined ? {} : { filter: asked.filter }),
+        ...(asked.sort && asked.sort.length > 0 ? { sort: asked.sort } : {}),
+        ...(asked.includeArchived ? { include_archived: true } : {}),
+        ...(asked.includeTrashed ? { include_trashed: true } : {}),
+        ...(asked.mode ? { mode: asked.mode } : {}),
+        ...(asked.containerId ? { container_id: asked.containerId } : {}),
+        page: { size: limit },
+      },
+      { invalidates: [] },
+    );
+    return (answer.data ?? []).slice(0, limit);
   }
 
   /**
-   * Asks each language in turn, adding what each finds.
-   *
-   * Answers `false` when a later search has started, which is the caller's cue to stop writing to
-   * a screen that has moved on.
-   */
-  async #widen(
-    term: string,
-    asked: SearchAsked,
-    languages: readonly string[],
-    mine: number,
-  ): Promise<boolean> {
-    const gathered: WorkItem[] = [...this.#hits];
-    const under: Record<string, string> = { ...this.#foundUnder };
-    const known = new Set(gathered.map((hit) => hit.id));
-
-    for (const language of languages) {
-      const hits = await this.#ask(term, asked, language, mine);
-      if (hits === undefined) return false;
-      for (const hit of hits) {
-        // The first language to find it is the one credited: asking further is about finding it at
-        // all, and two labels on one row would be a fact nobody asked for.
-        if (known.has(hit.id)) continue;
-        known.add(hit.id);
-        under[hit.id] = language;
-        gathered.push(hit);
-      }
-      this.#hits = [...gathered];
-      this.#foundUnder = { ...under };
-    }
-    return true;
-  }
-
-  /**
-   * One search under one language, walked to the end or to the bound.
+   * One search, walked to the end or to the bound.
    *
    * Answers `undefined` when a later search has started — everything from that point belongs to an
    * answer nobody is waiting for any more, and the caller stops rather than writing it to the
    * screen.
    */
-  async #ask(
-    term: string,
-    asked: SearchAsked,
-    language: string | undefined,
-    mine: number,
-  ): Promise<WorkItem[] | undefined> {
+  async #ask(term: string, asked: SearchAsked, mine: number): Promise<WorkItem[] | undefined> {
     const found: WorkItem[] = [];
     let cursor: string | null | undefined;
 
@@ -370,10 +263,12 @@ class Search {
         {
           ...(term === '' ? {} : { q: term }),
           ...(asked.filter === undefined ? {} : { filter: asked.filter }),
-          // The chosen language wins over the widening one: somebody who picked asked a precise
-          // question. Neither ever reaches a URL — this is a `POST` because a search term is
-          // content and a query string travels through access logs (security.md §9).
-          ...(language ?? asked.language ? { language: language ?? asked.language } : {}),
+          ...(asked.sort && asked.sort.length > 0 ? { sort: asked.sort } : {}),
+          ...(asked.includeArchived ? { include_archived: true } : {}),
+          ...(asked.includeTrashed ? { include_trashed: true } : {}),
+          // No `language`: the stored document carries the entry's own configuration and
+          // `simple` both, so there is nothing left for a caller to choose. The term still never
+          // reaches a URL - this is a `POST` because it is content (security.md §9).
           ...(asked.mode ? { mode: asked.mode } : {}),
           ...(asked.containerId ? { container_id: asked.containerId } : {}),
           page: { size: PAGE_SIZE, ...(cursor ? { cursor } : {}) },

@@ -284,18 +284,21 @@ export const TRASH = TRASH_ROW;
 export const YOU_CODE = 'app.nav.you';
 
 /**
- * The primary group, minus the one the bar may be carrying.
+ * The primary group, whole — Search included, whatever the bar is carrying.
  *
- * From `medium` up the bar holds the entry to search (ADR-0063 decision 4), and a row for it in
- * the tree beside it would be the second entry to one destination — the duplication ADR-0061's
- * "no search field in the bar" was protecting against, now kept on the other side. Below that the
- * bar has no room, the field is not there, and Search is a destination in the bottom bar.
+ * **This reverses one sentence.** The rule was: from `medium` up the bar holds the entry to search
+ * (ADR-0063 decision 4), so a row for it beside the tree would be a second entry to one
+ * destination. That reading treated a *field* and a *destination* as the same thing, and they are
+ * not: the field is where a search is typed, and Search is a place with a filter on it that
+ * somebody goes to with nothing typed at all — to press a narrowing, to open one they were sent,
+ * to go back to the one they were building. A reader who wants the place and is offered only a
+ * field has to type something to reach it.
+ *
+ * Below `medium` nothing changes: the tree draws no primary group there, because the bottom bar
+ * holds those destinations and Search is already one of them.
  */
-export function primary(options: { readonly hasSearchField?: boolean } = {}): readonly Destination[] {
-  return DESTINATIONS.filter(
-    (destination) =>
-      destination.group === 'primary' && !(destination.id === 'search' && options.hasSearchField === true),
-  );
+export function primary(): readonly Destination[] {
+  return DESTINATIONS.filter((destination) => destination.group === 'primary');
 }
 
 /**

@@ -68,11 +68,27 @@ $$;
 
 -- The title weighted A and the notes B, so that ts_rank_cd ranks a hit in a title above one buried
 -- in a note.
+CREATE OR REPLACE FUNCTION hubtask_search_recipe(language text) RETURNS text
+  LANGUAGE sql STABLE PARALLEL SAFE AS
+$$
+  SELECT CASE WHEN cfg = 'simple'::regconfig THEN 'simple' ELSE cfg::text || '+simple' END
+    FROM hubtask_text_config(language) AS cfg
+$$;
+
+-- The document: the title weighted A and the notes B under the entry's own configuration, and the
+-- word forms beside them under `simple` at the same weights (ADR-0066). Without the second copy a
+-- reader whose configuration differs from the entry's is answered "nothing matches" about an entry
+-- that is plainly there, which is what the language picker used to work around.
 CREATE OR REPLACE FUNCTION hubtask_search_document(language text, title text, notes text)
   RETURNS tsvector LANGUAGE sql STABLE PARALLEL SAFE AS
 $$
-  SELECT setweight(to_tsvector(hubtask_text_config(language), coalesce(title, '')), 'A')
-      || setweight(to_tsvector(hubtask_text_config(language), coalesce(notes, '')), 'B')
+  SELECT setweight(to_tsvector(cfg, coalesce(title, '')), 'A')
+      || setweight(to_tsvector(cfg, coalesce(notes, '')), 'B')
+      || CASE WHEN cfg = 'simple'::regconfig THEN ''::tsvector
+              ELSE setweight(to_tsvector('simple', coalesce(title, '')), 'A')
+                || setweight(to_tsvector('simple', coalesce(notes, '')), 'B')
+         END
+    FROM hubtask_text_config(language) AS cfg
 $$;
 
 -- The collation names sort under (M-08, i18n-l10n.md §5, migration 0080): the ICU root collation
@@ -98,8 +114,8 @@ $$
 BEGIN
   NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.notes);
   -- Which configuration built it (M-09): a row whose stored name differs from what
-  -- hubtask_text_config() answers today is stale, and the reindex rewrites exactly those.
-  NEW.search_configuration := hubtask_text_config(NEW.content_language)::text;
+  -- hubtask_search_recipe() answers today is stale, and the reindex rewrites exactly those.
+  NEW.search_configuration := hubtask_search_recipe(NEW.content_language);
   RETURN NEW;
 END $$;
 

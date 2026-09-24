@@ -775,6 +775,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0063 | The navigation, the status place, and how a screen is worked | accepted |
 | 0064 | The one read that may ask the whole workspace a narrowed question | accepted |
 | 0065 | Sections, and where a statement about the application lives | accepted |
+| 0066 | Search is one question, and the document holds every word form | accepted |
 
 ---
 

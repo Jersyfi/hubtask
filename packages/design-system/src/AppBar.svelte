@@ -81,18 +81,25 @@
 </script>
 
 <header class="bar" aria-label={label}>
-  <div class="row">
-    {#if toggle}
-      <IconButton
-        icon={toggle.kind === 'drawer' ? 'menu' : 'panel-left'}
-        label={toggle.label}
-        aria-expanded={toggle.isExpanded}
-        data-toggle={toggle.kind}
-        data-tour={toggle.tour}
-        onclick={toggle.onToggle}
-      />
-    {/if}
+  <!-- `data-search` so the row can lay itself out differently when it carries a field: the lead
+       and the end then share the free space equally, which is what puts the field in the middle.
+       Without it the row is untouched, and a bar with no search field looks exactly as it did. -->
+  <div class="row" data-search={search ? '' : undefined}>
+    <!-- The toggle is *inside* the lead, not beside it. Outside, the row's start was two boxes and
+         only one of them shared the free space, so a field between two equal halves still sat half
+         the toggle's width off centre — twenty pixels of a fortnight's puzzlement. The gap is the
+         row's own, so nothing moves. -->
     <div class="lead">
+      {#if toggle}
+        <IconButton
+          icon={toggle.kind === 'drawer' ? 'menu' : 'panel-left'}
+          label={toggle.label}
+          aria-expanded={toggle.isExpanded}
+          data-toggle={toggle.kind}
+          data-tour={toggle.tour}
+          onclick={toggle.onToggle}
+        />
+      {/if}
       {#if title}
         <!-- Named, because a bar with a sheet opened from it holds a second `.title` — the
              sheet's own heading — and "the bar's title" has to be a question with one answer. -->
@@ -152,13 +159,31 @@
     white-space: nowrap;
   }
 
-  /* Centred in the row and bounded: the field is the bar's, not the page's, so it takes a few
-     words' worth and gives the rest back. `min-inline-size: 0` because a flex item's automatic
-     minimum size would otherwise hold the input's default width and push the account menu out. */
+  /* Bounded: the field is the bar's, not the page's, so it takes a few words' worth and gives the
+     rest back. `min-inline-size: 0` because a flex item's automatic minimum size would otherwise
+     hold the input's default width and push the account menu out. */
   .search {
-    flex: 1 1 var(--layout-barsearch-width);
-    max-inline-size: var(--layout-barsearch-width);
+    flex: 0 1 var(--layout-barsearch-width);
+    inline-size: var(--layout-barsearch-width);
     min-inline-size: 0;
+  }
+
+  /* And centred, which the note above claimed before it was true: the field sat wherever the lead
+     happened to end. Centring it needs the two sides to share the free space equally, so in a row
+     that carries a field the lead and the end each take half of what is left and the field lands
+     between them. Where the two sides are too wide for that — a long title, a crowded end — the
+     flex basis of zero gives way and the row degrades to the order it always had, which is the
+     right failure: a field pushed off-centre is legible, a field pushed out of the bar is not. */
+  .row[data-search] .lead,
+  .row[data-search] .end {
+    flex: 1 1 0;
+  }
+
+  /* The end grows now, so its contents have to be told to stay at the end of it: a box that used
+     to be exactly as wide as the account menu is half the row wide, and `auto` no longer moves it. */
+  .row[data-search] .end {
+    margin-inline-start: 0;
+    justify-content: flex-end;
   }
 
   .end {
@@ -180,4 +205,10 @@
 
   /* With both present the end has already taken the free space, so the menu sits against it. */
   .end + .page-menu { margin-inline-start: 0; }
+
+  /* A page that fills the slot with nothing still gets the box, and a box in a flex row with a gap
+     is a gap: six pixels of asymmetry that moved the centred field off centre. `:empty` is exactly
+     the question being asked - has this slot anything in it - and a comment node, which is all
+     Svelte leaves behind, does not count as content. */
+  .page-menu:empty { display: none; }
 </style>

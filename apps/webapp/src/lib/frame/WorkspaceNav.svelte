@@ -38,22 +38,17 @@
     current?: string;
     /** Whether the primary group is drawn above the tree - not on `compact`, where the bar has it. */
     hasDestinations?: boolean;
-    /**
-     * Whether the app bar is carrying the entry to search, which takes Search out of this list.
-     * The frame decides, because the frame knows the width (ADR-0063 decision 4).
-     */
-    hasSearchField?: boolean;
     /** Folded to its marks: the tree stays whole and draws its marks alone, as do the controls beside it. */
     isRail?: boolean;
     onnavigate: (path: string) => void;
   }
 
-  const { current, hasDestinations = true, hasSearchField = false, isRail = false, onnavigate }: Props = $props();
+  const { current, hasDestinations = true, isRail = false, onnavigate }: Props = $props();
 
   /** The one list's primary group, as nodes of the same tree. */
   const destinationNodes = $derived(
     hasDestinations
-      ? primary({ hasSearchField }).map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon }))
+      ? primary().map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon }))
       : [],
   );
 

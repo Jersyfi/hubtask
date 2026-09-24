@@ -14,7 +14,7 @@ export default {
 export const brand: Story = {
   name: 'The brand, a drawer trigger and the account',
   about:
-    'What the bar holds from `medium` up: the way into the navigation at the start, the wordmark, the entry to search, and the account menu at the end — the account group of the one navigation list (ADR-0061). The field is the entry to the search page and not the search itself (ADR-0063 decision 4); a caller that fills it takes Search out of its navigation list, so there is still one visible entry to it. No page action: a page’s actions belong to `PageHeader`.',
+    'What the bar holds from `medium` up: the way into the navigation at the start, the wordmark, the entry to search, and the account menu at the end — the account group of the one navigation list (ADR-0061). The field is the entry to the search page and not the search itself (ADR-0063 decision 4), and it sits in the **middle** of the row: with a field present the lead and the end share the free space equally. A caller that fills the slot keeps Search in its navigation list as well — a field is where a search is typed, and Search is the place it is built. No page action: a page’s actions belong to `PageHeader`.',
 };
 
 export const title: Story = {
