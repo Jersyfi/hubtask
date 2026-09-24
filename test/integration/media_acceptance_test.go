@@ -26,7 +26,7 @@ import (
 )
 
 // The three runs C-06 names as its acceptance, against the real database and - for the one that is
-// about somebody else's server - a real MinIO. Each of them is a sentence in the task that would
+// about somebody else's server - a real object store. Each of them is a sentence in the task that
 // otherwise be a claim.
 
 // pngBytes is a real PNG signature and enough after it to be worth storing.
@@ -264,7 +264,7 @@ func assertJournalled(ctx context.Context, t *testing.T, mediaID shared.ID) {
 // one - once inside its window and once after it has closed.
 func TestAPresignedURLWorksUntilItExpires(t *testing.T) {
 	ctx := context.Background()
-	store := startMinIO(t)
+	store := startS3(t)
 
 	object := media.Object{
 		ID:         shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e1"),

@@ -645,6 +645,57 @@ func TestTheSearchedWordsNeverBecomeStatementText(t *testing.T) {
 	}
 }
 
+// The beginning of the last word is a *fourth* branch of the match and **no part of the rank**
+// (ADR-0066 decision 4).
+//
+// Both halves matter. A search has to answer while it is being typed, so `Momente Chall` asks for
+// entries holding `momente` and something beginning `chall`; and a hit on a beginning is weaker
+// evidence than a hit on a whole word, so it must not lift an entry above one that matched
+// properly. Leaving the prefix out of `ts_rank_cd` is what does that - those rows score zero and
+// sort behind, and `ORDER BY rank DESC, wi.id DESC` still pages them deterministically.
+func TestTheBeginningOfTheLastWordMatchesButDoesNotRank(t *testing.T) {
+	statement, err := Search(textSearchOf("Momente Chall"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	// Under `simple`, because a configuration would stem the beginning into something that is not
+	// one, and would drop a one-letter word as a stop word entirely.
+	const branch = `OR wi.search_document @@ (websearch_to_tsquery('simple', normalize($`
+	if !strings.Contains(statement.SQL, branch) || !strings.Contains(statement.SQL, `|| ':*')`) {
+		t.Fatalf("the statement has no prefix branch:\n  %s", statement.SQL)
+	}
+	// The word is bound like every other value: `to_tsquery` has operators of its own, and the
+	// domain has already refused anything that is not a letter, a digit or a mark.
+	if strings.Contains(statement.SQL, "Chall") || strings.Contains(statement.SQL, "Momente") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
+	}
+	if !contains(statement.Args, "Chall") || !contains(statement.Args, "Momente") {
+		t.Errorf("the head and the beginning are not both bound: %v", statement.Args)
+	}
+
+	// And the rank knows nothing about it.
+	rank := statement.SQL[strings.Index(statement.SQL, "greatest(ts_rank_cd"):]
+	rank = rank[:strings.Index(rank, " AS rank")]
+	if strings.Contains(rank, ":*") {
+		t.Errorf("a beginning contributes to the rank, so it would outrank a whole word:\n  %s", rank)
+	}
+}
+
+// A word somebody has finished - a trailing space, a quote, an exclusion - is matched whole, and
+// the statement then has no prefix branch at all.
+func TestAFinishedWordGetsNoPrefixBranch(t *testing.T) {
+	for _, words := range []string{"Momente Chall ", `"Momente Chall"`, "Momente -Chall"} {
+		statement, err := Search(textSearchOf(words), "", SearchBoundary{}, 51)
+		if err != nil {
+			t.Fatalf("compilation failed for %q: %v", words, err)
+		}
+		if strings.Contains(statement.SQL, ":*") {
+			t.Errorf("%q was given a prefix branch:\n  %s", words, statement.SQL)
+		}
+	}
+}
+
 // textSearchOf is one unanchored search over the whole tenant, which is the shape the use case
 // produces when nobody named a scope.
 func textSearchOf(words string) repository.TextSearch {

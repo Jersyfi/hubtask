@@ -249,7 +249,7 @@ func TestAPlaintextEndpointMakesAPlaintextTargetWhateverTheKindIsCalled(t *testi
 		},
 		"a bucket at a plain endpoint": {
 			domain.KindS3,
-			domain.TargetConfig{"bucket": "hubtask", "endpoint": "http://minio.local:9000"}, true,
+			domain.TargetConfig{"bucket": "hubtask", "endpoint": "http://objects.local:9000"}, true,
 		},
 		"a bucket at AWS itself, with no endpoint written down": {
 			domain.KindS3, domain.TargetConfig{"bucket": "hubtask"}, false,
