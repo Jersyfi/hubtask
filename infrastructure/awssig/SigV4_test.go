@@ -15,8 +15,8 @@ import (
 )
 
 // The signing-key derivation against the vector Amazon publishes with the specification. The
-// full signature is proved by MinIO in the conformance suite - MinIO validates strictly - and
-// this pins the one step a typo would silently break everywhere.
+// full signature is proved in the conformance suite, against a server that validates strictly
+// (ADR-0067) - and this pins the one step a typo would silently break everywhere.
 func TestTheSigningKeyMatchesThePublishedVector(t *testing.T) {
 	key := awssig.DeriveKey("wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "20120215", "us-east-1", "iam")
 
@@ -40,7 +40,7 @@ func TestTheCanonicalFormsFollowTheSpecification(t *testing.T) {
 
 func TestSigningWritesTheThreeHeaders(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(),
-		http.MethodGet, "https://minio.internal:9000/media/key", nil)
+		http.MethodGet, "https://objects.internal:9000/media/key", nil)
 	at := time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC)
 
 	awssig.Sign(req, "access", "secret", "eu-central-1", "s3", awssig.EmptyPayloadHash, at)
