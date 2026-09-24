@@ -451,9 +451,12 @@ gate-sdk:
 	@echo "sdk: the generated Python package parses"
 
 ## gate-integration: Tests against a real PostgreSQL (Testcontainers)
+# test/s3test travels with it: the helper that starts the object store has its own suite, because
+# a container helper that silently does nothing would take every suite that leans on it down with
+# it, green (ADR-0067).
 .PHONY: gate-integration
 gate-integration:
-	$(call go_test,integration,./test/integration/...,)
+	$(call go_test,integration,./test/integration/... ./test/s3test/...,)
 
 ## gate-contract: Responses against openapi.yaml, events against JSON schemas
 .PHONY: gate-contract
