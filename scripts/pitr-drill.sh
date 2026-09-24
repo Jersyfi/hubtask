@@ -188,48 +188,46 @@ metadata:
   name: object-store
 spec:
   selector: { app: object-store }
-  ports:
-    - { name: s3, port: 8333, targetPort: 8333 }
-    # The master, which only the bucket job below talks to.
-    - { name: master, port: 9333, targetPort: 9333 }
+  ports: [{ name: s3, port: 8333, targetPort: 8333 }]
 MANIFEST
 kubectl -n "$NAMESPACE" rollout status deployment/object-store --timeout=300s
 
 # The buckets have to exist before the first archive command runs; barman creates paths, not
-# buckets. `weed shell` waits for the service by name rather than by address, which is why this is
-# a Job in the cluster rather than a port-forward from the runner.
+# buckets. This runs inside the object store's own pod rather than from a Job beside it, and the
+# reason is worth writing down because the alternative fails *silently*:
 #
-# The listing is the proof rather than the exit code: `weed shell` exits 0 on a command it does not
-# know and prints the complaint instead, and it blocks rather than failing when it cannot reach the
-# master - which is what activeDeadlineSeconds is for.
-kubectl -n "$NAMESPACE" delete job create-bucket --ignore-not-found
-kubectl -n "$NAMESPACE" apply -f - <<MANIFEST
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: create-bucket
-spec:
-  backoffLimit: 5
-  activeDeadlineSeconds: 150
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-        - name: weed
-          image: $S3_IMAGE
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              set -e
-              {
-                echo "s3.bucket.create -name $BUCKET"
-                echo "s3.bucket.create -name $MEDIA_BUCKET"
-                echo "s3.bucket.list"
-              } | weed shell -master=object-store:9333 | tee /tmp/buckets
-              grep -q "$BUCKET" /tmp/buckets
-              grep -q "$MEDIA_BUCKET" /tmp/buckets
-MANIFEST
-kubectl -n "$NAMESPACE" wait --for=condition=complete job/create-bucket --timeout=180s || fail "the bucket was not created"
+# `weed shell` is a gRPC client. It reaches the master on 9333 over HTTP but does its work on
+# 19333, and the filer's on 18888 - the ports SeaweedFS derives by adding ten thousand. A Job
+# talking to the Service would need both of those published as well, and when they are not, the
+# shell exits 0 having printed nothing at all. Inside the pod every port is on localhost, so the
+# arithmetic is nobody's business here. The rollout above is what makes the server ready; this
+# needs no second wait for a name.
+#
+# The listing is the proof rather than the exit code: `weed shell` exits 0 on a command it does
+# not know and prints the complaint instead.
+buckets_made() {
+	kubectl -n "$NAMESPACE" exec deploy/object-store -- sh -c "
+		{ echo 's3.bucket.create -name $BUCKET'
+		  echo 's3.bucket.create -name $MEDIA_BUCKET'
+		  echo 's3.bucket.list'; } | weed shell -master=localhost:9333"
+}
+
+bucket_output=""
+for attempt in 1 2 3 4 5; do
+	bucket_output="$(buckets_made 2>&1 || true)"
+	if grep -q "[[:space:]]$BUCKET[[:space:]]" <<<"$bucket_output" &&
+		grep -q "[[:space:]]$MEDIA_BUCKET[[:space:]]" <<<"$bucket_output"; then
+		echo "both buckets present after attempt $attempt"
+		bucket_output="done"
+		break
+	fi
+	echo "attempt $attempt did not leave both buckets; retrying"
+	sleep 5
+done
+[ "$bucket_output" = "done" ] || {
+	echo "$bucket_output"
+	fail "the buckets were not created"
+}
 
 echo "--- the release, with the database the chart owns ---"
 # Two DSNs, the arrangement A-11 asks of Kubernetes (multi-tenancy.md §2.1): the migration runs as
