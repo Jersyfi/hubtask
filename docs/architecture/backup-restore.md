@@ -43,7 +43,7 @@ to SMB yet" rather than "SMB is not a thing".
 | Adapter | Built | Protocol / notes |
 |---|---|---|
 | `local` | yes | A directory inside the installation's backup volume (`HUBTASK_BACKUP_LOCAL_PATH`, the self-hosting default). A target's own path is **relative** to that volume and cannot leave it: whoever configures a target administers the instance, not the machine |
-| `s3` | yes | S3-compatible: AWS, MinIO, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part rather than an archive |
+| `s3` | yes | S3-compatible: AWS, SeaweedFS, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part rather than an archive |
 | `sftp` | yes | SSH-based, password or key. The host key is **configuration**: a target names the server's public key or its SHA-256 fingerprint, and one that names neither is refused. There is no trust on first use and no way to switch the check off — a target is created through an API, and a first connection that accepted whatever answered is one an attacker only has to be present for once |
 | `ftps` | — | FTP over TLS (explicit) |
 | `ftp` | — | Only with explicit confirmation — unencrypted transport, a warning in the UI/API, and an audit entry |
@@ -61,7 +61,7 @@ and a deliberately narrow one:
 
 * Backup targets may **only** be created by instance administrators, not by arbitrary tenant users. In practice that is the owner's right in the role matrix: in single-tenant operation the tenant's owner *is* the instance administrator, and in provider operation the operator can allow tenants their own targets (`HUBTASK_BACKUP_TENANT_TARGETS=true`, off by default) — an egress allowlist then applies on top.
 * **Every** call to a target runs through the same `GuardedClient`, not only the connection test: metadata endpoints, RFC 1918 ranges and loopback are refused unless `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` releases them, and no redirect is followed. SSH is not HTTP, so the SFTP adapter uses the guard's resolver and dial-time control directly rather than the client. Gate BK-9 is that sentence as a test.
-  The consequence is worth stating plainly, because self-hosters hit it: a MinIO or a NAS on the same LAN needs that release. It is a decision an operator makes once for the installation rather than one every target gets for free.
+  The consequence is worth stating plainly, because self-hosters hit it: an object store or a NAS on the same LAN needs that release. It is a decision an operator makes once for the installation rather than one every target gets for free.
 * Creating or changing a target is auditable (`backup.target_changed`), because a backup target is by definition a data egress channel. The entry records where the data may now go — the kind, the configuration, the encryption mode — and never the credential.
 * Credentials are sealed with the envelope of E-02, bound to the row they belong to, and are read back by exactly one repository method. The statements that feed a response do not select the column, so a credential cannot reach a client because somebody added a field to a mapper.
 
@@ -432,7 +432,8 @@ A drill that fails does **not** fail the release. The record keeps the previous 
 alert keeps counting from the last real proof rather than from the last attempt.
 
 **And in CI, where production does not exist yet**: `make gate-pitr` runs exactly this on a kind
-cluster with the CloudNativePG operator and MinIO — a real archive, a real recovery to a point
+cluster with the CloudNativePG operator and an S3-compatible store — a real archive, a real
+recovery to a point
 between two writes, the wrong marker's survival failing the build. What it cannot prove is the size
 of the numbers, because a CI runner is not the target; what it proves is the path.
 

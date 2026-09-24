@@ -159,6 +159,63 @@ func (s Search) WithoutWordBoundaries() bool {
 	return false
 }
 
+// PrefixTerm splits the words into the ones that are finished and the one that may still be being
+// typed: `Momente Chall` is `Momente` and the beginning `Chall`.
+//
+// **It exists because the bar answers while somebody types** (ADR-0066 decision 4). A tsquery
+// compares whole lexemes, so `Ann` is not a worse match for *Anna* - it is no match at all, and
+// `A` and `An` are English stop words besides, which a configuration drops entirely. A menu that
+// shows nothing for the first four keystrokes of a five-letter name reads as a menu that does not
+// work.
+//
+// Only the **last** word, and only when it is one plain word. Four things finish a word and are
+// therefore matched whole:
+//
+//   - a trailing space - somebody who typed one has finished;
+//   - a quote, because a phrase is a phrase;
+//   - a leading minus, because the beginning of something to exclude excludes too much;
+//   - `or`, which is the grammar's own word rather than one to find.
+//
+// Anything but a letter, a digit or a mark also finishes it. That is not tidiness: the prefix is
+// handed to `to_tsquery`, whose own operators (`&`, `|`, `!`, `:`, brackets) would otherwise turn
+// somebody's punctuation into a syntax error on a read - and it keeps the value a *word* rather
+// than something that has to be escaped (rule 9, T-06).
+//
+// A script without word boundaries is left alone: its search is the substring branch already
+// (WithoutWordBoundaries), and a prefix of a one-token run would be a second answer to the same
+// question.
+func (s Search) PrefixTerm() (head, prefix string) {
+	if s.Words == "" || s.WithoutWordBoundaries() {
+		return s.Words, ""
+	}
+	// A trailing space is the one signal that costs nothing to read and means exactly what it
+	// looks like: this word is done.
+	if trailing := strings.TrimRightFunc(s.Words, unicode.IsSpace); trailing != s.Words {
+		return s.Words, ""
+	}
+
+	fields := strings.Fields(s.Words)
+	if len(fields) == 0 {
+		return s.Words, ""
+	}
+	last := fields[len(fields)-1]
+
+	if strings.EqualFold(last, "or") || strings.HasPrefix(last, "-") || !isPlainWord(last) {
+		return s.Words, ""
+	}
+	return strings.Join(fields[:len(fields)-1], " "), last
+}
+
+// isPlainWord reports whether every rune is one a text search parser would keep inside a token.
+func isPlainWord(word string) bool {
+	for _, r := range word {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsMark(r) {
+			return false
+		}
+	}
+	return word != ""
+}
+
 // Validate holds the parts of a search that are not the words.
 func (s Search) Validate(path string) error {
 	if s.Words == "" && s.Filter == nil {

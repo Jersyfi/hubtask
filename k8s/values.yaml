@@ -342,7 +342,7 @@ storage:
   existingSecret: "" # expects the keys: access-key, secret-key
   bucket: ""
   region: us-east-1
-  endpoint: ""       # for MinIO, Garage and other S3-compatible services
+  endpoint: ""       # for SeaweedFS, Garage and other S3-compatible services
   persistence:
     # Only for kind=local. Media on an ephemeral disk disappears with the pod, so the chart
     # refuses that combination rather than losing attachments quietly.

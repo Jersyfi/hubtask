@@ -338,7 +338,7 @@ type StorageConfig struct {
 	Kind StorageKind
 	// LocalPath is used for StorageLocal.
 	LocalPath string
-	// The remaining fields apply to StorageS3, including S3-compatible services (MinIO, Garage).
+	// The remaining fields apply to StorageS3, including S3-compatible services (SeaweedFS, Garage).
 	Endpoint     string
 	Region       string
 	Bucket       string

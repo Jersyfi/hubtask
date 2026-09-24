@@ -10,6 +10,10 @@
 // the address, because a narrowing is structural and linkable. And a narrowing with no words at
 // all is a question the server answers, which is what ADR-0064 changed.
 //
+// The narrowing travels as one parameter, `?f=`, written in the language the chips and the text
+// surface both speak (`data/searchquery.ts`) — one parameter per chip is what it was before, and
+// it could say only the six things the chips had controls for.
+//
 // Chromium only: what is walked here is a form, a navigation and a query string, none of which
 // has an engine-specific part; `engines.test.mjs` loads the bundle in all three.
 
@@ -58,6 +62,7 @@ async function stub(route) {
         query_fields: [
           { field: 'type', operators: ['IN'] },
           { field: 'is_completed', operators: ['EQ'] },
+          { field: 'assignee_id', operators: ['EQ', 'IS_NULL'] },
           { field: 'due_at', operators: ['LTE', 'IS_NULL'] },
           { field: 'collection_id', operators: ['IN'] },
         ],
@@ -99,6 +104,15 @@ async function open(browser, width) {
   await page.goto(`${served.origin}/`);
   await page.getByRole('button', { name: ACCOUNT.display_name }).first().waitFor({ timeout: 15_000 });
   return { page, failures, close: () => context.close() };
+}
+
+/** Waits for the screen to have asked at least this many searches, or gives up saying so. */
+async function waitForAsked(count) {
+  for (let tries = 0; tries < 100; tries += 1) {
+    if (asked.length >= count) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.fail(`only ${asked.length} searches were asked, wanted ${count}`);
 }
 
 test('chromium: the bar leads to the search, and the words are not in the address', async (t) => {
@@ -175,7 +189,7 @@ test('chromium: a link carries the narrowing and none of the words', async (t) =
   asked.length = 0;
 
   // A search with both: words typed, and a chip chosen.
-  await page.goto(`${served.origin}/search?type=TASK`);
+  await page.goto(`${served.origin}/search?f=type%3Atask`);
   await page.locator('main input[type="search"]').fill('milk');
   await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
   await page.waitForFunction(() => new URL(location.href).searchParams.get('s') !== null, null, { timeout: 5_000 });
@@ -187,7 +201,7 @@ test('chromium: a link carries the narrowing and none of the words', async (t) =
     await new Promise((resolve) => setTimeout(resolve, 200));
     return navigator.clipboard.readText();
   });
-  assert.equal(link.includes('type=TASK'), true, `the link lost the narrowing: ${link}`);
+  assert.equal(decodeURIComponent(link).includes('f=type:task'), true, `the link lost the narrowing: ${link}`);
   assert.equal(link.includes('milk'), false, `the link carries the term: ${link}`);
   assert.equal(link.includes('s='), false, `the link carries a handle: ${link}`);
 
@@ -218,7 +232,7 @@ test('chromium: a chip is in the address, and a narrowing with no words is a sea
   await chip.click();
   await page.getByRole('checkbox', { name: 'Task' }).check();
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => new URL(location.href).searchParams.get('type') === 'TASK', null, { timeout: 5_000 });
+  await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'type:task', null, { timeout: 5_000 });
   await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
 
   const wordless = asked.at(-1);
@@ -230,7 +244,70 @@ test('chromium: a chip is in the address, and a narrowing with no words is a sea
   await page.goto(`${served.origin}/`);
   await page.goto(linked);
   await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
-  assert.equal(await page.getByRole('button', { name: /^Kind/ }).textContent().then((text) => text.includes('1')), true, 'the chip does not say how many are chosen');
+  // The chip says *what* is chosen, not how many (ADR-0066 decision 3): a count is a pill inside a
+  // pill, and it makes a reader open a chip to find out what it holds.
+  assert.match(
+    await page.getByRole('button', { name: /^Kind/ }).textContent().then((text) => text.replace(/\s+/g, ' ').trim()),
+    /^Kind\s*Task$/,
+    'the chip does not name what is chosen',
+  );
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a narrowing pressed in the bar reaches a screen already standing on one', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+  asked.length = 0;
+
+  // Standing on a narrowed search already, which is what made this go wrong: the screen is
+  // mounted, so nothing remounts, and a narrowing pressed in the bar arrives as a changed address
+  // and nothing else.
+  await page.goto(`${served.origin}/search?f=type%3Atask`);
+  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await waitForAsked(1);
+  assert.deepEqual(asked.at(-1).filter, { op: 'IN', field: 'type', value: ['TASK'] });
+
+  // The bar's menu, and one of the narrowings in it.
+  const answered = asked.length;
+  await page.getByRole('combobox', { name: 'Search everything' }).click();
+  await page.locator('#search-menu').getByRole('option', { name: 'Mine, open' }).click();
+  await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'who:me is:open', null, { timeout: 5_000 });
+
+  // The address moved, and so did the question. It used to move alone: the URL changed, the chips
+  // kept their old answers and the same filter was asked again, which reads as a screen that did
+  // not load.
+  await waitForAsked(answered + 1);
+  assert.deepEqual(
+    asked.at(-1).filter,
+    { op: 'AND', nodes: [{ op: 'EQ', field: 'assignee_id', value: '@me' }, { op: 'EQ', field: 'is_completed', value: false }] },
+    `the screen kept asking ${JSON.stringify(asked.at(-1).filter)}`,
+  );
+  // And the chips say the new narrowing rather than the old one.
+  const reads = async (name) =>
+    (await page.getByRole('button', { name }).textContent()).replace(/\s+/g, ' ').trim();
+  assert.equal(await reads(/^Kind/), 'Kind', 'the old narrowing is still on the chips');
+  assert.equal(await reads(/^Status/), 'Status Open', 'the new narrowing is not on the chips');
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: Enter with nothing typed does what the menu says it does', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+
+  // The menu draws the word "Enter" against "Open search" before a single character is typed, so
+  // that is what the key has to mean there. It used to only open the menu - the one thing it
+  // cannot mean, because the menu is already open: it is where the reader read the word.
+  await page.getByRole('combobox', { name: 'Search everything' }).click();
+  await page.locator('#search-menu').waitFor({ timeout: 10_000 });
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/\/search$/, { timeout: 5_000 });
+  await page.getByRole('heading', { name: 'Search' }).waitFor({ timeout: 10_000 });
 
   assert.deepEqual(failures, []);
 });

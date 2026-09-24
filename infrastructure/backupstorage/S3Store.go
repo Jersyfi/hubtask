@@ -50,8 +50,8 @@ const partSize = PartSize
 // that overran it would be truncated XML rather than an error.
 const maxKeysPerPage = 200
 
-// S3Store speaks the S3 API to AWS and to every S3-compatible service the roadmap names - MinIO,
-// Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 (backup-restore.md §2).
+// S3Store speaks the S3 API to AWS and to every S3-compatible service the roadmap names -
+// SeaweedFS, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 (backup-restore.md §2).
 //
 // Unlike the media object store, this one goes through GuardedClient, and the difference is who
 // chose the endpoint. The media endpoint is operator configuration, the trust class of the
@@ -61,7 +61,7 @@ const maxKeysPerPage = 200
 // .md §2 says so in as many words: the probe runs through the same GuardedClient, with metadata
 // endpoints and private ranges blocked unless explicitly released.
 //
-// The practical consequence is worth stating plainly, because somebody will hit it: a MinIO on
+// The practical consequence is worth stating plainly, because somebody will hit it: a store on
 // the same private network is refused until HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS is set. That is
 // the release the acceptance asks for, and it is a decision an operator makes once rather than a
 // hole every target gets for free.

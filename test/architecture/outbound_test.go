@@ -26,7 +26,7 @@ var outboundExceptions = map[string]string{
 	"cmd/server/main.go": "the container health check against 127.0.0.1",
 	// The S3 endpoint is operator configuration - the trust class of the database DSN, not a
 	// user-controlled target, so T-07 has nothing to guard - and the adapter streams objects the
-	// guarded port deliberately buffers, against a MinIO that lives on exactly the private
+	// guarded port deliberately buffers, against an object store that lives on exactly the private
 	// network the guard blocks. Deadlines, refused redirects, the breaker and the bulkhead keep
 	// what rule 6 actually protects (C-05).
 	"infrastructure/storage/S3Storage.go": "the operator-configured object storage endpoint",

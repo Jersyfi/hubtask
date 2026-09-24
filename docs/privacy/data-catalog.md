@@ -162,7 +162,7 @@ individually switchable, and enumerated here in full:
 | Recipient | When | Data transmitted | Default |
 |---|---|---|---|
 | The operator's SMTP relay | Notifications, invitations | Email address, task title, link | Configured by the operator |
-| Object storage (S3/MinIO) | Attachments, exports | File content | A local volume as the alternative |
+| Object storage (S3-compatible) | Attachments, exports | File content | A local volume as the alternative |
 | OIDC provider | Sign-in | Identity attributes | **off** |
 | AI provider | AI features | Free text content of the operation in question | **off**; a local model is recommended; a third country requires confirmation |
 | External search index | Search | Indexed content | **off** |

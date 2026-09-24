@@ -186,7 +186,7 @@ Which platforms the binary is supported on is in
 | Automation | Declarative rules, conditions in CEL (`cel-go`) |
 | Scheduling | RFC 5545 RRULE (`rrule-go`), PostgreSQL job queue |
 | AI | MCP server; AI port with adapters for OpenAI-compatible APIs and Ollama |
-| Object storage | S3/MinIO or a local volume |
+| Object storage | S3 or any S3-compatible service, or a local volume |
 | Observability | OpenTelemetry, Prometheus; dashboards, alert rules, and runbooks included |
 | Resilience | Circuit breakers, bulkheads, load shedding, dead letter, idempotency throughout |
 | Backup | Own logical archive format (JSON Lines + manifest), AES-256-GCM, adapters for S3/SFTP/FTPS/WebDAV/SMB/Azure/GCS/rclone/local |
