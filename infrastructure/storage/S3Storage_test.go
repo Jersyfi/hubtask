@@ -34,9 +34,9 @@ func s3Against(t *testing.T, target string, pathStyle bool) *S3Storage {
 }
 
 func TestTheTwoAddressingStylesBuildTheRightURLs(t *testing.T) {
-	pathStyle := s3Against(t, "http://minio.internal:9000", true)
+	pathStyle := s3Against(t, "http://objects.internal:9000", true)
 	url, err := pathStyle.objectURL("media/one")
-	if err != nil || url != "http://minio.internal:9000/hubtask-media/media/one" {
+	if err != nil || url != "http://objects.internal:9000/hubtask-media/media/one" {
 		t.Errorf("path-style url = %q (%v)", url, err)
 	}
 
@@ -68,7 +68,7 @@ func TestTheMediaOriginIsWhereThePresignedURLsPoint(t *testing.T) {
 		want string
 	}{
 		"local":                  {env.StorageConfig{Kind: env.StorageLocal, LocalPath: "/var/lib/hubtask/media"}, ""},
-		"path-style with a port": {s3("http://minio.internal:9000", true), "http://minio.internal:9000"},
+		"path-style with a port": {s3("http://objects.internal:9000", true), "http://objects.internal:9000"},
 		"path-style with a path": {s3("https://storage.example/s3/", true), "https://storage.example"},
 		"virtual-hosted":         {s3("https://s3.example", false), "https://hubtask-media.s3.example"},
 		"aws by region":          {s3("", false), "https://hubtask-media.s3.eu-central-1.amazonaws.com"},

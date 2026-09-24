@@ -7,7 +7,7 @@
 #
 # Production does not exist yet (docs/backlog/blocked-production-namespace.md), and a drill that
 # has only ever been rendered is a drill nobody has seen work. So the whole path runs here: the
-# chart's Cluster and its backup stanza, a base backup, WAL archiving into MinIO, the drill program
+# chart's Cluster and its backup stanza, a base backup, WAL archiving into the object store, the drill program
 # from the image, a temporary cluster bootstrapped to a computed target, the checks, the teardown.
 #
 # What this cannot prove, and does not claim to: the *size* of the numbers. A kind cluster on a
@@ -47,6 +47,9 @@ cnpg_collector_last_available_backup_timestamp"
 # silent until then. That is a decision, so it is written down rather than left as a gap.
 PITR_ABSENT_METRICS="cnpg_pg_replication_lag"
 DRILL_CLUSTER="hubtask-db-drill"
+# The S3-compatible server, the same pin test/s3test holds for the Go suites. Overridable for the
+# same reason the images there are (#1029).
+S3_IMAGE="${HUBTASK_TEST_S3_IMAGE:-chrislusf/seaweedfs:4.47}"
 BUCKET="hubtask-backups"
 MEDIA_BUCKET="hubtask-media"
 # The manifest is pinned by version *and* by checksum, like every other tool this project
@@ -130,83 +133,101 @@ echo "--- the image this commit produces, inside the cluster ---"
 kind load docker-image "$IMAGE:$TAG" --name "${KIND_CLUSTER:-hubtask}"
 
 echo "--- an object store for the archive ---"
-# MinIO stands in for whatever S3-compatible storage the platform provides. One pod, one bucket,
-# no persistence: it exists for the length of this job, and the archive it holds is written and
-# read back inside it.
-kubectl -n "$NAMESPACE" create secret generic minio-credentials \
+# SeaweedFS stands in for whatever S3-compatible storage the platform provides. One pod, two
+# buckets, no persistence: it exists for the length of this job, and the archive it holds is
+# written and read back inside it.
+#
+# It replaced MinIO when MinIO archived its open-source server and client and closed every
+# registry that served them (#1029, test/s3test says the rest). The drill and the Go suites share
+# that choice on purpose - an object store the tests never meet is an object store nobody proves.
+#
+# The server's whole authorisation surface is one identity in a JSON file, so the Secret carries
+# that file alongside the two plain values the chart wants.
+S3_IDENTITIES="{\"identities\":[{\"name\":\"drill\",\"credentials\":[{\"accessKey\":\"$S3_ACCESS_KEY\",\"secretKey\":\"$S3_SECRET_KEY\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]}]}"
+kubectl -n "$NAMESPACE" create secret generic object-store-credentials \
 	--from-literal=access-key="$S3_ACCESS_KEY" \
 	--from-literal=secret-key="$S3_SECRET_KEY" \
+	--from-literal=s3.json="$S3_IDENTITIES" \
 	--dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n "$NAMESPACE" apply -f - <<MANIFEST
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: minio
+  name: object-store
 spec:
   replicas: 1
-  selector: { matchLabels: { app: minio } }
+  selector: { matchLabels: { app: object-store } }
   template:
-    metadata: { labels: { app: minio } }
+    metadata: { labels: { app: object-store } }
     spec:
       containers:
-        - name: minio
-          image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
-          args: ["server", "/data", "--console-address", ":9001"]
-          env:
-            - name: MINIO_ROOT_USER
-              valueFrom: { secretKeyRef: { name: minio-credentials, key: access-key } }
-            - name: MINIO_ROOT_PASSWORD
-              valueFrom: { secretKeyRef: { name: minio-credentials, key: secret-key } }
-          ports: [{ containerPort: 9000 }]
+        - name: seaweedfs
+          image: $S3_IMAGE
+          args: ["server", "-s3", "-s3.config=/etc/seaweedfs/s3.json", "-dir=/data"]
+          ports: [{ containerPort: 8333 }, { containerPort: 9333 }]
           readinessProbe:
-            httpGet: { path: /minio/health/live, port: 9000 }
+            # /healthz on the S3 port, which promises the API is taking requests. The bucket
+            # creation below is a write, and it is the next thing that happens.
+            httpGet: { path: /healthz, port: 8333 }
             initialDelaySeconds: 5
             periodSeconds: 5
-          volumeMounts: [{ name: data, mountPath: /data }]
-      volumes: [{ name: data, emptyDir: {} }]
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: config, mountPath: /etc/seaweedfs, readOnly: true }
+      volumes:
+        - { name: data, emptyDir: {} }
+        - name: config
+          secret:
+            secretName: object-store-credentials
+            items: [{ key: s3.json, path: s3.json }]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: minio
+  name: object-store
 spec:
-  selector: { app: minio }
-  ports: [{ port: 9000, targetPort: 9000 }]
+  selector: { app: object-store }
+  ports: [{ name: s3, port: 8333, targetPort: 8333 }]
 MANIFEST
-kubectl -n "$NAMESPACE" rollout status deployment/minio --timeout=300s
+kubectl -n "$NAMESPACE" rollout status deployment/object-store --timeout=300s
 
-# The bucket has to exist before the first archive command runs; barman creates paths, not buckets.
-# `mc` waits for the service by name rather than by address, which is why this is a Job in the
-# cluster rather than a port-forward from the runner.
-kubectl -n "$NAMESPACE" delete job create-bucket --ignore-not-found
-kubectl -n "$NAMESPACE" apply -f - <<MANIFEST
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: create-bucket
-spec:
-  backoffLimit: 5
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-        - name: mc
-          image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              mc alias set store http://minio:9000 "\$ACCESS_KEY" "\$SECRET_KEY" &&
-              mc mb --ignore-existing store/$BUCKET &&
-              mc mb --ignore-existing store/$MEDIA_BUCKET &&
-              mc ls store
-          env:
-            - name: ACCESS_KEY
-              valueFrom: { secretKeyRef: { name: minio-credentials, key: access-key } }
-            - name: SECRET_KEY
-              valueFrom: { secretKeyRef: { name: minio-credentials, key: secret-key } }
-MANIFEST
-kubectl -n "$NAMESPACE" wait --for=condition=complete job/create-bucket --timeout=180s || fail "the bucket was not created"
+# The buckets have to exist before the first archive command runs; barman creates paths, not
+# buckets. This runs inside the object store's own pod rather than from a Job beside it, and the
+# reason is worth writing down because the alternative fails *silently*:
+#
+# `weed shell` is a gRPC client. It reaches the master on 9333 over HTTP but does its work on
+# 19333, and the filer's on 18888 - the ports SeaweedFS derives by adding ten thousand. A Job
+# talking to the Service would need both of those published as well, and when they are not, the
+# shell exits 0 having printed nothing at all. Inside the pod every port is on localhost, so the
+# arithmetic is nobody's business here. The rollout above is what makes the server ready; this
+# needs no second wait for a name.
+#
+# The listing is the proof rather than the exit code: `weed shell` exits 0 on a command it does
+# not know and prints the complaint instead.
+buckets_made() {
+	kubectl -n "$NAMESPACE" exec deploy/object-store -- sh -c "
+		{ echo 's3.bucket.create -name $BUCKET'
+		  echo 's3.bucket.create -name $MEDIA_BUCKET'
+		  echo 's3.bucket.list'; } | weed shell -master=localhost:9333"
+}
+
+bucket_output=""
+for attempt in 1 2 3 4 5; do
+	bucket_output="$(buckets_made 2>&1 || true)"
+	if grep -q "[[:space:]]$BUCKET[[:space:]]" <<<"$bucket_output" &&
+		grep -q "[[:space:]]$MEDIA_BUCKET[[:space:]]" <<<"$bucket_output"; then
+		echo "both buckets present after attempt $attempt"
+		bucket_output="done"
+		break
+	fi
+	echo "attempt $attempt did not leave both buckets; retrying"
+	sleep 5
+done
+[ "$bucket_output" = "done" ] || {
+	echo "$bucket_output"
+	fail "the buckets were not created"
+}
 
 echo "--- the release, with the database the chart owns ---"
 # Two DSNs, the arrangement A-11 asks of Kubernetes (multi-tenancy.md §2.1): the migration runs as
@@ -251,8 +272,8 @@ kubectl -n "$NAMESPACE" create secret generic hubtask-app-role \
 	--set 'database.resources.requests.memory=256Mi' \
 	--set 'database.resources.limits.memory=1Gi' \
 	--set database.backup.destinationPath="s3://$BUCKET/" \
-	--set database.backup.endpointURL=http://minio:9000 \
-	--set database.backup.existingSecret=minio-credentials \
+	--set database.backup.endpointURL=http://object-store:8333 \
+	--set database.backup.existingSecret=object-store-credentials \
 	--set 'database.postgresql.parameters.archive_timeout=30s' \
 	--set migration.dsnSecretName="$CLUSTER-app" \
 	--set migration.dsnSecretKey=uri \
@@ -263,9 +284,9 @@ kubectl -n "$NAMESPACE" create secret generic hubtask-app-role \
 	--set roles.scheduler.replicas=1 --set roles.automation.replicas=1 \
 	--set config.tenancyMode=single \
 	--set storage.kind=s3 \
-	--set storage.existingSecret=minio-credentials \
+	--set storage.existingSecret=object-store-credentials \
 	--set storage.bucket="$MEDIA_BUCKET" \
-	--set storage.endpoint=http://minio:9000 \
+	--set storage.endpoint=http://object-store:8333 \
 	--set networkPolicy.enabled=false \
 	|| fail "the release could not be installed"
 

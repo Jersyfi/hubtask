@@ -169,7 +169,7 @@ graph LR
   IDP[Identity provider<br/>OIDC]
   SMTP[Outbound email]
   PUSH[Push/notification gateway]
-  OBJ[Object storage<br/>S3/MinIO]
+  OBJ[Object storage<br/>S3-compatible]
   LLM[LLM provider<br/>optional/local]
   EXT[Arbitrary HTTP targets<br/>webhook recipients]
 
@@ -487,8 +487,8 @@ graph TB
   APP --> VOL
 ```
 
-Two containers plus an optional proxy. Object storage = a local volume. No NATS, no Redis, no MinIO
-required. The full feature set.
+Two containers plus an optional proxy. Object storage = a local volume. No NATS, no Redis, no
+object store required. The full feature set.
 
 ### 7.3 Deployment "provider" (Kubernetes)
 
@@ -503,7 +503,7 @@ graph TB
     JOB[Job: goose migrate<br/>Helm pre-upgrade hook]
   end
   PG[(PostgreSQL HA<br/>operator, read replicas)]
-  S3[(S3 / MinIO)]
+  S3[(S3-compatible)]
   NATS[(NATS JetStream optional)]
   OTELC[OTel collector]
 
@@ -776,6 +776,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0064 | The one read that may ask the whole workspace a narrowed question | accepted |
 | 0065 | Sections, and where a statement about the application lives | accepted |
 | 0066 | Search is one question, and the document holds every word form | accepted |
+| 0067 | The S3-compatible server the tests run against is SeaweedFS, in one place | accepted |
 
 ---
 
@@ -821,7 +822,7 @@ Quality
 | QS-08 | A new language (Arabic, for example) is added | Only translation resources plus enabling the locale; no code change; the RTL flag in the manifest. Walked at the end of `0.8.0` with an operator's `ar.json` laid over an installation through `HUBTASK_LOCALE_DIR` and a restart: the manifest listed `ar` with `rtl` and `SATURDAY`, a workspace provisioned in Arabic was seeded in Arabic, two people were invited in Arabic and then written to in Arabic and German from one kind of event, `Accept-Language: ar-EG` reached an entry's `content_language`, `@start_of_week` was a Saturday, and `hubctl` read the file ([QS-08-2026-09-15.md](../evidence/QS-08-2026-09-15.md)). True of the server, mail and `hubctl` — and, since `F5`, of the web app: the same file laid beside the client's catalogues, a person choosing Arabic in the profile and nothing else, every route right-to-left ([QS-08-2026-09-15.md](../evidence/QS-08-2026-09-15.md), the interface section, F5-14) |
 | QS-09 | The AI provider fails or is disabled | All core features stay available; AI endpoints respond `503` with the problem document's detail code `ai.unavailable` — the catalogue's dotted form, and one code for every reason a provider is out of reach (ADR-0049). The two states are distinguished rather than merged: *disabled* is `/meta/health` `ok` with an empty `degraded_features` and a manifest answering `ai_suggestions: false`, *failing* is `down` with both features named, a reason and a timestamp. Walked at the end of `0.7.0` against an installation configured with neither — the whole scripted session, every earlier milestone's verbs, and five AI routes refusing ([QS-09-2026-09-09.md](../evidence/QS-09-2026-09-09.md)); the failing half is `TestRT1AStoppedContainerDegradesExactlyItsOwnFeature` ([RT-1-2026-09-09.md](../evidence/RT-1-2026-09-09.md)) |
 | QS-10 | 200 concurrent bulk imports of 5,000 items each | Backpressure through rate limits and the queue; no OOM; progress queryable through the job status |
-| QS-11 | Object storage (MinIO) is unreachable for 2 h | No process exit, the core write path unaffected; `media` reported as a `degraded_feature` with a reason and timestamp in `/meta/health`; automatic recovery without a restart (test RT-1) |
+| QS-11 | Object storage is unreachable for 2 h | No process exit, the core write path unaffected; `media` reported as a `degraded_feature` with a reason and timestamp in `/meta/health`; automatic recovery without a restart (test RT-1) |
 | QS-12 | A pod is killed hard mid-job (`SIGKILL`) | The job lease expires, another instance resumes it, and thanks to idempotency it takes effect exactly once; no data loss (test RT-3) |
 | QS-13 | PostgreSQL is unreachable for 5 min | `/healthz` stays green (no kill loop), `/readyz` red, reconnection with backoff, then normal operation without a restart (test RT-2) |
 | QS-14 | The operator has configured no backup | `/meta/health` reports `config.backup_not_configured` as a warning; alert A-12 in provider operation |

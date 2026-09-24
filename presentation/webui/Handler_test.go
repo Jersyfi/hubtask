@@ -185,12 +185,12 @@ func TestThePolicyNamesTheMediaOriginInTwoDirectivesAndNowhereElse(t *testing.T)
 	}
 
 	// And it is what the handler sends, on every answer, once composed.
-	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "http://minio.internal:9000")
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "http://objects.internal:9000")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
 	for _, path := range []string{"/", "/assets/gone.js"} {
-		if csp := get(t, h, path).Header().Get("Content-Security-Policy"); csp != webui.PolicyFor("http://minio.internal:9000") {
+		if csp := get(t, h, path).Header().Get("Content-Security-Policy"); csp != webui.PolicyFor("http://objects.internal:9000") {
 			t.Errorf("GET %s: CSP = %q", path, csp)
 		}
 	}

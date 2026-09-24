@@ -28,7 +28,7 @@ import (
 )
 
 // ObjectStore reads and writes objects. Implementations: LocalStorage (a directory, the
-// self-hosting default) and S3Storage (S3 and S3-compatible services - MinIO, Garage).
+// self-hosting default) and S3Storage (S3 and S3-compatible services - SeaweedFS, Garage).
 //
 // The error contract is the shared one: a missing object is ErrNotFound with the detail
 // `media.object_missing` and the key as its parameter, an unreachable backend is ErrUnavailable

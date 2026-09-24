@@ -23,13 +23,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// S3Storage speaks the S3 API to AWS and to S3-compatible services (MinIO, Garage).
+// S3Storage speaks the S3 API to AWS and to S3-compatible services (SeaweedFS, Garage).
 //
 // It carries its own HTTP client rather than going through GuardedClient, and the exception is
 // recorded where exceptions live (test/architecture/outbound_test.go): the endpoint is operator
 // configuration - the same trust class as the database DSN, not a user-controlled target, so
 // T-07's SSRF guard has nothing to guard - it streams objects of up to HUBTASK_MAX_UPLOAD_BYTES
-// where the guarded port deliberately buffers small payloads, and a self-hosted MinIO lives on
+// where the guarded port deliberately buffers small payloads, and a self-hosted object store lives on
 // exactly the private network the guard exists to block. What rule 6 actually protects is kept:
 // every call is bounded by a deadline, redirects are refused, and the resilient wrapper adds the
 // breaker and the bulkhead (ADR-0016).
@@ -284,7 +284,7 @@ func sanitizeDispositionName(name string) string {
 }
 
 // CreateBucket makes the configured bucket exist, treating "it already does" as the success it
-// is. For an operator's first run against a fresh MinIO, and for the conformance suite; AWS
+// is. For an operator's first run against a fresh bucket, and for the conformance suite; AWS
 // itself is not the audience - a bucket there is infrastructure somebody provisions, and a name
 // taken by another account answers 409 with a different meaning, which still reads as "not
 // yours to create" and fails the first upload honestly.
@@ -320,7 +320,7 @@ func (s *S3Storage) CreateBucket(ctx context.Context) error {
 	}
 }
 
-// objectURL is where the object lives: path-style (the self-hosting default - MinIO without
+// objectURL is where the object lives: path-style (the self-hosting default - a store without
 // wildcard DNS) or virtual-host style.
 func (s *S3Storage) objectURL(key string) (string, error) {
 	if key == "" || strings.HasPrefix(key, "/") {

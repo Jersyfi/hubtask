@@ -45,7 +45,7 @@ flowchart LR
   subgraph E[Semi-trusted]
     IDP[OIDC provider]
     EXT[External HTTP targets]
-    OBJ[S3 / MinIO]
+    OBJ[S3-compatible]
     SMTP[Mail relay]
     LLM[AI provider]
   end

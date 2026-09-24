@@ -9,7 +9,7 @@
 // The suite is the gate a fifth adapter passes before it exists. That is the whole argument for
 // running it against real servers rather than against fakes: a hand-written SFTP client is worth
 // exactly as much as the OpenSSH that accepts it, and a hand-written SigV4 signature is worth
-// exactly as much as MinIO's strict validation of it. A fake that agreed with the adapter would
+// exactly as much as the strict validation of it by a real S3 server. A fake that agreed with the adapter would
 // prove that the adapter agrees with itself.
 package backup
 
@@ -31,9 +31,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
+	"github.com/Jersyfi/hubtask/test/s3test"
 )
 
-// The images, each overridable the way the PostgreSQL and MinIO ones already are, so the support
+// The images, each overridable the way the PostgreSQL and S3 ones already are, so the support
 // matrix can vary them without a code change.
 // The credential the WebDAV server demands. Fixed, and not a secret: it exists for the length of
 // one container.
@@ -67,49 +68,19 @@ func registry(t *testing.T, localRoot string) backupstorage.Registry {
 		httpclient.NewGuardedClient(cfg, guard), guard, localRoot, 10*time.Second, time.Now)
 }
 
-// startMinIO runs one MinIO and answers the endpoint it listens on, with the bucket made.
-func startMinIO(t *testing.T) string {
+// startS3 runs one S3-compatible server and answers the endpoint it listens on, with the bucket
+// made. The server, and why it is no longer MinIO, is in test/s3test (#1029).
+//
+// The bucket is made through the server's own shell rather than by this adapter: creating a
+// bucket is not something a backup target does, and an adapter that could would be an adapter
+// that can create a bucket by mistake.
+func startS3(t *testing.T) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image: imageOr("HUBTASK_TEST_MINIO_IMAGE", "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z"),
-			Env: map[string]string{
-				"MINIO_ROOT_USER":     "conformance",
-				"MINIO_ROOT_PASSWORD": "conformance-secret",
-			},
-			Cmd:          []string{"server", "/data"},
-			ExposedPorts: []string{"9000/tcp"},
-			// `cluster` rather than `ready`, for the reason spelled out in
-			// test/integration/storage_conformance_test.go: `ready` promises an initialized
-			// node, `cluster` promises write quorum, and `mc mb` below is a write.
-			WaitingFor: wait.ForHTTP("/minio/health/cluster").
-				WithPort("9000/tcp").WithStartupTimeout(2 * time.Minute),
-		},
-		Started: true,
-	})
-	if err != nil {
-		t.Fatalf("starting MinIO: %v", err)
-	}
-	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
-
-	endpoint := "http://" + hostPort(ctx, t, container, "9000/tcp")
-
-	// The bucket, made through MinIO's own client rather than by this adapter: creating a bucket
-	// is not something a backup target does, and an adapter that could would be an adapter that
-	// can create a bucket by mistake.
-	code, output, err := container.Exec(ctx, []string{
-		"sh", "-c",
-		"mc alias set local http://127.0.0.1:9000 conformance conformance-secret && " +
-			"mc mb --ignore-existing local/hubtask-backups",
-	})
-	if err != nil || code != 0 {
-		body, _ := readAll(output)
-		t.Fatalf("creating the bucket: %v (exit %d) %s", err, code, body)
-	}
-	return endpoint
+	container := s3test.Start(t, "hubtask-backups")
+	return s3test.Endpoint(ctx, t, container)
 }
 
 // startWebDAV runs a WebDAV server. Apache under the hood, which is what makes it worth using:

@@ -42,17 +42,12 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	res "github.com/Jersyfi/hubtask/infrastructure/resilience"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
+	"github.com/Jersyfi/hubtask/test/s3test"
 )
 
-// minioImage and mailpitImage are overridable the way the PostgreSQL image is, so the support
-// matrix can vary them without a code change.
-func minioImage() string {
-	if image := os.Getenv("HUBTASK_TEST_MINIO_IMAGE"); image != "" {
-		return image
-	}
-	return "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z"
-}
-
+// mailpitImage is overridable the way the PostgreSQL image is, so the support matrix can vary it
+// without a code change. The S3-compatible server is test/s3test's, which is one place for a pin
+// that used to be three (#1029).
 func mailpitImage() string {
 	if image := os.Getenv("HUBTASK_TEST_MAILPIT_IMAGE"); image != "" {
 		return image
@@ -137,7 +132,7 @@ func startDependency(t *testing.T, request testcontainers.ContainerRequest) test
 }
 
 // stopContainer is the outage: a docker stop, so the adapters see a refused connection on a port
-// that was alive a moment ago - what a dead MinIO or mail server actually looks like, rather than
+// that was alive a moment ago - what a dead object store or mail server actually looks like, rather
 // a handler scripted to answer 500.
 func stopContainer(t *testing.T, container testcontainers.Container) {
 	t.Helper()
@@ -160,8 +155,8 @@ func startAgain(t *testing.T, container testcontainers.Container) {
 
 // TestRT1AStoppedContainerDegradesExactlyItsOwnFeature is the container-backed sibling the
 // stand-in's header promised (C-12): the same composition - adapter, breaker, bulkhead, probe,
-// registry, metrics - wired the way cmd/server/main.go wires it, against a real MinIO and a real
-// Mailpit that are stopped mid-flight, one at a time.
+// registry, metrics - wired the way cmd/server/main.go wires it, against a real object store and
+// a real Mailpit that are stopped mid-flight, one at a time.
 //
 // One test rather than one per dependency, deliberately: "a stopped dependency degrades exactly
 // its own feature and nothing else" is a claim about the whole report, and it can only be asserted
@@ -173,19 +168,14 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 	ctx := context.Background()
 
 	// --- The dependencies, on addresses that survive a restart -----------------------------
-	minioPort := freeLoopbackPort(ctx, t)
-	minio := startDependency(t, testcontainers.ContainerRequest{
-		Image: minioImage(),
-		Env: map[string]string{
-			"MINIO_ROOT_USER":     "rt1",
-			"MINIO_ROOT_PASSWORD": "rt1-not-a-secret",
-		},
-		Cmd:                []string{"server", "/data"},
-		ExposedPorts:       []string{"9000/tcp"},
-		HostConfigModifier: fixedHostPorts(map[string]int{"9000/tcp": minioPort}),
-		WaitingFor: wait.ForHTTP("/minio/health/ready").
-			WithPort("9000/tcp").WithStartupTimeout(2 * time.Minute),
-	})
+	// The object storage keeps its state in the container rather than in memory, for the same
+	// reason Mailpit below gets a database file: the filesystem survives a stop and memory does
+	// not, and this test needs "the outage happened" to be distinguishable from "the store
+	// forgot". test/s3test's request already says so; what is added here is the fixed port.
+	storagePort := freeLoopbackPort(ctx, t)
+	storageRequest := s3test.Request()
+	storageRequest.HostConfigModifier = fixedHostPorts(map[string]int{s3test.Port: storagePort})
+	objectStore := startDependency(t, storageRequest)
 
 	smtpPort := freeLoopbackPort(ctx, t)
 	mailAPIPort := freeLoopbackPort(ctx, t)
@@ -243,13 +233,13 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 
 	s3, err := storageadapter.NewS3Storage(envport.StorageConfig{
 		Kind:     envport.StorageS3,
-		Endpoint: fmt.Sprintf("http://127.0.0.1:%d", minioPort),
+		Endpoint: fmt.Sprintf("http://127.0.0.1:%d", storagePort),
 		// us-east-1 for the same reason as the conformance suite: CreateBucket sends no
 		// location constraint, and this is the region for which none is needed.
-		Region:       "us-east-1",
+		Region:       s3test.Region,
 		Bucket:       "hubtask-media",
-		AccessKey:    secret.New("rt1"),
-		SecretKey:    secret.New("rt1-not-a-secret"),
+		AccessKey:    secret.New(s3test.AccessKey),
+		SecretKey:    secret.New(s3test.SecretKey),
 		UsePathStyle: true,
 	}, 5*time.Second)
 	if err != nil {
@@ -341,7 +331,7 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 	}
 
 	// --- The object storage goes down ------------------------------------------------------
-	stopContainer(t, minio)
+	stopContainer(t, objectStore)
 	for i := range 3 {
 		if err := storeMedia(fmt.Sprintf("media/during-the-outage-%d", i)); err == nil {
 			t.Error("the media path succeeded although the object storage is stopped")
@@ -396,7 +386,7 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 	}
 
 	// --- The object storage returns --------------------------------------------------------
-	startAgain(t, minio)
+	startAgain(t, objectStore)
 	waitForRecovery(t, c, "object_storage", func() error {
 		return storeMedia("media/after-the-recovery")
 	})

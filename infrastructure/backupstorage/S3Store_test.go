@@ -24,8 +24,8 @@ import (
 
 // What is here is what BK-1 cannot see from the outside: which address a key is turned into, and
 // that an archive larger than a part becomes a multipart upload rather than one enormous request.
-// That a real S3 service accepts all of it is MinIO's job in test/backup - MinIO validates every
-// signature strictly, which is the only proof of a hand-written signer worth having.
+// That a real S3 service accepts all of it is test/backup's job, against a server that validates
+// every signature strictly - the only proof of a hand-written signer worth having (ADR-0067).
 
 // permissive is the outbound configuration these tests need: an httptest server is on loopback,
 // which the guard blocks by design and correctly. A backup target on a private network needs the
