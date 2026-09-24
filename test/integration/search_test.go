@@ -362,6 +362,41 @@ func TestASearchNeverCrossesTheTenantBoundary(t *testing.T) {
 	}
 }
 
+// The document holds the word forms as well as the stems, so a reader whose configuration is not
+// the entry's finds it anyway (ADR-0066).
+//
+// This is the case the language picker used to work around, and the three words below are not
+// chosen for effect - they are what German and English disagree about. `german` folds
+// `Hausaufgabenbetreuung` to `hausaufgabenbetreu`, `Bäume` to `baum` and `gießen` to `giess`;
+// none of those is what an English configuration or `simple` makes of the same word, so before the
+// second copy an English reader typing **what is on the screen** was answered "nothing matches"
+// about an entry plainly there.
+func TestAnEntryIsFoundByItsOwnWordsWhateverTheSearcherReads(t *testing.T) {
+	ctx := context.Background()
+	f := newSearchFixture(ctx, t)
+
+	for _, each := range []struct {
+		name, words string
+		want        int
+	}{
+		{"the title, exactly as it is written", "Hausaufgabenbetreuung", 1},
+		{"a word in the notes, exactly as it is written", "gießen", 1},
+		{"a word two entries share", "Bäume", 2},
+	} {
+		t.Run(each.name, func(t *testing.T) {
+			if titles := found(ctx, t, tenantA, searchWithin(f.collection, each.words, "en")); len(titles) != each.want {
+				t.Errorf("an English reader searching %q found %v, want %d", each.words, titles, each.want)
+			}
+		})
+	}
+
+	// And the stems still work, which is the half that must not be traded away: the same reader
+	// typing the German plural of a compound noun still finds the singular.
+	if titles := found(ctx, t, tenantA, searchWithin(f.collection, "Hausaufgabenbetreuungen", "de")); len(titles) != 1 {
+		t.Errorf("a German searcher found %v, want the compound word", titles)
+	}
+}
+
 // A language this installation has no configuration for is searched word by word rather than
 // refused: `hubtask_text_config` answers `simple` for it, and a search is not where somebody
 // discovers that PostgreSQL was built without Welsh (ADR-0034).
