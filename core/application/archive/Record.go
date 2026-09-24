@@ -247,9 +247,8 @@ type Entity struct {
 	References []Reference
 	// Duplicable says whether a collision in this entity may be settled by making a copy.
 	//
-	// Not everything may. An account is who somebody is, a label is the same label, a media
-	// object is the same bytes under a content address, and a webhook subscription copied is a
-	// subscription that fires twice. For those a DUPLICATE restore falls back to SKIP and says so
+	// Not everything may. An account is who somebody is, a media object is the same bytes under a
+	// content address, and a webhook subscription copied is a subscription that fires twice. For those a DUPLICATE restore falls back to SKIP and says so
 	// in the report - the alternative is a merge that quietly doubles the tenant's identities and
 	// its outbound integrations.
 	Duplicable bool

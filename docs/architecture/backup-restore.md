@@ -303,13 +303,39 @@ Four things E-06 had to decide about the table above:
   An overwrite replaces the objects the archive names and leaves everything else; a replace removes
   what the archive does *not* name. That is the difference between losing an edit and losing a
   month, and only the second is worth a typed workspace name and a step-up in front of it.
-* **`duplicate` applies to content, not to context.** An account is who somebody is, a label is the
-  same label, a medium is the same bytes under a content address, and a webhook subscription copied
-  is a subscription that fires twice to somebody who never asked. For those the rule falls back to
-  `skip` and the report says so. What is copied — collections, buckets, labels, items and everything
-  hanging off them — gets a **derived** identity rather than a drawn one, so that a resumed restore
-  produces the same identifiers instead of a second copy of what it already wrote, and the copies
-  point at each other rather than at the originals.
+* **`duplicate` applies to content, not to context.** An account is who somebody is, a medium is the
+  same bytes under a content address, and a webhook subscription copied is a subscription that fires
+  twice to somebody who never asked. For those the rule falls back to `skip` and the report says so.
+  What is copied — collections, buckets, labels, items and everything hanging off them — gets a
+  **derived** identity rather than a drawn one, so that a resumed restore produces the same
+  identifiers instead of a second copy of what it already wrote, and the copies point at each other
+  rather than at the originals. (This sentence used to name a label in both lists at once; a label
+  belongs to a collection, and a copied collection gets copied labels.)
+* **A copy also needs the rest of what the schema insists is unique** (#790). The identity was the
+  only thing `duplicate` used to change, so a duplicated hub arrived under the living one's name and
+  met `container_name_uq` — landing nothing, which is not a duplicate. Each entity declares the
+  columns a copy may not carry unchanged, beside its keys and references, and an integration test
+  compares that declaration against the unique indexes the database actually has. Three answers
+  cover what is there today:
+  * **A name is suffixed**, and only where the copy has not already moved somewhere the name is
+    free. A collection's parent is a reference, so the copy lands under the copy of the hub and
+    keeps its name; what is left is the top of the duplicated tree. The suffix is
+    `Errands (restored 2026-09-24 a1b2c3)` — the date for whoever reads the sidebar, and six
+    characters derived from the run so that restoring the same archive twice into one workspace
+    still lands. Derived rather than counted, for the reason the identity is: a resumed restore has
+    to produce the same name, and counting asks how many copies are already there. Renaming the
+    copy afterwards is an ordinary edit.
+  * **A calendar UID is dropped.** A client minted it and keys its todo by it; the copy is not the
+    entry the client made, and two rows claiming one address is what `wi_calendar_uid_uq` refuses.
+  * **A tenant-wide custom field definition is not copied at all**, and falls back to `skip` like an
+    account. Its key cannot be suffixed — `work_item.custom_fields` is a document keyed by the key
+    rather than by the definition's identity, so a renamed copy would be a field none of the copied
+    values are stored under. A definition inside a collection needs none of this: the collection
+    moved, so the key is free in the copy.
+
+  None of it applies to `NEW_TENANT`, which goes through the same minting. Every one of these
+  indexes is per tenant, and that mode's copy lands in a tenant that did not exist a moment ago —
+  so a migrated collection keeps its name and a migrated item keeps its calendar UID.
 * **`SELECTIVE`'s closure comes out of the archive's reference graph.** A bucket names its
   collection, an item names its collection, a comment names its item — so "everything below the
   collection I named" falls out of the declarations. Only the containers need a pass of their own,
