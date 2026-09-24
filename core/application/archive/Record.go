@@ -253,7 +253,62 @@ type Entity struct {
 	// in the report - the alternative is a merge that quietly doubles the tenant's identities and
 	// its outbound integrations.
 	Duplicable bool
+	// Unique are the columns, other than the identity, that carry a uniqueness a copy would meet.
+	//
+	// A DUPLICATE gives the copy an identity of its own and used to change nothing else, which is
+	// how a duplicated collection arrived under the living one's name and landed nothing (#790).
+	// The identity is not the only thing the schema insists is unique, and what is left is not a
+	// special case each: it is a property of the entity, declared here beside Keys and References
+	// and kept honest by a test that compares it against the unique indexes the database has.
+	//
+	// Only DUPLICATE consults them. Every one of these indexes is per tenant, and a NEW_TENANT
+	// copy lands in a tenant that did not exist a moment ago.
+	Unique []UniqueField
 }
+
+// UniqueField is one column a copy may not carry unchanged, and what the copy does with it.
+type UniqueField struct {
+	// Field is the column in this entity's data.
+	Field string
+	// Rule is what a copy does with the value when Within has not already settled it.
+	Rule UniqueRule
+	// Within are the reference columns the uniqueness is scoped by - the rest of the index.
+	//
+	// It is what stops the rule firing where it is not needed, and that is most of the time. A
+	// duplicated collection lands under the duplicated hub, because `parent_id` is a reference and
+	// a live parent is remapped at the copy; under a hub of its own the collection's name is free,
+	// and suffixing it would disfigure a copy for a collision that cannot happen. What is left is
+	// the top of the duplicated tree - a hub, whose `parent_id` is null and has nothing to follow.
+	Within []string
+}
+
+// UniqueRule is how a copy settles a uniqueness Within did not already settle.
+type UniqueRule string
+
+const (
+	// UniqueRename gives the copy a name derived from the run, so that it stands beside the
+	// original under a name of its own. See backup.DuplicatedName for the shape and for why it is
+	// derived rather than counted.
+	UniqueRename UniqueRule = "RENAME"
+	// UniqueClear leaves the column empty, for a value that addresses the row to somebody outside
+	// the product and therefore belongs to the row that was addressed. A work item's calendar UID
+	// is the one: a calendar client minted it, keys its todo by it, and a copy carrying it would
+	// be a second row claiming one address.
+	UniqueClear UniqueRule = "CLEAR"
+	// UniqueSkip makes the row one a DUPLICATE leaves alone, and the report says so - the answer
+	// Duplicable already gives for an account or a medium, decided per row because Within is.
+	//
+	// A custom field definition is the one, and only when it is tenant-wide (`collection_id` is
+	// null, which is how the schema says "the whole workspace"). Its key cannot be renamed:
+	// `work_item.custom_fields` is a jsonb document keyed by that key rather than by the
+	// definition's identity, so a renamed copy would be a field none of the copied values are
+	// stored under. It cannot be emptied either - the column is NOT NULL under a CHECK. A copy
+	// that can be told apart from the original by nothing is not a copy.
+	//
+	// A definition inside a collection needs none of this: the collection is remapped, so the copy
+	// is a field of the copied collection and its key is free there.
+	UniqueSkip UniqueRule = "SKIP"
+)
 
 // Reference is one field pointing at another entity's rows.
 type Reference struct {
@@ -294,23 +349,28 @@ var entities = []Entity{
 	},
 	{
 		Name: "containers", Table: "container", Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "name", Rule: UniqueRename, Within: []string{"parent_id"}}},
 		References: []Reference{{Field: "parent_id", Table: "container"}},
 	},
 	{
 		Name: "buckets", Table: "bucket", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "name", Rule: UniqueRename, Within: []string{"collection_id"}}},
 		References: []Reference{{Field: "collection_id", Table: "container"}},
 	},
 	{
 		Name: "labels", Table: "label", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "name", Rule: UniqueRename, Within: []string{"collection_id"}}},
 		References: []Reference{{Field: "collection_id", Table: "container"}},
 	},
 	{
 		Name: "custom_field_definitions", Table: "custom_field_definition",
 		Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip, Within: []string{"collection_id"}}},
 		References: []Reference{{Field: "collection_id", Table: "container"}},
 	},
 	{
 		Name: "work_items", Table: "work_item", Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "calendar_uid", Rule: UniqueClear}},
 		References: []Reference{
 			{Field: "collection_id", Table: "container"},
 			{Field: "parent_id", Table: "work_item"},
