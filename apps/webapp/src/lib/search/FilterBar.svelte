@@ -262,7 +262,12 @@
 
   .chip {
     display: inline-flex;
-    align-items: baseline;
+    /* Centred, like the token chip the text surface draws. `baseline` looked right while the chip
+       held one word and was wrong the moment it held two: a flex line's baseline is not the middle
+       of a box with a `min-block-size`, so the text sat against the top of the pill with all the
+       room beneath it - which reads as the chip having slid down rather than as the text having
+       moved up. */
+    align-items: center;
     gap: var(--sp-050);
     max-inline-size: 28ch;
     min-block-size: var(--density-control-sm-min);
