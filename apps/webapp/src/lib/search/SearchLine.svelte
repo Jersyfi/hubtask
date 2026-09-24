@@ -143,7 +143,10 @@
   );
 </script>
 
-<Stack gap="100">
+<!-- The same rhythm the screen gives the other surface: `SearchView` puts `150` between the field
+     and the chips, so this puts `150` between the field and the tokens. Switching modes should move
+     the controls, not the layout. -->
+<Stack gap="150">
   <div class="line">
     <SearchField
       label={t('app.searchline.label')}
