@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/backupstorage"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
+	"github.com/Jersyfi/hubtask/test/s3test"
 )
 
 // BK-1. One suite, four adapters, and the same sentences from all of them - which is the only
@@ -30,15 +31,15 @@ func TestBackupTargetConformance(t *testing.T) {
 			backup.TargetConfig{"path": "targets/one"}, nil)))
 	})
 
-	t.Run("s3 against MinIO", func(t *testing.T) {
-		endpoint := startMinIO(t)
+	t.Run("s3 against SeaweedFS", func(t *testing.T) {
+		endpoint := startS3(t)
 		conformance(t, open(t, registry(t, ""), specFor(backup.KindS3,
 			backup.TargetConfig{
 				"bucket": "hubtask-backups", "endpoint": endpoint,
-				"region": "us-east-1", "path": "instance",
+				"region": s3test.Region, "path": "instance",
 			},
 			map[string]string{
-				"access_key": "conformance", "secret_key": "conformance-secret",
+				"access_key": s3test.AccessKey, "secret_key": s3test.SecretKey,
 			})))
 	})
 
