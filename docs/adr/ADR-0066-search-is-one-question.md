@@ -128,6 +128,34 @@ nothing highlighted it does what the menu draws the key on.
 The reason the bar was inert was written in its own comment: "the debounce, the language and the
 widening stay in one place". Two thirds of that is the language, and the language is gone.
 
+> **Amended 2026-09-25.** A bar that answers while somebody types has to *match* while somebody
+> types, and it did not: a tsquery compares whole lexemes, so `Ann` was not a worse match for
+> *Anna's moments* — it was no match at all — and `A` and `An` were worse still, because an English
+> configuration drops them as stop words and the query became empty. The owner found it on the
+> first name he tried. The menu showed nothing for four of five keystrokes, which reads as a menu
+> that does not work.
+>
+> **So the last word is matched as a beginning as well.** Only the last, and only where it is one
+> plain word: a trailing space, a quote, a leading minus and `or` all finish a word, and so does
+> any character a text search parser would not keep inside a token. `view.Search.PrefixTerm` is
+> that rule and it is in the domain, beside `WithoutWordBoundaries`, because it is a statement
+> about what somebody typed rather than about SQL.
+>
+> **Under `simple`, always** — which is where decision 1 pays for itself a second time. A
+> configuration would stem the beginning into something that is not one and would drop a
+> one-letter word entirely; `simple` does neither, and since decision 1 every document carries a
+> `simple` copy of itself, so a beginning reaches an entry whatever language it was written in.
+> The word is bound and the `:*` is written, so `to_tsquery` — which, unlike
+> `websearch_to_tsquery`, has operators of its own — can never be handed one (rule 9, T-06).
+>
+> **A beginning does not rank.** It is a fourth branch of the match and no part of `ts_rank_cd`,
+> so an entry found only by a beginning scores zero and sorts behind every entry that matched a
+> whole word. `ORDER BY rank DESC, wi.id DESC` still pages them deterministically.
+>
+> The cost is that a one-letter search now answers instead of answering nothing, so the screen
+> walks its pages for it. That is not a new shape — a filter with no words has always returned the
+> whole workspace and always walked — and it is bounded the same way.
+
 **And the tree keeps its Search row, which reverses one sentence of ADR-0063 decision 4**: "one
 visible entry to search on every width". That reading treats a *field* and a *destination* as the
 same thing. They are not — the field is where a search is typed, and Search is the place it is

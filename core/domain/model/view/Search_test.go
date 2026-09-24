@@ -114,6 +114,43 @@ func TestTheScriptsWithoutWordBoundariesAreRecognised(t *testing.T) {
 // The mode: two values, an empty one that means the default, and everything else refused. The
 // refusal is the point - a client asking for a mode this server does not offer is a client that
 // believes it will get something.
+// The last word is the one that may still be being typed, and four things say it is not.
+func TestTheLastWordIsTakenAsABeginningUnlessItIsFinished(t *testing.T) {
+	for _, each := range []struct {
+		name, words, head, prefix string
+	}{
+		{"one word, still being typed", "Ann", "", "Ann"},
+		{"the finished ones, and the last", "Momente Chall", "Momente", "Chall"},
+		{"a single letter is a beginning too", "A", "", "A"},
+
+		// The four that finish a word.
+		{"a trailing space is somebody saying they are done", "Anna ", "Anna ", ""},
+		{"a phrase is a phrase", `"Anna's moments"`, `"Anna's moments"`, ""},
+		{"the beginning of an exclusion would exclude too much", "moments -Ann", "moments -Ann", ""},
+		{"or is the grammar's word, not one to find", "Anna or", "Anna or", ""},
+
+		// And anything a text search parser would not keep inside a token, because the prefix is
+		// handed to a function that has operators of its own.
+		{"an apostrophe", "Anna's", "Anna's", ""},
+		{"a colon", "Anna:", "Anna:", ""},
+		{"an operator", "Anna&Momente", "Anna&Momente", ""},
+		{"a digit is a word character", "Q3", "", "Q3"},
+		{"a mark is part of a letter", "Bäum", "", "Bäum"},
+
+		// A script without word boundaries has the substring branch already.
+		{"Japanese is left to the trigram index", "会議", "会議", ""},
+
+		{"nothing typed", "", "", ""},
+	} {
+		t.Run(each.name, func(t *testing.T) {
+			head, prefix := Search{Words: each.words}.PrefixTerm()
+			if head != each.head || prefix != each.prefix {
+				t.Errorf("%q split into (%q, %q), want (%q, %q)", each.words, head, prefix, each.head, each.prefix)
+			}
+		})
+	}
+}
+
 func TestParseSearchModeOffersTwoAndRefusesTheRest(t *testing.T) {
 	for _, c := range []struct {
 		raw     string

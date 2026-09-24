@@ -328,6 +328,13 @@ func (b *builder) searchPredicates(search repository.TextSearch, meaning string)
 	b.write(` OR wi.search_document @@ `)
 	b.simpleQuery(search.Request.Words)
 
+	// And the last word as a beginning, where the domain says there is one: the branch that makes
+	// a search answer while it is still being typed (ADR-0066 decision 4, view.Search.PrefixTerm).
+	if head, prefix := search.Request.PrefixTerm(); prefix != "" {
+		b.write(` OR wi.search_document @@ `)
+		b.prefixQuery(head, prefix)
+	}
+
 	// The supplement for the scripts a tsquery cannot serve. A run of characters without word
 	// boundaries is one token, so a query for part of it matches nothing - which is why this
 	// branch is decided by the *words*, in the domain, rather than by the entries (i18n-l10n.md
@@ -430,6 +437,33 @@ func (b *builder) simpleQuery(words string) {
 	b.write(`websearch_to_tsquery('simple', `)
 	b.words(words)
 	b.write(`)`)
+}
+
+// prefixQuery asks for the finished words *and* an entry holding a lexeme that begins with the
+// unfinished one: `Momente Chall` is `'momente' & 'chall':*`.
+//
+// **Under `simple`, always**, and for two reasons that are the same reason. A configuration stems,
+// so `Ann` would become a stem that is not a prefix of the entry's; and a configuration drops stop
+// words, so `A` and `An` would become nothing at all - which is exactly the search the owner found
+// answering nothing. `simple` does neither, and since ADR-0066 every document carries a `simple`
+// copy of itself, so this reaches an entry whatever language it was written in.
+//
+// The `:*` is written here and the word is **bound**: no byte of the request becomes query text,
+// and the domain has already refused anything that is not a letter, a digit or a mark - so
+// `to_tsquery`, which unlike `websearch_to_tsquery` has operators of its own, cannot be handed
+// one (rule 9, T-06).
+func (b *builder) prefixQuery(head, prefix string) {
+	if head != "" {
+		b.write(`(websearch_to_tsquery('simple', `)
+		b.words(head)
+		b.write(`) && `)
+	}
+	b.write(`to_tsquery('simple', `)
+	b.words(prefix)
+	b.write(` || ':*')`)
+	if head != "" {
+		b.write(`)`)
+	}
 }
 
 // predicates writes what every shape of the query shares: the scope, the lifecycle, the filter.
