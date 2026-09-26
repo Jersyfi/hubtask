@@ -63,7 +63,13 @@ func (r *restoreStore) Claim(_ context.Context, id shared.ID, at time.Time) (boo
 		return false, nil
 	}
 	restore := r.stored[id]
-	restore.Status, restore.StartedAt = domain.RestoreRunning, at
+	restore.Status = domain.RestoreRunning
+	// Kept rather than moved, which is what ClaimRestoreRun's COALESCE does: a resumed attempt
+	// continues its own run, and everything derived from it - the identity of a duplicate, and
+	// since #790 its name - has to come out the same on the second attempt as on the first.
+	if restore.StartedAt.IsZero() {
+		restore.StartedAt = at
+	}
 	r.stored[id] = restore
 	return true, nil
 }
@@ -450,6 +456,196 @@ func TestACollisionIsSettledByTheRuleTheRestoreWasGiven(t *testing.T) {
 				t.Errorf("skipped %d, overwritten %d", report.Skipped, report.Overwritten)
 			}
 		})
+	}
+}
+
+// The name the copy is called, and the calendar address it does not take over (#790).
+//
+// `mint` gave the copy an identity and changed nothing else, so it arrived under the living
+// collection's name and met `container_name_uq`; and it kept the calendar UID the client that made
+// the original keys its todo by.
+func namedRows(export *rows) {
+	export.byTable["container"] = []repository.Row{
+		{ID: "c1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+			"id": "c1", "name": "Errands", "parent_id": nil,
+		}},
+	}
+	export.byTable["work_item"] = []repository.Row{
+		{ID: "w1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+			"id": "w1", "collection_id": "c1", "state": "OPEN", "calendar_uid": "todo-1@thunderbird",
+		}},
+	}
+}
+
+func TestADuplicateStandsBesideTheLivingObjectUnderANameOfItsOwn(t *testing.T) {
+	h := newApplyHarness(t, namedRows)
+	h.imports.tables["container"] = map[string]map[string]any{
+		"c1": {"id": "c1", "name": "Errands"},
+	}
+	h.imports.tables["work_item"] = map[string]map[string]any{
+		"w1": {"id": "w1", "collection_id": "c1", "state": "LIVE", "calendar_uid": "todo-1@thunderbird"},
+	}
+	in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	copied := h.imports.tables["container"][domain.DuplicateID(restoreID, "containers", "c1").String()]
+	if copied == nil {
+		t.Fatalf("the colliding container was not duplicated")
+	}
+	want := domain.DuplicatedName(restoreID, now, "Errands")
+	if copied["name"] != want {
+		t.Errorf("the copy is called %v, want %q - under the living name it meets container_name_uq",
+			copied["name"], want)
+	}
+	if living := h.imports.tables["container"]["c1"]["name"]; living != "Errands" {
+		t.Errorf("the living collection was renamed to %v", living)
+	}
+
+	item := h.imports.tables["work_item"][domain.DuplicateID(restoreID, "work_items", "w1").String()]
+	if item == nil {
+		t.Fatalf("the colliding item was not duplicated")
+	}
+	// A calendar client minted that UID and keys its todo by it. Two rows claiming one address is
+	// what `wi_calendar_uid_uq` refuses, and the copy is not the entry the client made.
+	if uid := item["calendar_uid"]; uid != nil && uid != "" {
+		t.Errorf("the copy took over the calendar address %v", uid)
+	}
+	if uid := h.imports.tables["work_item"]["w1"]["calendar_uid"]; uid != "todo-1@thunderbird" {
+		t.Errorf("the living item's calendar address became %v", uid)
+	}
+}
+
+// The rename reaches the top of the duplicated tree and stops there.
+//
+// A collection's `parent_id` is a reference, so the copy lands under the copy of the hub - where
+// its name is free, and suffixing it would disfigure a copy for a collision that cannot happen.
+// The hub is what has no parent to follow, and `container_name_uq` reads a null parent as a scope
+// of its own.
+func TestOnlyTheTopOfADuplicatedTreeIsRenamed(t *testing.T) {
+	h := newApplyHarness(t, func(export *rows) {
+		export.byTable["container"] = []repository.Row{
+			{ID: "c1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "c1", "name": "Home", "parent_id": nil,
+			}},
+			{ID: "c2", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "c2", "name": "Errands", "parent_id": "c1",
+			}},
+		}
+	})
+	h.imports.tables["container"] = map[string]map[string]any{
+		"c1": {"id": "c1", "name": "Home", "parent_id": nil},
+		"c2": {"id": "c2", "name": "Errands", "parent_id": "c1"},
+	}
+	in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	hub := h.imports.tables["container"][domain.DuplicateID(restoreID, "containers", "c1").String()]
+	inside := h.imports.tables["container"][domain.DuplicateID(restoreID, "containers", "c2").String()]
+	if hub == nil || inside == nil {
+		t.Fatalf("the tree was not duplicated whole")
+	}
+	if want := domain.DuplicatedName(restoreID, now, "Home"); hub["name"] != want {
+		t.Errorf("the duplicated hub is called %v, want %q", hub["name"], want)
+	}
+	if inside["name"] != "Errands" {
+		t.Errorf("the collection inside the copy is called %v; its name was already free there",
+			inside["name"])
+	}
+	if inside["parent_id"] != domain.DuplicateID(restoreID, "containers", "c1").String() {
+		t.Errorf("the collection landed under %v rather than under the duplicated hub",
+			inside["parent_id"])
+	}
+}
+
+// A custom field definition is copied inside a copied collection and left alone when it belongs to
+// the whole workspace.
+//
+// Its key is unique per collection, and `collection_id` is null for a tenant-wide one - which the
+// remap has nothing to move. Renaming the key is not available: `work_item.custom_fields` is a
+// document keyed by it rather than by the definition's identity, so the copy would be a field
+// none of the copied values are stored under. The row falls back to SKIP, the way an account or a
+// medium does, and the report counts it.
+func TestATenantWideCustomFieldIsNotDuplicatedAndOneInACollectionIs(t *testing.T) {
+	h := newApplyHarness(t, func(export *rows) {
+		export.byTable["container"] = []repository.Row{
+			{ID: "c1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "c1", "name": "Home", "parent_id": nil,
+			}},
+		}
+		export.byTable["custom_field_definition"] = []repository.Row{
+			{ID: "f1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "f1", "key": "priority", "collection_id": "c1",
+			}},
+			{ID: "f2", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "f2", "key": "cost_centre", "collection_id": nil,
+			}},
+		}
+	})
+	h.imports.tables["container"] = map[string]map[string]any{
+		"c1": {"id": "c1", "name": "Home", "parent_id": nil},
+	}
+	h.imports.tables["custom_field_definition"] = map[string]map[string]any{
+		"f1": {"id": "f1", "key": "priority", "collection_id": "c1"},
+		"f2": {"id": "f2", "key": "cost_centre", "collection_id": nil},
+	}
+	in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	fields := h.imports.tables["custom_field_definition"]
+	inCollection := fields[domain.DuplicateID(restoreID, "custom_field_definitions", "f1").String()]
+	if inCollection == nil {
+		t.Fatalf("the field of the duplicated collection was not copied with it")
+	}
+	if inCollection["key"] != "priority" {
+		t.Errorf("the copied field is keyed %v; its key was already free in the copy",
+			inCollection["key"])
+	}
+	if inCollection["collection_id"] != domain.DuplicateID(restoreID, "containers", "c1").String() {
+		t.Errorf("the copied field belongs to %v rather than to the duplicated collection",
+			inCollection["collection_id"])
+	}
+	if copied := fields[domain.DuplicateID(restoreID, "custom_field_definitions", "f2").String()]; copied != nil {
+		t.Errorf("the tenant-wide field was copied as %v, and it has no free key to be copied under",
+			copied)
+	}
+}
+
+// The other mode that mints identities does not rename, and that is the point: every one of these
+// indexes is per tenant, and a NEW_TENANT copy lands in a tenant that did not exist a moment ago.
+// A migration that renamed every collection and dropped every calendar address would be answering
+// a collision that cannot happen.
+func TestANewTenantCopyKeepsItsNamesAndItsCalendarAddresses(t *testing.T) {
+	h := newApplyHarness(t, namedRows)
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+	})
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	copied := h.imports.tables["container"][domain.DuplicateID(restoreID, "containers", "c1").String()]
+	if copied == nil {
+		t.Fatalf("the container did not land in the new tenant")
+	}
+	if copied["name"] != "Errands" {
+		t.Errorf("a migrated collection is called %v, want the name it had", copied["name"])
+	}
+	item := h.imports.tables["work_item"][domain.DuplicateID(restoreID, "work_items", "w1").String()]
+	if item == nil {
+		t.Fatalf("the item did not land in the new tenant")
+	}
+	if item["calendar_uid"] != "todo-1@thunderbird" {
+		t.Errorf("a migrated item's calendar address became %v", item["calendar_uid"])
 	}
 }
 

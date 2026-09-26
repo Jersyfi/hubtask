@@ -1109,7 +1109,8 @@ func (s *state) write(ctx context.Context, item staged) error {
 
 	// The references are remapped whether or not this row collides. A row that is new but points
 	// at a container that was duplicated belongs in the duplicate, not beside it.
-	if err := s.remapReferences(ctx, item.entity, data); err != nil {
+	rewritten, err := s.remapReferences(ctx, item.entity, data)
+	if err != nil {
 		return err
 	}
 	// A child whose parent is not there yet waits for it (#693): the export orders rows by when
@@ -1133,8 +1134,12 @@ func (s *state) write(ctx context.Context, item staged) error {
 	case collided && rule == domain.ConflictOverwrite:
 		outcome = domain.ConflictOverwrite
 	case collided && rule == domain.ConflictDuplicate && item.entity.Duplicable:
+		if !s.duplicable(item.entity, rewritten) {
+			break // falls back to SKIP, and the report counts it as one
+		}
 		outcome = domain.ConflictDuplicate
 		s.mint(item.entity, data, item.record.ID)
+		s.settleUniques(item.entity, data, rewritten)
 	}
 
 	written := !collided || outcome != domain.ConflictSkip
@@ -1216,6 +1221,75 @@ func (s *state) mint(entity archive.Entity, data map[string]any, originalID stri
 	s.remap[entity.Table+"/"+originalID] = minted
 }
 
+// settleUniques changes the columns a copy may not carry unchanged.
+//
+// mint gives the copy an identity, and for four milestones that was all it gave it - so a
+// duplicated collection arrived under the living one's name, met `container_name_uq` and landed
+// nothing (#790). The identity is not the only uniqueness in the schema, and the entity declares
+// the rest (archive.Entity.Unique) rather than the applier knowing three tables by name.
+//
+// Here rather than in mint, because mint is also NEW_TENANT's: every one of these indexes is per
+// tenant, and that mode's copy lands in a tenant that did not exist a moment ago. Renaming there
+// would disfigure a migration for a collision that cannot happen, and it is the same argument that
+// lets a migrated work item keep the calendar UID a duplicated one has to give up.
+func (s *state) settleUniques(entity archive.Entity, data map[string]any, rewritten map[string]bool) {
+	for _, unique := range entity.Unique {
+		if scopeMoved(unique, rewritten) {
+			// The copy already stands somewhere the value is free: a duplicated collection lands
+			// under the duplicated hub, a duplicated bucket inside the duplicated collection. What
+			// reaches the rule below is the top of the tree, which has no scope to follow.
+			continue
+		}
+		switch unique.Rule {
+		case archive.UniqueRename:
+			// Absent rather than empty is the case worth reading: an archive written before the
+			// column existed has no value to suffix, and a name invented here would be a name
+			// nobody chose. The row is left as it was and refused by the index, which is the
+			// honest answer to an archive this build cannot duplicate.
+			current, named := data[unique.Field].(string)
+			if !named || current == "" {
+				continue
+			}
+			data[unique.Field] = domain.DuplicatedName(
+				s.plan.restore.ID, s.plan.restore.StartedAt, current)
+		case archive.UniqueClear:
+			data[unique.Field] = nil
+		case archive.UniqueSkip:
+			// Settled before the mint, by duplicable below: the row is not copied at all.
+		}
+	}
+}
+
+// duplicable reports whether this row's uniquenesses can be settled at all.
+//
+// Entity.Duplicable answers the question for a table - an account is who somebody is, a medium is
+// its bytes - and this answers what is left of it for one row, because Within makes the answer
+// depend on where the row lands. A tenant-wide custom field is the whole of it today: its key is
+// unique across the workspace, and neither renaming nor emptying it leaves a field the copied
+// values are still stored under.
+//
+// Asked before the mint rather than after, so that nothing enters the remap pointing at a copy
+// that was never written.
+func (s *state) duplicable(entity archive.Entity, rewritten map[string]bool) bool {
+	for _, unique := range entity.Unique {
+		if unique.Rule == archive.UniqueSkip && !scopeMoved(unique, rewritten) {
+			return false
+		}
+	}
+	return true
+}
+
+// scopeMoved reports a uniqueness this row has already left the scope of, because the remap
+// pointed one of the index's reference columns at a duplicate.
+func scopeMoved(unique archive.UniqueField, rewritten map[string]bool) bool {
+	for _, field := range unique.Within {
+		if rewritten[field] {
+			return true
+		}
+	}
+	return false
+}
+
 // remapReferences points a duplicated object's references at the other duplicates rather than at
 // the originals.
 //
@@ -1224,12 +1298,15 @@ func (s *state) mint(entity archive.Entity, data map[string]any, originalID stri
 // can derive without having seen it. That is what makes the remap independent of order, which
 // matters because the archive's order within an entity is by change time: a parent can be written
 // after its child, and a map built as the records went past would miss it.
-func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data map[string]any) error {
+func (s *state) remapReferences(
+	ctx context.Context, entity archive.Entity, data map[string]any,
+) (map[string]bool, error) {
+	rewritten := map[string]bool{}
 	if s.plan.remapAll {
-		return s.remapEveryReference(entity, data)
+		return rewritten, s.remapEveryReference(entity, data)
 	}
 	if ruleOf(s.plan.restore) != domain.ConflictDuplicate {
-		return nil
+		return rewritten, nil
 	}
 
 	for _, reference := range entity.References {
@@ -1247,11 +1324,12 @@ func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data
 		}
 		if minted, mapped := s.remap[reference.Table+"/"+id]; mapped {
 			data[reference.Field] = minted
+			rewritten[reference.Field] = true
 			continue
 		}
 		live, err := s.holds(ctx, reference.Table, id)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !live {
 			continue
@@ -1259,8 +1337,9 @@ func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data
 		minted := domain.DuplicateID(s.plan.restore.ID, target.Name, id).String()
 		s.remap[reference.Table+"/"+id] = minted
 		data[reference.Field] = minted
+		rewritten[reference.Field] = true
 	}
-	return nil
+	return rewritten, nil
 }
 
 // remapEveryReference is the NEW_TENANT half of the remap: every reference to an entity with an
