@@ -149,7 +149,9 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   // The way out is the first row, and the row the reader is on is announced as current.
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  assert.equal(rows.length, 18, `the section holds ${rows.length} rows`);
+  // Nineteen since the sign-in work put "Sign-in" beside the identity provider (SI-16): the
+  // number moves when the section gains a screen, which is what this assertion is for.
+  assert.equal(rows.length, 19, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.
   assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
