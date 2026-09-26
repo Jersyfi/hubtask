@@ -28,6 +28,8 @@ import { engine } from './engine.ts';
 const ENROLL = '/auth/mfa/totp:enroll';
 const CONFIRM = '/auth/mfa/totp:confirm';
 const DISABLE = '/auth/mfa:disable';
+/** New recovery codes for an enrolment that already exists, behind the step-up. */
+const REGENERATE = '/auth/mfa/recovery:regenerate';
 
 /** The single showing, as `TotpEnrollment` answers it. */
 export interface Enrollment {
@@ -44,12 +46,23 @@ interface Confirmed {
 
 class Mfa {
   #started = $state<Enrollment | undefined>(undefined);
+  #fresh = $state<readonly string[] | undefined>(undefined);
   #failure = $state<string | undefined>(undefined);
   #working = $state(false);
 
   /** The secret and the codes, while the enrolment screen is showing them. */
   get enrollment(): Enrollment | undefined {
     return this.#started;
+  }
+
+  /**
+   * The fresh ten, while they are being shown.
+   *
+   * Separate from `enrollment`: this is an account that already has a factor and is replacing the
+   * codes beside it, not one setting a factor up - and the screen shows one panel, never both.
+   */
+  get fresh(): readonly string[] | undefined {
+    return this.#fresh;
   }
 
   /** The last refusal, as the server's own code. */
@@ -126,9 +139,30 @@ class Mfa {
     });
   }
 
+  /**
+   * Replaces the ten recovery codes of an enrolment that already exists.
+   *
+   * Behind the step-up, because it is the same power as disabling the factor: whoever holds ten
+   * fresh codes can sign in without the authenticator. The old ten stop working the moment the
+   * new ones are answered - which is why the panel that shows them insists on an acknowledgement
+   * before it can be closed.
+   */
+  async regenerate(stepUpToken?: string): Promise<boolean> {
+    return this.#attempt(async () => {
+      const answer = await engine.mutate<{ readonly recovery_codes: readonly string[] }>(
+        'POST',
+        REGENERATE,
+        stepUpToken ? { step_up_token: stepUpToken } : {},
+      );
+      this.#fresh = answer.recovery_codes;
+      return true;
+    });
+  }
+
   /** Drops the secret and the codes. Called when the screen leaves, and after a confirmation. */
   forget(): void {
     this.#started = undefined;
+    this.#fresh = undefined;
     this.#failure = undefined;
   }
 
