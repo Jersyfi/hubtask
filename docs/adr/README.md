@@ -72,3 +72,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0063](./ADR-0063-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |
 | [0064](./ADR-0064-the-workspace-wide-read.md) | The one read that may ask the whole workspace a narrowed question | accepted | API, domain, search |
 | [0065](./ADR-0065-the-second-walk-of-the-shell.md) | Sections, and where a statement about the application lives | accepted | Design system, client, product |
+| [0068](./ADR-0068-sign-in-policy-and-the-password-lifetime.md) | The sign-in rule: three levels, a lock, and the password over its lifetime | proposed | Security, domain, client |
+| [0069](./ADR-0069-third-party-brand-marks.md) | A third-party brand mark is content, and the button stays ours | proposed | Design system, legal, client |
+| [0070](./ADR-0070-the-instance-layer.md) | The instance layer: operators, instance settings, and the elevated session | proposed | Security, multi-tenancy, operations |
