@@ -10,13 +10,20 @@
   // read once, and replaced in the history entry before the first request leaves, so that a
   // reader who presses Back, or bookmarks the page, is not carrying a live credential around.
   //
-  // The password policy that binds is the server's (`security.md` §5, twelve characters). It is
-  // checked here as well, and that is not a second policy: it is the same number said early, so
-  // that somebody is told before a round trip rather than after. What the server refuses, the
-  // server's own sentence says.
+  // **The rules are the workspace's, and they are shown rather than guessed at.** This screen used
+  // to say "at least twelve characters" from a constant, which is right until a workspace asks for
+  // fifteen - and then it is a screen that lies and a password that is refused after it was typed.
+  // `PasswordField` reads the rules this workspace actually applies and renders one line each.
+  //
+  // **One field, not two.** The eye is what replaces "repeat it" (3.3.8): a password that can be
+  // read is one nobody has to type twice.
 
-  import { Banner, Button, Input, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Stack } from '@hubtask/design-system/components';
 
+  import PasswordField from '../lib/signin/PasswordField.svelte';
+  import SignInCard from '../lib/signin/SignInCard.svelte';
+  import { takeFragmentToken } from '../lib/signin/fragmentToken.ts';
+  import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
 
@@ -25,23 +32,15 @@
      * Where to go once there is a session. The frame's router, as the OIDC callback takes it.
      *
      * The screen has to send the person on itself: once there is a session, `/redeem` is no
-     * longer a screen - `App.svelte` renders it only while signed out - and a person left on the
-     * address would be signed in and looking at "nothing here". An invited person has no path
-     * to return to, so the start is where they go.
+     * longer a screen, and a person left on the address would be signed in and looking at
+     * "nothing here". An invited person has no path to return to, so the start is where they go.
      */
     onnavigate?: (path: string) => void;
   }
 
   let { onnavigate }: Props = $props();
 
-  /** `security.md` §5's floor, said here so that it is said before the round trip. */
-  const MINIMUM_LENGTH = 12;
-
   let password = $state('');
-  let repeated = $state('');
-  let tooShort = $state(false);
-  let mismatched = $state(false);
-
   const isBusy = $derived(session.status === 'verifying');
 
   /**
@@ -51,96 +50,53 @@
    * `replaceState` that removes it, and a derivation over the address would answer nothing the
    * moment the address stopped carrying it.
    */
-  const token = $state(readToken());
+  const token = $state(takeFragmentToken());
 
-  function readToken(): string {
-    const fragment = new URLSearchParams(location.hash.replace(/^#/, ''));
-    const held = fragment.get('token') ?? '';
-    if (held !== '') {
-      // Replaced rather than pushed: a Back that returned to the address with the credential in
-      // it would put the credential back in the address bar.
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-    return held;
-  }
+  $effect(() => signInRules.read());
 
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    tooShort = password.length < MINIMUM_LENGTH;
-    mismatched = password !== repeated;
-    if (tooShort || mismatched) return;
-
     const signedIn = await session.redeem(token, password);
     // Out of the component's state whatever happened.
     password = '';
-    repeated = '';
     if (signedIn) onnavigate?.('/');
   }
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <h1>{t('app.redeem.title')}</h1>
+{#snippet notice()}
+  {#if session.problem}
+    <Banner tone="danger" title={session.problem.message}>
+      {#if session.problem.reference}{session.problem.reference}{/if}
+    </Banner>
+  {/if}
+{/snippet}
 
-    {#if token === ''}
-      <!-- Reached without a link, or with one that has already been used and the fragment lost on
-           the way. Either way there is nothing to redeem, and saying which would tell a probe
-           whether the token was real. -->
-      <Banner tone="warning">{t('app.redeem.no_token')}</Banner>
-    {:else}
-      <p class="quiet">{t('app.redeem.intro')}</p>
-
-      {#if session.problem}
-        <Banner tone="danger" title={session.problem.message}>
-          {#if session.problem.reference}{session.problem.reference}{/if}
-        </Banner>
-      {/if}
-
-      <form onsubmit={submit}>
-        <Stack gap="200">
-          <Input
-            label={t('app.redeem.password_label')}
-            hint={t('app.redeem.password_hint')}
-            error={tooShort ? t('app.redeem.password_short') : undefined}
-            bind:value={password}
-            type="password"
-            autocomplete="new-password"
-            spellcheck={false}
-            isRequired
-          />
-          <Input
-            label={t('app.redeem.repeat_label')}
-            error={mismatched ? t('app.redeem.repeat_mismatch') : undefined}
-            bind:value={repeated}
-            type="password"
-            autocomplete="new-password"
-            spellcheck={false}
-            isRequired
-          />
-          <div>
-            <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.redeem.working')}>
-              {t('app.redeem.submit')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-    {/if}
-  </Stack>
-</div>
+{#if token === ''}
+  <SignInCard title={t('app.redeem.title')} {notice}>
+    <!-- Reached without a link, or with one that has already been used and the fragment lost on
+         the way. Either way there is nothing to redeem, and saying which would tell a probe
+         whether the token was real. -->
+    <Banner tone="warning">{t('app.redeem.no_token')}</Banner>
+  </SignInCard>
+{:else}
+  <SignInCard title={t('app.redeem.title')} lead={t('app.redeem.intro')} {notice}>
+    <form onsubmit={submit}>
+      <Stack gap="200">
+        <PasswordField
+          bind:value={password}
+          label={t('app.redeem.password_label')}
+          context={{ workspaceHost: signInRules.workspaceHost }}
+          proof={{ kind: 'invitation', token }}
+          hint={t('app.redeem.password_hint')}
+        />
+        <Button type="submit" tone="primary" isFull {isBusy} busyLabel={t('app.redeem.working')}>
+          {t('app.redeem.submit')}
+        </Button>
+      </Stack>
+    </form>
+  </SignInCard>
+{/if}
 
 <style>
-  /* Rule 4: a column that grows with its text and stops before it becomes a line nobody can read. */
-  .screen { max-width: 60ch; }
-
-  h1 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
-  .quiet { margin: 0; color: var(--text-secondary); }
-
   form { margin: 0; }
 </style>

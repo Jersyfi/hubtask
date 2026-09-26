@@ -211,6 +211,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'entry',
     code: 'app.admin.group_entry',
     rows: [
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings'] },
       { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
     ],
@@ -262,7 +263,10 @@ export const SETTINGS: readonly SectionGroup[] = [
     id: 'entry',
     code: 'app.you.group_entry',
     rows: [
-      { id: 'security', icon: 'shield', code: 'app.mfa.title', path: '/profile/security', routes: ['security'] },
+      // Three things rather than one since the sign-in work: the password, the second factor and the
+      // recovery codes. The row was called after the second of them, which is how a reader looking
+      // for "where do I change my password" ended up on every other screen first.
+      { id: 'security', icon: 'shield', code: 'app.security.title', path: '/profile/security', routes: ['security'] },
       { id: 'sessions', icon: 'user-check', code: 'app.you.row_sessions', titleCode: 'app.sessions.title', path: '/profile/sessions', routes: ['sessions'] },
       { id: 'devices', icon: 'arrow-right-left', code: 'app.you.row_devices', titleCode: 'app.devices.title', path: '/profile/devices', routes: ['devices'] },
     ],

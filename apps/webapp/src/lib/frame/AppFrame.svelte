@@ -224,6 +224,31 @@
     announced = state;
   });
 
+  /**
+   * How many recovery codes are left, said once, on the other side of a sign-in that spent one.
+   *
+   * `SessionTokens.recovery_codes_remaining` has carried this since H-02, with "zero is the number
+   * to act on" written beside it in the contract, and no client had ever read it - so somebody
+   * could spend their tenth code and learn nothing. It belongs to the frame rather than to the
+   * sign-in screen because it is true *after* the sign-in, when that screen is gone.
+   *
+   * Said rather than drawn, and that is ADR-0065 decision 4 holding: a banner here would be a
+   * statement about *this person's* sign-in in the row the shell keeps for statements about the
+   * application. What is worth acting on outlives the announcement anyway - the count stands on
+   * the security screen, beside the button that makes new ones.
+   *
+   * Taken rather than read: an announcement that repeated on every navigation would be a screen
+   * reader saying it on every click.
+   */
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    const left = session.takeRecoveryLeft();
+    if (left === undefined) return;
+    announcer.say(
+      left === 0 ? t('app.sign_in.recovery_none') : t('app.sign_in.recovery_left', { count: String(left) }),
+    );
+  });
+
 </script>
 
 <div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn ? '' : undefined}>
