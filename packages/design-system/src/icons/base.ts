@@ -4,7 +4,7 @@
 /**
  * The declared subset of Lucide, as icon nodes.
  *
- * Generated from lucide-static@1.45.0 by build/icons.js - DO NOT EDIT.
+ * Generated from lucide-static@1.47.0 by build/icons.js - DO NOT EDIT.
  * Run `make icons` after changing the list there. Lucide is ISC; the notice is in
  * THIRD-PARTY-LICENSES.md (ADR-0041).
  *
