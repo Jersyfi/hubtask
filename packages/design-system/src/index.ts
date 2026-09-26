@@ -24,6 +24,7 @@ export { default as Callout } from './Callout.svelte';
 export { default as CodeBlock } from './CodeBlock.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
+export { default as CodeField } from './CodeField.svelte';
 export { default as Dialog } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as IconButton } from './IconButton.svelte';

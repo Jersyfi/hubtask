@@ -23,11 +23,30 @@
     /** Why the control cannot be used. */
     disabledReason?: string;
     isRequired?: boolean;
+    /**
+     * Ids of anything else that describes this control, appended after the field's own.
+     *
+     * The field owns the hint and the error; a caller that renders a third thing under the control
+     * - the password rules of a sign-in screen, say - has to be able to say so, and a caller that
+     * wrote `aria-describedby` on the control itself would silently replace the two ids the field
+     * just hung there.
+     */
+    describedBy?: string;
+    /**
+     * Marks the control as wrong when the sentence that says why is not the field's own.
+     *
+     * The one case: a password whose rules are rendered as a list under it. The list *is* the
+     * error message - line by line, with the one that failed marked - so putting a second sentence
+     * in `error` would say the same thing twice. This is not a state as a prop in §5's sense
+     * (hover, pressed and focus are what that rule is about): whether a value is refused is not
+     * something CSS can know.
+     */
+    isInvalid?: boolean;
     /** Takes the ids to hang on the control: `{ id, describedBy, invalid }`. */
     children: Snippet<[{ id: string; describedBy: string | undefined; invalid: boolean }]>;
   }
 
-  const { label, hint, error, disabledReason, isRequired = false, children }: Props = $props();
+  const { label, hint, error, disabledReason, isRequired = false, describedBy: extra, isInvalid = false, children }: Props = $props();
 
   const uid = `field-${Math.random().toString(36).slice(2, 9)}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
@@ -35,7 +54,7 @@
   const reasonId = $derived(disabledReason ? `${uid}-reason` : undefined);
   // Order matters: a screen reader reads them in this order, and the error is the thing to hear
   // first when there is one.
-  const describedBy = $derived([errorId, reasonId, hintId].filter(Boolean).join(' ') || undefined);
+  const describedBy = $derived([errorId, reasonId, hintId, extra].filter(Boolean).join(' ') || undefined);
 </script>
 
 <Stack as="div" gap="050" class="field">
@@ -43,7 +62,7 @@
     {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
   </label>
 
-  {@render children({ id: uid, describedBy, invalid: error !== undefined })}
+  {@render children({ id: uid, describedBy, invalid: error !== undefined || isInvalid })}
 
   {#if error}
     <!-- Rule 3: colour never stands alone. The message is text, and the border is only the echo. -->
