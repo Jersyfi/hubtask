@@ -174,12 +174,18 @@ func TestACJKQueryMatchesASubstring(t *testing.T) {
 		t.Errorf("a Japanese searcher found %v", titles)
 	}
 
-	// A Latin-script query is not given the substring branch, so a search for "report" does not
-	// also drag in every entry that merely contains those letters somewhere.
-	titles = found(ctx, t, tenantA, searchWithin(f.collection, "quarterl", "en"))
+	// A Latin-script query is not given the substring branch, so it does not drag in every entry
+	// that merely contains those letters somewhere.
+	//
+	// The probe is a run from the **middle** of a word rather than its beginning, and that is the
+	// whole point of it since ADR-0066 decision 4: a beginning is matched on purpose now
+	// (`TestTheLastWordOfASearchIsMatchedAsABeginning`), so `quarterl` would find *Quarterly
+	// report* and prove nothing. `uarterly` is a substring and not a prefix, so only the ILIKE
+	// branch could answer it - and for a Latin script there is no ILIKE branch.
+	titles = found(ctx, t, tenantA, searchWithin(f.collection, "uarterly", "en"))
 	if len(titles) != 0 {
-		t.Errorf("a partial word matched %v - the substring branch is not confined to the "+
-			"scripts that need it", titles)
+		t.Errorf("a run from the middle of a word matched %v - the substring branch is not "+
+			"confined to the scripts that need it", titles)
 	}
 }
 
@@ -357,6 +363,75 @@ func TestASearchNeverCrossesTheTenantBoundary(t *testing.T) {
 		t.Run(search.name, func(t *testing.T) {
 			if titles := found(ctx, t, tenantB, search.search); len(titles) != 0 {
 				t.Errorf("tenant B read %v out of tenant A", titles)
+			}
+		})
+	}
+}
+
+// The document holds the word forms as well as the stems, so a reader whose configuration is not
+// the entry's finds it anyway (ADR-0066).
+//
+// This is the case the language picker used to work around, and the three words below are not
+// chosen for effect - they are what German and English disagree about. `german` folds
+// `Hausaufgabenbetreuung` to `hausaufgabenbetreu`, `Bäume` to `baum` and `gießen` to `giess`;
+// none of those is what an English configuration or `simple` makes of the same word, so before the
+// second copy an English reader typing **what is on the screen** was answered "nothing matches"
+// about an entry plainly there.
+func TestAnEntryIsFoundByItsOwnWordsWhateverTheSearcherReads(t *testing.T) {
+	ctx := context.Background()
+	f := newSearchFixture(ctx, t)
+
+	for _, each := range []struct {
+		name, words string
+		want        int
+	}{
+		{"the title, exactly as it is written", "Hausaufgabenbetreuung", 1},
+		{"a word in the notes, exactly as it is written", "gießen", 1},
+		{"a word two entries share", "Bäume", 2},
+	} {
+		t.Run(each.name, func(t *testing.T) {
+			if titles := found(ctx, t, tenantA, searchWithin(f.collection, each.words, "en")); len(titles) != each.want {
+				t.Errorf("an English reader searching %q found %v, want %d", each.words, titles, each.want)
+			}
+		})
+	}
+
+	// And the stems still work, which is the half that must not be traded away: the same reader
+	// typing the German plural of a compound noun still finds the singular.
+	if titles := found(ctx, t, tenantA, searchWithin(f.collection, "Hausaufgabenbetreuungen", "de")); len(titles) != 1 {
+		t.Errorf("a German searcher found %v, want the compound word", titles)
+	}
+}
+
+// A search answers while it is still being typed: the last word is matched as a beginning too
+// (ADR-0066 decision 4, `view.Search.PrefixTerm`).
+//
+// Until this existed a tsquery compared whole lexemes, so `Haus` was not a worse match for
+// *Hausaufgabenbetreuung* - it was no match at all, and a single letter was worse still, because a
+// configuration drops it as a stop word. The bar shows hits as somebody types, so that read as a
+// bar that does not work.
+func TestTheLastWordOfASearchIsMatchedAsABeginning(t *testing.T) {
+	ctx := context.Background()
+	f := newSearchFixture(ctx, t)
+
+	for _, each := range []struct {
+		name, words, language string
+		want                  int
+	}{
+		{"one letter", "H", "en", 1},
+		{"a few", "Haus", "en", 1},
+		{"the compound's own language finds it too", "Haus", "de", 1},
+		{"a finished word and a beginning", "Bäume Haus", "de", 1},
+		{"a beginning that is nobody's word", "Zzz", "en", 0},
+
+		// A trailing space is somebody saying the word is done, so it is matched whole - and
+		// `Haus` whole is not `Hausaufgabenbetreuung`.
+		{"a trailing space finishes it", "Haus ", "en", 0},
+	} {
+		t.Run(each.name, func(t *testing.T) {
+			titles := found(ctx, t, tenantA, searchWithin(f.collection, each.words, each.language))
+			if len(titles) != each.want {
+				t.Errorf("searching %q found %v, want %d", each.words, titles, each.want)
 			}
 		})
 	}

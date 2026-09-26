@@ -376,6 +376,52 @@ func DuplicateID(runID shared.ID, entity, original string) shared.ID {
 		hexed[16:20] + "-" + hexed[20:32])
 }
 
+// MaxDuplicatedName is the longest name a duplicate may carry, which is the longest name the
+// column accepts. A copy whose suffix pushed it past the bound would be a restore that fails on a
+// CHECK constraint instead of on a unique index - the same run, refused one line further down.
+const MaxDuplicatedName = 200
+
+// DuplicatedName is the name an object gets when the conflict rule is DUPLICATE and its name has
+// to be unique beside the one it was copied from.
+//
+// DuplicateID answers what the copy *is*; this answers what it is *called*, and the two are needed
+// together: a copy that got a new identity and kept its name meets `container_name_uq` (and the
+// same index on a bucket and a label) and lands nothing (#790). backup-restore.md §8.3's
+// `duplicate` rule said the first and nothing about the second.
+//
+// Derived from the run, for the reason DuplicateID gives: a resumed restore has to produce the
+// same name, or the half it wrote before it died comes back under a second name nobody asked for.
+// That is also what rules out counting - "(copy 2)", "(copy 3)" - because counting asks how many
+// are already there, and that answer changes in the middle of a run.
+//
+// The shape is `Errands (restored 2026-09-24 a1b2c3)`: the date for whoever reads the sidebar, and
+// six characters of the run so that restoring the same archive twice into the same workspace still
+// lands rather than meeting the copy the first restore made. UTC, because the run has no zone of
+// its own and a date that depended on where it was read from would not be derived at all.
+//
+// Those six characters are hashed out of the run rather than sliced off it. An identifier here is
+// a UUIDv7, which opens with a timestamp: two runs started the same afternoon share their first
+// characters, so a slice would have given both copies one name on exactly the day somebody
+// restores an archive twice to compare the results. A hash spreads them whatever the identifier
+// looks like.
+//
+// Technical, and deliberately so - the same trade RestoredSlug makes for a NEW_TENANT's slug:
+// renaming the copy afterwards is an ordinary edit, and a name that collides is a restore that
+// lands nothing.
+func DuplicatedName(runID shared.ID, startedAt time.Time, original string) string {
+	sum := sha256.Sum256([]byte("hubtask/restore-duplicate-name\x00" + runID.String()))
+	suffix := " (restored " + startedAt.UTC().Format(time.DateOnly) + " " +
+		hex.EncodeToString(sum[:3]) + ")"
+
+	// Counted in characters rather than bytes: the column's CHECK is `length(name)`, which is
+	// what Postgres counts in characters, and a name cut at a byte would be cut inside a letter.
+	room := MaxDuplicatedName - len([]rune(suffix))
+	if runes := []rune(original); len(runes) > room {
+		original = string(runes[:room])
+	}
+	return original + suffix
+}
+
 // RestoredSlug is the slug a NEW_TENANT restore gives its copy.
 //
 // The slug is unique across the installation, so the copy cannot keep the source's - and a

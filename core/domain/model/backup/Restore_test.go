@@ -5,7 +5,9 @@ package backup_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -202,6 +204,68 @@ func TestADuplicateIdentityDiffersPerRunAndPerObject(t *testing.T) {
 	}
 	if len(distinct) != 4 {
 		t.Fatalf("%d distinct identifiers out of four inputs", len(distinct))
+	}
+}
+
+// The six characters someRestore hashes to, pinned rather than recomputed: a test that derived
+// them the way the code does would agree with the code whatever the code said.
+const runDigits = "17f937"
+
+func TestADuplicatedNameIsTheSameOnEveryAttempt(t *testing.T) {
+	at := time.Date(2026, 9, 24, 11, 30, 0, 0, time.UTC)
+
+	first := domain.DuplicatedName(someRestore, at, "Errands")
+	again := domain.DuplicatedName(someRestore, at, "Errands")
+
+	if first != again {
+		t.Fatalf("%q and %q differ, so a resumed restore would name its copy twice", first, again)
+	}
+	if want := "Errands (restored 2026-09-24 " + runDigits + ")"; first != want {
+		t.Errorf("the copy is called %q, want %q", first, want)
+	}
+}
+
+// The reason this run's characters are in the name at all: the same archive restored twice into
+// the same workspace makes two copies, and two copies cannot share one name.
+func TestASecondRestoreOfTheSameArchiveNamesItsCopyDifferently(t *testing.T) {
+	at := time.Date(2026, 9, 24, 11, 30, 0, 0, time.UTC)
+	other := shared.ID("0198f0a0-0000-7000-8000-00000000c002")
+
+	if first, second := domain.DuplicatedName(someRestore, at, "Errands"),
+		domain.DuplicatedName(other, at, "Errands"); first == second {
+		t.Fatalf("both runs call their copy %q", first)
+	}
+}
+
+// The clock the name is read off is the run's own, not the reader's: a restore that began
+// yesterday evening in Berlin names its copy after the day the run started, in UTC, on every
+// attempt that resumes it.
+func TestADuplicatedNameIsReadOffTheRunsOwnClock(t *testing.T) {
+	berlin := time.FixedZone("CEST", 2*60*60)
+	evening := time.Date(2026, 9, 24, 1, 30, 0, 0, berlin) // 2026-09-23 23:30 UTC
+
+	if name := domain.DuplicatedName(someRestore, evening, "Errands"); !strings.Contains(name, "2026-09-23") {
+		t.Errorf("%q does not carry the run's own date", name)
+	}
+}
+
+func TestADuplicatedNameStaysInsideTheColumn(t *testing.T) {
+	at := time.Date(2026, 9, 24, 11, 30, 0, 0, time.UTC)
+
+	for _, original := range []string{
+		strings.Repeat("a", domain.MaxDuplicatedName),    // exactly the bound
+		strings.Repeat("a", domain.MaxDuplicatedName+50), // longer than the column ever held
+		strings.Repeat("ä", domain.MaxDuplicatedName),    // the bound in characters, not bytes
+		"Errands",
+	} {
+		name := domain.DuplicatedName(someRestore, at, original)
+		if length := len([]rune(name)); length > domain.MaxDuplicatedName {
+			t.Errorf("a name of %d characters came back as %d, past the column's bound",
+				len([]rune(original)), length)
+		}
+		if !strings.HasSuffix(name, runDigits+")") {
+			t.Errorf("%q lost the suffix that makes it unique", name)
+		}
 	}
 }
 

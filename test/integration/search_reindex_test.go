@@ -53,7 +53,11 @@ func TestTheSearchRemembersWhichConfigurationBuiltEachDocument(t *testing.T) {
 		}
 	}
 	rows.Close()
-	if configurations[english.String()] != "english" || configurations[german.String()] != "german" ||
+	// The **recipe**, not the configuration: since ADR-0066 a document carries the entry's own
+	// configuration and the word forms beside it, and the name says so. Japanese resolves to
+	// `simple`, which needs no second copy and keeps the plain name - so those rows are not made
+	// stale by that change and are not rewritten.
+	if configurations[english.String()] != "english+simple" || configurations[german.String()] != "german+simple" ||
 		configurations[japanese.String()] != "simple" {
 		t.Errorf("the trigger recorded %v", configurations)
 	}
@@ -105,13 +109,13 @@ func TestTheSearchRemembersWhichConfigurationBuiltEachDocument(t *testing.T) {
 	var after int64
 	var germanNow string
 	if err := admin.QueryRow(ctx,
-		`SELECT count(*) FILTER (WHERE search_configuration IS DISTINCT FROM hubtask_text_config(content_language)::text),
+		`SELECT count(*) FILTER (WHERE search_configuration IS DISTINCT FROM hubtask_search_recipe(content_language)),
 		        max(search_configuration) FILTER (WHERE id = $2)
 		   FROM work_item WHERE collection_id = $1`, collection.String(), german.String()).
 		Scan(&after, &germanNow); err != nil {
 		t.Fatal(err)
 	}
-	if after != 0 || germanNow != "german" {
+	if after != 0 || germanNow != "german+simple" {
 		t.Errorf("%d rows still stale after the walk, the German one under %q", after, germanNow)
 	}
 }

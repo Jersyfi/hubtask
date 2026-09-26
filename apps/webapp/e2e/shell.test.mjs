@@ -5,9 +5,11 @@
 // ways, and the proof that the same destinations are reachable on each. At 375 px the primary
 // group is the bottom bar, the tree is behind ☰ and the account group behind "You"; at 600 px
 // the drawer holds both groups and the avatar is in the bar; at 905 and 1280 px the navigation is
-// pinned and folds to a rail. On every width the search exists exactly once (ADR-0063 decision 4):
-// the bar's field from `medium` up, where the tree therefore has no Search row, and the bottom
-// bar's destination on `compact`, where the bar has no room for a field. Also on every width:
+// pinned and folds to a rail. On every width there is a way to search, and from `medium` up there
+// are two of them on purpose: the bar's field, which is where a search is typed, and the tree's
+// Search row, which is the *place* - a reader who wants the filter, or the search they were sent,
+// goes there with nothing typed. On `compact` the bar has no room for a field and the bottom bar
+// carries Search as a destination. Also on every width:
 // `[data-tour="hubs"]` is on something the tour can point at, and nothing scrolls sideways.
 //
 // Chromium only: what differs by width is layout, and the layout has no engine-specific part;
@@ -68,10 +70,14 @@ test.after(() => served.close());
 /** The one link out of the application, by the name a reader sees, wherever it is offered. */
 const STATEMENT = 'Accessibility statement, on hubtask.eu';
 
-/** The destinations every width has to offer, by the name a reader sees. */
+/**
+ * The destinations every width has to offer, by the name a reader sees.
+ *
+ * One list, drawn three ways - and the tree draws all three of them, whatever the bar carries: a
+ * field is where a search is typed and Search is the place it is built, which is why they are no
+ * longer counted as one thing.
+ */
 const PRIMARY = ['Overview', 'Search', 'Jumble'];
-/** The same list where the bar carries the entry to search: the row for it would be the second. */
-const PLACES = ['Overview', 'Jumble'];
 // The account group, in its order. "This installation" is "About Hubtask" — the same route under
 // a name somebody would look for (ADR-0063 decision 6) — and it carries no version: a build
 // reference is not what a menu row is called, and the page behind it quotes the version whole
@@ -100,14 +106,30 @@ async function open(browser, width, options = {}) {
   return { context, page, failures, close: () => context.close() };
 }
 
-/** What is common to every width: one search, the tour's target, no sideways scroll. */
+/** What is common to every width: a way to search, the tour's target, no sideways scroll. */
 async function common(page, width) {
-  // One entry to search, and which one depends on the width. Counted here rather than asserted
-  // per test, because "exactly one" is the rule both halves of decision 4 exist to keep.
+  // A way to search on every width, and the field exactly where there is room for it. The tree's
+  // row is a destination rather than a second field, so it is counted separately: what must never
+  // happen is *two fields*, and what must always happen is at least one way through.
   const inBar = await page.locator('header form[role="search"] input').count();
   const inNav = await page.getByRole('treeitem', { name: 'Search' }).count() + await page.getByRole('link', { name: 'Search', exact: true }).count();
   assert.equal(inBar, width < 600 ? 0 : 1, `${width}: the bar has ${inBar} search fields`);
-  assert.equal(inBar + inNav, 1, `${width}: ${inBar + inNav} entries to search`);
+  // On `compact` the bottom bar carries Search and it is the only way through, so it is counted
+  // here. Above that the tree carries it - and at 600 px the tree is behind ☰, so counting it
+  // here would count a closed drawer: that width's own test opens it and reads the rows.
+  if (width < 600) assert.equal(inNav, 1, `${width}: ${inNav} Search destinations`);
+  // Centred, measured rather than looked at. It is the kind of thing that is right in a
+  // screenshot and wrong by six pixels for a year: an empty slot that still takes a gap, or a
+  // control outside the group that is supposed to balance the other side. Two pixels of slack for
+  // sub-pixel rounding, and nothing for anything else.
+  if (inBar === 1) {
+    const centred = await page.evaluate(() => {
+      const field = document.querySelector('header form[role="search"]').getBoundingClientRect();
+      const row = document.querySelector('header form[role="search"]').closest('header').firstElementChild.getBoundingClientRect();
+      return Math.round(field.left + field.width / 2 - (row.left + row.width / 2));
+    });
+    assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field is ${centred} px off centre`);
+  }
   assert.equal(await page.locator('[data-tour="hubs"]').count(), 1, `${width}: the tour's hubs step has ${await page.locator('[data-tour="hubs"]').count()} targets`);
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, `${width}: the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
@@ -218,7 +240,7 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-  assert.deepEqual(rows, [...PLACES, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
+  assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   // Search is the bar's field here, and it leads to the same destination the row used to.
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
@@ -253,7 +275,7 @@ for (const width of [905, 1280]) {
     const tree = page.getByRole('navigation', { name: 'Workspace' });
     const keeping = page.getByRole('navigation', { name: 'What is kept' });
     const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-    assert.deepEqual(rows, [...PLACES, 'House'], `${width}: the tree holds ${JSON.stringify(rows)}`);
+    assert.deepEqual(rows, [...PRIMARY, 'House'], `${width}: the tree holds ${JSON.stringify(rows)}`);
     assert.deepEqual((await keeping.getByRole('treeitem').allTextContents()).map((row) => row.trim()), ['Archive', 'Trash'], `${width}: the keeping band`);
     // And it is at the foot: below every row of the tree above it, and at the bottom of the column.
     const foot = await page.evaluate(() => {

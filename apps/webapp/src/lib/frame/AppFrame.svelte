@@ -337,7 +337,7 @@
           {#if section}
             <SectionNav label={section.label} groups={section.groups} current={sectionRow} onnavigate={go} />
           {:else}
-            <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} hasSearchField={!viewport.isCompact} onnavigate={go} />
+            <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} onnavigate={go} />
           {/if}
         </NavDrawer>
       {:else}
@@ -348,7 +348,7 @@
                  a column the tree is not in would explain the wrong thing. -->
             <SectionNav label={section.label} groups={section.groups} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
-            <WorkspaceNav current={currentNode} {isRail} hasSearchField onnavigate={go} />
+            <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
           {/if}
         </aside>
       {/if}

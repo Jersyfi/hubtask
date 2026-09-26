@@ -21,8 +21,8 @@ curl -s localhost:9090/meta/health | jq '.checks'
 * **`smtp`** → reminders and notifications queue rather than send; nothing is lost, but A-08
   follows if it stays down. Check the mail provider's status page before anything else.
 * **`object_storage`** → media uploads refuse and backups to that target fail; A-12 follows
-  within a day. MinIO/S3-compatible stores answering 503 on health while refusing writes is a
-  known shape (see the integration gate's history).
+  within a day. An S3-compatible store answering 503 on health while refusing writes is a known
+  shape (see the integration gate's history).
 * **A webhook or automation target** → an external server; its owner's problem, the breaker is
   doing its job.
 

@@ -5180,6 +5180,8 @@ type ItemSearchQuery struct {
 	} `json:"page,omitempty"`
 
 	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find. Optional where a `filter` is sent: a filtered search with no words is a work list rather than a search, and it is ordered rather than ranked.
+	//
+	// **The last word is also matched as a beginning**, so that a search answers while it is still being typed: `Ann` finds *Anna's moments*, and `Momente Chall` finds an entry holding both. Only the last word, and only where it is one plain word - a quoted phrase, an exclusion and a word followed by a space are all finished, and are matched whole. A hit on a beginning ranks below one on a whole word, because it is weaker evidence that these are the words somebody meant.
 	Q *string `json:"q,omitempty"`
 
 	// Sort Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.

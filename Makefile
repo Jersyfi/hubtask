@@ -451,9 +451,12 @@ gate-sdk:
 	@echo "sdk: the generated Python package parses"
 
 ## gate-integration: Tests against a real PostgreSQL (Testcontainers)
+# test/s3test travels with it: the helper that starts the object store has its own suite, because
+# a container helper that silently does nothing would take every suite that leans on it down with
+# it, green (ADR-0067).
 .PHONY: gate-integration
 gate-integration:
-	$(call go_test,integration,./test/integration/...,)
+	$(call go_test,integration,./test/integration/... ./test/s3test/...,)
 
 ## gate-contract: Responses against openapi.yaml, events against JSON schemas
 .PHONY: gate-contract
@@ -784,10 +787,10 @@ gate-observability:
 
 ## gate-pitr: RT-9 against a real CloudNativePG operator and object store (expects a kind cluster)
 # The one gate that proves the point-in-time recovery rather than rendering it: a base backup into
-# MinIO, WAL archiving, two marker writes, a temporary cluster recovered to a moment between them,
-# and the first marker present with the second absent. It also scrapes the operator's real metrics
-# endpoint, because a rule reading a name nobody publishes is silent rather than noisy - the half
-# a promtool test cannot reach (observability-reliability.md §11).
+# the object store, WAL archiving, two marker writes, a temporary cluster recovered to a moment
+# between them, and the first marker present with the second absent. It also scrapes the
+# operator's real metrics endpoint, because a rule reading a name nobody publishes is silent
+# rather than noisy - the half a promtool test cannot reach (observability-reliability.md §11).
 #
 # Nightly rather than per pull request, like every other gate that needs a cluster: it installs an
 # operator, waits for a base backup and restores a database, which is fifteen minutes on a good

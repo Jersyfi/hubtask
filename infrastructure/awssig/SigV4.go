@@ -28,8 +28,9 @@ import (
 // pull request (CLAUDE.md). The protocol below is HMAC-SHA256 chained four times over public,
 // stable inputs - the standard library's primitives, no cryptography of our own (security.md §8)
 // - and the three requests this adapter makes carry no query strings and three headers, which is
-// the corner of SigV4 that fits on a page. MinIO validates every signature strictly, so the
-// conformance suite is what proves this file rather than trust.
+// the corner of SigV4 that fits on a page. The conformance suite runs against a server that
+// validates every signature strictly, and that is what proves this file rather than trust
+// (ADR-0067).
 //
 // Swapping to an SDK stays open as an ADR; this file is what it would replace.
 

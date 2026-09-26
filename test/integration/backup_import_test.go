@@ -9,10 +9,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
+	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -25,7 +28,11 @@ func importRepo() postgres.BackupImportRepository { return postgres.NewBackupImp
 // containerRow is one container as the archive carries it: the row with `tenant_id` taken out.
 func containerRow(id shared.ID, author shared.ID, name string) map[string]any {
 	return map[string]any{
-		"id": id.String(), "type": "HUB", "name": name, "order_key": "m",
+		// `a1` rather than `m`: the hub level is the whole tenant's, and the keys the ordering
+		// service produces are a letter head declaring how many digits follow. A test that
+		// committed a malformed one left it there for every other test in this database to rank
+		// a new hub against, and they answered `ordering.key_malformed`.
+		"id": id.String(), "type": "HUB", "name": name, "order_key": "a1",
 		"policies": map[string]any{}, "created_by": author.String(),
 		"created_at": created.Format(time.RFC3339Nano),
 		"updated_at": created.Format(time.RFC3339Nano),
@@ -337,6 +344,252 @@ func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatalf("reading the foreign keys: %v", err)
 	}
+}
+
+// The rename against the index it exists for (#790).
+//
+// The applier's own tests answer with a store that has no unique index, so they prove the copy is
+// renamed and not that the renamed copy lands. This writes both rows the way a DUPLICATE restore
+// writes them: the living hub, then the copy under a minted identity - once carrying the name it
+// used to carry, which is the bug, and once carrying the name the rule gives it.
+func TestADuplicatedHubLandsUnderTheNameTheRuleGivesIt(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	living, run := freshID(t), freshID(t)
+	name := freshName(t)
+
+	// This one commits, and the hub level belongs to the whole tenant: a hub left behind is a
+	// sibling every other test in this database ranks against.
+	t.Cleanup(func() {
+		done := context.Background()
+		if _, err := adminPool(done, t).Exec(done,
+			`DELETE FROM container WHERE tenant_id = $1 AND id = ANY($2)`,
+			tenantA.String(), []string{living.String(),
+				backupdomain.DuplicateID(run, "containers", living.String()).String()}); err != nil {
+			t.Errorf("clearing up the hubs this test committed: %v", err)
+		}
+	})
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "container", containerRow(living, authorA, name), false)
+		return err
+	}); err != nil {
+		t.Fatalf("seeding the living hub: %v", err)
+	}
+	copyID := backupdomain.DuplicateID(run, "containers", living.String())
+
+	// What `mint` did on its own: a new identity and the name it was copied from.
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "container", containerRow(copyID, authorA, name), false)
+		return err
+	})
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "containers.name_taken" {
+		t.Fatalf("a copy under the living name was answered %v, and the whole of #790 is that the "+
+			"index refuses it", err)
+	}
+
+	// What the rule gives it.
+	renamed := backupdomain.DuplicatedName(run, created, name)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "container", containerRow(copyID, authorA, renamed), false)
+		return err
+	}); err != nil {
+		t.Fatalf("the renamed copy was refused too, so the rule does not settle the index: %v", err)
+	}
+	if got := containerName(ctx, t, tenantA, copyID); got != renamed {
+		t.Errorf("the copy came back as %q, want %q", got, renamed)
+	}
+	if got := containerName(ctx, t, tenantA, living); got != name {
+		t.Errorf("the living hub came back as %q, want the name it had", got)
+	}
+}
+
+// The uniquenesses a DUPLICATE has to settle have to be the ones the database actually insists
+// on. `mint` gave a copy an identity and changed nothing else, so a duplicated collection arrived
+// under the living one's name and landed nothing (#790) - and the identity was never the only
+// unique index on those tables. A uniqueness nobody declared is that bug again, on a column
+// somebody adds next year.
+func TestEveryUniquenessADuplicateWouldMeetIsDeclared(t *testing.T) {
+	ctx := context.Background()
+	pool := adminPool(ctx, t)
+
+	columns := map[string][]string{}
+	columnRows, err := pool.Query(ctx, `
+		SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'`)
+	if err != nil {
+		t.Fatalf("reading the columns: %v", err)
+	}
+	for columnRows.Next() {
+		var table, column string
+		if err := columnRows.Scan(&table, &column); err != nil {
+			columnRows.Close()
+			t.Fatalf("reading a column: %v", err)
+		}
+		columns[table] = append(columns[table], column)
+	}
+	columnRows.Close()
+	if err := columnRows.Err(); err != nil {
+		t.Fatalf("reading the columns: %v", err)
+	}
+
+	// The plain columns of each unique index, and the expression of an index built on one -
+	// `container_name_uq` is `lower(imm_unaccent(name))`, so the column it turns on appears
+	// nowhere in `indkey`.
+	rows, err := pool.Query(ctx, `
+		SELECT c.relname,
+		       ix.indexrelid::regclass::text,
+		       coalesce(array_agg(a.attname) FILTER (WHERE a.attname IS NOT NULL), '{}'),
+		       coalesce(pg_get_expr(ix.indexprs, ix.indrelid), '')
+		FROM pg_index ix
+		JOIN pg_class c ON c.oid = ix.indrelid
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		LEFT JOIN unnest(ix.indkey) AS k(attnum) ON true
+		LEFT JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = k.attnum
+		WHERE ix.indisunique AND n.nspname = 'public'
+		GROUP BY c.relname, ix.indexrelid, ix.indexprs, ix.indrelid`)
+	if err != nil {
+		t.Fatalf("reading the unique indexes: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var table, index, expression string
+		var indexed []string
+		if err := rows.Scan(&table, &index, &indexed, &expression); err != nil {
+			t.Fatalf("reading a unique index: %v", err)
+		}
+		entity, archived := archive.FindEntityByTable(table)
+		if !archived || !entity.Duplicable {
+			continue
+		}
+
+		// What the index turns on: its own columns, plus the columns named inside its expression.
+		touched := map[string]bool{}
+		for _, column := range indexed {
+			touched[column] = true
+		}
+		for _, column := range columns[table] {
+			if regexp.MustCompile(`\b` + regexp.QuoteMeta(column) + `\b`).MatchString(expression) {
+				touched[column] = true
+			}
+		}
+		// The tenant comes from the scope a restore runs in rather than from the archive.
+		delete(touched, "tenant_id")
+
+		if coversAll(touched, entity.Keys) && changesIdentity(entity) {
+			// The identity, possibly with something beside it - `activity_entry_pkey` is
+			// (id, occurred_at), and `set_element_pkey` spans the set's name. Either mint gives
+			// the row a new identity or the remap moves one of the columns the key is made of, so
+			// the whole tuple is new.
+			continue
+		}
+		if subsetOfReferences(touched, entity) {
+			// Every column it turns on is remapped at the copy, so the copy's value differs from
+			// the original's by construction - a recurrence rule's source item, a join row's ends.
+			continue
+		}
+
+		declared := false
+		for _, unique := range entity.Unique {
+			if touched[unique.Field] {
+				declared = true
+				break
+			}
+		}
+		if !declared {
+			t.Errorf("%s is unique on %v and no rule says what a copy does with it - a DUPLICATE "+
+				"of a row in %s would meet it and land nothing", index, keysOf(touched), table)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading the unique indexes: %v", err)
+	}
+}
+
+// Every column a duplicable entity declares as a name to change must be a column the table has,
+// or the applier renames a key nothing reads.
+func TestEveryDeclaredUniqueColumnExists(t *testing.T) {
+	ctx := context.Background()
+
+	for _, entity := range archive.Entities() {
+		for _, unique := range entity.Unique {
+			var exists bool
+			if err := adminPool(ctx, t).QueryRow(ctx, `
+				SELECT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2)`,
+				entity.Table, unique.Field).Scan(&exists); err != nil {
+				t.Fatalf("asking for %s.%s: %v", entity.Table, unique.Field, err)
+			}
+			if !exists {
+				t.Errorf("%s declares %q as a column a copy has to change, and the table has no "+
+					"such column", entity.Table, unique.Field)
+			}
+			if !entity.Duplicable {
+				t.Errorf("%s declares %q and is not duplicable, so nothing would ever apply it",
+					entity.Table, unique.Field)
+			}
+
+			for _, within := range unique.Within {
+				if !slices.ContainsFunc(entity.References, func(r archive.Reference) bool {
+					return r.Field == within
+				}) {
+					t.Errorf("%s scopes %q by %q, which is not a reference the archive remaps - "+
+						"a column nothing remaps settles nothing",
+						entity.Table, unique.Field, within)
+					continue
+				}
+			}
+		}
+	}
+}
+
+func coversAll(touched map[string]bool, keys []string) bool {
+	if len(keys) == 0 {
+		return false
+	}
+	for _, key := range keys {
+		if !touched[key] {
+			return false
+		}
+	}
+	return true
+}
+
+// changesIdentity reports an entity whose key the copy cannot carry unchanged: mint draws it a new
+// one, or the key is made of references the remap points at the other copies.
+func changesIdentity(entity archive.Entity) bool {
+	if entity.HasOwnIdentity() {
+		return true
+	}
+	return slices.ContainsFunc(entity.Keys, func(key string) bool {
+		return slices.ContainsFunc(entity.References, func(r archive.Reference) bool {
+			return r.Field == key
+		})
+	})
+}
+
+func subsetOfReferences(touched map[string]bool, entity archive.Entity) bool {
+	if len(touched) == 0 {
+		return false
+	}
+	for column := range touched {
+		if !slices.ContainsFunc(entity.References, func(r archive.Reference) bool {
+			return r.Field == column
+		}) {
+			return false
+		}
+	}
+	return true
+}
+
+func keysOf(set map[string]bool) []string {
+	out := make([]string, 0, len(set))
+	for key := range set {
+		out = append(out, key)
+	}
+	slices.Sort(out)
+	return out
 }
 
 // The round trip that matters most, on the table that makes it interesting: `work_item` carries a

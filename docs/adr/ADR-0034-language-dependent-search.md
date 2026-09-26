@@ -1,6 +1,6 @@
 # ADR-0034 — The language-dependent search document
 
-**Status:** accepted · **Date:** 2026-08-24
+**Status:** accepted (amended by [ADR-0066](./ADR-0066-search-is-one-question.md)) · **Date:** 2026-08-24
 
 ## Context
 
@@ -79,7 +79,12 @@ Three pieces, and each one is a consequence of the rejection above:
   rather than refusing the write.
 * `hubtask_search_document(language, title, notes)` builds the vector: the title weighted `A`, the notes `B`,
   so that `ts_rank_cd` ranks a hit in a title above one buried in a note without the ranking having to know
-  which column it came from.
+  which column it came from. **Amended by [ADR-0066](./ADR-0066-search-is-one-question.md):** it
+  appends a `simple` copy of both at the same weights, so that the document holds the word *forms* as well
+  as the stems. Without it, a reader whose configuration is not the entry's is answered "nothing matches"
+  about an entry plainly there — four of eight measured cross-language searches — which is what the client's
+  language picker, its widening and its "found under" badge existed to work around. The recipe that built a
+  document is recorded by name (`german+simple`), so the reindex below finds the rows the change makes stale.
 * The trigger runs `BEFORE INSERT OR UPDATE`, so every path that writes a row maintains the document —
   including the ones that are not use cases.
 

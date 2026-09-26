@@ -79,7 +79,7 @@ ingress:
 
 storage:
   # A volume on the node rather than S3: there is no object storage here to point at, and standing
-  # one up would be testing MinIO. The claim is created by bootstrap.sh.
+  # one up would be testing the object store. The claim is created by bootstrap.sh.
   kind: local
   persistence:
     enabled: true

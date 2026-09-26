@@ -10,15 +10,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -26,74 +21,35 @@ import (
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	storage "github.com/Jersyfi/hubtask/infrastructure/storage"
+	"github.com/Jersyfi/hubtask/test/s3test"
 )
 
 // The conformance suite of C-05: both adapters answer the port identically, the S3 one proved
-// against a real MinIO - whose strict SigV4 validation is also what proves the hand-written
-// signer. One suite run twice, so the two stores cannot drift apart in behaviour.
+// against a real S3-compatible server - whose strict SigV4 validation is also what proves the
+// hand-written signer. One suite run twice, so the two stores cannot drift apart in behaviour.
 
-// minioImage is overridable the way the PostgreSQL image is (test/dbtest), so the support matrix
-// can vary it without a code change.
+// startS3 runs one S3-compatible server for this test and returns the adapter pointed at it.
 //
-// From quay.io and pinned to a release, as scripts/pitr-drill.sh has it: `minio/minio` on Docker
-// Hub answered "repository does not exist" from 2026-09-11, and a `latest` from a registry the
-// vendor stopped updating in 2025 is a tag that will never move again. The same is true of the
-// other two copies of this function; they are three because the three suites are three packages.
-func minioImage() string {
-	if image := os.Getenv("HUBTASK_TEST_MINIO_IMAGE"); image != "" {
-		return image
-	}
-	return "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z"
-}
-
-// startMinIO runs one MinIO for this test and returns the adapter pointed at it.
-func startMinIO(t *testing.T) *storage.S3Storage {
+// The server itself, and why it is no longer MinIO, is in test/s3test - one place now, where it
+// used to be three copies of the same pin plus a fourth in scripts/pitr-drill.sh (#1029).
+//
+// The bucket is made by the adapter under test here, unlike in the backup suite: CreateBucket is
+// part of the port this suite proves, and an operator's first run against a fresh bucket is the
+// case it stands for.
+func startS3(t *testing.T) *storage.S3Storage {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image: minioImage(),
-			Env: map[string]string{
-				"MINIO_ROOT_USER":     "conformance",
-				"MINIO_ROOT_PASSWORD": "conformance-secret",
-			},
-			Cmd:          []string{"server", "/data"},
-			ExposedPorts: []string{"9000/tcp"},
-			// `cluster`, not `ready`. The two are not the same promise: `ready` says the node
-			// is initialized and taking requests, `cluster` says there is write quorum. The gap
-			// between them is a window in which the very next call - CreateBucket, a write -
-			// gets a 503, and that window is what made this suite fail intermittently on main
-			// and on unrelated branches.
-			WaitingFor: wait.ForHTTP("/minio/health/cluster").
-				WithPort("9000/tcp").WithStartupTimeout(2 * time.Minute),
-		},
-		Started: true,
-	})
-	if err != nil {
-		t.Fatalf("starting MinIO: %v", err)
-	}
-	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
-
-	host, err := container.Host(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	port, err := container.MappedPort(ctx, "9000/tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	container := s3test.Start(t, "")
 
 	store, err := storage.NewS3Storage(env.StorageConfig{
-		Kind:     env.StorageS3,
-		Endpoint: fmt.Sprintf("http://%s:%s", host, port.Port()),
-		// us-east-1, deliberately: CreateBucket sends no location constraint, and this is the
-		// region for which none is needed.
-		Region:       "us-east-1",
+		Kind:         env.StorageS3,
+		Endpoint:     s3test.Endpoint(ctx, t, container),
+		Region:       s3test.Region,
 		Bucket:       "hubtask-media",
-		AccessKey:    secret.New("conformance"),
-		SecretKey:    secret.New("conformance-secret"),
+		AccessKey:    secret.New(s3test.AccessKey),
+		SecretKey:    secret.New(s3test.SecretKey),
 		UsePathStyle: true,
 	}, 10*time.Second)
 	if err != nil {
@@ -109,8 +65,8 @@ func TestObjectStoreConformance(t *testing.T) {
 	t.Run("local", func(t *testing.T) {
 		conformance(t, storage.NewLocalStorage(t.TempDir()))
 	})
-	t.Run("s3 against MinIO", func(t *testing.T) {
-		conformance(t, startMinIO(t))
+	t.Run("s3 against SeaweedFS", func(t *testing.T) {
+		conformance(t, startS3(t))
 	})
 }
 

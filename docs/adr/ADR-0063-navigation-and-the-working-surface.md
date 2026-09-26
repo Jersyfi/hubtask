@@ -1,6 +1,6 @@
 # ADR-0063 — The navigation, the status place, and how a screen is worked
 
-**Status:** accepted · **Date:** 2026-09-22 · **Accepted:** 2026-09-22 · **Supersedes parts of ADR-0061**
+**Status:** accepted (decision 4 amended by [ADR-0066](./ADR-0066-search-is-one-question.md)) · **Date:** 2026-09-22 · **Accepted:** 2026-09-22 · **Supersedes parts of ADR-0061**
 
 ## Context
 
@@ -104,7 +104,7 @@ bands in this order and no other:
 
 | Band | What is in it | Why it is its own band |
 |---|---|---|
-| `places` | Overview, Jumble, Search | The rooms of the product that are not the tree. Search is here on `compact` only — see decision 4 |
+| `places` | Overview, Jumble, Search | The rooms of the product that are not the tree. Search is here on **every** width since [ADR-0066](./ADR-0066-search-is-one-question.md) decision 4 — a field is where a search is typed and Search is the place it is built |
 | `tree` | The hubs, their collections | The workspace's own structure, under a group label carrying the "+" that makes a hub |
 | `keeping` | Archive, Trash | Where a reader looks when something is **missing**. Pinned to the foot of the column, separated by the hairline, on every width |
 
@@ -189,6 +189,29 @@ and pressing Enter leads to the search page; the page is the same page, at the s
 * On `compact` the bar has no room, so the field is not there and **Search stays a destination in
   the bottom bar** — one visible entry to search on every width, which is what ADR-0061's rule
   was protecting.
+
+> **Amended 2026-09-24 ([ADR-0066](./ADR-0066-search-is-one-question.md)).** Four sentences of
+> this decision changed, and the rest stands.
+>
+> * **"One visible entry to search on every width"** treated a *field* and a *destination* as one
+>   thing, so the tree dropped its Search row wherever the bar had a field. They are not one
+>   thing: the field is where a search is typed, and Search is the place it is built, which
+>   somebody goes to with nothing typed at all. The tree keeps its row on every width. The
+>   compact half above is untouched.
+> * **The language is not a filter and not a control.** Its default here was "any language this
+>   workspace holds"; ADR-0066 makes that sentence true in the *document* instead, so the picker,
+>   the widening and the "found under" badge go entirely.
+> * **"Every filter is in the query string"** becomes one parameter, `?f=`, written in the filter
+>   language `data/searchquery.ts` defines — one per chip could only say the six things the chips
+>   had controls for. What the sentence was protecting is unchanged: the narrowing travels, the
+>   words never do.
+> * **"The chip says how many are chosen"** becomes: the chip says *what* is chosen —
+>   `Status: Open`, `Kind: Task +1`. A count is a pill inside a pill, and it makes a reader open a
+>   chip to find out what it holds.
+>
+> The bar's field also answers now, with the first few hits and the narrowings that are pressed
+> every day, and leads into the filter from there. That extends the first paragraph of this
+> decision rather than changing it: typing and pressing Enter still leads to the search page.
 
 The search page itself becomes a search rather than a text box:
 

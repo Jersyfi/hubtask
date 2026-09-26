@@ -43,7 +43,7 @@ to SMB yet" rather than "SMB is not a thing".
 | Adapter | Built | Protocol / notes |
 |---|---|---|
 | `local` | yes | A directory inside the installation's backup volume (`HUBTASK_BACKUP_LOCAL_PATH`, the self-hosting default). A target's own path is **relative** to that volume and cannot leave it: whoever configures a target administers the instance, not the machine |
-| `s3` | yes | S3-compatible: AWS, MinIO, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part rather than an archive |
+| `s3` | yes | S3-compatible: AWS, SeaweedFS, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part rather than an archive |
 | `sftp` | yes | SSH-based, password or key. The host key is **configuration**: a target names the server's public key or its SHA-256 fingerprint, and one that names neither is refused. There is no trust on first use and no way to switch the check off — a target is created through an API, and a first connection that accepted whatever answered is one an attacker only has to be present for once |
 | `ftps` | — | FTP over TLS (explicit) |
 | `ftp` | — | Only with explicit confirmation — unencrypted transport, a warning in the UI/API, and an audit entry |
@@ -61,7 +61,7 @@ and a deliberately narrow one:
 
 * Backup targets may **only** be created by instance administrators, not by arbitrary tenant users. In practice that is the owner's right in the role matrix: in single-tenant operation the tenant's owner *is* the instance administrator, and in provider operation the operator can allow tenants their own targets (`HUBTASK_BACKUP_TENANT_TARGETS=true`, off by default) — an egress allowlist then applies on top.
 * **Every** call to a target runs through the same `GuardedClient`, not only the connection test: metadata endpoints, RFC 1918 ranges and loopback are refused unless `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` releases them, and no redirect is followed. SSH is not HTTP, so the SFTP adapter uses the guard's resolver and dial-time control directly rather than the client. Gate BK-9 is that sentence as a test.
-  The consequence is worth stating plainly, because self-hosters hit it: a MinIO or a NAS on the same LAN needs that release. It is a decision an operator makes once for the installation rather than one every target gets for free.
+  The consequence is worth stating plainly, because self-hosters hit it: an object store or a NAS on the same LAN needs that release. It is a decision an operator makes once for the installation rather than one every target gets for free.
 * Creating or changing a target is auditable (`backup.target_changed`), because a backup target is by definition a data egress channel. The entry records where the data may now go — the kind, the configuration, the encryption mode — and never the credential.
 * Credentials are sealed with the envelope of E-02, bound to the row they belong to, and are read back by exactly one repository method. The statements that feed a response do not select the column, so a credential cannot reach a client because somebody added a field to a mapper.
 
@@ -303,13 +303,39 @@ Four things E-06 had to decide about the table above:
   An overwrite replaces the objects the archive names and leaves everything else; a replace removes
   what the archive does *not* name. That is the difference between losing an edit and losing a
   month, and only the second is worth a typed workspace name and a step-up in front of it.
-* **`duplicate` applies to content, not to context.** An account is who somebody is, a label is the
-  same label, a medium is the same bytes under a content address, and a webhook subscription copied
-  is a subscription that fires twice to somebody who never asked. For those the rule falls back to
-  `skip` and the report says so. What is copied — collections, buckets, labels, items and everything
-  hanging off them — gets a **derived** identity rather than a drawn one, so that a resumed restore
-  produces the same identifiers instead of a second copy of what it already wrote, and the copies
-  point at each other rather than at the originals.
+* **`duplicate` applies to content, not to context.** An account is who somebody is, a medium is the
+  same bytes under a content address, and a webhook subscription copied is a subscription that fires
+  twice to somebody who never asked. For those the rule falls back to `skip` and the report says so.
+  What is copied — collections, buckets, labels, items and everything hanging off them — gets a
+  **derived** identity rather than a drawn one, so that a resumed restore produces the same
+  identifiers instead of a second copy of what it already wrote, and the copies point at each other
+  rather than at the originals. (This sentence used to name a label in both lists at once; a label
+  belongs to a collection, and a copied collection gets copied labels.)
+* **A copy also needs the rest of what the schema insists is unique** (#790). The identity was the
+  only thing `duplicate` used to change, so a duplicated hub arrived under the living one's name and
+  met `container_name_uq` — landing nothing, which is not a duplicate. Each entity declares the
+  columns a copy may not carry unchanged, beside its keys and references, and an integration test
+  compares that declaration against the unique indexes the database actually has. Three answers
+  cover what is there today:
+  * **A name is suffixed**, and only where the copy has not already moved somewhere the name is
+    free. A collection's parent is a reference, so the copy lands under the copy of the hub and
+    keeps its name; what is left is the top of the duplicated tree. The suffix is
+    `Errands (restored 2026-09-24 a1b2c3)` — the date for whoever reads the sidebar, and six
+    characters derived from the run so that restoring the same archive twice into one workspace
+    still lands. Derived rather than counted, for the reason the identity is: a resumed restore has
+    to produce the same name, and counting asks how many copies are already there. Renaming the
+    copy afterwards is an ordinary edit.
+  * **A calendar UID is dropped.** A client minted it and keys its todo by it; the copy is not the
+    entry the client made, and two rows claiming one address is what `wi_calendar_uid_uq` refuses.
+  * **A tenant-wide custom field definition is not copied at all**, and falls back to `skip` like an
+    account. Its key cannot be suffixed — `work_item.custom_fields` is a document keyed by the key
+    rather than by the definition's identity, so a renamed copy would be a field none of the copied
+    values are stored under. A definition inside a collection needs none of this: the collection
+    moved, so the key is free in the copy.
+
+  None of it applies to `NEW_TENANT`, which goes through the same minting. Every one of these
+  indexes is per tenant, and that mode's copy lands in a tenant that did not exist a moment ago —
+  so a migrated collection keeps its name and a migrated item keeps its calendar UID.
 * **`SELECTIVE`'s closure comes out of the archive's reference graph.** A bucket names its
   collection, an item names its collection, a comment names its item — so "everything below the
   collection I named" falls out of the declarations. Only the containers need a pass of their own,
@@ -432,7 +458,8 @@ A drill that fails does **not** fail the release. The record keeps the previous 
 alert keeps counting from the last real proof rather than from the last attempt.
 
 **And in CI, where production does not exist yet**: `make gate-pitr` runs exactly this on a kind
-cluster with the CloudNativePG operator and MinIO — a real archive, a real recovery to a point
+cluster with the CloudNativePG operator and an S3-compatible store — a real archive, a real
+recovery to a point
 between two writes, the wrong marker's survival failing the build. What it cannot prove is the size
 of the numbers, because a CI runner is not the target; what it proves is the path.
 

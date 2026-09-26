@@ -5,8 +5,8 @@
  * The arithmetic of "what this device opened last": what a kept list is worth reading back, and
  * where one more row goes.
  *
- * Pure and beside the store that holds it, for the reason `searchfilters.ts` and
- * `searchlanguages.ts` are: none of this needs a browser, and a rule about what a list may hold is
+ * Pure and beside the store that holds it, for the reason `searchquery.ts` is: none of this needs
+ * a browser, and a rule about what a list may hold is
  * something to read in a test rather than to walk in one. What it decides is in
  * `recents.svelte.ts`'s note at the top; this is the half with no state.
  */

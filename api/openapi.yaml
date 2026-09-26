@@ -7170,6 +7170,14 @@ components:
             work as they do in a web search box; anything else is read as words to find. Optional
             where a `filter` is sent: a filtered search with no words is a work list rather than a
             search, and it is ordered rather than ranked.
+
+
+            **The last word is also matched as a beginning**, so that a search answers while it is
+            still being typed: `Ann` finds *Anna's moments*, and `Momente Chall` finds an entry
+            holding both. Only the last word, and only where it is one plain word - a quoted
+            phrase, an exclusion and a word followed by a space are all finished, and are matched
+            whole. A hit on a beginning ranks below one on a whole word, because it is weaker
+            evidence that these are the words somebody meant.
         container_id:
           type: [string, "null"]
           format: uuid
