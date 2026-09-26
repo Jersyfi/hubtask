@@ -44,6 +44,8 @@ import { search } from './data/search.svelte.ts';
 const SESSIONS = '/auth/sessions';
 const VERIFY = '/auth/sessions:verify';
 const REDEEM = '/auth/invitations:redeem';
+/** The step a rotated or tightened policy routes a right password into (`PASSWORD_CHANGE`). */
+const SET_PASSWORD = '/auth/sessions:set-password';
 
 export type SessionStatus = 'signed-out' | 'verifying' | 'signed-in';
 
@@ -51,6 +53,8 @@ export type SessionStatus = 'signed-out' | 'verifying' | 'signed-in';
 interface SessionTokens {
   readonly access_token: string;
   readonly refresh_token: string;
+  /** Present exactly when a recovery code completed this sign-in: how many remain. */
+  readonly recovery_codes_remaining?: number | null;
 }
 
 /**
@@ -65,6 +69,21 @@ interface SessionTokens {
  */
 export interface SecondFactorOwed {
   readonly methods: readonly string[];
+  /**
+   * When the pending credential dies, as the `202` says.
+   *
+   * It is in the contract and no screen has ever shown it. A code that earns "start again" after
+   * five silent minutes is a surprise; a clock is the difference between a refusal somebody
+   * understands and one they report.
+   */
+  readonly expiresAt?: string;
+  /**
+   * The rules a new password has to meet, where the step is `PASSWORD_CHANGE`.
+   *
+   * Carried by the challenge rather than fetched: the screen would otherwise have to ask a second
+   * time for something the server has already decided, in the one moment it knows the account.
+   */
+  readonly passwordRules?: unknown;
 }
 
 class Session {
@@ -78,6 +97,16 @@ class Session {
   #intended = $state<string | undefined>(undefined);
   #owed = $state<SecondFactorOwed | undefined>(undefined);
   /**
+   * How many recovery codes are left, answered exactly when one completed this sign-in.
+   *
+   * `SessionTokens.recovery_codes_remaining` has been in the contract since H-02 with "zero is the
+   * number to act on" written beside it, and no client had ever read it. Held until it is said,
+   * then taken: an announcement that repeats on every navigation is noise.
+   */
+  #recoveryLeft = $state<number | undefined>(undefined);
+  /** The address the last attempt used, so the second step can say whose sign-in this is. */
+  #email = $state<string | undefined>(undefined);
+  /**
    * The pending credential, held here and nowhere a screen can reach it.
    *
    * Not `$state`: nothing renders it, and a credential in reactive state is a credential a
@@ -86,6 +115,8 @@ class Session {
   #pending: string | undefined;
   /** A refusal *during* a sign-in is the answer to the credential, not the loss of a session. */
   #signingIn = false;
+  /** Set when a session ended under somebody rather than when a sign-in was refused. */
+  #ended = $state(false);
 
   get status(): SessionStatus {
     return this.#status;
@@ -110,6 +141,61 @@ class Session {
     return this.#intended;
   }
 
+  /** Whose sign-in is in progress - shown at the second step so nobody types an address twice. */
+  get signingInAs(): string | undefined {
+    return this.#email;
+  }
+
+  /** How many recovery codes are left, once, after a sign-in that spent one. */
+  takeRecoveryLeft(): number | undefined {
+    const left = this.#recoveryLeft;
+    this.#recoveryLeft = undefined;
+    return left;
+  }
+
+  /** Whether the server routed this sign-in into choosing a new password. */
+  get mustChangePassword(): boolean {
+    return this.#owed?.methods.includes('PASSWORD_CHANGE') ?? false;
+  }
+
+  /**
+   * Whether the sign-in screen is showing because a session ended rather than because a sign-in
+   * failed.
+   *
+   * The difference is the reader's: nothing was wrong, the path is remembered, and a red banner
+   * for "your fifteen minutes were up" reads as an accusation. It is a flag rather than a problem,
+   * because a problem carries a sentence and this one is the screen's own.
+   */
+  get endedNotice(): boolean {
+    return this.#ended;
+  }
+
+  /**
+   * Abandons a sign-in in progress and starts again at the address.
+   *
+   * What "Not you?" does at the second step. The pending credential is dropped rather than left to
+   * expire: it can do nothing but complete a sign-in nobody is completing.
+   */
+  startOver(): void {
+    this.#pending = undefined;
+    this.#owed = undefined;
+    this.#problem = undefined;
+    this.#email = undefined;
+    this.#status = 'signed-out';
+  }
+
+  /**
+   * Takes the second step a *reset* answered, so the sign-in screen can finish it.
+   *
+   * The reset and the password sign-in reach the same place from two doors, and a second machine
+   * for the second door is a second set of bugs.
+   */
+  owe(pendingToken: string, methods: readonly string[]): void {
+    this.#pending = pendingToken;
+    this.#owed = { methods };
+    this.#status = 'signed-out';
+  }
+
   /**
    * Signs in with an email and a password.
    *
@@ -118,8 +204,25 @@ class Session {
    * the difference matters to the screen even though both leave the caller signed out.
    */
   async signIn(email: string, password: string): Promise<boolean> {
+    this.#email = email;
     return this.#open(() =>
       engine.mutate<SessionTokens | SecondFactorAnswer>('POST', SESSIONS, { email, password }),
+    );
+  }
+
+  /**
+   * Sets the password the enforcement step asked for, and signs in with it.
+   *
+   * The pending credential is the proof, exactly as it is for a code: one credential, one step,
+   * and confirming it *is* the sign-in. A refusal leaves the credential in place, because a
+   * password the rules refuse is a retry rather than the end of the attempt.
+   */
+  async setPasswordAndSignIn(password: string): Promise<boolean> {
+    const pending = this.#pending;
+    if (pending === undefined) return false;
+    return this.#open(
+      () => engine.mutate<SessionTokens>('POST', SET_PASSWORD, { pending_token: pending, password }),
+      { keepPending: true },
     );
   }
 
@@ -183,6 +286,7 @@ class Session {
     options: { keepPending?: boolean } = {},
   ): Promise<boolean> {
     this.#problem = undefined;
+    this.#ended = false;
     if (!options.keepPending) {
       this.#owed = undefined;
       this.#pending = undefined;
@@ -193,7 +297,11 @@ class Session {
     try {
       const answer = await attempt();
       if (isSecondFactorOwed(answer)) {
-        this.#owed = { methods: answer.methods };
+        this.#owed = {
+          methods: answer.methods,
+          expiresAt: answer.expires_at,
+          passwordRules: answer.password_rules,
+        };
         this.#pending = answer.pending_token;
         this.#status = 'signed-out';
         return false;
@@ -201,6 +309,9 @@ class Session {
 
       engine.reset();
       platform.holdSession({ access: answer.access_token, refresh: answer.refresh_token });
+      // Answered only where a recovery code was spent, and `0` is the number that matters - so
+      // the test is against `null` and `undefined` rather than against falsiness.
+      this.#recoveryLeft = answer.recovery_codes_remaining ?? undefined;
       this.#pending = undefined;
       this.#owed = undefined;
       this.#status = 'signed-in';
@@ -263,11 +374,11 @@ class Session {
   refused(at: string | undefined): void {
     if (this.#signingIn || this.#status === 'signed-out') return;
     this.#intended = at;
-    this.#problem = {
-      message: messages.t('errors.unauthenticated'),
-      fields: new Map(),
-      isServerFault: false,
-    };
+    // Not a problem: nothing was refused that somebody did. The screen says so in its own words
+    // and in the tone that fits - `errors.unauthenticated` is the API's sentence, and this is a
+    // person who was in the middle of something.
+    this.#ended = true;
+    this.#problem = undefined;
     this.#discard();
   }
 
@@ -312,6 +423,8 @@ interface ListedSession {
 interface SecondFactorAnswer {
   readonly pending_token: string;
   readonly methods: readonly string[];
+  readonly expires_at?: string;
+  readonly password_rules?: unknown;
 }
 
 /**

@@ -7,6 +7,7 @@
 
   import Field from './_Field.svelte';
   import Icon from './Icon.svelte';
+  import IconButton from './IconButton.svelte';
   import type { IconName } from './icons/index.ts';
   import type { ControlSize, Disableable } from './control.ts';
 
@@ -19,6 +20,21 @@
     /** An icon inside the control, at the start. A search field's magnifier, a date's calendar. */
     icon?: IconName;
     value?: string;
+    /** Ids of anything else that describes the control, appended to the field's own. */
+    describedBy?: string;
+    /** Marks it wrong where what says why is rendered by the caller, not by the field. */
+    isInvalid?: boolean;
+    /**
+     * Lets a password be read back, and what the two states of that control are called.
+     *
+     * WCAG 2.2 SC 3.3.8 asks that authentication does not become a memory test; a password that
+     * can be read is also a password that can be typed once instead of twice, which is why this
+     * is what replaces a "repeat it" field. An `IconButton`, because the eye is the convention
+     * and the name carries the meaning for anybody who does not see it. It changes what is
+     * painted and never the value.
+     */
+    revealLabel?: string;
+    hideLabel?: string;
   }
 
   let {
@@ -31,11 +47,21 @@
     icon,
     value = $bindable(''),
     type = 'text',
+    describedBy,
+    isInvalid = false,
+    revealLabel,
+    hideLabel,
     ...rest
   }: Props = $props();
+
+  let isRevealed = $state(false);
+  // Only where the caller named both states, and only for the one type that has something to
+  // reveal. A text field with an eye would be a control that does nothing.
+  const mayReveal = $derived(type === 'password' && revealLabel !== undefined && hideLabel !== undefined);
+  const shownType = $derived(mayReveal && isRevealed ? 'text' : type);
 </script>
 
-<Field {label} {hint} {error} {disabledReason} {isRequired}>
+<Field {label} {hint} {error} {disabledReason} {isRequired} {describedBy} {isInvalid}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       {#if icon}
@@ -43,7 +69,7 @@
       {/if}
       <input
         {id}
-        {type}
+        type={shownType}
         class="input"
         bind:value
         disabled={disabledReason !== undefined}
@@ -52,6 +78,17 @@
         aria-describedby={describedBy}
         {...rest}
       />
+      {#if mayReveal}
+        <span class="reveal">
+          <IconButton
+            icon={isRevealed ? 'eye-off' : 'eye'}
+            label={isRevealed ? (hideLabel ?? '') : (revealLabel ?? '')}
+            size="sm"
+            aria-pressed={isRevealed ? 'true' : 'false'}
+            onclick={() => (isRevealed = !isRevealed)}
+          />
+        </span>
+      {/if}
     </div>
   {/snippet}
 </Field>
@@ -69,6 +106,11 @@
 
   .shell[data-size='md'] { padding-inline: var(--sp-150); min-height: var(--density-control-md-min); }
   .shell[data-size='sm'] { padding-inline: var(--sp-100); min-height: var(--density-control-sm-min); }
+
+  /* The button sits inside the shell and therefore inside the focus ring; the shell gives back
+     the padding it would otherwise add twice at that end. */
+  .shell:has(.reveal) { padding-inline-end: var(--sp-025); }
+  .reveal { display: flex; }
 
   /* The ring goes on the shell, not on the control, so an icon inside it is inside the ring too -
      and through `:has(:focus-visible)` rather than `:focus-within`, because the latter also rings

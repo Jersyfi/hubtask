@@ -47,6 +47,14 @@ interface SessionTokens {
 class Oidc {
   #failure = $state<string | undefined>(undefined);
   #working = $state(false);
+  /**
+   * Which provider is being handed over to, where a workspace has more than one.
+   *
+   * A single "working" flag put every button in the column into its busy state at once, which
+   * reads as "all three are happening". The identifier is what makes the spinner belong to the
+   * button that was pressed.
+   */
+  #handingOver = $state<string | undefined>(undefined);
 
   /** Why the last attempt did not go through, as the server's own code. */
   get failure(): string | undefined {
@@ -57,22 +65,30 @@ class Oidc {
     return this.#working;
   }
 
+  /** Whether *this* provider is the one being handed over to. */
+  isHandingOverTo(providerId?: string): boolean {
+    if (!this.#working) return false;
+    return providerId === undefined || this.#handingOver === providerId;
+  }
+
   /**
    * Begins the flow and answers where to send the browser.
    *
    * `undefined` means it did not begin, and `failure` says why — no provider, one switched off, or
    * discovery unreachable. The caller stays on the sign-in screen with the password form intact.
    */
-  async begin(loginHint?: string): Promise<string | undefined> {
+  async begin(loginHint?: string, providerId?: string): Promise<string | undefined> {
     this.#working = true;
+    this.#handingOver = providerId;
     this.#failure = undefined;
     try {
       const hint = loginHint?.trim();
-      const answer = await engine.mutate<Authorization>(
-        'POST',
-        START,
-        hint ? { login_hint: hint } : {},
-      );
+      // The provider is named where a workspace has more than one (§ the sign-in rules); without
+      // a name the server takes the only one, which is what every installation with one has.
+      const answer = await engine.mutate<Authorization>('POST', START, {
+        ...(hint ? { login_hint: hint } : {}),
+        ...(providerId ? { provider_id: providerId } : {}),
+      });
       const url = navigableUrl(answer.authorization_url);
       // An answer that is not a navigation is this installation's own defect rather than a
       // refusal, and `errors.internal` is what a reader is owed for one.
@@ -83,6 +99,7 @@ class Oidc {
       return undefined;
     } finally {
       this.#working = false;
+      this.#handingOver = undefined;
     }
   }
 

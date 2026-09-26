@@ -74,3 +74,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0065](./ADR-0065-the-second-walk-of-the-shell.md) | Sections, and where a statement about the application lives | accepted | Design system, client, product |
 | [0066](./ADR-0066-search-is-one-question.md) | Search is one question, and the document holds every word form | accepted | Search, database, client |
 | [0067](./ADR-0067-s3-test-fixture.md) | The S3-compatible server the tests run against is SeaweedFS, in one place | accepted | Testing, supply chain |
+| [0068](./ADR-0068-sign-in-policy-and-the-password-lifetime.md) | The sign-in rule: three levels, a lock, and the password over its lifetime | proposed | Security, domain, client |
+| [0069](./ADR-0069-third-party-brand-marks.md) | A third-party brand mark is content, and the button stays ours | proposed | Design system, legal, client |
+| [0070](./ADR-0070-the-instance-layer.md) | The instance layer: operators, instance settings, and the elevated session | proposed | Security, multi-tenancy, operations |

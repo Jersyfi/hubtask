@@ -26,6 +26,24 @@
      * its own verb, and the button keeps its width - rule 6 forbids animating layout.
      */
     busyLabel?: string;
+    /**
+     * A mark before the label, drawn by the caller, pinned to the start edge.
+     *
+     * For the one case `icon` cannot serve: a third-party brand mark, which is not ours to recolour
+     * and therefore not a member of the icon set (ADR-0041 governs *our* marks, in `currentColor`).
+     * The label stays centred and the mark sits at the start, so a column of provider buttons has
+     * its marks in one line and its labels on one axis - which is how every provider's own
+     * guidelines draw the neutral form of their button.
+     */
+    lead?: Snippet;
+    /**
+     * Whether it takes the whole width of what it is in.
+     *
+     * A question, as §5 asks of a boolean we invent. It exists for the one shape a form has on a
+     * phone - a column of full-width controls - rather than as a size: how prominent a button is
+     * stays `tone`, and how tall it is stays `size`.
+     */
+    isFull?: boolean;
     children?: Snippet;
   }
 
@@ -36,6 +54,8 @@
     isBusy = false,
     busyLabel,
     disabledReason,
+    lead,
+    isFull = false,
     children,
     type = 'button',
     ...rest
@@ -50,6 +70,8 @@
 <button
   {type}
   class="button"
+  data-lead={lead ? '' : undefined}
+  data-full={isFull ? '' : undefined}
   data-tone={tone}
   data-size={size}
   disabled={unavailable}
@@ -61,6 +83,9 @@
     <Spinner size="sm" />
   {:else if icon}
     <Icon name={icon} size="sm" />
+  {/if}
+  {#if lead && !isBusy}
+    <span class="lead">{@render lead()}</span>
   {/if}
   <span class="label">{@render children?.()}</span>
   {#if isBusy && busyLabel}
@@ -88,6 +113,21 @@
     transition:
       transform var(--motion-state-duration) var(--motion-state-easing),
       opacity var(--motion-state-duration) var(--motion-state-easing);
+  }
+
+  /* The mark is taken out of the flow so the label is centred in the whole button rather than in
+     what is left of it. The padding on both ends keeps a long label from running under the mark -
+     symmetric, because a label centred between asymmetric padding is not centred. */
+  .button[data-full] { width: 100%; }
+  .button[data-lead] { position: relative; }
+  .button[data-lead][data-size='md'] { padding-inline: var(--sp-500); }
+  .button[data-lead][data-size='sm'] { padding-inline: var(--sp-400); }
+
+  .lead {
+    position: absolute;
+    inset-inline-start: var(--sp-150);
+    display: inline-flex;
+    align-items: center;
   }
 
   .button[data-size='md'] {
