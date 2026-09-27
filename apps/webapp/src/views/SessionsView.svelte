@@ -19,6 +19,8 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
+  import { sorting } from '../lib/sorting.svelte.ts';
+
   import { actor } from '../lib/data/account.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -39,11 +41,15 @@
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
   const columns = $derived([
-    { id: 'client', label: t('app.sessions.client') },
-    { id: 'created', label: t('app.sessions.created') },
-    { id: 'used', label: t('app.sessions.last_used') },
-    { id: 'network', label: t('app.sessions.network') },
-    { id: 'end', label: t('app.sessions.end'), isLabelHidden: true, align: 'end' as const },
+    { id: 'client', label: t('app.sessions.client'), isSortable: true },
+    { id: 'created', label: t('app.sessions.created'), isSortable: true },
+    { id: 'used', label: t('app.sessions.last_used'), isSortable: true },
+    { id: 'network', label: t('app.sessions.network'), isSortable: true },
+    // The action column is **start**-aligned, like every other one in these settings. Ending it
+    // at the row's edge lines the buttons up on their right, which is the edge nobody reads down:
+    // `End this session` and `End` then begin at two different places and the column has no line
+    // running through it.
+    { id: 'end', label: t('app.sessions.end'), isLabelHidden: true },
   ]);
 
   /**
@@ -51,13 +57,32 @@
    *
    * The server answers them in its own order; which one a reader looks for is the one they do not
    * recognise, and that is the one that arrived last.
+   *
+   * This is the list's own order and not a column, which is why the third press of a heading
+   * matters here: it is the only way back to it.
    */
-  const shown = $derived(
+  const ordered = $derived(
     [...sessions.all].sort((a, b) => {
       if (a.current !== b.current) return a.current ? -1 : 1;
       return String(b.created_at).localeCompare(String(a.created_at));
     }),
   );
+
+  // Sorted in the client, because the whole list is already here: `/auth/sessions` answers it in
+  // one response and holds no cursor. A year of phones, laptops and browsers is thirty rows, and
+  // what makes thirty rows readable is the column somebody can sort by - not a page under them,
+  // which this product does not have and will not grow one of.
+  const order = sorting({
+    rows: () => ordered,
+    read: (row, columnId) => {
+      if (columnId === 'created') return row.created_at;
+      if (columnId === 'used') return row.last_used_at;
+      if (columnId === 'network') return row.ip_class;
+      return row.user_agent;
+    },
+  });
+
+  const shown = $derived(order.rows);
 
   /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
   function when(at: string | null | undefined): string {
@@ -112,17 +137,33 @@
       {:else if shown.length === 0}
         <p class="quiet">{t('app.sessions.none')}</p>
       {:else}
-        <Table label={t('app.sessions.title')} isLabelHidden {columns}>
+        <Table
+          label={t('app.sessions.title')}
+          isLabelHidden
+          {columns}
+          sort={order.sort}
+          onSort={(next) => order.by(next)}
+        >
           {#each shown as row (row.id)}
             <tr>
-              <th scope="row" class="what">
-                {row.user_agent || t('app.sessions.unknown_client')}
+              <th scope="row">
+                <!-- The whole string in `title`, because it is the only place the rest of it
+                     exists: a user agent is 150 characters of version numbers and the cell shows
+                     the two lines that identify the browser. -->
+                <span class="client" title={row.user_agent || undefined}
+                  >{row.user_agent || t('app.sessions.unknown_client')}</span
+                >
                 {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
               </th>
               <td>{when(row.created_at)}</td>
               <td>{when(row.last_used_at)}</td>
               <td>{row.ip_class ?? '—'}</td>
-              <td class="end">
+              <td>
+                <!-- `danger`, because that is what it is. The tone is a bordered button with the
+                     danger text colour rather than a filled red block (rule 3: the colour never
+                     stands alone, and the label says what it destroys) - which is exactly the
+                     signal a control that ends a session owes the reader. Making it quiet to calm
+                     the column down took the warning off it. -->
                 <Button tone="danger" size="sm" onclick={() => void endOne(row.id, row.current)}>
                   {row.current ? t('app.sessions.end_this') : t('app.sessions.end')}
                 </Button>
@@ -130,6 +171,7 @@
             </tr>
           {/each}
         </Table>
+
 
         <div class="everywhere">
           <!-- Said before it is pressed, because it ends this session too: a control whose
@@ -145,12 +187,26 @@
 {/if}
 
 <style>
-  .what { font-weight: var(--fw-medium); }
+  /* Two lines and then an ellipsis, with the whole string in `title`. A user agent is the longest
+     value on this screen by an order of magnitude, and left alone it took nine tenths of the
+     table's width and pushed the four columns that answer "when" and "where" off the edge.
+     The measure is in `ch` because what is being limited is a run of text, not a box. */
+  .client {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    max-inline-size: 44ch; /* design-system-lint-ignore: a text measure in the font's own units; no token can express it. */
+    overflow-wrap: anywhere;
+  }
 
   /* Which row is this device, beside its name rather than as a column of its own: it is true of
      exactly one row, and a column would be empty in every other. */
   .here {
-    margin-inline-start: var(--sp-100);
+    display: inline-block;
+    margin-block-start: var(--sp-050);
+    margin-inline-start: 0;
     padding: var(--sp-025) var(--sp-100);
     border-radius: var(--r-full);
     background: var(--bg-surface-pressed);
@@ -159,7 +215,6 @@
     font-weight: var(--fw-regular);
   }
 
-  .end { text-align: end; }
 
   .everywhere { display: flex; flex-direction: column; gap: var(--sp-100); }
 

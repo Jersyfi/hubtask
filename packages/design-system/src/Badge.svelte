@@ -69,9 +69,15 @@
     font-size: var(--fs-075);
     font-weight: var(--fw-medium);
     /* Rule 4: a badge holds a word that is three times longer in Finnish. It wraps rather than
-       clipping, and nothing here fixes its width. */
+       clipping, and nothing here fixes its width.
+
+       `break-word` and not `anywhere`, which is one word and the difference between a readable
+       table and an unreadable one. Both break inside a word when there is no other way out; only
+       `anywhere` lets that break count towards the **min-content** width, which told every table
+       that a badge could be one character wide - so a squeezed column hyphenated `Electrics` down
+       two characters rather than asking the columns beside it for room. */
     text-align: start;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   .badge[data-tone='info'] {

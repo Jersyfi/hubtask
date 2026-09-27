@@ -21,7 +21,7 @@ export { default as ApiEndpointCard, type Method } from './ApiEndpointCard.svelt
 export { default as Badge, type BadgeEmphasis } from './Badge.svelte';
 export { default as Banner } from './Banner.svelte';
 export { default as Callout } from './Callout.svelte';
-export { default as CodeBlock } from './CodeBlock.svelte';
+export { default as CodeBlock, type LineKind } from './CodeBlock.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as CodeField } from './CodeField.svelte';
@@ -146,6 +146,8 @@ export {
   type RankCommand,
   type RankKey,
 } from './reorder.ts';
+
+export { comparing, nextSort, type Sort, type SortDirection } from './table.ts';
 
 export {
   collapseTrail,

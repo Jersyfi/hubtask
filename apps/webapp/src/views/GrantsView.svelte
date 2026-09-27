@@ -17,6 +17,7 @@
   import { consent } from '../lib/data/consent.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   const account = $derived(actor.account);
 
@@ -26,10 +27,17 @@
 
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
+  // Only the app name sorts. The scopes cell is a list, and an order taken from its first entry
+  // is an order nobody asked for that looks like one somebody did.
+  const order = sorting({
+    rows: () => consent.grants,
+    read: (grant) => grant.client_name,
+  });
+
   const columns = $derived([
-    { id: 'app', label: t('app.grants.app_column') },
+    { id: 'app', label: t('app.grants.app_column'), isSortable: true },
     { id: 'scopes', label: t('app.grants.scopes_column') },
-    { id: 'withdraw', label: t('app.grants.withdraw'), isLabelHidden: true, align: 'end' as const },
+    { id: 'withdraw', label: t('app.grants.withdraw'), isLabelHidden: true },
   ]);
 
   async function withdraw(grantId: string): Promise<void> {
@@ -56,15 +64,21 @@
       {#if consent.grants.length === 0}
         <p class="quiet">{t('app.grants.none')}</p>
       {:else}
-        <Table label={t('app.grants.title')} isLabelHidden {columns}>
-          {#each consent.grants as grant (grant.id)}
+        <Table
+          label={t('app.grants.title')}
+          isLabelHidden
+          {columns}
+          sort={order.sort}
+          onSort={(next) => order.by(next)}
+        >
+          {#each order.rows as grant (grant.id)}
             <tr>
               <th scope="row" class="what">{grant.client_name}</th>
               <!-- The scopes as the app holds them. Sentences where this build knows them, and the
                    identifier where it does not — the same rule as the consent screen. -->
               <td class="scopes">{grant.scopes.join(', ')}</td>
-              <td class="end">
-                <Button size="sm" tone="subtle" onclick={() => void withdraw(grant.id)}>
+              <td>
+                <Button size="sm" tone="danger" onclick={() => void withdraw(grant.id)}>
                   {t('app.grants.withdraw')}
                 </Button>
               </td>
@@ -83,7 +97,6 @@
 
   .scopes { color: var(--text-secondary); font-size: var(--fs-075); }
 
-  .end { text-align: end; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

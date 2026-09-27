@@ -2,10 +2,14 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Badge from './Badge.svelte';
+  import EmptyState from './EmptyState.svelte';
   import IconButton from './IconButton.svelte';
   import Table, { type Column } from './Table.svelte';
+  import { comparing, type Sort } from './table.ts';
 
-  const { mode = 'entries' }: { mode?: 'entries' | 'wide' | 'long' } = $props();
+  const { mode = 'entries' }: {
+    mode?: 'entries' | 'wide' | 'sorted' | 'long' | 'states' | 'empty';
+  } = $props();
 
   const columns: Column[] = [
     { id: 'title', label: 'Title' },
@@ -25,16 +29,54 @@
     { id: 'count', label: 'Offene Teilaufgaben', align: 'end' },
   ];
 
-  const rows = [
-    { title: 'Move the socket by the window', bucket: 'Electrics', count: 2 },
-    { title: 'Order the tiles', bucket: 'Materials', count: 0 },
-    { title: 'Book the electrician', bucket: 'Electrics', count: 1 },
+  /** The sortable set. The actions column has a heading it never draws, and is not sortable. */
+  const sortable: Column[] = [
+    { id: 'title', label: 'Title', isSortable: true },
+    { id: 'bucket', label: 'Bucket', isSortable: true },
+    { id: 'due', label: 'Due', isSortable: true },
+    { id: 'count', label: 'Open', isSortable: true, align: 'end' },
+    { id: 'actions', label: 'Actions', isLabelHidden: true, align: 'end' },
   ];
+
+  interface Row {
+    readonly title: string;
+    readonly bucket: string;
+    readonly count: number;
+    readonly due: string | null;
+  }
+
+  const rows: Row[] = [
+    { title: 'Move the socket by the window', bucket: 'Electrics', count: 2, due: '2026-10-02' },
+    { title: 'Order the tiles', bucket: 'Materials', count: 0, due: null },
+    { title: 'Book the electrician', bucket: 'Electrics', count: 1, due: '2026-09-29' },
+    { title: 'Measure the hallway', bucket: 'Planning', count: 4, due: '2026-09-28' },
+    { title: 'Ask about the skirting', bucket: 'Materials', count: 0, due: null },
+  ];
+
+  /** A list long enough to need the sticky head, built rather than typed out. */
+  const many: Row[] = Array.from({ length: 60 }, (_, index) => {
+    const source = rows[index % rows.length] as Row;
+    return { ...source, title: `${source.title} (${index + 1})`, count: (index * 3) % 7 };
+  });
+
+  let sort = $state<Sort>({ columnId: 'due', direction: 'ascending' });
+
+  const read = (row: Row): string | number | null => {
+    if (sort.columnId === 'count') return row.count;
+    if (sort.columnId === 'due') return row.due;
+    if (sort.columnId === 'bucket') return row.bucket;
+    return row.title;
+  };
+
+  // The client holds the whole list, so it sorts it here. A cursor-paged list would hand `onSort`
+  // to the server instead - the component has no opinion about which it is looking at.
+  const sorted = $derived([...rows].sort(comparing(read, sort.direction, 'en')));
+  const long = $derived([...many].sort(comparing(read, sort.direction, 'en')));
 </script>
 
-{#if mode === 'wide' || mode === 'long'}
+{#if mode === 'wide'}
   <Table label="Einträge dieser Sammlung" columns={wide}>
-    {#each rows as row (row.title)}
+    {#each rows.slice(0, 3) as row (row.title)}
       <tr>
         <td>{row.title}</td>
         <td>{row.bucket}</td>
@@ -45,9 +87,74 @@
       </tr>
     {/each}
   </Table>
+{:else if mode === 'sorted'}
+  <Table
+    label="Entries in this collection"
+    columns={sortable}
+    {sort}
+    onSort={(next) => (sort = next)}
+  >
+    {#each sorted as row (row.title)}
+      <tr>
+        <td>{row.title}</td>
+        <td><Badge>{row.bucket}</Badge></td>
+        <td>{row.due ?? '—'}</td>
+        <td data-align="end">{row.count}</td>
+        <td data-align="end">
+          <IconButton icon="ellipsis" label={`Actions for ${row.title}`} size="sm" />
+        </td>
+      </tr>
+    {/each}
+  </Table>
+{:else if mode === 'long'}
+  <div class="scroller">
+    <Table
+      label="Entries in this collection"
+      columns={sortable}
+      {sort}
+      onSort={(next) => (sort = next)}
+    >
+      {#each long as row (row.title)}
+        <tr>
+          <td>{row.title}</td>
+          <td><Badge>{row.bucket}</Badge></td>
+          <td>{row.due ?? '—'}</td>
+          <td data-align="end">{row.count}</td>
+          <td data-align="end">
+            <IconButton icon="ellipsis" label={`Actions for ${row.title}`} size="sm" />
+          </td>
+        </tr>
+      {/each}
+    </Table>
+  </div>
+{:else if mode === 'states'}
+  <Table label="Entries in this collection" columns={sortable} {sort} onSort={(next) => (sort = next)} isBusy>
+    {#each sorted as row, index (row.title)}
+      <tr data-selected={index === 1 ? '' : undefined}>
+        <td>{row.title}</td>
+        <td><Badge>{row.bucket}</Badge></td>
+        <td>{row.due ?? '—'}</td>
+        <td data-align="end">{row.count}</td>
+        <td data-align="end">
+          <IconButton icon="ellipsis" label={`Actions for ${row.title}`} size="sm" />
+        </td>
+      </tr>
+    {/each}
+  </Table>
+{:else if mode === 'empty'}
+  <Table label="Entries in this collection" columns={sortable}>
+    {#snippet empty()}
+      <EmptyState
+        kind="filtered"
+        title="No entry matches this filter"
+        description="Widen the filter, or clear it to see every entry again."
+      />
+    {/snippet}
+    {''}
+  </Table>
 {:else}
   <Table label="Entries in this collection" {columns}>
-    {#each rows as row (row.title)}
+    {#each rows.slice(0, 3) as row (row.title)}
       <tr>
         <td>{row.title}</td>
         <td><Badge>{row.bucket}</Badge></td>
@@ -59,3 +166,9 @@
     {/each}
   </Table>
 {/if}
+
+<style>
+  /* A box with a **definite** height, which is what the table needs to stick its head to. The
+     height is the point of the story rather than a measure of the product, hence the exemption. */
+  .scroller { block-size: 24rem; } /* design-system-lint-ignore: a demo's viewport, not a product measure. */
+</style>

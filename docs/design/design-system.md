@@ -229,6 +229,22 @@ trusted every call site to remember would be trusting the wrong half. §4.4's "a
 empty state" is why `ErrorState` is a component of its own rather than a fourth kind — the rule is
 structural, not reviewed.
 
+**`LoadMore` is the only pager in this system, and `Table` gains no second one.** The question came
+up when `Table` learned to sort: the settings tables arrive whole — `/auth/sessions`,
+`/memberships` and the rest answer their list in one response with no cursor — so a client-side
+pager over a list already in the browser would send no page number anywhere and would, on that
+reading, break no rule. It is still refused. A product whose lists are numbered in one corner and
+cursored in another has two mental models of "where am I in this list", and a reader who learns
+the wrong one first meets it as a missing control rather than as a distinction. **One product, one
+answer:** a list arrives, and the ways to cope with a long one are to sort it, to narrow it, or to
+ask for the next page through `LoadMore` where there is a cursor to ask with.
+
+So the long-list work went into `Table` itself rather than under it — a sticky head, a sortable
+column, and an empty state that keeps the headings on screen. The sort cycle has a **third** press
+that returns the list to the order the caller handed over, which is the press Atlassian's table
+does not have and the one that matters here: "this device first, then newest" is a statement, not
+a column, and a two-state flip destroys it for the rest of the visit.
+
 ### Wave 3 — Hubtask's own (≈ 20)
 
 | Component | Why it follows from the model |
