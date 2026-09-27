@@ -29,6 +29,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   $effect(() => untrack(() => quotas.open()));
 
@@ -37,13 +38,27 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
+  // `approach` is the column this screen exists for: "which limit am I closest to" is the
+  // question, and until now the answer was read off five progress bars in the catalogue's order.
   const columns = $derived([
-    { id: 'quota', label: t('app.quotas.limit_name') },
+    { id: 'quota', label: t('app.quotas.limit_name'), isSortable: true },
     { id: 'limit', label: t('app.quotas.ceiling') },
-    { id: 'used', label: t('app.quotas.used') },
-    { id: 'ratio', label: t('app.quotas.approach') },
+    { id: 'used', label: t('app.quotas.used'), isSortable: true },
+    { id: 'ratio', label: t('app.quotas.approach'), isSortable: true },
     { id: 'source', label: t('app.quotas.source') },
   ]);
+
+  // `used` and `ratio` are absent where no live count exists, and absent sorts last in both
+  // directions - which is right here: a limit with no number is not the one closest to being
+  // reached, whichever way round the column is turned.
+  const order = sorting({
+    rows: () => quotas.standings,
+    read: (standing, columnId) => {
+      if (columnId === 'used') return standing.used;
+      if (columnId === 'ratio') return standing.ratio;
+      return nameOf(standing.quota);
+    },
+  });
 
   /** The wording for a limit this build knows. One it does not is shown as the server's token. */
   const KNOWN = new Set([
@@ -92,8 +107,14 @@
         {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
       </Banner>
     {:else}
-      <Table label={t('app.quotas.title')} isLabelHidden {columns}>
-        {#each quotas.standings as standing (standing.quota)}
+      <Table
+        label={t('app.quotas.title')}
+        isLabelHidden
+        {columns}
+        sort={order.sort}
+        onSort={(next) => order.by(next)}
+      >
+        {#each order.rows as standing (standing.quota)}
           <tr>
             <th scope="row" class="name">{nameOf(standing.quota)}</th>
             <td>

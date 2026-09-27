@@ -10,7 +10,15 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import {
+    Button,
+    Dialog,
+    EmptyState,
+    ErrorState,
+    Skeleton,
+    Stack,
+    Table,
+  } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
@@ -20,6 +28,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   const account = $derived(actor.account);
 
@@ -33,20 +42,38 @@
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
   const columns = $derived([
-    { id: 'device', label: t('app.devices.name') },
-    { id: 'platform', label: t('app.devices.platform') },
-    { id: 'seen', label: t('app.devices.last_seen') },
-    { id: 'standing', label: t('app.devices.standing') },
-    { id: 'forget', label: t('app.devices.forget'), isLabelHidden: true, align: 'end' as const },
+    { id: 'device', label: t('app.devices.name'), isSortable: true },
+    { id: 'platform', label: t('app.devices.platform'), isSortable: true },
+    { id: 'seen', label: t('app.devices.last_seen'), isSortable: true },
+    { id: 'standing', label: t('app.devices.standing'), isSortable: true },
+    { id: 'forget', label: t('app.devices.forget'), isLabelHidden: true },
   ]);
 
-  const shown = $derived(
+  // This device first, then the most recently seen. It is the list's own order and not a column,
+  // which is why the third press of a heading matters: it is the only way back to it.
+  const ordered = $derived(
     [...devices.all].sort((a, b) => {
       const mine = devices.isThisDevice(a.id) !== devices.isThisDevice(b.id);
       if (mine) return devices.isThisDevice(a.id) ? -1 : 1;
       return String(b.last_seen_at ?? '').localeCompare(String(a.last_seen_at ?? ''));
     }),
   );
+
+  // A person's devices are counted on one hand; what this list wanted was the last-seen column
+  // as something to sort by rather than as something to read down.
+  const order = sorting({
+    rows: () => ordered,
+    read: (device, columnId) => {
+      if (columnId === 'platform') return device.platform;
+      if (columnId === 'seen') return device.last_seen_at;
+      if (columnId === 'standing') {
+        return device.blocked ? t('app.devices.forgotten') : t('app.devices.synchronising');
+      }
+      return device.display_name;
+    },
+  });
+
+  const shown = $derived(order.rows);
 
   function when(at: string | null | undefined): string {
     return at ? formatDateTime(at, messages.locale) : t('app.devices.never_seen');
@@ -88,7 +115,13 @@
       {:else if shown.length === 0}
         <p class="quiet">{t('app.devices.none')}</p>
       {:else}
-        <Table label={t('app.devices.title')} isLabelHidden {columns}>
+        <Table
+          label={t('app.devices.title')}
+          isLabelHidden
+          {columns}
+          sort={order.sort}
+          onSort={(next) => order.by(next)}
+        >
           {#each shown as device (device.id)}
             <tr>
               <th scope="row" class="what">
@@ -98,7 +131,7 @@
               <td>{device.platform || '—'}</td>
               <td>{when(device.last_seen_at)}</td>
               <td>{device.blocked ? t('app.devices.forgotten') : t('app.devices.synchronising')}</td>
-              <td class="end">
+              <td>
                 {#if !device.blocked && !devices.isThisDevice(device.id)}
                   <Button tone="danger" size="sm" onclick={() => (forgetting = device.id)}>
                     {t('app.devices.forget')}
@@ -140,7 +173,6 @@
     font-weight: var(--fw-regular);
   }
 
-  .end { text-align: end; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
