@@ -5762,6 +5762,21 @@ type PasswordCheckResult struct {
 	Violations []PasswordViolation `json:"violations"`
 }
 
+// PasswordForgot defines model for PasswordForgot.
+type PasswordForgot struct {
+	// Email The address to send the link to, if it holds an account.
+	Email openapi_types.Email `json:"email"`
+}
+
+// PasswordReset defines model for PasswordReset.
+type PasswordReset struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+
+	// Token The token from the reset mail. It dies on use.
+	Token string `json:"token"`
+}
+
 // PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
@@ -8609,6 +8624,12 @@ type ChangePasswordJSONRequestBody = PasswordChange
 // CheckPasswordJSONRequestBody defines body for CheckPassword for application/json ContentType.
 type CheckPasswordJSONRequestBody = PasswordCheck
 
+// ForgetPasswordJSONRequestBody defines body for ForgetPassword for application/json ContentType.
+type ForgetPasswordJSONRequestBody = PasswordForgot
+
+// ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
+type ResetPasswordJSONRequestBody = PasswordReset
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -9513,6 +9534,50 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
 	CheckPassword(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ForgetPasswordWithBody Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ForgetPassword Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPassword(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResetPasswordWithBody Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResetPassword Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPassword(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListServiceAccounts The workspace's service accounts
 	//
@@ -13196,6 +13261,90 @@ func (c *Client) CheckPasswordWithBody(ctx context.Context, params *CheckPasswor
 // Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
 func (c *Client) CheckPassword(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCheckPasswordRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ForgetPasswordWithBody Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *Client) ForgetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewForgetPasswordRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ForgetPassword Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *Client) ForgetPassword(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewForgetPasswordRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResetPasswordWithBody Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *Client) ResetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResetPasswordRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResetPassword Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *Client) ResetPassword(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResetPasswordRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -20238,6 +20387,86 @@ func NewCheckPasswordRequestWithBody(server string, params *CheckPasswordParams,
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewForgetPasswordRequest calls the generic ForgetPassword builder with application/json body
+func NewForgetPasswordRequest(server string, body ForgetPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewForgetPasswordRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewForgetPasswordRequestWithBody constructs an http.Request for the ForgetPassword method, with any body, and a specified content type
+func NewForgetPasswordRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password:forgot")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewResetPasswordRequest calls the generic ResetPassword builder with application/json body
+func NewResetPasswordRequest(server string, body ResetPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewResetPasswordRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewResetPasswordRequestWithBody constructs an http.Request for the ResetPassword method, with any body, and a specified content type
+func NewResetPasswordRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password:reset")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -31515,6 +31744,50 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
 	CheckPasswordWithResponse(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error)
 
+	// ForgetPasswordWithBodyWithResponse Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error)
+
+	// ForgetPasswordWithResponse Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPasswordWithResponse(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error)
+
+	// ResetPasswordWithBodyWithResponse Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error)
+
+	// ResetPasswordWithResponse Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPasswordWithResponse(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error)
+
 	// ListServiceAccountsWithResponse The workspace's service accounts
 	//
 	// The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -35982,6 +36255,102 @@ func (r CheckPasswordResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CheckPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ForgetPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ForgetPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ForgetPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ForgetPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ForgetPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ForgetPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResetPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ResetPasswordResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r ResetPasswordResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ResetPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ResetPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResetPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResetPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResetPasswordResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -47526,6 +47895,74 @@ func (c *ClientWithResponses) CheckPasswordWithResponse(ctx context.Context, par
 	return ParseCheckPasswordResult(rsp)
 }
 
+// ForgetPasswordWithBodyWithResponse Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *ClientWithResponses) ForgetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error) {
+	rsp, err := c.ForgetPasswordWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseForgetPasswordResult(rsp)
+}
+
+// ForgetPasswordWithResponse Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *ClientWithResponses) ForgetPasswordWithResponse(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error) {
+	rsp, err := c.ForgetPassword(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseForgetPasswordResult(rsp)
+}
+
+// ResetPasswordWithBodyWithResponse Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *ClientWithResponses) ResetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error) {
+	rsp, err := c.ResetPasswordWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResetPasswordResult(rsp)
+}
+
+// ResetPasswordWithResponse Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *ClientWithResponses) ResetPasswordWithResponse(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error) {
+	rsp, err := c.ResetPassword(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResetPasswordResult(rsp)
+}
+
 // ListServiceAccountsWithResponse The workspace's service accounts
 //
 // The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -53327,6 +53764,75 @@ func ParseCheckPasswordResult(rsp *http.Response) (*CheckPasswordResult, error) 
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseForgetPasswordResult parses an HTTP response from a ForgetPasswordWithResponse call
+func ParseForgetPasswordResult(rsp *http.Response) (*ForgetPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ForgetPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 202:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResetPasswordResult parses an HTTP response from a ResetPasswordWithResponse call
+func ParseResetPasswordResult(rsp *http.Response) (*ResetPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResetPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

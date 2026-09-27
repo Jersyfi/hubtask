@@ -315,6 +315,13 @@ class PasswordViolation(TypedDict, total=False):
 class PasswordCheckResult(TypedDict, total=False):
     violations: Required[list["PasswordViolation"]]
 
+class PasswordForgot(TypedDict, total=False):
+    email: Required[str]
+
+class PasswordReset(TypedDict, total=False):
+    token: Required[str]
+    password: Required[str]
+
 class PasswordRules(TypedDict, total=False):
     """What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it."""
     min_length: Required[int]

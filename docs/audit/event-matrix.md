@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**233 use cases, 203 distinct action codes, 167 of them recorded on every call.** A use case that
+**237 use cases, 205 distinct action codes, 170 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -36,6 +36,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
 | `account.notification_preference_changed` | SetNotificationPreference | `account` | INFO | Every time |
 | `account.notification_preferences_read` | ListNotificationPreferences | `account` | INFO | When refused |
+| `account.password_changed` | ChangePassword | `account` | WARNING | Every time |
+| `account.password_changed` | ResetPassword | `account` | WARNING | Every time |
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
 | `account.read` | GetAccount | `account` | INFO | When refused |
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
@@ -79,6 +81,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.mfa_disabled` | DisableTotp | `account` | NOTICE | Every time |
 | `auth.mfa_enabled` | ConfirmTotp | `account` | NOTICE | Every time |
 | `auth.mfa_enrollment_started` | EnrollTotp | `account` | INFO | Every time |
+| `auth.password_reset_requested` | ForgetPassword | `account` | NOTICE | Every time |
 | `auth.session_read` | ListSessions | `session` | INFO | When refused |
 | `auth.session_refreshed` | RefreshSession | `session` | INFO | Every time |
 | `auth.session_revoked` | RevokeSession | `session` | NOTICE | Every time |
@@ -286,6 +289,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `` | CheckPassword | `` |  | When refused |
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
 

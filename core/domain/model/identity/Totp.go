@@ -137,6 +137,11 @@ const (
 	// PendingLifetime is how long the second step may take. Minutes: long enough to find the
 	// phone, short enough that an abandoned half sign-in is not a standing door.
 	PendingLifetime = 5 * time.Minute
+	// ResetLifetime is how long a reset link stays usable (ADR-0068 §6). Half an hour: long
+	// enough to reach a mailbox on another device, short enough that a link left in an inbox is
+	// not a standing door. The same pending row, a longer clock - the discipline is the second
+	// factor's, the window is the mailbox's.
+	ResetLifetime = 30 * time.Minute
 )
 
 // PendingPurpose is what the credential may complete.

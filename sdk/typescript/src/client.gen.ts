@@ -650,6 +650,18 @@ export class HubtaskClient {
     return this.call("POST", "/auth/password", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "void", options.signal);
   }
 
+  /** Ask for a password reset link
+   * Public: sent without a bearer where the client holds none. */
+  forgetPassword(body: NonNullable<operations["forgetPassword"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/auth/password:forgot", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** Spend a reset link and set the password
+   * Public: sent without a bearer where the client holds none. */
+  resetPassword(body: NonNullable<operations["resetPassword"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["resetPassword"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/password:reset", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Ask what only the server knows about a candidate password
    * Public: sent without a bearer where the client holds none. */
   checkPassword(body: NonNullable<operations["checkPassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["checkPassword"]['responses'][200]['content']["application/json"]> {

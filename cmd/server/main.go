@@ -1152,6 +1152,11 @@ func run() error {
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
+		identity.ForgetPassword{
+			Writer: passwordWriter, Notifier: jobs, Tenants: signInStore,
+			Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
+		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
 			Providers:  postgres.NewIdentityProviderRepository(),
@@ -2280,6 +2285,20 @@ func run() error {
 			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 		},
 	}
+	// The reset link (ADR-0068 §6). Its own handler rather than a notification record: there is no
+	// preference to consult, nothing to list and nothing to mark read - what there is, is a
+	// credential on its way to a mailbox.
+	passwordResetMessage := worker.PasswordResetMessage{
+		Reset: notification.SendPasswordReset{
+			Resets:         resetMinterAdapter{mint: identity.MintResetToken{Writer: passwordWriter}},
+			Mail:           mailSender,
+			Renderer:       renderer,
+			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork:     unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale,
+			BaseURL:        cfg.BaseURL,
+		},
+	}
 	notificationDelivery := worker.NotificationDelivery{
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
@@ -2576,6 +2595,7 @@ func run() error {
 		queueport.KindRetentionSweep:        retention,
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
+		queueport.KindPasswordResetEmail:    passwordResetMessage,
 		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
@@ -3025,6 +3045,26 @@ func selfCheck() int {
 // deliberately different shapes: the application says `sync.Position` and knows nothing about
 // HMACs, and the adapter says `security.StreamPosition` and knows nothing about change logs. The
 // alternative is one of them importing the other, and the one that would have to give is the core.
+// resetMinterAdapter brings the identity service's answer to the shape the notification service
+// asks for. Two packages, one seam, and neither importing the other: the composition root is where
+// two shapes of one fact are allowed to meet (project-structure.md §3).
+type resetMinterAdapter struct{ mint identity.MintResetToken }
+
+func (a resetMinterAdapter) MintResetToken(
+	ctx context.Context, tenantID, accountID shared.ID,
+) (notification.ResetLink, error) {
+	link, err := a.mint.MintResetToken(ctx, tenantID, accountID)
+	if err != nil {
+		return notification.ResetLink{}, err
+	}
+	return notification.ResetLink{
+		Token:       link.Token,
+		HasPassword: link.HasPassword,
+		Address:     link.Address,
+		Locale:      link.Locale,
+	}, nil
+}
+
 type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {

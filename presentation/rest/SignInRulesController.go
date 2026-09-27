@@ -206,3 +206,71 @@ func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
 	}
 	return openapi.PasswordCheckResult{Violations: violations}
 }
+
+const (
+	forgetPasswordUseCase = "ForgetPassword"
+	resetPasswordUseCase  = "ResetPassword"
+)
+
+// ForgetPassword answers POST /auth/password:forgot.
+//
+// Written out rather than through the identity helper: the route is public, because the whole point
+// is that somebody who cannot sign in can reach it.
+func (c *RestController) ForgetPassword(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.PasswordForgot
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	if _, err := c.UseCases.Invoke(
+		r.Context(), forgetPasswordUseCase, actorOf(r), usecase.Input{
+			"email":         string(body.Email),
+			"tenant_slug":   c.tenantSlug(r),
+			"tenant_header": r.Header.Get(TenantHeader),
+		}); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	// No body. There is nothing to say that would be true for one address and not for another.
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// ResetPassword answers POST /auth/password:reset.
+func (c *RestController) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.PasswordReset
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), resetPasswordUseCase, actorOf(r), usecase.Input{
+		"token":         body.Token,
+		"password":      body.Password,
+		"user_agent":    r.UserAgent(),
+		"remote_addr":   r.RemoteAddr,
+		"tenant_header": r.Header.Get(TenantHeader),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// The password is set and the account's second factor is still owed (ADR-0068 §6).
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
+}

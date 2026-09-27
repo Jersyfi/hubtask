@@ -4242,6 +4242,81 @@
         }
       }
     },
+    "/auth/password:forgot": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "forgetPassword",
+        "security": [],
+        "summary": "Ask for a password reset link",
+        "description": "Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for \"no such address\", because there is no such answer.\nBehind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.\nAn account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordForgot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The request arrived. Whether anything was sent is deliberately not said."
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/password:reset": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "resetPassword",
+        "security": [],
+        "summary": "Spend a reset link and set the password",
+        "description": "The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.\n**Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.\nWhere the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordReset"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The password is set and the session is open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The password is set and the account's second factor is still owed. The pending credential can do nothing but complete this sign-in.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/password:check": {
       "post": {
         "tags": [
@@ -11300,6 +11375,37 @@
             "items": {
               "$ref": "#/components/schemas/PasswordViolation"
             }
+          }
+        }
+      },
+      "PasswordForgot": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The address to send the link to, if it holds an account."
+          }
+        }
+      },
+      "PasswordReset": {
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token from the reset mail. It dies on use."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The new password, judged against this workspace's rule."
           }
         }
       },

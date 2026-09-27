@@ -5756,6 +5756,21 @@ type PasswordCheckResult struct {
 	Violations []PasswordViolation `json:"violations"`
 }
 
+// PasswordForgot defines model for PasswordForgot.
+type PasswordForgot struct {
+	// Email The address to send the link to, if it holds an account.
+	Email openapi_types.Email `json:"email"`
+}
+
+// PasswordReset defines model for PasswordReset.
+type PasswordReset struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+
+	// Token The token from the reset mail. It dies on use.
+	Token string `json:"token"`
+}
+
 // PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
@@ -8603,6 +8618,12 @@ type ChangePasswordJSONRequestBody = PasswordChange
 // CheckPasswordJSONRequestBody defines body for CheckPassword for application/json ContentType.
 type CheckPasswordJSONRequestBody = PasswordCheck
 
+// ForgetPasswordJSONRequestBody defines body for ForgetPassword for application/json ContentType.
+type ForgetPasswordJSONRequestBody = PasswordForgot
+
+// ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
+type ResetPasswordJSONRequestBody = PasswordReset
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -8965,6 +8986,12 @@ type ServerInterface interface {
 	// CheckPassword Ask what only the server knows about a candidate password
 	// (POST /auth/password:check)
 	CheckPassword(w http.ResponseWriter, r *http.Request, params CheckPasswordParams)
+	// ForgetPassword Ask for a password reset link
+	// (POST /auth/password:forgot)
+	ForgetPassword(w http.ResponseWriter, r *http.Request)
+	// ResetPassword Spend a reset link and set the password
+	// (POST /auth/password:reset)
+	ResetPassword(w http.ResponseWriter, r *http.Request)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
@@ -10439,6 +10466,34 @@ func (siw *ServerInterfaceWrapper) CheckPassword(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CheckPassword(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ForgetPassword operation middleware
+func (siw *ServerInterfaceWrapper) ForgetPassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForgetPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetPassword operation middleware
+func (siw *ServerInterfaceWrapper) ResetPassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetPassword(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18851,6 +18906,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:forgot", wrapper.ForgetPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)

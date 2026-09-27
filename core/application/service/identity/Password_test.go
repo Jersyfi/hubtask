@@ -16,6 +16,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -430,4 +431,95 @@ func refusedRules(t *testing.T, err error) []string {
 		rules = append(rules, field.Code[len("auth.password_rule."):])
 	}
 	return rules
+}
+
+// notifierFake records what was queued.
+type notifierFake struct{ queued []queue.Request }
+
+func (n *notifierFake) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
+	n.queued = append(n.queued, request)
+	return shared.ID("018f2a1b-0000-7000-8000-00000000bb01"), nil
+}
+
+// The same answer for an address that holds an account and for one that does not. Asserted on the
+// *answer*, because that is the only thing a caller sees - and on what was queued, because that is
+// the only thing that differs.
+func TestForgettingAnsweersTheSameForEveryAddress(t *testing.T) {
+	fixture := newPasswordFixture(now)
+	notifier := &notifierFake{}
+	handler := ForgetPassword{
+		Writer: fixture.writer, Notifier: notifier,
+		Tenants: tenantDirectory{single: tenant}, Multi: true,
+	}
+
+	held := handler.Execute(t.Context(), ForgetPasswordCommand{
+		Email: "bert@example.org", TenantSlug: "acme",
+	})
+	unheld := handler.Execute(t.Context(), ForgetPasswordCommand{
+		Email: "nobody@example.org", TenantSlug: "acme",
+	})
+
+	if held != nil || unheld != nil {
+		t.Fatalf("the two answers were %v and %v, want both nil", held, unheld)
+	}
+	if len(notifier.queued) != 1 {
+		t.Fatalf("%d mails queued, want one", len(notifier.queued))
+	}
+	if notifier.queued[0].Payload["account_id"] != account.String() {
+		t.Errorf("the job names %v", notifier.queued[0].Payload)
+	}
+	// Identifiers only: an address in the payload would be one in the queue table and in every
+	// log line about the job.
+	if _, leaked := notifier.queued[0].Payload["email"]; leaked {
+		t.Error("the job payload carries an address")
+	}
+}
+
+// The request is in the trail exactly where there is a trail to put it in.
+func TestOnlyARealAccountsResetRequestIsRecorded(t *testing.T) {
+	fixture := newPasswordFixture(now)
+	handler := ForgetPassword{
+		Writer: fixture.writer, Notifier: &notifierFake{},
+		Tenants: tenantDirectory{single: tenant}, Multi: true,
+	}
+
+	if err := handler.Execute(t.Context(), ForgetPasswordCommand{
+		Email: "nobody@example.org", TenantSlug: "acme",
+	}); err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(fixture.audit.entries) != 0 {
+		t.Fatalf("an address nobody holds was written into the trail: %v", fixture.audit.entries)
+	}
+
+	if err := handler.Execute(t.Context(), ForgetPasswordCommand{
+		Email: "bert@example.org", TenantSlug: "acme",
+	}); err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(fixture.audit.entries) != 1 ||
+		fixture.audit.entries[0].Action != PasswordResetRequestedAction {
+		t.Errorf("the trail holds %v", fixture.audit.entries)
+	}
+}
+
+// A disabled account gets no link, and says nothing about being disabled.
+func TestADisabledAccountGetsNoLinkAndTheSameAnswer(t *testing.T) {
+	fixture := newPasswordFixture(now)
+	held := fixture.accounts.byEmail["bert@example.org"]
+	held.Account.Status = domain.AccountDisabled
+	fixture.accounts.byEmail["bert@example.org"] = held
+	notifier := &notifierFake{}
+
+	err := ForgetPassword{
+		Writer: fixture.writer, Notifier: notifier,
+		Tenants: tenantDirectory{single: tenant}, Multi: true,
+	}.Execute(t.Context(), ForgetPasswordCommand{Email: "bert@example.org", TenantSlug: "acme"})
+
+	if err != nil {
+		t.Fatalf("a disabled account answered %v, want the same silence", err)
+	}
+	if len(notifier.queued) != 0 {
+		t.Error("a link was queued for a disabled account")
+	}
 }

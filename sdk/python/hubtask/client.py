@@ -527,6 +527,14 @@ class Client:
         """Change the password of the signed-in account"""
         return self._call("POST", "/auth/password", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "void")
 
+    def forget_password(self, body: "PasswordForgot") -> None:
+        """Ask for a password reset link"""
+        return self._call("POST", "/auth/password:forgot", {}, None, {}, body, "json", "application/json", "void")
+
+    def reset_password(self, body: "PasswordReset") -> "SessionTokens":
+        """Spend a reset link and set the password"""
+        return self._call("POST", "/auth/password:reset", {}, None, {}, body, "json", "application/json", "json")
+
     def check_password(self, body: "PasswordCheck", *, step_up: str | None = None) -> "PasswordCheckResult":
         """Ask what only the server knows about a candidate password"""
         return self._call("POST", "/auth/password:check", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
