@@ -142,15 +142,24 @@
         >
           {#each shown as row (row.id)}
             <tr>
-              <th scope="row" class="what">
-                {row.user_agent || t('app.sessions.unknown_client')}
+              <th scope="row">
+                <!-- The whole string in `title`, because it is the only place the rest of it
+                     exists: a user agent is 150 characters of version numbers and the cell shows
+                     the two lines that identify the browser. -->
+                <span class="client" title={row.user_agent || undefined}
+                  >{row.user_agent || t('app.sessions.unknown_client')}</span
+                >
                 {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
               </th>
               <td>{when(row.created_at)}</td>
               <td>{when(row.last_used_at)}</td>
               <td>{row.ip_class ?? '—'}</td>
-              <td class="end">
-                <Button tone="danger" size="sm" onclick={() => void endOne(row.id, row.current)}>
+              <td data-align="end">
+                <!-- Quiet, like the row action on every other settings table - `Revoke`,
+                     `Withdraw`, `Forget`. The weight belongs on the page's own destructive
+                     control below, which signs this reader out of everything; a column of red
+                     buttons shouts at somebody who came here to read. -->
+                <Button tone="subtle" size="sm" onclick={() => void endOne(row.id, row.current)}>
                   {row.current ? t('app.sessions.end_this') : t('app.sessions.end')}
                 </Button>
               </td>
@@ -173,12 +182,26 @@
 {/if}
 
 <style>
-  .what { font-weight: var(--fw-medium); }
+  /* Two lines and then an ellipsis, with the whole string in `title`. A user agent is the longest
+     value on this screen by an order of magnitude, and left alone it took nine tenths of the
+     table's width and pushed the four columns that answer "when" and "where" off the edge.
+     The measure is in `ch` because what is being limited is a run of text, not a box. */
+  .client {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    max-inline-size: 44ch; /* design-system-lint-ignore: a text measure in the font's own units; no token can express it. */
+    overflow-wrap: anywhere;
+  }
 
   /* Which row is this device, beside its name rather than as a column of its own: it is true of
      exactly one row, and a column would be empty in every other. */
   .here {
-    margin-inline-start: var(--sp-100);
+    display: inline-block;
+    margin-block-start: var(--sp-050);
+    margin-inline-start: 0;
     padding: var(--sp-025) var(--sp-100);
     border-radius: var(--r-full);
     background: var(--bg-surface-pressed);
@@ -187,7 +210,6 @@
     font-weight: var(--fw-regular);
   }
 
-  .end { text-align: end; }
 
   .everywhere { display: flex; flex-direction: column; gap: var(--sp-100); }
 

@@ -14,7 +14,7 @@ export default {
 export const entries: Story = {
   name: 'A real table',
   about:
-    'A grid of divs looks identical and is a different thing to anybody not looking at it: no row and column relationships, no “column 3 of 7” as focus moves, no way to read down a column. So this is a `<table>` with `<th scope="col">`, and the association is the element’s rather than aria attributes reimplementing it. The caption is its accessible name; a column of controls hides its heading on screen and keeps it in the tree. The first and last columns sit flush with the container, so the table’s text lines up with the prose above it instead of starting in a gutter.',
+    'A grid of divs looks identical and is a different thing to anybody not looking at it: no row and column relationships, no “column 3 of 7” as focus moves, no way to read down a column. So this is a `<table>` with `<th scope="col">`, and the association is the element’s rather than aria attributes reimplementing it. A column of controls hides its heading on screen and keeps it in the tree. The rows sit inside a frame with the product’s own edge — a surface, a hairline, a radius — and the name is a heading above it rather than a `<caption>` inside it, which laid out as the table’s first row.',
 };
 
 export const sorted: Story = {
@@ -48,6 +48,6 @@ export const empty: Story = {
 export const wide: Story = {
   name: 'Wider than its container, in German',
   about:
-    'It scrolls inside its own box rather than widening the page — a wide table that widened the page would make everything else scroll sideways with it. Narrow the width axis. The edge fades in as soon as there is something past it, which is four background gradients and no listener at all, so the website gets it too. The scroll container is focusable, because a region that scrolls has to be reachable by keyboard (WCAG 2.1.1) or its last columns are unreachable to anybody who does not use a pointer.',
+    'It scrolls inside its own box rather than widening the page — a wide table that widened the page would make everything else scroll sideways with it. Narrow the width axis. The edge fades in as soon as there is something past it, **over** the rows rather than behind them, so the row under the pointer no longer erases it; what drives it is the scroll position through a scroll timeline, with no clock and no listener, so the website gets it too. The scroll container is focusable, because a region that scrolls has to be reachable by keyboard (WCAG 2.1.1) or its last columns are unreachable to anybody who does not use a pointer.',
   args: { mode: 'wide' },
 };

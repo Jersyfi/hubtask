@@ -77,7 +77,7 @@
               <!-- The scopes as the app holds them. Sentences where this build knows them, and the
                    identifier where it does not — the same rule as the consent screen. -->
               <td class="scopes">{grant.scopes.join(', ')}</td>
-              <td class="end">
+              <td data-align="end">
                 <Button size="sm" tone="subtle" onclick={() => void withdraw(grant.id)}>
                   {t('app.grants.withdraw')}
                 </Button>
@@ -97,7 +97,6 @@
 
   .scopes { color: var(--text-secondary); font-size: var(--fs-075); }
 
-  .end { text-align: end; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

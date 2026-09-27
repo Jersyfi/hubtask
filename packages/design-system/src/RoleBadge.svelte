@@ -70,6 +70,6 @@
     border-inline-start: var(--bw-hairline) solid var(--border-subtle);
     color: var(--text-secondary);
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word; /* `break-word`, not `anywhere`: see Badge. */
   }
 </style>

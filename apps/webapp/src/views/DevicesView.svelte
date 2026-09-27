@@ -131,9 +131,11 @@
               <td>{device.platform || '—'}</td>
               <td>{when(device.last_seen_at)}</td>
               <td>{device.blocked ? t('app.devices.forgotten') : t('app.devices.synchronising')}</td>
-              <td class="end">
+              <td data-align="end">
                 {#if !device.blocked && !devices.isThisDevice(device.id)}
-                  <Button tone="danger" size="sm" onclick={() => (forgetting = device.id)}>
+                  <!-- Quiet, like the row action on every other settings table. What is
+                       destructive here is the dialog it opens, and that one is `danger`. -->
+                  <Button tone="subtle" size="sm" onclick={() => (forgetting = device.id)}>
                     {t('app.devices.forget')}
                   </Button>
                 {/if}
@@ -173,7 +175,6 @@
     font-weight: var(--fw-regular);
   }
 
-  .end { text-align: end; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
