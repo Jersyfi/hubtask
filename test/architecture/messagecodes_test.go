@@ -190,9 +190,13 @@ func quotedTokens(source string) map[string]struct{} {
 
 // A parameter in a message has to be filled by somebody. This catches the mismatch that produces
 // a literal {variable} in a user's face.
+//
+// The subset has two shapes (i18n-l10n.md §3): a simple argument `{name}`, and a formatted one
+// `{name, plural, …}` whose branches hold messages of their own. A scanner rather than a regular
+// expression, because the second shape nests - and a regular expression that stopped at the first
+// `}` read `{count, plural, one {…}` as a placeholder called "count, plural, one {…" and reported
+// every plural in the catalogue as malformed.
 func TestCataloguePlaceholdersAreWellFormed(t *testing.T) {
-	placeholder := regexp.MustCompile(`\{([^}]*)\}`)
-
 	for key, message := range loadCatalogue(t) {
 		if strings.HasPrefix(key, "_") {
 			continue
@@ -203,13 +207,63 @@ func TestCataloguePlaceholdersAreWellFormed(t *testing.T) {
 		if strings.Count(message, "{") != strings.Count(message, "}") {
 			t.Errorf("%s has unbalanced braces: %q", key, message)
 		}
-		for _, m := range placeholder.FindAllStringSubmatch(message, -1) {
-			name := m[1]
+		for _, name := range argumentNames(message) {
 			if name == "" || strings.ContainsAny(name, " \t") {
-				t.Errorf("%s has a malformed placeholder %q", key, m[0])
+				t.Errorf("%s has a malformed placeholder {%s…}", key, name)
 			}
 		}
 	}
+}
+
+// argumentNames reads the argument of every placeholder in a message, at every depth.
+//
+// The argument is what stands before the first comma inside a brace; a simple argument has no
+// comma and is the whole of it. What follows the comma is the format and its branches, and a
+// branch's body is a *message* rather than a placeholder - which is the distinction that makes
+// this two functions: `{count, plural, one {# rule} other {# rules}}` declares one argument named
+// `count`, not three named "count", "# rule" and "# rules".
+func argumentNames(message string) []string {
+	var names []string
+	for _, inside := range braceGroups(message) {
+		argument, rest, hasRest := strings.Cut(inside, ",")
+		names = append(names, strings.TrimSpace(argument))
+		if hasRest {
+			names = append(names, branchArguments(rest)...)
+		}
+	}
+	return names
+}
+
+// branchArguments reads the arguments of the messages inside a formatted argument's branches.
+func branchArguments(branches string) []string {
+	var names []string
+	for _, body := range braceGroups(branches) {
+		names = append(names, argumentNames(body)...)
+	}
+	return names
+}
+
+// braceGroups answers the contents of every outermost `{…}` in a string, nesting included.
+func braceGroups(text string) []string {
+	var groups []string
+	depth := 0
+	start := -1
+	for index, character := range text {
+		switch character {
+		case '{':
+			if depth == 0 {
+				start = index + 1
+			}
+			depth++
+		case '}':
+			depth--
+			if depth == 0 && start >= 0 {
+				groups = append(groups, text[start:index])
+				start = -1
+			}
+		}
+	}
+	return groups
 }
 
 func loadCatalogue(t *testing.T) map[string]string {

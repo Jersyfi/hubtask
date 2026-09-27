@@ -159,9 +159,17 @@ component that writes `style="gap: …"` writes a rule the browser refuses — s
 only. Every component from wave 1 on inherits that constraint, and these four are where it is
 worked out.
 
-### Wave 1 — nothing works without these (≈ 20) · **built**
-Icon · Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
-Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner · ProgressBar
+### Wave 1 — nothing works without these (≈ 21) · **built**
+Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · Radio · Switch ·
+Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
+ProgressBar
+
+`CodeField` is the wave's late arrival and the one that had been hand-rolled three times: the
+second step of a sign-in, the step-up prompt and the TOTP enrolment each put a short code into a
+plain `Input`, and a code is not a line of text. It is **one** native input drawn as its places —
+never one box per digit, which breaks pasting, breaks `Backspace`, and makes a screen reader
+announce six fields instead of one code. Six places or eight, because the contract allows both,
+and the group is a prop because that is where a human eye breaks a number.
 
 `ProgressBar` arrives last and for the plainest of reasons: `UploadField` hand-rolled a
 `<progress>` and a job that answers `progress: null` needs the indeterminate case beside it, and

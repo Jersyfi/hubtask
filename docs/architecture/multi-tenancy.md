@@ -166,6 +166,35 @@ of obviously unaffordable queries.
 
 ---
 
+## 4.1 The instance layer
+
+Above the workspaces and below nothing: the plane that provisions them, and — since
+[ADR-0070](../adr/ADR-0070-the-instance-layer.md) — the place a value that applies to all of them
+is set.
+
+**Who an operator is** is a register rather than a scope alone. `admin:tenants` has been mintable
+by any account that can pass a step-up, which is right for a private installation (its owner *is*
+its operator) and not for a platform. The register is checked when the scope is minted and when it
+is exercised; in single mode it is empty, and empty means the owner. A service account may be an
+operator, because provisioning driven from a purchase platform needs a credential that does not
+belong to a person who may leave.
+
+**What an instance setting is**: a row in `instance_setting` carrying a value *and a lock*. Open
+means a workspace may tighten it; closed means it applies and the workspace's control is switched
+off with the reason and with who set it — never hidden. The effective value is resolved on read
+along `product minimum → instance → plan → workspace`, so a change is in force in the same second
+and no job walks anything. The table carries no row-level policy, like `job`, and its exception is
+entered in all three lists that must agree about the boundary (§2.1, the boundary test, the restore
+drill); it holds installation configuration and never a person's data.
+
+**How it is reached**: one API with three doors — a file (`seed` or `enforce`, one source per mode),
+`hubctl admin`, and the `/instance` area of the web app. A person raises their own session to
+`admin:tenants` for an hour by passing a step-up; a machine holds a token, as it always did. What
+the plane never shows is the *contents* of a workspace: the boundary is a database policy rather
+than a role, and an operator needs counts, states and limits rather than rows.
+
+---
+
 ## 5. The lifecycle of a tenant
 
 ```mermaid

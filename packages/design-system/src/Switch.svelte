@@ -134,6 +134,12 @@
   .native:disabled + .track .knob { background: var(--border-default); }
   .native:disabled:checked + .track { background: var(--border-default); border-color: var(--border-default); }
 
+  /* A switch that is on and cannot be changed still has to read as *on*. With the disabled knob
+     grey on the disabled track's grey it disappeared, and the control read as off - which is the
+     opposite of what it says. The position is what carries the state (rule 3: never colour
+     alone), so the knob keeps a surface the track cannot swallow. */
+  .native:disabled:checked + .track .knob { background: var(--bg-surface); }
+
   .label {
     color: var(--text-primary);
     font-size: var(--fs-100);

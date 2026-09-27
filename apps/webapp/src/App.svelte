@@ -57,6 +57,8 @@ import ContainerView from './views/ContainerView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
+  import ResetView from './views/ResetView.svelte';
+  import SignInSettingsView from './views/SignInSettingsView.svelte';
   import SignInView from './views/SignInView.svelte';
 
   // The table lives in `lib/routes.ts` so that ADR-0032's areas can be asserted as a set:
@@ -136,25 +138,36 @@ import ContainerView from './views/ContainerView.svelte';
   });
 </script>
 
-<AppFrame {route} onnavigate={(path) => router.navigate(path)}>
-  <!-- Nothing here is usable without a credential, and the token screen is what asks for one. The
-       route is left alone while it is shown, so that the address the reader arrived at is still
-       the address they land on afterwards. -->
-  {#if route.name === 'oidc-callback'}
-    <!-- Before both, and without asking whether there is a session: this address is reached by a
-         provider's redirect into a fresh document, and the screen's own business is finishing that
-         exchange. It sends the reader on once there is a session. -->
-    <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
-  {:else if session.isSignedIn && route.name === 'consent'}
-    <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
-         arrives here signed out meets the sign-in screen first and lands back on this address. -->
-    <ConsentView />
-  {:else if !session.isSignedIn && route.name === 'redeem'}
+<!-- Signed out there is no shell, and that is the decision rather than an omission (ADR-0061 draws
+     the bar for a page that has navigation; this one has none). The card is the page: it brings
+     its own `main`, its own canvas and the footer the operator's legal links live in, so a screen
+     nobody can navigate away from is not wrapped in the furniture of navigating.
+     The two link screens are here whether or not somebody is signed in: an invitation and a reset
+     link are proof about an account that need not be the one in this tab, and a person who opened
+     one from their mail while signed in used to meet "there is nothing at this address". -->
+{#if (!session.isSignedIn || route.name === 'reset' || route.name === 'redeem') && route.name !== 'oidc-callback'}
+  {#if route.name === 'reset'}
+    <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
+         reset link is here to set a password, not to remember the one they forgot. -->
+    <ResetView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'redeem'}
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
     <RedeemView onnavigate={(path) => router.navigate(path)} />
-  {:else if !session.isSignedIn}
+  {:else}
     <SignInView />
+  {/if}
+{:else}
+<AppFrame {route} onnavigate={(path) => router.navigate(path)}>
+  {#if route.name === 'oidc-callback'}
+    <!-- Without asking whether there is a session: this address is reached by a provider's
+         redirect into a fresh document, and the screen's own business is finishing that
+         exchange. It sends the reader on once there is a session. -->
+    <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'consent'}
+    <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
+         arrives here signed out meets the sign-in screen first and lands back on this address. -->
+    <ConsentView />
   {:else if route.name === 'home'}
     <HomeView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
@@ -217,6 +230,8 @@ import ContainerView from './views/ContainerView.svelte';
     <PrivacyView />
   {:else if route.name === 'identity-provider'}
     <IdentityProviderView />
+  {:else if route.name === 'sign-in-settings'}
+    <SignInSettingsView />
   {:else if route.name === 'ai'}
     <AiSettingsView />
   {:else if route.name === 'search'}
@@ -246,3 +261,4 @@ import ContainerView from './views/ContainerView.svelte';
     <p><a href="/">{t('app.back_to_start')}</a></p>
   {/if}
 </AppFrame>
+{/if}

@@ -72,7 +72,9 @@ const SECTION = [
   ['/profile', 'How the product speaks to you'],
   ['/profile/appearance', 'On this device'],
   ['/profile/notifications', 'What you are told about'],
-  ['/profile/security', 'Second factor'],
+  // Renamed with the sign-in work (SI-15): the screen holds the password, the recovery codes and
+  // the second factor, and was named after the second of the three.
+  ['/profile/security', 'Password and sign-in'],
   ['/profile/sessions', 'Where you are signed in'],
   ['/profile/devices', 'Devices that synchronise'],
   ['/profile/apps', 'Apps you have allowed'],

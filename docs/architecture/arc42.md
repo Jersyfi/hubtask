@@ -777,6 +777,9 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0065 | Sections, and where a statement about the application lives | accepted |
 | 0066 | Search is one question, and the document holds every word form | accepted |
 | 0067 | The S3-compatible server the tests run against is SeaweedFS, in one place | accepted |
+| 0068 | The sign-in rule: three levels, a lock, and the password over its lifetime | proposed |
+| 0069 | A third-party brand mark is content, and the button stays ours | proposed |
+| 0070 | The instance layer: operators, instance settings, and the elevated session | proposed |
 
 ---
 

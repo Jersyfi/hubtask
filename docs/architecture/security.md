@@ -106,7 +106,7 @@ New bounded contexts get a short STRIDE analysis at design time; the result is a
 
 | Topic | Requirement |
 |---|---|
-| Passwords | Argon2id, `m=64 MiB, t=3, p=2` (starting values, reviewed yearly), minimum length 12, checked against known leak lists (offline, optional), no forced rotation |
+| Passwords | Argon2id, `m=64 MiB, t=3, p=2` (starting values, reviewed yearly and **re-applied at sign-in**, where the plaintext is in hand and a hash carrying older parameters is recomputed); the rule itself is a policy rather than a constant ([ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)) — eighteen switches in three levels, shipped at what NIST SP 800-63B-4 advises: length 12, no composition requirement, the common-password and context-word checks on, and expiry, history and the breach check off. Periodic rotation is **not the default and not recommended**; it exists because PCI DSS 4.0 §8.3.9 requires it where a password is the only factor, and the one-time "require a new password from everyone" is an event with a reason rather than a calendar |
 | Access token | JWT or opaque, 15 min, `tenant_id`, `sub`, `scopes`, `jti`; verifiable without a database round trip |
 | Refresh token | 30 days, rotating; reuse invalidates the entire family and raises an alert |
 | PAT (`hbt_pat_…`) | Visible only at creation, stored hashed (SHA-256 + pepper), a mandatory expiry date (max. 1 year), scopes, last use visible; the prefix enables secret scanning at GitHub/GitLab |
@@ -123,8 +123,10 @@ HMAC-SHA-256 keyed on a pepper derived from `HUBTASK_SECRET_KEY` with a purpose 
 from here cannot be replayed as a signed cursor or a feed token.
 
 | Service accounts | No login, tokens only, bound to a tenant, with their own role |
-| MFA | TOTP from milestone `0.6.0`; enforceable per tenant for the `OWNER`/`ADMIN` roles; single-use recovery codes |
-| Session management | The user sees active sessions and can sign out individually or globally |
+| MFA | TOTP from milestone `0.6.0`; enforceable per tenant for the `OWNER`/`ADMIN` roles, or for everybody ([ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)); ten single-use recovery codes, replaceable behind a step-up, and how many are left is answered to their holder |
+| Session management | The user sees active sessions and can sign out individually or globally; a workspace may shorten the thirty days and may end an idle session, and every such bound is a comparison in the check the revocation list already performs ([ADR-0068](../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)) |
+| Setting a password | One use case with four doors — an invitation token, a reset token, the pending credential of a sign-in, or a bearer with a step-up. A password that no longer meets the rule is answered `202` with `PASSWORD_CHANGE` and the sign-in becomes the change: **no job walks accounts and no job walks tenants** |
+| Forgetting a password | `password:forgot` answers `202` for every address, the token is an `auth_pending` row with its own purpose label (32 bytes, thirty minutes, single use), and a reset **does not walk past a second factor**: where one is armed the reset answers the step rather than a session |
 | Privileged actions | Tenant deletion, changing the `OWNER` role, creating a token with the `admin` scope: re-authentication ("step-up") |
 | Permission check | Exactly one place: `core/application/service` through `AuthorizationService`; adapters must not authorise; the architecture test fails on violation |
 

@@ -20,6 +20,10 @@ export const ROUTES: readonly Route[] = [
   // `presentation/webui` to `index.html` and resolved to nothing since H-01 shipped the mail;
   // this is the screen it was always pointing at.
   { name: 'redeem', pattern: '/redeem' },
+  // Where the reset mail links. Signed out like `/redeem`, and for the same reason: somebody who
+  // arrives here has no password, and asking for one would be asking for the thing the screen
+  // exists to set.
+  { name: 'reset', pattern: '/reset' },
   // The redirect URI `cmd/server/main.go` derives and registers with the provider. The address is
   // the server's rather than this table's choice: nothing about where an authorization code comes
   // back may be taken from a request (H-04).
@@ -70,6 +74,10 @@ export const ROUTES: readonly Route[] = [
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
   { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
+  // How people sign in: the rules, what the installation locked, and the one action that asks
+  // everybody for a new password. Beside the provider rather than inside the workspace screen,
+  // because ADR-0065 decision 3 is one screen per question and this is a question of its own.
+  { name: 'sign-in-settings', pattern: '/administration/sign-in', area: 'administration' },
   // The AI provider and the consent that lets it be used (F5-05): where a workspace's content may
   // be sent is administration, exactly as the sign-in provider above it is.
   { name: 'ai', pattern: '/administration/ai', area: 'administration' },
