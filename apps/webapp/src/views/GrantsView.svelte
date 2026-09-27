@@ -37,7 +37,7 @@
   const columns = $derived([
     { id: 'app', label: t('app.grants.app_column'), isSortable: true },
     { id: 'scopes', label: t('app.grants.scopes_column') },
-    { id: 'withdraw', label: t('app.grants.withdraw'), isLabelHidden: true, align: 'end' as const },
+    { id: 'withdraw', label: t('app.grants.withdraw'), isLabelHidden: true },
   ]);
 
   async function withdraw(grantId: string): Promise<void> {
@@ -77,8 +77,8 @@
               <!-- The scopes as the app holds them. Sentences where this build knows them, and the
                    identifier where it does not — the same rule as the consent screen. -->
               <td class="scopes">{grant.scopes.join(', ')}</td>
-              <td data-align="end">
-                <Button size="sm" tone="subtle" onclick={() => void withdraw(grant.id)}>
+              <td>
+                <Button size="sm" tone="danger" onclick={() => void withdraw(grant.id)}>
                   {t('app.grants.withdraw')}
                 </Button>
               </td>

@@ -269,7 +269,7 @@
                    somebody's access. -->
               <Button
                 size="sm"
-                tone="subtle"
+                tone="danger"
                 isBusy={isWriting}
                 busyLabel={t('app.people.working')}
                 onclick={() => (revoking = holder)}

@@ -45,7 +45,11 @@
     { id: 'created', label: t('app.sessions.created'), isSortable: true },
     { id: 'used', label: t('app.sessions.last_used'), isSortable: true },
     { id: 'network', label: t('app.sessions.network'), isSortable: true },
-    { id: 'end', label: t('app.sessions.end'), isLabelHidden: true, align: 'end' as const },
+    // The action column is **start**-aligned, like every other one in these settings. Ending it
+    // at the row's edge lines the buttons up on their right, which is the edge nobody reads down:
+    // `End this session` and `End` then begin at two different places and the column has no line
+    // running through it.
+    { id: 'end', label: t('app.sessions.end'), isLabelHidden: true },
   ]);
 
   /**
@@ -154,12 +158,13 @@
               <td>{when(row.created_at)}</td>
               <td>{when(row.last_used_at)}</td>
               <td>{row.ip_class ?? '—'}</td>
-              <td data-align="end">
-                <!-- Quiet, like the row action on every other settings table - `Revoke`,
-                     `Withdraw`, `Forget`. The weight belongs on the page's own destructive
-                     control below, which signs this reader out of everything; a column of red
-                     buttons shouts at somebody who came here to read. -->
-                <Button tone="subtle" size="sm" onclick={() => void endOne(row.id, row.current)}>
+              <td>
+                <!-- `danger`, because that is what it is. The tone is a bordered button with the
+                     danger text colour rather than a filled red block (rule 3: the colour never
+                     stands alone, and the label says what it destroys) - which is exactly the
+                     signal a control that ends a session owes the reader. Making it quiet to calm
+                     the column down took the warning off it. -->
+                <Button tone="danger" size="sm" onclick={() => void endOne(row.id, row.current)}>
                   {row.current ? t('app.sessions.end_this') : t('app.sessions.end')}
                 </Button>
               </td>

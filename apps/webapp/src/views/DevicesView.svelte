@@ -46,7 +46,7 @@
     { id: 'platform', label: t('app.devices.platform'), isSortable: true },
     { id: 'seen', label: t('app.devices.last_seen'), isSortable: true },
     { id: 'standing', label: t('app.devices.standing'), isSortable: true },
-    { id: 'forget', label: t('app.devices.forget'), isLabelHidden: true, align: 'end' as const },
+    { id: 'forget', label: t('app.devices.forget'), isLabelHidden: true },
   ]);
 
   // This device first, then the most recently seen. It is the list's own order and not a column,
@@ -131,11 +131,9 @@
               <td>{device.platform || '—'}</td>
               <td>{when(device.last_seen_at)}</td>
               <td>{device.blocked ? t('app.devices.forgotten') : t('app.devices.synchronising')}</td>
-              <td data-align="end">
+              <td>
                 {#if !device.blocked && !devices.isThisDevice(device.id)}
-                  <!-- Quiet, like the row action on every other settings table. What is
-                       destructive here is the dialog it opens, and that one is `danger`. -->
-                  <Button tone="subtle" size="sm" onclick={() => (forgetting = device.id)}>
+                  <Button tone="danger" size="sm" onclick={() => (forgetting = device.id)}>
                     {t('app.devices.forget')}
                   </Button>
                 {/if}

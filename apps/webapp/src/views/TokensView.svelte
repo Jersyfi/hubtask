@@ -212,9 +212,13 @@
           </td>
           <td>
             {#if !token.revoked_at}
+              <!-- `danger`: withdrawing a token stops whatever was using it, at once and without
+                   a second screen. Every row action in these settings that takes access away now
+                   carries the tone, because a reader should be able to tell the destructive
+                   control from the harmless one without reading it. -->
               <Button
                 size="sm"
-                tone="subtle"
+                tone="danger"
                 isBusy={isWorking}
                 busyLabel={t('app.tokens.working')}
                 onclick={() =>
