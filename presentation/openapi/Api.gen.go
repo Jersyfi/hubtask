@@ -3585,6 +3585,10 @@ type Account struct {
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Zero is answered as zero**, because zero is the number to act on; the member is absent where there is nothing to count - no second factor, or an installation wired without one.
+	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -6097,6 +6101,11 @@ type QuotaStanding struct {
 // QuotaStandingQuota defines model for QuotaStanding.Quota.
 type QuotaStandingQuota string
 
+// RecoveryCodes The ten codes, shown once and stored only as hashes.
+type RecoveryCodes struct {
+	RecoveryCodes []string `json:"recovery_codes"`
+}
+
 // Recurrence defines model for Recurrence.
 type Recurrence struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -7960,6 +7969,12 @@ type VerifyAuditChainJSONBody struct {
 	To      time.Time `json:"to"`
 }
 
+// RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
+type RegenerateRecoveryCodesParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ChangePasswordParams defines parameters for ChangePassword.
 type ChangePasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
@@ -9249,6 +9264,9 @@ type ServerInterface interface {
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
+	// RegenerateRecoveryCodes Replace the ten recovery codes
+	// (POST /auth/mfa/recovery:regenerate)
+	RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryCodesParams)
 	// ConfirmTotp Confirm enrolment with a first valid code
 	// (POST /auth/mfa/totp:confirm)
 	ConfirmTotp(w http.ResponseWriter, r *http.Request)
@@ -10601,6 +10619,47 @@ func (siw *ServerInterfaceWrapper) RedeemInvitation(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RedeemInvitation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegenerateRecoveryCodes operation middleware
+func (siw *ServerInterfaceWrapper) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegenerateRecoveryCodesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegenerateRecoveryCodes(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -19234,6 +19293,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/recovery:regenerate", wrapper.RegenerateRecoveryCodes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa:disable", wrapper.DisableTotp)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)

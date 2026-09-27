@@ -61,6 +61,7 @@ class Account(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    recovery_codes_remaining: int
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""
@@ -386,6 +387,10 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     client_secret: Required[str]
     enabled: bool
     allowed_email_domains: list[str]
+
+class RecoveryCodes(TypedDict, total=False):
+    """The ten codes, shown once and stored only as hashes."""
+    recovery_codes: Required[list[str]]
 
 class PasswordChange(TypedDict, total=False):
     password: Required[str]

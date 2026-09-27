@@ -3591,6 +3591,10 @@ type Account struct {
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Zero is answered as zero**, because zero is the number to act on; the member is absent where there is nothing to count - no second factor, or an installation wired without one.
+	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -6103,6 +6107,11 @@ type QuotaStanding struct {
 // QuotaStandingQuota defines model for QuotaStanding.Quota.
 type QuotaStandingQuota string
 
+// RecoveryCodes The ten codes, shown once and stored only as hashes.
+type RecoveryCodes struct {
+	RecoveryCodes []string `json:"recovery_codes"`
+}
+
 // Recurrence defines model for Recurrence.
 type Recurrence struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -7966,6 +7975,12 @@ type VerifyAuditChainJSONBody struct {
 	To      time.Time `json:"to"`
 }
 
+// RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
+type RegenerateRecoveryCodesParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ChangePasswordParams defines parameters for ChangePassword.
 type ChangePasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
@@ -9674,6 +9689,14 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitation(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegenerateRecoveryCodes Replace the ten recovery codes
+	//
+	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+	//
+	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+	RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfirmTotpWithBody Confirm enrolment with a first valid code
 	//
@@ -13285,6 +13308,24 @@ func (c *Client) RedeemInvitationWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 func (c *Client) RedeemInvitation(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRedeemInvitationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegenerateRecoveryCodes Replace the ten recovery codes
+//
+// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+//
+// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+func (c *Client) RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegenerateRecoveryCodesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -20429,6 +20470,48 @@ func NewRedeemInvitationRequestWithBody(server string, contentType string, body 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRegenerateRecoveryCodesRequest constructs an http.Request for the RegenerateRecoveryCodes method
+func NewRegenerateRecoveryCodesRequest(server string, params *RegenerateRecoveryCodesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/recovery:regenerate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -32003,6 +32086,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitationWithResponse(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*RedeemInvitationResult, error)
 
+	// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
+	//
+	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+	RegenerateRecoveryCodesWithResponse(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*RegenerateRecoveryCodesResult, error)
+
 	// ConfirmTotpWithBodyWithResponse Confirm enrolment with a first valid code
 	//
 	// Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -36360,6 +36453,54 @@ func (r RedeemInvitationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RedeemInvitationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RegenerateRecoveryCodesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *RecoveryCodes
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RegenerateRecoveryCodesResult) GetJSON201() *RecoveryCodes {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RegenerateRecoveryCodesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RegenerateRecoveryCodesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RegenerateRecoveryCodesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegenerateRecoveryCodesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RegenerateRecoveryCodesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -48142,6 +48283,22 @@ func (c *ClientWithResponses) RedeemInvitationWithResponse(ctx context.Context, 
 	return ParseRedeemInvitationResult(rsp)
 }
 
+// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
+//
+// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+func (c *ClientWithResponses) RegenerateRecoveryCodesWithResponse(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*RegenerateRecoveryCodesResult, error) {
+	rsp, err := c.RegenerateRecoveryCodes(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegenerateRecoveryCodesResult(rsp)
+}
+
 // ConfirmTotpWithBodyWithResponse Confirm enrolment with a first valid code
 //
 // Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -54048,6 +54205,39 @@ func ParseRedeemInvitationResult(rsp *http.Response) (*RedeemInvitationResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRegenerateRecoveryCodesResult parses an HTTP response from a RegenerateRecoveryCodesWithResponse call
+func ParseRegenerateRecoveryCodesResult(rsp *http.Response) (*RegenerateRecoveryCodesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegenerateRecoveryCodesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest RecoveryCodes
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

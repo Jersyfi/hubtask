@@ -411,6 +411,11 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.Celebrations = &celebrations
 	}
 	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
+	if remaining, held := out["recovery_codes_remaining"].(int); held {
+		// Zero is answered as zero, because zero is the number to act on; the member is absent only
+		// where there is nothing to count at all (SI-09).
+		account.RecoveryCodesRemaining = &remaining
+	}
 	return account
 }
 

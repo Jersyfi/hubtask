@@ -6,6 +6,7 @@ package rest
 import (
 	"net/http"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -198,4 +199,36 @@ func stepUpHeaderField(token *openapi.StepUpToken) any {
 		return nil
 	}
 	return string(*token)
+}
+
+const regenerateRecoveryCodesUseCase = "RegenerateRecoveryCodes"
+
+// RegenerateRecoveryCodes answers POST /auth/mfa/recovery:regenerate.
+func (c *RestController) RegenerateRecoveryCodes(
+	w http.ResponseWriter, r *http.Request, params openapi.RegenerateRecoveryCodesParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(
+			r.Context(), regenerateRecoveryCodesUseCase, actor, usecase.Input{
+				"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+			})
+	}, func(out usecase.Output) {
+		// The second response in the whole API that carries credentials, and the enrolment's is the
+		// first. They are here and in no projection, which is what makes "shown once" a property of
+		// the code rather than a promise in the documentation.
+		writeJSON(w, r, http.StatusCreated, openapi.RecoveryCodes{
+			RecoveryCodes: recoveryCodeList(out["recovery_codes"]),
+		})
+	})
+}
+
+func recoveryCodeList(value any) []string {
+	values, _ := value.([]any)
+	codes := make([]string, 0, len(values))
+	for _, entry := range values {
+		if code, isString := entry.(string); isString {
+			codes = append(codes, code)
+		}
+	}
+	return codes
 }

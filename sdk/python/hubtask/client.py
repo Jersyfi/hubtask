@@ -559,6 +559,10 @@ class Client:
         """Prove yourself again, for the irreversible"""
         return self._call("POST", "/auth/step-up", {}, None, {}, body, "json", "application/json", "json")
 
+    def regenerate_recovery_codes(self, *, step_up: str | None = None) -> "RecoveryCodes":
+        """Replace the ten recovery codes"""
+        return self._call("POST", "/auth/mfa/recovery:regenerate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
     def disable_totp(self, body: "MfaDisable") -> None:
         """Disable the second factor"""
         return self._call("POST", "/auth/mfa:disable", {}, None, {}, body, "json", "application/json", "void")

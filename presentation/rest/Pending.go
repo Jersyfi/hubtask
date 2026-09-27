@@ -134,6 +134,12 @@ func (pending) ResetPassword(w http.ResponseWriter, r *http.Request) { notAvaila
 
 func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) RegenerateRecoveryCodes(
+	w http.ResponseWriter, r *http.Request, _ openapi.RegenerateRecoveryCodesParams,
+) {
+	notAvailable(w, r)
+}
+
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

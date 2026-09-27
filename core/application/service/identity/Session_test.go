@@ -251,6 +251,9 @@ func (s *signalsFake) AuthFailure(_ context.Context, reason string) {
 }
 
 type sessionFixture struct {
+	// proof is a live step-up token on the caller's own session, for the tests of the operations
+	// that demand one. Empty unless a fixture recorded one.
+	proof    string
 	writer   SessionWriter
 	sessions *sessionsStore
 	refresh  *refreshStore

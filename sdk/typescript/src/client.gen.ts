@@ -697,6 +697,11 @@ export class HubtaskClient {
     return this.call("POST", "/auth/step-up", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Replace the ten recovery codes */
+  regenerateRecoveryCodes(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["regenerateRecoveryCodes"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/recovery:regenerate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Disable the second factor */
   disableTotp(body: NonNullable<operations["disableTotp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/auth/mfa:disable", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);

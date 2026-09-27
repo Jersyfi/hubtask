@@ -4527,6 +4527,36 @@
         }
       }
     },
+    "/auth/mfa/recovery:regenerate": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "regenerateRecoveryCodes",
+        "summary": "Replace the ten recovery codes",
+        "description": "Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.\nShown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The new set, for the only time it is shown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodes"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/mfa:disable": {
       "post": {
         "tags": [
@@ -10298,6 +10328,10 @@
             ],
             "format": "date-time",
             "description": "When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.\n"
+          },
+          "recovery_codes_remaining": {
+            "type": "integer",
+            "description": "How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Zero is answered as zero**, because zero is the number to act on; the member is absent where there is nothing to count - no second factor, or an installation wired without one.\nThe same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.\n"
           }
         }
       },
@@ -11700,6 +11734,23 @@
             },
             "default": [],
             "description": "Domains a verified address may link within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.\n"
+          }
+        }
+      },
+      "RecoveryCodes": {
+        "type": "object",
+        "description": "The ten codes, shown once and stored only as hashes.",
+        "required": [
+          "recovery_codes"
+        ],
+        "properties": {
+          "recovery_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 10,
+            "maxItems": 10
           }
         }
       },
