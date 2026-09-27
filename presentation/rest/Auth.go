@@ -38,6 +38,11 @@ var PublicRoutes = map[string]bool{
 	// guesser can use, and a host no workspace answers at gets the installation's own level rather
 	// than a refusal that would be a directory of hosts.
 	http.MethodGet + " " + APIBasePath + "/auth/sign-in-rules": true,
+	// The check is public because three of the four proofs it accepts are the tokens of a flow
+	// that has no bearer yet: an invitation, a reset, and the pending credential of a sign-in the
+	// change step interrupted (ADR-0068 §7). A proof is still demanded - the route refuses without
+	// one, because otherwise it is an oracle for blocklists and histories.
+	http.MethodPost + " " + APIBasePath + "/auth/password:check": true,
 	// The second step and the enrolment routes are public for the same reason (H-02): the
 	// pending credential in the body is the whole of what authenticates an enforcement flow,
 	// and a signed-in caller's bearer is verified exactly as on any public route.

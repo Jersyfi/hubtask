@@ -143,6 +143,8 @@
   "auth.password_rule.not_current": "Not the password you have now",
   "auth.password_refused": "That password does not meet the rules below.",
   "auth.password_rotation_required": "This workspace asked everyone for a new password. Choose one and you are in.",
+  "auth.password_too_young": "{hours, plural, one {A password can be changed again after an hour.} other {A password can be changed again after # hours.}}",
+  "auth.password_check_proof_required": "That password could not be checked here. Sign in, or use the link you were sent.",
   "auth.reset_failed": "That reset link cannot be used. Ask for a new one.",
   "auth.reset_expired": "That reset link has expired. Ask for a new one.",
   "auth.recovery_regenerated": "New recovery codes. The old ten no longer work.",

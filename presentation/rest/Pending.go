@@ -120,6 +120,14 @@ func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAva
 // The sign-in surface of ADR-0068, pending until each use case lands.
 func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) ChangePassword(w http.ResponseWriter, r *http.Request, _ openapi.ChangePasswordParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CheckPassword(w http.ResponseWriter, r *http.Request, _ openapi.CheckPasswordParams) {
+	notAvailable(w, r)
+}
+
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

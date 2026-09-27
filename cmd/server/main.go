@@ -1056,6 +1056,12 @@ func run() error {
 		Authorizer: authorizer,
 	}
 
+	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the
+	// rule, the history and the trail have one place each. The blocklist and the breach corpus are
+	// both nil on a plain installation - the operator's file arrives with the instance layer, and
+	// the corpus with whatever milestone wires one.
+	var passwordWriter identity.PasswordWriter
+
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
 	// installation's level, the plan's - which nothing writes yet - and the workspace's own. One
 	// value rather than four copies of the same three reads, because a rule resolved slightly
@@ -1064,6 +1070,17 @@ func run() error {
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Instance:   postgres.NewInstanceSettingRepository(),
 		UnitOfWork: unitOfWork,
+	}
+	// Named for the rows rather than for the hasher: `passwords` above is the Argon2 verifier.
+	passwordStore := postgres.NewPasswordRepository()
+	passwordWriter = identity.PasswordWriter{
+		Session:  sessionWriter,
+		Resolver: signInPolicyResolver,
+		Accounts: passwordStore, Histories: passwordStore,
+		Pending:    mfaStore,
+		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		Text:       forms,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
 	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
@@ -1133,6 +1150,8 @@ func run() error {
 			Groups: groups, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
+		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
 			Providers:  postgres.NewIdentityProviderRepository(),
@@ -1145,7 +1164,7 @@ func run() error {
 		identity.RevokeAllSessions{Writer: sessionWriter}.Descriptor(),
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
-		identity.RedeemInvitation{Writer: sessionWriter}.Descriptor(),
+		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),

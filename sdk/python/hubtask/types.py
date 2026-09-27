@@ -297,6 +297,24 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
 
+class PasswordChange(TypedDict, total=False):
+    password: Required[str]
+
+class PasswordCheck(TypedDict, total=False):
+    """The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one."""
+    password: Required[str]
+    pending_token: str
+    invitation_token: str
+    reset_token: str
+
+class PasswordViolation(TypedDict, total=False):
+    """One rule the candidate breaks, as an identifier and its parameters."""
+    rule: Required[str]
+    params: dict[str, Any]
+
+class PasswordCheckResult(TypedDict, total=False):
+    violations: Required[list["PasswordViolation"]]
+
 class PasswordRules(TypedDict, total=False):
     """What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it."""
     min_length: Required[int]

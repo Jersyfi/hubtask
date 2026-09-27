@@ -189,6 +189,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.UpdateGroup{}.Descriptor(),
 		identity.DeleteGroup{}.Descriptor(),
 		identity.GetSignInRules{}.Descriptor(),
+		identity.ChangePassword{}.Descriptor(),
+		identity.CheckPassword{}.Descriptor(),
 		identity.SignIn{}.Descriptor(),
 		identity.RefreshSession{}.Descriptor(),
 		identity.ListSessions{}.Descriptor(),

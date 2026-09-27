@@ -148,6 +148,13 @@ const (
 	// PendingEnroll is the enforcement route: an administrator the tenant switch requires a
 	// factor of, not yet enrolled, allowed exactly as far as enrolment and its confirmation.
 	PendingEnroll PendingPurpose = "ENROLL"
+	// PendingReset is the token a reset mail carries (ADR-0068 §6). Not a session and not a
+	// second factor: thirty minutes, single use, and it can do one thing - set a password.
+	PendingReset PendingPurpose = "RESET"
+	// PendingPassword is the credential the PASSWORD_CHANGE step of a sign-in hands out: the
+	// password was right and no longer meets the rule, so the sign-in continues by setting a new
+	// one. Confirming it *is* the sign-in, exactly as ENROLL already works (ADR-0068 §3).
+	PendingPassword PendingPurpose = "PASSWORD"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.

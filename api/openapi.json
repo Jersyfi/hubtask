@@ -4209,6 +4209,80 @@
         }
       }
     },
+    "/auth/password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "changePassword",
+        "summary": "Change the password of the signed-in account",
+        "description": "The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).\nEvery other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.\nA refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Changed. The other sessions are over."
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/password:check": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "checkPassword",
+        "security": [],
+        "summary": "Ask what only the server knows about a candidate password",
+        "description": "The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.\n**It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.\n`200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordCheck"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The rules this candidate breaks, which may be none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordCheckResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/sign-in-rules": {
       "get": {
         "tags": [
@@ -11154,6 +11228,78 @@
             },
             "default": [],
             "description": "Domains a verified address may link within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.\n"
+          }
+        }
+      },
+      "PasswordChange": {
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The new password, judged against this workspace's rule."
+          }
+        }
+      },
+      "PasswordCheck": {
+        "type": "object",
+        "description": "The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one.\n",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "pending_token": {
+            "type": "string",
+            "description": "The pending credential of a sign-in the change step interrupted."
+          },
+          "invitation_token": {
+            "type": "string",
+            "description": "The token from an invitation mail."
+          },
+          "reset_token": {
+            "type": "string",
+            "description": "The token from a reset mail."
+          }
+        }
+      },
+      "PasswordViolation": {
+        "type": "object",
+        "description": "One rule the candidate breaks, as an identifier and its parameters.",
+        "required": [
+          "rule"
+        ],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.\n"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The parameters that rule's sentence takes."
+          }
+        }
+      },
+      "PasswordCheckResult": {
+        "type": "object",
+        "required": [
+          "violations"
+        ],
+        "properties": {
+          "violations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PasswordViolation"
+            }
           }
         }
       },

@@ -6,6 +6,7 @@ package rest
 import (
 	"net/http"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -125,4 +126,83 @@ func nameList(value any) []string {
 		}
 	}
 	return names
+}
+
+const (
+	changePasswordUseCase = "ChangePassword"
+	checkPasswordUseCase  = "CheckPassword"
+)
+
+// ChangePassword answers POST /auth/password.
+func (c *RestController) ChangePassword(
+	w http.ResponseWriter, r *http.Request, params openapi.ChangePasswordParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.PasswordChange
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), changePasswordUseCase, actor, usecase.Input{
+			"password":      body.Password,
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	}, func(usecase.Output) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+// CheckPassword answers POST /auth/password:check.
+//
+// Written out rather than through the identity helper: the route is public, because three of the
+// four proofs it accepts are the tokens of a flow that has no bearer yet.
+func (c *RestController) CheckPassword(
+	w http.ResponseWriter, r *http.Request, params openapi.CheckPasswordParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.PasswordCheck
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), checkPasswordUseCase, actorOf(r), usecase.Input{
+		"password":         body.Password,
+		"step_up_token":    stepUpHeaderField(params.XHubtaskStepUp),
+		"pending_token":    optionalStringField(body.PendingToken),
+		"invitation_token": optionalStringField(body.InvitationToken),
+		"reset_token":      optionalStringField(body.ResetToken),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, passwordCheckResponse(out))
+}
+
+func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
+	rows, _ := out["violations"].([]any)
+	violations := make([]openapi.PasswordViolation, 0, len(rows))
+	for _, row := range rows {
+		entry, isOutput := row.(usecase.Output)
+		if !isOutput {
+			continue
+		}
+		violation := openapi.PasswordViolation{Rule: entry.String("rule")}
+		if params, held := entry["params"].(usecase.Output); held {
+			named := map[string]string{}
+			for name, value := range params {
+				if text, isString := value.(string); isString {
+					named[name] = text
+				}
+			}
+			violation.Params = &named
+		}
+		violations = append(violations, violation)
+	}
+	return openapi.PasswordCheckResult{Violations: violations}
 }

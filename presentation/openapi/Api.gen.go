@@ -5732,6 +5732,30 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+}
+
+// PasswordCheck The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one.
+type PasswordCheck struct {
+	// InvitationToken The token from an invitation mail.
+	InvitationToken *string `json:"invitation_token,omitempty"`
+	Password        string  `json:"password"`
+
+	// PendingToken The pending credential of a sign-in the change step interrupted.
+	PendingToken *string `json:"pending_token,omitempty"`
+
+	// ResetToken The token from a reset mail.
+	ResetToken *string `json:"reset_token,omitempty"`
+}
+
+// PasswordCheckResult defines model for PasswordCheckResult.
+type PasswordCheckResult struct {
+	Violations []PasswordViolation `json:"violations"`
+}
+
 // PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
@@ -5770,6 +5794,15 @@ type PasswordRules struct {
 
 	// NotCurrent Whether "not the password you have now" applies - only where there is one.
 	NotCurrent bool `json:"not_current"`
+}
+
+// PasswordViolation One rule the candidate breaks, as an identifier and its parameters.
+type PasswordViolation struct {
+	// Params The parameters that rule's sentence takes.
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Rule The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.
+	Rule string `json:"rule"`
 }
 
 // Problem defines model for Problem.
@@ -7634,6 +7667,18 @@ type VerifyAuditChainJSONBody struct {
 	To      time.Time `json:"to"`
 }
 
+// ChangePasswordParams defines parameters for ChangePassword.
+type ChangePasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CheckPasswordParams defines parameters for CheckPassword.
+type CheckPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
 type CreateServiceAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
@@ -8552,6 +8597,12 @@ type CompleteOidcSignInJSONRequestBody = OidcCallback
 // StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
 type StartOidcSignInJSONRequestBody = OidcStart
 
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = PasswordChange
+
+// CheckPasswordJSONRequestBody defines body for CheckPassword for application/json ContentType.
+type CheckPasswordJSONRequestBody = PasswordCheck
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -8908,6 +8959,12 @@ type ServerInterface interface {
 	// StartOidcSignIn Begin a sign-in through the workspace's identity provider
 	// (POST /auth/oidc:start)
 	StartOidcSignIn(w http.ResponseWriter, r *http.Request)
+	// ChangePassword Change the password of the signed-in account
+	// (POST /auth/password)
+	ChangePassword(w http.ResponseWriter, r *http.Request, params ChangePasswordParams)
+	// CheckPassword Ask what only the server knows about a candidate password
+	// (POST /auth/password:check)
+	CheckPassword(w http.ResponseWriter, r *http.Request, params CheckPasswordParams)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
@@ -10300,6 +10357,88 @@ func (siw *ServerInterfaceWrapper) StartOidcSignIn(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartOidcSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangePasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckPassword operation middleware
+func (siw *ServerInterfaceWrapper) CheckPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckPassword(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18711,6 +18850,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)

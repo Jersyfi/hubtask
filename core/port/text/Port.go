@@ -75,5 +75,5 @@ var composing = strings.NewReplacer(
 // and the full-width Latin letters.
 var compatible = strings.NewReplacer(
 	"\ufb01", "fi", "\ufb02", "fl", "\u00b2", "2", "\u00b3", "3",
-	"\uff21", "A", "\uff41", "a", "\uff10", "0",
+	"\uff21", "A", "\uff41", "a", "\uff10", "0", "\uff3a", "Z", "\uff5a", "z",
 )

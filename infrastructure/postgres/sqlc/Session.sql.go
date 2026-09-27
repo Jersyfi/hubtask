@@ -846,6 +846,10 @@ func (q *Queries) RecordStepUp(ctx context.Context, arg RecordStepUpParams) (int
 const redeemInvitation = `-- name: RedeemInvitation :execrows
 UPDATE account SET
   password_hash         = $1,
+  -- The moment the password was set, beside the hash (migration 0098): what ` + "`" + `max_age_days` + "`" + ` and
+  -- ` + "`" + `rotation_from` + "`" + ` are compared against, written here so a first password has one from its first
+  -- minute rather than from whenever it is next changed.
+  password_set_at       = $2,
   status                = 'ACTIVE',
   redemption_token_hash = NULL,
   redemption_expires_at = NULL,

@@ -645,6 +645,17 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Change the password of the signed-in account */
+  changePassword(body: NonNullable<operations["changePassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("POST", "/auth/password", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** Ask what only the server knows about a candidate password
+   * Public: sent without a bearer where the client holds none. */
+  checkPassword(body: NonNullable<operations["checkPassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["checkPassword"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/password:check", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** What a sign-in screen may know before anybody has signed in
    * Public: sent without a bearer where the client holds none. */
   getSignInRules(options: CallOptions = {}): Promise<operations["getSignInRules"]['responses'][200]['content']["application/json"]> {

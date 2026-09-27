@@ -523,6 +523,14 @@ class Client:
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def change_password(self, body: "PasswordChange", *, step_up: str | None = None) -> None:
+        """Change the password of the signed-in account"""
+        return self._call("POST", "/auth/password", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "void")
+
+    def check_password(self, body: "PasswordCheck", *, step_up: str | None = None) -> "PasswordCheckResult":
+        """Ask what only the server knows about a candidate password"""
+        return self._call("POST", "/auth/password:check", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def get_sign_in_rules(self) -> "SignInRules":
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")

@@ -567,10 +567,16 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"auth_attempt":          "the lockout ledger is about requests rather than about data, and its subjects are hashes of a live pepper",
 	"account_mfa":           "§8.4 - a restored second factor would arm an authenticator nobody holds against an account somebody does",
 	"account_recovery_code": "the factor's escape hatch, §8.4's reasoning verbatim: a restore does not make old credentials valid again",
-	"auth_pending":          "a half-finished sign-in lives minutes; restoring one would revive a credential that was already over",
-	"oauth_client":          "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
-	"oauth_grant":           "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
-	"oauth_code":            "a single-use credential with minutes of life, §8.4's reasoning verbatim",
+	// The passwords before the current one (ADR-0068 §1). §8.4's reasoning in its strongest form:
+	// the rows are password hashes and nothing else, they buy a restore nothing - the rule they
+	// serve is "not one of your last n", which is a courtesy and not an entitlement - and an
+	// archive that carried them would be a file worth stealing for what it says about passwords
+	// somebody may still be using elsewhere.
+	"account_password_history": "§8.4 - hashes of passwords that are no longer current; an archive that carried them would be worth stealing, and a restore needs none of them",
+	"auth_pending":             "a half-finished sign-in lives minutes; restoring one would revive a credential that was already over",
+	"oauth_client":             "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
+	"oauth_grant":              "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
+	"oauth_code":               "a single-use credential with minutes of life, §8.4's reasoning verbatim",
 	// The relying party (H-04), and oauth_client's reasoning in the other direction. The row
 	// holds a client secret sealed under the source installation's key, which a restore
 	// elsewhere cannot open - and restoring it silently would point a recovered workspace at a

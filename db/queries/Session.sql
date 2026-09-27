@@ -180,6 +180,10 @@ WHERE a.redemption_token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 -- dies - so a second redemption matches nothing however fresh the token looked a moment ago.
 UPDATE account SET
   password_hash         = sqlc.arg('password_hash'),
+  -- The moment the password was set, beside the hash (migration 0098): what `max_age_days` and
+  -- `rotation_from` are compared against, written here so a first password has one from its first
+  -- minute rather than from whenever it is next changed.
+  password_set_at       = sqlc.arg('now'),
   status                = 'ACTIVE',
   redemption_token_hash = NULL,
   redemption_expires_at = NULL,

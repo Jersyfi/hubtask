@@ -5738,6 +5738,30 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+}
+
+// PasswordCheck The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one.
+type PasswordCheck struct {
+	// InvitationToken The token from an invitation mail.
+	InvitationToken *string `json:"invitation_token,omitempty"`
+	Password        string  `json:"password"`
+
+	// PendingToken The pending credential of a sign-in the change step interrupted.
+	PendingToken *string `json:"pending_token,omitempty"`
+
+	// ResetToken The token from a reset mail.
+	ResetToken *string `json:"reset_token,omitempty"`
+}
+
+// PasswordCheckResult defines model for PasswordCheckResult.
+type PasswordCheckResult struct {
+	Violations []PasswordViolation `json:"violations"`
+}
+
 // PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 // Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
 type PasswordRules struct {
@@ -5776,6 +5800,15 @@ type PasswordRules struct {
 
 	// NotCurrent Whether "not the password you have now" applies - only where there is one.
 	NotCurrent bool `json:"not_current"`
+}
+
+// PasswordViolation One rule the candidate breaks, as an identifier and its parameters.
+type PasswordViolation struct {
+	// Params The parameters that rule's sentence takes.
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Rule The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.
+	Rule string `json:"rule"`
 }
 
 // Problem defines model for Problem.
@@ -7640,6 +7673,18 @@ type VerifyAuditChainJSONBody struct {
 	To      time.Time `json:"to"`
 }
 
+// ChangePasswordParams defines parameters for ChangePassword.
+type ChangePasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CheckPasswordParams defines parameters for CheckPassword.
+type CheckPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
 type CreateServiceAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
@@ -8558,6 +8603,12 @@ type CompleteOidcSignInJSONRequestBody = OidcCallback
 // StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
 type StartOidcSignInJSONRequestBody = OidcStart
 
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = PasswordChange
+
+// CheckPasswordJSONRequestBody defines body for CheckPassword for application/json ContentType.
+type CheckPasswordJSONRequestBody = PasswordCheck
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -9418,6 +9469,50 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/oidc:start (the `StartOidcSignIn` operationId).
 	StartOidcSignIn(ctx context.Context, body StartOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePasswordWithBody Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePasswordWithBody(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePassword Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePassword(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckPasswordWithBody Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPasswordWithBody(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckPassword Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPassword(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListServiceAccounts The workspace's service accounts
 	//
@@ -13017,6 +13112,90 @@ func (c *Client) StartOidcSignInWithBody(ctx context.Context, contentType string
 // Corresponds with POST /auth/oidc:start (the `StartOidcSignIn` operationId).
 func (c *Client) StartOidcSignIn(ctx context.Context, body StartOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartOidcSignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePasswordWithBody Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *Client) ChangePasswordWithBody(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePasswordRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePassword Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *Client) ChangePassword(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePasswordRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckPasswordWithBody Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *Client) CheckPasswordWithBody(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckPasswordRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckPassword Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *Client) CheckPassword(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckPasswordRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -19949,6 +20128,116 @@ func NewStartOidcSignInRequestWithBody(server string, contentType string, body i
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewChangePasswordRequest calls the generic ChangePassword builder with application/json body
+func NewChangePasswordRequest(server string, params *ChangePasswordParams, body ChangePasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangePasswordRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewChangePasswordRequestWithBody constructs an http.Request for the ChangePassword method, with any body, and a specified content type
+func NewChangePasswordRequestWithBody(server string, params *ChangePasswordParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCheckPasswordRequest calls the generic CheckPassword builder with application/json body
+func NewCheckPasswordRequest(server string, params *CheckPasswordParams, body CheckPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckPasswordRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCheckPasswordRequestWithBody constructs an http.Request for the CheckPassword method, with any body, and a specified content type
+func NewCheckPasswordRequestWithBody(server string, params *CheckPasswordParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password:check")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -31182,6 +31471,50 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/oidc:start (the `StartOidcSignIn` operationId).
 	StartOidcSignInWithResponse(ctx context.Context, body StartOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*StartOidcSignInResult, error)
 
+	// ChangePasswordWithBodyWithResponse Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePasswordWithBodyWithResponse(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error)
+
+	// ChangePasswordWithResponse Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePasswordWithResponse(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error)
+
+	// CheckPasswordWithBodyWithResponse Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPasswordWithBodyWithResponse(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error)
+
+	// CheckPasswordWithResponse Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPasswordWithResponse(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error)
+
 	// ListServiceAccountsWithResponse The workspace's service accounts
 	//
 	// The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -35560,6 +35893,95 @@ func (r StartOidcSignInResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StartOidcSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangePasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangePasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangePasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangePasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangePasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangePasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasswordCheckResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckPasswordResult) GetJSON200() *PasswordCheckResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckPasswordResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -47036,6 +47458,74 @@ func (c *ClientWithResponses) StartOidcSignInWithResponse(ctx context.Context, b
 	return ParseStartOidcSignInResult(rsp)
 }
 
+// ChangePasswordWithBodyWithResponse Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *ClientWithResponses) ChangePasswordWithBodyWithResponse(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error) {
+	rsp, err := c.ChangePasswordWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePasswordResult(rsp)
+}
+
+// ChangePasswordWithResponse Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *ClientWithResponses) ChangePasswordWithResponse(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error) {
+	rsp, err := c.ChangePassword(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePasswordResult(rsp)
+}
+
+// CheckPasswordWithBodyWithResponse Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *ClientWithResponses) CheckPasswordWithBodyWithResponse(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error) {
+	rsp, err := c.CheckPasswordWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckPasswordResult(rsp)
+}
+
+// CheckPasswordWithResponse Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *ClientWithResponses) CheckPasswordWithResponse(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error) {
+	rsp, err := c.CheckPassword(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckPasswordResult(rsp)
+}
+
 // ListServiceAccountsWithResponse The workspace's service accounts
 //
 // The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -52775,6 +53265,68 @@ func ParseStartOidcSignInResult(rsp *http.Response) (*StartOidcSignInResult, err
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangePasswordResult parses an HTTP response from a ChangePasswordWithResponse call
+func ParseChangePasswordResult(rsp *http.Response) (*ChangePasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangePasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckPasswordResult parses an HTTP response from a CheckPasswordWithResponse call
+func ParseCheckPasswordResult(rsp *http.Response) (*CheckPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasswordCheckResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
