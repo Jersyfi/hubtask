@@ -5193,6 +5193,33 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.
+type InstanceSetting struct {
+	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
+	Locked bool `json:"locked"`
+
+	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words.
+	Value interface{} `json:"value"`
+}
+
+// InstanceSettings The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.
+type InstanceSettings struct {
+	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
+	BlocklistFile *string `json:"blocklist_file,omitempty"`
+
+	// IsEnforcedFromFile Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.
+	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
+
+	// Legal The four links, by name.
+	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+
+	// Source Where the values in force came from - the database, or the path of the file enforcing them.
+	Source *string `json:"source,omitempty"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the policy of security.md §5.
@@ -5836,6 +5863,21 @@ type OidcCallback struct {
 type OidcStart struct {
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
 	LoginHint *string `json:"login_hint,omitempty"`
+}
+
+// Operator One row of the register: an account of some workspace that operates this installation.
+type Operator struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	AddedAt   time.Time          `json:"added_at"`
+
+	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
+	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
+	TenantId openapi_types.UUID  `json:"tenant_id"`
+}
+
+// OperatorAdd The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
+type OperatorAdd struct {
+	AccountId openapi_types.UUID `json:"account_id"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -6776,6 +6818,14 @@ type Session struct {
 
 // SessionSignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
 type SessionSignedInWith string
+
+// SessionElevation How long this session carries the control plane's scope.
+type SessionElevation struct {
+	ElevatedUntil time.Time `json:"elevated_until"`
+
+	// RemainingSeconds What is left of the hour. On the screen, because an hour nobody can see the end of is an hour somebody is surprised by.
+	RemainingSeconds int `json:"remaining_seconds"`
+}
 
 // SessionPolicySettings The two bounds a session answers to beside its own expiry.
 type SessionPolicySettings struct {
@@ -7999,6 +8049,12 @@ type CreateServiceAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ElevateSessionParams defines parameters for ElevateSession.
+type ElevateSessionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListAccessTokensParams defines parameters for ListAccessTokens.
 type ListAccessTokensParams struct {
 	// AccountId Whose tokens. Omitted means the caller's own. Naming a service account answers its tokens and needs the member management permission; naming another person is refused, whatever the role.
@@ -8872,6 +8928,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
+type AddOperatorJSONRequestBody = OperatorAdd
+
+// WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
+type WriteInstanceSettingsJSONRequestBody = InstanceSettings
+
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
@@ -9440,6 +9502,72 @@ type ClientInterface interface {
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListOperators Who operates this installation
+	//
+	// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	//
+	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+	ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddOperatorWithBody Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperatorWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddOperator Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperator(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveOperator Take an account out of the register
+	//
+	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	//
+	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+	RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadInstanceSettings What this installation has decided for every workspace on it
+	//
+	// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+	// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+	// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+	//
+	// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+	ReadInstanceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WriteInstanceSettingsWithBody Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WriteInstanceSettings Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTenants The installation's workspaces
 	//
 	// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -9953,6 +10081,16 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 	RevokeSession(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ElevateSession Raise this session to the control plane for an hour
+	//
+	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// The personal access token stays exactly as it is, for automation.
+	//
+	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+	ElevateSession(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RefreshSessionWithBody Exchange a refresh token for the next pair
 	//
@@ -12828,6 +12966,142 @@ func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorF
 	return c.Client.Do(req)
 }
 
+// ListOperators Who operates this installation
+//
+// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+//
+// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOperatorsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddOperatorWithBody Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *Client) AddOperatorWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddOperatorRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddOperator Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *Client) AddOperator(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddOperatorRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveOperator Take an account out of the register
+//
+// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+//
+// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveOperatorRequest(c.Server, accountId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadInstanceSettings What this installation has decided for every workspace on it
+//
+// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+//
+// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+func (c *Client) ReadInstanceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadInstanceSettingsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WriteInstanceSettingsWithBody Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteInstanceSettingsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WriteInstanceSettings Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *Client) WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteInstanceSettingsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListTenants The installation's workspaces
 //
 // The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -13842,6 +14116,26 @@ func (c *Client) SignIn(ctx context.Context, body SignInJSONRequestBody, reqEdit
 // Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeSessionRequest(c.Server, sessionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ElevateSession Raise this session to the control plane for an hour
+//
+// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// The personal access token stays exactly as it is, for automation.
+//
+// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+func (c *Client) ElevateSession(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewElevateSessionRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -19764,6 +20058,174 @@ func NewResealSecretsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListOperatorsRequest constructs an http.Request for the ListOperators method
+func NewListOperatorsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/operators")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddOperatorRequest calls the generic AddOperator builder with application/json body
+func NewAddOperatorRequest(server string, body AddOperatorJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddOperatorRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddOperatorRequestWithBody constructs an http.Request for the AddOperator method, with any body, and a specified content type
+func NewAddOperatorRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/operators")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveOperatorRequest constructs an http.Request for the RemoveOperator method
+func NewRemoveOperatorRequest(server string, accountId AccountId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/operators/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadInstanceSettingsRequest constructs an http.Request for the ReadInstanceSettings method
+func NewReadInstanceSettingsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewWriteInstanceSettingsRequest calls the generic WriteInstanceSettings builder with application/json body
+func NewWriteInstanceSettingsRequest(server string, body WriteInstanceSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewWriteInstanceSettingsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewWriteInstanceSettingsRequestWithBody constructs an http.Request for the WriteInstanceSettings method, with any body, and a specified content type
+func NewWriteInstanceSettingsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTenantsRequest constructs an http.Request for the ListTenants method
 func NewListTenantsRequest(server string) (*http.Request, error) {
 	var err error
@@ -21111,6 +21573,48 @@ func NewRevokeSessionRequest(server string, sessionId SessionId) (*http.Request,
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewElevateSessionRequest constructs an http.Request for the ElevateSession method
+func NewElevateSessionRequest(server string, params *ElevateSessionParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:elevate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -31824,6 +32328,78 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecretsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ResealSecretsResult, error)
 
+	// ListOperatorsWithResponse Who operates this installation
+	//
+	// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+	ListOperatorsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOperatorsResult, error)
+
+	// AddOperatorWithBodyWithResponse Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperatorWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddOperatorResult, error)
+
+	// AddOperatorWithResponse Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperatorWithResponse(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*AddOperatorResult, error)
+
+	// RemoveOperatorWithResponse Take an account out of the register
+	//
+	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+	RemoveOperatorWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*RemoveOperatorResult, error)
+
+	// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
+	//
+	// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+	// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+	// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+	ReadInstanceSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceSettingsResult, error)
+
+	// WriteInstanceSettingsWithBodyWithResponse Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
+
+	// WriteInstanceSettingsWithResponse Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
+
 	// ListTenantsWithResponse The installation's workspaces
 	//
 	// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -32359,6 +32935,18 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 	RevokeSessionWithResponse(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*RevokeSessionResult, error)
+
+	// ElevateSessionWithResponse Raise this session to the control plane for an hour
+	//
+	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// The personal access token stays exactly as it is, for automation.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+	ElevateSessionWithResponse(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*ElevateSessionResult, error)
 
 	// RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 	//
@@ -35682,6 +36270,232 @@ func (r ResealSecretsResult) ContentType() string {
 	return ""
 }
 
+type ListOperatorsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]Operator
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOperatorsResult) GetJSON200() *[]Operator {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListOperatorsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOperatorsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOperatorsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOperatorsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOperatorsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddOperatorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddOperatorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddOperatorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddOperatorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddOperatorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddOperatorResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveOperatorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveOperatorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveOperatorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveOperatorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveOperatorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveOperatorResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadInstanceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadInstanceSettingsResult) GetJSON200() *InstanceSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadInstanceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadInstanceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadInstanceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadInstanceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadInstanceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WriteInstanceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WriteInstanceSettingsResult) GetJSON200() *InstanceSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WriteInstanceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WriteInstanceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WriteInstanceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WriteInstanceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WriteInstanceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTenantsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -37200,6 +38014,54 @@ func (r RevokeSessionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RevokeSessionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ElevateSessionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SessionElevation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ElevateSessionResult) GetJSON200() *SessionElevation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ElevateSessionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ElevateSessionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ElevateSessionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ElevateSessionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ElevateSessionResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -47877,6 +48739,120 @@ func (c *ClientWithResponses) ResealSecretsWithResponse(ctx context.Context, req
 	return ParseResealSecretsResult(rsp)
 }
 
+// ListOperatorsWithResponse Who operates this installation
+//
+// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+func (c *ClientWithResponses) ListOperatorsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOperatorsResult, error) {
+	rsp, err := c.ListOperators(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOperatorsResult(rsp)
+}
+
+// AddOperatorWithBodyWithResponse Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *ClientWithResponses) AddOperatorWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddOperatorResult, error) {
+	rsp, err := c.AddOperatorWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddOperatorResult(rsp)
+}
+
+// AddOperatorWithResponse Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *ClientWithResponses) AddOperatorWithResponse(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*AddOperatorResult, error) {
+	rsp, err := c.AddOperator(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddOperatorResult(rsp)
+}
+
+// RemoveOperatorWithResponse Take an account out of the register
+//
+// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+func (c *ClientWithResponses) RemoveOperatorWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*RemoveOperatorResult, error) {
+	rsp, err := c.RemoveOperator(ctx, accountId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveOperatorResult(rsp)
+}
+
+// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
+//
+// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+func (c *ClientWithResponses) ReadInstanceSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceSettingsResult, error) {
+	rsp, err := c.ReadInstanceSettings(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadInstanceSettingsResult(rsp)
+}
+
+// WriteInstanceSettingsWithBodyWithResponse Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *ClientWithResponses) WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
+	rsp, err := c.WriteInstanceSettingsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWriteInstanceSettingsResult(rsp)
+}
+
+// WriteInstanceSettingsWithResponse Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
+	rsp, err := c.WriteInstanceSettings(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWriteInstanceSettingsResult(rsp)
+}
+
 // ListTenantsWithResponse The installation's workspaces
 //
 // The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -48717,6 +49693,24 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 		return nil, err
 	}
 	return ParseRevokeSessionResult(rsp)
+}
+
+// ElevateSessionWithResponse Raise this session to the control plane for an hour
+//
+// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// The personal access token stays exactly as it is, for automation.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+func (c *ClientWithResponses) ElevateSessionWithResponse(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*ElevateSessionResult, error) {
+	rsp, err := c.ElevateSession(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseElevateSessionResult(rsp)
 }
 
 // RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
@@ -53693,6 +54687,163 @@ func ParseResealSecretsResult(rsp *http.Response) (*ResealSecretsResult, error) 
 	return response, nil
 }
 
+// ParseListOperatorsResult parses an HTTP response from a ListOperatorsWithResponse call
+func ParseListOperatorsResult(rsp *http.Response) (*ListOperatorsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOperatorsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Operator
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddOperatorResult parses an HTTP response from a AddOperatorWithResponse call
+func ParseAddOperatorResult(rsp *http.Response) (*AddOperatorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddOperatorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveOperatorResult parses an HTTP response from a RemoveOperatorWithResponse call
+func ParseRemoveOperatorResult(rsp *http.Response) (*RemoveOperatorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveOperatorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadInstanceSettingsResult parses an HTTP response from a ReadInstanceSettingsWithResponse call
+func ParseReadInstanceSettingsResult(rsp *http.Response) (*ReadInstanceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadInstanceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWriteInstanceSettingsResult parses an HTTP response from a WriteInstanceSettingsWithResponse call
+func ParseWriteInstanceSettingsResult(rsp *http.Response) (*WriteInstanceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WriteInstanceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTenantsResult parses an HTTP response from a ListTenantsWithResponse call
 func ParseListTenantsResult(rsp *http.Response) (*ListTenantsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -54731,6 +55882,39 @@ func ParseRevokeSessionResult(rsp *http.Response) (*RevokeSessionResult, error) 
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseElevateSessionResult parses an HTTP response from a ElevateSessionWithResponse call
+func ParseElevateSessionResult(rsp *http.Response) (*ElevateSessionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ElevateSessionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SessionElevation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -543,6 +543,10 @@ class Client:
         """Set a new password and finish the sign-in"""
         return self._call("POST", "/auth/sessions:set-password", {}, None, {}, body, "json", "application/json", "json")
 
+    def elevate_session(self, *, step_up: str | None = None) -> "SessionElevation":
+        """Raise this session to the control plane for an hour"""
+        return self._call("POST", "/auth/sessions:elevate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
     def get_sign_in_rules(self) -> "SignInRules":
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
@@ -618,6 +622,26 @@ class Client:
     def export_tenant(self, tenant_id: str, body: "TenantExportRequest") -> "JobRef":
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_instance_settings(self) -> "InstanceSettings":
+        """What this installation has decided for every workspace on it"""
+        return self._call("GET", "/admin/settings", {}, None, {}, None, "none", None, "json")
+
+    def write_instance_settings(self, body: "InstanceSettings") -> "InstanceSettings":
+        """Replace the installation's level"""
+        return self._call("PUT", "/admin/settings", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_operators(self) -> dict[str, Any]:
+        """Who operates this installation"""
+        return self._call("GET", "/admin/operators", {}, None, {}, None, "none", None, "json")
+
+    def add_operator(self, body: "OperatorAdd") -> None:
+        """Put an account in the register"""
+        return self._call("POST", "/admin/operators", {}, None, {}, body, "json", "application/json", "void")
+
+    def remove_operator(self, account_id: str) -> None:
+        """Take an account out of the register"""
+        return self._call("DELETE", "/admin/operators/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "void")
 
     def read_encryption_status(self) -> "EncryptionStatus":
         """The keyring, and what still names each key"""

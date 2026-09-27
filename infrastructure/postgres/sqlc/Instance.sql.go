@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addOperator = `-- name: AddOperator :one
+SELECT add_operator($1, $2)
+`
+
+type AddOperatorParams struct {
+	AccountID pgtype.UUID
+	AddedBy   pgtype.UUID
+}
+
+// The workspace comes from the account rather than from the caller: false is "no such account", and
+// a pair that could disagree would be a pair somebody eventually gets wrong.
+func (q *Queries) AddOperator(ctx context.Context, arg AddOperatorParams) (bool, error) {
+	row := q.db.QueryRow(ctx, addOperator, arg.AccountID, arg.AddedBy)
+	var add_operator bool
+	err := row.Scan(&add_operator)
+	return add_operator, err
+}
+
 const deleteInstanceSettingsExcept = `-- name: DeleteInstanceSettingsExcept :exec
 DELETE FROM instance_setting
 WHERE split_part(key, '.', 1) = ANY($1::text[])
@@ -30,6 +48,62 @@ type DeleteInstanceSettingsExceptParams struct {
 func (q *Queries) DeleteInstanceSettingsExcept(ctx context.Context, arg DeleteInstanceSettingsExceptParams) error {
 	_, err := q.db.Exec(ctx, deleteInstanceSettingsExcept, arg.Areas, arg.Kept)
 	return err
+}
+
+const dropOperator = `-- name: DropOperator :one
+SELECT drop_operator($1)
+`
+
+// False where the register would have been emptied: the last operator cannot remove themselves.
+func (q *Queries) DropOperator(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, dropOperator, accountID)
+	var drop_operator bool
+	err := row.Scan(&drop_operator)
+	return drop_operator, err
+}
+
+const isOperator = `-- name: IsOperator :one
+SELECT is_operator($1)
+`
+
+// The register's check, asked when `admin:tenants` is minted and when it is exercised (ADR-0070 §1).
+// Through the function rather than against the table: `operator` carries no policy and no grant, so
+// the four narrow doors are the only way to it.
+func (q *Queries) IsOperator(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isOperator, accountID)
+	var is_operator bool
+	err := row.Scan(&is_operator)
+	return is_operator, err
+}
+
+const operatorRegister = `-- name: OperatorRegister :many
+SELECT tenant_id, account_id, added_at, added_by FROM operator_register()
+`
+
+// The listing, for the control plane's own screen.
+func (q *Queries) OperatorRegister(ctx context.Context) ([]Operator, error) {
+	rows, err := q.db.Query(ctx, operatorRegister)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Operator{}
+	for rows.Next() {
+		var i Operator
+		if err := rows.Scan(
+			&i.TenantID,
+			&i.AccountID,
+			&i.AddedAt,
+			&i.AddedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const putInstanceSetting = `-- name: PutInstanceSetting :exec

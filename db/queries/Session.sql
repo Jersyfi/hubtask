@@ -46,7 +46,7 @@ VALUES (
 -- and the locale chain - one round trip, the FindAccessTokenByHash shape.
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
-       s.hard_expires_at, s.idle_minutes, s.signed_in_with,
+       s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.elevated_until,
        -- The rotation cutoff (ADR-0068 §3), off the row this query already joins: a session opened
        -- before the moment somebody asked everybody for a new password is refused on its next
        -- request. One extraction on a row already in hand, which is what makes the enforcement cost
@@ -81,6 +81,14 @@ ORDER BY created_at DESC, id DESC;
 
 -- name: TouchSession :exec
 UPDATE session SET last_seen_at = $2 WHERE id = $1;
+
+-- name: ElevateSession :execrows
+-- Raises one live session of the account to the control plane's scope for a bounded while
+-- (ADR-0070 §4). Bounded to the owner in the same statement that writes, RevokeSession's discipline:
+-- a session that is not the caller's matches nothing rather than being refused after a read.
+UPDATE session SET elevated_until = sqlc.arg('elevated_until')
+WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
+  AND revoked_at IS NULL AND expires_at > sqlc.arg('now');
 
 -- name: ExtendSession :exec
 -- Rotation slides the horizon: the session lives as long as its newest refresh token could.

@@ -4394,6 +4394,36 @@
         }
       }
     },
+    "/auth/sessions:elevate": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "elevateSession",
+        "summary": "Raise this session to the control plane for an hour",
+        "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raised",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionElevation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/sign-in-rules": {
       "get": {
         "tags": [
@@ -5015,6 +5045,141 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/settings": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "readInstanceSettings",
+        "summary": "What this installation has decided for every workspace on it",
+        "description": "The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.\nOnly what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and \"the operator decided nothing here\" is a value the resolver acts on.\nBehind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.\n",
+        "responses": {
+          "200": {
+            "description": "The level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "writeInstanceSettings",
+        "summary": "Replace the installation's level",
+        "description": "A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say \"unset this one\", and being able to say it is the whole point of a level that distinguishes a decision from a default.\nA locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.\nOne journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstanceSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The level as it now stands",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/operators": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listOperators",
+        "summary": "Who operates this installation",
+        "description": "The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\n",
+        "responses": {
+          "200": {
+            "description": "The register",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Operator"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "addOperator",
+        "summary": "Put an account in the register",
+        "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorAdd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "In the register"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/operators/{accountId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "removeOperator",
+        "summary": "Take an account out of the register",
+        "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.\n",
+        "responses": {
+          "204": {
+            "description": "Out of the register"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -11737,6 +11902,24 @@
           }
         }
       },
+      "SessionElevation": {
+        "type": "object",
+        "description": "How long this session carries the control plane's scope.",
+        "required": [
+          "elevated_until",
+          "remaining_seconds"
+        ],
+        "properties": {
+          "elevated_until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remaining_seconds": {
+            "type": "integer",
+            "description": "What is left of the hour. On the screen, because an hour nobody can see the end of is an hour somebody is surprised by.\n"
+          }
+        }
+      },
       "RecoveryCodes": {
         "type": "object",
         "description": "The ten codes, shown once and stored only as hashes.",
@@ -11841,6 +12024,101 @@
             "type": "string",
             "format": "password",
             "description": "The new password, judged against this workspace's rule in full."
+          }
+        }
+      },
+      "InstanceSetting": {
+        "type": "object",
+        "description": "One switch of the installation's level: what it set, and whether a workspace may tighten it.\n",
+        "required": [
+          "value",
+          "locked"
+        ],
+        "properties": {
+          "value": {
+            "description": "The value, of whatever kind the switch is - a number, a flag, a word or a list of words.\n"
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.\n"
+          }
+        }
+      },
+      "InstanceSettings": {
+        "type": "object",
+        "description": "The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.\n",
+        "properties": {
+          "sign_in": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.\n"
+          },
+          "legal": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The four links, by name."
+          },
+          "blocklist_file": {
+            "type": "string",
+            "description": "The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.\n"
+          },
+          "source": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Where the values in force came from - the database, or the path of the file enforcing them.\n"
+          },
+          "is_enforced_from_file": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.\n"
+          }
+        }
+      },
+      "Operator": {
+        "type": "object",
+        "description": "One row of the register: an account of some workspace that operates this installation.\n",
+        "required": [
+          "tenant_id",
+          "account_id",
+          "added_at"
+        ],
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "added_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.\n"
+          }
+        }
+      },
+      "OperatorAdd": {
+        "type": "object",
+        "description": "The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.\n",
+        "required": [
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

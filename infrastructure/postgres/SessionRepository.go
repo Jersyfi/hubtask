@@ -139,6 +139,7 @@ func (r SessionRepository) FindForAuth(
 			HardExpiresAt: timeFrom(row.HardExpiresAt),
 			IdleMinutes:   intFrom(row.IdleMinutes),
 			SignedInWith:  stringFrom(row.SignedInWith),
+			ElevatedUntil: timeFrom(row.ElevatedUntil),
 		},
 		Account: identity.Account{
 			ID:          accountID,
@@ -246,6 +247,36 @@ func (r SessionRepository) ForAccount(
 		})
 	}
 	return sessions, nil
+}
+
+// Elevate raises one live session of the account for a bounded while (ADR-0070 §4).
+func (r SessionRepository) Elevate(
+	ctx context.Context, sessionID, accountID shared.ID, until, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.ElevateSession(ctx, sqlc.ElevateSessionParams{
+		ID: id, AccountID: account,
+		ElevatedUntil: pgtype.Timestamptz{Time: until.UTC(), Valid: true},
+		Now:           pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("elevating the session: %w", err))
+	}
+	return rows > 0, nil
 }
 
 func (r SessionRepository) TouchLastSeen(ctx context.Context, sessionID shared.ID, at time.Time) error {

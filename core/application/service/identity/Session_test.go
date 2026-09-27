@@ -52,13 +52,24 @@ type sessionsStore struct {
 	// row that is not the caller's or already stamped.
 	revokeChanged bool
 	revokedAll    int
+	// elevated records what Elevate was asked for, and elevateChanged is what it reports - a real
+	// statement reports false for a session that is not the caller's or not live.
+	elevated       []elevation
+	elevateChanged bool
+}
+
+type elevation struct {
+	sessionID shared.ID
+	accountID shared.ID
+	until     time.Time
 }
 
 func newSessionsStore() *sessionsStore {
 	return &sessionsStore{
-		sessions:      map[shared.ID]repository.SessionCredential{},
-		extended:      map[shared.ID]time.Time{},
-		revokeChanged: true,
+		sessions:       map[shared.ID]repository.SessionCredential{},
+		extended:       map[shared.ID]time.Time{},
+		revokeChanged:  true,
+		elevateChanged: true,
 	}
 }
 
@@ -77,6 +88,18 @@ func (s *sessionsStore) FindForAuth(_ context.Context, id shared.ID) (repository
 
 func (s *sessionsStore) ForAccount(context.Context, shared.ID, time.Time) ([]domain.Session, error) {
 	return s.listed, nil
+}
+
+// Elevate raises the caller's own session (ADR-0070 §4). The store records the window rather than
+// only a flag, because "how long is left" is what the answer carries.
+func (s *sessionsStore) Elevate(
+	_ context.Context, sessionID, accountID shared.ID, until, _ time.Time,
+) (bool, error) {
+	if !s.elevateChanged {
+		return false, nil
+	}
+	s.elevated = append(s.elevated, elevation{sessionID: sessionID, accountID: accountID, until: until})
+	return true, nil
 }
 
 func (s *sessionsStore) TouchLastSeen(_ context.Context, id shared.ID, _ time.Time) error {

@@ -238,6 +238,35 @@ func (q *Queries) DisableMfa(ctx context.Context, accountID pgtype.UUID) (int64,
 	return result.RowsAffected(), nil
 }
 
+const elevateSession = `-- name: ElevateSession :execrows
+UPDATE session SET elevated_until = $1
+WHERE id = $2 AND account_id = $3
+  AND revoked_at IS NULL AND expires_at > $4
+`
+
+type ElevateSessionParams struct {
+	ElevatedUntil pgtype.Timestamptz
+	ID            pgtype.UUID
+	AccountID     pgtype.UUID
+	Now           pgtype.Timestamptz
+}
+
+// Raises one live session of the account to the control plane's scope for a bounded while
+// (ADR-0070 §4). Bounded to the owner in the same statement that writes, RevokeSession's discipline:
+// a session that is not the caller's matches nothing rather than being refused after a read.
+func (q *Queries) ElevateSession(ctx context.Context, arg ElevateSessionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, elevateSession,
+		arg.ElevatedUntil,
+		arg.ID,
+		arg.AccountID,
+		arg.Now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const extendSession = `-- name: ExtendSession :exec
 UPDATE session SET expires_at = $1 WHERE id = $2
 `
@@ -560,7 +589,7 @@ func (q *Queries) FindRefreshTokenByHash(ctx context.Context, tokenHash []byte) 
 const findSessionForAuth = `-- name: FindSessionForAuth :one
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
-       s.hard_expires_at, s.idle_minutes, s.signed_in_with,
+       s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.elevated_until,
        -- The rotation cutoff (ADR-0068 §3), off the row this query already joins: a session opened
        -- before the moment somebody asked everybody for a new password is refused on its next
        -- request. One extraction on a row already in hand, which is what makes the enforcement cost
@@ -596,6 +625,7 @@ type FindSessionForAuthRow struct {
 	HardExpiresAt      pgtype.Timestamptz
 	IdleMinutes        *int32
 	SignedInWith       *string
+	ElevatedUntil      pgtype.Timestamptz
 	RotationFrom       interface{}
 	GrantClientID      pgtype.UUID
 	AccountKind        AccountKind
@@ -629,6 +659,7 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.HardExpiresAt,
 		&i.IdleMinutes,
 		&i.SignedInWith,
+		&i.ElevatedUntil,
 		&i.RotationFrom,
 		&i.GrantClientID,
 		&i.AccountKind,

@@ -1092,6 +1092,13 @@ type OidcFlow struct {
 	ConsumedAt   pgtype.Timestamptz
 }
 
+type Operator struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	AddedAt   pgtype.Timestamptz
+	AddedBy   pgtype.UUID
+}
+
 type OutboxEvent struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID
@@ -1297,6 +1304,7 @@ type Session struct {
 	SignedInWith     *string
 	HardExpiresAt    pgtype.Timestamptz
 	IdleMinutes      *int32
+	ElevatedUntil    pgtype.Timestamptz
 }
 
 type SessionRefreshToken struct {

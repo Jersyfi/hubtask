@@ -484,6 +484,9 @@ func run() error {
 		KnownScopes: catalogue.Scopes(),
 		StepUp:      identity.StepUpVerifier{Writer: sessionWriter},
 		Text:        forms,
+		// The register bounds the control plane's scope where it is minted (ADR-0070 §1); the
+		// other end of the same bound is in AuthenticateToken, where it is exercised.
+		Operators: postgres.NewOperatorRepository(),
 	}
 
 	// The service accounts share theirs for the same reason: creating one and listing them are
@@ -1070,6 +1073,16 @@ func run() error {
 		Authorizer: authorizer,
 	}
 
+	// The operator register and the installation's own settings (ADR-0070 §1, §2). Built here
+	// because the register is also what bounds the control-plane scope at both of its ends - the
+	// mint and the exercise - and both of those are wired above.
+	operators := postgres.NewOperatorRepository()
+	instanceWriter := adminservice.InstanceWriter{
+		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
+		Journal:    postgres.NewInstanceJournal(),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
 	// the history and the trail have one place each. The blocklist and the breach corpus are both
 	// nil on a plain installation - the operator's file arrives with the instance layer, and the
@@ -1169,6 +1182,11 @@ func run() error {
 		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
+		identity.ElevateSession{
+			Writer: sessionWriter, Operators: operators,
+			Journal: postgres.NewInstanceJournal(), UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
 			Providers:  postgres.NewIdentityProviderRepository(),
@@ -1693,10 +1711,17 @@ func run() error {
 			Jobs: jobRecords, Authorizer: authorizer, Audit: auditSink,
 			Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The level above the workspaces (ADR-0070). One API, and `hubctl admin`, the instance
+		// dashboard and the file an operator checks into a repository are three clients of it.
+		adminservice.ReadInstanceSettings{Writer: instanceWriter}.Descriptor(),
+		adminservice.WriteInstanceSettings{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListOperators{Writer: instanceWriter}.Descriptor(),
+		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
+		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
 		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
-		// session (decision 6) - and its authorisation is the scope alone, checked in the
-		// application layer: the operator is deliberately not a member of the tenants they
-		// administer.
+		// session (decision 6) - and its authorisation is the scope **and** the operator register
+		// since ADR-0070 §1: the scope says what a credential may reach and the register says whose
+		// credential it may be, and either alone is a hole.
 		adminservice.ProvisionTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
@@ -1998,6 +2023,10 @@ func run() error {
 			Sessions:      sessions,
 			Signer:        sessionSigner,
 			SessionScopes: catalogue.SessionScopes(),
+			// The other end of the control plane's bound (ADR-0070 §1): a credential that names
+			// `admin:tenants` loses it when the register does not name its holder, so a token
+			// minted last month by somebody since removed stops reaching the control plane.
+			Operators: postgres.NewOperatorRepository(),
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per

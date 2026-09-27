@@ -102,6 +102,26 @@ type Session struct {
 	// a session opened before the column existed - which is not "unknown method" so much as
 	// "before this was recorded", and the list says so by leaving the line out.
 	SignedInWith string
+	// ElevatedUntil is when this session stops carrying the control plane's scope (ADR-0070 §4).
+	// Zero is "not elevated", which is what a session is for all but an hour of its life.
+	ElevatedUntil time.Time
+}
+
+// ElevationLifetime is how long a raised session stays raised. An hour: long enough to do the work
+// an operator signed in to do, short enough that a tab left open is not a standing door. It does
+// not slide - activity extends a session's own horizon and never this - and a second hour needs a
+// second proof (ADR-0070 §4).
+const ElevationLifetime = time.Hour
+
+// IsElevated reports whether this session carries the control plane's scope at this moment.
+func (s Session) IsElevated(now time.Time) bool {
+	return !s.ElevatedUntil.IsZero() && now.Before(s.ElevatedUntil)
+}
+
+// Elevated answers the session raised from this moment.
+func (s Session) Elevated(now time.Time) Session {
+	s.ElevatedUntil = now.Add(ElevationLifetime).UTC()
+	return s
 }
 
 // The ways a session can be opened, as the contract's closed set (ADR-0068 §3, SI-08).

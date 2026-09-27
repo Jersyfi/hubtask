@@ -388,6 +388,11 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
 
+class SessionElevation(TypedDict, total=False):
+    """How long this session carries the control plane's scope."""
+    elevated_until: Required[str]
+    remaining_seconds: Required[int]
+
 class RecoveryCodes(TypedDict, total=False):
     """The ten codes, shown once and stored only as hashes."""
     recovery_codes: Required[list[str]]
@@ -413,6 +418,30 @@ class PasswordCheckResult(TypedDict, total=False):
 class SignInPasswordChange(TypedDict, total=False):
     pending_token: Required[str]
     password: Required[str]
+
+class InstanceSetting(TypedDict, total=False):
+    """One switch of the installation's level: what it set, and whether a workspace may tighten it."""
+    value: Required[Any]
+    locked: Required[bool]
+
+class InstanceSettings(TypedDict, total=False):
+    """The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about."""
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    blocklist_file: str
+    source: str
+    is_enforced_from_file: bool
+
+class Operator(TypedDict, total=False):
+    """One row of the register: an account of some workspace that operates this installation."""
+    tenant_id: Required[str]
+    account_id: Required[str]
+    added_at: Required[str]
+    added_by: str | None
+
+class OperatorAdd(TypedDict, total=False):
+    """The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong."""
+    account_id: Required[str]
 
 class PasswordForgot(TypedDict, total=False):
     email: Required[str]

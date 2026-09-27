@@ -643,9 +643,9 @@ func (e EffectivePolicy) Tightened(patch PolicyPatch) (SignInPolicy, []FieldChan
 		if err := Tighten(name, e.Policy, patch); err != nil {
 			return SignInPolicy{}, nil, err
 		}
-		before := switchText(result, name)
+		before := SwitchText(result, name)
 		result = applySwitch(result, name, patch)
-		if after := switchText(result, name); after != before {
+		if after := SwitchText(result, name); after != before {
 			moved[string(name)] = FieldChange{Field: string(name), From: before, To: after}
 		}
 	}
@@ -653,9 +653,10 @@ func (e EffectivePolicy) Tightened(patch PolicyPatch) (SignInPolicy, []FieldChan
 	return bounded(result), sortedChanges(moved), nil
 }
 
-// switchText is a switch's value as the audit trail spells it: a field name and a value, never a
-// sentence (ADR-0011).
-func switchText(policy SignInPolicy, name PolicySwitch) string {
+// SwitchText is a switch's value as a trail spells it: a field name and a value, never a sentence
+// (ADR-0011). Exported because the instance layer's journal names what moved and has to compare two
+// levels to find out, and a second spelling of a switch's value would be a second thing to get wrong.
+func SwitchText(policy SignInPolicy, name PolicySwitch) string {
 	switch name {
 	case SwitchMinLength:
 		return itoa(policy.Password.MinLength)

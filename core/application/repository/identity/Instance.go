@@ -52,3 +52,41 @@ type InstanceSettings interface {
 	// has no way to say "unset this one".
 	Write(ctx context.Context, level InstanceLevel, by shared.ID, at time.Time) error
 }
+
+// Operator is one row of the register (ADR-0070 §1): an account of some workspace that operates
+// this installation, and who put it there.
+type Operator struct {
+	TenantID  shared.ID
+	AccountID shared.ID
+	AddedAt   time.Time
+	AddedBy   shared.ID
+}
+
+// Operators is the register. Every method goes through a narrow function rather than at the table:
+// `operator` carries no row-level policy *and* no grant to the application role, because its rows
+// name accounts across workspaces - a policy-free table the application role could read would let
+// every workspace enumerate the installation's operators.
+type Operators interface {
+	// Holds reports whether this account operates the installation. **An empty register answers
+	// true**, which is the private installation: nothing was configured, and the owner is the
+	// operator exactly as they were before the register existed.
+	//
+	// The account alone, here and in Add: the workspace is on the row and the function reads it
+	// from the account, so no caller holds a pair that could disagree - and no method here takes a
+	// tenant, which rule 3 does not permit and this register does not need.
+	Holds(ctx context.Context, accountID shared.ID) (bool, error)
+
+	// List answers the whole register, for the control plane's own screen.
+	List(ctx context.Context) ([]Operator, error)
+
+	// Add puts an account in. False means it was already there **or** that no such account exists:
+	// the first is not an error - a caller asking for somebody to be an operator got what they
+	// asked for - and the second is, which the caller tells apart by reading the register.
+	Add(ctx context.Context, accountID, by shared.ID) (bool, error)
+
+	// Remove takes one out, by account alone: an identifier is unique across the installation, and
+	// a caller that had to name the workspace too would have to read the register to find out which
+	// one it is. False means it was not there, **or** that it is the last one - the register may not
+	// be emptied, and which of the two applies is answered by reading the list.
+	Remove(ctx context.Context, accountID shared.ID) (bool, error)
+}

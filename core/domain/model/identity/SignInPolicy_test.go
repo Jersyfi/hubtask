@@ -324,12 +324,12 @@ func TestEverySwitchIsAddressable(t *testing.T) {
 
 	resolved := Effective(PolicyLayer{Patch: whole}, PolicyLayer{}, PolicyLayer{})
 	for _, name := range PolicySwitches() {
-		if switchText(resolved.Policy, name) == "" && name != SwitchRotationFrom {
+		if SwitchText(resolved.Policy, name) == "" && name != SwitchRotationFrom {
 			t.Errorf("%s has no spelling for the audit trail", name)
 		}
 	}
-	if switchText(resolved.Policy, SwitchRotationFrom) != moment.Format(time.RFC3339) {
-		t.Errorf("the rotation reads %q", switchText(resolved.Policy, SwitchRotationFrom))
+	if SwitchText(resolved.Policy, SwitchRotationFrom) != moment.Format(time.RFC3339) {
+		t.Errorf("the rotation reads %q", SwitchText(resolved.Policy, SwitchRotationFrom))
 	}
 }
 

@@ -195,6 +195,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.ResetPassword{}.Descriptor(),
 		identity.SetPasswordAndSignIn{}.Descriptor(),
 		identity.RegenerateRecoveryCodes{}.Descriptor(),
+		identity.ElevateSession{}.Descriptor(),
 		identity.SignIn{}.Descriptor(),
 		identity.RefreshSession{}.Descriptor(),
 		identity.ListSessions{}.Descriptor(),
@@ -274,6 +275,11 @@ func Descriptors() []usecase.Descriptor {
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
 		jumbleservice.SuggestFromJumbleEntry{}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{}.Descriptor(),
+		adminservice.ReadInstanceSettings{}.Descriptor(),
+		adminservice.WriteInstanceSettings{}.Descriptor(),
+		adminservice.ListOperators{}.Descriptor(),
+		adminservice.AddOperator{}.Descriptor(),
+		adminservice.RemoveOperator{}.Descriptor(),
 		adminservice.ProvisionTenant{}.Descriptor(),
 		adminservice.ListTenants{}.Descriptor(),
 		adminservice.SuspendTenant{}.Descriptor(),
@@ -363,6 +369,15 @@ func AutomationActionSummaries() map[string]string {
 // the control plane's. A session is the person themselves - but the admin surface is entered by
 // a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0
 // decision 6), so the one scope class sessions never carry is `admin:*`.
+//
+// **One exception, added by ADR-0070 §4 and written here rather than left to be discovered.** A
+// session *raised* by a registered operator who has just passed a step-up carries `admin:tenants`
+// for an hour - which is not this function's doing: it still answers every scope but the control
+// plane's, and `AuthenticateToken.elevatedScopes` adds the one back for exactly that hour, for
+// exactly that session, and only while the register still names its holder. The rule is therefore
+// weakened to *only for a registered operator, only after a fresh proof, only for an hour, only on
+// the session that proved it, and written down*, and what it buys is that nobody has to mint a
+// long-lived all-powerful token and paste it into a browser to change a switch.
 func SessionScopes() []string {
 	scopes := make([]string, 0, len(Scopes()))
 	for _, scope := range Scopes() {

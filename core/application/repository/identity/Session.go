@@ -115,6 +115,11 @@ type Sessions interface {
 
 	// RevokeAll ends every live session of the account and reports how many.
 	RevokeAll(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+
+	// Elevate raises one live session of the account to the control plane's scope until the given
+	// moment (ADR-0070 §4). False means the session is not the account's, or not live - which is
+	// the same indistinguishable answer Revoke gives, for the same reason.
+	Elevate(ctx context.Context, sessionID, accountID shared.ID, until, now time.Time) (bool, error)
 }
 
 // RefreshTokens maintains the rotating chain. The presented token is passed whole rather than

@@ -674,6 +674,11 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:set-password", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Raise this session to the control plane for an hour */
+  elevateSession(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["elevateSession"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:elevate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What a sign-in screen may know before anybody has signed in
    * Public: sent without a bearer where the client holds none. */
   getSignInRules(options: CallOptions = {}): Promise<operations["getSignInRules"]['responses'][200]['content']["application/json"]> {
@@ -772,6 +777,31 @@ export class HubtaskClient {
   /** Export a workspace whole */
   exportTenant(tenantId: string, body: NonNullable<operations["exportTenant"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportTenant"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** What this installation has decided for every workspace on it */
+  readInstanceSettings(options: CallOptions = {}): Promise<operations["readInstanceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace the installation's level */
+  writeInstanceSettings(body: NonNullable<operations["writeInstanceSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["writeInstanceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/settings", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Who operates this installation */
+  listOperators(options: CallOptions = {}): Promise<operations["listOperators"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/operators", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Put an account in the register */
+  addOperator(body: NonNullable<operations["addOperator"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/admin/operators", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** Take an account out of the register */
+  removeOperator(accountId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/operators/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** The keyring, and what still names each key */

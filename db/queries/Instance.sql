@@ -31,3 +31,22 @@ ON CONFLICT (key) DO UPDATE
 DELETE FROM instance_setting
 WHERE split_part(key, '.', 1) = ANY(sqlc.arg('areas')::text[])
   AND NOT (key = ANY(sqlc.arg('kept')::text[]));
+
+-- name: IsOperator :one
+-- The register's check, asked when `admin:tenants` is minted and when it is exercised (ADR-0070 §1).
+-- Through the function rather than against the table: `operator` carries no policy and no grant, so
+-- the four narrow doors are the only way to it.
+SELECT is_operator(sqlc.arg('account_id'));
+
+-- name: OperatorRegister :many
+-- The listing, for the control plane's own screen.
+SELECT * FROM operator_register();
+
+-- name: AddOperator :one
+-- The workspace comes from the account rather than from the caller: false is "no such account", and
+-- a pair that could disagree would be a pair somebody eventually gets wrong.
+SELECT add_operator(sqlc.arg('account_id'), sqlc.narg('added_by'));
+
+-- name: DropOperator :one
+-- False where the register would have been emptied: the last operator cannot remove themselves.
+SELECT drop_operator(sqlc.arg('account_id'));

@@ -289,6 +289,11 @@ CREATE TABLE session (
   -- `rotation_from` exists to fix in one write.
   hard_expires_at timestamptz,
   idle_minutes    integer,
+  -- The elevated session (ADR-0070 §4, migration 0102): until when this session carries the control
+  -- plane's scope. On the session rather than in a table of its own, which is the whole design - the
+  -- elevation ends with the session because it is a column of it. NULL is "not elevated", which is
+  -- what every row means again an hour later.
+  elevated_until  timestamptz,
   -- How this session was opened (ADR-0068 §3, migration 0098): PASSWORD, PASSWORD_TOTP,
   -- PASSWORD_RECOVERY, OIDC, INVITATION, RESET - and PASSKEY when there is one. Answered in the
   -- session list, so that a person reading their own sessions can tell them apart. NULL is a
@@ -2345,6 +2350,26 @@ $$;
 REVOKE ALL ON FUNCTION subject_tenants(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION subject_tenants(text) TO hubtask_app;
 
+-- ============ Who operates this installation (ADR-0070 §1) ==================
+-- Checked when `admin:tenants` is minted and when it is exercised - either alone is a hole. An
+-- empty register is the private installation: nothing configured, and the owner is the operator
+-- exactly as they were before this table existed.
+--
+-- No row-level policy, and no grant to the application role either. The rows name accounts, so
+-- unlike instance_setting this table *is* a person's data, and a policy-free table hubtask_app
+-- could read would let every workspace enumerate the installation's operators. It is reachable only
+-- through the four functions below - resolve_tenant's discipline applied to a table. See
+-- db/migrations/0101_operator_register.sql for the whole reasoning.
+CREATE TABLE operator (
+  tenant_id  uuid NOT NULL,
+  account_id uuid NOT NULL,
+  added_at   timestamptz NOT NULL DEFAULT now(),
+  added_by   uuid,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT operator_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
 -- ============ The instance's own settings (ADR-0070 §2) =====================
 -- A value that applies to every workspace, and that a workspace may not change. Deliberately
 -- without a row-level-security policy (the job table's precedent, and instance_event's below):
@@ -2390,6 +2415,65 @@ CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
 REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
 GRANT SELECT, INSERT ON instance_event TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
+
+-- The operator register's four doors (migration 0101). SECURITY DEFINER for resolve_tenant's
+-- reason: reading a table that belongs to no tenant is the owner's right and the application role
+-- does not hold it. Narrow by construction - a boolean, a listing the control plane alone reaches,
+-- and two writes that keep the register's one invariant in the statement rather than in a read.
+CREATE OR REPLACE FUNCTION is_operator(p_account uuid) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT
+    -- An empty register is the private installation: nothing was configured, and the owner is the
+    -- operator exactly as they were before this table existed.
+    NOT EXISTS (SELECT 1 FROM operator)
+    OR EXISTS (SELECT 1 FROM operator WHERE account_id = p_account)
+$$;
+
+CREATE OR REPLACE FUNCTION operator_register() RETURNS SETOF operator
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT o.* FROM operator o ORDER BY o.added_at, o.account_id
+$$;
+
+CREATE OR REPLACE FUNCTION add_operator(p_account uuid, p_by uuid) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE added integer;
+BEGIN
+  -- The workspace comes from the account rather than from the caller: a pair that could disagree
+  -- would be a pair somebody eventually gets wrong, and this function can read what the application
+  -- role cannot. An account nobody holds inserts nothing, which the caller reads as "no such
+  -- account".
+  INSERT INTO operator (tenant_id, account_id, added_by)
+  SELECT a.tenant_id, a.id, p_by
+  FROM account a
+  WHERE a.id = p_account AND a.deleted_at IS NULL
+  ON CONFLICT (tenant_id, account_id) DO NOTHING;
+  GET DIAGNOSTICS added = ROW_COUNT;
+  RETURN added > 0;
+END $$;
+
+-- The last operator cannot remove themselves. In the statement, because two operators removing
+-- each other at the same moment would both read "there are two".
+CREATE OR REPLACE FUNCTION drop_operator(p_account uuid) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE removed boolean;
+BEGIN
+  -- The account alone: an identifier is unique across the installation, and a caller that had to
+  -- name the workspace too would have to read the register first to find out which one it is.
+  DELETE FROM operator
+  WHERE account_id = p_account
+    AND (SELECT count(*) FROM operator) > 1;
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed;
+END $$;
+
+REVOKE ALL ON FUNCTION is_operator(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION operator_register() FROM PUBLIC;
+REVOKE ALL ON FUNCTION add_operator(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION drop_operator(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION is_operator(uuid) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION operator_register() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION add_operator(uuid, uuid) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION drop_operator(uuid) TO hubtask_app;
 
 -- ============ Tenant resolution before a credential exists (H-01) ==========
 -- Sign-in needs a tenant before it can check a password (0.6.0 decision 3). One identifier or

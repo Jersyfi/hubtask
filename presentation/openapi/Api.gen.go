@@ -5187,6 +5187,33 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.
+type InstanceSetting struct {
+	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
+	Locked bool `json:"locked"`
+
+	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words.
+	Value interface{} `json:"value"`
+}
+
+// InstanceSettings The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.
+type InstanceSettings struct {
+	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
+	BlocklistFile *string `json:"blocklist_file,omitempty"`
+
+	// IsEnforcedFromFile Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.
+	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
+
+	// Legal The four links, by name.
+	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+
+	// Source Where the values in force came from - the database, or the path of the file enforcing them.
+	Source *string `json:"source,omitempty"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the policy of security.md §5.
@@ -5830,6 +5857,21 @@ type OidcCallback struct {
 type OidcStart struct {
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
 	LoginHint *string `json:"login_hint,omitempty"`
+}
+
+// Operator One row of the register: an account of some workspace that operates this installation.
+type Operator struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	AddedAt   time.Time          `json:"added_at"`
+
+	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
+	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
+	TenantId openapi_types.UUID  `json:"tenant_id"`
+}
+
+// OperatorAdd The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
+type OperatorAdd struct {
+	AccountId openapi_types.UUID `json:"account_id"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -6770,6 +6812,14 @@ type Session struct {
 
 // SessionSignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
 type SessionSignedInWith string
+
+// SessionElevation How long this session carries the control plane's scope.
+type SessionElevation struct {
+	ElevatedUntil time.Time `json:"elevated_until"`
+
+	// RemainingSeconds What is left of the hour. On the screen, because an hour nobody can see the end of is an hour somebody is surprised by.
+	RemainingSeconds int `json:"remaining_seconds"`
+}
 
 // SessionPolicySettings The two bounds a session answers to beside its own expiry.
 type SessionPolicySettings struct {
@@ -7993,6 +8043,12 @@ type CreateServiceAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ElevateSessionParams defines parameters for ElevateSession.
+type ElevateSessionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListAccessTokensParams defines parameters for ListAccessTokens.
 type ListAccessTokensParams struct {
 	// AccountId Whose tokens. Omitted means the caller's own. Naming a service account answers its tokens and needs the member management permission; naming another person is refused, whatever the role.
@@ -8866,6 +8922,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
+type AddOperatorJSONRequestBody = OperatorAdd
+
+// WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
+type WriteInstanceSettingsJSONRequestBody = InstanceSettings
+
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
@@ -9219,6 +9281,21 @@ type ServerInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	// (POST /admin/encryption:reseal)
 	ResealSecrets(w http.ResponseWriter, r *http.Request)
+	// ListOperators Who operates this installation
+	// (GET /admin/operators)
+	ListOperators(w http.ResponseWriter, r *http.Request)
+	// AddOperator Put an account in the register
+	// (POST /admin/operators)
+	AddOperator(w http.ResponseWriter, r *http.Request)
+	// RemoveOperator Take an account out of the register
+	// (DELETE /admin/operators/{accountId})
+	RemoveOperator(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ReadInstanceSettings What this installation has decided for every workspace on it
+	// (GET /admin/settings)
+	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
+	// WriteInstanceSettings Replace the installation's level
+	// (PUT /admin/settings)
+	WriteInstanceSettings(w http.ResponseWriter, r *http.Request)
 	// ListTenants The installation's workspaces
 	// (GET /admin/tenants)
 	ListTenants(w http.ResponseWriter, r *http.Request)
@@ -9312,6 +9389,9 @@ type ServerInterface interface {
 	// RevokeSession End one session
 	// (DELETE /auth/sessions/{sessionId})
 	RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// ElevateSession Raise this session to the control plane for an hour
+	// (POST /auth/sessions:elevate)
+	ElevateSession(w http.ResponseWriter, r *http.Request, params ElevateSessionParams)
 	// RefreshSession Exchange a refresh token for the next pair
 	// (POST /auth/sessions:refresh)
 	RefreshSession(w http.ResponseWriter, r *http.Request)
@@ -10184,6 +10264,88 @@ func (siw *ServerInterfaceWrapper) ResealSecrets(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListOperators operation middleware
+func (siw *ServerInterfaceWrapper) ListOperators(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOperators(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddOperator operation middleware
+func (siw *ServerInterfaceWrapper) AddOperator(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddOperator(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveOperator operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOperator(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOperator(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadInstanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadInstanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WriteInstanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WriteInstanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTenants operation middleware
 func (siw *ServerInterfaceWrapper) ListTenants(w http.ResponseWriter, r *http.Request) {
 
@@ -10963,6 +11125,47 @@ func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ElevateSession operation middleware
+func (siw *ServerInterfaceWrapper) ElevateSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ElevateSessionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ElevateSession(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -19289,6 +19492,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:set-password", wrapper.SetPasswordAndSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:elevate", wrapper.ElevateSession)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
@@ -19308,6 +19512,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/encryption", wrapper.ReadEncryptionStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
