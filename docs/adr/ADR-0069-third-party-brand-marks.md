@@ -1,6 +1,6 @@
 # ADR-0069 — A third-party brand mark is content, and the button stays ours
 
-**Status:** proposed · **Date:** 2026-09-26
+**Status:** accepted · **Date:** 2026-09-26
 
 ## Context
 

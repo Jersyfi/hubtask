@@ -52,6 +52,11 @@ type AuthenticateToken struct {
 	// declares, because a session is the person themselves rather than a bounded credential.
 	// Passed in from the catalogue for AccessTokenWriter.KnownScopes' reason.
 	SessionScopes []string
+	// Operators is the register of ADR-0070 §1, checked here as the second of its two places: a
+	// credential that names the control plane's scope loses it when the register does not name its
+	// holder. Nil is an installation wired before the register, where the scope alone is the whole
+	// of the check - which is what this path did until the register existed.
+	Operators repository.Operators
 }
 
 // AuthenticateTokenCommand carries the presented credential and the preferences resolved from the
@@ -138,7 +143,7 @@ func (a AuthenticateToken) Execute(
 			AccountID:          credential.Account.ID,
 			AccountName:        credential.Account.DisplayName,
 			TokenID:            credential.Token.ID,
-			Scopes:             credential.Token.Scopes,
+			Scopes:             a.boundedScopes(ctx, credential.Account.ID, credential.Token.Scopes),
 			Locale: firstNonEmpty(
 				credential.Account.Locale, cmd.RequestedLocale,
 				credential.TenantLocale, cmd.FallbackLocale),
@@ -190,6 +195,13 @@ func (a AuthenticateToken) executeSession(
 		if err := credential.Session.Verify(now); err != nil {
 			return err
 		}
+		// The third comparison of ADR-0068 §3, beside the session's own two: a session opened
+		// before the workspace asked everybody for a new password is over. Here rather than in
+		// Session.Verify because the cutoff is the workspace's rather than the session's, and a
+		// method that took it as a parameter is the honest shape for that.
+		if err := credential.Session.VerifyAgainstRotation(credential.RotationFrom); err != nil {
+			return err
+		}
 		if err := credential.Account.Verify(); err != nil {
 			return err
 		}
@@ -212,6 +224,8 @@ func (a AuthenticateToken) executeSession(
 		scopes := a.SessionScopes
 		if credential.Session.Scopes != nil {
 			scopes = credential.Session.Scopes
+		} else {
+			scopes = a.elevatedScopes(ctx, credential.Session, now, scopes)
 		}
 		actor = appshared.ActorContext{
 			Kind:               actorKind(credential.Account.Kind),
@@ -238,6 +252,89 @@ func (a AuthenticateToken) executeSession(
 		return appshared.ActorContext{}, err
 	}
 	return actor, nil
+}
+
+// elevatedScopes is the other half of ADR-0070 §4: for the hour a raised session lasts, and only
+// while the register still names its holder, the person's own scopes gain the control plane's.
+//
+// The register is read again here rather than trusted from the elevation, and that is the point: an
+// operator removed while a raised session is open loses the scope on their next request rather than
+// at the end of the hour. A grant session is never raised - it is an app acting for somebody, and
+// the elevation is a person proving themselves afresh.
+func (a AuthenticateToken) elevatedScopes(
+	ctx context.Context, session identity.Session, now time.Time, scopes []string,
+) []string {
+	if a.Operators == nil || !session.IsElevated(now) {
+		return scopes
+	}
+
+	// In the transaction the credential read already opened, and deliberately not in one of its
+	// own: a nested scope with no tenant would be a tenant switch mid-transaction, which this port
+	// refuses outright (`postgres.tenant_switch_in_transaction`). The register is reachable from
+	// here all the same, because `is_operator` is the narrow function that reads it rather than a
+	// query against the table.
+	held, err := a.Operators.Holds(ctx, session.AccountID)
+	if err != nil || !held {
+		// A register that cannot be read leaves the session where it was: the elevation is the
+		// widening, and a widening on a failed read is the one direction that cannot be taken back.
+		return scopes
+	}
+
+	raised := make([]string, 0, len(scopes)+1)
+	raised = append(raised, scopes...)
+	for _, scope := range raised {
+		if adminScopes[scope] {
+			return raised
+		}
+	}
+	for scope := range adminScopes {
+		raised = append(raised, scope)
+	}
+	return raised
+}
+
+// boundedScopes is the register's second check (ADR-0070 §1): the control plane's scope is dropped
+// from a credential whose holder the register does not name.
+//
+// Dropped rather than refused, because a scope is a bound and not a grant (ADR-0005): the token goes
+// on doing everything else it names, and the admin routes refuse it with the ordinary scope refusal
+// - which is the same answer they would give a token that never asked for it.
+//
+// Checked here and again where the scope is *minted*, because either alone is a hole: minting alone
+// would leave a token that outlived its holder's removal from the register, and exercising alone
+// would leave the mint unbounded.
+func (a AuthenticateToken) boundedScopes(
+	ctx context.Context, accountID shared.ID, scopes []string,
+) []string {
+	if a.Operators == nil {
+		return scopes
+	}
+	carriesAdmin := false
+	for _, scope := range scopes {
+		if adminScopes[scope] {
+			carriesAdmin = true
+			break
+		}
+	}
+	if !carriesAdmin {
+		return scopes
+	}
+
+	// In the credential read's own transaction, elevatedScopes' reasoning.
+	held, err := a.Operators.Holds(ctx, accountID)
+	if err != nil || held {
+		// A register that cannot be read leaves the bound where it was rather than widening or
+		// narrowing it on a guess. The mint's own check is what keeps that honest.
+		return scopes
+	}
+
+	kept := make([]string, 0, len(scopes))
+	for _, scope := range scopes {
+		if !adminScopes[scope] {
+			kept = append(kept, scope)
+		}
+	}
+	return kept
 }
 
 // actorKind maps the account kind to the actor kind of the audit trail. An unknown kind becomes a

@@ -1883,15 +1883,18 @@ func (e MembershipScope) Valid() bool {
 
 // Defines values for MfaChallengeMethods.
 const (
-	MfaChallengeMethodsENROLL   MfaChallengeMethods = "ENROLL"
-	MfaChallengeMethodsRECOVERY MfaChallengeMethods = "RECOVERY"
-	MfaChallengeMethodsTOTP     MfaChallengeMethods = "TOTP"
+	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
+	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
+	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
+	MfaChallengeMethodsTOTP           MfaChallengeMethods = "TOTP"
 )
 
 // Valid indicates whether the value is a known member of the MfaChallengeMethods enum.
 func (e MfaChallengeMethods) Valid() bool {
 	switch e {
 	case MfaChallengeMethodsENROLL:
+		return true
+	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
 	case MfaChallengeMethodsRECOVERY:
 		return true
@@ -1932,6 +1935,27 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for PolicyLock.
+const (
+	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
+	PolicyLockLessThannil PolicyLock = "<nil>"
+	PolicyLockPLAN        PolicyLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the PolicyLock enum.
+func (e PolicyLock) Valid() bool {
+	switch e {
+	case PolicyLockINSTANCE:
+		return true
+	case PolicyLockLessThannil:
+		return true
+	case PolicyLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -1944,6 +1968,24 @@ func (e ProcessingStateStatus) Valid() bool {
 	case ProcessingStateStatusACTIVE:
 		return true
 	case ProcessingStateStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProviderSummaryScope.
+const (
+	ProviderSummaryScopeInstallation ProviderSummaryScope = "installation"
+	ProviderSummaryScopeWorkspace    ProviderSummaryScope = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the ProviderSummaryScope enum.
+func (e ProviderSummaryScope) Valid() bool {
+	switch e {
+	case ProviderSummaryScopeInstallation:
+		return true
+	case ProviderSummaryScopeWorkspace:
 		return true
 	default:
 		return false
@@ -2769,6 +2811,39 @@ func (e SearchMode) Valid() bool {
 	}
 }
 
+// Defines values for SessionSignedInWith.
+const (
+	SessionSignedInWithINVITATION       SessionSignedInWith = "INVITATION"
+	SessionSignedInWithLessThannil      SessionSignedInWith = "<nil>"
+	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
+	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
+	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
+	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
+	SessionSignedInWithRESET            SessionSignedInWith = "RESET"
+)
+
+// Valid indicates whether the value is a known member of the SessionSignedInWith enum.
+func (e SessionSignedInWith) Valid() bool {
+	switch e {
+	case SessionSignedInWithINVITATION:
+		return true
+	case SessionSignedInWithLessThannil:
+		return true
+	case SessionSignedInWithOIDC:
+		return true
+	case SessionSignedInWithPASSWORD:
+		return true
+	case SessionSignedInWithPASSWORDRECOVERY:
+		return true
+	case SessionSignedInWithPASSWORDTOTP:
+		return true
+	case SessionSignedInWithRESET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionTokensTokenType.
 const (
 	Bearer SessionTokensTokenType = "Bearer"
@@ -2778,6 +2853,60 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInMethod.
+const (
+	SignInMethodOIDC     SignInMethod = "OIDC"
+	SignInMethodPASSWORD SignInMethod = "PASSWORD"
+)
+
+// Valid indicates whether the value is a known member of the SignInMethod enum.
+func (e SignInMethod) Valid() bool {
+	switch e {
+	case SignInMethodOIDC:
+		return true
+	case SignInMethodPASSWORD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInPolicyChangeMfaRequiredFor.
+const (
+	SignInPolicyChangeMfaRequiredForADMINS   SignInPolicyChangeMfaRequiredFor = "ADMINS"
+	SignInPolicyChangeMfaRequiredForEVERYONE SignInPolicyChangeMfaRequiredFor = "EVERYONE"
+	SignInPolicyChangeMfaRequiredForNONE     SignInPolicyChangeMfaRequiredFor = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SignInPolicyChangeMfaRequiredFor enum.
+func (e SignInPolicyChangeMfaRequiredFor) Valid() bool {
+	switch e {
+	case SignInPolicyChangeMfaRequiredForADMINS:
+		return true
+	case SignInPolicyChangeMfaRequiredForEVERYONE:
+		return true
+	case SignInPolicyChangeMfaRequiredForNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInPolicyChangeRotationFrom.
+const (
+	Now SignInPolicyChangeRotationFrom = "now"
+)
+
+// Valid indicates whether the value is a known member of the SignInPolicyChangeRotationFrom enum.
+func (e SignInPolicyChangeRotationFrom) Valid() bool {
+	switch e {
+	case Now:
 		return true
 	default:
 		return false
@@ -3449,12 +3578,20 @@ type Account struct {
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
-	Id           openapi_types.UUID   `json:"id"`
-	Kind         AccountKind          `json:"kind"`
-	Locale       *string              `json:"locale,omitempty"`
+
+	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
+	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
+	Id              openapi_types.UUID `json:"id"`
+	Kind            AccountKind        `json:"kind"`
+	Locale          *string            `json:"locale,omitempty"`
 
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
+	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
 
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
@@ -5054,6 +5191,33 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.
+type InstanceSetting struct {
+	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
+	Locked bool `json:"locked"`
+
+	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words.
+	Value interface{} `json:"value"`
+}
+
+// InstanceSettings The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.
+type InstanceSettings struct {
+	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
+	BlocklistFile *string `json:"blocklist_file,omitempty"`
+
+	// IsEnforcedFromFile Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.
+	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
+
+	// Legal The four links, by name.
+	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+
+	// Source Where the values in force came from - the database, or the path of the file enforcing them.
+	Source *string `json:"source,omitempty"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the policy of security.md §5.
@@ -5387,6 +5551,22 @@ type LegalHoldRelease struct {
 	Reason string `json:"reason"`
 }
 
+// LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+type LegalLinks struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	ImprintUrl       *string `json:"imprint_url,omitempty"`
+	PrivacyUrl       *string `json:"privacy_url,omitempty"`
+	TermsUrl         *string `json:"terms_url,omitempty"`
+}
+
+// LegalPolicySettings The four links, each with its own lock - B2C locks them, B2B leaves them open.
+type LegalPolicySettings struct {
+	AccessibilityUrl SignInPolicyText `json:"accessibility_url"`
+	ImprintUrl       SignInPolicyText `json:"imprint_url"`
+	PrivacyUrl       SignInPolicyText `json:"privacy_url"`
+	TermsUrl         SignInPolicyText `json:"terms_url"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -5507,8 +5687,11 @@ type MembershipScope string
 type MfaChallenge struct {
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a tenant switch routes into enrolment instead of into a session.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
+	PasswordRules *PasswordRules `json:"password_rules,omitempty"`
 
 	// PendingToken Presented at `/auth/sessions:verify` - or, for ENROLL, at the enrolment routes.
 	PendingToken string `json:"pending_token"`
@@ -5680,6 +5863,21 @@ type OidcStart struct {
 	LoginHint *string `json:"login_hint,omitempty"`
 }
 
+// Operator One row of the register: an account of some workspace that operates this installation.
+type Operator struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	AddedAt   time.Time          `json:"added_at"`
+
+	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
+	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
+	TenantId openapi_types.UUID  `json:"tenant_id"`
+}
+
+// OperatorAdd The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
+type OperatorAdd struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -5687,6 +5885,134 @@ type PageInfo struct {
 	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
 	NextCursor *string `json:"next_cursor"`
 }
+
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+}
+
+// PasswordCheck The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one.
+type PasswordCheck struct {
+	// InvitationToken The token from an invitation mail.
+	InvitationToken *string `json:"invitation_token,omitempty"`
+	Password        string  `json:"password"`
+
+	// PendingToken The pending credential of a sign-in the change step interrupted.
+	PendingToken *string `json:"pending_token,omitempty"`
+
+	// ResetToken The token from a reset mail.
+	ResetToken *string `json:"reset_token,omitempty"`
+}
+
+// PasswordCheckResult defines model for PasswordCheckResult.
+type PasswordCheckResult struct {
+	Violations []PasswordViolation `json:"violations"`
+}
+
+// PasswordForgot defines model for PasswordForgot.
+type PasswordForgot struct {
+	// Email The address to send the link to, if it holds an account.
+	Email openapi_types.Email `json:"email"`
+}
+
+// PasswordPolicySettings The thirteen switches about the password itself, each at its three levels.
+type PasswordPolicySettings struct {
+	BreachCheck     SignInPolicyFlag `json:"breach_check"`
+	CommonPasswords SignInPolicyFlag `json:"common_passwords"`
+	ContextWords    SignInPolicyFlag `json:"context_words"`
+
+	// HistoryCount One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	HistoryCount SignInPolicyNumber `json:"history_count"`
+
+	// MaxAgeDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxAgeDays SignInPolicyNumber `json:"max_age_days"`
+
+	// MaxRepeat One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxRepeat SignInPolicyNumber `json:"max_repeat"`
+
+	// MinAgeHours One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinAgeHours SignInPolicyNumber `json:"min_age_hours"`
+
+	// MinClasses One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinClasses SignInPolicyNumber `json:"min_classes"`
+
+	// MinDigits One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinDigits SignInPolicyNumber `json:"min_digits"`
+
+	// MinLength One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinLength SignInPolicyNumber `json:"min_length"`
+
+	// MinLowercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinLowercase SignInPolicyNumber `json:"min_lowercase"`
+
+	// MinSymbols One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinSymbols SignInPolicyNumber `json:"min_symbols"`
+
+	// MinUppercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinUppercase SignInPolicyNumber `json:"min_uppercase"`
+}
+
+// PasswordReset defines model for PasswordReset.
+type PasswordReset struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+
+	// Token The token from the reset mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+type PasswordRules struct {
+	// BreachCheck Whether a breach corpus is consulted
+	BreachCheck bool `json:"breach_check"`
+
+	// CommonPasswords Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.
+	CommonPasswords bool `json:"common_passwords"`
+
+	// ContextWords Whether a password carrying the address, the person's name, the workspace's name or its host is refused. Compared after a fold that undoes case and the obvious substitutions, because `C0nt0so` is `contoso` to everybody except a naive comparison.
+	ContextWords bool `json:"context_words"`
+
+	// HistoryCount How many previous passwords are refused. 0 both where the switch is off and where the reader has no account - somebody with no password has no history, and a line under the field that can never be met is a line that only worries people.
+	HistoryCount int `json:"history_count"`
+
+	// MaxRepeat The longest run of one character allowed. **0 is off**, as it is for every other count here - one spelling for "this switch does nothing", rather than a nullable number beside twelve that are not.
+	MaxRepeat int `json:"max_repeat"`
+
+	// MinClasses How many of the four kinds have to appear at all. It cannot be expressed in the four counts - "one digit and one symbol" is not "two of four" - which is why both exist.
+	MinClasses int `json:"min_classes"`
+
+	// MinDigits Unicode category Nd. 0 is off.
+	MinDigits int `json:"min_digits"`
+
+	// MinLength The fewest characters
+	MinLength int `json:"min_length"`
+
+	// MinLowercase Unicode category Ll. 0 is off.
+	MinLowercase int `json:"min_lowercase"`
+
+	// MinSymbols Everything that is none of the three above: punctuation, a mark, an emoji, and a letter of a script with no case. 0 is off.
+	MinSymbols int `json:"min_symbols"`
+
+	// MinUppercase Unicode category Lu. 0 is off.
+	MinUppercase int `json:"min_uppercase"`
+
+	// NotCurrent Whether "not the password you have now" applies - only where there is one.
+	NotCurrent bool `json:"not_current"`
+}
+
+// PasswordViolation One rule the candidate breaks, as an identifier and its parameters.
+type PasswordViolation struct {
+	// Params The parameters that rule's sentence takes.
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Rule The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.
+	Rule string `json:"rule"`
+}
+
+// PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+type PolicyLock string
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -5727,6 +6053,23 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderSummary One way into this workspace, as a sign-in card needs it.
+type ProviderSummary struct {
+	DisplayName string `json:"display_name"`
+
+	// Id What `/auth/oidc:start` is given to choose this provider.
+	Id string `json:"id"`
+
+	// Kind The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.
+	Kind string `json:"kind"`
+
+	// Scope Whether every workspace is offered it, or this one configured it.
+	Scope ProviderSummaryScope `json:"scope"`
+}
+
+// ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
+type ProviderSummaryScope string
 
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
@@ -5803,6 +6146,11 @@ type QuotaStanding struct {
 
 // QuotaStandingQuota defines model for QuotaStanding.Quota.
 type QuotaStandingQuota string
+
+// RecoveryCodes The ten codes, shown once and stored only as hashes.
+type RecoveryCodes struct {
+	RecoveryCodes []string `json:"recovery_codes"`
+}
 
 // Recurrence defines model for Recurrence.
 type Recurrence struct {
@@ -6459,8 +6807,31 @@ type Session struct {
 	// LastUsedAt When the session last acted, to the minute rather than to the request - the value exists so a person can spot a session nobody uses.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
+	// SignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+	SignedInWith *SessionSignedInWith `json:"signed_in_with,omitempty"`
+
 	// UserAgent The client that signed in, as it introduced itself.
 	UserAgent *string `json:"user_agent,omitempty"`
+}
+
+// SessionSignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+type SessionSignedInWith string
+
+// SessionElevation How long this session carries the control plane's scope.
+type SessionElevation struct {
+	ElevatedUntil time.Time `json:"elevated_until"`
+
+	// RemainingSeconds What is left of the hour. On the screen, because an hour nobody can see the end of is an hour somebody is surprised by.
+	RemainingSeconds int `json:"remaining_seconds"`
+}
+
+// SessionPolicySettings The two bounds a session answers to beside its own expiry.
+type SessionPolicySettings struct {
+	// IdleMinutes One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	IdleMinutes SignInPolicyNumber `json:"idle_minutes"`
+
+	// MaxDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxDays SignInPolicyNumber `json:"max_days"`
 }
 
 // SessionRefresh defines model for SessionRefresh.
@@ -6506,6 +6877,138 @@ type SignInCompletion struct {
 
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+}
+
+// SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
+type SignInMethod string
+
+// SignInPasswordChange defines model for SignInPasswordChange.
+type SignInPasswordChange struct {
+	// Password The new password, judged against this workspace's rule in full.
+	Password string `json:"password"`
+
+	// PendingToken The credential the `PASSWORD_CHANGE` challenge handed out. It dies on use.
+	PendingToken string `json:"pending_token"`
+}
+
+// SignInPolicy The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
+// **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
+type SignInPolicy struct {
+	// Legal The four links, each with its own lock - B2C locks them, B2B leaves them open.
+	Legal   LegalPolicySettings `json:"legal"`
+	Methods SignInPolicyMethods `json:"methods"`
+
+	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into.
+	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
+
+	// Password The thirteen switches about the password itself, each at its three levels.
+	Password PasswordPolicySettings `json:"password"`
+
+	// RotationFrom When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.
+	RotationFrom *time.Time `json:"rotation_from"`
+
+	// Session The two bounds a session answers to beside its own expiry.
+	Session SessionPolicySettings `json:"session"`
+}
+
+// SignInPolicyChange The switches, flat: the thirteen the password has, the two about factors and methods, the two session bounds, the four legal links, and the rotation as an action.
+type SignInPolicyChange struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	BreachCheck      *bool   `json:"breach_check,omitempty"`
+	CommonPasswords  *bool   `json:"common_passwords,omitempty"`
+	ContextWords     *bool   `json:"context_words,omitempty"`
+
+	// HistoryCount 0 is off. At most ten.
+	HistoryCount *int    `json:"history_count,omitempty"`
+	ImprintUrl   *string `json:"imprint_url,omitempty"`
+
+	// MaxAgeDays 0 is off, which is the shipped value.
+	MaxAgeDays *int `json:"max_age_days,omitempty"`
+
+	// MaxRepeat 0 is off.
+	MaxRepeat      *int                              `json:"max_repeat,omitempty"`
+	Methods        *[]SignInMethod                   `json:"methods,omitempty"`
+	MfaRequiredFor *SignInPolicyChangeMfaRequiredFor `json:"mfa_required_for,omitempty"`
+
+	// MinAgeHours 0 is off. At most a day.
+	MinAgeHours  *int    `json:"min_age_hours,omitempty"`
+	MinClasses   *int    `json:"min_classes,omitempty"`
+	MinDigits    *int    `json:"min_digits,omitempty"`
+	MinLength    *int    `json:"min_length,omitempty"`
+	MinLowercase *int    `json:"min_lowercase,omitempty"`
+	MinSymbols   *int    `json:"min_symbols,omitempty"`
+	MinUppercase *int    `json:"min_uppercase,omitempty"`
+	PrivacyUrl   *string `json:"privacy_url,omitempty"`
+
+	// RotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
+	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
+
+	// SessionIdleMinutes 0 is off.
+	SessionIdleMinutes *int    `json:"session_idle_minutes,omitempty"`
+	SessionMaxDays     *int    `json:"session_max_days,omitempty"`
+	TermsUrl           *string `json:"terms_url,omitempty"`
+}
+
+// SignInPolicyChangeMfaRequiredFor defines model for SignInPolicyChange.MfaRequiredFor.
+type SignInPolicyChangeMfaRequiredFor string
+
+// SignInPolicyChangeRotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
+type SignInPolicyChangeRotationFrom string
+
+// SignInPolicyFlag defines model for SignInPolicyFlag.
+type SignInPolicyFlag struct {
+	Installation bool `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock `json:"lock"`
+	Value bool        `json:"value"`
+}
+
+// SignInPolicyMethods defines model for SignInPolicyMethods.
+type SignInPolicyMethods struct {
+	Installation []SignInMethod `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock    `json:"lock"`
+	Value []SignInMethod `json:"value"`
+}
+
+// SignInPolicyNumber One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+type SignInPolicyNumber struct {
+	// Installation What the level above set, which is what this workspace may tighten.
+	Installation int `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock *PolicyLock `json:"lock"`
+
+	// Value What is in force in this workspace.
+	Value int `json:"value"`
+}
+
+// SignInPolicyText defines model for SignInPolicyText.
+type SignInPolicyText struct {
+	Installation string `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock `json:"lock"`
+	Value string      `json:"value"`
+}
+
+// SignInRules The least a sign-in screen needs, and deliberately no more.
+type SignInRules struct {
+	// Legal The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+	Legal LegalLinks `json:"legal"`
+
+	// Methods The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.
+	Methods []SignInMethod `json:"methods"`
+
+	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+	Password  PasswordRules     `json:"password"`
+	Providers []ProviderSummary `json:"providers"`
+
+	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
+	WorkspaceHost string `json:"workspace_host"`
 }
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
@@ -7326,6 +7829,9 @@ type Workspace struct {
 	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
+	// SignInPolicy How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
+	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
+
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
 	Slug string `json:"slug"`
 
@@ -7349,6 +7855,10 @@ type WorkspaceUpdate struct {
 	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
 	DisplayName      *string `json:"display_name,omitempty"`
 	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+
+	// SignInPolicy The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.
+	// Three refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.
+	SignInPolicy *SignInPolicyChange `json:"sign_in_policy,omitempty"`
 }
 
 // AccountId defines model for AccountId.
@@ -7513,10 +8023,34 @@ type VerifyAuditChainJSONBody struct {
 	To      time.Time `json:"to"`
 }
 
+// RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
+type RegenerateRecoveryCodesParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ChangePasswordParams defines parameters for ChangePassword.
+type ChangePasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CheckPasswordParams defines parameters for CheckPassword.
+type CheckPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
 type CreateServiceAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ElevateSessionParams defines parameters for ElevateSession.
+type ElevateSessionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListAccessTokensParams defines parameters for ListAccessTokens.
@@ -8324,6 +8858,9 @@ type AiGenerateTemplateParams struct {
 type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -8389,6 +8926,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
+type AddOperatorJSONRequestBody = OperatorAdd
+
+// WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
+type WriteInstanceSettingsJSONRequestBody = InstanceSettings
+
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
@@ -8431,6 +8974,18 @@ type CompleteOidcSignInJSONRequestBody = OidcCallback
 // StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
 type StartOidcSignInJSONRequestBody = OidcStart
 
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = PasswordChange
+
+// CheckPasswordJSONRequestBody defines body for CheckPassword for application/json ContentType.
+type CheckPasswordJSONRequestBody = PasswordCheck
+
+// ForgetPasswordJSONRequestBody defines body for ForgetPassword for application/json ContentType.
+type ForgetPasswordJSONRequestBody = PasswordForgot
+
+// ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
+type ResetPasswordJSONRequestBody = PasswordReset
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -8439,6 +8994,9 @@ type SignInJSONRequestBody = SignIn
 
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
+
+// SetPasswordAndSignInJSONRequestBody defines body for SetPasswordAndSignIn for application/json ContentType.
+type SetPasswordAndSignInJSONRequestBody = SignInPasswordChange
 
 // CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
 type CompleteSignInJSONRequestBody = SignInCompletion
@@ -8727,6 +9285,21 @@ type ServerInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	// (POST /admin/encryption:reseal)
 	ResealSecrets(w http.ResponseWriter, r *http.Request)
+	// ListOperators Who operates this installation
+	// (GET /admin/operators)
+	ListOperators(w http.ResponseWriter, r *http.Request)
+	// AddOperator Put an account in the register
+	// (POST /admin/operators)
+	AddOperator(w http.ResponseWriter, r *http.Request)
+	// RemoveOperator Take an account out of the register
+	// (DELETE /admin/operators/{accountId})
+	RemoveOperator(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ReadInstanceSettings What this installation has decided for every workspace on it
+	// (GET /admin/settings)
+	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
+	// WriteInstanceSettings Replace the installation's level
+	// (PUT /admin/settings)
+	WriteInstanceSettings(w http.ResponseWriter, r *http.Request)
 	// ListTenants The installation's workspaces
 	// (GET /admin/tenants)
 	ListTenants(w http.ResponseWriter, r *http.Request)
@@ -8772,6 +9345,9 @@ type ServerInterface interface {
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
+	// RegenerateRecoveryCodes Replace the ten recovery codes
+	// (POST /auth/mfa/recovery:regenerate)
+	RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryCodesParams)
 	// ConfirmTotp Confirm enrolment with a first valid code
 	// (POST /auth/mfa/totp:confirm)
 	ConfirmTotp(w http.ResponseWriter, r *http.Request)
@@ -8787,6 +9363,18 @@ type ServerInterface interface {
 	// StartOidcSignIn Begin a sign-in through the workspace's identity provider
 	// (POST /auth/oidc:start)
 	StartOidcSignIn(w http.ResponseWriter, r *http.Request)
+	// ChangePassword Change the password of the signed-in account
+	// (POST /auth/password)
+	ChangePassword(w http.ResponseWriter, r *http.Request, params ChangePasswordParams)
+	// CheckPassword Ask what only the server knows about a candidate password
+	// (POST /auth/password:check)
+	CheckPassword(w http.ResponseWriter, r *http.Request, params CheckPasswordParams)
+	// ForgetPassword Ask for a password reset link
+	// (POST /auth/password:forgot)
+	ForgetPassword(w http.ResponseWriter, r *http.Request)
+	// ResetPassword Spend a reset link and set the password
+	// (POST /auth/password:reset)
+	ResetPassword(w http.ResponseWriter, r *http.Request)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
@@ -8805,12 +9393,21 @@ type ServerInterface interface {
 	// RevokeSession End one session
 	// (DELETE /auth/sessions/{sessionId})
 	RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// ElevateSession Raise this session to the control plane for an hour
+	// (POST /auth/sessions:elevate)
+	ElevateSession(w http.ResponseWriter, r *http.Request, params ElevateSessionParams)
 	// RefreshSession Exchange a refresh token for the next pair
 	// (POST /auth/sessions:refresh)
 	RefreshSession(w http.ResponseWriter, r *http.Request)
+	// SetPasswordAndSignIn Set a new password and finish the sign-in
+	// (POST /auth/sessions:set-password)
+	SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request)
 	// CompleteSignIn Present the second factor and receive the pair
 	// (POST /auth/sessions:verify)
 	CompleteSignIn(w http.ResponseWriter, r *http.Request)
+	// GetSignInRules What a sign-in screen may know before anybody has signed in
+	// (GET /auth/sign-in-rules)
+	GetSignInRules(w http.ResponseWriter, r *http.Request)
 	// StepUp Prove yourself again, for the irreversible
 	// (POST /auth/step-up)
 	StepUp(w http.ResponseWriter, r *http.Request)
@@ -9671,6 +10268,88 @@ func (siw *ServerInterfaceWrapper) ResealSecrets(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListOperators operation middleware
+func (siw *ServerInterfaceWrapper) ListOperators(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOperators(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddOperator operation middleware
+func (siw *ServerInterfaceWrapper) AddOperator(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddOperator(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveOperator operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOperator(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOperator(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadInstanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadInstanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WriteInstanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WriteInstanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTenants operation middleware
 func (siw *ServerInterfaceWrapper) ListTenants(w http.ResponseWriter, r *http.Request) {
 
@@ -10115,6 +10794,47 @@ func (siw *ServerInterfaceWrapper) RedeemInvitation(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// RegenerateRecoveryCodes operation middleware
+func (siw *ServerInterfaceWrapper) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegenerateRecoveryCodesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegenerateRecoveryCodes(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConfirmTotp operation middleware
 func (siw *ServerInterfaceWrapper) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 
@@ -10176,6 +10896,116 @@ func (siw *ServerInterfaceWrapper) StartOidcSignIn(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartOidcSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangePasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckPassword operation middleware
+func (siw *ServerInterfaceWrapper) CheckPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckPassword(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ForgetPassword operation middleware
+func (siw *ServerInterfaceWrapper) ForgetPassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForgetPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetPassword operation middleware
+func (siw *ServerInterfaceWrapper) ResetPassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetPassword(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10308,6 +11138,47 @@ func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ElevateSession operation middleware
+func (siw *ServerInterfaceWrapper) ElevateSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ElevateSessionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ElevateSession(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RefreshSession operation middleware
 func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http.Request) {
 
@@ -10322,11 +11193,39 @@ func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// SetPasswordAndSignIn operation middleware
+func (siw *ServerInterfaceWrapper) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPasswordAndSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CompleteSignIn operation middleware
 func (siw *ServerInterfaceWrapper) CompleteSignIn(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompleteSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSignInRules operation middleware
+func (siw *ServerInterfaceWrapper) GetSignInRules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSignInRules(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -17931,6 +18830,25 @@ func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *htt
 
 	}
 
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateWorkspace(w, r, params)
 	}))
@@ -18573,9 +19491,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:forgot", wrapper.ForgetPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:set-password", wrapper.SetPasswordAndSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:elevate", wrapper.ElevateSession)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/recovery:regenerate", wrapper.RegenerateRecoveryCodes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa:disable", wrapper.DisableTotp)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)
@@ -18590,6 +19516,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/encryption", wrapper.ReadEncryptionStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)

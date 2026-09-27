@@ -411,6 +411,17 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.Celebrations = &celebrations
 	}
 	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
+	if armed, held := out["has_second_factor"].(bool); held {
+		// Answered on the caller's own account and on nothing else, which is why it is conditional
+		// here rather than a plain field: the same projection renders a colleague's account.
+		account.HasSecondFactor = &armed
+	}
+	if remaining, held := out["recovery_codes_remaining"].(int); held {
+		// Present exactly where a factor is armed, and then zero is answered as zero, because there
+		// zero is the number to act on (SI-09). Absent is not zero: an account holding no factor
+		// has no codes to count, and a screen told zero offers ten it cannot make.
+		account.RecoveryCodesRemaining = &remaining
+	}
 	return account
 }
 

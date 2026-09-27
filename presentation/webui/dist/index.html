@@ -1,20 +1,18 @@
 <!DOCTYPE html>
+<!-- No data-theme here: src/lib/theme.ts sets it deliberately, following the system preference
+     until the account preference exists (W-07). The stylesheet has no :root fallback on purpose,
+     so a boot path that forgets the module shows itself immediately. -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- `viewport-fit=cover`: the bars read the safe-area insets (ADR-0061); read, not written,
+         and 0 in a browser. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Hubtask</title>
+    <script type="module" crossorigin src="/assets/index-CC_r4YdD.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BBNim0b8.css">
   </head>
   <body>
-    <h1>No user interface was built into this binary.</h1>
-    <p>
-      The API is unaffected and is serving at /api/v1. This page is the placeholder that lets the
-      Go build succeed without a JavaScript toolchain: //go:embed refuses to compile against a
-      directory that is not there, so one file has to be committed (ADR-0028).
-    </p>
-    <p>
-      The released container image replaces it with the built application. To do the same locally:
-      pnpm --filter @hubtask/webapp build, then copy apps/webapp/dist into presentation/webui/dist.
-    </p>
+    <div id="app"></div>
   </body>
 </html>

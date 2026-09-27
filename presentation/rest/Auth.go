@@ -33,6 +33,25 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/invitations:redeem": true,
+	// The rules a sign-in screen draws are public because the screen that draws them is: a
+	// signed-out visitor is exactly the caller this answer is for (ADR-0068 §7). It says nothing a
+	// guesser can use, and a host no workspace answers at gets the installation's own level rather
+	// than a refusal that would be a directory of hosts.
+	http.MethodGet + " " + APIBasePath + "/auth/sign-in-rules": true,
+	// The change step of a sign-in is public for the pending credential's reason (ADR-0068 §3): the
+	// credential in the body is the whole of what authenticates the call, and the caller has no
+	// bearer yet - that is the thing this call exists to produce.
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:set-password": true,
+	// Forgetting and resetting are public because the whole point is that somebody who cannot
+	// sign in can reach them (ADR-0068 §6). The reset token in the body is the whole of what
+	// authenticates the second call, exactly as the redemption token is for an invitation.
+	http.MethodPost + " " + APIBasePath + "/auth/password:forgot": true,
+	http.MethodPost + " " + APIBasePath + "/auth/password:reset":  true,
+	// The check is public because three of the four proofs it accepts are the tokens of a flow
+	// that has no bearer yet: an invitation, a reset, and the pending credential of a sign-in the
+	// change step interrupted (ADR-0068 §7). A proof is still demanded - the route refuses without
+	// one, because otherwise it is an oracle for blocklists and histories.
+	http.MethodPost + " " + APIBasePath + "/auth/password:check": true,
 	// The second step and the enrolment routes are public for the same reason (H-02): the
 	// pending credential in the body is the whole of what authenticates an enforcement flow,
 	// and a signed-in caller's bearer is verified exactly as on any public route.

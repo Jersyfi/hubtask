@@ -1,6 +1,6 @@
 # ADR-0070 — The instance layer: operators, instance settings, and the elevated session
 
-**Status:** proposed · **Date:** 2026-09-26
+**Status:** accepted · **Date:** 2026-09-26
 
 ## Context
 
@@ -158,3 +158,51 @@ in the route table, and `routes.test.ts` already asserts that the tagged set and
 feature entitlements — are a milestone of their own. This ADR only makes sure they do not need a
 second model: the resolver takes them, the workspace has the column, and the lock knows where it
 came from.
+
+## What is built, and what this decision still owes
+
+SI built the layer itself and one of §5's three doors. The accepted decision stands whole; what
+follows is the record of where the code is against it, so that nobody reads this document as a
+description of what exists.
+
+**Built.** The `operator` register with its four functions, `instance_setting` with the three
+boundary lists entered, the lock with its origin, `tenant.plan_id`, the resolver's plan parameter,
+`GET`/`PUT /admin/settings`, `GET`/`POST /admin/operators`, `DELETE /admin/operators/{accountId}`,
+`POST /auth/sessions:elevate` with `session.elevated_until`, and the journal at both ends of an
+elevation.
+
+**Not built, each its own task.** The `/instance` route area — so the elevation works today and
+there is nothing to look at with it but JSON. `hubctl admin settings|operator|legal|provider`.
+`HUBTASK_INSTANCE_FILE` in either mode, and therefore the health report's line saying which source
+is in force.
+
+**And one thing §1 says that the code does differently.** There is no `HUBTASK_OPERATORS`. The
+bootstrap is the rule §1 already states for the private installation, used as the way in: an empty
+register answers *yes* to `is_operator`, so the first `POST /admin/operators` on a fresh
+installation is made by whoever can already mint the scope, and from that row onwards the register
+is the bound. One mechanism instead of two, and no address parsed at start-up. An environment
+variable can still be added later for an installation that wants the register present before its
+first request; nothing here forecloses it.
+
+## What the implementation settled
+
+Three things, decided while SI-05 and SI-06 were built.
+
+1. **The operator register keys on the account alone, and lives behind four functions.** §1 does not
+   say how it is reached. It carries no row-level policy *and* no grant to the application role:
+   unlike `instance_setting` its rows name accounts across workspaces, so a policy-free table
+   `hubtask_app` could read would let every workspace enumerate the installation's operators. The
+   four doors are `is_operator`, `operator_register`, `add_operator` and `drop_operator`, each
+   `SECURITY DEFINER` and each narrow by construction - `resolve_tenant`'s discipline applied to a
+   table. The workspace is read from the account by the function rather than named by the caller,
+   which is also what keeps rule 3 intact: no repository method here takes a tenant.
+
+2. **The last-operator rule is in the statement.** `drop_operator` deletes only while
+   `(SELECT count(*) FROM operator) > 1`, because two operators removing each other at the same
+   moment would both read "there are two".
+
+3. **The elevation does not slide, and the register is read again on every request.** §4 says "one
+   hour, not renewable": what that means in code is that activity extends a session's own horizon
+   and never `elevated_until`, and that a second hour needs a second proof. And the scope is granted
+   per request rather than at the elevation, so an operator removed while a raised session is open
+   loses the control plane on their next call rather than at the end of the hour.

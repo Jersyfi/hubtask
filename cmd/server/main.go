@@ -484,6 +484,9 @@ func run() error {
 		KnownScopes: catalogue.Scopes(),
 		StepUp:      identity.StepUpVerifier{Writer: sessionWriter},
 		Text:        forms,
+		// The register bounds the control plane's scope where it is minted (ADR-0070 §1); the
+		// other end of the same bound is in AuthenticateToken, where it is exercised.
+		Operators: postgres.NewOperatorRepository(),
 	}
 
 	// The service accounts share theirs for the same reason: creating one and listing them are
@@ -1040,6 +1043,16 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
+	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
+	// installation's level, the plan's - which nothing writes yet - and the workspace's own. One
+	// value rather than four copies of the same three reads, because a rule resolved slightly
+	// differently in the sign-in path and in the check route is the drift the ADR exists to stop.
+	signInPolicyResolver := identity.SignInPolicyResolver{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Instance:   postgres.NewInstanceSettingRepository(),
+		UnitOfWork: unitOfWork,
+	}
+
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Authorizer: authorizer,
@@ -1047,6 +1060,10 @@ func run() error {
 		UnitOfWork: unitOfWork,
 		Clock:      clockadapter.System{},
 		Text:       forms,
+		// The sign-in rule the workspace may tighten, and the proof the one patch that touches it
+		// demands (ADR-0068 §2).
+		Resolver: signInPolicyResolver,
+		StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
 	}
 
 	identityProviderWriter := identity.IdentityProviderWriter{
@@ -1055,6 +1072,39 @@ func run() error {
 		Relying:    relyingParty,
 		Authorizer: authorizer,
 	}
+
+	// The operator register and the installation's own settings (ADR-0070 §1, §2). Built here
+	// because the register is also what bounds the control-plane scope at both of its ends - the
+	// mint and the exercise - and both of those are wired above.
+	operators := postgres.NewOperatorRepository()
+	instanceWriter := adminservice.InstanceWriter{
+		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
+		Journal:    postgres.NewInstanceJournal(),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
+	// the history and the trail have one place each. The blocklist and the breach corpus are both
+	// nil on a plain installation - the operator's file arrives with the instance layer, and the
+	// corpus with whatever milestone wires one.
+	//
+	// Named for the rows rather than for the hasher: `passwords` above is the Argon2 verifier.
+	passwordStore := postgres.NewPasswordRepository()
+	passwordWriter := identity.PasswordWriter{
+		Session:  sessionWriter,
+		Resolver: signInPolicyResolver,
+		Accounts: passwordStore, Histories: passwordStore,
+		Pending:    mfaStore,
+		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		Text:       forms,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// And the sign-in path learns the rule. Assigned rather than passed, and here rather than where
+	// the writer is built, because the two read each other: the password writer holds a copy of the
+	// session writer for the hasher and the trail, and the copy needs no rule of its own - it *is*
+	// the rule. Every value built from `sessionWriter` before this line reads the second factor and
+	// not the policy, which is why none of them is affected.
+	sessionWriter.Rule = passwordWriter
 
 	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
@@ -1081,7 +1131,9 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 			Text: forms,
 		}.Descriptor(),
-		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetOwnAccount{
+			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
@@ -1123,6 +1175,25 @@ func run() error {
 			Groups: groups, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
+		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
+		identity.ForgetPassword{
+			Writer: passwordWriter, Notifier: jobs, Tenants: signInStore,
+			Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
+		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
+		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
+		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
+		identity.ElevateSession{
+			Writer: sessionWriter, Operators: operators,
+			Journal: postgres.NewInstanceJournal(), UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		identity.GetSignInRules{
+			Resolver: signInPolicyResolver, Tenants: signInStore,
+			Providers:  postgres.NewIdentityProviderRepository(),
+			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
 		identity.RefreshSession{Writer: sessionWriter}.Descriptor(),
 		identity.ListSessions{Writer: sessionWriter}.Descriptor(),
@@ -1130,7 +1201,7 @@ func run() error {
 		identity.RevokeAllSessions{Writer: sessionWriter}.Descriptor(),
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
-		identity.RedeemInvitation{Writer: sessionWriter}.Descriptor(),
+		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
@@ -1642,10 +1713,17 @@ func run() error {
 			Jobs: jobRecords, Authorizer: authorizer, Audit: auditSink,
 			Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The level above the workspaces (ADR-0070). One API, and `hubctl admin`, the instance
+		// dashboard and the file an operator checks into a repository are three clients of it.
+		adminservice.ReadInstanceSettings{Writer: instanceWriter}.Descriptor(),
+		adminservice.WriteInstanceSettings{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListOperators{Writer: instanceWriter}.Descriptor(),
+		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
+		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
 		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
-		// session (decision 6) - and its authorisation is the scope alone, checked in the
-		// application layer: the operator is deliberately not a member of the tenants they
-		// administer.
+		// session (decision 6) - and its authorisation is the scope **and** the operator register
+		// since ADR-0070 §1: the scope says what a credential may reach and the register says whose
+		// credential it may be, and either alone is a hole.
 		adminservice.ProvisionTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
@@ -1947,6 +2025,10 @@ func run() error {
 			Sessions:      sessions,
 			Signer:        sessionSigner,
 			SessionScopes: catalogue.SessionScopes(),
+			// The other end of the control plane's bound (ADR-0070 §1): a credential that names
+			// `admin:tenants` loses it when the register does not name its holder, so a token
+			// minted last month by somebody since removed stops reaching the control plane.
+			Operators: postgres.NewOperatorRepository(),
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per
@@ -2246,6 +2328,20 @@ func run() error {
 			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 		},
 	}
+	// The reset link (ADR-0068 §6). Its own handler rather than a notification record: there is no
+	// preference to consult, nothing to list and nothing to mark read - what there is, is a
+	// credential on its way to a mailbox.
+	passwordResetMessage := worker.PasswordResetMessage{
+		Reset: notification.SendPasswordReset{
+			Resets:         resetMinterAdapter{mint: identity.MintResetToken{Writer: passwordWriter}},
+			Mail:           mailSender,
+			Renderer:       renderer,
+			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork:     unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale,
+			BaseURL:        cfg.BaseURL,
+		},
+	}
 	notificationDelivery := worker.NotificationDelivery{
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
@@ -2542,6 +2638,7 @@ func run() error {
 		queueport.KindRetentionSweep:        retention,
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
+		queueport.KindPasswordResetEmail:    passwordResetMessage,
 		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
@@ -2991,6 +3088,26 @@ func selfCheck() int {
 // deliberately different shapes: the application says `sync.Position` and knows nothing about
 // HMACs, and the adapter says `security.StreamPosition` and knows nothing about change logs. The
 // alternative is one of them importing the other, and the one that would have to give is the core.
+// resetMinterAdapter brings the identity service's answer to the shape the notification service
+// asks for. Two packages, one seam, and neither importing the other: the composition root is where
+// two shapes of one fact are allowed to meet (project-structure.md §3).
+type resetMinterAdapter struct{ mint identity.MintResetToken }
+
+func (a resetMinterAdapter) MintResetToken(
+	ctx context.Context, tenantID, accountID shared.ID,
+) (notification.ResetLink, error) {
+	link, err := a.mint.MintResetToken(ctx, tenantID, accountID)
+	if err != nil {
+		return notification.ResetLink{}, err
+	}
+	return notification.ResetLink{
+		Token:       link.Token,
+		HasPassword: link.HasPassword,
+		Address:     link.Address,
+		Locale:      link.Locale,
+	}, nil
+}
+
 type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {

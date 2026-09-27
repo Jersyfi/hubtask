@@ -1,6 +1,6 @@
 # ADR-0068 — The sign-in rule: three levels, a lock, and the password over its lifetime
 
-**Status:** proposed · **Date:** 2026-09-26
+**Status:** accepted · **Date:** 2026-09-26
 
 ## Context
 
@@ -184,3 +184,50 @@ they produce, read by the Go test and by the client's — the two predictions ca
 
 **What must never become a switch.** Exporting one's own data, deleting it, asking what is held,
 the language, the time zone, and accessibility. Those are obligations, not settings.
+
+## What the implementation settled
+
+Seven things this ADR left open or slightly wrong, decided while SI-02 to SI-09 were built and
+recorded here rather than in a commit message nobody will find again.
+
+1. **Thirteen password switches, not fourteen.** §1 says thirteen and lists fourteen, and
+   `blocklist_file` is the one that does not belong: the file is on the *operator's* disk, so there
+   is nothing for a workspace to point at. It is an instance-only setting, and a password found in
+   it is refused by the same `common` rule as one from the embedded list - which of the two refused
+   it is deliberately not said, because saying would tell a guesser which corpus to avoid.
+
+2. **The embedded list is written in-house and is short.** A real corpus - rockyou, SecLists, the
+   Pwned Passwords set - is somebody else's work under somebody else's terms, and adding one is a
+   supply-chain and licence decision rather than a commit (`CLAUDE.md`). §7's own escape is taken:
+   what ships is the hundred-odd families every leak's top hundred is made of, compared on the
+   folded form and as a substring, and `sign_in.blocklist_file` is how an installation points at a
+   real corpus. Nothing is added to `THIRD-PARTY-LICENSES.md`, because nothing third-party ships.
+
+3. **NFKC is applied where a password is hashed, not only where it is counted.** What was counted
+   has to be what is stored, or a password typed on two keyboards is two passwords. The cost is
+   named here because it is real: a password containing a character whose NFKC form differs, set
+   *before* this change, no longer verifies - and the reset route that this milestone builds is
+   exactly the way back. Every ASCII password is byte-identical either way.
+
+4. **Zero is off, everywhere, and no number is nullable.** The draft had `max_repeat`,
+   `max_age_days`, `min_age_hours` and the idle bound as nullable numbers beside nine that were not.
+   One spelling for "this switch does nothing" is one thing for a client to get right.
+
+5. **A session's two bounds are written when it opens, not resolved per request.** Resolving them
+   would put a read of `instance_setting` and of `tenant.settings` on the hot path of the whole API,
+   for two numbers that change once a year. The cost of the trade is that a bound tightened later
+   reaches new sessions only - and ending the old ones is exactly what `rotation_from` is for, in
+   one write. The rotation cutoff itself is free: it rides along on the `tenant` row the credential
+   read already joins.
+
+6. **Writing `sign_in_policy` demands a step-up; the workspace's name, locale and zone do not.**
+   §2 says a workspace tightens and the server enforces it field by field, and says nothing about
+   what proves the writer. A workspace's sign-in rule is what decides whether a stolen tab can
+   weaken the way in, so it is the one member of `PATCH /tenant` that asks the person to prove
+   themselves afresh.
+
+7. **The reset mail is not a notification record.** §6 says "a job on the queue the invitation
+   already uses", and the invitation's queue ends in a `notification` row because an invitation has
+   a preference question behind it. A reset link has none - no switch, no read state, nothing to
+   list - so it is its own job and its own handler. Giving it a category would add one that no
+   preference may touch, which is a category that exists only to be an exception.

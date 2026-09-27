@@ -1889,15 +1889,18 @@ func (e MembershipScope) Valid() bool {
 
 // Defines values for MfaChallengeMethods.
 const (
-	MfaChallengeMethodsENROLL   MfaChallengeMethods = "ENROLL"
-	MfaChallengeMethodsRECOVERY MfaChallengeMethods = "RECOVERY"
-	MfaChallengeMethodsTOTP     MfaChallengeMethods = "TOTP"
+	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
+	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
+	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
+	MfaChallengeMethodsTOTP           MfaChallengeMethods = "TOTP"
 )
 
 // Valid indicates whether the value is a known member of the MfaChallengeMethods enum.
 func (e MfaChallengeMethods) Valid() bool {
 	switch e {
 	case MfaChallengeMethodsENROLL:
+		return true
+	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
 	case MfaChallengeMethodsRECOVERY:
 		return true
@@ -1938,6 +1941,27 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for PolicyLock.
+const (
+	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
+	PolicyLockLessThannil PolicyLock = "<nil>"
+	PolicyLockPLAN        PolicyLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the PolicyLock enum.
+func (e PolicyLock) Valid() bool {
+	switch e {
+	case PolicyLockINSTANCE:
+		return true
+	case PolicyLockLessThannil:
+		return true
+	case PolicyLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -1950,6 +1974,24 @@ func (e ProcessingStateStatus) Valid() bool {
 	case ProcessingStateStatusACTIVE:
 		return true
 	case ProcessingStateStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProviderSummaryScope.
+const (
+	ProviderSummaryScopeInstallation ProviderSummaryScope = "installation"
+	ProviderSummaryScopeWorkspace    ProviderSummaryScope = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the ProviderSummaryScope enum.
+func (e ProviderSummaryScope) Valid() bool {
+	switch e {
+	case ProviderSummaryScopeInstallation:
+		return true
+	case ProviderSummaryScopeWorkspace:
 		return true
 	default:
 		return false
@@ -2775,6 +2817,39 @@ func (e SearchMode) Valid() bool {
 	}
 }
 
+// Defines values for SessionSignedInWith.
+const (
+	SessionSignedInWithINVITATION       SessionSignedInWith = "INVITATION"
+	SessionSignedInWithLessThannil      SessionSignedInWith = "<nil>"
+	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
+	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
+	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
+	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
+	SessionSignedInWithRESET            SessionSignedInWith = "RESET"
+)
+
+// Valid indicates whether the value is a known member of the SessionSignedInWith enum.
+func (e SessionSignedInWith) Valid() bool {
+	switch e {
+	case SessionSignedInWithINVITATION:
+		return true
+	case SessionSignedInWithLessThannil:
+		return true
+	case SessionSignedInWithOIDC:
+		return true
+	case SessionSignedInWithPASSWORD:
+		return true
+	case SessionSignedInWithPASSWORDRECOVERY:
+		return true
+	case SessionSignedInWithPASSWORDTOTP:
+		return true
+	case SessionSignedInWithRESET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionTokensTokenType.
 const (
 	Bearer SessionTokensTokenType = "Bearer"
@@ -2784,6 +2859,60 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInMethod.
+const (
+	SignInMethodOIDC     SignInMethod = "OIDC"
+	SignInMethodPASSWORD SignInMethod = "PASSWORD"
+)
+
+// Valid indicates whether the value is a known member of the SignInMethod enum.
+func (e SignInMethod) Valid() bool {
+	switch e {
+	case SignInMethodOIDC:
+		return true
+	case SignInMethodPASSWORD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInPolicyChangeMfaRequiredFor.
+const (
+	SignInPolicyChangeMfaRequiredForADMINS   SignInPolicyChangeMfaRequiredFor = "ADMINS"
+	SignInPolicyChangeMfaRequiredForEVERYONE SignInPolicyChangeMfaRequiredFor = "EVERYONE"
+	SignInPolicyChangeMfaRequiredForNONE     SignInPolicyChangeMfaRequiredFor = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SignInPolicyChangeMfaRequiredFor enum.
+func (e SignInPolicyChangeMfaRequiredFor) Valid() bool {
+	switch e {
+	case SignInPolicyChangeMfaRequiredForADMINS:
+		return true
+	case SignInPolicyChangeMfaRequiredForEVERYONE:
+		return true
+	case SignInPolicyChangeMfaRequiredForNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInPolicyChangeRotationFrom.
+const (
+	Now SignInPolicyChangeRotationFrom = "now"
+)
+
+// Valid indicates whether the value is a known member of the SignInPolicyChangeRotationFrom enum.
+func (e SignInPolicyChangeRotationFrom) Valid() bool {
+	switch e {
+	case Now:
 		return true
 	default:
 		return false
@@ -3455,12 +3584,20 @@ type Account struct {
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
-	Id           openapi_types.UUID   `json:"id"`
-	Kind         AccountKind          `json:"kind"`
-	Locale       *string              `json:"locale,omitempty"`
+
+	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
+	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
+	Id              openapi_types.UUID `json:"id"`
+	Kind            AccountKind        `json:"kind"`
+	Locale          *string            `json:"locale,omitempty"`
 
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
+	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
 
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
@@ -5060,6 +5197,33 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.
+type InstanceSetting struct {
+	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
+	Locked bool `json:"locked"`
+
+	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words.
+	Value interface{} `json:"value"`
+}
+
+// InstanceSettings The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.
+type InstanceSettings struct {
+	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
+	BlocklistFile *string `json:"blocklist_file,omitempty"`
+
+	// IsEnforcedFromFile Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.
+	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
+
+	// Legal The four links, by name.
+	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+
+	// Source Where the values in force came from - the database, or the path of the file enforcing them.
+	Source *string `json:"source,omitempty"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the policy of security.md §5.
@@ -5393,6 +5557,22 @@ type LegalHoldRelease struct {
 	Reason string `json:"reason"`
 }
 
+// LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+type LegalLinks struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	ImprintUrl       *string `json:"imprint_url,omitempty"`
+	PrivacyUrl       *string `json:"privacy_url,omitempty"`
+	TermsUrl         *string `json:"terms_url,omitempty"`
+}
+
+// LegalPolicySettings The four links, each with its own lock - B2C locks them, B2B leaves them open.
+type LegalPolicySettings struct {
+	AccessibilityUrl SignInPolicyText `json:"accessibility_url"`
+	ImprintUrl       SignInPolicyText `json:"imprint_url"`
+	PrivacyUrl       SignInPolicyText `json:"privacy_url"`
+	TermsUrl         SignInPolicyText `json:"terms_url"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -5513,8 +5693,11 @@ type MembershipScope string
 type MfaChallenge struct {
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a tenant switch routes into enrolment instead of into a session.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
+	PasswordRules *PasswordRules `json:"password_rules,omitempty"`
 
 	// PendingToken Presented at `/auth/sessions:verify` - or, for ENROLL, at the enrolment routes.
 	PendingToken string `json:"pending_token"`
@@ -5686,6 +5869,21 @@ type OidcStart struct {
 	LoginHint *string `json:"login_hint,omitempty"`
 }
 
+// Operator One row of the register: an account of some workspace that operates this installation.
+type Operator struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	AddedAt   time.Time          `json:"added_at"`
+
+	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
+	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
+	TenantId openapi_types.UUID  `json:"tenant_id"`
+}
+
+// OperatorAdd The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
+type OperatorAdd struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -5693,6 +5891,134 @@ type PageInfo struct {
 	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
 	NextCursor *string `json:"next_cursor"`
 }
+
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+}
+
+// PasswordCheck The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one.
+type PasswordCheck struct {
+	// InvitationToken The token from an invitation mail.
+	InvitationToken *string `json:"invitation_token,omitempty"`
+	Password        string  `json:"password"`
+
+	// PendingToken The pending credential of a sign-in the change step interrupted.
+	PendingToken *string `json:"pending_token,omitempty"`
+
+	// ResetToken The token from a reset mail.
+	ResetToken *string `json:"reset_token,omitempty"`
+}
+
+// PasswordCheckResult defines model for PasswordCheckResult.
+type PasswordCheckResult struct {
+	Violations []PasswordViolation `json:"violations"`
+}
+
+// PasswordForgot defines model for PasswordForgot.
+type PasswordForgot struct {
+	// Email The address to send the link to, if it holds an account.
+	Email openapi_types.Email `json:"email"`
+}
+
+// PasswordPolicySettings The thirteen switches about the password itself, each at its three levels.
+type PasswordPolicySettings struct {
+	BreachCheck     SignInPolicyFlag `json:"breach_check"`
+	CommonPasswords SignInPolicyFlag `json:"common_passwords"`
+	ContextWords    SignInPolicyFlag `json:"context_words"`
+
+	// HistoryCount One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	HistoryCount SignInPolicyNumber `json:"history_count"`
+
+	// MaxAgeDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxAgeDays SignInPolicyNumber `json:"max_age_days"`
+
+	// MaxRepeat One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxRepeat SignInPolicyNumber `json:"max_repeat"`
+
+	// MinAgeHours One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinAgeHours SignInPolicyNumber `json:"min_age_hours"`
+
+	// MinClasses One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinClasses SignInPolicyNumber `json:"min_classes"`
+
+	// MinDigits One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinDigits SignInPolicyNumber `json:"min_digits"`
+
+	// MinLength One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinLength SignInPolicyNumber `json:"min_length"`
+
+	// MinLowercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinLowercase SignInPolicyNumber `json:"min_lowercase"`
+
+	// MinSymbols One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinSymbols SignInPolicyNumber `json:"min_symbols"`
+
+	// MinUppercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinUppercase SignInPolicyNumber `json:"min_uppercase"`
+}
+
+// PasswordReset defines model for PasswordReset.
+type PasswordReset struct {
+	// Password The new password, judged against this workspace's rule.
+	Password string `json:"password"`
+
+	// Token The token from the reset mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+type PasswordRules struct {
+	// BreachCheck Whether a breach corpus is consulted
+	BreachCheck bool `json:"breach_check"`
+
+	// CommonPasswords Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.
+	CommonPasswords bool `json:"common_passwords"`
+
+	// ContextWords Whether a password carrying the address, the person's name, the workspace's name or its host is refused. Compared after a fold that undoes case and the obvious substitutions, because `C0nt0so` is `contoso` to everybody except a naive comparison.
+	ContextWords bool `json:"context_words"`
+
+	// HistoryCount How many previous passwords are refused. 0 both where the switch is off and where the reader has no account - somebody with no password has no history, and a line under the field that can never be met is a line that only worries people.
+	HistoryCount int `json:"history_count"`
+
+	// MaxRepeat The longest run of one character allowed. **0 is off**, as it is for every other count here - one spelling for "this switch does nothing", rather than a nullable number beside twelve that are not.
+	MaxRepeat int `json:"max_repeat"`
+
+	// MinClasses How many of the four kinds have to appear at all. It cannot be expressed in the four counts - "one digit and one symbol" is not "two of four" - which is why both exist.
+	MinClasses int `json:"min_classes"`
+
+	// MinDigits Unicode category Nd. 0 is off.
+	MinDigits int `json:"min_digits"`
+
+	// MinLength The fewest characters
+	MinLength int `json:"min_length"`
+
+	// MinLowercase Unicode category Ll. 0 is off.
+	MinLowercase int `json:"min_lowercase"`
+
+	// MinSymbols Everything that is none of the three above: punctuation, a mark, an emoji, and a letter of a script with no case. 0 is off.
+	MinSymbols int `json:"min_symbols"`
+
+	// MinUppercase Unicode category Lu. 0 is off.
+	MinUppercase int `json:"min_uppercase"`
+
+	// NotCurrent Whether "not the password you have now" applies - only where there is one.
+	NotCurrent bool `json:"not_current"`
+}
+
+// PasswordViolation One rule the candidate breaks, as an identifier and its parameters.
+type PasswordViolation struct {
+	// Params The parameters that rule's sentence takes.
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Rule The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.
+	Rule string `json:"rule"`
+}
+
+// PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+type PolicyLock string
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -5733,6 +6059,23 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderSummary One way into this workspace, as a sign-in card needs it.
+type ProviderSummary struct {
+	DisplayName string `json:"display_name"`
+
+	// Id What `/auth/oidc:start` is given to choose this provider.
+	Id string `json:"id"`
+
+	// Kind The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.
+	Kind string `json:"kind"`
+
+	// Scope Whether every workspace is offered it, or this one configured it.
+	Scope ProviderSummaryScope `json:"scope"`
+}
+
+// ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
+type ProviderSummaryScope string
 
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
@@ -5809,6 +6152,11 @@ type QuotaStanding struct {
 
 // QuotaStandingQuota defines model for QuotaStanding.Quota.
 type QuotaStandingQuota string
+
+// RecoveryCodes The ten codes, shown once and stored only as hashes.
+type RecoveryCodes struct {
+	RecoveryCodes []string `json:"recovery_codes"`
+}
 
 // Recurrence defines model for Recurrence.
 type Recurrence struct {
@@ -6465,8 +6813,31 @@ type Session struct {
 	// LastUsedAt When the session last acted, to the minute rather than to the request - the value exists so a person can spot a session nobody uses.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
+	// SignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+	SignedInWith *SessionSignedInWith `json:"signed_in_with,omitempty"`
+
 	// UserAgent The client that signed in, as it introduced itself.
 	UserAgent *string `json:"user_agent,omitempty"`
+}
+
+// SessionSignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+type SessionSignedInWith string
+
+// SessionElevation How long this session carries the control plane's scope.
+type SessionElevation struct {
+	ElevatedUntil time.Time `json:"elevated_until"`
+
+	// RemainingSeconds What is left of the hour. On the screen, because an hour nobody can see the end of is an hour somebody is surprised by.
+	RemainingSeconds int `json:"remaining_seconds"`
+}
+
+// SessionPolicySettings The two bounds a session answers to beside its own expiry.
+type SessionPolicySettings struct {
+	// IdleMinutes One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	IdleMinutes SignInPolicyNumber `json:"idle_minutes"`
+
+	// MaxDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxDays SignInPolicyNumber `json:"max_days"`
 }
 
 // SessionRefresh defines model for SessionRefresh.
@@ -6512,6 +6883,138 @@ type SignInCompletion struct {
 
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+}
+
+// SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
+type SignInMethod string
+
+// SignInPasswordChange defines model for SignInPasswordChange.
+type SignInPasswordChange struct {
+	// Password The new password, judged against this workspace's rule in full.
+	Password string `json:"password"`
+
+	// PendingToken The credential the `PASSWORD_CHANGE` challenge handed out. It dies on use.
+	PendingToken string `json:"pending_token"`
+}
+
+// SignInPolicy The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
+// **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
+type SignInPolicy struct {
+	// Legal The four links, each with its own lock - B2C locks them, B2B leaves them open.
+	Legal   LegalPolicySettings `json:"legal"`
+	Methods SignInPolicyMethods `json:"methods"`
+
+	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into.
+	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
+
+	// Password The thirteen switches about the password itself, each at its three levels.
+	Password PasswordPolicySettings `json:"password"`
+
+	// RotationFrom When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.
+	RotationFrom *time.Time `json:"rotation_from"`
+
+	// Session The two bounds a session answers to beside its own expiry.
+	Session SessionPolicySettings `json:"session"`
+}
+
+// SignInPolicyChange The switches, flat: the thirteen the password has, the two about factors and methods, the two session bounds, the four legal links, and the rotation as an action.
+type SignInPolicyChange struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	BreachCheck      *bool   `json:"breach_check,omitempty"`
+	CommonPasswords  *bool   `json:"common_passwords,omitempty"`
+	ContextWords     *bool   `json:"context_words,omitempty"`
+
+	// HistoryCount 0 is off. At most ten.
+	HistoryCount *int    `json:"history_count,omitempty"`
+	ImprintUrl   *string `json:"imprint_url,omitempty"`
+
+	// MaxAgeDays 0 is off, which is the shipped value.
+	MaxAgeDays *int `json:"max_age_days,omitempty"`
+
+	// MaxRepeat 0 is off.
+	MaxRepeat      *int                              `json:"max_repeat,omitempty"`
+	Methods        *[]SignInMethod                   `json:"methods,omitempty"`
+	MfaRequiredFor *SignInPolicyChangeMfaRequiredFor `json:"mfa_required_for,omitempty"`
+
+	// MinAgeHours 0 is off. At most a day.
+	MinAgeHours  *int    `json:"min_age_hours,omitempty"`
+	MinClasses   *int    `json:"min_classes,omitempty"`
+	MinDigits    *int    `json:"min_digits,omitempty"`
+	MinLength    *int    `json:"min_length,omitempty"`
+	MinLowercase *int    `json:"min_lowercase,omitempty"`
+	MinSymbols   *int    `json:"min_symbols,omitempty"`
+	MinUppercase *int    `json:"min_uppercase,omitempty"`
+	PrivacyUrl   *string `json:"privacy_url,omitempty"`
+
+	// RotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
+	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
+
+	// SessionIdleMinutes 0 is off.
+	SessionIdleMinutes *int    `json:"session_idle_minutes,omitempty"`
+	SessionMaxDays     *int    `json:"session_max_days,omitempty"`
+	TermsUrl           *string `json:"terms_url,omitempty"`
+}
+
+// SignInPolicyChangeMfaRequiredFor defines model for SignInPolicyChange.MfaRequiredFor.
+type SignInPolicyChangeMfaRequiredFor string
+
+// SignInPolicyChangeRotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
+type SignInPolicyChangeRotationFrom string
+
+// SignInPolicyFlag defines model for SignInPolicyFlag.
+type SignInPolicyFlag struct {
+	Installation bool `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock `json:"lock"`
+	Value bool        `json:"value"`
+}
+
+// SignInPolicyMethods defines model for SignInPolicyMethods.
+type SignInPolicyMethods struct {
+	Installation []SignInMethod `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock    `json:"lock"`
+	Value []SignInMethod `json:"value"`
+}
+
+// SignInPolicyNumber One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+type SignInPolicyNumber struct {
+	// Installation What the level above set, which is what this workspace may tighten.
+	Installation int `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock *PolicyLock `json:"lock"`
+
+	// Value What is in force in this workspace.
+	Value int `json:"value"`
+}
+
+// SignInPolicyText defines model for SignInPolicyText.
+type SignInPolicyText struct {
+	Installation string `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock `json:"lock"`
+	Value string      `json:"value"`
+}
+
+// SignInRules The least a sign-in screen needs, and deliberately no more.
+type SignInRules struct {
+	// Legal The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+	Legal LegalLinks `json:"legal"`
+
+	// Methods The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.
+	Methods []SignInMethod `json:"methods"`
+
+	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+	Password  PasswordRules     `json:"password"`
+	Providers []ProviderSummary `json:"providers"`
+
+	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
+	WorkspaceHost string `json:"workspace_host"`
 }
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
@@ -7332,6 +7835,9 @@ type Workspace struct {
 	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
+	// SignInPolicy How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
+	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
+
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
 	Slug string `json:"slug"`
 
@@ -7355,6 +7861,10 @@ type WorkspaceUpdate struct {
 	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
 	DisplayName      *string `json:"display_name,omitempty"`
 	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+
+	// SignInPolicy The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.
+	// Three refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.
+	SignInPolicy *SignInPolicyChange `json:"sign_in_policy,omitempty"`
 }
 
 // AccountId defines model for AccountId.
@@ -7519,10 +8029,34 @@ type VerifyAuditChainJSONBody struct {
 	To      time.Time `json:"to"`
 }
 
+// RegenerateRecoveryCodesParams defines parameters for RegenerateRecoveryCodes.
+type RegenerateRecoveryCodesParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ChangePasswordParams defines parameters for ChangePassword.
+type ChangePasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CheckPasswordParams defines parameters for CheckPassword.
+type CheckPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // CreateServiceAccountParams defines parameters for CreateServiceAccount.
 type CreateServiceAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ElevateSessionParams defines parameters for ElevateSession.
+type ElevateSessionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListAccessTokensParams defines parameters for ListAccessTokens.
@@ -8330,6 +8864,9 @@ type AiGenerateTemplateParams struct {
 type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -8395,6 +8932,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
+type AddOperatorJSONRequestBody = OperatorAdd
+
+// WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
+type WriteInstanceSettingsJSONRequestBody = InstanceSettings
+
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
@@ -8437,6 +8980,18 @@ type CompleteOidcSignInJSONRequestBody = OidcCallback
 // StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
 type StartOidcSignInJSONRequestBody = OidcStart
 
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = PasswordChange
+
+// CheckPasswordJSONRequestBody defines body for CheckPassword for application/json ContentType.
+type CheckPasswordJSONRequestBody = PasswordCheck
+
+// ForgetPasswordJSONRequestBody defines body for ForgetPassword for application/json ContentType.
+type ForgetPasswordJSONRequestBody = PasswordForgot
+
+// ResetPasswordJSONRequestBody defines body for ResetPassword for application/json ContentType.
+type ResetPasswordJSONRequestBody = PasswordReset
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -8445,6 +9000,9 @@ type SignInJSONRequestBody = SignIn
 
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
+
+// SetPasswordAndSignInJSONRequestBody defines body for SetPasswordAndSignIn for application/json ContentType.
+type SetPasswordAndSignInJSONRequestBody = SignInPasswordChange
 
 // CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
 type CompleteSignInJSONRequestBody = SignInCompletion
@@ -8948,6 +9506,72 @@ type ClientInterface interface {
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListOperators Who operates this installation
+	//
+	// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	//
+	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+	ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddOperatorWithBody Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperatorWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddOperator Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperator(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveOperator Take an account out of the register
+	//
+	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	//
+	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+	RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadInstanceSettings What this installation has decided for every workspace on it
+	//
+	// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+	// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+	// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+	//
+	// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+	ReadInstanceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WriteInstanceSettingsWithBody Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WriteInstanceSettings Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTenants The installation's workspaces
 	//
 	// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -9198,6 +9822,14 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitation(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RegenerateRecoveryCodes Replace the ten recovery codes
+	//
+	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+	//
+	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+	RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConfirmTotpWithBody Confirm enrolment with a first valid code
 	//
 	// Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -9298,6 +9930,94 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/oidc:start (the `StartOidcSignIn` operationId).
 	StartOidcSignIn(ctx context.Context, body StartOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ChangePasswordWithBody Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePasswordWithBody(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePassword Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePassword(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckPasswordWithBody Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPasswordWithBody(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckPassword Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPassword(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ForgetPasswordWithBody Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ForgetPassword Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPassword(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResetPasswordWithBody Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResetPassword Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPassword(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListServiceAccounts The workspace's service accounts
 	//
 	// The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -9366,6 +10086,16 @@ type ClientInterface interface {
 	// Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 	RevokeSession(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ElevateSession Raise this session to the control plane for an hour
+	//
+	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// The personal access token stays exactly as it is, for automation.
+	//
+	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+	ElevateSession(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RefreshSessionWithBody Exchange a refresh token for the next pair
 	//
 	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
@@ -9386,6 +10116,28 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignInWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPasswordAndSignIn Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignIn(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CompleteSignInWithBody Present the second factor and receive the pair
 	//
 	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
@@ -9405,6 +10157,15 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 	CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSignInRules What a sign-in screen may know before anybody has signed in
+	//
+	// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+	// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+	//
+	// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+	GetSignInRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StepUpWithBody Prove yourself again, for the irreversible
 	//
@@ -11802,6 +12563,7 @@ type ClientInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes any type of body and a specified content type.
@@ -11814,6 +12576,7 @@ type ClientInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
@@ -12197,6 +12960,142 @@ func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...Request
 // Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResealSecretsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListOperators Who operates this installation
+//
+// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+//
+// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOperatorsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddOperatorWithBody Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *Client) AddOperatorWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddOperatorRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddOperator Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *Client) AddOperator(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddOperatorRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveOperator Take an account out of the register
+//
+// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+//
+// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveOperatorRequest(c.Server, accountId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadInstanceSettings What this installation has decided for every workspace on it
+//
+// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+//
+// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+func (c *Client) ReadInstanceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadInstanceSettingsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WriteInstanceSettingsWithBody Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteInstanceSettingsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WriteInstanceSettings Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *Client) WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteInstanceSettingsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -12697,6 +13596,24 @@ func (c *Client) RedeemInvitation(ctx context.Context, body RedeemInvitationJSON
 	return c.Client.Do(req)
 }
 
+// RegenerateRecoveryCodes Replace the ten recovery codes
+//
+// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+//
+// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+func (c *Client) RegenerateRecoveryCodes(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegenerateRecoveryCodesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ConfirmTotpWithBody Confirm enrolment with a first valid code
 //
 // Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -12897,6 +13814,174 @@ func (c *Client) StartOidcSignIn(ctx context.Context, body StartOidcSignInJSONRe
 	return c.Client.Do(req)
 }
 
+// ChangePasswordWithBody Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *Client) ChangePasswordWithBody(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePasswordRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePassword Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *Client) ChangePassword(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePasswordRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckPasswordWithBody Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *Client) CheckPasswordWithBody(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckPasswordRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckPassword Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *Client) CheckPassword(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckPasswordRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ForgetPasswordWithBody Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *Client) ForgetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewForgetPasswordRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ForgetPassword Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *Client) ForgetPassword(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewForgetPasswordRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResetPasswordWithBody Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *Client) ResetPasswordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResetPasswordRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResetPassword Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *Client) ResetPassword(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResetPasswordRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListServiceAccounts The workspace's service accounts
 //
 // The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -13045,6 +14130,26 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 	return c.Client.Do(req)
 }
 
+// ElevateSession Raise this session to the control plane for an hour
+//
+// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// The personal access token stays exactly as it is, for automation.
+//
+// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+func (c *Client) ElevateSession(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewElevateSessionRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RefreshSessionWithBody Exchange a refresh token for the next pair
 //
 // Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
@@ -13085,6 +14190,48 @@ func (c *Client) RefreshSession(ctx context.Context, body RefreshSessionJSONRequ
 	return c.Client.Do(req)
 }
 
+// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *Client) SetPasswordAndSignInWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPasswordAndSignInRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPasswordAndSignIn Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *Client) SetPasswordAndSignIn(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPasswordAndSignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CompleteSignInWithBody Present the second factor and receive the pair
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
@@ -13115,6 +14262,25 @@ func (c *Client) CompleteSignInWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 func (c *Client) CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteSignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSignInRules What a sign-in screen may know before anybody has signed in
+//
+// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+//
+// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+func (c *Client) GetSignInRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSignInRulesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -18281,6 +19447,7 @@ func (c *Client) ReadWorkspace(ctx context.Context, reqEditors ...RequestEditorF
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes any type of body and a specified content type.
@@ -18303,6 +19470,7 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes a body of the `application/merge-patch+json` content type.
@@ -18890,6 +20058,174 @@ func NewResealSecretsRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListOperatorsRequest constructs an http.Request for the ListOperators method
+func NewListOperatorsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/operators")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddOperatorRequest calls the generic AddOperator builder with application/json body
+func NewAddOperatorRequest(server string, body AddOperatorJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddOperatorRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddOperatorRequestWithBody constructs an http.Request for the AddOperator method, with any body, and a specified content type
+func NewAddOperatorRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/operators")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveOperatorRequest constructs an http.Request for the RemoveOperator method
+func NewRemoveOperatorRequest(server string, accountId AccountId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/operators/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadInstanceSettingsRequest constructs an http.Request for the ReadInstanceSettings method
+func NewReadInstanceSettingsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewWriteInstanceSettingsRequest calls the generic WriteInstanceSettings builder with application/json body
+func NewWriteInstanceSettingsRequest(server string, body WriteInstanceSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewWriteInstanceSettingsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewWriteInstanceSettingsRequestWithBody constructs an http.Request for the WriteInstanceSettings method, with any body, and a specified content type
+func NewWriteInstanceSettingsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -19604,6 +20940,48 @@ func NewRedeemInvitationRequestWithBody(server string, contentType string, body 
 	return req, nil
 }
 
+// NewRegenerateRecoveryCodesRequest constructs an http.Request for the RegenerateRecoveryCodes method
+func NewRegenerateRecoveryCodesRequest(server string, params *RegenerateRecoveryCodesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/recovery:regenerate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewConfirmTotpRequest calls the generic ConfirmTotp builder with application/json body
 func NewConfirmTotpRequest(server string, body ConfirmTotpJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -19785,6 +21163,196 @@ func NewStartOidcSignInRequestWithBody(server string, contentType string, body i
 	}
 
 	operationPath := fmt.Sprintf("/auth/oidc:start")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewChangePasswordRequest calls the generic ChangePassword builder with application/json body
+func NewChangePasswordRequest(server string, params *ChangePasswordParams, body ChangePasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangePasswordRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewChangePasswordRequestWithBody constructs an http.Request for the ChangePassword method, with any body, and a specified content type
+func NewChangePasswordRequestWithBody(server string, params *ChangePasswordParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCheckPasswordRequest calls the generic CheckPassword builder with application/json body
+func NewCheckPasswordRequest(server string, params *CheckPasswordParams, body CheckPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckPasswordRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCheckPasswordRequestWithBody constructs an http.Request for the CheckPassword method, with any body, and a specified content type
+func NewCheckPasswordRequestWithBody(server string, params *CheckPasswordParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password:check")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewForgetPasswordRequest calls the generic ForgetPassword builder with application/json body
+func NewForgetPasswordRequest(server string, body ForgetPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewForgetPasswordRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewForgetPasswordRequestWithBody constructs an http.Request for the ForgetPassword method, with any body, and a specified content type
+func NewForgetPasswordRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password:forgot")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewResetPasswordRequest calls the generic ResetPassword builder with application/json body
+func NewResetPasswordRequest(server string, body ResetPasswordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewResetPasswordRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewResetPasswordRequestWithBody constructs an http.Request for the ResetPassword method, with any body, and a specified content type
+func NewResetPasswordRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/password:reset")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -20014,6 +21582,48 @@ func NewRevokeSessionRequest(server string, sessionId SessionId) (*http.Request,
 	return req, nil
 }
 
+// NewElevateSessionRequest constructs an http.Request for the ElevateSession method
+func NewElevateSessionRequest(server string, params *ElevateSessionParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:elevate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRefreshSessionRequest calls the generic RefreshSession builder with application/json body
 func NewRefreshSessionRequest(server string, body RefreshSessionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -20035,6 +21645,46 @@ func NewRefreshSessionRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/auth/sessions:refresh")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetPasswordAndSignInRequest calls the generic SetPasswordAndSignIn builder with application/json body
+func NewSetPasswordAndSignInRequest(server string, body SetPasswordAndSignInJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPasswordAndSignInRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetPasswordAndSignInRequestWithBody constructs an http.Request for the SetPasswordAndSignIn method, with any body, and a specified content type
+func NewSetPasswordAndSignInRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:set-password")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -20090,6 +21740,33 @@ func NewCompleteSignInRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSignInRulesRequest constructs an http.Request for the GetSignInRules method
+func NewGetSignInRulesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sign-in-rules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -29918,6 +31595,17 @@ func NewUpdateWorkspaceRequestWithBody(server string, params *UpdateWorkspacePar
 			req.Header.Set("If-Match", headerParam0)
 		}
 
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
+		}
+
 	}
 
 	return req, nil
@@ -30644,6 +32332,78 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecretsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ResealSecretsResult, error)
 
+	// ListOperatorsWithResponse Who operates this installation
+	//
+	// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+	ListOperatorsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOperatorsResult, error)
+
+	// AddOperatorWithBodyWithResponse Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperatorWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddOperatorResult, error)
+
+	// AddOperatorWithResponse Put an account in the register
+	//
+	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+	AddOperatorWithResponse(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*AddOperatorResult, error)
+
+	// RemoveOperatorWithResponse Take an account out of the register
+	//
+	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+	RemoveOperatorWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*RemoveOperatorResult, error)
+
+	// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
+	//
+	// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+	// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+	// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+	ReadInstanceSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceSettingsResult, error)
+
+	// WriteInstanceSettingsWithBodyWithResponse Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
+
+	// WriteInstanceSettingsWithResponse Replace the installation's level
+	//
+	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+	WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
+
 	// ListTenantsWithResponse The installation's workspaces
 	//
 	// The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -30906,6 +32666,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitationWithResponse(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*RedeemInvitationResult, error)
 
+	// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
+	//
+	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+	RegenerateRecoveryCodesWithResponse(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*RegenerateRecoveryCodesResult, error)
+
 	// ConfirmTotpWithBodyWithResponse Confirm enrolment with a first valid code
 	//
 	// Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -31006,6 +32776,94 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/oidc:start (the `StartOidcSignIn` operationId).
 	StartOidcSignInWithResponse(ctx context.Context, body StartOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*StartOidcSignInResult, error)
 
+	// ChangePasswordWithBodyWithResponse Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePasswordWithBodyWithResponse(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error)
+
+	// ChangePasswordWithResponse Change the password of the signed-in account
+	//
+	// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+	// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+	// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+	ChangePasswordWithResponse(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error)
+
+	// CheckPasswordWithBodyWithResponse Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPasswordWithBodyWithResponse(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error)
+
+	// CheckPasswordWithResponse Ask what only the server knows about a candidate password
+	//
+	// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+	// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+	// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+	CheckPasswordWithResponse(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error)
+
+	// ForgetPasswordWithBodyWithResponse Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error)
+
+	// ForgetPasswordWithResponse Ask for a password reset link
+	//
+	// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+	// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+	// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+	ForgetPasswordWithResponse(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error)
+
+	// ResetPasswordWithBodyWithResponse Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error)
+
+	// ResetPasswordWithResponse Spend a reset link and set the password
+	//
+	// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+	// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+	// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+	ResetPasswordWithResponse(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error)
+
 	// ListServiceAccountsWithResponse The workspace's service accounts
 	//
 	// The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -31082,6 +32940,18 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 	RevokeSessionWithResponse(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*RevokeSessionResult, error)
 
+	// ElevateSessionWithResponse Raise this session to the control plane for an hour
+	//
+	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// The personal access token stays exactly as it is, for automation.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+	ElevateSessionWithResponse(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*ElevateSessionResult, error)
+
 	// RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 	//
 	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
@@ -31102,6 +32972,28 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSessionWithResponse(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshSessionResult, error)
 
+	// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignInWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error)
+
+	// SetPasswordAndSignInWithResponse Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignInWithResponse(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error)
+
 	// CompleteSignInWithBodyWithResponse Present the second factor and receive the pair
 	//
 	// The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
@@ -31121,6 +33013,17 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 	CompleteSignInWithResponse(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteSignInResult, error)
+
+	// GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
+	//
+	// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+	// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+	GetSignInRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignInRulesResult, error)
 
 	// StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 	//
@@ -33814,6 +35717,7 @@ type ClientWithResponsesInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -33826,6 +35730,7 @@ type ClientWithResponsesInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
@@ -34363,6 +36268,232 @@ func (r ResealSecretsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResealSecretsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListOperatorsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]Operator
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOperatorsResult) GetJSON200() *[]Operator {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListOperatorsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOperatorsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOperatorsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOperatorsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOperatorsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddOperatorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddOperatorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddOperatorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddOperatorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddOperatorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddOperatorResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveOperatorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveOperatorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveOperatorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveOperatorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveOperatorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveOperatorResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadInstanceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadInstanceSettingsResult) GetJSON200() *InstanceSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadInstanceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadInstanceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadInstanceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadInstanceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadInstanceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WriteInstanceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WriteInstanceSettingsResult) GetJSON200() *InstanceSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WriteInstanceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WriteInstanceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WriteInstanceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WriteInstanceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WriteInstanceSettingsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -35146,6 +37277,54 @@ func (r RedeemInvitationResult) ContentType() string {
 	return ""
 }
 
+type RegenerateRecoveryCodesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *RecoveryCodes
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RegenerateRecoveryCodesResult) GetJSON201() *RecoveryCodes {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RegenerateRecoveryCodesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RegenerateRecoveryCodesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RegenerateRecoveryCodesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegenerateRecoveryCodesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RegenerateRecoveryCodesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ConfirmTotpResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -35373,6 +37552,191 @@ func (r StartOidcSignInResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StartOidcSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangePasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangePasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangePasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangePasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangePasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangePasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasswordCheckResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckPasswordResult) GetJSON200() *PasswordCheckResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ForgetPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ForgetPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ForgetPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ForgetPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ForgetPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ForgetPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResetPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ResetPasswordResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r ResetPasswordResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ResetPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ResetPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResetPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResetPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResetPasswordResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -35660,6 +38024,54 @@ func (r RevokeSessionResult) ContentType() string {
 	return ""
 }
 
+type ElevateSessionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SessionElevation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ElevateSessionResult) GetJSON200() *SessionElevation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ElevateSessionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ElevateSessionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ElevateSessionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ElevateSessionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ElevateSessionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RefreshSessionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -35708,6 +38120,54 @@ func (r RefreshSessionResult) ContentType() string {
 	return ""
 }
 
+type SetPasswordAndSignInResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SetPasswordAndSignInResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPasswordAndSignInResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPasswordAndSignInResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPasswordAndSignInResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPasswordAndSignInResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPasswordAndSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CompleteSignInResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -35750,6 +38210,54 @@ func (r CompleteSignInResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompleteSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetSignInRulesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SignInRules
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSignInRulesResult) GetJSON200() *SignInRules {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetSignInRulesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSignInRulesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSignInRulesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSignInRulesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSignInRulesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -46235,6 +48743,120 @@ func (c *ClientWithResponses) ResealSecretsWithResponse(ctx context.Context, req
 	return ParseResealSecretsResult(rsp)
 }
 
+// ListOperatorsWithResponse Who operates this installation
+//
+// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/operators (the `ListOperators` operationId).
+func (c *ClientWithResponses) ListOperatorsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOperatorsResult, error) {
+	rsp, err := c.ListOperators(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOperatorsResult(rsp)
+}
+
+// AddOperatorWithBodyWithResponse Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *ClientWithResponses) AddOperatorWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddOperatorResult, error) {
+	rsp, err := c.AddOperatorWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddOperatorResult(rsp)
+}
+
+// AddOperatorWithResponse Put an account in the register
+//
+// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/operators (the `AddOperator` operationId).
+func (c *ClientWithResponses) AddOperatorWithResponse(ctx context.Context, body AddOperatorJSONRequestBody, reqEditors ...RequestEditorFn) (*AddOperatorResult, error) {
+	rsp, err := c.AddOperator(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddOperatorResult(rsp)
+}
+
+// RemoveOperatorWithResponse Take an account out of the register
+//
+// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
+func (c *ClientWithResponses) RemoveOperatorWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*RemoveOperatorResult, error) {
+	rsp, err := c.RemoveOperator(ctx, accountId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveOperatorResult(rsp)
+}
+
+// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
+//
+// The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
+// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
+// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
+func (c *ClientWithResponses) ReadInstanceSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceSettingsResult, error) {
+	rsp, err := c.ReadInstanceSettings(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadInstanceSettingsResult(rsp)
+}
+
+// WriteInstanceSettingsWithBodyWithResponse Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *ClientWithResponses) WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
+	rsp, err := c.WriteInstanceSettingsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWriteInstanceSettingsResult(rsp)
+}
+
+// WriteInstanceSettingsWithResponse Replace the installation's level
+//
+// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
+// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
+// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
+func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
+	rsp, err := c.WriteInstanceSettings(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWriteInstanceSettingsResult(rsp)
+}
+
 // ListTenantsWithResponse The installation's workspaces
 //
 // The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
@@ -46641,6 +49263,22 @@ func (c *ClientWithResponses) RedeemInvitationWithResponse(ctx context.Context, 
 	return ParseRedeemInvitationResult(rsp)
 }
 
+// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
+//
+// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
+func (c *ClientWithResponses) RegenerateRecoveryCodesWithResponse(ctx context.Context, params *RegenerateRecoveryCodesParams, reqEditors ...RequestEditorFn) (*RegenerateRecoveryCodesResult, error) {
+	rsp, err := c.RegenerateRecoveryCodes(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegenerateRecoveryCodesResult(rsp)
+}
+
 // ConfirmTotpWithBodyWithResponse Confirm enrolment with a first valid code
 //
 // Arms the enrolment: the caller proves the authenticator holds the secret by presenting one valid code, and from this moment sign-in is two-step. Called with a bearer credential, or with the pending credential of an enforcement sign-in - in which case a successful confirmation also answers the session pair, because the person has by now proved both factors.
@@ -46801,6 +49439,142 @@ func (c *ClientWithResponses) StartOidcSignInWithResponse(ctx context.Context, b
 	return ParseStartOidcSignInResult(rsp)
 }
 
+// ChangePasswordWithBodyWithResponse Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *ClientWithResponses) ChangePasswordWithBodyWithResponse(ctx context.Context, params *ChangePasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error) {
+	rsp, err := c.ChangePasswordWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePasswordResult(rsp)
+}
+
+// ChangePasswordWithResponse Change the password of the signed-in account
+//
+// The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).
+// Every other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.
+// A refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password (the `ChangePassword` operationId).
+func (c *ClientWithResponses) ChangePasswordWithResponse(ctx context.Context, params *ChangePasswordParams, body ChangePasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePasswordResult, error) {
+	rsp, err := c.ChangePassword(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePasswordResult(rsp)
+}
+
+// CheckPasswordWithBodyWithResponse Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *ClientWithResponses) CheckPasswordWithBodyWithResponse(ctx context.Context, params *CheckPasswordParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error) {
+	rsp, err := c.CheckPasswordWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckPasswordResult(rsp)
+}
+
+// CheckPasswordWithResponse Ask what only the server knows about a candidate password
+//
+// The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.
+// **It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.
+// `200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:check (the `CheckPassword` operationId).
+func (c *ClientWithResponses) CheckPasswordWithResponse(ctx context.Context, params *CheckPasswordParams, body CheckPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckPasswordResult, error) {
+	rsp, err := c.CheckPassword(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckPasswordResult(rsp)
+}
+
+// ForgetPasswordWithBodyWithResponse Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *ClientWithResponses) ForgetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error) {
+	rsp, err := c.ForgetPasswordWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseForgetPasswordResult(rsp)
+}
+
+// ForgetPasswordWithResponse Ask for a password reset link
+//
+// Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for "no such address", because there is no such answer.
+// Behind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.
+// An account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:forgot (the `ForgetPassword` operationId).
+func (c *ClientWithResponses) ForgetPasswordWithResponse(ctx context.Context, body ForgetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ForgetPasswordResult, error) {
+	rsp, err := c.ForgetPassword(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseForgetPasswordResult(rsp)
+}
+
+// ResetPasswordWithBodyWithResponse Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *ClientWithResponses) ResetPasswordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error) {
+	rsp, err := c.ResetPasswordWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResetPasswordResult(rsp)
+}
+
+// ResetPasswordWithResponse Spend a reset link and set the password
+//
+// The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.
+// **Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.
+// Where the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/password:reset (the `ResetPassword` operationId).
+func (c *ClientWithResponses) ResetPasswordWithResponse(ctx context.Context, body ResetPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*ResetPasswordResult, error) {
+	rsp, err := c.ResetPassword(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResetPasswordResult(rsp)
+}
+
 // ListServiceAccountsWithResponse The workspace's service accounts
 //
 // The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.
@@ -46925,6 +49699,24 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 	return ParseRevokeSessionResult(rsp)
 }
 
+// ElevateSessionWithResponse Raise this session to the control plane for an hour
+//
+// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
+// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// The personal access token stays exactly as it is, for automation.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
+func (c *ClientWithResponses) ElevateSessionWithResponse(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*ElevateSessionResult, error) {
+	rsp, err := c.ElevateSession(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseElevateSessionResult(rsp)
+}
+
 // RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 //
 // Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
@@ -46957,6 +49749,40 @@ func (c *ClientWithResponses) RefreshSessionWithResponse(ctx context.Context, bo
 	return ParseRefreshSessionResult(rsp)
 }
 
+// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *ClientWithResponses) SetPasswordAndSignInWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error) {
+	rsp, err := c.SetPasswordAndSignInWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPasswordAndSignInResult(rsp)
+}
+
+// SetPasswordAndSignInWithResponse Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *ClientWithResponses) SetPasswordAndSignInWithResponse(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error) {
+	rsp, err := c.SetPasswordAndSignIn(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPasswordAndSignInResult(rsp)
+}
+
 // CompleteSignInWithBodyWithResponse Present the second factor and receive the pair
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
@@ -46987,6 +49813,23 @@ func (c *ClientWithResponses) CompleteSignInWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParseCompleteSignInResult(rsp)
+}
+
+// GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
+//
+// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+func (c *ClientWithResponses) GetSignInRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignInRulesResult, error) {
+	rsp, err := c.GetSignInRules(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSignInRulesResult(rsp)
 }
 
 // StepUpWithBodyWithResponse Prove yourself again, for the irreversible
@@ -51337,6 +54180,7 @@ func (c *ClientWithResponses) ReadWorkspaceWithResponse(ctx context.Context, req
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -51355,6 +54199,7 @@ func (c *ClientWithResponses) UpdateWorkspaceWithBodyWithResponse(ctx context.Co
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
@@ -51833,6 +54678,163 @@ func ParseResealSecretsResult(rsp *http.Response) (*ResealSecretsResult, error) 
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListOperatorsResult parses an HTTP response from a ListOperatorsWithResponse call
+func ParseListOperatorsResult(rsp *http.Response) (*ListOperatorsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOperatorsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Operator
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddOperatorResult parses an HTTP response from a AddOperatorWithResponse call
+func ParseAddOperatorResult(rsp *http.Response) (*AddOperatorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddOperatorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveOperatorResult parses an HTTP response from a RemoveOperatorWithResponse call
+func ParseRemoveOperatorResult(rsp *http.Response) (*RemoveOperatorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveOperatorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadInstanceSettingsResult parses an HTTP response from a ReadInstanceSettingsWithResponse call
+func ParseReadInstanceSettingsResult(rsp *http.Response) (*ReadInstanceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadInstanceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWriteInstanceSettingsResult parses an HTTP response from a WriteInstanceSettingsWithResponse call
+func ParseWriteInstanceSettingsResult(rsp *http.Response) (*WriteInstanceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WriteInstanceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -52375,6 +55377,39 @@ func ParseRedeemInvitationResult(rsp *http.Response) (*RedeemInvitationResult, e
 	return response, nil
 }
 
+// ParseRegenerateRecoveryCodesResult parses an HTTP response from a RegenerateRecoveryCodesWithResponse call
+func ParseRegenerateRecoveryCodesResult(rsp *http.Response) (*RegenerateRecoveryCodesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegenerateRecoveryCodesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest RecoveryCodes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseConfirmTotpResult parses an HTTP response from a ConfirmTotpWithResponse call
 func ParseConfirmTotpResult(rsp *http.Response) (*ConfirmTotpResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -52523,6 +55558,137 @@ func ParseStartOidcSignInResult(rsp *http.Response) (*StartOidcSignInResult, err
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangePasswordResult parses an HTTP response from a ChangePasswordWithResponse call
+func ParseChangePasswordResult(rsp *http.Response) (*ChangePasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangePasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckPasswordResult parses an HTTP response from a CheckPasswordWithResponse call
+func ParseCheckPasswordResult(rsp *http.Response) (*CheckPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasswordCheckResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseForgetPasswordResult parses an HTTP response from a ForgetPasswordWithResponse call
+func ParseForgetPasswordResult(rsp *http.Response) (*ForgetPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ForgetPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 202:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResetPasswordResult parses an HTTP response from a ResetPasswordWithResponse call
+func ParseResetPasswordResult(rsp *http.Response) (*ResetPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResetPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -52733,6 +55899,39 @@ func ParseRevokeSessionResult(rsp *http.Response) (*RevokeSessionResult, error) 
 	return response, nil
 }
 
+// ParseElevateSessionResult parses an HTTP response from a ElevateSessionWithResponse call
+func ParseElevateSessionResult(rsp *http.Response) (*ElevateSessionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ElevateSessionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SessionElevation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRefreshSessionResult parses an HTTP response from a RefreshSessionWithResponse call
 func ParseRefreshSessionResult(rsp *http.Response) (*RefreshSessionResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -52766,6 +55965,39 @@ func ParseRefreshSessionResult(rsp *http.Response) (*RefreshSessionResult, error
 	return response, nil
 }
 
+// ParseSetPasswordAndSignInResult parses an HTTP response from a SetPasswordAndSignInWithResponse call
+func ParseSetPasswordAndSignInResult(rsp *http.Response) (*SetPasswordAndSignInResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPasswordAndSignInResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCompleteSignInResult parses an HTTP response from a CompleteSignInWithResponse call
 func ParseCompleteSignInResult(rsp *http.Response) (*CompleteSignInResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -52786,6 +56018,39 @@ func ParseCompleteSignInResult(rsp *http.Response) (*CompleteSignInResult, error
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSignInRulesResult parses an HTTP response from a GetSignInRulesWithResponse call
+func ParseGetSignInRulesResult(rsp *http.Response) (*GetSignInRulesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSignInRulesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SignInRules
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

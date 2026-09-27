@@ -64,7 +64,7 @@ export HUBTASK_SECRET_KEY=local-development-only-not-a-secret-000000
 scripts/dev-workspace.sh --bootstrap          # once per database; prints a token
 
 export HUBTASK_ADMIN_TOKEN=…                  # the token it printed
-export HUBTASK_DEMO_PASSWORD='correct horse battery staple'
+export HUBTASK_DEMO_PASSWORD='seven blue lanterns above the harbour'
 scripts/dev-workspace.sh
 ```
 

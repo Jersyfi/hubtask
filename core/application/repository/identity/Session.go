@@ -30,6 +30,10 @@ type SessionCredential struct {
 	// TokenRatePerMinute is the workspace's own request-rate ceiling (H-08), Credential's
 	// reason. 0 means the installation's default applies.
 	TokenRatePerMinute int64
+	// RotationFrom is the workspace's rotation cutoff (ADR-0068 §3), read off the tenant row this
+	// credential already joins. A session opened before it is refused on its next request - which
+	// is the whole of the enforcement, at no cost per request.
+	RotationFrom time.Time
 }
 
 // RefreshCredential is what the exchange reads: the presented link of the chain, its session,
@@ -111,6 +115,11 @@ type Sessions interface {
 
 	// RevokeAll ends every live session of the account and reports how many.
 	RevokeAll(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+
+	// Elevate raises one live session of the account to the control plane's scope until the given
+	// moment (ADR-0070 §4). False means the session is not the account's, or not live - which is
+	// the same indistinguishable answer Revoke gives, for the same reason.
+	Elevate(ctx context.Context, sessionID, accountID shared.ID, until, now time.Time) (bool, error)
 }
 
 // RefreshTokens maintains the rotating chain. The presented token is passed whole rather than

@@ -44,6 +44,20 @@ const (
 	// them (observability-reliability.md §7).
 	KindInvitationEmail Kind = "notification.invitation"
 
+	// KindPasswordResetEmail carries a reset link to somebody who asked for one (ADR-0068 §6).
+	//
+	// A job rather than a send inside the request, for KindInvitationEmail's reason: an
+	// unreachable mail server must never fail the request, and the request's answer is the same
+	// `202` whether or not the address holds an account - a send that failed loudly would be the
+	// difference a probe is looking for.
+	//
+	// And deliberately *not* a notification record. Every other message in this system is
+	// something a person may switch off, has a read state, and belongs in a list; a reset link is
+	// a credential on its way to a mailbox, with no preference to consult and nothing to list.
+	// Giving it a category would add one that no preference may touch - which is a category that
+	// exists only to be an exception.
+	KindPasswordResetEmail Kind = "notification.password_reset"
+
 	// KindNotificationDeliver sends one notification (C-09). One job per record rather than one
 	// per tenant, because the retry belongs to the message: an address the server refuses must not
 	// hold up everybody else's mail, and the queue's own attempt budget and dead letter are

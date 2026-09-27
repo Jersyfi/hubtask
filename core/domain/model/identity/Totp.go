@@ -137,6 +137,11 @@ const (
 	// PendingLifetime is how long the second step may take. Minutes: long enough to find the
 	// phone, short enough that an abandoned half sign-in is not a standing door.
 	PendingLifetime = 5 * time.Minute
+	// ResetLifetime is how long a reset link stays usable (ADR-0068 §6). Half an hour: long
+	// enough to reach a mailbox on another device, short enough that a link left in an inbox is
+	// not a standing door. The same pending row, a longer clock - the discipline is the second
+	// factor's, the window is the mailbox's.
+	ResetLifetime = 30 * time.Minute
 )
 
 // PendingPurpose is what the credential may complete.
@@ -148,6 +153,13 @@ const (
 	// PendingEnroll is the enforcement route: an administrator the tenant switch requires a
 	// factor of, not yet enrolled, allowed exactly as far as enrolment and its confirmation.
 	PendingEnroll PendingPurpose = "ENROLL"
+	// PendingReset is the token a reset mail carries (ADR-0068 §6). Not a session and not a
+	// second factor: thirty minutes, single use, and it can do one thing - set a password.
+	PendingReset PendingPurpose = "RESET"
+	// PendingPassword is the credential the PASSWORD_CHANGE step of a sign-in hands out: the
+	// password was right and no longer meets the rule, so the sign-in continues by setting a new
+	// one. Confirming it *is* the sign-in, exactly as ENROLL already works (ADR-0068 §3).
+	PendingPassword PendingPurpose = "PASSWORD"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.

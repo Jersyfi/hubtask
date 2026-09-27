@@ -4209,6 +4209,247 @@
         }
       }
     },
+    "/auth/password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "changePassword",
+        "summary": "Change the password of the signed-in account",
+        "description": "The password of the caller's own account, behind a step-up (H-03). The step-up **is** the proof of the old password, which is why there is no current-password field beside it: asking for both is asking twice for one thing (WCAG 2.2 SC 3.3.7).\nEvery other session of the account is ended and this one is not - a person changing their password is saying the old one may be known, and the other sessions are what it opened. Personal access tokens keep working: they are their own credentials with their own expiry and their own list, and nobody mints one in a browser.\nA refused password answers `422` with one `field_errors[]` entry per rule it breaks, each carrying the `auth.password_rule.*` code the client predicted with - so one fact has one sentence whether the client saw it coming or the server sent it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Changed. The other sessions are over."
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/password:forgot": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "forgetPassword",
+        "security": [],
+        "summary": "Ask for a password reset link",
+        "description": "Answers `202` for an address that holds an account and for one that does not, byte for byte: which addresses have accounts is exactly what a probe is after (T-02). There is no error state for \"no such address\", because there is no such answer.\nBehind that one answer sits a job on the queue the invitation already uses, so an unreachable mail server never fails the request - and never becomes the difference a probe was looking for. The link is a single-use token that lives half an hour, stored only as a hash under its own purpose label, and it arrives in the URL's fragment so that nothing between the mail client and the interface sees it.\nAn account that signs in only through its organisation's provider gets a different mail - saying so - and the same answer.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordForgot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The request arrived. Whether anything was sent is deliberately not said."
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/password:reset": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "resetPassword",
+        "security": [],
+        "summary": "Spend a reset link and set the password",
+        "description": "The token from the reset mail, and a password under this workspace's rule. The token works once and for half an hour; unknown, spent and expired are one indistinguishable refusal - which of the three applies is not for the holder of a link they found somewhere to learn.\n**Every session of the account ends.** Somebody asking for a reset is saying the old password may be known, and the sessions are what it opened.\nWhere the account has a second factor the answer is `202` with the challenge rather than `201` with the pair: control of a mailbox is one proof, and it does not replace the one the account already demanded (ADR-0068 §6).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordReset"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The password is set and the session is open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The password is set and the account's second factor is still owed. The pending credential can do nothing but complete this sign-in.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/password:check": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "checkPassword",
+        "security": [],
+        "summary": "Ask what only the server knows about a candidate password",
+        "description": "The four rules a client cannot answer itself: the offline lists, the breach corpus, the last few passwords of this account, and whether the candidate is the one in force. The answer is rule identifiers and never sentences - the client already holds the message code for each.\n**It demands the same proof the setting demands.** A bearer for one's own account, or the token of the flow a password is being set in: an invitation, a reset, or the pending credential of a sign-in the change step interrupted. Without one the route would be an oracle that told anybody whether a word is on a blocklist or in somebody's history.\n`200` with a list rather than a refusal, because it is a question and not an attempt: a client asks it while somebody is still typing, and a `422` would be an error state on a form nobody has submitted. It consumes no credential, for the same reason - a question that spent the pending token would end the sign-in it was asked during. Its rate limit is its own, beside the auth bucket, because it costs Argon2 comparisons.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordCheck"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The rules this candidate breaks, which may be none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordCheckResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/sessions:set-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "setPasswordAndSignIn",
+        "security": [],
+        "summary": "Set a new password and finish the sign-in",
+        "description": "The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.\nThe pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.\nThis is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInPasswordChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Set, and signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/sessions:elevate": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "elevateSession",
+        "summary": "Raise this session to the control plane for an hour",
+        "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up (ADR-0070 §4). One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raised",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionElevation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/sign-in-rules": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "getSignInRules",
+        "security": [],
+        "summary": "What a sign-in screen may know before anybody has signed in",
+        "description": "The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.\nPublic the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).\nWhy it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying \"at least twelve characters\" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.\n",
+        "responses": {
+          "200": {
+            "description": "The rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInRules"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/mfa/totp:enroll": {
       "post": {
         "tags": [
@@ -4306,6 +4547,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StepUpGrant"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/mfa/recovery:regenerate": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "regenerateRecoveryCodes",
+        "summary": "Replace the ten recovery codes",
+        "description": "Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.\nShown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's (ADR-0068, SI-09): somebody who has burned eight of ten used to have no way to get ten back that did not involve taking their working second factor off for a minute, and that is the shape this route replaces. It is also what keeps them right when a passkey is the second factor - nothing about them mentions TOTP.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The new set, for the only time it is shown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodes"
                 }
               }
             }
@@ -4781,6 +5052,141 @@
         }
       }
     },
+    "/admin/settings": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "readInstanceSettings",
+        "summary": "What this installation has decided for every workspace on it",
+        "description": "The level above the workspaces (ADR-0070 §2): the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.\nOnly what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and \"the operator decided nothing here\" is a value the resolver acts on.\nBehind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.\n",
+        "responses": {
+          "200": {
+            "description": "The level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "writeInstanceSettings",
+        "summary": "Replace the installation's level",
+        "description": "A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say \"unset this one\", and being able to say it is the whole point of a level that distinguishes a decision from a default.\nA locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.\nOne journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstanceSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The level as it now stands",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/operators": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listOperators",
+        "summary": "Who operates this installation",
+        "description": "The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\n",
+        "responses": {
+          "200": {
+            "description": "The register",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Operator"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "addOperator",
+        "summary": "Put an account in the register",
+        "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorAdd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "In the register"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/operators/{accountId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "removeOperator",
+        "summary": "Take an account out of the register",
+        "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.\n",
+        "responses": {
+          "204": {
+            "description": "Out of the register"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/encryption": {
       "get": {
         "tags": [
@@ -4932,10 +5338,13 @@
         ],
         "operationId": "updateWorkspace",
         "summary": "Change how the workspace is set up",
-        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.\nThe slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
+        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.\nThe slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\n`sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
           }
         ],
         "requestBody": {
@@ -10084,6 +10493,14 @@
             ],
             "format": "date-time",
             "description": "When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.\n"
+          },
+          "has_second_factor": {
+            "type": "boolean",
+            "description": "Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.\nUntil this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - \"make new recovery codes\" and \"turn it off\" - under a red banner saying none were left.\n"
+          },
+          "recovery_codes_remaining": {
+            "type": "integer",
+            "description": "How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not \"zero left\" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.\nThe same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.\n"
           }
         }
       },
@@ -10506,6 +10923,22 @@
           "current": {
             "type": "boolean",
             "description": "Whether this session is the one answering the call."
+          },
+          "signed_in_with": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "PASSWORD",
+              "PASSWORD_TOTP",
+              "PASSWORD_RECOVERY",
+              "OIDC",
+              "INVITATION",
+              "RESET",
+              null
+            ],
+            "description": "How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not \"unknown method\" so much as \"before this existed\" - a client leaves the line out rather than printing a word nobody can act on.\n"
           }
         }
       },
@@ -11022,6 +11455,253 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock, as everywhere else."
+          },
+          "sign_in_policy": {
+            "$ref": "#/components/schemas/SignInPolicy",
+            "description": "How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.\n"
+          }
+        }
+      },
+      "SignInPolicyNumber": {
+        "type": "object",
+        "description": "One numeric switch, at the three levels that decide it. Zero is off for every one of them.\n",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "integer",
+            "description": "What is in force in this workspace."
+          },
+          "installation": {
+            "type": "integer",
+            "description": "What the level above set, which is what this workspace may tighten."
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "SignInPolicyFlag": {
+        "type": "object",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "boolean"
+          },
+          "installation": {
+            "type": "boolean"
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "SignInPolicyText": {
+        "type": "object",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "installation": {
+            "type": "string"
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "SignInMethod": {
+        "type": "string",
+        "enum": [
+          "PASSWORD",
+          "OIDC"
+        ],
+        "description": "One way into a workspace. A named schema, so that every reader of one shares a type."
+      },
+      "SignInPolicyMethods": {
+        "type": "object",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            }
+          },
+          "installation": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            }
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "PolicyLock": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "INSTANCE",
+          "PLAN",
+          null
+        ],
+        "description": "Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because \"ask your administrator\" and \"ask your provider\" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).\n"
+      },
+      "SignInPolicy": {
+        "type": "object",
+        "description": "The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.\n**A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.\n",
+        "required": [
+          "password",
+          "mfa_required_for",
+          "methods",
+          "session",
+          "legal",
+          "rotation_from"
+        ],
+        "properties": {
+          "password": {
+            "$ref": "#/components/schemas/PasswordPolicySettings"
+          },
+          "mfa_required_for": {
+            "$ref": "#/components/schemas/SignInPolicyText",
+            "description": "`NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into."
+          },
+          "methods": {
+            "$ref": "#/components/schemas/SignInPolicyMethods"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionPolicySettings"
+          },
+          "legal": {
+            "$ref": "#/components/schemas/LegalPolicySettings"
+          },
+          "rotation_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.\n"
+          }
+        }
+      },
+      "PasswordPolicySettings": {
+        "type": "object",
+        "description": "The thirteen switches about the password itself, each at its three levels.",
+        "required": [
+          "min_length",
+          "min_lowercase",
+          "min_uppercase",
+          "min_digits",
+          "min_symbols",
+          "min_classes",
+          "max_repeat",
+          "common_passwords",
+          "context_words",
+          "breach_check",
+          "max_age_days",
+          "history_count",
+          "min_age_hours"
+        ],
+        "properties": {
+          "min_length": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_lowercase": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_uppercase": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_digits": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_symbols": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_classes": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "max_repeat": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "common_passwords": {
+            "$ref": "#/components/schemas/SignInPolicyFlag"
+          },
+          "context_words": {
+            "$ref": "#/components/schemas/SignInPolicyFlag"
+          },
+          "breach_check": {
+            "$ref": "#/components/schemas/SignInPolicyFlag"
+          },
+          "max_age_days": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "history_count": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_age_hours": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          }
+        }
+      },
+      "SessionPolicySettings": {
+        "type": "object",
+        "description": "The two bounds a session answers to beside its own expiry.",
+        "required": [
+          "max_days",
+          "idle_minutes"
+        ],
+        "properties": {
+          "max_days": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "idle_minutes": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          }
+        }
+      },
+      "LegalPolicySettings": {
+        "type": "object",
+        "description": "The four links, each with its own lock - B2C locks them, B2B leaves them open.",
+        "required": [
+          "imprint_url",
+          "privacy_url",
+          "terms_url",
+          "accessibility_url"
+        ],
+        "properties": {
+          "imprint_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "privacy_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "terms_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "accessibility_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
           }
         }
       },
@@ -11044,6 +11724,101 @@
           },
           "require_admin_totp": {
             "type": "boolean"
+          },
+          "sign_in_policy": {
+            "$ref": "#/components/schemas/SignInPolicyChange",
+            "description": "The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.\nThree refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.\n"
+          }
+        }
+      },
+      "SignInPolicyChange": {
+        "type": "object",
+        "description": "The switches, flat: the thirteen the password has, the two about factors and methods, the two session bounds, the four legal links, and the rotation as an action.\n",
+        "properties": {
+          "min_length": {
+            "type": "integer"
+          },
+          "min_lowercase": {
+            "type": "integer"
+          },
+          "min_uppercase": {
+            "type": "integer"
+          },
+          "min_digits": {
+            "type": "integer"
+          },
+          "min_symbols": {
+            "type": "integer"
+          },
+          "min_classes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "max_repeat": {
+            "type": "integer",
+            "description": "0 is off."
+          },
+          "common_passwords": {
+            "type": "boolean"
+          },
+          "context_words": {
+            "type": "boolean"
+          },
+          "breach_check": {
+            "type": "boolean"
+          },
+          "max_age_days": {
+            "type": "integer",
+            "description": "0 is off, which is the shipped value."
+          },
+          "history_count": {
+            "type": "integer",
+            "description": "0 is off. At most ten."
+          },
+          "min_age_hours": {
+            "type": "integer",
+            "description": "0 is off. At most a day."
+          },
+          "mfa_required_for": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ADMINS",
+              "EVERYONE"
+            ]
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            }
+          },
+          "session_max_days": {
+            "type": "integer"
+          },
+          "session_idle_minutes": {
+            "type": "integer",
+            "description": "0 is off."
+          },
+          "imprint_url": {
+            "type": "string"
+          },
+          "privacy_url": {
+            "type": "string"
+          },
+          "terms_url": {
+            "type": "string"
+          },
+          "accessibility_url": {
+            "type": "string"
+          },
+          "rotation_from": {
+            "type": "string",
+            "enum": [
+              "now"
+            ],
+            "description": "The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.\n"
           }
         }
       },
@@ -11131,6 +11906,412 @@
           }
         }
       },
+      "SessionElevation": {
+        "type": "object",
+        "description": "How long this session carries the control plane's scope.",
+        "required": [
+          "elevated_until",
+          "remaining_seconds"
+        ],
+        "properties": {
+          "elevated_until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remaining_seconds": {
+            "type": "integer",
+            "description": "What is left of the hour. On the screen, because an hour nobody can see the end of is an hour somebody is surprised by.\n"
+          }
+        }
+      },
+      "RecoveryCodes": {
+        "type": "object",
+        "description": "The ten codes, shown once and stored only as hashes.",
+        "required": [
+          "recovery_codes"
+        ],
+        "properties": {
+          "recovery_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 10,
+            "maxItems": 10
+          }
+        }
+      },
+      "PasswordChange": {
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The new password, judged against this workspace's rule."
+          }
+        }
+      },
+      "PasswordCheck": {
+        "type": "object",
+        "description": "The candidate, and the proof that the caller is entitled to an answer about it. Exactly one proof is needed; a signed-in caller's bearer is one.\n",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "pending_token": {
+            "type": "string",
+            "description": "The pending credential of a sign-in the change step interrupted."
+          },
+          "invitation_token": {
+            "type": "string",
+            "description": "The token from an invitation mail."
+          },
+          "reset_token": {
+            "type": "string",
+            "description": "The token from a reset mail."
+          }
+        }
+      },
+      "PasswordViolation": {
+        "type": "object",
+        "description": "One rule the candidate breaks, as an identifier and its parameters.",
+        "required": [
+          "rule"
+        ],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.\n"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The parameters that rule's sentence takes."
+          }
+        }
+      },
+      "PasswordCheckResult": {
+        "type": "object",
+        "required": [
+          "violations"
+        ],
+        "properties": {
+          "violations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PasswordViolation"
+            }
+          }
+        }
+      },
+      "SignInPasswordChange": {
+        "type": "object",
+        "required": [
+          "pending_token",
+          "password"
+        ],
+        "properties": {
+          "pending_token": {
+            "type": "string",
+            "description": "The credential the `PASSWORD_CHANGE` challenge handed out. It dies on use."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The new password, judged against this workspace's rule in full."
+          }
+        }
+      },
+      "InstanceSetting": {
+        "type": "object",
+        "description": "One switch of the installation's level: what it set, and whether a workspace may tighten it.\n",
+        "required": [
+          "value",
+          "locked"
+        ],
+        "properties": {
+          "value": {
+            "description": "The value, of whatever kind the switch is - a number, a flag, a word or a list of words.\n"
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.\n"
+          }
+        }
+      },
+      "InstanceSettings": {
+        "type": "object",
+        "description": "The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.\n",
+        "properties": {
+          "sign_in": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.\n"
+          },
+          "legal": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The four links, by name."
+          },
+          "blocklist_file": {
+            "type": "string",
+            "description": "The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.\n"
+          },
+          "source": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Where the values in force came from - the database, or the path of the file enforcing them.\n"
+          },
+          "is_enforced_from_file": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.\n"
+          }
+        }
+      },
+      "Operator": {
+        "type": "object",
+        "description": "One row of the register: an account of some workspace that operates this installation.\n",
+        "required": [
+          "tenant_id",
+          "account_id",
+          "added_at"
+        ],
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "added_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.\n"
+          }
+        }
+      },
+      "OperatorAdd": {
+        "type": "object",
+        "description": "The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.\n",
+        "required": [
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PasswordForgot": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The address to send the link to, if it holds an account."
+          }
+        }
+      },
+      "PasswordReset": {
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token from the reset mail. It dies on use."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The new password, judged against this workspace's rule."
+          }
+        }
+      },
+      "PasswordRules": {
+        "type": "object",
+        "description": "What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.\nZero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.\n",
+        "required": [
+          "min_length",
+          "min_lowercase",
+          "min_uppercase",
+          "min_digits",
+          "min_symbols",
+          "min_classes",
+          "max_repeat",
+          "common_passwords",
+          "context_words",
+          "breach_check",
+          "history_count",
+          "not_current"
+        ],
+        "properties": {
+          "min_length": {
+            "type": "integer",
+            "description": "The fewest characters",
+            "counted after NFKC.": null
+          },
+          "min_lowercase": {
+            "type": "integer",
+            "description": "Unicode category Ll. 0 is off."
+          },
+          "min_uppercase": {
+            "type": "integer",
+            "description": "Unicode category Lu. 0 is off."
+          },
+          "min_digits": {
+            "type": "integer",
+            "description": "Unicode category Nd. 0 is off."
+          },
+          "min_symbols": {
+            "type": "integer",
+            "description": "Everything that is none of the three above: punctuation, a mark, an emoji, and a letter of a script with no case. 0 is off.\n"
+          },
+          "min_classes": {
+            "type": "integer",
+            "description": "How many of the four kinds have to appear at all. It cannot be expressed in the four counts - \"one digit and one symbol\" is not \"two of four\" - which is why both exist.\n"
+          },
+          "max_repeat": {
+            "type": "integer",
+            "description": "The longest run of one character allowed. **0 is off**, as it is for every other count here - one spelling for \"this switch does nothing\", rather than a nullable number beside twelve that are not.\n"
+          },
+          "common_passwords": {
+            "type": "boolean",
+            "description": "Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.\n"
+          },
+          "context_words": {
+            "type": "boolean",
+            "description": "Whether a password carrying the address, the person's name, the workspace's name or its host is refused. Compared after a fold that undoes case and the obvious substitutions, because `C0nt0so` is `contoso` to everybody except a naive comparison.\n"
+          },
+          "breach_check": {
+            "type": "boolean",
+            "description": "Whether a breach corpus is consulted",
+            "where one is configured.": null
+          },
+          "history_count": {
+            "type": "integer",
+            "description": "How many previous passwords are refused. 0 both where the switch is off and where the reader has no account - somebody with no password has no history, and a line under the field that can never be met is a line that only worries people.\n"
+          },
+          "not_current": {
+            "type": "boolean",
+            "description": "Whether \"not the password you have now\" applies - only where there is one."
+          }
+        }
+      },
+      "ProviderSummary": {
+        "type": "object",
+        "description": "One way into this workspace, as a sign-in card needs it.",
+        "required": [
+          "id",
+          "display_name",
+          "kind",
+          "scope"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "What `/auth/oidc:start` is given to choose this provider."
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.\n"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "installation",
+              "workspace"
+            ],
+            "description": "Whether every workspace is offered it, or this one configured it."
+          }
+        }
+      },
+      "LegalLinks": {
+        "type": "object",
+        "description": "The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.\n",
+        "properties": {
+          "imprint_url": {
+            "type": "string"
+          },
+          "privacy_url": {
+            "type": "string"
+          },
+          "terms_url": {
+            "type": "string"
+          },
+          "accessibility_url": {
+            "type": "string"
+          }
+        }
+      },
+      "SignInRules": {
+        "type": "object",
+        "description": "The least a sign-in screen needs, and deliberately no more.",
+        "required": [
+          "workspace_host",
+          "methods",
+          "providers",
+          "password",
+          "legal"
+        ],
+        "properties": {
+          "workspace_host": {
+            "type": "string",
+            "description": "The host this answer was resolved for, which is what the card shows."
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            },
+            "description": "The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.\n"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderSummary"
+            }
+          },
+          "password": {
+            "$ref": "#/components/schemas/PasswordRules"
+          },
+          "legal": {
+            "$ref": "#/components/schemas/LegalLinks"
+          }
+        }
+      },
       "MfaChallenge": {
         "type": "object",
         "description": "The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.\n",
@@ -11155,10 +12336,15 @@
               "enum": [
                 "TOTP",
                 "RECOVERY",
-                "ENROLL"
+                "ENROLL",
+                "PASSWORD_CHANGE"
               ]
             },
-            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a tenant switch routes into enrolment instead of into a session.\n"
+            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.\n"
+          },
+          "password_rules": {
+            "$ref": "#/components/schemas/PasswordRules",
+            "description": "Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.\n"
           }
         }
       },

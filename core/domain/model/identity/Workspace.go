@@ -37,7 +37,33 @@ type WorkspaceSettings struct {
 	// AuditAnchorTargetID names the workspace's backup target the audit chain's end is
 	// exported to once a day (audit.md §3, A-2, P-13). Zero is anchoring switched off.
 	AuditAnchorTargetID shared.ID
+	// SignIn is what this workspace decided about signing in (ADR-0068 §2): a patch, because a
+	// switch it never touched is the level above's rather than a zero of its own.
+	SignIn PolicyPatch
+	// Legal is what this workspace set for its own sign-in footer. Empty where the instance's
+	// stand, which is what a B2C installation locks and a B2B one leaves open (SI-12).
+	Legal LegalLinks
 }
+
+// SignInLayer is this workspace as a level of the resolution.
+//
+// `require_admin_totp` is folded in here rather than anywhere else: it is what `mfa_required_for`
+// derives from, so a workspace that set the old boolean and never saw the new switch resolves to
+// ADMINS - no stored row has to move, and no client that only knows the boolean breaks
+// (ADR-0068 §1). An explicit `mfa_required_for` wins, because it is the newer statement of the
+// same thing.
+func (w WorkspaceSettings) SignInLayer() PolicyLayer {
+	patch := w.SignIn
+	if patch.MfaRequiredFor == nil && w.RequireAdminTotp {
+		admins := MfaForAdmins
+		patch.MfaRequiredFor = &admins
+	}
+	// A workspace locks nothing: there is nobody below it.
+	return PolicyLayer{Patch: patch}
+}
+
+// LegalLayer is this workspace as a level of the four links' resolution.
+func (w WorkspaceSettings) LegalLayer() LegalLayer { return LegalLayer{Links: w.Legal} }
 
 // WorkspaceChange is a merge-patch, typed: a nil pointer is a key the caller did not send, and
 // therefore a field that does not move. There is no "clear it" for any of the four - a workspace

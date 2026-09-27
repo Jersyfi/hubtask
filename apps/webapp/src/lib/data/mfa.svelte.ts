@@ -24,6 +24,7 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 
 const ENROLL = '/auth/mfa/totp:enroll';
 const CONFIRM = '/auth/mfa/totp:confirm';
@@ -146,13 +147,22 @@ class Mfa {
    * fresh codes can sign in without the authenticator. The old ten stop working the moment the
    * new ones are answered - which is why the panel that shows them insists on an acknowledgement
    * before it can be closed.
+   *
+   * `stepUp.around` is what makes "behind the step-up" true on this side. A parameter nobody could
+   * fill made the server's `403 auth.step_up_required` into a red sentence asking for a proof the
+   * screen offered nowhere to give.
    */
-  async regenerate(stepUpToken?: string): Promise<boolean> {
+  async regenerate(): Promise<boolean> {
     return this.#attempt(async () => {
-      const answer = await engine.mutate<{ readonly recovery_codes: readonly string[] }>(
-        'POST',
-        REGENERATE,
-        stepUpToken ? { step_up_token: stepUpToken } : {},
+      // In the header, through the option. A `step_up_token` in the body is an input key the
+      // descriptor does not declare, and the registry refuses it before the use case runs.
+      const answer = await stepUp.around((stepUpToken) =>
+        engine.mutate<{ readonly recovery_codes: readonly string[] }>(
+          'POST',
+          REGENERATE,
+          {},
+          { stepUpToken },
+        ),
       );
       this.#fresh = answer.recovery_codes;
       return true;

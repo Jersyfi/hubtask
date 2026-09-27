@@ -35,6 +35,10 @@ const (
 	methodTotp     = "TOTP"
 	methodRecovery = "RECOVERY"
 	methodEnroll   = "ENROLL"
+	// methodPasswordChange is ADR-0068 §3's whole enforcement: the password was right and no longer
+	// meets the rule, so the sign-in continues by setting a new one. Confirming it *is* the
+	// sign-in, exactly as ENROLL already works.
+	methodPasswordChange = "PASSWORD_CHANGE"
 )
 
 // mfaSecretPurpose binds the sealed TOTP secret to its account, E-02's discipline: a ciphertext
@@ -56,14 +60,25 @@ func mfaSubject(accountID shared.ID) string { return "mfa:" + accountID.String()
 func (w SessionWriter) challengeFor(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 	cmd SignInCommand, subjects []string,
-) (*SignInChallenge, error) {
+) (*SignInChallenge, SignInVerdict, error) {
+	// The rule, read once: whether this password still meets it, who a factor is demanded of, and
+	// what the session it is about to open is bounded by. Read before the early return, because the
+	// session's bounds are the caller's business even where no challenge is owed.
+	verdict := SignInVerdict{}
+	if w.Rule != nil {
+		read, err := w.Rule.JudgeSignIn(ctx, scope.TenantID, account, cmd.Password)
+		if err != nil {
+			return nil, SignInVerdict{}, err
+		}
+		verdict = read
+	}
 	if w.Enrollments == nil || w.Pending == nil {
-		return nil, nil
+		return nil, verdict, nil
 	}
 
 	var challenge *SignInChallenge
 	err := w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		purpose, err := w.pendingPurposeFor(ctx, account)
+		purpose, err := w.pendingPurposeFor(ctx, account, verdict)
 		if err != nil || purpose == "" {
 			return err
 		}
@@ -101,49 +116,103 @@ func (w SessionWriter) challengeFor(
 		}
 
 		methods := []string{methodTotp, methodRecovery}
-		if purpose == domain.PendingEnroll {
+		switch purpose {
+		case domain.PendingEnroll:
 			methods = []string{methodEnroll}
+		case domain.PendingPassword:
+			methods = []string{methodPasswordChange}
 		}
 		challenge = &SignInChallenge{
 			Token:     secret.New(presented.Secret()),
 			ExpiresAt: credential.ExpiresAt,
 			Methods:   methods,
 		}
+		if purpose == domain.PendingPassword {
+			// The rules travel with the challenge, so the list under the new password's field is
+			// there before the first keystroke rather than a round trip later.
+			rules := verdict.Rules
+			challenge.PasswordRules = &rules
+		}
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, SignInVerdict{}, err
 	}
-	return challenge, nil
+	return challenge, verdict, nil
 }
 
-// pendingPurposeFor is the decision itself: TOTP for an armed enrolment, ENROLL for an
-// unenrolled administrator under the switch, empty for a plain sign-in.
+// pendingPurposeFor is the decision itself: TOTP for an armed enrolment, ENROLL for somebody the
+// workspace demands a factor of who has none, PASSWORD for a password that is right and no longer
+// meets the rule, and empty for a plain sign-in.
+//
+// **The factor comes before the password.** Both can be owed at once - a tightened rule and an
+// unenrolled administrator - and the order is the one that loses nothing: the factor's step ends in
+// a session, and the next sign-in meets the password step. The other order would ask for a new
+// password from somebody who has not yet proved they are the account's holder.
 func (w SessionWriter) pendingPurposeFor(
-	ctx context.Context, account domain.Account,
+	ctx context.Context, account domain.Account, verdict SignInVerdict,
 ) (domain.PendingPurpose, error) {
 	enrollment, err := w.Enrollments.Find(ctx, account.ID)
-	switch {
-	case err == nil && !enrollment.ConfirmedAt.IsZero():
-		return domain.PendingTotp, nil
-	case err != nil && !errors.Is(err, shared.ErrNotFound):
+	armed := err == nil && !enrollment.ConfirmedAt.IsZero()
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
 		return "", err
+	}
+	if armed {
+		return domain.PendingTotp, nil
 	}
 
 	// Not armed. An unconfirmed enrolment protects nobody and locks nobody out, so it counts
 	// exactly as none here.
-	if w.Policy == nil || w.Memberships == nil {
-		return "", nil
-	}
-	required, err := w.Policy.RequireAdminTotp(ctx)
-	if err != nil || !required {
+	demanded, err := w.factorDemandedOf(ctx, account, verdict)
+	if err != nil {
 		return "", err
 	}
-	admin, err := w.holdsAdminRole(ctx, account.ID)
-	if err != nil || !admin {
-		return "", err
+	if demanded {
+		return domain.PendingEnroll, nil
 	}
-	return domain.PendingEnroll, nil
+	if verdict.MustChangePassword {
+		return domain.PendingPassword, nil
+	}
+	return "", nil
+}
+
+// factorDemandedOf answers whether this workspace demands a second factor of this account.
+//
+// `mfa_required_for` where the rule could be read, and `require_admin_totp` otherwise - the old
+// switch is what the new one derives from, so the two answer the same thing for every workspace that
+// has only ever set the boolean (ADR-0068 §1).
+func (w SessionWriter) factorDemandedOf(
+	ctx context.Context, account domain.Account, verdict SignInVerdict,
+) (bool, error) {
+	if w.Memberships == nil {
+		return false, nil
+	}
+
+	requirement := verdict.FactorRequired
+	if w.Rule == nil {
+		if w.Policy == nil {
+			return false, nil
+		}
+		required, err := w.Policy.RequireAdminTotp(ctx)
+		if err != nil {
+			return false, err
+		}
+		requirement = domain.MfaForNobody
+		if required {
+			requirement = domain.MfaForAdmins
+		}
+	}
+
+	switch requirement {
+	case domain.MfaForEveryone:
+		// Everybody who is a person. A service account has no authenticator and nobody behind it
+		// to hold one, so demanding a factor of it would be demanding the impossible - and it
+		// signs in with a token rather than a password anyway.
+		return account.Kind == domain.AccountUser, nil
+	case domain.MfaForAdmins:
+		return w.holdsAdminRole(ctx, account.ID)
+	}
+	return false, nil
 }
 
 // holdsAdminRole answers whether the tenant switch reaches this account: OWNER or ADMIN at any
@@ -201,6 +270,7 @@ func (h CompleteSignIn) Execute(
 		account   domain.Account
 		hint      domain.PendingCredential
 		remaining = -1
+		bounds    domain.SessionPolicy
 	)
 	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		lookup, err := w.Pending.FindByToken(ctx, token)
@@ -279,12 +349,27 @@ func (h CompleteSignIn) Execute(
 		account, hint = lookup.Account, lookup.Credential
 		return nil
 	})
+	if err == nil && w.Rule != nil {
+		// The bounds the session it is about to open answers to. Read after the credential was
+		// spent, because the password is not in hand here - the verdict's other answers were
+		// settled at the first step, and what is needed now is only the two numbers.
+		verdict, ruleErr := w.Rule.JudgeSignIn(ctx, token.TenantID(), account, secret.Secret{})
+		if ruleErr != nil {
+			return SessionPair{}, -1, ruleErr
+		}
+		bounds = verdict.Sessions
+	}
 	if err != nil {
 		return SessionPair{}, -1, err
 	}
 
+	// How it was opened, for the list a person reads: the code, or one of the ten they kept.
+	method := domain.SignedInWithPasswordTotp
+	if remaining >= 0 {
+		method = domain.SignedInWithPasswordRecovery
+	}
 	pair, err := w.openSessionWithHint(ctx, scope, token.TenantID(), account,
-		hint.UserAgent, hint.IPClass, SignedInAction)
+		hint.UserAgent, hint.IPClass, SignedInAction, bounds, method)
 	if err != nil {
 		return SessionPair{}, -1, err
 	}
@@ -373,8 +458,10 @@ func (w SessionWriter) recordRecoveryUse(
 func (w SessionWriter) openSessionWithHint(
 	ctx context.Context, scope persistence.Scope, tenantID shared.ID, account domain.Account,
 	userAgent, ipClass string, action audit.Action,
+	bounds domain.SessionPolicy, method string,
 ) (SessionPair, error) {
-	pair, err := w.openSession(ctx, scope, tenantID, account, userAgent, "", action, nil)
+	pair, err := w.openSessionWith(ctx, scope, tenantID, account, userAgent, "", action, nil,
+		bounds, method)
 	if err != nil {
 		return SessionPair{}, err
 	}
@@ -399,12 +486,18 @@ func challengeOutput(challenge SignInChallenge) usecase.Output {
 	for _, method := range challenge.Methods {
 		methods = append(methods, method)
 	}
-	return usecase.Output{
+	out := usecase.Output{
 		"mfa_required":  true,
 		"pending_token": challenge.Token.Reveal(),
 		"expires_at":    challenge.ExpiresAt.UTC(),
 		"methods":       methods,
 	}
+	if challenge.PasswordRules != nil {
+		// Only with PASSWORD_CHANGE. Every other step has nothing to say about a password, and a
+		// field that was always there and usually null would be a field every client had to read.
+		out["password_rules"] = passwordRulesOutput(*challenge.PasswordRules)
+	}
+	return out
 }
 
 // Descriptor is the catalogue entry.

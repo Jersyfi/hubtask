@@ -298,8 +298,11 @@ func (h ConfirmTotp) Execute(
 	if !caller.enforcementFlow() {
 		return ConfirmedEnrollment{}, nil
 	}
+	// The enrolment's own step ends in a session, and it was opened with a password and a code -
+	// the code having just been confirmed is what the enforcement flow is.
 	pair, err := w.openSessionWithHint(ctx, scope, caller.tenantID, caller.account,
-		caller.pending.UserAgent, caller.pending.IPClass, SignedInAction)
+		caller.pending.UserAgent, caller.pending.IPClass, SignedInAction,
+		domain.SessionPolicy{}, domain.SignedInWithPasswordTotp)
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}

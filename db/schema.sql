@@ -140,7 +140,11 @@ CREATE TABLE tenant (
   purge_after        timestamptz,
   -- The synchronisation epoch (0087, N-11): every cursor carries the epoch it was minted under,
   -- and a restore into the workspace advances it, so that a cursor minted before is refused.
-  sync_epoch         bigint NOT NULL DEFAULT 0
+  sync_epoch         bigint NOT NULL DEFAULT 0,
+  -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: plans are
+  -- their own milestone, and the column exists now so that the layer arrives without a migration
+  -- through the sign-in path.
+  plan_id            uuid
 );
 
 CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');
@@ -169,6 +173,9 @@ CREATE TABLE account (
   -- once, dead on redemption. One open invitation per invited account, so it lives on the row.
   redemption_token_hash bytea,
   redemption_expires_at timestamptz,
+  -- When the password in password_hash was set (ADR-0068 §3, migration 0098). What max_age_days
+  -- and rotation_from are compared against. NULL for an account that has no password.
+  password_set_at   timestamptz,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -274,6 +281,24 @@ CREATE TABLE session (
   -- oauth_grant below, the order the migrations built it in.
   grant_id uuid,
   scopes   text[],
+  -- The two bounds this session answers to, written when it opened (migration 0100): the moment it
+  -- may not outlive however often it is refreshed, and how long it may sit unused. NULL is "no
+  -- bound". Written at sign-in rather than resolved per request, because resolving would put a round
+  -- trip on the hot path of the whole API for two numbers that change once a year - and the cost of
+  -- that trade is that a bound tightened later reaches new sessions only, which is what
+  -- `rotation_from` exists to fix in one write.
+  hard_expires_at timestamptz,
+  idle_minutes    integer,
+  -- The elevated session (ADR-0070 §4, migration 0102): until when this session carries the control
+  -- plane's scope. On the session rather than in a table of its own, which is the whole design - the
+  -- elevation ends with the session because it is a column of it. NULL is "not elevated", which is
+  -- what every row means again an hour later.
+  elevated_until  timestamptz,
+  -- How this session was opened (ADR-0068 §3, migration 0098): PASSWORD, PASSWORD_TOTP,
+  -- PASSWORD_RECOVERY, OIDC, INVITATION, RESET - and PASSKEY when there is one. Answered in the
+  -- session list, so that a person reading their own sessions can tell them apart. NULL is a
+  -- session opened before the column existed.
+  signed_in_with text,
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
@@ -329,6 +354,22 @@ CREATE TABLE account_recovery_code (
 CREATE UNIQUE INDEX account_recovery_code_hash_uq ON account_recovery_code (code_hash);
 CREATE INDEX account_recovery_code_account_idx ON account_recovery_code (account_id);
 
+-- The passwords this account has had before this one (ADR-0068 §1, migration 0098). Hashes only:
+-- no plaintext, and nothing that says anything about the shape of one. The cap is the policy's
+-- `history_count` rather than a constraint, because the cap is a value an installation changes and
+-- a constraint would have to move with it.
+CREATE TABLE account_password_history (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL,
+  password_hash text NOT NULL,
+  set_at        timestamptz NOT NULL,
+  CONSTRAINT account_password_history_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX account_password_history_account_idx
+  ON account_password_history (tenant_id, account_id, set_at DESC);
+
 -- The pending credential of a two-step sign-in (H-02): short-lived, single-use, hashed under
 -- its own purpose label - a row with the session machinery's discipline, not a session.
 CREATE TABLE auth_pending (
@@ -336,7 +377,10 @@ CREATE TABLE auth_pending (
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id  uuid NOT NULL,
   token_hash  bytea NOT NULL,
-  purpose     text NOT NULL CHECK (purpose IN ('TOTP', 'ENROLL')),
+  -- What the credential may complete. TOTP presents a code, ENROLL is the second factor's
+  -- enforcement route, RESET is the token a reset mail carries, and PASSWORD is the credential
+  -- the PASSWORD_CHANGE step hands out (migration 0098).
+  purpose     text NOT NULL CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD')),
   user_agent  text,
   ip_class    text,
   created_at  timestamptz NOT NULL,
@@ -2072,7 +2116,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'account','account_group','account_group_member','membership','access_token',
     'session','session_refresh_token','auth_attempt',
-    'account_mfa','account_recovery_code','auth_pending',
+    'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
     'identity_provider','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
@@ -2306,6 +2350,46 @@ $$;
 REVOKE ALL ON FUNCTION subject_tenants(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION subject_tenants(text) TO hubtask_app;
 
+-- ============ Who operates this installation (ADR-0070 §1) ==================
+-- Checked when `admin:tenants` is minted and when it is exercised - either alone is a hole. An
+-- empty register is the private installation: nothing configured, and the owner is the operator
+-- exactly as they were before this table existed.
+--
+-- No row-level policy, and no grant to the application role either. The rows name accounts, so
+-- unlike instance_setting this table *is* a person's data, and a policy-free table hubtask_app
+-- could read would let every workspace enumerate the installation's operators. It is reachable only
+-- through the four functions below - resolve_tenant's discipline applied to a table. See
+-- db/migrations/0101_operator_register.sql for the whole reasoning.
+CREATE TABLE operator (
+  tenant_id  uuid NOT NULL,
+  account_id uuid NOT NULL,
+  added_at   timestamptz NOT NULL DEFAULT now(),
+  added_by   uuid,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT operator_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
+-- ============ The instance's own settings (ADR-0070 §2) =====================
+-- A value that applies to every workspace, and that a workspace may not change. Deliberately
+-- without a row-level-security policy (the job table's precedent, and instance_event's below):
+-- every workspace has to be able to read it, because the effective sign-in rule is resolved on
+-- every password screen, and the standard policy comparing against current_tenant_id() would make
+-- a tenant-less row invisible to everybody - which is exactly what it does to backup_target's
+-- instance-wide rows today.
+--
+-- What makes that acceptable is the content: installation configuration, never a person's data.
+-- The bound on writing it is the control plane's use case, behind `admin:tenants` and the operator
+-- register; the grant has to allow the write for that use case to make it. See
+-- db/migrations/0099_instance_setting.sql for the whole reasoning.
+CREATE TABLE instance_setting (
+  key         text PRIMARY KEY CHECK (key ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'),
+  value       jsonb NOT NULL,
+  lock_origin text NOT NULL DEFAULT 'OPEN' CHECK (lock_origin IN ('OPEN', 'INSTANCE', 'PLAN')),
+  updated_by  uuid,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- ============ The instance's own journal (H-06) ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
 -- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and
@@ -2330,6 +2414,66 @@ CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
 -- or removed afterwards would not be evidence.
 REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
 GRANT SELECT, INSERT ON instance_event TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
+
+-- The operator register's four doors (migration 0101). SECURITY DEFINER for resolve_tenant's
+-- reason: reading a table that belongs to no tenant is the owner's right and the application role
+-- does not hold it. Narrow by construction - a boolean, a listing the control plane alone reaches,
+-- and two writes that keep the register's one invariant in the statement rather than in a read.
+CREATE OR REPLACE FUNCTION is_operator(p_account uuid) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT
+    -- An empty register is the private installation: nothing was configured, and the owner is the
+    -- operator exactly as they were before this table existed.
+    NOT EXISTS (SELECT 1 FROM operator)
+    OR EXISTS (SELECT 1 FROM operator WHERE account_id = p_account)
+$$;
+
+CREATE OR REPLACE FUNCTION operator_register() RETURNS SETOF operator
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT o.* FROM operator o ORDER BY o.added_at, o.account_id
+$$;
+
+CREATE OR REPLACE FUNCTION add_operator(p_account uuid, p_by uuid) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE added integer;
+BEGIN
+  -- The workspace comes from the account rather than from the caller: a pair that could disagree
+  -- would be a pair somebody eventually gets wrong, and this function can read what the application
+  -- role cannot. An account nobody holds inserts nothing, which the caller reads as "no such
+  -- account".
+  INSERT INTO operator (tenant_id, account_id, added_by)
+  SELECT a.tenant_id, a.id, p_by
+  FROM account a
+  WHERE a.id = p_account AND a.deleted_at IS NULL
+  ON CONFLICT (tenant_id, account_id) DO NOTHING;
+  GET DIAGNOSTICS added = ROW_COUNT;
+  RETURN added > 0;
+END $$;
+
+-- The last operator cannot remove themselves. In the statement, because two operators removing
+-- each other at the same moment would both read "there are two".
+CREATE OR REPLACE FUNCTION drop_operator(p_account uuid) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE removed boolean;
+BEGIN
+  -- The account alone: an identifier is unique across the installation, and a caller that had to
+  -- name the workspace too would have to read the register first to find out which one it is.
+  DELETE FROM operator
+  WHERE account_id = p_account
+    AND (SELECT count(*) FROM operator) > 1;
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed;
+END $$;
+
+REVOKE ALL ON FUNCTION is_operator(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION operator_register() FROM PUBLIC;
+REVOKE ALL ON FUNCTION add_operator(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION drop_operator(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION is_operator(uuid) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION operator_register() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION add_operator(uuid, uuid) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION drop_operator(uuid) TO hubtask_app;
 
 -- ============ Tenant resolution before a credential exists (H-01) ==========
 -- Sign-in needs a tenant before it can check a password (0.6.0 decision 3). One identifier or

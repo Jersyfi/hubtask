@@ -13,6 +13,17 @@
   // places instead of in one. The place being typed carries the accent *and* the caret - rule 3
   // again: the state is never colour alone.
   //
+  // **Focus is shown on the place, not around the picture.** A ring around the whole row is a
+  // rectangle whose contents are six short rules and five gaps, and it reads as a box drawn around
+  // an invisible field - which is what it is, because the field it belongs to is transparent. The
+  // ring goes where the next character will land instead, and it is the same ring every other
+  // control in this system draws, on a target of the same size. That answers "am I in it" and
+  // "where am I in it" with one mark.
+  //
+  // **The accent and the caret arrive with the focus and leave with it.** An unfocused field that
+  // already shows a blinking caret in an accented place is a field claiming to be typed into while
+  // somebody is reading a different part of the screen.
+  //
   // Six or eight, because the contract allows both (`SignInCompletion.code`, 6..8) and a TOTP code
   // is six while a recovery code may be eight. The group is where a human eye breaks a number,
   // which is where an authenticator app breaks it too.
@@ -33,6 +44,15 @@
     value?: string;
     name?: string;
     autocomplete?: 'one-time-code';
+    /**
+     * Whether to take the focus when this appears.
+     *
+     * For the one screen where the code is the only thing being asked for and the reader has just
+     * been sent there by the step they completed - a second factor's step two, a step-up prompt.
+     * Never on a screen where it is one control among several: taking the focus there moves
+     * somebody who did not ask to be moved.
+     */
+    isAutofocused?: boolean;
   }
 
   let {
@@ -46,13 +66,26 @@
     value = $bindable(''),
     name,
     autocomplete = 'one-time-code',
+    isAutofocused = false,
   }: Props = $props();
+
+  let field = $state<HTMLInputElement | undefined>(undefined);
+
+  // The attribute is not used: it is honoured once per document load, so it does nothing for a
+  // control that appears on the second step of a screen that never reloads. Focusing the element
+  // when it arrives is what actually happens there.
+  $effect(() => {
+    if (isAutofocused) field?.focus();
+  });
 
   // Places, not characters: what is typed is kept as it is, and the picture shows what fits.
   const places = $derived(Array.from({ length }, (_, index) => index));
   const characters = $derived([...value]);
   const cursor = $derived(Math.min(characters.length, length - 1));
   const isFull = $derived(characters.length >= length);
+  // Where the eye belongs. The same place as the caret while there is room, and the last one once
+  // the code is complete - so the focus mark never disappears at the moment the field is full.
+  const active = $derived(isFull ? length - 1 : cursor);
 </script>
 
 <Field {label} {hint} {error} {isRequired} {describedBy}>
@@ -70,6 +103,7 @@
         autocapitalize="off"
         autocorrect="off"
         bind:value
+        bind:this={field}
         required={isRequired}
         aria-invalid={invalid ? 'true' : undefined}
         aria-describedby={described}
@@ -83,6 +117,7 @@
             class="place"
             data-filled={characters[place] !== undefined ? '' : undefined}
             data-cursor={!isFull && place === cursor ? '' : undefined}
+            data-active={place === active ? '' : undefined}
           >
             {characters[place] ?? ''}
           </span>
@@ -150,14 +185,16 @@
     line-height: var(--lh-tight);
   }
 
-  .place[data-cursor] { border-block-end-color: var(--accent-primary); }
+  /* The accent belongs to the focus, not to the value: a field nobody is typing into draws six
+     equal places. */
+  .code:has(.native:focus) .place[data-active] { border-block-end-color: var(--accent-primary); }
 
   /* The caret, drawn: a place that is waiting shows where the next character lands. Opacity only,
      so rule 6 holds and a reduced-motion preference can stop it without changing the layout. The
      `pending` role, because a caret is the one thing on this screen that never arrives - it waits
      for as long as somebody is typing. `step-end` rather than the role's easing: a caret blinks,
      it does not fade, and an eased caret reads as a fault. */
-  .place[data-cursor]::after {
+  .code:has(.native:focus) .place[data-cursor]::after {
     content: '';
     width: var(--bw-thick);
     height: var(--fs-300);
@@ -167,7 +204,9 @@
 
   .code[data-invalid] .place { border-block-end-color: var(--text-danger); }
 
-  .code:has(.native:focus-visible) .places {
+  /* The ring on the place the next character lands in. One target, the size of any other control
+     in this system, rather than a rectangle around the row. */
+  .code:has(.native:focus-visible) .place[data-active] {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
     border-radius: var(--r-sm);
@@ -178,8 +217,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .place[data-cursor]::after { animation: none; }
+    .code .place[data-cursor]::after { animation: none; }
   }
 
-  :global([data-motion='reduced']) .place[data-cursor]::after { animation: none; }
+  :global([data-motion='reduced']) .code .place[data-cursor]::after { animation: none; }
 </style>

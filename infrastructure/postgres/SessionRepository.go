@@ -68,6 +68,12 @@ func (r SessionRepository) Insert(ctx context.Context, session identity.Session)
 		ExpiresAt: pgtype.Timestamptz{Time: session.ExpiresAt, Valid: true},
 		GrantID:   grantID,
 		Scopes:    session.Scopes,
+		// The bounds this session answers to and how it was opened (migration 0100). Absent rather
+		// than zero where a switch is off, so that a reader can tell "no bound" from "a bound of
+		// nothing".
+		HardExpiresAt: nullableTime(session.HardExpiresAt),
+		IdleMinutes:   nullableInt32(session.IdleMinutes),
+		SignedInWith:  nullableString(session.SignedInWith),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -129,6 +135,11 @@ func (r SessionRepository) FindForAuth(
 			RevokedAt:  timeFrom(row.RevokedAt),
 			GrantID:    grantID,
 			Scopes:     row.Scopes,
+			// The two comparisons Session.Verify makes beyond revocation and expiry.
+			HardExpiresAt: timeFrom(row.HardExpiresAt),
+			IdleMinutes:   intFrom(row.IdleMinutes),
+			SignedInWith:  stringFrom(row.SignedInWith),
+			ElevatedUntil: timeFrom(row.ElevatedUntil),
 		},
 		Account: identity.Account{
 			ID:          accountID,
@@ -145,7 +156,50 @@ func (r SessionRepository) FindForAuth(
 		TenantSlug:         row.TenantSlug,
 		TenantStatus:       identity.TenantStatus(row.TenantStatus),
 		TokenRatePerMinute: rateOf(row.TokenRateOverride),
+		// The workspace's rotation cutoff, off the row this query already joined.
+		RotationFrom: momentFrom(row.RotationFrom),
 	}, nil
+}
+
+// momentFrom reads an RFC 3339 moment out of the settings document. The column is a JSON text
+// extraction, so it arrives untyped; a value this build cannot parse is treated as absent rather
+// than as a refusal, because the alternative is an installation whose every request fails because
+// somebody wrote a bad date into one workspace's settings.
+func momentFrom(raw any) time.Time {
+	text, isString := raw.(string)
+	if !isString || text == "" {
+		return time.Time{}
+	}
+	parsed, err := time.Parse(time.RFC3339, text)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed.UTC()
+}
+
+// nullableTime and nullableInt32 are nullableString's shape for the two other kinds of absent.
+func nullableTime(value time.Time) pgtype.Timestamptz {
+	if value.IsZero() {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: value.UTC(), Valid: true}
+}
+
+func nullableInt32(value int) *int32 {
+	if value <= 0 {
+		return nil
+	}
+	//nolint:gosec // G115: bounded by the domain's session ceiling long before it reaches here
+	narrowed := int32(value)
+	return &narrowed
+}
+
+// intFrom is stringFrom's shape for a nullable integer column.
+func intFrom(value *int32) int {
+	if value == nil {
+		return 0
+	}
+	return int(*value)
 }
 
 func (r SessionRepository) ForAccount(
@@ -184,9 +238,45 @@ func (r SessionRepository) ForAccount(
 			IPClass:    stringFrom(row.IpClass),
 			ExpiresAt:  timeFrom(row.ExpiresAt),
 			RevokedAt:  timeFrom(row.RevokedAt),
+			// How it was opened, for the list a person reads: a row that says "password and a code"
+			// is a row they can recognise, and one that says nothing is one from before this was
+			// recorded.
+			HardExpiresAt: timeFrom(row.HardExpiresAt),
+			IdleMinutes:   intFrom(row.IdleMinutes),
+			SignedInWith:  stringFrom(row.SignedInWith),
 		})
 	}
 	return sessions, nil
+}
+
+// Elevate raises one live session of the account for a bounded while (ADR-0070 §4).
+func (r SessionRepository) Elevate(
+	ctx context.Context, sessionID, accountID shared.ID, until, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.ElevateSession(ctx, sqlc.ElevateSessionParams{
+		ID: id, AccountID: account,
+		ElevatedUntil: pgtype.Timestamptz{Time: until.UTC(), Valid: true},
+		Now:           pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("elevating the session: %w", err))
+	}
+	return rows > 0, nil
 }
 
 func (r SessionRepository) TouchLastSeen(ctx context.Context, sessionID shared.ID, at time.Time) error {

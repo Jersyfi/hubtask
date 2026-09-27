@@ -34,12 +34,36 @@
 
   /** What is being edited, filled from the read once so a save's re-read does not fight typing. */
   let draft = $state<Record<string, unknown>>({});
+  /**
+   * What the read said, kept so a save can send what moved and nothing else.
+   *
+   * Two reasons, and either alone would be enough. A switch the installation locked is refused
+   * when it is *changed*, and a form that posts all nineteen rows changes every one of them as far
+   * as the wire is concerned - so moving one switch on a screen where another is locked answered a
+   * refusal naming a switch nobody touched, and wrote neither. And a value sent is a value this
+   * workspace has now decided for itself: posting the whole form would pin all eighteen to
+   * whatever they happened to be, which is not what somebody who moved one of them asked for.
+   */
+  let baseline: Record<string, unknown> = {};
   let filled = false;
   let confirming = $state(false);
 
   $effect(() => {
     if (!policy || filled) return;
     filled = true;
+    fill();
+  });
+
+  /**
+   * Fills the form from the rule the server answered.
+   *
+   * Called once on arrival and again after every save, because the answer is not always the
+   * request: the product's own bounds clamp a value past them - a minimum age of twenty-six hours
+   * is held at twenty-four - and a form that kept showing twenty-six would lie about what is in
+   * force and send it again on the next save.
+   */
+  function fill(): void {
+    if (!policy) return;
     draft = {
       min_length: policy.password.min_length.value,
       min_lowercase: policy.password.min_lowercase.value,
@@ -60,8 +84,19 @@
       imprint_url: policy.legal.imprint_url.value,
       privacy_url: policy.legal.privacy_url.value,
       terms_url: policy.legal.terms_url.value,
+      accessibility_url: policy.legal.accessibility_url.value,
     };
-  });
+    baseline = { ...draft };
+  }
+
+  /** The rows that moved, in the shape the contract takes. Empty means there is nothing to save. */
+  function moved(): Record<string, unknown> {
+    const changes: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(draft)) {
+      if (value !== baseline[key]) changes[key] = value;
+    }
+    return changes;
+  }
 
   /** Why a switch cannot be touched here, or nothing where it can. */
   function lockedBecause(lock: LockOrigin): string | undefined {
@@ -72,7 +107,10 @@
 
   /** What the level above set, said beside the control that may tighten it. */
   function defaultOf<T>(setting: Setting<T>, off: string): string {
-    const shown = setting.installation === null || setting.installation === false ? off : String(setting.installation);
+    // Zero, false and an empty string all read as "off" here: the contract spells a switch that
+    // does nothing as zero, and a reader should see the word rather than the number.
+    const isOff = setting.installation === 0 || setting.installation === false || setting.installation === '';
+    const shown = isOff ? off : String(setting.installation);
     return t('app.signin_settings.installation_default', { value: shown });
   }
 
@@ -80,7 +118,19 @@
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (await signInPolicy.save(draft)) announcer.say(t('app.signin_settings.saved'));
+    const changes = moved();
+    if (Object.keys(changes).length === 0) {
+      // Nothing to send. A `PATCH` of nothing would answer a success banner for a save that did
+      // not happen, and would ask for the step-up on the way to doing nothing.
+      announcer.say(t('app.signin_settings.unchanged'));
+      return;
+    }
+    if (await signInPolicy.save(changes)) {
+      // From the answer rather than from the draft: what is in force is the server's word, and a
+      // value it bounded is a value this form has to show.
+      fill();
+      announcer.say(t('app.signin_settings.saved'));
+    }
   }
 
   async function rotate(): Promise<void> {
@@ -168,10 +218,10 @@
                 label={t('app.signin_settings.max_repeat')}
                 hint={t('app.signin_settings.max_repeat_hint')}
                 type="number"
-                value={draft['max_repeat'] === null ? '' : String(draft['max_repeat'] ?? '')}
+                value={draft['max_repeat'] ? String(draft['max_repeat']) : ''}
                 oninput={(event) => {
                   const raw = (event.currentTarget as HTMLInputElement).value;
-                  draft['max_repeat'] = raw === '' ? null : Number(raw);
+                  draft['max_repeat'] = raw === '' ? 0 : Number(raw);
                 }}
                 disabledReason={lockedBecause(policy.password.max_repeat.lock)}
               />
@@ -202,10 +252,10 @@
                 label={t('app.signin_settings.max_age_days')}
                 hint={t('app.signin_settings.max_age_hint')}
                 type="number"
-                value={draft['max_age_days'] === null ? '' : String(draft['max_age_days'] ?? '')}
+                value={draft['max_age_days'] ? String(draft['max_age_days']) : ''}
                 oninput={(event) => {
                   const raw = (event.currentTarget as HTMLInputElement).value;
-                  draft['max_age_days'] = raw === '' ? null : Number(raw);
+                  draft['max_age_days'] = raw === '' ? 0 : Number(raw);
                 }}
                 disabledReason={lockedBecause(policy.password.max_age_days.lock)}
               />
@@ -253,10 +303,10 @@
                 label={t('app.signin_settings.session_idle')}
                 hint={t('app.signin_settings.session_idle_hint')}
                 type="number"
-                value={draft['session_idle_minutes'] === null ? '' : String(draft['session_idle_minutes'] ?? '')}
+                value={draft['session_idle_minutes'] ? String(draft['session_idle_minutes']) : ''}
                 oninput={(event) => {
                   const raw = (event.currentTarget as HTMLInputElement).value;
-                  draft['session_idle_minutes'] = raw === '' ? null : Number(raw);
+                  draft['session_idle_minutes'] = raw === '' ? 0 : Number(raw);
                 }}
                 disabledReason={lockedBecause(policy.session.idle_minutes.lock)}
               />
@@ -284,6 +334,15 @@
                 value={String(draft['terms_url'] ?? '')}
                 oninput={(event) => (draft['terms_url'] = (event.currentTarget as HTMLInputElement).value)}
                 disabledReason={lockedBecause(policy.legal.terms_url.lock)}
+              />
+              <!-- The fourth link. The sign-in footer has shown it since the card was built, and
+                   it was the one of the four with nowhere to set it: a workspace could only have
+                   the installation's, whatever its own statement said. -->
+              <Input
+                label={t('app.legal.accessibility')}
+                value={String(draft['accessibility_url'] ?? '')}
+                oninput={(event) => (draft['accessibility_url'] = (event.currentTarget as HTMLInputElement).value)}
+                disabledReason={lockedBecause(policy.legal.accessibility_url.lock)}
               />
             </Stack>
           </section>

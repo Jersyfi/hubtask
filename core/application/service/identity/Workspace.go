@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -50,6 +51,14 @@ type WorkspaceWriter struct {
 	Clock      clock.Clock
 	// Text brings the display name to normal form C on the way in (i18n-l10n.md §5, M-07).
 	Text text.Normalizer
+	// Resolver is the three levels of the sign-in rule (ADR-0068 §2). Nil on an installation
+	// wired before the instance layer, where a patch that touches the policy is refused rather
+	// than written into a row nothing would read.
+	Resolver SignInPolicyResolver
+	// StepUp is the proof a policy change demands (H-03). A workspace's sign-in rule is what
+	// decides whether a stolen tab can weaken the way in, so the one patch that touches it asks
+	// the person to prove themselves afresh - and the name, the locale and the zone do not.
+	StepUp stepupport.Verifier
 }
 
 // ReadWorkspace answers the workspace the caller is in (F4-01).
@@ -96,6 +105,10 @@ type UpdateWorkspace struct{ Writer WorkspaceWriter }
 type UpdateWorkspaceCommand struct {
 	Change          domain.WorkspaceChange
 	ExpectedVersion int
+	// SignIn is the sign-in half (SI-07), empty where the patch says nothing about it.
+	SignIn WorkspacePolicyChange
+	// StepUpToken is demanded exactly when SignIn says something.
+	StepUpToken string
 }
 
 // Execute reads, applies and writes inside one transaction.
@@ -123,6 +136,15 @@ func (h UpdateWorkspace) Execute(
 		return domain.Workspace{}, err
 	}
 
+	// The sign-in rule is the one part of this patch that needs a fresh proof. Checked before the
+	// transaction opens, because a step-up consumes a credential and a refusal that had already
+	// spent one would make the retry fail for a second reason.
+	if !cmd.SignIn.IsEmpty() {
+		if err := w.proveForPolicy(ctx, actor, cmd.StepUpToken); err != nil {
+			return domain.Workspace{}, err
+		}
+	}
+
 	var answer domain.Workspace
 	err := w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		stored, err := w.Workspaces.Find(ctx)
@@ -133,6 +155,12 @@ func (h UpdateWorkspace) Execute(
 		if err != nil {
 			return err
 		}
+		now := w.Clock.Now()
+		changed, signInMoved, err := w.applyPolicy(ctx, actor.TenantID, changed, cmd.SignIn, now)
+		if err != nil {
+			return err
+		}
+		moved = append(moved, signInMoved...)
 		if len(moved) == 0 {
 			answer = stored
 			return nil
@@ -145,7 +173,6 @@ func (h UpdateWorkspace) Execute(
 			expected = cmd.ExpectedVersion
 		}
 
-		now := w.Clock.Now()
 		written, err := w.Workspaces.Update(ctx, changed, expected, now)
 		if err != nil {
 			return err
@@ -166,6 +193,22 @@ func (h UpdateWorkspace) Execute(
 		return domain.Workspace{}, err
 	}
 	return answer, nil
+}
+
+// proveForPolicy demands the step-up a policy change carries.
+//
+// Only a session can prove it, StepUp's reasoning: a personal access token has no person at the
+// keyboard to ask. An installation with no verifier wired demands nothing, which is what an
+// installation without the sign-in flow did before there was one.
+func (w WorkspaceWriter) proveForPolicy(
+	ctx context.Context, actor appshared.ActorContext, token string,
+) error {
+	if w.StepUp == nil {
+		return nil
+	}
+	// Demand rather than the same three checks written out: it is what names the methods on the
+	// refusal, which is what a client builds its prompt from.
+	return stepupport.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, token)
 }
 
 // record writes the trail entry: which fields moved, from what, to what.
@@ -202,7 +245,12 @@ func (w WorkspaceWriter) record(
 
 // workspaceOutput is the read shape, shared by both use cases so that the answer after a write is
 // the answer a read gives.
-func workspaceOutput(workspace domain.Workspace) usecase.Output {
+//
+// The sign-in rule rides along when it could be resolved, in its three-level shape: what is in
+// force, what the level above set, and where a lock came from. It is absent rather than empty on an
+// installation with no instance layer - a screen that drew eighteen rows of the product's defaults
+// and could not save any of them would be a screen that lies about what it offers.
+func workspaceOutput(workspace domain.Workspace, resolved *ResolvedPolicy) usecase.Output {
 	out := usecase.Output{
 		"id":                 workspace.ID.String(),
 		"slug":               workspace.Slug,
@@ -222,6 +270,9 @@ func workspaceOutput(workspace domain.Workspace) usecase.Output {
 	// is off, so that the adapter answers the contract's null from one place.
 	if !workspace.Settings.AuditAnchorTargetID.IsZero() {
 		out["audit_anchor_target_id"] = workspace.Settings.AuditAnchorTargetID.String()
+	}
+	if resolved != nil {
+		out["sign_in_policy"] = signInPolicyOutput(*resolved)
 	}
 	return out
 }
@@ -251,7 +302,7 @@ func (h ReadWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace), nil
+	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID)), nil
 }
 
 func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
@@ -275,6 +326,15 @@ func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
 				Description: "Whether an OWNER or ADMIN has to hold a second factor."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read. Omitted means the caller named none."},
+			{Name: "sign_in_policy", Kind: usecase.KindObject,
+				Description: "The sign-in switches this workspace is tightening, flat: the " +
+					"thirteen password switches, `mfa_required_for`, `methods`, the two session " +
+					"bounds, the four legal links, and `rotation_from` as the literal `now`. A " +
+					"switch the caller does not send does not move; one the level above locked is " +
+					"refused against its own field, and so is one that would loosen the rule."},
+			{Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The proof from `/auth/step-up`, demanded exactly when " +
+					"`sign_in_policy` says something."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: WorkspaceChangedAction, TargetType: workspaceTarget,
@@ -300,11 +360,32 @@ func (h UpdateWorkspace) invoke(
 		change.RequireAdminTotp = &wanted
 	}
 
+	sent, _ := in["sign_in_policy"].(map[string]any)
+	signIn, err := policyPatchFrom(sent)
+	if err != nil {
+		return nil, err
+	}
+
 	workspace, err := h.Execute(ctx, actor, UpdateWorkspaceCommand{
 		Change: change, ExpectedVersion: in.Int("expected_version"),
+		SignIn: signIn, StepUpToken: in.String("step_up_token"),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace), nil
+	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID)), nil
+}
+
+// resolvedPolicy answers the rule for the projection, or nil where there is no level above to
+// resolve against. A read that could not resolve answers the workspace without its sign-in half
+// rather than failing: the name, the locale and the zone are still true.
+func (w WorkspaceWriter) resolvedPolicy(ctx context.Context, tenantID shared.ID) *ResolvedPolicy {
+	if w.Resolver.Instance == nil {
+		return nil
+	}
+	resolved, err := w.Resolver.Resolve(ctx, tenantID)
+	if err != nil {
+		return nil
+	}
+	return &resolved
 }

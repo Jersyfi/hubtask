@@ -52,13 +52,24 @@ type sessionsStore struct {
 	// row that is not the caller's or already stamped.
 	revokeChanged bool
 	revokedAll    int
+	// elevated records what Elevate was asked for, and elevateChanged is what it reports - a real
+	// statement reports false for a session that is not the caller's or not live.
+	elevated       []elevation
+	elevateChanged bool
+}
+
+type elevation struct {
+	sessionID shared.ID
+	accountID shared.ID
+	until     time.Time
 }
 
 func newSessionsStore() *sessionsStore {
 	return &sessionsStore{
-		sessions:      map[shared.ID]repository.SessionCredential{},
-		extended:      map[shared.ID]time.Time{},
-		revokeChanged: true,
+		sessions:       map[shared.ID]repository.SessionCredential{},
+		extended:       map[shared.ID]time.Time{},
+		revokeChanged:  true,
+		elevateChanged: true,
 	}
 }
 
@@ -77,6 +88,18 @@ func (s *sessionsStore) FindForAuth(_ context.Context, id shared.ID) (repository
 
 func (s *sessionsStore) ForAccount(context.Context, shared.ID, time.Time) ([]domain.Session, error) {
 	return s.listed, nil
+}
+
+// Elevate raises the caller's own session (ADR-0070 §4). The store records the window rather than
+// only a flag, because "how long is left" is what the answer carries.
+func (s *sessionsStore) Elevate(
+	_ context.Context, sessionID, accountID shared.ID, until, _ time.Time,
+) (bool, error) {
+	if !s.elevateChanged {
+		return false, nil
+	}
+	s.elevated = append(s.elevated, elevation{sessionID: sessionID, accountID: accountID, until: until})
+	return true, nil
 }
 
 func (s *sessionsStore) TouchLastSeen(_ context.Context, id shared.ID, _ time.Time) error {
@@ -251,6 +274,9 @@ func (s *signalsFake) AuthFailure(_ context.Context, reason string) {
 }
 
 type sessionFixture struct {
+	// proof is a live step-up token on the caller's own session, for the tests of the operations
+	// that demand one. Empty unless a fixture recorded one.
+	proof    string
 	writer   SessionWriter
 	sessions *sessionsStore
 	refresh  *refreshStore
@@ -817,7 +843,9 @@ func TestARedemptionActivatesAndSignsIn(t *testing.T) {
 }
 
 // A short password is a policy refusal - the one distinguishable answer, made before the token
-// is looked up so it discloses nothing about the token.
+// is looked up so it discloses nothing about the token. Since ADR-0068 it names the rule it broke
+// rather than one sentence about length: the field error carries `auth.password_rule.min_length`,
+// which is the same code the client predicted with.
 func TestARedemptionEnforcesThePasswordPolicy(t *testing.T) {
 	fixture := newSessionFixture(now)
 	token := redemptionToken(t)
@@ -826,8 +854,13 @@ func TestARedemptionEnforcesThePasswordPolicy(t *testing.T) {
 	_, err := RedeemInvitation{Writer: fixture.writer}.Execute(t.Context(), RedeemInvitationCommand{
 		Token: secret.New(token.Secret()), Password: secret.New("short"),
 	})
-	if !errors.Is(err, shared.ErrValidation) || !strings.Contains(err.Error(), "auth.password_too_short") {
+	if !errors.Is(err, shared.ErrValidation) || !strings.Contains(err.Error(), "auth.password_refused") {
 		t.Fatalf("a short password answered %v", err)
+	}
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || len(refusal.Fields) != 1 ||
+		refusal.Fields[0].Code != "auth.password_rule.min_length" {
+		t.Fatalf("the refusal named %v, want one field error for the length rule", err)
 	}
 }
 

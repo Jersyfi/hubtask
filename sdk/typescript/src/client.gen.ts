@@ -645,6 +645,46 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Change the password of the signed-in account */
+  changePassword(body: NonNullable<operations["changePassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("POST", "/auth/password", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** Ask for a password reset link
+   * Public: sent without a bearer where the client holds none. */
+  forgetPassword(body: NonNullable<operations["forgetPassword"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/auth/password:forgot", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** Spend a reset link and set the password
+   * Public: sent without a bearer where the client holds none. */
+  resetPassword(body: NonNullable<operations["resetPassword"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["resetPassword"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/password:reset", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Ask what only the server knows about a candidate password
+   * Public: sent without a bearer where the client holds none. */
+  checkPassword(body: NonNullable<operations["checkPassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["checkPassword"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/password:check", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set a new password and finish the sign-in
+   * Public: sent without a bearer where the client holds none. */
+  setPasswordAndSignIn(body: NonNullable<operations["setPasswordAndSignIn"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPasswordAndSignIn"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:set-password", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Raise this session to the control plane for an hour */
+  elevateSession(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["elevateSession"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:elevate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** What a sign-in screen may know before anybody has signed in
+   * Public: sent without a bearer where the client holds none. */
+  getSignInRules(options: CallOptions = {}): Promise<operations["getSignInRules"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/auth/sign-in-rules", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Begin TOTP enrolment
    * Public: sent without a bearer where the client holds none. */
   enrollTotp(body: NonNullable<operations["enrollTotp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["enrollTotp"]['responses'][201]['content']["application/json"]> {
@@ -660,6 +700,11 @@ export class HubtaskClient {
   /** Prove yourself again, for the irreversible */
   stepUp(body: NonNullable<operations["stepUp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["stepUp"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/step-up", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Replace the ten recovery codes */
+  regenerateRecoveryCodes(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["regenerateRecoveryCodes"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/recovery:regenerate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Disable the second factor */
@@ -734,6 +779,31 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** What this installation has decided for every workspace on it */
+  readInstanceSettings(options: CallOptions = {}): Promise<operations["readInstanceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace the installation's level */
+  writeInstanceSettings(body: NonNullable<operations["writeInstanceSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["writeInstanceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/settings", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Who operates this installation */
+  listOperators(options: CallOptions = {}): Promise<operations["listOperators"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/operators", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Put an account in the register */
+  addOperator(body: NonNullable<operations["addOperator"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/admin/operators", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** Take an account out of the register */
+  removeOperator(accountId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/operators/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The keyring, and what still names each key */
   readEncryptionStatus(options: CallOptions = {}): Promise<operations["readEncryptionStatus"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/encryption", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -760,8 +830,8 @@ export class HubtaskClient {
   }
 
   /** Change how the workspace is set up */
-  updateWorkspace(body: NonNullable<operations["updateWorkspace"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateWorkspace"]['responses'][200]['content']["application/json"]> {
-    return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  updateWorkspace(body: NonNullable<operations["updateWorkspace"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["updateWorkspace"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
   /** How this workspace signs people in through its own provider */

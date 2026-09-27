@@ -35,8 +35,8 @@ export interface PasswordRules {
   readonly min_digits: number;
   readonly min_symbols: number;
   readonly min_classes: number;
-  /** Most of the same character in a row, or `null` where the switch is off. */
-  readonly max_repeat: number | null;
+  /** Most of the same character in a row. 0 is off, as it is for every other count here. */
+  readonly max_repeat: number;
   readonly common_passwords: boolean;
   readonly context_words: boolean;
   readonly breach_check: boolean;
@@ -211,7 +211,7 @@ export function evaluate(
   if (rules.min_digits > 0) local('min_digits', `${CODE}.min_digits`, { count: String(rules.min_digits) }, counts.digits >= rules.min_digits);
   if (rules.min_symbols > 0) local('min_symbols', `${CODE}.min_symbols`, { count: String(rules.min_symbols) }, counts.symbols >= rules.min_symbols);
   if (rules.min_classes > 0) local('min_classes', `${CODE}.min_classes`, { count: String(rules.min_classes) }, counts.classes >= rules.min_classes);
-  if (rules.max_repeat !== null) local('max_repeat', `${CODE}.max_repeat`, { count: String(rules.max_repeat) }, longestRun(typed) <= rules.max_repeat);
+  if (rules.max_repeat > 0) local('max_repeat', `${CODE}.max_repeat`, { count: String(rules.max_repeat) }, longestRun(typed) <= rules.max_repeat);
   if (rules.context_words) local('context_words', `${CODE}.context_words`, {}, !carriesContextWord(typed, context));
 
   const localHolds = lines.every((line) => line.state === 'met');
@@ -260,7 +260,7 @@ export const RULES_BEFORE_READING: PasswordRules = {
   min_digits: 0,
   min_symbols: 0,
   min_classes: 0,
-  max_repeat: null,
+  max_repeat: 0,
   common_passwords: true,
   context_words: true,
   breach_check: false,

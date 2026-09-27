@@ -81,6 +81,9 @@ func (s *enrollmentsStore) Disable(_ context.Context, accountID shared.ID) (bool
 
 type recoveryStore struct {
 	codes map[string]bool // normalised code -> live
+	// replacements counts the calls, because "the burn and the write are one act" is a property of
+	// the statement rather than of the codes it leaves behind.
+	replacements int
 }
 
 func newRecovery() *recoveryStore { return &recoveryStore{codes: map[string]bool{}} }
@@ -88,6 +91,7 @@ func newRecovery() *recoveryStore { return &recoveryStore{codes: map[string]bool
 func (s *recoveryStore) Replace(
 	_ context.Context, _ shared.ID, _ []shared.ID, presented []string, _ time.Time,
 ) error {
+	s.replacements++
 	s.codes = map[string]bool{}
 	for _, code := range presented {
 		s.codes[domain.NormalizeRecoveryCode(code)] = true

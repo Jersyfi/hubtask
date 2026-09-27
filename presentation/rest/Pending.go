@@ -117,6 +117,43 @@ func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAv
 
 func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The sign-in surface of ADR-0068, pending until each use case lands.
+func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangePassword(w http.ResponseWriter, r *http.Request, _ openapi.ChangePasswordParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CheckPassword(w http.ResponseWriter, r *http.Request, _ openapi.CheckPasswordParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ForgetPassword(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ResetPassword(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// The instance layer of ADR-0070, pending until each use case lands.
+func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ListOperators(w http.ResponseWriter, r *http.Request)         { notAvailable(w, r) }
+
+func (pending) ElevateSession(w http.ResponseWriter, r *http.Request, _ openapi.ElevateSessionParams) {
+	notAvailable(w, r)
+}
+func (pending) AddOperator(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RemoveOperator(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) RegenerateRecoveryCodes(
+	w http.ResponseWriter, r *http.Request, _ openapi.RegenerateRecoveryCodesParams,
+) {
+	notAvailable(w, r)
+}
+
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

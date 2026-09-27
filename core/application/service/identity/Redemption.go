@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -15,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -96,7 +98,18 @@ type RedeemInvitationCommand struct {
 // RedeemInvitation closes the invitation loop (H-01): the token from the mail, a password under
 // the policy, and the account moves from INVITED to ACTIVE - signed in, because making somebody
 // who just proved control of the mailbox type the password again teaches nothing.
-type RedeemInvitation struct{ Writer SessionWriter }
+//
+// The first of the four doors a password is set through (ADR-0068 §5). The rule it is judged
+// against is the workspace's own, resolved from the tenant the token names - which is known before
+// the token is looked up, so the policy half of the refusal still discloses nothing about whether
+// the token was real.
+type RedeemInvitation struct {
+	Writer SessionWriter
+	// Passwords is the one place the rule lives. Nil on an installation wired before ADR-0068,
+	// where the product's own default is what a password is judged against - which is exactly what
+	// this route enforced before there was a rule to resolve.
+	Passwords *PasswordWriter
+}
 
 // Execute redeems. Unknown, expired and already-redeemed are one indistinguishable refusal:
 // which addresses hold unredeemed invitations is not for a probe to enumerate.
@@ -113,14 +126,27 @@ func (h RedeemInvitation) Execute(
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
 		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
-	if err := domain.CheckPassword(cmd.Password.Reveal()); err != nil {
-		// The policy binds where a password is set - and it is checked before the token is
-		// looked up, so a policy refusal says nothing about whether the token was real.
+	// The policy binds where a password is set - and the part of it that needs no account is
+	// checked before the token is looked up, so this half of the refusal says nothing about
+	// whether the token was real. The workspace's own rule is used, resolved from the tenant the
+	// token names rather than from a row anybody had to find.
+	rules, err := h.rulesFor(ctx, token.TenantID())
+	if err != nil {
+		return SessionPair{}, err
+	}
+	if err := domain.CheckPasswordAgainst(
+		rules.Effective.Policy.Password, h.form(), cmd.Password.Reveal(),
+		domain.PasswordContext{
+			WorkspaceName: rules.Workspace.DisplayName, WorkspaceHost: rules.Workspace.Slug,
+		},
+	); err != nil {
 		return SessionPair{}, err
 	}
 
-	// The hash is computed outside the transaction, Argon2id being deliberately slow.
-	passwordHash, err := w.Passwords.Hash(cmd.Password)
+	// The hash is computed outside the transaction, Argon2id being deliberately slow. Of the
+	// normalised password, so that what the rule counted is what is stored (ADR-0068 §7).
+	passwordHash, err := w.Passwords.Hash(
+		secret.New(domain.NormalisePassword(h.form(), cmd.Password.Reveal())))
 	if err != nil {
 		return SessionPair{}, err
 	}
@@ -145,6 +171,12 @@ func (h RedeemInvitation) Execute(
 		// The workspace's standing (H-06): an invitation into a suspended workspace waits the
 		// suspension out rather than opening a first session into it.
 		if err := found.TenantStatus.Verify(); err != nil {
+			return err
+		}
+		// And the half of the rule that needs the account: the context words drawn from the
+		// address and the name, and the offline lists. Refusing here is safe - the caller is
+		// already holding a token that was real.
+		if err := h.judge(ctx, token.TenantID(), found.Account, cmd.Password, rules); err != nil {
 			return err
 		}
 
@@ -184,8 +216,43 @@ func (h RedeemInvitation) Execute(
 		return SessionPair{}, err
 	}
 
-	return w.openSession(ctx, scope, token.TenantID(), account,
-		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil)
+	return w.openSessionWith(ctx, scope, token.TenantID(), account,
+		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil,
+		rules.Effective.Policy.Sessions, domain.SignedInWithInvitation)
+}
+
+// rulesFor resolves the workspace's rule, or the product's default on an installation wired
+// before there was one to resolve.
+func (h RedeemInvitation) rulesFor(ctx context.Context, tenantID shared.ID) (ResolvedPolicy, error) {
+	if h.Passwords == nil {
+		return ResolvedPolicy{
+			Effective: domain.Effective(domain.PolicyLayer{}, domain.PolicyLayer{}, domain.PolicyLayer{}),
+		}, nil
+	}
+	return h.Passwords.ResolveFor(ctx, tenantID)
+}
+
+// judge runs the half of the rule that needs the account.
+func (h RedeemInvitation) judge(
+	ctx context.Context, tenantID shared.ID, account domain.Account,
+	password secret.Secret, rules ResolvedPolicy,
+) error {
+	if h.Passwords == nil {
+		return nil
+	}
+	return h.Passwords.Judge(ctx, PasswordCandidate{
+		TenantID: tenantID,
+		Account:  repository.PasswordAccount{Account: account},
+		Password: password,
+		Rules:    rules,
+	})
+}
+
+func (h RedeemInvitation) form() text.Normalizer {
+	if h.Passwords == nil {
+		return nil
+	}
+	return h.Passwords.Text
 }
 
 // redemptionRefused is the one probe-facing refusal of the redemption route.
