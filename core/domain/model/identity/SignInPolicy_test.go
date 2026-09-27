@@ -369,3 +369,65 @@ func TestAPatchMergesRatherThanReplaces(t *testing.T) {
 		t.Error("an untouched flag was lost")
 	}
 }
+
+// Merge is one switch at a time, and every one of them. A switch that merged into the wrong field
+// would be a setting somebody saved and another they lost.
+func TestEverySwitchMergesIntoItsOwnField(t *testing.T) {
+	moment := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
+	whole := PolicyPatch{
+		MinLength: intOf(20), MinLowercase: intOf(1), MinUppercase: intOf(2), MinDigits: intOf(3),
+		MinSymbols: intOf(4), MinClasses: intOf(4), MaxRepeat: intOf(2),
+		CommonPasswords: boolOf(true), ContextWords: boolOf(true), BreachCheck: boolOf(true),
+		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(6),
+		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodPassword),
+		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), RotationFrom: &moment,
+	}
+
+	merged := PolicyPatch{}.Merge(whole)
+	if len(merged.Decided()) != len(PolicySwitches()) {
+		t.Fatalf("%d switches merged, want %d", len(merged.Decided()), len(PolicySwitches()))
+	}
+
+	resolved := Effective(PolicyLayer{Patch: merged}, PolicyLayer{}, PolicyLayer{})
+	for name, want := range map[PolicySwitch]string{
+		SwitchMinLength: "20", SwitchMinLowercase: "1", SwitchMinUppercase: "2",
+		SwitchMinDigits: "3", SwitchMinSymbols: "4", SwitchMinClasses: "4",
+		SwitchMaxRepeat: "2", SwitchCommonPasswords: "true", SwitchContextWords: "true",
+		SwitchBreachCheck: "true", SwitchMaxAgeDays: "90", SwitchHistoryCount: "5",
+		SwitchMinAgeHours: "6", SwitchMfaRequiredFor: "EVERYONE", SwitchMethods: "PASSWORD",
+		SwitchSessionMaxDays: "7", SwitchSessionIdleMinutes: "30",
+	} {
+		if got := SwitchText(resolved.Policy, name); got != want {
+			t.Errorf("%s merged to %q, want %q", name, got, want)
+		}
+	}
+}
+
+// A switch nobody declared is neither carried nor applied: a name the domain does not know is a
+// name nothing enforces, and quietly storing one would be a setting that looks set and does nothing.
+func TestAnUndeclaredSwitchIsCarriedByNothing(t *testing.T) {
+	patch := PolicyPatch{MinLength: intOf(20)}
+
+	if patch.carries("what_i_had_for_lunch") {
+		t.Error("a name nobody declared reads as decided")
+	}
+	if SwitchText(DefaultSignInPolicy(), "what_i_had_for_lunch") != "" {
+		t.Error("a name nobody declared has a spelling")
+	}
+	unchanged := applySwitch(DefaultSignInPolicy(), "what_i_had_for_lunch", patch)
+	if unchanged.Password != DefaultSignInPolicy().Password ||
+		unchanged.MfaRequiredFor != DefaultSignInPolicy().MfaRequiredFor {
+		t.Error("a name nobody declared changed the policy")
+	}
+	// And Tighten has nothing to check: the patch does not carry it. That is safe rather than lax,
+	// because `Tightened` only ever walks `Decided()`, which never names it either - so a switch
+	// nobody declared reaches no comparison and no write.
+	if err := Tighten("what_i_had_for_lunch", DefaultSignInPolicy(), patch); err != nil {
+		t.Errorf("a name the patch does not carry was judged: %v", err)
+	}
+	if _, moved, err := (EffectivePolicy{Policy: DefaultSignInPolicy()}).Tightened(
+		PolicyPatch{},
+	); err != nil || len(moved) != 0 {
+		t.Errorf("an empty patch moved %v (%v)", moved, err)
+	}
+}
