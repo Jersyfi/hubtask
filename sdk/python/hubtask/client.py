@@ -523,6 +523,10 @@ class Client:
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def get_sign_in_rules(self) -> "SignInRules":
+        """What a sign-in screen may know before anybody has signed in"""
+        return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
+
     def enroll_totp(self, body: "TotpEnrollmentStart") -> "TotpEnrollment":
         """Begin TOTP enrolment"""
         return self._call("POST", "/auth/mfa/totp:enroll", {}, None, {}, body, "json", "application/json", "json")

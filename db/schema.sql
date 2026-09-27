@@ -140,7 +140,11 @@ CREATE TABLE tenant (
   purge_after        timestamptz,
   -- The synchronisation epoch (0087, N-11): every cursor carries the epoch it was minted under,
   -- and a restore into the workspace advances it, so that a cursor minted before is refused.
-  sync_epoch         bigint NOT NULL DEFAULT 0
+  sync_epoch         bigint NOT NULL DEFAULT 0,
+  -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: plans are
+  -- their own milestone, and the column exists now so that the layer arrives without a migration
+  -- through the sign-in path.
+  plan_id            uuid
 );
 
 CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');
@@ -169,6 +173,9 @@ CREATE TABLE account (
   -- once, dead on redemption. One open invitation per invited account, so it lives on the row.
   redemption_token_hash bytea,
   redemption_expires_at timestamptz,
+  -- When the password in password_hash was set (ADR-0068 §3, migration 0098). What max_age_days
+  -- and rotation_from are compared against. NULL for an account that has no password.
+  password_set_at   timestamptz,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -274,6 +281,11 @@ CREATE TABLE session (
   -- oauth_grant below, the order the migrations built it in.
   grant_id uuid,
   scopes   text[],
+  -- How this session was opened (ADR-0068 §3, migration 0098): PASSWORD, PASSWORD_TOTP,
+  -- PASSWORD_RECOVERY, OIDC, INVITATION, RESET - and PASSKEY when there is one. Answered in the
+  -- session list, so that a person reading their own sessions can tell them apart. NULL is a
+  -- session opened before the column existed.
+  signed_in_with text,
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
@@ -329,6 +341,22 @@ CREATE TABLE account_recovery_code (
 CREATE UNIQUE INDEX account_recovery_code_hash_uq ON account_recovery_code (code_hash);
 CREATE INDEX account_recovery_code_account_idx ON account_recovery_code (account_id);
 
+-- The passwords this account has had before this one (ADR-0068 §1, migration 0098). Hashes only:
+-- no plaintext, and nothing that says anything about the shape of one. The cap is the policy's
+-- `history_count` rather than a constraint, because the cap is a value an installation changes and
+-- a constraint would have to move with it.
+CREATE TABLE account_password_history (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL,
+  password_hash text NOT NULL,
+  set_at        timestamptz NOT NULL,
+  CONSTRAINT account_password_history_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX account_password_history_account_idx
+  ON account_password_history (tenant_id, account_id, set_at DESC);
+
 -- The pending credential of a two-step sign-in (H-02): short-lived, single-use, hashed under
 -- its own purpose label - a row with the session machinery's discipline, not a session.
 CREATE TABLE auth_pending (
@@ -336,7 +364,10 @@ CREATE TABLE auth_pending (
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id  uuid NOT NULL,
   token_hash  bytea NOT NULL,
-  purpose     text NOT NULL CHECK (purpose IN ('TOTP', 'ENROLL')),
+  -- What the credential may complete. TOTP presents a code, ENROLL is the second factor's
+  -- enforcement route, RESET is the token a reset mail carries, and PASSWORD is the credential
+  -- the PASSWORD_CHANGE step hands out (migration 0098).
+  purpose     text NOT NULL CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD')),
   user_agent  text,
   ip_class    text,
   created_at  timestamptz NOT NULL,
@@ -2072,7 +2103,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'account','account_group','account_group_member','membership','access_token',
     'session','session_refresh_token','auth_attempt',
-    'account_mfa','account_recovery_code','auth_pending',
+    'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
     'identity_provider','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
@@ -2306,6 +2337,26 @@ $$;
 REVOKE ALL ON FUNCTION subject_tenants(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION subject_tenants(text) TO hubtask_app;
 
+-- ============ The instance's own settings (ADR-0070 §2) =====================
+-- A value that applies to every workspace, and that a workspace may not change. Deliberately
+-- without a row-level-security policy (the job table's precedent, and instance_event's below):
+-- every workspace has to be able to read it, because the effective sign-in rule is resolved on
+-- every password screen, and the standard policy comparing against current_tenant_id() would make
+-- a tenant-less row invisible to everybody - which is exactly what it does to backup_target's
+-- instance-wide rows today.
+--
+-- What makes that acceptable is the content: installation configuration, never a person's data.
+-- The bound on writing it is the control plane's use case, behind `admin:tenants` and the operator
+-- register; the grant has to allow the write for that use case to make it. See
+-- db/migrations/0099_instance_setting.sql for the whole reasoning.
+CREATE TABLE instance_setting (
+  key         text PRIMARY KEY CHECK (key ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'),
+  value       jsonb NOT NULL,
+  lock_origin text NOT NULL DEFAULT 'OPEN' CHECK (lock_origin IN ('OPEN', 'INSTANCE', 'PLAN')),
+  updated_by  uuid,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- ============ The instance's own journal (H-06) ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
 -- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and
@@ -2330,6 +2381,7 @@ CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
 -- or removed afterwards would not be evidence.
 REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
 GRANT SELECT, INSERT ON instance_event TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
 
 -- ============ Tenant resolution before a credential exists (H-01) ==========
 -- Sign-in needs a tenant before it can check a password (0.6.0 decision 3). One identifier or

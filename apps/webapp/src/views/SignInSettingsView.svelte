@@ -72,7 +72,10 @@
 
   /** What the level above set, said beside the control that may tighten it. */
   function defaultOf<T>(setting: Setting<T>, off: string): string {
-    const shown = setting.installation === null || setting.installation === false ? off : String(setting.installation);
+    // Zero, false and an empty string all read as "off" here: the contract spells a switch that
+    // does nothing as zero, and a reader should see the word rather than the number.
+    const isOff = setting.installation === 0 || setting.installation === false || setting.installation === '';
+    const shown = isOff ? off : String(setting.installation);
     return t('app.signin_settings.installation_default', { value: shown });
   }
 
@@ -168,10 +171,10 @@
                 label={t('app.signin_settings.max_repeat')}
                 hint={t('app.signin_settings.max_repeat_hint')}
                 type="number"
-                value={draft['max_repeat'] === null ? '' : String(draft['max_repeat'] ?? '')}
+                value={draft['max_repeat'] ? String(draft['max_repeat']) : ''}
                 oninput={(event) => {
                   const raw = (event.currentTarget as HTMLInputElement).value;
-                  draft['max_repeat'] = raw === '' ? null : Number(raw);
+                  draft['max_repeat'] = raw === '' ? 0 : Number(raw);
                 }}
                 disabledReason={lockedBecause(policy.password.max_repeat.lock)}
               />
@@ -202,10 +205,10 @@
                 label={t('app.signin_settings.max_age_days')}
                 hint={t('app.signin_settings.max_age_hint')}
                 type="number"
-                value={draft['max_age_days'] === null ? '' : String(draft['max_age_days'] ?? '')}
+                value={draft['max_age_days'] ? String(draft['max_age_days']) : ''}
                 oninput={(event) => {
                   const raw = (event.currentTarget as HTMLInputElement).value;
-                  draft['max_age_days'] = raw === '' ? null : Number(raw);
+                  draft['max_age_days'] = raw === '' ? 0 : Number(raw);
                 }}
                 disabledReason={lockedBecause(policy.password.max_age_days.lock)}
               />
@@ -253,10 +256,10 @@
                 label={t('app.signin_settings.session_idle')}
                 hint={t('app.signin_settings.session_idle_hint')}
                 type="number"
-                value={draft['session_idle_minutes'] === null ? '' : String(draft['session_idle_minutes'] ?? '')}
+                value={draft['session_idle_minutes'] ? String(draft['session_idle_minutes']) : ''}
                 oninput={(event) => {
                   const raw = (event.currentTarget as HTMLInputElement).value;
-                  draft['session_idle_minutes'] = raw === '' ? null : Number(raw);
+                  draft['session_idle_minutes'] = raw === '' ? 0 : Number(raw);
                 }}
                 disabledReason={lockedBecause(policy.session.idle_minutes.lock)}
               />

@@ -645,6 +645,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** What a sign-in screen may know before anybody has signed in
+   * Public: sent without a bearer where the client holds none. */
+  getSignInRules(options: CallOptions = {}): Promise<operations["getSignInRules"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/auth/sign-in-rules", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Begin TOTP enrolment
    * Public: sent without a bearer where the client holds none. */
   enrollTotp(body: NonNullable<operations["enrollTotp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["enrollTotp"]['responses'][201]['content']["application/json"]> {

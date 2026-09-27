@@ -139,6 +139,8 @@ var rlsExceptions = map[string]string{
 	"item_capability_profile": "the system defaults (tenant_id IS NULL) are the owner's to seed and " +
 		"nobody else's to write, and FORCE would bind the owner too (ADR-0052). The policy still " +
 		"applies in full to every role that is not the owner, hubtask_app among them",
+	"instance_setting": "the installation's own configuration (ADR-0070 §2): every workspace has " +
+		"to read it, and it holds configuration rather than a person's data",
 }
 
 // rowLevelSecurityForced is T-20's structural half: every table carrying a tenant column has row

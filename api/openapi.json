@@ -4209,6 +4209,32 @@
         }
       }
     },
+    "/auth/sign-in-rules": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "getSignInRules",
+        "security": [],
+        "summary": "What a sign-in screen may know before anybody has signed in",
+        "description": "The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.\nPublic the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).\nWhy it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying \"at least twelve characters\" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.\n",
+        "responses": {
+          "200": {
+            "description": "The rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInRules"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/mfa/totp:enroll": {
       "post": {
         "tags": [
@@ -11128,6 +11154,165 @@
             },
             "default": [],
             "description": "Domains a verified address may link within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.\n"
+          }
+        }
+      },
+      "PasswordRules": {
+        "type": "object",
+        "description": "What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.\nZero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.\n",
+        "required": [
+          "min_length",
+          "min_lowercase",
+          "min_uppercase",
+          "min_digits",
+          "min_symbols",
+          "min_classes",
+          "max_repeat",
+          "common_passwords",
+          "context_words",
+          "breach_check",
+          "history_count",
+          "not_current"
+        ],
+        "properties": {
+          "min_length": {
+            "type": "integer",
+            "description": "The fewest characters",
+            "counted after NFKC.": null
+          },
+          "min_lowercase": {
+            "type": "integer",
+            "description": "Unicode category Ll. 0 is off."
+          },
+          "min_uppercase": {
+            "type": "integer",
+            "description": "Unicode category Lu. 0 is off."
+          },
+          "min_digits": {
+            "type": "integer",
+            "description": "Unicode category Nd. 0 is off."
+          },
+          "min_symbols": {
+            "type": "integer",
+            "description": "Everything that is none of the three above: punctuation, a mark, an emoji, and a letter of a script with no case. 0 is off.\n"
+          },
+          "min_classes": {
+            "type": "integer",
+            "description": "How many of the four kinds have to appear at all. It cannot be expressed in the four counts - \"one digit and one symbol\" is not \"two of four\" - which is why both exist.\n"
+          },
+          "max_repeat": {
+            "type": "integer",
+            "description": "The longest run of one character allowed. **0 is off**, as it is for every other count here - one spelling for \"this switch does nothing\", rather than a nullable number beside twelve that are not.\n"
+          },
+          "common_passwords": {
+            "type": "boolean",
+            "description": "Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.\n"
+          },
+          "context_words": {
+            "type": "boolean",
+            "description": "Whether a password carrying the address, the person's name, the workspace's name or its host is refused. Compared after a fold that undoes case and the obvious substitutions, because `C0nt0so` is `contoso` to everybody except a naive comparison.\n"
+          },
+          "breach_check": {
+            "type": "boolean",
+            "description": "Whether a breach corpus is consulted",
+            "where one is configured.": null
+          },
+          "history_count": {
+            "type": "integer",
+            "description": "How many previous passwords are refused. 0 both where the switch is off and where the reader has no account - somebody with no password has no history, and a line under the field that can never be met is a line that only worries people.\n"
+          },
+          "not_current": {
+            "type": "boolean",
+            "description": "Whether \"not the password you have now\" applies - only where there is one."
+          }
+        }
+      },
+      "ProviderSummary": {
+        "type": "object",
+        "description": "One way into this workspace, as a sign-in card needs it.",
+        "required": [
+          "id",
+          "display_name",
+          "kind",
+          "scope"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "What `/auth/oidc:start` is given to choose this provider."
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.\n"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "installation",
+              "workspace"
+            ],
+            "description": "Whether every workspace is offered it, or this one configured it."
+          }
+        }
+      },
+      "LegalLinks": {
+        "type": "object",
+        "description": "The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.\n",
+        "properties": {
+          "imprint_url": {
+            "type": "string"
+          },
+          "privacy_url": {
+            "type": "string"
+          },
+          "terms_url": {
+            "type": "string"
+          },
+          "accessibility_url": {
+            "type": "string"
+          }
+        }
+      },
+      "SignInRules": {
+        "type": "object",
+        "description": "The least a sign-in screen needs, and deliberately no more.",
+        "required": [
+          "workspace_host",
+          "methods",
+          "providers",
+          "password",
+          "legal"
+        ],
+        "properties": {
+          "workspace_host": {
+            "type": "string",
+            "description": "The host this answer was resolved for, which is what the card shows."
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PASSWORD",
+                "OIDC"
+              ]
+            },
+            "description": "The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.\n"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderSummary"
+            }
+          },
+          "password": {
+            "$ref": "#/components/schemas/PasswordRules"
+          },
+          "legal": {
+            "$ref": "#/components/schemas/LegalLinks"
           }
         }
       },

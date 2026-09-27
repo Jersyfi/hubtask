@@ -33,6 +33,11 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/invitations:redeem": true,
+	// The rules a sign-in screen draws are public because the screen that draws them is: a
+	// signed-out visitor is exactly the caller this answer is for (ADR-0068 §7). It says nothing a
+	// guesser can use, and a host no workspace answers at gets the installation's own level rather
+	// than a refusal that would be a directory of hosts.
+	http.MethodGet + " " + APIBasePath + "/auth/sign-in-rules": true,
 	// The second step and the enrolment routes are public for the same reason (H-02): the
 	// pending credential in the body is the whole of what authenticates an enforcement flow,
 	// and a signed-in caller's bearer is verified exactly as on any public route.

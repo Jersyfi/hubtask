@@ -117,6 +117,9 @@ func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAv
 
 func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The sign-in surface of ADR-0068, pending until each use case lands.
+func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

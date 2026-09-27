@@ -297,6 +297,43 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
 
+class PasswordRules(TypedDict, total=False):
+    """What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it."""
+    min_length: Required[int]
+    min_lowercase: Required[int]
+    min_uppercase: Required[int]
+    min_digits: Required[int]
+    min_symbols: Required[int]
+    min_classes: Required[int]
+    max_repeat: Required[int]
+    common_passwords: Required[bool]
+    context_words: Required[bool]
+    breach_check: Required[bool]
+    history_count: Required[int]
+    not_current: Required[bool]
+
+class ProviderSummary(TypedDict, total=False):
+    """One way into this workspace, as a sign-in card needs it."""
+    id: Required[str]
+    display_name: Required[str]
+    kind: Required[str]
+    scope: Required[Literal["installation", "workspace"]]
+
+class LegalLinks(TypedDict, total=False):
+    """The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer."""
+    imprint_url: str
+    privacy_url: str
+    terms_url: str
+    accessibility_url: str
+
+class SignInRules(TypedDict, total=False):
+    """The least a sign-in screen needs, and deliberately no more."""
+    workspace_host: Required[str]
+    methods: Required[list[Literal["PASSWORD", "OIDC"]]]
+    providers: Required[list["ProviderSummary"]]
+    password: Required["PasswordRules"]
+    legal: Required["LegalLinks"]
+
 class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]

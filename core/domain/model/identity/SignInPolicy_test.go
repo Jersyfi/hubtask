@@ -332,3 +332,40 @@ func TestEverySwitchIsAddressable(t *testing.T) {
 		t.Errorf("the rotation reads %q", switchText(resolved.Policy, SwitchRotationFrom))
 	}
 }
+
+// A workspace's stored row is not a licence to stay behind. An operator who raises the minimum has
+// raised it for the workspace that stored a lower value last year too - which is what makes "a
+// workspace only ever tightens" true over time and not only at the moment of the write.
+func TestAStoredWorkspaceValueCannotOutliveATighterDefault(t *testing.T) {
+	workspace := PolicyLayer{Patch: PolicyPatch{MinLength: intOf(14), HistoryCount: intOf(6)}}
+
+	before := Effective(PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12)}}, PolicyLayer{}, workspace)
+	if before.Policy.Password.MinLength != 14 {
+		t.Errorf("minimum length %d, want the workspace's 14", before.Policy.Password.MinLength)
+	}
+
+	after := Effective(PolicyLayer{Patch: PolicyPatch{MinLength: intOf(16)}}, PolicyLayer{}, workspace)
+	if after.Policy.Password.MinLength != 16 {
+		t.Errorf("minimum length %d, want the instance's raised 16", after.Policy.Password.MinLength)
+	}
+	if after.Policy.Password.HistoryCount != 6 {
+		t.Errorf("history %d, want the workspace's tightening left standing", after.Policy.Password.HistoryCount)
+	}
+}
+
+// A save of three switches is a save of three switches: what the caller did not send stays.
+func TestAPatchMergesRatherThanReplaces(t *testing.T) {
+	stored := PolicyPatch{MinLength: intOf(14), HistoryCount: intOf(3), BreachCheck: boolOf(true)}
+
+	merged := stored.Merge(PolicyPatch{HistoryCount: intOf(5)})
+
+	if merged.MinLength == nil || *merged.MinLength != 14 {
+		t.Error("an untouched switch was lost")
+	}
+	if merged.HistoryCount == nil || *merged.HistoryCount != 5 {
+		t.Error("the sent switch did not move")
+	}
+	if merged.BreachCheck == nil || !*merged.BreachCheck {
+		t.Error("an untouched flag was lost")
+	}
+}

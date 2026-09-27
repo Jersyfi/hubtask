@@ -375,6 +375,14 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// client sorting a list itself with Intl.Collator reads here whether the server
 			// already did.
 			"natural_ordering": ordering,
+			// Whether this installation answers `GET /auth/sign-in-rules` (ADR-0068 §7, SI-02).
+			//
+			// The seam that let the sign-in screen land ahead of the core: without this entry a
+			// client draws exactly the screen it drew before - no rules under the password field,
+			// no forgotten-password link, and **no probe of a route that does not exist**. The
+			// same rule every other optional part of the installation follows: what a server
+			// serves is read, never compiled in.
+			"sign_in_rules": true,
 		},
 	}, nil
 }

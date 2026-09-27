@@ -1950,6 +1950,24 @@ func (e ProcessingStateStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProviderSummaryScope.
+const (
+	ProviderSummaryScopeInstallation ProviderSummaryScope = "installation"
+	ProviderSummaryScopeWorkspace    ProviderSummaryScope = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the ProviderSummaryScope enum.
+func (e ProviderSummaryScope) Valid() bool {
+	switch e {
+	case ProviderSummaryScopeInstallation:
+		return true
+	case ProviderSummaryScopeWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProvisionedTenantStatus.
 const (
 	ProvisionedTenantStatusACTIVE          ProvisionedTenantStatus = "ACTIVE"
@@ -2778,6 +2796,24 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInRulesMethods.
+const (
+	SignInRulesMethodsOIDC     SignInRulesMethods = "OIDC"
+	SignInRulesMethodsPASSWORD SignInRulesMethods = "PASSWORD"
+)
+
+// Valid indicates whether the value is a known member of the SignInRulesMethods enum.
+func (e SignInRulesMethods) Valid() bool {
+	switch e {
+	case SignInRulesMethodsOIDC:
+		return true
+	case SignInRulesMethodsPASSWORD:
 		return true
 	default:
 		return false
@@ -5387,6 +5423,14 @@ type LegalHoldRelease struct {
 	Reason string `json:"reason"`
 }
 
+// LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+type LegalLinks struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	ImprintUrl       *string `json:"imprint_url,omitempty"`
+	PrivacyUrl       *string `json:"privacy_url,omitempty"`
+	TermsUrl         *string `json:"terms_url,omitempty"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -5688,6 +5732,46 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+type PasswordRules struct {
+	// BreachCheck Whether a breach corpus is consulted
+	BreachCheck bool `json:"breach_check"`
+
+	// CommonPasswords Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.
+	CommonPasswords bool `json:"common_passwords"`
+
+	// ContextWords Whether a password carrying the address, the person's name, the workspace's name or its host is refused. Compared after a fold that undoes case and the obvious substitutions, because `C0nt0so` is `contoso` to everybody except a naive comparison.
+	ContextWords bool `json:"context_words"`
+
+	// HistoryCount How many previous passwords are refused. 0 both where the switch is off and where the reader has no account - somebody with no password has no history, and a line under the field that can never be met is a line that only worries people.
+	HistoryCount int `json:"history_count"`
+
+	// MaxRepeat The longest run of one character allowed. **0 is off**, as it is for every other count here - one spelling for "this switch does nothing", rather than a nullable number beside twelve that are not.
+	MaxRepeat int `json:"max_repeat"`
+
+	// MinClasses How many of the four kinds have to appear at all. It cannot be expressed in the four counts - "one digit and one symbol" is not "two of four" - which is why both exist.
+	MinClasses int `json:"min_classes"`
+
+	// MinDigits Unicode category Nd. 0 is off.
+	MinDigits int `json:"min_digits"`
+
+	// MinLength The fewest characters
+	MinLength int `json:"min_length"`
+
+	// MinLowercase Unicode category Ll. 0 is off.
+	MinLowercase int `json:"min_lowercase"`
+
+	// MinSymbols Everything that is none of the three above: punctuation, a mark, an emoji, and a letter of a script with no case. 0 is off.
+	MinSymbols int `json:"min_symbols"`
+
+	// MinUppercase Unicode category Lu. 0 is off.
+	MinUppercase int `json:"min_uppercase"`
+
+	// NotCurrent Whether "not the password you have now" applies - only where there is one.
+	NotCurrent bool `json:"not_current"`
+}
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code A stable, machine-readable error code (part of the contract).
@@ -5727,6 +5811,23 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderSummary One way into this workspace, as a sign-in card needs it.
+type ProviderSummary struct {
+	DisplayName string `json:"display_name"`
+
+	// Id What `/auth/oidc:start` is given to choose this provider.
+	Id string `json:"id"`
+
+	// Kind The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.
+	Kind string `json:"kind"`
+
+	// Scope Whether every workspace is offered it, or this one configured it.
+	Scope ProviderSummaryScope `json:"scope"`
+}
+
+// ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
+type ProviderSummaryScope string
 
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
@@ -6507,6 +6608,26 @@ type SignInCompletion struct {
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
+
+// SignInRules The least a sign-in screen needs, and deliberately no more.
+type SignInRules struct {
+	// Legal The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+	Legal LegalLinks `json:"legal"`
+
+	// Methods The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.
+	Methods []SignInRulesMethods `json:"methods"`
+
+	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+	Password  PasswordRules     `json:"password"`
+	Providers []ProviderSummary `json:"providers"`
+
+	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
+	WorkspaceHost string `json:"workspace_host"`
+}
+
+// SignInRulesMethods defines model for SignInRules.Methods.
+type SignInRulesMethods string
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
 type SortTerm struct {
@@ -8811,6 +8932,9 @@ type ServerInterface interface {
 	// CompleteSignIn Present the second factor and receive the pair
 	// (POST /auth/sessions:verify)
 	CompleteSignIn(w http.ResponseWriter, r *http.Request)
+	// GetSignInRules What a sign-in screen may know before anybody has signed in
+	// (GET /auth/sign-in-rules)
+	GetSignInRules(w http.ResponseWriter, r *http.Request)
 	// StepUp Prove yourself again, for the irreversible
 	// (POST /auth/step-up)
 	StepUp(w http.ResponseWriter, r *http.Request)
@@ -10327,6 +10451,20 @@ func (siw *ServerInterfaceWrapper) CompleteSignIn(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompleteSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSignInRules operation middleware
+func (siw *ServerInterfaceWrapper) GetSignInRules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSignInRules(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18573,6 +18711,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)

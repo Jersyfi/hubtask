@@ -1956,6 +1956,24 @@ func (e ProcessingStateStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProviderSummaryScope.
+const (
+	ProviderSummaryScopeInstallation ProviderSummaryScope = "installation"
+	ProviderSummaryScopeWorkspace    ProviderSummaryScope = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the ProviderSummaryScope enum.
+func (e ProviderSummaryScope) Valid() bool {
+	switch e {
+	case ProviderSummaryScopeInstallation:
+		return true
+	case ProviderSummaryScopeWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProvisionedTenantStatus.
 const (
 	ProvisionedTenantStatusACTIVE          ProvisionedTenantStatus = "ACTIVE"
@@ -2784,6 +2802,24 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInRulesMethods.
+const (
+	SignInRulesMethodsOIDC     SignInRulesMethods = "OIDC"
+	SignInRulesMethodsPASSWORD SignInRulesMethods = "PASSWORD"
+)
+
+// Valid indicates whether the value is a known member of the SignInRulesMethods enum.
+func (e SignInRulesMethods) Valid() bool {
+	switch e {
+	case SignInRulesMethodsOIDC:
+		return true
+	case SignInRulesMethodsPASSWORD:
 		return true
 	default:
 		return false
@@ -5393,6 +5429,14 @@ type LegalHoldRelease struct {
 	Reason string `json:"reason"`
 }
 
+// LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+type LegalLinks struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	ImprintUrl       *string `json:"imprint_url,omitempty"`
+	PrivacyUrl       *string `json:"privacy_url,omitempty"`
+	TermsUrl         *string `json:"terms_url,omitempty"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -5694,6 +5738,46 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// PasswordRules What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+type PasswordRules struct {
+	// BreachCheck Whether a breach corpus is consulted
+	BreachCheck bool `json:"breach_check"`
+
+	// CommonPasswords Whether an offline list is consulted - the embedded one, the operator's own file, or both. Which of them refused a password is deliberately not said: it would tell a guesser which corpus to avoid.
+	CommonPasswords bool `json:"common_passwords"`
+
+	// ContextWords Whether a password carrying the address, the person's name, the workspace's name or its host is refused. Compared after a fold that undoes case and the obvious substitutions, because `C0nt0so` is `contoso` to everybody except a naive comparison.
+	ContextWords bool `json:"context_words"`
+
+	// HistoryCount How many previous passwords are refused. 0 both where the switch is off and where the reader has no account - somebody with no password has no history, and a line under the field that can never be met is a line that only worries people.
+	HistoryCount int `json:"history_count"`
+
+	// MaxRepeat The longest run of one character allowed. **0 is off**, as it is for every other count here - one spelling for "this switch does nothing", rather than a nullable number beside twelve that are not.
+	MaxRepeat int `json:"max_repeat"`
+
+	// MinClasses How many of the four kinds have to appear at all. It cannot be expressed in the four counts - "one digit and one symbol" is not "two of four" - which is why both exist.
+	MinClasses int `json:"min_classes"`
+
+	// MinDigits Unicode category Nd. 0 is off.
+	MinDigits int `json:"min_digits"`
+
+	// MinLength The fewest characters
+	MinLength int `json:"min_length"`
+
+	// MinLowercase Unicode category Ll. 0 is off.
+	MinLowercase int `json:"min_lowercase"`
+
+	// MinSymbols Everything that is none of the three above: punctuation, a mark, an emoji, and a letter of a script with no case. 0 is off.
+	MinSymbols int `json:"min_symbols"`
+
+	// MinUppercase Unicode category Lu. 0 is off.
+	MinUppercase int `json:"min_uppercase"`
+
+	// NotCurrent Whether "not the password you have now" applies - only where there is one.
+	NotCurrent bool `json:"not_current"`
+}
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code A stable, machine-readable error code (part of the contract).
@@ -5733,6 +5817,23 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderSummary One way into this workspace, as a sign-in card needs it.
+type ProviderSummary struct {
+	DisplayName string `json:"display_name"`
+
+	// Id What `/auth/oidc:start` is given to choose this provider.
+	Id string `json:"id"`
+
+	// Kind The preset it was configured from, which is what decides the mark that is drawn (ADR-0069). `GENERIC` draws the letter tile, which is the honest answer for a provider with no published button guideline rather than a borrowed logo.
+	Kind string `json:"kind"`
+
+	// Scope Whether every workspace is offered it, or this one configured it.
+	Scope ProviderSummaryScope `json:"scope"`
+}
+
+// ProviderSummaryScope Whether every workspace is offered it, or this one configured it.
+type ProviderSummaryScope string
 
 // ProvisionedTenant defines model for ProvisionedTenant.
 type ProvisionedTenant struct {
@@ -6513,6 +6614,26 @@ type SignInCompletion struct {
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
+
+// SignInRules The least a sign-in screen needs, and deliberately no more.
+type SignInRules struct {
+	// Legal The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
+	Legal LegalLinks `json:"legal"`
+
+	// Methods The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.
+	Methods []SignInRulesMethods `json:"methods"`
+
+	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
+	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
+	Password  PasswordRules     `json:"password"`
+	Providers []ProviderSummary `json:"providers"`
+
+	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
+	WorkspaceHost string `json:"workspace_host"`
+}
+
+// SignInRulesMethods defines model for SignInRules.Methods.
+type SignInRulesMethods string
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
 type SortTerm struct {
@@ -9405,6 +9526,15 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 	CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSignInRules What a sign-in screen may know before anybody has signed in
+	//
+	// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+	// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+	//
+	// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+	GetSignInRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StepUpWithBody Prove yourself again, for the irreversible
 	//
@@ -13115,6 +13245,25 @@ func (c *Client) CompleteSignInWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 func (c *Client) CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteSignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSignInRules What a sign-in screen may know before anybody has signed in
+//
+// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+//
+// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+func (c *Client) GetSignInRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSignInRulesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -20090,6 +20239,33 @@ func NewCompleteSignInRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSignInRulesRequest constructs an http.Request for the GetSignInRules method
+func NewGetSignInRulesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sign-in-rules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -31122,6 +31298,17 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 	CompleteSignInWithResponse(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteSignInResult, error)
 
+	// GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
+	//
+	// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+	// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+	// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+	GetSignInRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignInRulesResult, error)
+
 	// StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 	//
 	// A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
@@ -35750,6 +35937,54 @@ func (r CompleteSignInResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompleteSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetSignInRulesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SignInRules
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSignInRulesResult) GetJSON200() *SignInRules {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetSignInRulesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSignInRulesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSignInRulesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSignInRulesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSignInRulesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -46989,6 +47224,23 @@ func (c *ClientWithResponses) CompleteSignInWithResponse(ctx context.Context, bo
 	return ParseCompleteSignInResult(rsp)
 }
 
+// GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
+//
+// The four things a sign-in card needs and nothing else (ADR-0068 §7): which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
+// Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one. A host no workspace answers at gets the installation's own level, which is byte for byte what a workspace that has decided nothing answers: which hosts hold workspaces is exactly what a probe is after (T-02).
+// Why it exists at all, when a public route that only hid a button was refused before: a *configurable* hint is otherwise wrong. A screen saying "at least twelve characters" in a workspace that demands fifteen is a screen that lies, and the password is refused after it was typed. What it deliberately does **not** answer is everything a guesser could use - the expiry, the history depth, the session timeouts, and the contents or sources of any list.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /auth/sign-in-rules (the `GetSignInRules` operationId).
+func (c *ClientWithResponses) GetSignInRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignInRulesResult, error) {
+	rsp, err := c.GetSignInRules(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSignInRulesResult(rsp)
+}
+
 // StepUpWithBodyWithResponse Prove yourself again, for the irreversible
 //
 // A fresh re-authentication on the current session (security.md §5, H-03): the password, or the TOTP code where one is enrolled. The proof is recorded on the session with its moment, answered as a token that is valid for a short window and consumed by the one privileged action that demanded it - deleting a tenant, changing the `OWNER` role, minting a token with an admin scope, a destructive restore. A second privileged action needs a second proof.
@@ -52786,6 +53038,39 @@ func ParseCompleteSignInResult(rsp *http.Response) (*CompleteSignInResult, error
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSignInRulesResult parses an HTTP response from a GetSignInRulesWithResponse call
+func ParseGetSignInRulesResult(rsp *http.Response) (*GetSignInRulesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSignInRulesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SignInRules
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

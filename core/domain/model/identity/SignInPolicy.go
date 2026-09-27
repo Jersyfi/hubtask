@@ -313,6 +313,53 @@ func (p PolicyPatch) carries(name PolicySwitch) bool {
 	return false
 }
 
+// Merge answers this patch with another's decisions written over it. What the other did not decide
+// is left standing, which is what makes a save of three switches a save of three switches.
+func (p PolicyPatch) Merge(other PolicyPatch) PolicyPatch {
+	merged := p
+	for _, name := range other.Decided() {
+		switch name {
+		case SwitchMinLength:
+			merged.MinLength = other.MinLength
+		case SwitchMinLowercase:
+			merged.MinLowercase = other.MinLowercase
+		case SwitchMinUppercase:
+			merged.MinUppercase = other.MinUppercase
+		case SwitchMinDigits:
+			merged.MinDigits = other.MinDigits
+		case SwitchMinSymbols:
+			merged.MinSymbols = other.MinSymbols
+		case SwitchMinClasses:
+			merged.MinClasses = other.MinClasses
+		case SwitchMaxRepeat:
+			merged.MaxRepeat = other.MaxRepeat
+		case SwitchCommonPasswords:
+			merged.CommonPasswords = other.CommonPasswords
+		case SwitchContextWords:
+			merged.ContextWords = other.ContextWords
+		case SwitchBreachCheck:
+			merged.BreachCheck = other.BreachCheck
+		case SwitchMaxAgeDays:
+			merged.MaxAgeDays = other.MaxAgeDays
+		case SwitchHistoryCount:
+			merged.HistoryCount = other.HistoryCount
+		case SwitchMinAgeHours:
+			merged.MinAgeHours = other.MinAgeHours
+		case SwitchMfaRequiredFor:
+			merged.MfaRequiredFor = other.MfaRequiredFor
+		case SwitchMethods:
+			merged.Methods = other.Methods
+		case SwitchSessionMaxDays:
+			merged.SessionMaxDays = other.SessionMaxDays
+		case SwitchSessionIdleMinutes:
+			merged.SessionIdleMinutes = other.SessionIdleMinutes
+		case SwitchRotationFrom:
+			merged.RotationFrom = other.RotationFrom
+		}
+	}
+	return merged
+}
+
 // PolicyLayer is a level of the resolution: what it decided, and what it forbids the level below
 // to touch. Locks are only ever read from the instance's and the plan's layer - a workspace has
 // nobody below it to lock.
@@ -360,6 +407,14 @@ func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 				// A locked switch: the workspace's value is ignored rather than refused here.
 				// Refusing is the writer's job, where there is a field to name; resolving has to
 				// answer something for a row that was written before the lock landed.
+				continue
+			}
+			if level.origin == LockNone && !tightens(name, resolved, level.layer.Patch) {
+				// The workspace's row is *older* than the level above it, and the level above has
+				// since moved past it. Ignoring it here is what makes "a workspace only ever
+				// tightens" true over time rather than only at the moment of the write: an
+				// operator who raises the minimum to sixteen has raised it for the workspace that
+				// stored fourteen last year too.
 				continue
 			}
 			resolved = applySwitch(resolved, name, level.layer.Patch)

@@ -352,6 +352,7 @@ type Account struct {
 	RedemptionExpiresAt   pgtype.Timestamptz
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
+	PasswordSetAt         pgtype.Timestamptz
 }
 
 type AccountGroup struct {
@@ -378,6 +379,14 @@ type AccountMfa struct {
 	LastStep    *int64
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+}
+
+type AccountPasswordHistory struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	PasswordHash string
+	SetAt        pgtype.Timestamptz
 }
 
 type AccountRecoveryCode struct {
@@ -883,6 +892,14 @@ type InstanceEvent struct {
 	Details    []byte
 }
 
+type InstanceSetting struct {
+	Key        string
+	Value      []byte
+	LockOrigin string
+	UpdatedBy  pgtype.UUID
+	UpdatedAt  pgtype.Timestamptz
+}
+
 type ItemAttachment struct {
 	TenantID pgtype.UUID
 	ItemID   pgtype.UUID
@@ -1277,6 +1294,7 @@ type Session struct {
 	StepUpConsumedAt pgtype.Timestamptz
 	GrantID          pgtype.UUID
 	Scopes           []string
+	SignedInWith     *string
 }
 
 type SessionRefreshToken struct {
@@ -1352,6 +1370,7 @@ type Tenant struct {
 	Version         int32
 	PurgeAfter      pgtype.Timestamptz
 	SyncEpoch       int64
+	PlanID          pgtype.UUID
 }
 
 type Tombstone struct {

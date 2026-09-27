@@ -81,6 +81,11 @@ var rlsExceptions = map[string]string{
 		"applies in full to every role that is not the owner, hubtask_app among them",
 	"restore_drill_marker": "the restore drill's two marker rows per run (H-10, migration 0071): " +
 		"installation-scoped, no tenant column, and the application role has no access at all",
+	"instance_setting": "the installation's own configuration (ADR-0070 §2, migration 0099): " +
+		"every workspace has to read it, because the effective sign-in rule is resolved on every " +
+		"password screen, so a policy comparing current_tenant_id() would make it invisible to " +
+		"everybody; it holds configuration and never a person's data, which is what makes that " +
+		"acceptable, and the bound on writing it is the one control-plane use case that does",
 }
 
 // Every tenant table carries RLS, and it is FORCE - without that the owner would be exempt.

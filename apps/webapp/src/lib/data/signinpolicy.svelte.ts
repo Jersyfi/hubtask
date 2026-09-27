@@ -29,7 +29,14 @@ const TENANT = '/tenant';
 /** Where a lock comes from, or `null` where there is none. */
 export type LockOrigin = 'INSTANCE' | 'PLAN' | null;
 
-/** One switch: what is in force, what the level above set, and whether it may be changed here. */
+/**
+ * One switch: what is in force, what the level above set, and whether it may be changed here.
+ *
+ * **Zero is off** for every count in here, `max_repeat`, `max_age_days`, `min_age_hours` and the
+ * idle bound included. One spelling for "this switch does nothing", rather than a nullable number
+ * beside twelve that are not - which is what the contract answers and what the field below shows
+ * as an empty box.
+ */
 export interface Setting<T> {
   readonly value: T;
   /** What the installation (or the plan) set as the default. */
@@ -46,19 +53,19 @@ export interface SignInPolicy {
     readonly min_digits: Setting<number>;
     readonly min_symbols: Setting<number>;
     readonly min_classes: Setting<number>;
-    readonly max_repeat: Setting<number | null>;
+    readonly max_repeat: Setting<number>;
     readonly common_passwords: Setting<boolean>;
     readonly context_words: Setting<boolean>;
     readonly breach_check: Setting<boolean>;
-    readonly max_age_days: Setting<number | null>;
+    readonly max_age_days: Setting<number>;
     readonly history_count: Setting<number>;
-    readonly min_age_hours: Setting<number | null>;
+    readonly min_age_hours: Setting<number>;
   };
   readonly mfa_required_for: Setting<'NONE' | 'ADMINS' | 'EVERYONE'>;
   readonly methods: Setting<readonly string[]>;
   readonly session: {
     readonly max_days: Setting<number>;
-    readonly idle_minutes: Setting<number | null>;
+    readonly idle_minutes: Setting<number>;
   };
   /** The four links, each with its own lock: B2C locks them, B2B leaves them open. */
   readonly legal: {

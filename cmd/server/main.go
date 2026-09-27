@@ -1056,6 +1056,16 @@ func run() error {
 		Authorizer: authorizer,
 	}
 
+	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
+	// installation's level, the plan's - which nothing writes yet - and the workspace's own. One
+	// value rather than four copies of the same three reads, because a rule resolved slightly
+	// differently in the sign-in path and in the check route is the drift the ADR exists to stop.
+	signInPolicyResolver := identity.SignInPolicyResolver{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Instance:   postgres.NewInstanceSettingRepository(),
+		UnitOfWork: unitOfWork,
+	}
+
 	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
 	// because the job a deletion seeds runs the same check the route serves.
@@ -1122,6 +1132,11 @@ func run() error {
 		identity.DeleteGroup{
 			Groups: groups, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.GetSignInRules{
+			Resolver: signInPolicyResolver, Tenants: signInStore,
+			Providers:  postgres.NewIdentityProviderRepository(),
+			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
 		identity.RefreshSession{Writer: sessionWriter}.Descriptor(),
