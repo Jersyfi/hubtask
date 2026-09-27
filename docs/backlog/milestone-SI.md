@@ -97,7 +97,7 @@ longer says "no forced rotation" without qualification.
 
 ---
 
-## SI-02 — The policy in the domain, and the rules a screen may read **[L]**
+## SI-02 — The policy in the domain, and the rules a screen may read **[L]** · *built*
 
 *Depends on: SI-01.*
 
@@ -133,7 +133,7 @@ cross-tenant negative test for every new repository method.
 
 ---
 
-## SI-03 — `SetPassword`, and the change on the profile **[L]**
+## SI-03 — `SetPassword`, and the change on the profile **[L]** · *built*
 
 *Depends on: SI-02.*
 
@@ -153,7 +153,7 @@ case is in the registry and reachable through REST, MCP and automation (parity t
 
 ---
 
-## SI-04 — Forgetting a password **[L]**
+## SI-04 — Forgetting a password **[L]** · *built*
 
 *Depends on: SI-03.*
 
@@ -173,7 +173,7 @@ answers `202` and the pair only after the code.
 
 ---
 
-## SI-05 — The instance layer, part one: the register and the settings **[L]**
+## SI-05 — The instance layer, part one: the register and the settings **[L]** · *built, less the instance file and `hubctl`*
 
 *Depends on: SI-02.*
 
@@ -200,7 +200,7 @@ test passes with the new table named and reasoned; `make gate-security` green.
 
 ---
 
-## SI-06 — The instance layer, part two: the elevated session **[L]**
+## SI-06 — The instance layer, part two: the elevated session **[L]** · *built*
 
 *Depends on: SI-05.*
 
@@ -216,7 +216,7 @@ in the register is refused; both ends are in the journal.
 
 ---
 
-## SI-07 — The workspace's rule, and the step that enforces it **[L]**
+## SI-07 — The workspace's rule, and the step that enforces it **[L]** · *built*
 
 *Depends on: SI-05.*
 
@@ -236,7 +236,7 @@ accepted; `account.password_rotation_required` is in the audit registry.
 
 ---
 
-## SI-08 — The session's own bounds **[L]**
+## SI-08 — The session's own bounds **[L]** · *built*
 
 *Depends on: SI-07.*
 
@@ -254,7 +254,7 @@ opened; `EVERYONE` routes a member and not a service account.
 
 ---
 
-## SI-09 — Recovery codes as the account's **[L]**
+## SI-09 — Recovery codes as the account's **[L]** · *built*
 
 *Depends on: SI-02.*
 
@@ -315,7 +315,7 @@ on one axis at 375 px and at 200 % zoom.
 
 ---
 
-## SI-12 — Legal links, and the hosts a workspace answers at **[L]**
+## SI-12 — Legal links, and the hosts a workspace answers at **[L]** · *the links are built; `tenant_host` is not*
 
 *Depends on: SI-05.*
 

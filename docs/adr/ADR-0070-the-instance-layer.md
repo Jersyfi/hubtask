@@ -158,3 +158,26 @@ in the route table, and `routes.test.ts` already asserts that the tagged set and
 feature entitlements — are a milestone of their own. This ADR only makes sure they do not need a
 second model: the resolver takes them, the workspace has the column, and the lock knows where it
 came from.
+
+## What the implementation settled
+
+Three things, decided while SI-05 and SI-06 were built.
+
+1. **The operator register keys on the account alone, and lives behind four functions.** §1 does not
+   say how it is reached. It carries no row-level policy *and* no grant to the application role:
+   unlike `instance_setting` its rows name accounts across workspaces, so a policy-free table
+   `hubtask_app` could read would let every workspace enumerate the installation's operators. The
+   four doors are `is_operator`, `operator_register`, `add_operator` and `drop_operator`, each
+   `SECURITY DEFINER` and each narrow by construction - `resolve_tenant`'s discipline applied to a
+   table. The workspace is read from the account by the function rather than named by the caller,
+   which is also what keeps rule 3 intact: no repository method here takes a tenant.
+
+2. **The last-operator rule is in the statement.** `drop_operator` deletes only while
+   `(SELECT count(*) FROM operator) > 1`, because two operators removing each other at the same
+   moment would both read "there are two".
+
+3. **The elevation does not slide, and the register is read again on every request.** §4 says "one
+   hour, not renewable": what that means in code is that activity extends a session's own horizon
+   and never `elevated_until`, and that a second hour needs a second proof. And the scope is granted
+   per request rather than at the elevation, so an operator removed while a raised session is open
+   loses the control plane on their next call rather than at the end of the hour.
