@@ -33,6 +33,18 @@ type DomainEncoder interface {
 type Normalizer interface {
 	// NFC answers the text in normal form C. Text that already is stays byte-identical.
 	NFC(text string) string
+
+	// NFKC answers the text in normal form KC - compatibility decomposition, then canonical
+	// composition - for the one thing in this product that is a *secret* rather than content: a
+	// password (ADR-0068 §7).
+	//
+	// Content is normalised with NFC, and the reason is the difference between the two: NFKC
+	// rewrites `fi` into `fi`, `2` into `2` and a full-width letter into ASCII, which is exactly
+	// what must not happen to a title somebody typed. A password is compared, never shown, and
+	// the same word typed on two keyboards has to be one password - so the fold that would
+	// destroy a title is what makes a password work. It is applied where the password is counted
+	// and where it is hashed, so that what was counted is what is stored.
+	NFKC(text string) string
 }
 
 // Composing is the Normalizer the tests use, here rather than in a helper package for the reason
@@ -47,8 +59,21 @@ func (Composing) NFC(text string) string {
 	return composing.Replace(text)
 }
 
+// NFKC does the same and folds the handful of compatibility characters the tests write, which is
+// enough to prove that a caller applied the compatibility form rather than the canonical one.
+func (Composing) NFKC(text string) string {
+	return compatible.Replace(composing.Replace(text))
+}
+
 var composing = strings.NewReplacer(
 	"e\u0301", "\u00e9", "E\u0301", "\u00c9", "a\u0301", "\u00e1", "o\u0301", "\u00f3", "u\u0301", "\u00fa",
 	"a\u0308", "\u00e4", "o\u0308", "\u00f6", "u\u0308", "\u00fc", "A\u0308", "\u00c4", "O\u0308", "\u00d6", "U\u0308", "\u00dc",
 	"n\u0303", "\u00f1", "c\u0327", "\u00e7",
+)
+
+// compatible folds the compatibility characters the tests use: a ligature, a superscript digit,
+// and the full-width Latin letters.
+var compatible = strings.NewReplacer(
+	"\ufb01", "fi", "\ufb02", "fl", "\u00b2", "2", "\u00b3", "3",
+	"\uff21", "A", "\uff41", "a", "\uff10", "0",
 )

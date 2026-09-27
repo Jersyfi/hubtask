@@ -817,7 +817,9 @@ func TestARedemptionActivatesAndSignsIn(t *testing.T) {
 }
 
 // A short password is a policy refusal - the one distinguishable answer, made before the token
-// is looked up so it discloses nothing about the token.
+// is looked up so it discloses nothing about the token. Since ADR-0068 it names the rule it broke
+// rather than one sentence about length: the field error carries `auth.password_rule.min_length`,
+// which is the same code the client predicted with.
 func TestARedemptionEnforcesThePasswordPolicy(t *testing.T) {
 	fixture := newSessionFixture(now)
 	token := redemptionToken(t)
@@ -826,8 +828,13 @@ func TestARedemptionEnforcesThePasswordPolicy(t *testing.T) {
 	_, err := RedeemInvitation{Writer: fixture.writer}.Execute(t.Context(), RedeemInvitationCommand{
 		Token: secret.New(token.Secret()), Password: secret.New("short"),
 	})
-	if !errors.Is(err, shared.ErrValidation) || !strings.Contains(err.Error(), "auth.password_too_short") {
+	if !errors.Is(err, shared.ErrValidation) || !strings.Contains(err.Error(), "auth.password_refused") {
 		t.Fatalf("a short password answered %v", err)
+	}
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || len(refusal.Fields) != 1 ||
+		refusal.Fields[0].Code != "auth.password_rule.min_length" {
+		t.Fatalf("the refusal named %v, want one field error for the length rule", err)
 	}
 }
 

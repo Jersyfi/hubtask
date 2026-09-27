@@ -188,30 +188,24 @@ func (t RefreshToken) Verify(now time.Time) error {
 	return nil
 }
 
-// The password policy of security.md §5. Twelve at least; the ceiling exists so a paste of a
-// whole document fails as a validation error rather than as a hashing bill.
+// The password policy's two constants (security.md §5). Twelve is the *default* minimum, which
+// an installation may raise to CeilingMinLength or relax to FloorMinLength; the ceiling exists so
+// a paste of a whole document fails as a validation error rather than as a hashing bill, and it is
+// nobody's to change.
 const (
 	MinPasswordLength = 12
 	MaxPasswordLength = 1024
 )
 
-// CheckPassword refuses what the policy forbids. Only where a password is *set*: the sign-in
-// check compares whatever was presented, because refusing a short guess differently from a wrong
-// one would leak which it was.
+// CheckPassword refuses what the product's own default forbids, and keeps its name (ADR-0068 §2):
+// every caller that has one today keeps working, and the callers that resolve a workspace's rule
+// use CheckPasswordAgainst with it.
+//
+// Only where a password is *set*: the sign-in check compares whatever was presented, because
+// refusing a short guess differently from a wrong one would leak which it was.
 func CheckPassword(password string) error {
-	switch {
-	case utf8.RuneCountInString(password) < MinPasswordLength:
-		return shared.ErrValidation.
-			WithDetail("auth.password_too_short").
-			WithParams(map[string]string{"minimum": itoa(MinPasswordLength)}).
-			WithFields(shared.FieldError{Path: "/password", Code: "auth.password_too_short"})
-	case utf8.RuneCountInString(password) > MaxPasswordLength:
-		return shared.ErrValidation.
-			WithDetail("auth.password_too_long").
-			WithParams(map[string]string{"maximum": itoa(MaxPasswordLength)}).
-			WithFields(shared.FieldError{Path: "/password", Code: "auth.password_too_long"})
-	}
-	return nil
+	return CheckPasswordAgainst(
+		DefaultSignInPolicy().Password, nil, password, PasswordContext{})
 }
 
 // The lockout curve of T-02: free attempts first, then a delay that doubles per failure up to a
