@@ -39,8 +39,14 @@
   }
 
   interface Props {
-    /** What the table is. Becomes its caption. */
+    /** What the table is. Becomes the table's accessible name. */
     label: string;
+    /**
+     * Whether that name is drawn or only announced. A screen whose own heading already says it -
+     * which is every screen this matrix appears on - passes `true` and gets the name in the
+     * accessibility tree without the page saying the same words twice.
+     */
+    isLabelHidden?: boolean;
     roles: readonly MatrixRole[];
     /** The heading of the first column — "Role". */
     roleColumnLabel: string;
@@ -61,6 +67,7 @@
 
   const {
     label,
+    isLabelHidden = false,
     roles,
     roleColumnLabel,
     permissions,
@@ -79,7 +86,7 @@
   const carries = (role: MatrixRole, permission: string) => role.permissions.includes(permission);
 </script>
 
-<Table {label} {columns}>
+<Table {label} {isLabelHidden} {columns}>
   {#each roles as role (role.id)}
     <tr>
       <!-- `scope="row"`: reading across a row of ticks is the whole use of this table, and a cell

@@ -83,6 +83,29 @@ html:has(#mode-dark:checked) body[data-theme] {
   --label-red-fg: inherit;
   --label-violet-bg: inherit;
   --label-violet-fg: inherit;
+  --text-danger: inherit;
+  --bg-surface-pressed: inherit;
+  --accent-primary-pressed: inherit;
+  --status-info-surface: inherit;
+  --status-info-border: inherit;
+  --status-info-text: inherit;
+  --status-info-accent: inherit;
+  --status-success-surface: inherit;
+  --status-success-border: inherit;
+  --status-success-text: inherit;
+  --status-success-accent: inherit;
+  --status-warning-surface: inherit;
+  --status-warning-border: inherit;
+  --status-warning-text: inherit;
+  --status-warning-accent: inherit;
+  --status-danger-surface: inherit;
+  --status-danger-border: inherit;
+  --status-danger-text: inherit;
+  --status-danger-accent: inherit;
+  --status-neutral-surface: inherit;
+  --status-neutral-border: inherit;
+  --status-neutral-text: inherit;
+  --status-neutral-accent: inherit;
 }
 
 @media not all and (prefers-color-scheme: light) {
@@ -129,7 +152,30 @@ html:has(#mode-dark:checked) body[data-theme] {
     --label-red-fg: inherit;
     --label-violet-bg: inherit;
     --label-violet-fg: inherit;
-  }
+      --text-danger: inherit;
+    --bg-surface-pressed: inherit;
+    --accent-primary-pressed: inherit;
+    --status-info-surface: inherit;
+    --status-info-border: inherit;
+    --status-info-text: inherit;
+    --status-info-accent: inherit;
+    --status-success-surface: inherit;
+    --status-success-border: inherit;
+    --status-success-text: inherit;
+    --status-success-accent: inherit;
+    --status-warning-surface: inherit;
+    --status-warning-border: inherit;
+    --status-warning-text: inherit;
+    --status-warning-accent: inherit;
+    --status-danger-surface: inherit;
+    --status-danger-border: inherit;
+    --status-danger-text: inherit;
+    --status-danger-accent: inherit;
+    --status-neutral-surface: inherit;
+    --status-neutral-border: inherit;
+    --status-neutral-text: inherit;
+    --status-neutral-accent: inherit;
+}
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
@@ -1321,6 +1367,13 @@ em {
 .site-api-schema h2 a:hover { text-decoration: underline; }
 .site-api-schema > * + * { margin-block-start: var(--sp-200); }
 .site-api-type { font-family: var(--font-mono); font-size: var(--fs-075); font-weight: var(--fw-regular); color: var(--text-subtle); }
+
+/* What the marked lines of the block above it mean. Quieter and smaller than the body, because it
+   is a caption on a picture rather than another paragraph of the section. */
+.site-api-legend {
+  color: var(--text-secondary);
+  font-size: var(--fs-075);
+}
 
 .site-api-body { display: flex; flex-direction: column; gap: var(--sp-100); }
 .site-api-subhead {

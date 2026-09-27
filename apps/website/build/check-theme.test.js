@@ -12,6 +12,15 @@
 // fail on the difference. The token names come from the design system's own naming module rather
 // than from a copy of the rules, because a second copy of a naming rule is the thing this whole
 // package exists to prevent.
+//
+// **And read the components, not only the stylesheet.** That was this guard's blind spot, and it
+// cost the site a warning `Callout` drawn as near-white text on a light amber panel, on a dark
+// page, for as long as the page has existed: `site.css` never writes `var(--status-warning-text)`,
+// so nothing here ever asked whether it was neutralised. Most of what this page paints is a
+// design-system component, and a component's tokens are exactly as able to stay light as the
+// stylesheet's. The set below is the components this site imports, plus the ones those import in
+// turn - a component nobody renders here cannot paint a light panel here, so the list stays the
+// site's own rather than the whole package's.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -49,6 +58,62 @@ function semanticNames() {
   return names;
 }
 
+/**
+ * Every design-system component this site can render, found by following its imports.
+ *
+ * Transitive, because a `Callout` painting a `Badge` puts the badge's tokens on the page just as
+ * surely as the page importing it would.
+ */
+function componentsRendered() {
+  const source = path.join(here, '..', 'src');
+  const directly = new Set();
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const at = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(at);
+      else if (/\.(svelte|ts)$/.test(entry.name)) {
+        const text = fs.readFileSync(at, 'utf8');
+        for (const match of text.matchAll(/import \{([^}]*)\} from '@hubtask\/design-system\/components'/g)) {
+          for (const raw of match[1].split(',')) {
+            const name = raw.trim().replace(/^type /, '');
+            if (/^[A-Z]/.test(name)) directly.add(name);
+          }
+        }
+      }
+    }
+  };
+  walk(source);
+
+  const package_ = path.join(here, '..', '..', '..', 'packages', 'design-system', 'src');
+  const reached = new Set();
+  const queue = [...directly];
+  while (queue.length > 0) {
+    const name = queue.pop();
+    if (reached.has(name)) continue;
+    reached.add(name);
+    const file = path.join(package_, `${name}.svelte`);
+    if (!fs.existsSync(file)) continue;
+    for (const match of fs.readFileSync(file, 'utf8').matchAll(/from '\.\/([A-Z][A-Za-z]*)\.svelte'/g)) {
+      queue.push(match[1]);
+    }
+  }
+  return { reached, package_ };
+}
+
+/** The semantic tokens those components read. */
+function tokensComponentsRead() {
+  const { reached, package_ } = componentsRendered();
+  const names = new Set();
+  for (const component of reached) {
+    const file = path.join(package_, `${component}.svelte`);
+    if (!fs.existsSync(file)) continue;
+    for (const match of fs.readFileSync(file, 'utf8').matchAll(/var\((--[\w-]+)\)/g)) {
+      if (SEMANTIC.has(match[1])) names.add(match[1]);
+    }
+  }
+  return names;
+}
+
 /** The declarations of one `{ … }` block, found by the selector that opens it. */
 function blockFor(selector) {
   const at = css.indexOf(selector);
@@ -61,9 +126,10 @@ function blockFor(selector) {
 const SEMANTIC = semanticNames();
 
 test('every semantic token the site uses is neutralised in both colour-mode blocks', () => {
-  const used = new Set(
-    [...css.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]).filter((name) => SEMANTIC.has(name)),
-  );
+  const used = new Set([
+    ...[...css.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]).filter((name) => SEMANTIC.has(name)),
+    ...tokensComponentsRead(),
+  ]);
   assert.ok(used.size > 20, 'expected the stylesheet to read a good number of semantic tokens');
 
   for (const selector of ['html:has(#mode-dark:checked) body[data-theme]', 'html:has(#mode-auto:checked) body[data-theme]']) {
@@ -72,8 +138,9 @@ test('every semantic token the site uses is neutralised in both colour-mode bloc
     assert.deepEqual(
       missing,
       [],
-      `these tokens are read by src/site.css but keep their light value under "${selector}", `
-        + `so they would stay light in dark mode: ${missing.join(', ')}`,
+      `these tokens are read by src/site.css or by a design-system component this site renders, `
+        + `but keep their light value under "${selector}", so they would stay light in dark mode: `
+        + missing.join(', '),
     );
   }
 });

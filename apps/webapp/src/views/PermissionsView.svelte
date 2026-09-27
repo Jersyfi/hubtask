@@ -103,6 +103,7 @@
     {:else}
       <PermissionMatrix
         label={t('app.permissions.title')}
+        isLabelHidden
         roleColumnLabel={t('app.people.role_column')}
         {permissions}
         {accessKinds}

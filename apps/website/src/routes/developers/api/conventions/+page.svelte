@@ -32,6 +32,22 @@
 → { "items": [ … ], "next_cursor": "eyJ…", "has_more": true }
 
 GET ${reference.baseUrl}/items?collection_id=…&limit=50&cursor=eyJ…`;
+
+  /**
+   * A merge patch, shown as what it does rather than described.
+   *
+   * The three rules of `application/merge-patch+json` are the ones people get wrong, and all
+   * three are visible in four lines: a key present is written, a key absent is untouched, and
+   * `null` clears. The marks say which line is which without a sentence per line.
+   */
+  const patchExample = `PATCH ${reference.baseUrl}/items/01J9Z1Q4K7
+Content-Type: application/merge-patch+json
+If-Match: "3"
+
+{
+  "title": "Move the socket by the window",
+  "due_at": null
+}`;
 </script>
 
 <svelte:head>
@@ -61,7 +77,13 @@ GET ${reference.baseUrl}/items?collection_id=…&limit=50&cursor=eyJ…`;
           makes no difference to an operation — a token is refused precisely what the person or account behind it would
           be refused. The few routes without it say so on their own page.
         </p>
-        <CodeBlock label="A bearer" language="http" code={`GET ${reference.baseUrl}/accounts/me\nAuthorization: Bearer hbt_pat_…`} />
+        <CodeBlock
+          label="A bearer"
+          language="http"
+          hasLineNumbers
+          lines={{ 2: 'marked' }}
+          code={`GET ${reference.baseUrl}/accounts/me\nAuthorization: Bearer hbt_pat_…`}
+        />
       </section>
 
       <section class="site-api-schema" id="problems">
@@ -74,7 +96,15 @@ GET ${reference.baseUrl}/items?collection_id=…&limit=50&cursor=eyJ…`;
         {#if problem}
           <ParameterTable label="Problem" isLabelHidden {headings} {words} rows={problem.rows} />
         {/if}
-        <CodeBlock label="A 422" language="json" code={problemExample} />
+        <!-- The two lines the paragraph above names, marked where they are rather than quoted
+             again underneath it. -->
+        <CodeBlock
+          label="A 422"
+          language="json"
+          hasLineNumbers
+          lines={{ 5: 'marked', 6: 'marked' }}
+          code={problemExample}
+        />
       </section>
 
       <section class="site-api-schema" id="idempotency">
@@ -99,6 +129,19 @@ GET ${reference.baseUrl}/items?collection_id=…&limit=50&cursor=eyJ…`;
           what it never saw. Partial writes are <code>application/merge-patch+json</code>: an absent key changes
           nothing, <code>null</code> clears.
         </p>
+        <CodeBlock
+          label="A partial write"
+          language="http"
+          hasLineNumbers
+          fileName="application/merge-patch+json"
+          lines={{ 3: 'marked', 6: 'added', 7: 'removed' }}
+          code={patchExample}
+        />
+        <p class="site-api-legend">
+          Line 3 is the version this write is against. Line 6 sets a field; line 7 clears one, which is what
+          <code>null</code> means here and is the only way to clear it. Every field not in the body — the bucket, the
+          labels, the assignee — is left exactly as it was.
+        </p>
       </section>
 
       <section class="site-api-schema" id="pagination">
@@ -109,7 +152,13 @@ GET ${reference.baseUrl}/items?collection_id=…&limit=50&cursor=eyJ…`;
           listing whose reach is checked per record can answer a short page that is not the last: walk on until
           <code>has_more</code> is false.
         </p>
-        <CodeBlock label="Two pages" language="http" code={pageExample} />
+        <CodeBlock
+          label="Two pages"
+          language="http"
+          hasLineNumbers
+          lines={{ 4: 'marked' }}
+          code={pageExample}
+        />
       </section>
 
       <section class="site-api-schema" id="actions">
