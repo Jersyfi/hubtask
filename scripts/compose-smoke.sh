@@ -438,8 +438,12 @@ fi
 
 # A session must not reach the control plane, however privileged its person (decision 6).
 echo "--- multi mode: the owner signs in and sees the seeded structure ---"
+# Deliberately *not* the phrase every strength meter's documentation prints: that one is in the
+# embedded list of refused passwords (ADR-0068 §7), which is the whole reason it is there - it is
+# the phrase people type *because* they read it somewhere. A fixture that used it would be a
+# fixture the product is right to refuse.
 redeemed="$(api /auth/invitations:redeem -X POST -H 'Content-Type: application/json' \
-	-d "{\"token\":\"$OWNER_REDEMPTION\",\"password\":\"correct horse battery staple\"}")"
+	-d "{\"token\":\"$OWNER_REDEMPTION\",\"password\":\"seven blue lanterns above the harbour\"}")"
 OWNER_ACCESS="$(json_field access_token <<< "$redeemed")"
 if [ -z "$OWNER_ACCESS" ]; then
 	echo "FAILED: the redemption answered '$redeemed'"

@@ -1471,7 +1471,10 @@ SQL
 # must not share a file.
 ADMIN_PROFILE="$WORK_DIR/operator.json"
 OWNER_PROFILE="$WORK_DIR/owner.json"
-OWNER_PASSWORD='correct horse battery staple'
+# Deliberately not the phrase every strength meter's documentation prints: that one is in the
+# embedded list of refused passwords (ADR-0068 §7), and a fixture using it would be one the
+# product is right to refuse.
+OWNER_PASSWORD='seven blue lanterns above the harbour'
 REDIRECT_URI='https://app.example/callback'
 
 # The stand-in authenticator, built once. Empty until the enrolment answers a secret, which is
