@@ -4,12 +4,11 @@
   import Badge from './Badge.svelte';
   import EmptyState from './EmptyState.svelte';
   import IconButton from './IconButton.svelte';
-  import Pagination from './Pagination.svelte';
   import Table, { type Column } from './Table.svelte';
-  import { comparing, pageOf, type Sort } from './table.ts';
+  import { comparing, type Sort } from './table.ts';
 
   const { mode = 'entries' }: {
-    mode?: 'entries' | 'wide' | 'sorted' | 'paged' | 'states' | 'empty';
+    mode?: 'entries' | 'wide' | 'sorted' | 'long' | 'states' | 'empty';
   } = $props();
 
   const columns: Column[] = [
@@ -54,14 +53,13 @@
     { title: 'Ask about the skirting', bucket: 'Materials', count: 0, due: null },
   ];
 
-  /** A list long enough to have pages, built rather than typed out. */
-  const many: Row[] = Array.from({ length: 91 }, (_, index) => {
+  /** A list long enough to need the sticky head, built rather than typed out. */
+  const many: Row[] = Array.from({ length: 60 }, (_, index) => {
     const source = rows[index % rows.length] as Row;
     return { ...source, title: `${source.title} (${index + 1})`, count: (index * 3) % 7 };
   });
 
   let sort = $state<Sort>({ columnId: 'due', direction: 'ascending' });
-  let page = $state(1);
 
   const read = (row: Row): string | number | null => {
     if (sort.columnId === 'count') return row.count;
@@ -70,10 +68,10 @@
     return row.title;
   };
 
-  // The client holds the whole list, so it sorts and pages it here. A cursor-paged list would
-  // hand `onSort` to the server and reach for `LoadMore` instead - see `Pagination`'s own note.
+  // The client holds the whole list, so it sorts it here. A cursor-paged list would hand `onSort`
+  // to the server instead - the component has no opinion about which it is looking at.
   const sorted = $derived([...rows].sort(comparing(read, sort.direction, 'en')));
-  const shown = $derived(pageOf([...many].sort(comparing(read, sort.direction, 'en')), page, 12));
+  const long = $derived([...many].sort(comparing(read, sort.direction, 'en')));
 </script>
 
 {#if mode === 'wide'}
@@ -108,42 +106,27 @@
       </tr>
     {/each}
   </Table>
-{:else if mode === 'paged'}
-  <Table
-    label="Entries in this collection"
-    columns={sortable}
-    {sort}
-    onSort={(next) => {
-      sort = next;
-      // Back to the first page: the rows under the reader have all changed, and page 4 of the new
-      // order is not the page they were looking at.
-      page = 1;
-    }}
-  >
-    {#each shown.rows as row (row.title)}
-      <tr>
-        <td>{row.title}</td>
-        <td><Badge>{row.bucket}</Badge></td>
-        <td>{row.due ?? '—'}</td>
-        <td data-align="end">{row.count}</td>
-        <td data-align="end">
-          <IconButton icon="ellipsis" label={`Actions for ${row.title}`} size="sm" />
-        </td>
-      </tr>
-    {/each}
-  </Table>
-  <Pagination
-    total={many.length}
-    pageSize={12}
-    page={shown.page}
-    label="Pages of entries"
-    rangeLabel={`${shown.firstRow}–${shown.lastRow} of ${shown.total}`}
-    previousLabel="Previous page"
-    nextLabel="Next page"
-    pageLabel={(n) => `Page ${n}`}
-    gapLabel={(from, to) => `Pages ${from} to ${to}`}
-    onPage={(n) => (page = n)}
-  />
+{:else if mode === 'long'}
+  <div class="scroller">
+    <Table
+      label="Entries in this collection"
+      columns={sortable}
+      {sort}
+      onSort={(next) => (sort = next)}
+    >
+      {#each long as row (row.title)}
+        <tr>
+          <td>{row.title}</td>
+          <td><Badge>{row.bucket}</Badge></td>
+          <td>{row.due ?? '—'}</td>
+          <td data-align="end">{row.count}</td>
+          <td data-align="end">
+            <IconButton icon="ellipsis" label={`Actions for ${row.title}`} size="sm" />
+          </td>
+        </tr>
+      {/each}
+    </Table>
+  </div>
 {:else if mode === 'states'}
   <Table label="Entries in this collection" columns={sortable} {sort} onSort={(next) => (sort = next)} isBusy>
     {#each sorted as row, index (row.title)}
@@ -183,3 +166,9 @@
     {/each}
   </Table>
 {/if}
+
+<style>
+  /* A box with a **definite** height, which is what the table needs to stick its head to. The
+     height is the point of the story rather than a measure of the product, hence the exemption. */
+  .scroller { block-size: 24rem; } /* design-system-lint-ignore: a demo's viewport, not a product measure. */
+</style>

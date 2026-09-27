@@ -24,11 +24,11 @@ export const sorted: Story = {
   args: { mode: 'sorted' },
 };
 
-export const paged: Story = {
-  name: 'With pages under it',
+export const long: Story = {
+  name: 'Sixty rows, and no pager under them',
   about:
-    'Ninety-one entries the client already holds, twelve at a time. The range sentence is the component and the numbers are an addition to it: “13–24 of 91” answers the question a reader actually has, and is true at every width. Pull Width down past 600 px and the numbers drop out while the sentence and the two arrows stay — seven targets across a phone is seven targets nobody can hit. The ellipsis is a control: it is announced as the pages it stands for and goes to the middle of them.',
-  args: { mode: 'paged' },
+    'What this product does with a long list, which is **not** page numbers. The API answers a page and an opaque cursor and has none, so nothing in the client may grow a control that implies one — a product numbered in one corner and cursored in another has two answers to “where am I in this list”. So a long list keeps its head: scroll it and the column names stay put, and the way to find a row is to sort by the column it is in. Where there is a cursor behind the list, `LoadMore` is what asks for the next page.',
+  args: { mode: 'long' },
 };
 
 export const states: Story = {

@@ -15,19 +15,11 @@
 
   import { untrack } from 'svelte';
 
-  import {
-    Button,
-    EmptyState,
-    ErrorState,
-    Pagination,
-    Skeleton,
-    Stack,
-    Table,
-  } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
-  import { listing } from '../lib/listing.svelte.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
@@ -72,10 +64,11 @@
     }),
   );
 
-  // Thirty rows is a year of phones, laptops and browsers, and thirty rows is where a reader stops
-  // reading. Sorted and paged in the client, because the whole list is already here: `/auth/sessions`
-  // answers it in one response and has no cursor.
-  const list = listing({
+  // Sorted in the client, because the whole list is already here: `/auth/sessions` answers it in
+  // one response and holds no cursor. A year of phones, laptops and browsers is thirty rows, and
+  // what makes thirty rows readable is the column somebody can sort by - not a page under them,
+  // which this product does not have and will not grow one of.
+  const order = sorting({
     rows: () => ordered,
     read: (row, columnId) => {
       if (columnId === 'created') return row.created_at;
@@ -83,11 +76,9 @@
       if (columnId === 'network') return row.ip_class;
       return row.user_agent;
     },
-    pageSize: 15,
-    what: t('app.sessions.title'),
   });
 
-  const shown = $derived(list.page.rows);
+  const shown = $derived(order.rows);
 
   /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
   function when(at: string | null | undefined): string {
@@ -146,8 +137,8 @@
           label={t('app.sessions.title')}
           isLabelHidden
           {columns}
-          sort={list.sort}
-          onSort={(next) => list.sortBy(next)}
+          sort={order.sort}
+          onSort={(next) => order.by(next)}
         >
           {#each shown as row (row.id)}
             <tr>
@@ -167,9 +158,6 @@
           {/each}
         </Table>
 
-        {#if list.hasPages}
-          <Pagination onPage={(number) => list.goTo(number)} {...list.pager} />
-        {/if}
 
         <div class="everywhere">
           <!-- Said before it is pressed, because it ends this session too: a control whose

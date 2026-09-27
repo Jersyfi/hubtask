@@ -17,7 +17,7 @@
   import { consent } from '../lib/data/consent.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { listing } from '../lib/listing.svelte.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   const account = $derived(actor.account);
 
@@ -29,10 +29,9 @@
   // changes them, and a list built once would keep the language it was built in.
   // Only the app name sorts. The scopes cell is a list, and an order taken from its first entry
   // is an order nobody asked for that looks like one somebody did.
-  const list = listing({
+  const order = sorting({
     rows: () => consent.grants,
     read: (grant) => grant.client_name,
-    what: t('app.grants.title'),
   });
 
   const columns = $derived([
@@ -69,10 +68,10 @@
           label={t('app.grants.title')}
           isLabelHidden
           {columns}
-          sort={list.sort}
-          onSort={(next) => list.sortBy(next)}
+          sort={order.sort}
+          onSort={(next) => order.by(next)}
         >
-          {#each list.page.rows as grant (grant.id)}
+          {#each order.rows as grant (grant.id)}
             <tr>
               <th scope="row" class="what">{grant.client_name}</th>
               <!-- The scopes as the app holds them. Sentences where this build knows them, and the

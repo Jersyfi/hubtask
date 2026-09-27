@@ -26,7 +26,6 @@
     Button,
     Input,
     PageHeader,
-    Pagination,
     RoleBadge,
     Select,
     Spinner,
@@ -47,7 +46,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { listing } from '../lib/listing.svelte.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   /** The workspace itself. One scope, named once, so the read and the writes cannot disagree. */
   const TENANT = { scopeType: 'TENANT' } as const;
@@ -120,20 +119,20 @@
 
   // The list on this screen is the one that actually grows - a workspace of two hundred people is
   // two hundred rows, and the server answers `GET /memberships` in one response with no cursor.
-  // So it is sorted and paged here, over a list the client is already holding whole.
+  // It is sorted here, over the list the client is already holding whole, and it is **not** paged:
+  // a client-side pager would give the product a second answer to "where am I in this list"
+  // beside `LoadMore`'s, and one of the two would always be the wrong guess.
   //
   // The role sorts by the **word** rather than by the enum's own order: a reader sorting this
   // column is looking for "every administrator together", and `ADMIN` before `MEMBER` in a
   // language where the words run the other way would be an order that looks arbitrary.
-  const list = listing({
+  const order = sorting({
     rows: () => holders,
     read: (holder, columnId) => {
       if (columnId === 'role') return t(`app.people.role.${holder.role.toLowerCase()}`);
       if (columnId === 'status') return statusOf(holder.accountId);
       return nameOf(holder);
     },
-    pageSize: 25,
-    what: t('app.people.title'),
   });
 
   /**
@@ -240,10 +239,10 @@
         label={t('app.people.title')}
         isLabelHidden
         {columns}
-        sort={list.sort}
-        onSort={(next) => list.sortBy(next)}
+        sort={order.sort}
+        onSort={(next) => order.by(next)}
       >
-        {#each list.page.rows as holder (holder.membershipId)}
+        {#each order.rows as holder (holder.membershipId)}
           <tr>
             <th scope="row" class="who">
               <!-- A membership granted to a group reaches the people in it. The group's own
@@ -282,9 +281,6 @@
         {/each}
       </Table>
 
-      {#if list.hasPages}
-        <Pagination onPage={(number) => list.goTo(number)} {...list.pager} />
-      {/if}
     {/if}
 
     <RevokeDialog

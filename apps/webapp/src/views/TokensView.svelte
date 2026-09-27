@@ -31,7 +31,6 @@
     Checkbox,
     Input,
     OneTimeSecret,
-    Pagination,
     Spinner,
     Stack,
     Table,
@@ -43,7 +42,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { listing } from '../lib/listing.svelte.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   interface Props {
     /** A service account's tokens, where the caller may mint for one. Absent means their own. */
@@ -86,9 +85,9 @@
     { id: 'actions', label: t('app.tokens.actions'), isLabelHidden: true },
   ]);
 
-  // Sorted and paged here, because the whole list is here: `GET /auth/tokens` answers it in one
-  // response for a personal account, and nothing on this screen is holding a cursor.
-  const list = listing({
+  // Sorted here, because the whole list is here: `GET /auth/tokens` answers it in one response
+  // for a personal account, and nothing on this screen is holding a cursor.
+  const order = sorting({
     rows: () => held,
     read: (token, columnId) => {
       if (columnId === 'expiry') return token.expires_at;
@@ -98,8 +97,6 @@
       if (columnId === 'state') return stateOf(token);
       return token.name;
     },
-    pageSize: 15,
-    what: t('app.tokens.title'),
   });
 
   /** Which of the three words the state column draws. Read twice: once to sort, once to render. */
@@ -193,10 +190,10 @@
       label={t('app.tokens.title')}
       isLabelHidden
       {columns}
-      sort={list.sort}
-      onSort={(next) => list.sortBy(next)}
+      sort={order.sort}
+      onSort={(next) => order.by(next)}
     >
-      {#each list.page.rows as token (token.id)}
+      {#each order.rows as token (token.id)}
         <tr>
           <th scope="row" class="name">{token.name}</th>
           <td class="scopes">{token.scopes.join(', ')}</td>
@@ -236,9 +233,6 @@
       {/each}
     </Table>
 
-    {#if list.hasPages}
-      <Pagination onPage={(number) => list.goTo(number)} {...list.pager} />
-    {/if}
   {/if}
 
   <Stack gap="150">

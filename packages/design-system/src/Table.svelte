@@ -183,6 +183,18 @@
   .scroll {
     overflow-x: auto;
     max-inline-size: 100%;
+    /* And this is what makes the sticky head below reachable at all.
+    
+       `overflow-x: auto` computes `overflow-y` to `auto` as well, so this element is the scrollport
+       in **both** axes - which means the `position: sticky` on the head sticks to *this* box and
+       never to the page. Without a height, this box is exactly as tall as the table, so it never
+       scrolls vertically and the head never moves: the rule was inert from the day it was written.
+       
+       `100%` resolves only against a parent with a definite height. Give the table's container one
+       and the head sticks inside it; leave it alone and this is `none` and nothing changes. So a
+       caller opts in by bounding the space it gives the table, which is the thing it actually
+       knows, rather than by passing a measurement to a component that cannot see the screen. */
+    max-block-size: 100%;
     background:
       linear-gradient(to right, var(--bg-surface), transparent) 0 0 / var(--sp-400) 100% no-repeat
         local,
@@ -261,9 +273,10 @@
   .table :global(th) {
     position: sticky;
     inset-block-start: 0;
-    /* The header stays put while the rows scroll under it, which is what the `sticky` rank in
-       tokens.json is for - and it is the token rather than a number, because five components each
-       choosing their own is the failure the scale exists to prevent. */
+    /* The header stays put while the rows scroll under it - inside the scroll box above, which is
+       the only thing it can stick to. The rank is the `sticky` one from tokens.json rather than a
+       number, because five components each choosing their own is the failure the scale exists to
+       prevent. */
     z-index: var(--z-sticky);
     background: var(--bg-surface);
     /* Heavier than a row rule on purpose: the head is a different kind of line from the ones

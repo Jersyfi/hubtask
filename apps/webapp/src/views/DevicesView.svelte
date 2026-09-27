@@ -28,7 +28,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { listing } from '../lib/listing.svelte.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
 
   const account = $derived(actor.account);
 
@@ -59,9 +59,9 @@
     }),
   );
 
-  // No page size: a person's devices are counted on one hand, and a pager saying "1-4 of 4" costs
-  // a line to tell the reader what they can already see.
-  const list = listing({
+  // A person's devices are counted on one hand; what this list wanted was the last-seen column
+  // as something to sort by rather than as something to read down.
+  const order = sorting({
     rows: () => ordered,
     read: (device, columnId) => {
       if (columnId === 'platform') return device.platform;
@@ -71,10 +71,9 @@
       }
       return device.display_name;
     },
-    what: t('app.devices.title'),
   });
 
-  const shown = $derived(list.page.rows);
+  const shown = $derived(order.rows);
 
   function when(at: string | null | undefined): string {
     return at ? formatDateTime(at, messages.locale) : t('app.devices.never_seen');
@@ -120,8 +119,8 @@
           label={t('app.devices.title')}
           isLabelHidden
           {columns}
-          sort={list.sort}
-          onSort={(next) => list.sortBy(next)}
+          sort={order.sort}
+          onSort={(next) => order.by(next)}
         >
           {#each shown as device (device.id)}
             <tr>

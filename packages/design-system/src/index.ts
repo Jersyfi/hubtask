@@ -68,7 +68,6 @@ export { default as EmptyState, type Emptiness } from './EmptyState.svelte';
 export { default as ErrorState } from './ErrorState.svelte';
 export { default as ListRow } from './ListRow.svelte';
 export { default as LoadMore } from './LoadMore.svelte';
-export { default as Pagination } from './Pagination.svelte';
 export { default as SearchField } from './SearchField.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as Table, type Column } from './Table.svelte';
@@ -147,17 +146,7 @@ export {
   type RankKey,
 } from './reorder.ts';
 
-export {
-  comparing,
-  gapTarget,
-  nextSort,
-  pageOf,
-  pageSteps,
-  type Page,
-  type Sort,
-  type SortDirection,
-  type Step,
-} from './table.ts';
+export { comparing, nextSort, type Sort, type SortDirection } from './table.ts';
 
 export {
   collapseTrail,
