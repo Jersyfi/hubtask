@@ -443,22 +443,57 @@ CREATE TABLE oauth_code (
 );
 CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 
--- The provider a workspace signs its people in through (H-04). One per workspace, and the
--- primary key says so: a second row cannot exist, so nothing has to decide which one wins. The
--- client secret is sealed under E-02's envelope - a token exchange needs the plaintext, which is
--- why this is not a hash.
+-- The providers a workspace signs its people in through (H-04, SI-10, migration 0103). Plural,
+-- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
+-- none writes - see the two policies below. The client secret is sealed under E-02's envelope - a
+-- token exchange needs the plaintext, which is why this is not a hash.
 CREATE TABLE identity_provider (
-  tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  id                    uuid PRIMARY KEY,
+  tenant_id             uuid REFERENCES tenant(id) ON DELETE CASCADE,
   issuer                text NOT NULL CHECK (length(issuer) BETWEEN 1 AND 500),
   client_id             text NOT NULL CHECK (length(client_id) BETWEEN 1 AND 500),
   client_secret_enc     bytea NOT NULL,
   client_secret_key_id  text NOT NULL,
+  display_name          text NOT NULL DEFAULT '' CHECK (length(display_name) <= 200),
+  -- The preset it was configured from, which decides the mark that is drawn (ADR-0069). GENERIC
+  -- is the letter tile.
+  kind                  text NOT NULL DEFAULT 'GENERIC'
+                          CHECK (kind IN ('GENERIC', 'GOOGLE', 'MICROSOFT')),
+  -- Who gets an account on a first arrival. A public provider may only be INVITED_ONLY, which the
+  -- application enforces: "public" is a property of the preset, not of anything a CHECK can see.
+  provisioning          text NOT NULL DEFAULT 'DOMAINS'
+                          CHECK (provisioning IN ('INVITED_ONLY', 'DOMAINS', 'ANY')),
+  position              integer NOT NULL DEFAULT 0,
   allowed_email_domains text[] NOT NULL DEFAULT '{}',
   enabled               boolean NOT NULL DEFAULT true,
   created_at            timestamptz NOT NULL,
   updated_at            timestamptz,
   version               integer NOT NULL DEFAULT 1
 );
+-- One registration per issuer per level. NULLS NOT DISTINCT is what makes that true of the
+-- installation's rows: without it every NULL tenant is its own.
+CREATE UNIQUE INDEX identity_provider_issuer_uq
+  ON identity_provider (tenant_id, issuer) NULLS NOT DISTINCT;
+CREATE INDEX identity_provider_tenant_idx
+  ON identity_provider (tenant_id, position, created_at);
+
+-- Which provider vouched for a subject, and which account it became (SI-10, migration 0103).
+-- `account.external_subject` held one subject per account and could not say which provider; this
+-- can. One account holds at most one subject per provider, and one subject names at most one
+-- account per provider per workspace - the workspace is in that key because an installation-wide
+-- provider is one row for everybody and a person may work in two of them.
+CREATE TABLE account_identity (
+  tenant_id   uuid NOT NULL,
+  account_id  uuid NOT NULL,
+  provider_id uuid NOT NULL REFERENCES identity_provider(id) ON DELETE CASCADE,
+  subject     text NOT NULL CHECK (length(subject) BETWEEN 1 AND 255),
+  linked_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id, provider_id),
+  CONSTRAINT account_identity_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX account_identity_subject_uq
+  ON account_identity (tenant_id, provider_id, subject);
 
 -- One browser round trip of authorization code + PKCE. The state is hashed because the caller
 -- presents it back; the verifier and the nonce are kept as they are because one travels to the
@@ -2118,7 +2153,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'identity_provider','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
+    'account_identity','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
@@ -2158,6 +2193,22 @@ ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON audit_log
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
+
+-- identity_provider is read by every workspace and written by one level only (SI-10, migration
+-- 0103). A NULL row is the installation's: every workspace has to be able to draw its button, and
+-- no workspace may change it. The standard policy would make such a row invisible to everybody,
+-- so the read admits it and the write does not - and the third policy is the installation's own
+-- scope, where `app.tenant_id` is the empty string and `current_tenant_id()` is therefore NULL.
+ALTER TABLE identity_provider ENABLE ROW LEVEL SECURITY;
+ALTER TABLE identity_provider FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_read ON identity_provider FOR SELECT
+  USING (tenant_id = current_tenant_id() OR tenant_id IS NULL);
+CREATE POLICY tenant_write ON identity_provider FOR ALL
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+CREATE POLICY installation_write ON identity_provider FOR ALL
+  USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
+  WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
 
 -- privacy_incident can be installation-wide (tenant_id IS NULL) and is then visible only to
 -- the instance administration.
