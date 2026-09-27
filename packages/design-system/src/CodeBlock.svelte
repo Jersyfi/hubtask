@@ -288,8 +288,14 @@
   }
   .line[data-kind='removed'] .gutter { color: var(--status-danger-text); }
 
+  /* The marked line is **lifted out of** the block rather than tinted in it: `bg-surface` is one
+     step up from the `bg-surface-sunken` the block sits at, and it is a step in both modes. The
+     obvious choice was `accent-primary-subtle`, and it is invisible here - in light mode that
+     token and `bg-surface-sunken` differ by two counts of one channel, because one is the blue
+     ramp's palest step and the other is a neutral already tinted towards blue. The blue is still
+     in the rule down the edge, which is the half that carries the meaning (rule 3). */
   .line[data-kind='marked'] {
-    background: var(--accent-primary-subtle);
+    background: var(--bg-surface);
     box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
   }
 

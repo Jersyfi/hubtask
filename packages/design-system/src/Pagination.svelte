@@ -35,8 +35,15 @@
   //
   // **The current page is `aria-current="page"`,** not a colour. The fill is how it looks; the
   // attribute is what it is.
+  //
+  // **The two arrows are `aria-disabled`, not `disabled`, and they stay.** A keyboard reader who
+  // tabs to the next arrow, reaches the last page and finds the control gone from under them has
+  // lost their place in the tab order; `aria-disabled` announces it and keeps it. It is also why
+  // they are not `IconButton`s: this package's `disabledReason` draws a visible sentence beside
+  // the control, which is right for a field a form has switched off and is noise beside a pager
+  // whose own numbers already say which end it is at.
 
-  import IconButton from './IconButton.svelte';
+  import Icon from './Icon.svelte';
   import { gapTarget, pageOf, pageSteps } from './table.ts';
 
   interface Props {
@@ -99,13 +106,15 @@
 
   {#if shape.pageCount > 1}
     <div class="steps">
-      <IconButton
-        icon="chevron-left"
-        label={previousLabel}
-        size="sm"
-        disabledReason={isFirst ? previousLabel : undefined}
-        onclick={() => onPage(shape.page - 1)}
-      />
+      <button
+        type="button"
+        class="step is-arrow"
+        aria-label={previousLabel}
+        aria-disabled={isFirst ? 'true' : undefined}
+        onclick={() => !isFirst && onPage(shape.page - 1)}
+      >
+        <Icon name="chevron-left" size="sm" />
+      </button>
 
       <!-- An ordered list, because the pages are in an order and that order is the content.
            Primer's shape; it is also what lets the steps be hidden as a group below `medium`. -->
@@ -138,13 +147,15 @@
         {/each}
       </ol>
 
-      <IconButton
-        icon="chevron-right"
-        label={nextLabel}
-        size="sm"
-        disabledReason={isLast ? nextLabel : undefined}
-        onclick={() => onPage(shape.page + 1)}
-      />
+      <button
+        type="button"
+        class="step is-arrow"
+        aria-label={nextLabel}
+        aria-disabled={isLast ? 'true' : undefined}
+        onclick={() => !isLast && onPage(shape.page + 1)}
+      >
+        <Icon name="chevron-right" size="sm" />
+      </button>
     </div>
   {/if}
 </nav>
@@ -166,7 +177,14 @@
     margin: 0;
     color: var(--text-secondary);
     font-size: var(--fs-075);
+    /* The digits do not change width as the page moves, so the sentence does not twitch. */
     font-variant-numeric: tabular-nums;
+    /* The sentence takes its direction from its own first strong character rather than from the
+       page. A caller's "1-12 of 91" dropped into an RTL document otherwise comes out as
+       "of 91 12-1" - the numbers reordered around a word the paragraph has decided runs the other
+       way. `plaintext` is the one declaration that gets a Hebrew range and an English one both
+       right, because it asks the string rather than the page. */
+    unicode-bidi: plaintext;
   }
 
   .steps {
@@ -231,6 +249,16 @@
   }
 
   .is-gap { color: var(--text-subtle); }
+
+  /* An arrow at the end of the list. It keeps its place in the tab order and says what it is;
+     the pointer is the one thing it drops, because there is nothing to point at. */
+  .step[aria-disabled='true'] {
+    color: var(--text-subtle);
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .step[aria-disabled='true']:hover { background: none; color: var(--text-subtle); }
 
   /* Rule 6, and its second half: the attribute alongside the media query, because a preference
      only the operating system can set is not one this product offers (ADR-0037). */

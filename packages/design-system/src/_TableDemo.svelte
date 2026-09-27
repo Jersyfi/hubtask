@@ -30,13 +30,13 @@
     { id: 'count', label: 'Offene Teilaufgaben', align: 'end' },
   ];
 
-  /** The sortable set: which column is `auto` is the point as much as which is sortable. */
+  /** The sortable set. The actions column has a heading it never draws, and is not sortable. */
   const sortable: Column[] = [
     { id: 'title', label: 'Title', isSortable: true },
-    { id: 'bucket', label: 'Bucket', isSortable: true, width: 'auto' },
-    { id: 'due', label: 'Due', isSortable: true, width: 'auto' },
-    { id: 'count', label: 'Open', isSortable: true, align: 'end', width: 'auto' },
-    { id: 'actions', label: 'Actions', isLabelHidden: true, align: 'end', width: 'auto' },
+    { id: 'bucket', label: 'Bucket', isSortable: true },
+    { id: 'due', label: 'Due', isSortable: true },
+    { id: 'count', label: 'Open', isSortable: true, align: 'end' },
+    { id: 'actions', label: 'Actions', isLabelHidden: true, align: 'end' },
   ];
 
   interface Row {

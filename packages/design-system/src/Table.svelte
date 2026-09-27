@@ -32,6 +32,14 @@
   // column names off the screen and moves everything under it; the emptiness is a row now, and
   // the reader can still see what the table would have held.
   //
+  // **There is no column-width prop, and that is a decision.** The obvious one - the growing
+  // columns claim the width and the rest take what their content needs - makes the browser size
+  // every other column at its *minimum* content instead, and a `Badge` whose own rule is
+  // `overflow-wrap: anywhere` then hyphenates down a column two characters wide. Doing it
+  // properly needs the width on the cells as well as on the heading, which means either an inline
+  // style the CSP refuses (ADR-0028) or a `data-` attribute every call site repeats on every
+  // `<td>`. The table's own algorithm is already close enough that neither is worth it.
+  //
   // **The edge fade is CSS and not a listener.** A table that scrolls sideways has to say so, or
   // its last columns are a secret - and the website ships no script at all (ADR-0030), so a
   // measured shadow would be a shadow that only the app gets. Two pairs of gradients, one pinned
@@ -56,12 +64,6 @@
      * nothing - see the note above.
      */
     readonly isSortable?: boolean;
-    /**
-     * `auto` takes only the width the content needs, which is what a date, a count or a column of
-     * controls wants; `grow` shares out the rest. The default is `grow`, because a column that
-     * had to declare itself would be a column every call site declares.
-     */
-    readonly width?: 'auto' | 'grow';
   }
 
   interface Props {
@@ -134,7 +136,6 @@
           <th
             scope="col"
             data-align={column.align ?? 'start'}
-            data-width={column.width ?? 'grow'}
             aria-sort={ariaSort(column)}
           >
             {#if column.isSortable && onSort}
@@ -256,10 +257,6 @@
 
   .table :global(th[data-align='end']),
   .table :global(td[data-align='end']) { text-align: end; }
-
-  /* A column that takes only what it needs. `1%` with `nowrap` is the table layout algorithm's
-     way of saying "as narrow as the content allows"; the grow columns share out the rest. */
-  .table :global(th[data-width='auto']) { inline-size: 1%; white-space: nowrap; }
 
   .table :global(th) {
     position: sticky;
