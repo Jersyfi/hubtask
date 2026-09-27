@@ -21,7 +21,7 @@ export { default as ApiEndpointCard, type Method } from './ApiEndpointCard.svelt
 export { default as Badge, type BadgeEmphasis } from './Badge.svelte';
 export { default as Banner } from './Banner.svelte';
 export { default as Callout } from './Callout.svelte';
-export { default as CodeBlock } from './CodeBlock.svelte';
+export { default as CodeBlock, type LineKind } from './CodeBlock.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as Dialog } from './Dialog.svelte';
@@ -68,6 +68,7 @@ export { default as EmptyState, type Emptiness } from './EmptyState.svelte';
 export { default as ErrorState } from './ErrorState.svelte';
 export { default as ListRow } from './ListRow.svelte';
 export { default as LoadMore } from './LoadMore.svelte';
+export { default as Pagination } from './Pagination.svelte';
 export { default as SearchField } from './SearchField.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as Table, type Column } from './Table.svelte';
@@ -145,6 +146,18 @@ export {
   type RankCommand,
   type RankKey,
 } from './reorder.ts';
+
+export {
+  comparing,
+  gapTarget,
+  nextSort,
+  pageOf,
+  pageSteps,
+  type Page,
+  type Sort,
+  type SortDirection,
+  type Step,
+} from './table.ts';
 
 export {
   collapseTrail,
