@@ -370,6 +370,14 @@ type AccountGroupMember struct {
 	AccountID pgtype.UUID
 }
 
+type AccountIdentity struct {
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	ProviderID pgtype.UUID
+	Subject    string
+	LinkedAt   pgtype.Timestamptz
+}
+
 type AccountMfa struct {
 	AccountID   pgtype.UUID
 	TenantID    pgtype.UUID
@@ -860,6 +868,11 @@ type IdentityProvider struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
+	ID                  pgtype.UUID
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
 }
 
 type ImportRun struct {

@@ -48,6 +48,10 @@ const (
 	// OidcLinkedAction is the one that matters most in a review: an arriving subject took over
 	// an account that already existed, on the strength of a verified address.
 	OidcLinkedAction audit.Action = "identity.provider_linked"
+	// OidcRefusedAction is a subject the provider vouched for and this workspace would not have
+	// (SI-10): an INVITED_ONLY provider met somebody nobody invited. A trail of these is either a
+	// provisioning rule set too tight or somebody trying the door, and both are worth reading.
+	OidcRefusedAction audit.Action = "identity.provider_refused"
 )
 
 // OidcWriter is what the two halves of the flow share.
@@ -252,7 +256,7 @@ func (w OidcWriter) settleAccount(
 
 		// A first arrival. If the provider vouched for an address inside the configured
 		// domains, and an account here already holds it, this is the same person.
-		if configured.LinksAddress(arriving.Email, arriving.EmailVerified) {
+		if configured.MayLink(arriving.Email, arriving.EmailVerified) {
 			existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 			switch {
 			case err == nil:
@@ -272,6 +276,18 @@ func (w OidcWriter) settleAccount(
 			case !errors.Is(err, shared.ErrNotFound):
 				return err
 			}
+		}
+
+		// The mode's other half (SI-10): INVITED_ONLY has no way in but claiming an account that
+		// already exists, so a subject that reached here is one nobody invited. Refused and
+		// recorded - a provider whose people are all being turned away is something an operator has
+		// to be able to read, and the person is told plainly rather than being provisioned a desk
+		// they were never meant to have.
+		if !configured.MayProvision() {
+			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+				return err
+			}
+			return shared.ErrForbidden.WithDetail("identity_provider.not_invited")
 		}
 
 		provisioned, err := domain.ProvisionExternal(
@@ -376,6 +392,28 @@ func (w OidcWriter) recordStart(
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes: audit.Changes(
 			audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer}),
+	})
+}
+
+// recordRefusal notes a subject that was turned away. No address and no subject: what a reader
+// needs is that this provider refused somebody, and which issuer it was.
+func (w OidcWriter) recordRefusal(
+	ctx context.Context, tenantID shared.ID, configured domain.IdentityProvider,
+) error {
+	return w.Session.Audit.Append(ctx, audit.Entry{
+		TenantID:   tenantID,
+		OccurredAt: w.Session.Clock.Now(),
+		Action:     OidcRefusedAction,
+		Outcome:    audit.OutcomeDenied,
+		Severity:   audit.SeverityWarning,
+		ActorKind:  shared.ActorSystem,
+		TargetType: identityProviderTarget,
+		TargetID:   tenantID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes: audit.Changes(
+			audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer},
+			audit.Change{Field: "provisioning", Classification: audit.Open,
+				To: string(configured.Provisioning)}),
 	})
 }
 

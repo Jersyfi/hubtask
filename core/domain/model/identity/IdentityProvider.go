@@ -5,6 +5,7 @@ package identity
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,19 +18,67 @@ import (
 // pastes a directory into.
 const MaxAllowedEmailDomains = 10
 
-// IdentityProvider is the provider a workspace signs its people in through (H-04, ADR-0005).
+// Provisioning is who gets an account on a first arrival through a provider (SI-10).
 //
-// One per workspace, and the row's primary key enforces that rather than this type. What lives
-// here is the part that has rules: an issuer that must look like an issuer, and the domains
-// inside which an arriving address may claim an account that already exists.
+// One axis, three positions, and the axis is **how freely an arriving subject may claim an account
+// that already exists here**. That is the only question with a security answer: creating an account
+// gives somebody an empty desk, and claiming one gives them somebody else's.
+//
+//   - INVITED_ONLY - it must claim one. A verified address that meets no account here is refused,
+//     and nothing is created. The mode a public provider is held to.
+//   - DOMAINS - it may claim one inside `AllowedEmailDomains`, and is provisioned otherwise. What
+//     this installation did before there was a column for it.
+//   - ANY - it may claim one on any address the provider says it verified. For a provider that *is*
+//     the workspace's directory, where every address in it belongs to the workspace anyway.
+//
+// An unverified address never claims anything, in any of the three: an address the provider did not
+// vouch for is somebody typing, and acting on it hands over the account it belongs to.
+type Provisioning string
+
+const (
+	ProvisionInvitedOnly Provisioning = "INVITED_ONLY"
+	ProvisionDomains     Provisioning = "DOMAINS"
+	ProvisionAny         Provisioning = "ANY"
+)
+
+// ParseProvisioning reads the mode and refuses what is not one.
+func ParseProvisioning(raw string) (Provisioning, error) {
+	switch mode := Provisioning(strings.ToUpper(strings.TrimSpace(raw))); mode {
+	case "":
+		return ProvisionDomains, nil
+	case ProvisionInvitedOnly, ProvisionDomains, ProvisionAny:
+		return mode, nil
+	default:
+		return "", shared.ErrValidation.
+			WithDetail("identity_provider.provisioning_invalid").
+			WithParams(map[string]string{"provisioning": strings.TrimSpace(raw)})
+	}
+}
+
+// MaxProviderPosition bounds the order. A workspace that needs a hundredth sign-in button has a
+// problem this field will not solve.
+const MaxProviderPosition = 99
+
+// IdentityProvider is a provider people sign in through (H-04, ADR-0005, SI-10).
+//
+// Plural since SI-10, and with a level above the workspace: a zero `TenantID` is the
+// installation's own row - the one every workspace reads and none writes. What lives here is the
+// part that has rules: an issuer that must look like an issuer, a preset the issuer has to belong
+// to, and a provisioning mode the preset may forbid.
 //
 // The client secret is deliberately not a field. It travels sealed, from the use case that
 // receives it to the adapter that stores it and back out only at a token exchange - a struct
 // that carried it would eventually be logged by somebody who had no idea it was in there.
 type IdentityProvider struct {
+	ID shared.ID
+	// TenantID is the workspace this belongs to, and zero for the installation's own.
 	TenantID            shared.ID
 	Issuer              string
 	ClientID            string
+	DisplayName         string
+	Kind                ProviderKind
+	Provisioning        Provisioning
+	Position            int
 	AllowedEmailDomains []string
 	Enabled             bool
 	CreatedAt           time.Time
@@ -37,11 +86,22 @@ type IdentityProvider struct {
 	Version             int
 }
 
+// Installation reports whether this row belongs to no workspace.
+func (p IdentityProvider) Installation() bool { return p.TenantID.IsZero() }
+
 // NewIdentityProviderInput is what configuring one needs.
 type NewIdentityProviderInput struct {
+	ID shared.ID
+	// TenantID is zero for the installation's own provider, which is a decision the use case has
+	// already made by the time it gets here: the scope it writes under is what decides it, not a
+	// field a caller sends.
 	TenantID            shared.ID
 	Issuer              string
 	ClientID            string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int
 	AllowedEmailDomains []string
 	Enabled             bool
 	Now                 time.Time
@@ -49,7 +109,7 @@ type NewIdentityProviderInput struct {
 
 // NewIdentityProvider validates a configuration and normalises what has a normal form.
 func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) {
-	if in.TenantID.IsZero() || in.Now.IsZero() {
+	if in.ID.IsZero() || in.Now.IsZero() {
 		return IdentityProvider{}, shared.ErrInternal.WithDetail("identity_provider.incomplete")
 	}
 
@@ -64,16 +124,138 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 			WithDetail("identity_provider.client_id_required")
 	}
 
+	kind, preset, err := resolvedKind(in.Kind, issuer)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
+	provisioning, err := resolvedProvisioning(in.Provisioning, preset)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
 	domains, err := normalisedDomains(in.AllowedEmailDomains)
 	if err != nil {
 		return IdentityProvider{}, err
 	}
 
+	if in.Position < 0 || in.Position > MaxProviderPosition {
+		return IdentityProvider{}, shared.ErrValidation.
+			WithDetail("identity_provider.position_invalid").
+			WithParams(map[string]string{"limit": strconv.Itoa(MaxProviderPosition)})
+	}
+
+	displayName, err := providerDisplayName(in.DisplayName, issuer)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
 	return IdentityProvider{
-		TenantID: in.TenantID, Issuer: issuer, ClientID: clientID,
+		ID: in.ID, TenantID: in.TenantID, Issuer: issuer, ClientID: clientID,
+		DisplayName: displayName, Kind: kind, Provisioning: provisioning, Position: in.Position,
 		AllowedEmailDomains: domains, Enabled: in.Enabled,
 		CreatedAt: in.Now.UTC(), Version: 1,
 	}, nil
+}
+
+// MaxProviderDisplayName bounds the name on the button.
+const MaxProviderDisplayName = 200
+
+// providerDisplayName trims the stated name, and falls back to the issuer's host.
+//
+// The host is what a button said before there was a column to put a name in, and it discloses
+// nothing new: pressing the button sends the person to exactly that host.
+func providerDisplayName(stated, issuer string) (string, error) {
+	name := strings.TrimSpace(stated)
+	if name == "" {
+		return IssuerHost(issuer), nil
+	}
+	if len([]rune(name)) > MaxProviderDisplayName {
+		return "", shared.ErrValidation.
+			WithDetail("identity_provider.display_name_too_long").
+			WithParams(map[string]string{"limit": strconv.Itoa(MaxProviderDisplayName)})
+	}
+	return name, nil
+}
+
+// resolvedKind reads the stated preset, or derives it from the issuer, and refuses a mark put on
+// an issuer that does not belong to it.
+//
+// The refusal is the point rather than tidiness: `kind` decides which logo is drawn (ADR-0069), and
+// a `GOOGLE` mark above somebody else's issuer is a borrowed piece of trust on a sign-in screen.
+func resolvedKind(stated, issuer string) (ProviderKind, ProviderPreset, error) {
+	host := IssuerHost(issuer)
+	if strings.TrimSpace(stated) == "" {
+		kind := KindOfIssuer(host)
+		preset, _ := PresetOf(kind)
+		return kind, preset, nil
+	}
+
+	kind, err := ParseProviderKind(stated)
+	if err != nil {
+		return "", ProviderPreset{}, err
+	}
+	preset, _ := PresetOf(kind)
+	if !preset.SpeaksFor(host) {
+		return "", ProviderPreset{}, shared.ErrValidation.
+			WithDetail("identity_provider.kind_mismatch").
+			WithParams(map[string]string{"kind": string(kind), "issuer": issuer})
+	}
+	// The one provider whose own multi-directory endpoint cannot work here: a token minted behind
+	// it names the directory in `iss`, and ADR-0036 compares that exactly.
+	if kind == KindMicrosoft && multiDirectoryIssuer(issuer) {
+		return "", ProviderPreset{}, shared.ErrValidation.
+			WithDetail("identity_provider.issuer_multi_directory").
+			WithParams(map[string]string{"issuer": issuer})
+	}
+	return kind, preset, nil
+}
+
+// multiDirectoryIssuer reports whether an issuer's path is the shared endpoint rather than one
+// directory's.
+func multiDirectoryIssuer(issuer string) bool {
+	parsed, err := url.Parse(issuer)
+	if err != nil {
+		return false
+	}
+	return parsed.Path == microsoftCommonSegment ||
+		strings.HasPrefix(parsed.Path, microsoftCommonSegment+"/")
+}
+
+// resolvedProvisioning reads the mode and holds it to what the preset permits.
+//
+// Two refusals, and each is a hole somebody would otherwise configure by accident:
+//
+//   - A **public** issuer may only be INVITED_ONLY. Anything else means every person who holds an
+//     account at that provider - which is everybody - is provisioned one here.
+//   - A preset whose addresses this installation cannot vouch for may **not** be INVITED_ONLY,
+//     because that mode gives an existing account away on the strength of an address.
+//
+// Nothing stated is the safe value rather than the permissive one: a public provider defaults to
+// INVITED_ONLY, and everything else to what this installation did before the column existed.
+func resolvedProvisioning(stated string, preset ProviderPreset) (Provisioning, error) {
+	if strings.TrimSpace(stated) == "" {
+		if preset.Public {
+			return ProvisionInvitedOnly, nil
+		}
+		return ProvisionDomains, nil
+	}
+
+	mode, err := ParseProvisioning(stated)
+	if err != nil {
+		return "", err
+	}
+	if preset.Public && mode != ProvisionInvitedOnly {
+		return "", shared.ErrValidation.
+			WithDetail("identity_provider.provisioning_public").
+			WithParams(map[string]string{"kind": string(preset.Kind)})
+	}
+	if mode == ProvisionInvitedOnly && !preset.AddressesVerified {
+		return "", shared.ErrValidation.
+			WithDetail("identity_provider.provisioning_unverified").
+			WithParams(map[string]string{"kind": string(preset.Kind)})
+	}
+	return mode, nil
 }
 
 // normalisedIssuer holds the issuer to what OpenID Connect Discovery says one is: an https URL
@@ -132,28 +314,80 @@ func normalisedDomains(raw []string) ([]string, error) {
 	return domains, nil
 }
 
-// LinksAddress answers whether a verified address from the provider may claim an existing local
-// account.
+// MayLink answers whether an arriving address may claim an account that already exists here.
 //
-// Two conditions, and both are the point. The address must be one the provider says it verified -
-// an unverified claim is somebody typing an address, and acting on it hands them the account it
-// belongs to. And its domain must be on the configured list: an empty list links nothing, which
-// is the safe reading of a workspace that never said which domains its provider speaks for.
-func (p IdentityProvider) LinksAddress(email string, verified bool) bool {
-	if !verified || len(p.AllowedEmailDomains) == 0 {
+// Two conditions in every mode, and both are the point. The address must be one the provider says
+// it verified - an unverified claim is somebody typing an address, and acting on it hands them the
+// account it belongs to. And the mode has to permit it: DOMAINS permits it inside the configured
+// list, which empty means nowhere; INVITED_ONLY and ANY permit it anywhere, which is what they are
+// for - the first because claiming is the only way in it has, the second because the provider is
+// the workspace's own directory.
+func (p IdentityProvider) MayLink(email string, verified bool) bool {
+	if !verified {
 		return false
 	}
-	at := strings.LastIndex(email, "@")
-	if at < 0 || at == len(email)-1 {
+	switch p.Provisioning {
+	case ProvisionInvitedOnly, ProvisionAny:
+		return emailDomain(email) != ""
+	case ProvisionDomains:
+		return p.linksDomain(email)
+	default:
+		// An unknown mode links nothing. A row this build does not understand is a row it does
+		// not act on, which is the only safe reading of a value written by a newer one.
 		return false
 	}
-	domain := strings.ToLower(email[at+1:])
+}
+
+// MayProvision answers whether a subject with no account here gets one.
+//
+// False for INVITED_ONLY alone, and that is the whole of the mode: somebody has to have invited
+// them first.
+func (p IdentityProvider) MayProvision() bool {
+	return p.Provisioning == ProvisionDomains || p.Provisioning == ProvisionAny
+}
+
+// linksDomain is DOMAINS' own half: the address's domain has to be on the configured list, and an
+// empty list links nothing - the safe reading of a workspace that never said which domains its
+// provider speaks for.
+func (p IdentityProvider) linksDomain(email string) bool {
+	if len(p.AllowedEmailDomains) == 0 {
+		return false
+	}
+	domain := emailDomain(email)
+	if domain == "" {
+		return false
+	}
 	for _, allowed := range p.AllowedEmailDomains {
 		if domain == allowed {
 			return true
 		}
 	}
 	return false
+}
+
+// emailDomain is the part after the last `@`, lowercased, and empty where there is none.
+func emailDomain(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at < 0 || at == len(email)-1 {
+		return ""
+	}
+	return strings.ToLower(email[at+1:])
+}
+
+// IssuerHost is an issuer's host: what a button says when a provider has no display name of its
+// own, and what a preset is matched against.
+//
+// Parsed rather than trimmed, and not only because it is shorter: a trimmed prefix would put the
+// scheme's own spelling into this file, which gate PG-6 reads as an address written into the source.
+// The parser knows what a scheme is, and nothing here has to.
+func IssuerHost(issuer string) string {
+	parsed, err := url.Parse(issuer)
+	if err != nil || parsed.Host == "" {
+		// Not an address this build can read. Answered whole rather than emptied, because the row
+		// was validated when it was configured and a label is not the place to refuse it.
+		return issuer
+	}
+	return parsed.Host
 }
 
 // OidcFlowPrefix labels the state a sign-in flow hands the browser, so a value found in a log or

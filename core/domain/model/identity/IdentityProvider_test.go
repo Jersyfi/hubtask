@@ -11,8 +11,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+const providerRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000e1")
+
 func providerInput() NewIdentityProviderInput {
 	return NewIdentityProviderInput{
+		ID:       providerRow,
 		TenantID: sessionTenant,
 		Issuer:   "https://login.example.org",
 		ClientID: "hubtask",
@@ -141,8 +144,8 @@ func TestWhenAnArrivingAddressMayClaimAnExistingAccount(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := provider.LinksAddress(c.email, c.verified); got != c.want {
-				t.Errorf("LinksAddress(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
+			if got := provider.MayLink(c.email, c.verified); got != c.want {
+				t.Errorf("MayLink(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
 			}
 		})
 	}
@@ -154,23 +157,34 @@ func TestNoConfiguredDomainsLinksNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	if provider.LinksAddress("ada@example.org", true) {
+	if provider.MayLink("ada@example.org", true) {
 		t.Error("an address linked against an empty domain list")
 	}
 }
 
-// A client id is not optional, and neither is knowing which workspace this belongs to.
-func TestAProviderNeedsItsClientAndItsWorkspace(t *testing.T) {
+// A client id is not optional, and neither is a key. A *workspace* is optional since SI-10: no
+// workspace is the installation's own row, which is the level above every one of them.
+func TestAProviderNeedsItsClientAndItsKey(t *testing.T) {
 	blank := providerInput()
 	blank.ClientID = "  "
 	if _, err := NewIdentityProvider(blank); err == nil {
 		t.Error("a provider without a client id was accepted")
 	}
 
-	homeless := providerInput()
-	homeless.TenantID = shared.ID("")
-	if _, err := NewIdentityProvider(homeless); err == nil {
-		t.Error("a provider without a workspace was accepted")
+	keyless := providerInput()
+	keyless.ID = shared.ID("")
+	if _, err := NewIdentityProvider(keyless); err == nil {
+		t.Error("a provider without an id was accepted")
+	}
+
+	installation := providerInput()
+	installation.TenantID = shared.ID("")
+	configured, err := NewIdentityProvider(installation)
+	if err != nil {
+		t.Fatalf("the installation's own provider was refused: %v", err)
+	}
+	if !configured.Installation() {
+		t.Error("a provider with no workspace does not call itself the installation's")
 	}
 }
 
