@@ -268,13 +268,12 @@ func (a AuthenticateToken) elevatedScopes(
 		return scopes
 	}
 
-	var held bool
-	err := a.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
-		func(ctx context.Context) error {
-			read, err := a.Operators.Holds(ctx, session.AccountID)
-			held = read
-			return err
-		})
+	// In the transaction the credential read already opened, and deliberately not in one of its
+	// own: a nested scope with no tenant would be a tenant switch mid-transaction, which this port
+	// refuses outright (`postgres.tenant_switch_in_transaction`). The register is reachable from
+	// here all the same, because `is_operator` is the narrow function that reads it rather than a
+	// query against the table.
+	held, err := a.Operators.Holds(ctx, session.AccountID)
 	if err != nil || !held {
 		// A register that cannot be read leaves the session where it was: the elevation is the
 		// widening, and a widening on a failed read is the one direction that cannot be taken back.
@@ -321,13 +320,8 @@ func (a AuthenticateToken) boundedScopes(
 		return scopes
 	}
 
-	var held bool
-	err := a.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
-		func(ctx context.Context) error {
-			read, err := a.Operators.Holds(ctx, accountID)
-			held = read
-			return err
-		})
+	// In the credential read's own transaction, elevatedScopes' reasoning.
+	held, err := a.Operators.Holds(ctx, accountID)
 	if err != nil || held {
 		// A register that cannot be read leaves the bound where it was rather than widening or
 		// narrowing it on a guess. The mint's own check is what keeps that honest.

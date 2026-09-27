@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -104,34 +105,48 @@ func (h ForgetPassword) Execute(ctx context.Context, cmd ForgetPasswordCommand) 
 		return nil //nolint:nilerr // same answer, same reason
 	}
 
-	if err := h.record(ctx, tenantID, found.Account); err != nil {
-		return err
-	}
-
-	if h.Notifier == nil {
-		return nil
-	}
-	_, enqueued := h.Notifier.Enqueue(ctx, queue.Request{
-		Kind:     queue.KindPasswordResetEmail,
-		TenantID: tenantID,
-		// One pending link per account: a person who presses the button twice gets one mail, and
-		// the job that is already waiting is the one that sends it.
-		DedupeKey: found.Account.ID.String(),
-		// Identifiers only (rule 10). The address is on the row the job reads, and a payload
-		// carrying one would put it in the queue table and in every log line about the job.
-		Payload: map[string]any{"account_id": found.Account.ID.String()},
-	})
-	if enqueued != nil {
-		// Even this is silence: a queue that refused the job is this installation's problem, and
-		// the caller's answer must not depend on it.
-		return nil //nolint:nilerr // same answer, same reason
+	// The trail entry and the job in one transaction: a request recorded without a mail queued
+	// would be a trail saying somebody asked and nothing happening, and the other way round would
+	// be a mail with no record of who asked for it.
+	if err := h.queue(ctx, tenantID, found.Account); err != nil {
+		// Logged and swallowed. The caller's answer must not depend on this - it is the same `202`
+		// either way - but an operator whose queue is refusing jobs has to be able to find out,
+		// and silence at both ends is how a mail server nobody noticed stays unnoticed.
+		slog.WarnContext(ctx, "queueing a password reset failed",
+			slog.String("error", err.Error()))
 	}
 	return nil
 }
 
-// record writes the trail entry. Inside the workspace's own transaction, because that is where the
-// account's trail lives - and the reason nothing is written for an address nobody holds is the same
-// one: there is no workspace to write it in.
+// queue writes the trail entry and the job together.
+func (h ForgetPassword) queue(
+	ctx context.Context, tenantID shared.ID, account domain.Account,
+) error {
+	return h.Writer.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID},
+		func(ctx context.Context) error {
+			if err := h.record(ctx, tenantID, account); err != nil {
+				return err
+			}
+			if h.Notifier == nil {
+				return nil
+			}
+			_, enqueued := h.Notifier.Enqueue(ctx, queue.Request{
+				Kind:     queue.KindPasswordResetEmail,
+				TenantID: tenantID,
+				// One pending link per account: a person who presses the button twice gets one
+				// mail, and the job already waiting is the one that sends it.
+				DedupeKey: account.ID.String(),
+				// Identifiers only (rule 10). The address is on the row the job reads, and a
+				// payload carrying one would put it in the queue table and in every log line
+				// about the job.
+				Payload: map[string]any{"account_id": account.ID.String()},
+			})
+			return enqueued
+		})
+}
+
+// record writes the trail entry, inside the caller's transaction. Nothing is written for an address
+// nobody holds, and the reason is the same one the answer gives: there is no workspace to write it in.
 func (h ForgetPassword) record(
 	ctx context.Context, tenantID shared.ID, account domain.Account,
 ) error {
@@ -139,24 +154,21 @@ func (h ForgetPassword) record(
 	if sink == nil {
 		return nil
 	}
-	return h.Writer.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID},
-		func(ctx context.Context) error {
-			return sink.Append(ctx, audit.Entry{
-				TenantID:   tenantID,
-				OccurredAt: h.Writer.Clock.Now(),
-				Action:     PasswordResetRequestedAction,
-				Outcome:    audit.OutcomeSuccess,
-				Severity:   audit.SeverityNotice,
-				// The account itself, not whoever pressed the button: nobody has signed in, and
-				// the person this concerns is the one the address names.
-				ActorKind:  appshared.ActorUser,
-				ActorID:    account.ID,
-				ActorLabel: account.DisplayName,
-				TargetType: accountTargetForPassword,
-				TargetID:   account.ID,
-				Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			})
-		})
+	return sink.Append(ctx, audit.Entry{
+		TenantID:   tenantID,
+		OccurredAt: h.Writer.Clock.Now(),
+		Action:     PasswordResetRequestedAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityNotice,
+		// The account itself, not whoever pressed the button: nobody has signed in, and
+		// the person this concerns is the one the address names.
+		ActorKind:  appshared.ActorUser,
+		ActorID:    account.ID,
+		ActorLabel: account.DisplayName,
+		TargetType: accountTargetForPassword,
+		TargetID:   account.ID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+	})
 }
 
 func (h ForgetPassword) resolveTenant(ctx context.Context, slug, header string) (shared.ID, error) {

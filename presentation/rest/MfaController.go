@@ -154,11 +154,19 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 			}
 		}
 	}
-	return openapi.MfaChallenge{
+	challenge := openapi.MfaChallenge{
 		PendingToken: out.String("pending_token"),
 		ExpiresAt:    timeValue(out["expires_at"]),
 		Methods:      methods,
 	}
+	if rules, held := out["password_rules"].(usecase.Output); held {
+		// Only with PASSWORD_CHANGE (ADR-0068 §3): the screen that asks for a new password needs
+		// the rule in the same answer, or the list under the field arrives a round trip after the
+		// field does.
+		answered := passwordRulesResponse(rules)
+		challenge.PasswordRules = &answered
+	}
+	return challenge
 }
 
 const stepUpUseCase = "StepUp"

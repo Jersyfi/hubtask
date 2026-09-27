@@ -463,8 +463,13 @@ func (h ChangePassword) Descriptor() usecase.Descriptor {
 				Description: "The new password, judged against this workspace's rule.",
 			},
 			{
-				Name: "step_up_token", Kind: usecase.KindString, Required: true,
-				Description: "The proof from `/auth/step-up`. It is consumed by this call.",
+				// Declared but not required: the registry's own refusal for a missing input is a
+				// `422` about a field, and what a caller without a proof needs is the `403` that
+				// carries `auth.step_up_required` - the code the client renders as "prove it is
+				// you first". The use case refuses it, one line in, with that code.
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The proof from `/auth/step-up`. It is consumed by this call, and " +
+					"the call is refused without it.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

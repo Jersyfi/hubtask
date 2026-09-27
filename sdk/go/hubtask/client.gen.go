@@ -3591,7 +3591,7 @@ type Account struct {
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
-	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Zero is answered as zero**, because zero is the number to act on; the member is absent where there is nothing to count - no second factor, or an installation wired without one.
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Zero is answered as zero**, because zero is the number to act on - and an account with no second factor answers zero too, which is literally true and reads as "enrol" rather than as a gap. The member is absent only on an installation wired without the second factor at all.
 	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
 	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
 

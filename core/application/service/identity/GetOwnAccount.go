@@ -63,8 +63,10 @@ type GetOwnAccount struct {
 // projection of another table and an account is not the place to cache one.
 type OwnAccount struct {
 	Account domain.Account
-	// RecoveryCodesRemaining is -1 where there is nothing to count: no second factor, or an
-	// installation without one. Zero is answered *as zero*, because zero is the number to act on.
+	// RecoveryCodesRemaining is -1 only on an installation wired without the second factor, where
+	// there is nothing to count at all. Zero is answered *as zero*: an account with no enrolment
+	// has no live codes, which is literally true and reads as "enrol" rather than as a gap - and
+	// for an account that has one, zero is the number to act on.
 	RecoveryCodesRemaining int
 }
 

@@ -163,8 +163,12 @@ func (h ElevateSession) Descriptor() usecase.Descriptor {
 		SideEffects: "Raises the session, writes an audit entry and a journal entry.",
 		Input: []usecase.Field{
 			{
-				Name: "step_up_token", Kind: usecase.KindString, Required: true,
-				Description: "The proof from `/auth/step-up`. It is consumed by this call.",
+				// Declared but not required, ChangePassword's reasoning: a caller without a proof
+				// needs the `403` that carries `auth.step_up_required` rather than a `422` about
+				// a missing field.
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The proof from `/auth/step-up`. It is consumed by this call, and " +
+					"the call is refused without it.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
