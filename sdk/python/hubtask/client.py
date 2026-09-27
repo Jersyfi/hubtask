@@ -539,6 +539,10 @@ class Client:
         """Ask what only the server knows about a candidate password"""
         return self._call("POST", "/auth/password:check", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
+    def set_password_and_sign_in(self, body: "SignInPasswordChange") -> "SessionTokens":
+        """Set a new password and finish the sign-in"""
+        return self._call("POST", "/auth/sessions:set-password", {}, None, {}, body, "json", "application/json", "json")
+
     def get_sign_in_rules(self) -> "SignInRules":
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
@@ -631,9 +635,9 @@ class Client:
         """The workspace the caller is in, and how it is set up"""
         return self._call("GET", "/tenant", {}, None, {}, None, "none", None, "json")
 
-    def update_workspace(self, body: "WorkspaceUpdate", *, if_match: str | None = None) -> "Workspace":
+    def update_workspace(self, body: "WorkspaceUpdate", *, if_match: str | None = None, step_up: str | None = None) -> "Workspace":
         """Change how the workspace is set up"""
-        return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+        return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
     def read_identity_provider(self) -> "IdentityProvider":
         """How this workspace signs people in through its own provider"""

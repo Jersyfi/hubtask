@@ -21,6 +21,7 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
 
@@ -125,13 +126,20 @@ class SignInPolicyStore {
    *
    * Merge-patch, so an omitted switch is left alone - which is what makes it safe for two
    * administrators to change two different things without one of them reverting the other.
+   *
+   * **Behind a step-up.** A workspace's sign-in rule is what decides whether a stolen tab can
+   * weaken the way in, so the server demands a fresh proof for this one patch and for no other -
+   * the name, the locale and the zone are not this. `stepUp.around` is the same wrapper every other
+   * screen that needs one uses: it sends without, and asks only when the server says to.
    */
   async save(changes: Record<string, unknown>): Promise<boolean> {
     this.#working = true;
     this.#problem = undefined;
     this.#saved = false;
     try {
-      this.#workspace = await engine.mutate<Workspace>('PATCH', TENANT, { sign_in_policy: changes });
+      this.#workspace = await stepUp.around((stepUpToken) =>
+        engine.mutate<Workspace>('PATCH', TENANT, { sign_in_policy: changes }, { stepUpToken }),
+      );
       this.#saved = true;
       return true;
     } catch (cause) {

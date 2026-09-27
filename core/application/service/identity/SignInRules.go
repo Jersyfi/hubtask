@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -48,6 +49,11 @@ type ResolvedPolicy struct {
 	Effective domain.EffectivePolicy
 	Legal     domain.LegalLinks
 	LegalLock map[domain.LegalLink]domain.LockOrigin
+	// Installation and InstallationLegal are the same resolution with the workspace's own layer
+	// left out: what the level above set, which is what a settings screen shows beside each
+	// control so that a reader can tell their own tightening from the default they inherited.
+	Installation      domain.SignInPolicy
+	InstallationLegal domain.LegalLinks
 	// Workspace is the row the rule was resolved for. Zero where none was.
 	Workspace domain.Workspace
 	// BlocklistFile is the operator's own list, instance-only.
@@ -93,13 +99,17 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 	}
 
 	legal, legalLocks := domain.EffectiveLegal(instance.Legal, workspace.Settings.LegalLayer())
+	above, _ := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{})
 	return ResolvedPolicy{
 		Effective: domain.Effective(
 			instance.Policy, domain.PolicyLayer{}, workspace.Settings.SignInLayer()),
-		Legal:         legal,
-		LegalLock:     legalLocks,
-		Workspace:     workspace,
-		BlocklistFile: instance.BlocklistFile,
+		Legal:     legal,
+		LegalLock: legalLocks,
+		// The same two levels without the workspace's, which is the default it may tighten.
+		Installation:      domain.Effective(instance.Policy, domain.PolicyLayer{}, domain.PolicyLayer{}).Policy,
+		InstallationLegal: above,
+		Workspace:         workspace,
+		BlocklistFile:     instance.BlocklistFile,
 	}, nil
 }
 
@@ -327,15 +337,21 @@ func providerKind(issuer string) string {
 	return "GENERIC"
 }
 
-// issuerLabel is the issuer without its scheme or path: what a button says until a provider has a
-// display name of its own. No new disclosure - the button's own flow sends the person to exactly
-// this host the moment it is pressed.
+// issuerLabel is the issuer's host: what a button says until a provider has a display name of its
+// own. No new disclosure - the button's own flow sends the person to exactly this host the moment it
+// is pressed.
+//
+// Parsed rather than trimmed, and not only because it is shorter: a trimmed prefix would put the
+// scheme's own spelling into this file, which gate PG-6 reads as an address written into the source.
+// The parser knows what a scheme is, and nothing here has to.
 func issuerLabel(issuer string) string {
-	label := strings.TrimPrefix(strings.TrimPrefix(issuer, "https://"), "http://")
-	if slash := strings.IndexByte(label, '/'); slash > 0 {
-		label = label[:slash]
+	parsed, err := url.Parse(issuer)
+	if err != nil || parsed.Host == "" {
+		// Not an address this build can read. Answered whole rather than emptied, because the row
+		// was validated when it was configured and a label is not the place to refuse it.
+		return issuer
 	}
-	return label
+	return parsed.Host
 }
 
 // rulesOutput is the projection every channel gets.

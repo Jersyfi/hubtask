@@ -31,11 +31,14 @@ WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
 -- grant_id and scopes are H-05's leash: set for a session an OAuth exchange issued, NULL for a
 -- person's own.
 INSERT INTO session
-  (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes)
+  (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes,
+   hard_expires_at, idle_minutes, signed_in_with)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('created_at'),
   sqlc.narg('user_agent'), sqlc.narg('ip_class'), sqlc.arg('expires_at'),
-  sqlc.narg('grant_id'), sqlc.narg('scopes')
+  sqlc.narg('grant_id'), sqlc.narg('scopes'),
+  -- The session's own bounds and how it was opened (migration 0100, ADR-0068 §3).
+  sqlc.narg('hard_expires_at'), sqlc.narg('idle_minutes'), sqlc.narg('signed_in_with')
 );
 
 -- name: FindSessionForAuth :one
@@ -43,6 +46,12 @@ VALUES (
 -- and the locale chain - one round trip, the FindAccessTokenByHash shape.
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
+       s.hard_expires_at, s.idle_minutes, s.signed_in_with,
+       -- The rotation cutoff (ADR-0068 §3), off the row this query already joins: a session opened
+       -- before the moment somebody asked everybody for a new password is refused on its next
+       -- request. One extraction on a row already in hand, which is what makes the enforcement cost
+       -- nothing per request.
+       (n.settings #>> '{sign_in_policy,rotation_from}') AS rotation_from,
        g.client_id AS grant_client_id,
        a.kind     AS account_kind,
        a.status   AS account_status,
@@ -62,7 +71,8 @@ WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 -- name: SessionsForAccount :many
 -- One's own live sessions, newest first. The dead ones are deliberately absent: a listing is for
 -- deciding what to end, and what is already ended or run out is nothing anybody can act on.
-SELECT id, account_id, created_at, last_seen_at, user_agent, ip_class, expires_at, revoked_at
+SELECT id, account_id, created_at, last_seen_at, user_agent, ip_class, expires_at, revoked_at,
+       hard_expires_at, idle_minutes, signed_in_with
 FROM session
 WHERE account_id = sqlc.arg('account_id')
   AND revoked_at IS NULL

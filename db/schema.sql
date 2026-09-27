@@ -281,6 +281,14 @@ CREATE TABLE session (
   -- oauth_grant below, the order the migrations built it in.
   grant_id uuid,
   scopes   text[],
+  -- The two bounds this session answers to, written when it opened (migration 0100): the moment it
+  -- may not outlive however often it is refreshed, and how long it may sit unused. NULL is "no
+  -- bound". Written at sign-in rather than resolved per request, because resolving would put a round
+  -- trip on the hot path of the whole API for two numbers that change once a year - and the cost of
+  -- that trade is that a bound tightened later reaches new sessions only, which is what
+  -- `rotation_from` exists to fix in one write.
+  hard_expires_at timestamptz,
+  idle_minutes    integer,
   -- How this session was opened (ADR-0068 §3, migration 0098): PASSWORD, PASSWORD_TOTP,
   -- PASSWORD_RECOVERY, OIDC, INVITATION, RESET - and PASSKEY when there is one. Answered in the
   -- session list, so that a person reading their own sessions can tell them apart. NULL is a

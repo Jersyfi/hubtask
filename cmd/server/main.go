@@ -1040,28 +1040,6 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
-	workspaceWriter := identity.WorkspaceWriter{
-		Workspaces: postgres.NewWorkspaceSettingsRepository(),
-		Authorizer: authorizer,
-		Audit:      auditSink,
-		UnitOfWork: unitOfWork,
-		Clock:      clockadapter.System{},
-		Text:       forms,
-	}
-
-	identityProviderWriter := identity.IdentityProviderWriter{
-		Session:    sessionWriter,
-		Providers:  postgres.NewIdentityProviderRepository(),
-		Relying:    relyingParty,
-		Authorizer: authorizer,
-	}
-
-	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the
-	// rule, the history and the trail have one place each. The blocklist and the breach corpus are
-	// both nil on a plain installation - the operator's file arrives with the instance layer, and
-	// the corpus with whatever milestone wires one.
-	var passwordWriter identity.PasswordWriter
-
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
 	// installation's level, the plan's - which nothing writes yet - and the workspace's own. One
 	// value rather than four copies of the same three reads, because a rule resolved slightly
@@ -1071,9 +1049,35 @@ func run() error {
 		Instance:   postgres.NewInstanceSettingRepository(),
 		UnitOfWork: unitOfWork,
 	}
+
+	workspaceWriter := identity.WorkspaceWriter{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Authorizer: authorizer,
+		Audit:      auditSink,
+		UnitOfWork: unitOfWork,
+		Clock:      clockadapter.System{},
+		Text:       forms,
+		// The sign-in rule the workspace may tighten, and the proof the one patch that touches it
+		// demands (ADR-0068 §2).
+		Resolver: signInPolicyResolver,
+		StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
+	}
+
+	identityProviderWriter := identity.IdentityProviderWriter{
+		Session:    sessionWriter,
+		Providers:  postgres.NewIdentityProviderRepository(),
+		Relying:    relyingParty,
+		Authorizer: authorizer,
+	}
+
+	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
+	// the history and the trail have one place each. The blocklist and the breach corpus are both
+	// nil on a plain installation - the operator's file arrives with the instance layer, and the
+	// corpus with whatever milestone wires one.
+	//
 	// Named for the rows rather than for the hasher: `passwords` above is the Argon2 verifier.
 	passwordStore := postgres.NewPasswordRepository()
-	passwordWriter = identity.PasswordWriter{
+	passwordWriter := identity.PasswordWriter{
 		Session:  sessionWriter,
 		Resolver: signInPolicyResolver,
 		Accounts: passwordStore, Histories: passwordStore,
@@ -1082,6 +1086,12 @@ func run() error {
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
+	// And the sign-in path learns the rule. Assigned rather than passed, and here rather than where
+	// the writer is built, because the two read each other: the password writer holds a copy of the
+	// session writer for the hasher and the trail, and the copy needs no rule of its own - it *is*
+	// the rule. Every value built from `sessionWriter` before this line reads the second factor and
+	// not the policy, which is why none of them is affected.
+	sessionWriter.Rule = passwordWriter
 
 	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
@@ -1157,6 +1167,7 @@ func run() error {
 			Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
+		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
 			Providers:  postgres.NewIdentityProviderRepository(),

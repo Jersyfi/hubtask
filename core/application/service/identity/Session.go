@@ -104,6 +104,21 @@ type SessionWriter struct {
 	StepUpWindow time.Duration
 	// Issuer is the label an authenticator shows beside the code.
 	Issuer string
+	// Rule answers what ADR-0068's three levels say about this sign-in: whether the password that
+	// was just accepted still meets the workspace's rule, who a second factor is demanded of, and
+	// what bounds the session it is about to open. Nil switches the PASSWORD_CHANGE step off
+	// wholesale and falls back to `require_admin_totp`, which is the shape H-02 shipped - and what
+	// lets the two land in separate releases.
+	Rule SignInRuleReader
+}
+
+// SignInRuleReader is the seam between the sign-in path and the rule. One method, because the
+// sign-in path asks every one of its questions at the same moment about the same account, and four
+// reads of the same two rows would be four chances for them to disagree.
+type SignInRuleReader interface {
+	JudgeSignIn(
+		ctx context.Context, tenantID shared.ID, account domain.Account, password secret.Secret,
+	) (SignInVerdict, error)
 }
 
 // SignInChallenge is the second step a two-step sign-in owes (H-02).
@@ -111,6 +126,10 @@ type SignInChallenge struct {
 	Token     secret.Secret
 	ExpiresAt time.Time
 	Methods   []string
+	// PasswordRules travels with a PASSWORD_CHANGE challenge and with no other: the screen that
+	// asks for a new password needs the rule in the same answer, or the list under the field
+	// arrives a round trip after the field does.
+	PasswordRules *PasswordRulesView
 }
 
 // SignInResult is one of two answers: the pair, or the challenge that stands between the
@@ -228,7 +247,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 
-	challenge, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
+	challenge, verdict, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
 	if err != nil {
 		return SignInResult{}, err
 	}
@@ -236,8 +255,8 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{Challenge: challenge}, nil
 	}
 
-	pair, err := w.openSession(ctx, scope, tenantID, found.Account, cmd.UserAgent, cmd.RemoteAddr,
-		SignedInAction, subjects)
+	pair, err := w.openSessionWith(ctx, scope, tenantID, found.Account, cmd.UserAgent,
+		cmd.RemoteAddr, SignedInAction, subjects, verdict.Sessions, domain.SignedInWithPassword)
 	if err != nil {
 		return SignInResult{}, err
 	}
@@ -370,11 +389,17 @@ func (w SessionWriter) familyDies(
 	return refreshRefused()
 }
 
-// openSession is the shared tail of sign-in and redemption: the ledger wiped, the session row,
-// the first link of the chain, the audit entry, the pair.
-func (w SessionWriter) openSession(
+// openSession is the shared tail of every door in: the ledger wiped, the session row, the first
+// link of the chain, the audit entry, the pair.
+// openSessionWith is openSession told what bounds the session and how it was opened (ADR-0068 §3).
+//
+// The bounds are written onto the row rather than resolved per request, for the reason migration
+// 0100 gives: two comparisons on columns already read, against a round trip on the hot path of the
+// whole API.
+func (w SessionWriter) openSessionWith(
 	ctx context.Context, scope persistence.Scope, tenantID shared.ID, account domain.Account,
 	userAgent, remoteAddr string, action audit.Action, subjects []string,
+	bounds domain.SessionPolicy, method string,
 ) (SessionPair, error) {
 	material, err := w.Entropy.Bytes(domain.TokenSecretBytes)
 	if err != nil {
@@ -394,6 +419,7 @@ func (w SessionWriter) openSession(
 		session, err := domain.NewSession(domain.NewSessionInput{
 			ID: w.IDs.NewID(), TenantID: tenantID, AccountID: account.ID,
 			UserAgent: userAgent, RemoteAddr: remoteAddr, Now: now,
+			Bounds: bounds, Method: method,
 		})
 		if err != nil {
 			return err
@@ -612,12 +638,18 @@ func (w SessionWriter) recordSessionAudit(
 // whether this row is the one answering - and is stamped by the caller who knows.
 func sessionOutput(session domain.Session, currentID shared.ID) usecase.Output {
 	out := usecase.Output{
-		"id":           session.ID.String(),
-		"created_at":   session.CreatedAt.UTC(),
-		"last_used_at": nil,
-		"user_agent":   nil,
-		"ip_class":     nil,
-		"current":      !currentID.IsZero() && session.ID == currentID,
+		"id":             session.ID.String(),
+		"created_at":     session.CreatedAt.UTC(),
+		"last_used_at":   nil,
+		"user_agent":     nil,
+		"ip_class":       nil,
+		"signed_in_with": nil,
+		"current":        !currentID.IsZero() && session.ID == currentID,
+	}
+	if session.SignedInWith != "" {
+		// Absent rather than "unknown" for a session opened before this was recorded: a line
+		// saying "unknown" is a line a reader tries to act on.
+		out["signed_in_with"] = session.SignedInWith
 	}
 	if !session.LastSeenAt.IsZero() {
 		out["last_used_at"] = session.LastSeenAt.UTC()

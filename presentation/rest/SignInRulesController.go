@@ -45,9 +45,9 @@ func (c *RestController) GetSignInRules(w http.ResponseWriter, r *http.Request) 
 }
 
 func signInRulesResponse(out usecase.Output) openapi.SignInRules {
-	methods := make([]openapi.SignInRulesMethods, 0, 2)
+	methods := make([]openapi.SignInMethod, 0, 2)
 	for _, method := range nameList(out["methods"]) {
-		methods = append(methods, openapi.SignInRulesMethods(method))
+		methods = append(methods, openapi.SignInMethod(method))
 	}
 
 	rows, _ := out["providers"].([]any)
@@ -270,6 +270,38 @@ func (c *RestController) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	if required, _ := out["mfa_required"].(bool); required {
 		// The password is set and the account's second factor is still owed (ADR-0068 §6).
 		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
+}
+
+const setPasswordAndSignInUseCase = "SetPasswordAndSignIn"
+
+// SetPasswordAndSignIn answers POST /auth/sessions:set-password.
+//
+// Written out rather than through the identity helper: the route is public for the pending
+// credential's reason - the credential in the body is the whole of what authenticates the call.
+func (c *RestController) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.SignInPasswordChange
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(
+		r.Context(), setPasswordAndSignInUseCase, actorOf(r), usecase.Input{
+			"pending_token": body.PendingToken,
+			"password":      body.Password,
+			"tenant_header": r.Header.Get(TenantHeader),
+		})
+	if err != nil {
+		WriteProblem(w, err, requestID)
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))

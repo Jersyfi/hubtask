@@ -258,3 +258,89 @@ func TestSessionNeedsTouch(t *testing.T) {
 		t.Error("a never-touched session needs no touch")
 	}
 }
+
+// The two bounds a session answers to beyond revocation and expiry (ADR-0068 §3), each with its own
+// code: "this has been open too long" and "you have not used this in a while" are different things
+// to be told, and a screen that could not tell them apart would say the wrong one.
+func TestASessionAnswersToItsOwnTwoBounds(t *testing.T) {
+	at := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
+	opened, err := NewSession(NewSessionInput{
+		ID:        "018f2a1b-0000-7000-8000-00000000dd01",
+		TenantID:  "018f2a1b-0000-7000-8000-00000000dd02",
+		AccountID: "018f2a1b-0000-7000-8000-00000000dd03",
+		Now:       at,
+		Bounds:    SessionPolicy{MaxDays: 7, IdleMinutes: 30},
+		Method:    SignedInWithPassword,
+	})
+	if err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+
+	if opened.SignedInWith != SignedInWithPassword {
+		t.Errorf("the session records %q", opened.SignedInWith)
+	}
+	if opened.HardExpiresAt.IsZero() {
+		t.Fatal("no hard expiry was written")
+	}
+	if err := opened.Verify(at.Add(time.Hour)); err != nil {
+		t.Errorf("an hour in, the session answered %v", err)
+	}
+
+	// Past the maximum age, whatever the refresh token says.
+	tooOld := opened
+	tooOld.ExpiresAt = at.Add(30 * 24 * time.Hour)
+	if err := tooOld.Verify(at.Add(8 * 24 * time.Hour)); err == nil ||
+		!strings.Contains(err.Error(), "auth.session_too_old") {
+		t.Errorf("eight days in, the session answered %v", err)
+	}
+
+	// Idle past its bound. The bound counts from the last use, so a session nobody has used yet -
+	// one whose last use is not recorded - is not idle.
+	idle := opened
+	idle.LastSeenAt = at
+	if err := idle.Verify(at.Add(31 * time.Minute)); err == nil ||
+		!strings.Contains(err.Error(), "auth.session_idle") {
+		t.Errorf("thirty-one minutes after the last use, the session answered %v", err)
+	}
+	if err := opened.Verify(at.Add(31 * time.Minute)); err != nil {
+		t.Errorf("a session with no recorded use was called idle: %v", err)
+	}
+}
+
+// A session with no bounds is what an installation that has decided nothing opens, and it behaves
+// exactly as every session behaved before the switches existed.
+func TestASessionWithoutBoundsIsUnchanged(t *testing.T) {
+	at := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
+	opened, err := NewSession(NewSessionInput{
+		ID:        "018f2a1b-0000-7000-8000-00000000dd01",
+		TenantID:  "018f2a1b-0000-7000-8000-00000000dd02",
+		AccountID: "018f2a1b-0000-7000-8000-00000000dd03",
+		Now:       at,
+	})
+	if err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+	if !opened.HardExpiresAt.IsZero() || opened.IdleMinutes != 0 {
+		t.Error("a bound was invented")
+	}
+	if err := opened.Verify(at.Add(29 * 24 * time.Hour)); err != nil {
+		t.Errorf("twenty-nine days in, the unbounded session answered %v", err)
+	}
+}
+
+// The rotation is the third comparison, and its input is the workspace's rather than the session's.
+func TestASessionOpenedBeforeARotationIsOver(t *testing.T) {
+	at := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
+	session := Session{CreatedAt: at}
+
+	if err := session.VerifyAgainstRotation(time.Time{}); err != nil {
+		t.Errorf("a workspace that asked for nothing ended a session: %v", err)
+	}
+	if err := session.VerifyAgainstRotation(at.Add(-time.Hour)); err != nil {
+		t.Errorf("a rotation older than the session ended it: %v", err)
+	}
+	err := session.VerifyAgainstRotation(at.Add(time.Hour))
+	if err == nil || !strings.Contains(err.Error(), "auth.session_rotated") {
+		t.Errorf("a session opened before the rotation answered %v", err)
+	}
+}

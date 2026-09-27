@@ -132,6 +132,8 @@ func (pending) ForgetPassword(w http.ResponseWriter, r *http.Request) { notAvail
 
 func (pending) ResetPassword(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

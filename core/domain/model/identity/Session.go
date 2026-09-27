@@ -91,7 +91,32 @@ type Session struct {
 	// carries the grant's scopes and is ended by the grant's revocation.
 	GrantID shared.ID
 	Scopes  []string
+	// HardExpiresAt is the moment this session may not outlive however often it is refreshed
+	// (ADR-0068 §3). Zero is "no bound", which is what every session opened before the switch
+	// existed means. Written when the session opens rather than resolved per request, for the
+	// reason migration 0100 gives.
+	HardExpiresAt time.Time
+	// IdleMinutes is how long this session may sit unused. 0 is off.
+	IdleMinutes int
+	// SignedInWith is how this session was opened, answered in the list a person reads. Empty for
+	// a session opened before the column existed - which is not "unknown method" so much as
+	// "before this was recorded", and the list says so by leaving the line out.
+	SignedInWith string
 }
+
+// The ways a session can be opened, as the contract's closed set (ADR-0068 §3, SI-08).
+//
+// A list rather than a boolean per way, because the next one is a passkey and the one after that is
+// whatever comes next: a set the contract names is a set a client can draw, and a set assembled
+// from flags is one every client has to reassemble.
+const (
+	SignedInWithPassword         = "PASSWORD"
+	SignedInWithPasswordTotp     = "PASSWORD_TOTP"
+	SignedInWithPasswordRecovery = "PASSWORD_RECOVERY"
+	SignedInWithOidc             = "OIDC"
+	SignedInWithInvitation       = "INVITATION"
+	SignedInWithReset            = "RESET"
+)
 
 // NewSessionInput is what opening a session needs.
 type NewSessionInput struct {
@@ -104,6 +129,11 @@ type NewSessionInput struct {
 	// network of 24 bits, an IPv6 network of 48 - never the full address.
 	RemoteAddr string
 	Now        time.Time
+	// Bounds are the workspace's session switches, resolved once at sign-in. The zero value is
+	// "no bounds", which is what an installation that has decided nothing enforces.
+	Bounds SessionPolicy
+	// Method is how this session was opened.
+	Method string
 }
 
 // NewSession opens the row a sign-in creates. The address is coarsened here, at recording time,
@@ -112,21 +142,31 @@ func NewSession(in NewSessionInput) (Session, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() || in.AccountID.IsZero() {
 		return Session{}, shared.ErrInternal.WithDetail("auth.session_incomplete")
 	}
-	return Session{
-		ID:        in.ID,
-		TenantID:  in.TenantID,
-		AccountID: in.AccountID,
-		CreatedAt: in.Now.UTC(),
-		UserAgent: boundedUserAgent(in.UserAgent),
-		IPClass:   IPClass(in.RemoteAddr),
-		ExpiresAt: in.Now.Add(RefreshTokenLifetime).UTC(),
-	}, nil
+	opened := Session{
+		ID:           in.ID,
+		TenantID:     in.TenantID,
+		AccountID:    in.AccountID,
+		CreatedAt:    in.Now.UTC(),
+		UserAgent:    boundedUserAgent(in.UserAgent),
+		IPClass:      IPClass(in.RemoteAddr),
+		ExpiresAt:    in.Now.Add(RefreshTokenLifetime).UTC(),
+		IdleMinutes:  in.Bounds.IdleMinutes,
+		SignedInWith: in.Method,
+	}
+	if in.Bounds.MaxDays > 0 {
+		opened.HardExpiresAt = in.Now.
+			Add(time.Duration(in.Bounds.MaxDays) * 24 * time.Hour).UTC()
+	}
+	return opened, nil
 }
 
 // Verify decides whether the session may still answer for its account at this moment.
 //
 // Revocation before expiry, AccessToken.Verify's order: a revoked session is a security event and
-// an expired one is routine, and whoever reads the log should see the first of those.
+// an expired one is routine, and whoever reads the log should see the first of those. The two bounds
+// of ADR-0068 §3 come after both, each with its own code - "this has been open too long" and "you
+// have not used this in a while" are different things to be told, and a screen that could not tell
+// them apart would say the wrong one.
 func (s Session) Verify(now time.Time) error {
 	if !s.RevokedAt.IsZero() && !now.Before(s.RevokedAt) {
 		return shared.ErrUnauthenticated.WithDetail("auth.session_revoked")
@@ -134,7 +174,28 @@ func (s Session) Verify(now time.Time) error {
 	if s.ExpiresAt.IsZero() || !now.Before(s.ExpiresAt) {
 		return shared.ErrUnauthenticated.WithDetail("auth.session_expired")
 	}
+	if !s.HardExpiresAt.IsZero() && !now.Before(s.HardExpiresAt) {
+		return shared.ErrUnauthenticated.WithDetail("auth.session_too_old")
+	}
+	if s.IdleMinutes > 0 && !s.LastSeenAt.IsZero() &&
+		now.Sub(s.LastSeenAt) >= time.Duration(s.IdleMinutes)*time.Minute {
+		return shared.ErrUnauthenticated.WithDetail("auth.session_idle")
+	}
 	return nil
+}
+
+// VerifyAgainstRotation is the third comparison, kept apart from the other three because its input
+// comes from somewhere else: the cutoff is the *workspace's* and rides along on the row the
+// credential read already joins, while everything above is the session's own.
+//
+// A session opened before the moment somebody pressed "require a new password from everyone" is
+// refused on its next request. That is the whole of it: no job walks sessions, and a workspace of
+// ten thousand costs the same as one of ten.
+func (s Session) VerifyAgainstRotation(rotationFrom time.Time) error {
+	if rotationFrom.IsZero() || !s.CreatedAt.Before(rotationFrom) {
+		return nil
+	}
+	return shared.ErrUnauthenticated.WithDetail("auth.session_rotated")
 }
 
 // Revoked stamps the session. Idempotent in the caller's sense: the first withdrawal is the one

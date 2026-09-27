@@ -182,7 +182,7 @@ func (c *RestController) tenantSlug(r *http.Request) string {
 // sessionResponse maps one session projection onto the contract's shape.
 func sessionResponse(row usecase.Output) openapi.Session {
 	current, _ := row["current"].(bool)
-	return openapi.Session{
+	answer := openapi.Session{
 		Id:         uuidValue(row.String("id")),
 		CreatedAt:  timeValue(row["created_at"]),
 		LastUsedAt: optionalTimeField(row["last_used_at"]),
@@ -190,6 +190,13 @@ func sessionResponse(row usecase.Output) openapi.Session {
 		IpClass:    optionalTextField(row["ip_class"]),
 		Current:    current,
 	}
+	if method := optionalTextField(row["signed_in_with"]); method != nil {
+		// Absent for a session opened before this was recorded, which is not "unknown method": a
+		// client leaves the line out rather than printing a word nobody can act on.
+		opened := openapi.SessionSignedInWith(*method)
+		answer.SignedInWith = &opened
+	}
+	return answer
 }
 
 func sessionTokensResponse(out usecase.Output) openapi.SessionTokens {

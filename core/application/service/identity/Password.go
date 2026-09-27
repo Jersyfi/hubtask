@@ -710,3 +710,241 @@ func violationsOutput(violations []domain.PasswordViolation) usecase.Output {
 	}
 	return usecase.Output{"violations": rows}
 }
+
+// SignInVerdict is what the sign-in path needs to know about the rule, in one read.
+//
+// One value rather than four questions, because the sign-in path asks all of them at the same
+// moment about the same account, and four reads of the same two rows would be four chances for them
+// to disagree.
+type SignInVerdict struct {
+	// MustChangePassword is the whole of ADR-0068 §3's enforcement: a password that is right and no
+	// longer meets the rule. Three reasons, one answer - too short for a tightened policy, older
+	// than `max_age_days`, older than `rotation_from` - because what the person has to do is the
+	// same in all three, and the screen says which only if it can say it usefully.
+	MustChangePassword bool
+	// Rules is what the new password will be judged against, answered with the challenge so that
+	// the list under the field is there before the first keystroke.
+	Rules PasswordRulesView
+	// FactorRequired is who this workspace demands a second factor of.
+	FactorRequired domain.MfaRequirement
+	// Sessions is the two bounds a session opened now will answer to.
+	Sessions domain.SessionPolicy
+	// RotationFrom is the moment every older session is refused from.
+	RotationFrom time.Time
+}
+
+// JudgeSignIn answers the verdict for an account whose password was just accepted.
+//
+// The plaintext is in hand here and nowhere else, which is the whole reason the enforcement is a
+// step of the sign-in rather than a job: no job can check a password, and a job that walked accounts
+// or tenants is what this project's own rules forbid.
+func (w PasswordWriter) JudgeSignIn(
+	ctx context.Context, tenantID shared.ID, account domain.Account, password secret.Secret,
+) (SignInVerdict, error) {
+	rules, err := w.ResolveFor(ctx, tenantID)
+	if err != nil {
+		return SignInVerdict{}, err
+	}
+	policy := rules.Effective.Policy
+
+	held, err := w.AccountFor(ctx, tenantID, account.ID)
+	if err != nil {
+		return SignInVerdict{}, err
+	}
+
+	verdict := SignInVerdict{
+		Rules:          passwordRulesView(rules, true),
+		FactorRequired: policy.MfaRequiredFor,
+		Sessions:       policy.Sessions,
+		RotationFrom:   policy.RotationFrom,
+	}
+
+	if password.IsEmpty() {
+		// No candidate to judge. Two callers ask that way on purpose - the second step of a sign-in,
+		// where the password was settled at the first, and a reset, where it was just judged in
+		// full - and both want the verdict's *other* answers: who a factor is demanded of, and what
+		// bounds the session. Treating an absent password as one that fails the rule would put the
+		// change step in front of the very password the rule had accepted.
+		return verdict, nil
+	}
+
+	// The rule as it stands, against the password as it is. Only the local half: the lists and the
+	// history cost a round of Argon2 each and a sign-in is not the place to spend them - what they
+	// would catch is a password that was already accepted under an earlier rule, and the change
+	// step will judge the replacement in full.
+	refused := domain.CheckPasswordAgainst(
+		policy.Password, w.Text, password.Reveal(),
+		domain.PasswordContext{
+			Email:         account.Email,
+			DisplayName:   account.DisplayName,
+			WorkspaceName: rules.Workspace.DisplayName,
+			WorkspaceHost: rules.Workspace.Slug,
+		}) != nil
+
+	setAt := held.PasswordSetAt
+	now := w.Clock.Now()
+	expired := policy.Password.MaxAgeDays > 0 && !setAt.IsZero() &&
+		now.Sub(setAt) > time.Duration(policy.Password.MaxAgeDays)*24*time.Hour
+	// A password with no recorded moment is not rotated out: an unknown date is the product's gap
+	// rather than the person's, and locking somebody out over one would be our mistake charged to
+	// them. `max_age_days` reads it the same way.
+	rotated := !policy.RotationFrom.IsZero() && !setAt.IsZero() && setAt.Before(policy.RotationFrom)
+
+	verdict.MustChangePassword = refused || expired || rotated
+	return verdict, nil
+}
+
+const SetPasswordAndSignInName = "SetPasswordAndSignIn"
+
+// SetPasswordAndSignInCommand completes the change step of a sign-in.
+type SetPasswordAndSignInCommand struct {
+	PendingToken secret.Secret
+	Password     secret.Secret
+	// TenantHeader may confirm the token's tenant, never overrule it.
+	TenantHeader string
+}
+
+// SetPasswordAndSignIn is `POST /auth/sessions:set-password`: the fourth door (ADR-0068 §3, §5).
+//
+// The password was right and no longer meets the rule, so the sign-in continues by setting a new
+// one - and confirming it *is* the sign-in, exactly as the enrolment step already works. The pending
+// credential can do one thing and this is it.
+type SetPasswordAndSignIn struct{ Writer PasswordWriter }
+
+// Execute sets the password and opens the session the sign-in was going to open.
+func (h SetPasswordAndSignIn) Execute(
+	ctx context.Context, cmd SetPasswordAndSignInCommand,
+) (SessionPair, error) {
+	w := h.Writer
+
+	token, err := domain.ParsePendingToken(cmd.PendingToken.Reveal())
+	if err != nil {
+		return SessionPair{}, challengeRefused()
+	}
+	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
+		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
+	}
+
+	tenantID := token.TenantID()
+	scope := persistence.Scope{TenantID: tenantID}
+
+	var lookup repository.PendingLookup
+	err = w.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		read, err := w.Pending.FindByToken(ctx, token)
+		lookup = read
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return SessionPair{}, challengeRefused()
+		}
+		return SessionPair{}, err
+	}
+
+	now := w.Clock.Now()
+	if lookup.Credential.Purpose != domain.PendingPassword || lookup.Credential.Verify(now) != nil {
+		// A credential of another purpose completes nothing here, CompleteSignIn's discipline: an
+		// enrolment token that could set a password would be a password set by a factor nobody proved.
+		return SessionPair{}, challengeRefused()
+	}
+	if err := lookup.Account.Verify(); err != nil {
+		return SessionPair{}, err
+	}
+	if err := lookup.TenantStatus.Verify(); err != nil {
+		return SessionPair{}, err
+	}
+
+	held, err := w.AccountFor(ctx, tenantID, lookup.Account.ID)
+	if err != nil {
+		return SessionPair{}, err
+	}
+	rules, err := w.ResolveFor(ctx, tenantID)
+	if err != nil {
+		return SessionPair{}, err
+	}
+	candidate := PasswordCandidate{
+		TenantID: tenantID, Account: held, Password: cmd.Password, Rules: rules,
+		// The minimum age does not apply: the rule is what asked for this change, and holding
+		// somebody to a waiting period they did not choose to start would be a lockout.
+		IsReset: true,
+	}
+	if err := w.Judge(ctx, candidate); err != nil {
+		return SessionPair{}, err
+	}
+
+	var spent bool
+	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		consumed, err := w.Pending.Consume(ctx, lookup.Credential.ID, now)
+		spent = consumed
+		return err
+	})
+	if err != nil {
+		return SessionPair{}, err
+	}
+	if !spent {
+		// Somebody completed this sign-in between our read and our write.
+		return SessionPair{}, challengeRefused()
+	}
+
+	// Every session of the account: the rule refused the password that opened them, and a session
+	// that outlived the password it was opened with is the hole `rotation_from` exists to close.
+	if err := w.Write(ctx, candidate, "", true); err != nil {
+		return SessionPair{}, err
+	}
+
+	return w.Session.openSessionWithHint(ctx, scope, tenantID, lookup.Account,
+		lookup.Credential.UserAgent, lookup.Credential.IPClass, SignedInAction,
+		rules.Effective.Policy.Sessions, domain.SignedInWithPassword)
+}
+
+// Descriptor is the catalogue entry.
+func (h SetPasswordAndSignIn) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: SetPasswordAndSignInName,
+		Summary: "Completes a sign-in the change step interrupted: the pending credential the " +
+			"password answered, and a new password under the rule that refused the old one. " +
+			"Confirming it *is* the sign-in, exactly as the enrolment step works - the credential " +
+			"can do nothing else, and it dies on use. Every session of the account ends, because " +
+			"the rule refused the password that opened them.",
+		SideEffects: "Spends the pending credential, stores the new hash and its moment, records " +
+			"the previous hash in the history, ends every session, opens a new one, and writes " +
+			"audit entries.",
+		Input: []usecase.Field{
+			{
+				Name: "pending_token", Kind: usecase.KindString, Required: true,
+				Description: "The challenge's credential. It dies on use.",
+			},
+			{
+				Name: "password", Kind: usecase.KindString, Required: true,
+				Description: "The new password, judged against this workspace's rule.",
+			},
+			{
+				Name: "tenant_header", Kind: usecase.KindString,
+				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
+					"token's tenant, never overrule it.",
+			},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: PasswordChangedAction, TargetType: accountTargetForPassword,
+			Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "A password is not an entry.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h SetPasswordAndSignIn) invoke(
+	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	pair, err := h.Execute(ctx, SetPasswordAndSignInCommand{
+		PendingToken: secret.New(in.String("pending_token")),
+		Password:     secret.New(in.String("password")),
+		TenantHeader: in.String("tenant_header"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pairOutput(pair), nil
+}

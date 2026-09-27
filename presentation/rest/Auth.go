@@ -38,6 +38,10 @@ var PublicRoutes = map[string]bool{
 	// guesser can use, and a host no workspace answers at gets the installation's own level rather
 	// than a refusal that would be a directory of hosts.
 	http.MethodGet + " " + APIBasePath + "/auth/sign-in-rules": true,
+	// The change step of a sign-in is public for the pending credential's reason (ADR-0068 §3): the
+	// credential in the body is the whole of what authenticates the call, and the caller has no
+	// bearer yet - that is the thing this call exists to produce.
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:set-password": true,
 	// Forgetting and resetting are public because the whole point is that somebody who cannot
 	// sign in can reach them (ADR-0068 §6). The reset token in the body is the whole of what
 	// authenticates the second call, exactly as the redemption token is for an invitation.

@@ -1889,15 +1889,18 @@ func (e MembershipScope) Valid() bool {
 
 // Defines values for MfaChallengeMethods.
 const (
-	MfaChallengeMethodsENROLL   MfaChallengeMethods = "ENROLL"
-	MfaChallengeMethodsRECOVERY MfaChallengeMethods = "RECOVERY"
-	MfaChallengeMethodsTOTP     MfaChallengeMethods = "TOTP"
+	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
+	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
+	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
+	MfaChallengeMethodsTOTP           MfaChallengeMethods = "TOTP"
 )
 
 // Valid indicates whether the value is a known member of the MfaChallengeMethods enum.
 func (e MfaChallengeMethods) Valid() bool {
 	switch e {
 	case MfaChallengeMethodsENROLL:
+		return true
+	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
 	case MfaChallengeMethodsRECOVERY:
 		return true
@@ -1932,6 +1935,27 @@ const (
 func (e OauthTokenRequestGrantType) Valid() bool {
 	switch e {
 	case AuthorizationCode:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PolicyLock.
+const (
+	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
+	PolicyLockLessThannil PolicyLock = "<nil>"
+	PolicyLockPLAN        PolicyLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the PolicyLock enum.
+func (e PolicyLock) Valid() bool {
+	switch e {
+	case PolicyLockINSTANCE:
+		return true
+	case PolicyLockLessThannil:
+		return true
+	case PolicyLockPLAN:
 		return true
 	default:
 		return false
@@ -2793,6 +2817,39 @@ func (e SearchMode) Valid() bool {
 	}
 }
 
+// Defines values for SessionSignedInWith.
+const (
+	SessionSignedInWithINVITATION       SessionSignedInWith = "INVITATION"
+	SessionSignedInWithLessThannil      SessionSignedInWith = "<nil>"
+	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
+	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
+	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
+	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
+	SessionSignedInWithRESET            SessionSignedInWith = "RESET"
+)
+
+// Valid indicates whether the value is a known member of the SessionSignedInWith enum.
+func (e SessionSignedInWith) Valid() bool {
+	switch e {
+	case SessionSignedInWithINVITATION:
+		return true
+	case SessionSignedInWithLessThannil:
+		return true
+	case SessionSignedInWithOIDC:
+		return true
+	case SessionSignedInWithPASSWORD:
+		return true
+	case SessionSignedInWithPASSWORDRECOVERY:
+		return true
+	case SessionSignedInWithPASSWORDTOTP:
+		return true
+	case SessionSignedInWithRESET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionTokensTokenType.
 const (
 	Bearer SessionTokensTokenType = "Bearer"
@@ -2808,18 +2865,54 @@ func (e SessionTokensTokenType) Valid() bool {
 	}
 }
 
-// Defines values for SignInRulesMethods.
+// Defines values for SignInMethod.
 const (
-	SignInRulesMethodsOIDC     SignInRulesMethods = "OIDC"
-	SignInRulesMethodsPASSWORD SignInRulesMethods = "PASSWORD"
+	SignInMethodOIDC     SignInMethod = "OIDC"
+	SignInMethodPASSWORD SignInMethod = "PASSWORD"
 )
 
-// Valid indicates whether the value is a known member of the SignInRulesMethods enum.
-func (e SignInRulesMethods) Valid() bool {
+// Valid indicates whether the value is a known member of the SignInMethod enum.
+func (e SignInMethod) Valid() bool {
 	switch e {
-	case SignInRulesMethodsOIDC:
+	case SignInMethodOIDC:
 		return true
-	case SignInRulesMethodsPASSWORD:
+	case SignInMethodPASSWORD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInPolicyChangeMfaRequiredFor.
+const (
+	SignInPolicyChangeMfaRequiredForADMINS   SignInPolicyChangeMfaRequiredFor = "ADMINS"
+	SignInPolicyChangeMfaRequiredForEVERYONE SignInPolicyChangeMfaRequiredFor = "EVERYONE"
+	SignInPolicyChangeMfaRequiredForNONE     SignInPolicyChangeMfaRequiredFor = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SignInPolicyChangeMfaRequiredFor enum.
+func (e SignInPolicyChangeMfaRequiredFor) Valid() bool {
+	switch e {
+	case SignInPolicyChangeMfaRequiredForADMINS:
+		return true
+	case SignInPolicyChangeMfaRequiredForEVERYONE:
+		return true
+	case SignInPolicyChangeMfaRequiredForNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignInPolicyChangeRotationFrom.
+const (
+	Now SignInPolicyChangeRotationFrom = "now"
+)
+
+// Valid indicates whether the value is a known member of the SignInPolicyChangeRotationFrom enum.
+func (e SignInPolicyChangeRotationFrom) Valid() bool {
+	switch e {
+	case Now:
 		return true
 	default:
 		return false
@@ -5437,6 +5530,14 @@ type LegalLinks struct {
 	TermsUrl         *string `json:"terms_url,omitempty"`
 }
 
+// LegalPolicySettings The four links, each with its own lock - B2C locks them, B2B leaves them open.
+type LegalPolicySettings struct {
+	AccessibilityUrl SignInPolicyText `json:"accessibility_url"`
+	ImprintUrl       SignInPolicyText `json:"imprint_url"`
+	PrivacyUrl       SignInPolicyText `json:"privacy_url"`
+	TermsUrl         SignInPolicyText `json:"terms_url"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -5557,8 +5658,11 @@ type MembershipScope string
 type MfaChallenge struct {
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a tenant switch routes into enrolment instead of into a session.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
+	PasswordRules *PasswordRules `json:"password_rules,omitempty"`
 
 	// PendingToken Presented at `/auth/sessions:verify` - or, for ENROLL, at the enrolment routes.
 	PendingToken string `json:"pending_token"`
@@ -5768,6 +5872,43 @@ type PasswordForgot struct {
 	Email openapi_types.Email `json:"email"`
 }
 
+// PasswordPolicySettings The thirteen switches about the password itself, each at its three levels.
+type PasswordPolicySettings struct {
+	BreachCheck     SignInPolicyFlag `json:"breach_check"`
+	CommonPasswords SignInPolicyFlag `json:"common_passwords"`
+	ContextWords    SignInPolicyFlag `json:"context_words"`
+
+	// HistoryCount One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	HistoryCount SignInPolicyNumber `json:"history_count"`
+
+	// MaxAgeDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxAgeDays SignInPolicyNumber `json:"max_age_days"`
+
+	// MaxRepeat One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxRepeat SignInPolicyNumber `json:"max_repeat"`
+
+	// MinAgeHours One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinAgeHours SignInPolicyNumber `json:"min_age_hours"`
+
+	// MinClasses One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinClasses SignInPolicyNumber `json:"min_classes"`
+
+	// MinDigits One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinDigits SignInPolicyNumber `json:"min_digits"`
+
+	// MinLength One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinLength SignInPolicyNumber `json:"min_length"`
+
+	// MinLowercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinLowercase SignInPolicyNumber `json:"min_lowercase"`
+
+	// MinSymbols One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinSymbols SignInPolicyNumber `json:"min_symbols"`
+
+	// MinUppercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MinUppercase SignInPolicyNumber `json:"min_uppercase"`
+}
+
 // PasswordReset defines model for PasswordReset.
 type PasswordReset struct {
 	// Password The new password, judged against this workspace's rule.
@@ -5825,6 +5966,9 @@ type PasswordViolation struct {
 	// Rule The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.
 	Rule string `json:"rule"`
 }
+
+// PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+type PolicyLock string
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -6614,8 +6758,23 @@ type Session struct {
 	// LastUsedAt When the session last acted, to the minute rather than to the request - the value exists so a person can spot a session nobody uses.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
+	// SignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+	SignedInWith *SessionSignedInWith `json:"signed_in_with,omitempty"`
+
 	// UserAgent The client that signed in, as it introduced itself.
 	UserAgent *string `json:"user_agent,omitempty"`
+}
+
+// SessionSignedInWith How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not "unknown method" so much as "before this existed" - a client leaves the line out rather than printing a word nobody can act on.
+type SessionSignedInWith string
+
+// SessionPolicySettings The two bounds a session answers to beside its own expiry.
+type SessionPolicySettings struct {
+	// IdleMinutes One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	IdleMinutes SignInPolicyNumber `json:"idle_minutes"`
+
+	// MaxDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	MaxDays SignInPolicyNumber `json:"max_days"`
 }
 
 // SessionRefresh defines model for SessionRefresh.
@@ -6663,13 +6822,128 @@ type SignInCompletion struct {
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
 
+// SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
+type SignInMethod string
+
+// SignInPasswordChange defines model for SignInPasswordChange.
+type SignInPasswordChange struct {
+	// Password The new password, judged against this workspace's rule in full.
+	Password string `json:"password"`
+
+	// PendingToken The credential the `PASSWORD_CHANGE` challenge handed out. It dies on use.
+	PendingToken string `json:"pending_token"`
+}
+
+// SignInPolicy The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
+// **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
+type SignInPolicy struct {
+	// Legal The four links, each with its own lock - B2C locks them, B2B leaves them open.
+	Legal   LegalPolicySettings `json:"legal"`
+	Methods SignInPolicyMethods `json:"methods"`
+
+	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into.
+	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
+
+	// Password The thirteen switches about the password itself, each at its three levels.
+	Password PasswordPolicySettings `json:"password"`
+
+	// RotationFrom When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.
+	RotationFrom *time.Time `json:"rotation_from"`
+
+	// Session The two bounds a session answers to beside its own expiry.
+	Session SessionPolicySettings `json:"session"`
+}
+
+// SignInPolicyChange The switches, flat: the thirteen the password has, the two about factors and methods, the two session bounds, the four legal links, and the rotation as an action.
+type SignInPolicyChange struct {
+	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
+	BreachCheck      *bool   `json:"breach_check,omitempty"`
+	CommonPasswords  *bool   `json:"common_passwords,omitempty"`
+	ContextWords     *bool   `json:"context_words,omitempty"`
+
+	// HistoryCount 0 is off. At most ten.
+	HistoryCount *int    `json:"history_count,omitempty"`
+	ImprintUrl   *string `json:"imprint_url,omitempty"`
+
+	// MaxAgeDays 0 is off, which is the shipped value.
+	MaxAgeDays *int `json:"max_age_days,omitempty"`
+
+	// MaxRepeat 0 is off.
+	MaxRepeat      *int                              `json:"max_repeat,omitempty"`
+	Methods        *[]SignInMethod                   `json:"methods,omitempty"`
+	MfaRequiredFor *SignInPolicyChangeMfaRequiredFor `json:"mfa_required_for,omitempty"`
+
+	// MinAgeHours 0 is off. At most a day.
+	MinAgeHours  *int    `json:"min_age_hours,omitempty"`
+	MinClasses   *int    `json:"min_classes,omitempty"`
+	MinDigits    *int    `json:"min_digits,omitempty"`
+	MinLength    *int    `json:"min_length,omitempty"`
+	MinLowercase *int    `json:"min_lowercase,omitempty"`
+	MinSymbols   *int    `json:"min_symbols,omitempty"`
+	MinUppercase *int    `json:"min_uppercase,omitempty"`
+	PrivacyUrl   *string `json:"privacy_url,omitempty"`
+
+	// RotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
+	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
+
+	// SessionIdleMinutes 0 is off.
+	SessionIdleMinutes *int    `json:"session_idle_minutes,omitempty"`
+	SessionMaxDays     *int    `json:"session_max_days,omitempty"`
+	TermsUrl           *string `json:"terms_url,omitempty"`
+}
+
+// SignInPolicyChangeMfaRequiredFor defines model for SignInPolicyChange.MfaRequiredFor.
+type SignInPolicyChangeMfaRequiredFor string
+
+// SignInPolicyChangeRotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
+type SignInPolicyChangeRotationFrom string
+
+// SignInPolicyFlag defines model for SignInPolicyFlag.
+type SignInPolicyFlag struct {
+	Installation bool `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock `json:"lock"`
+	Value bool        `json:"value"`
+}
+
+// SignInPolicyMethods defines model for SignInPolicyMethods.
+type SignInPolicyMethods struct {
+	Installation []SignInMethod `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock    `json:"lock"`
+	Value []SignInMethod `json:"value"`
+}
+
+// SignInPolicyNumber One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+type SignInPolicyNumber struct {
+	// Installation What the level above set, which is what this workspace may tighten.
+	Installation int `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock *PolicyLock `json:"lock"`
+
+	// Value What is in force in this workspace.
+	Value int `json:"value"`
+}
+
+// SignInPolicyText defines model for SignInPolicyText.
+type SignInPolicyText struct {
+	Installation string `json:"installation"`
+
+	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).
+	Lock  *PolicyLock `json:"lock"`
+	Value string      `json:"value"`
+}
+
 // SignInRules The least a sign-in screen needs, and deliberately no more.
 type SignInRules struct {
 	// Legal The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
 	Legal LegalLinks `json:"legal"`
 
 	// Methods The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.
-	Methods []SignInRulesMethods `json:"methods"`
+	Methods []SignInMethod `json:"methods"`
 
 	// Password What a password has to meet, as data rather than as a sentence (ADR-0011). Each switch becomes a message code with parameters in the client, and the same codes travel in `field_errors[]` when a password is refused - so one fact has one sentence whether the client saw the refusal coming or the server sent it.
 	// Zero is off for every count. The rules a client can decide itself are the arithmetic ones; `common_passwords`, `breach_check`, `history_count` and `not_current` name what only the server can answer, and `/auth/password:check` is where it does.
@@ -6679,9 +6953,6 @@ type SignInRules struct {
 	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
 	WorkspaceHost string `json:"workspace_host"`
 }
-
-// SignInRulesMethods defines model for SignInRules.Methods.
-type SignInRulesMethods string
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by (ADR-0064).
 type SortTerm struct {
@@ -7501,6 +7772,9 @@ type Workspace struct {
 	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
+	// SignInPolicy How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
+	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
+
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
 	Slug string `json:"slug"`
 
@@ -7524,6 +7798,10 @@ type WorkspaceUpdate struct {
 	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
 	DisplayName      *string `json:"display_name,omitempty"`
 	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+
+	// SignInPolicy The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.
+	// Three refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.
+	SignInPolicy *SignInPolicyChange `json:"sign_in_policy,omitempty"`
 }
 
 // AccountId defines model for AccountId.
@@ -8511,6 +8789,9 @@ type AiGenerateTemplateParams struct {
 type UpdateWorkspaceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -8638,6 +8919,9 @@ type SignInJSONRequestBody = SignIn
 
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
+
+// SetPasswordAndSignInJSONRequestBody defines body for SetPasswordAndSignIn for application/json ContentType.
+type SetPasswordAndSignInJSONRequestBody = SignInPasswordChange
 
 // CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
 type CompleteSignInJSONRequestBody = SignInCompletion
@@ -9666,6 +9950,28 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignInWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPasswordAndSignIn Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignIn(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CompleteSignInWithBody Present the second factor and receive the pair
 	//
@@ -12092,6 +12398,7 @@ type ClientInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes any type of body and a specified content type.
@@ -12104,6 +12411,7 @@ type ClientInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
@@ -13533,6 +13841,48 @@ func (c *Client) RefreshSessionWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 func (c *Client) RefreshSession(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRefreshSessionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPasswordAndSignInWithBody Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *Client) SetPasswordAndSignInWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPasswordAndSignInRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPasswordAndSignIn Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *Client) SetPasswordAndSignIn(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPasswordAndSignInRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -18758,6 +19108,7 @@ func (c *Client) ReadWorkspace(ctx context.Context, reqEditors ...RequestEditorF
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes any type of body and a specified content type.
@@ -18780,6 +19131,7 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes a body of the `application/merge-patch+json` content type.
@@ -20702,6 +21054,46 @@ func NewRefreshSessionRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/auth/sessions:refresh")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetPasswordAndSignInRequest calls the generic SetPasswordAndSignIn builder with application/json body
+func NewSetPasswordAndSignInRequest(server string, body SetPasswordAndSignInJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPasswordAndSignInRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetPasswordAndSignInRequestWithBody constructs an http.Request for the SetPasswordAndSignIn method, with any body, and a specified content type
+func NewSetPasswordAndSignInRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:set-password")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -30612,6 +31004,17 @@ func NewUpdateWorkspaceRequestWithBody(server string, params *UpdateWorkspacePar
 			req.Header.Set("If-Match", headerParam0)
 		}
 
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
+		}
+
 	}
 
 	return req, nil
@@ -31883,6 +32286,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:refresh (the `RefreshSession` operationId).
 	RefreshSessionWithResponse(ctx context.Context, body RefreshSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshSessionResult, error)
+
+	// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignInWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error)
+
+	// SetPasswordAndSignInWithResponse Set a new password and finish the sign-in
+	//
+	// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+	// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+	// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+	SetPasswordAndSignInWithResponse(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error)
 
 	// CompleteSignInWithBodyWithResponse Present the second factor and receive the pair
 	//
@@ -34607,6 +35032,7 @@ type ClientWithResponsesInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -34619,6 +35045,7 @@ type ClientWithResponsesInterface interface {
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
@@ -36680,6 +37107,54 @@ func (r RefreshSessionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RefreshSessionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPasswordAndSignInResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SetPasswordAndSignInResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPasswordAndSignInResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPasswordAndSignInResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPasswordAndSignInResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPasswordAndSignInResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPasswordAndSignInResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -48119,6 +48594,40 @@ func (c *ClientWithResponses) RefreshSessionWithResponse(ctx context.Context, bo
 	return ParseRefreshSessionResult(rsp)
 }
 
+// SetPasswordAndSignInWithBodyWithResponse Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *ClientWithResponses) SetPasswordAndSignInWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error) {
+	rsp, err := c.SetPasswordAndSignInWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPasswordAndSignInResult(rsp)
+}
+
+// SetPasswordAndSignInWithResponse Set a new password and finish the sign-in
+//
+// The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.
+// The pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.
+// This is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:set-password (the `SetPasswordAndSignIn` operationId).
+func (c *ClientWithResponses) SetPasswordAndSignInWithResponse(ctx context.Context, body SetPasswordAndSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPasswordAndSignInResult, error) {
+	rsp, err := c.SetPasswordAndSignIn(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPasswordAndSignInResult(rsp)
+}
+
 // CompleteSignInWithBodyWithResponse Present the second factor and receive the pair
 //
 // The second step of a two-step sign-in: the pending credential the password answered, plus a TOTP code or one recovery code. The pending credential can do nothing but be presented here - it opens no route, reads nothing, and dies on use or after its few minutes (security.md §5).
@@ -52516,6 +53025,7 @@ func (c *ClientWithResponses) ReadWorkspaceWithResponse(ctx context.Context, req
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -52534,6 +53044,7 @@ func (c *ClientWithResponses) UpdateWorkspaceWithBodyWithResponse(ctx context.Co
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.
 // The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
@@ -54063,6 +54574,39 @@ func ParseRefreshSessionResult(rsp *http.Response) (*RefreshSessionResult, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPasswordAndSignInResult parses an HTTP response from a SetPasswordAndSignInWithResponse call
+func ParseSetPasswordAndSignInResult(rsp *http.Response) (*SetPasswordAndSignInResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPasswordAndSignInResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

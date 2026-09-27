@@ -4358,6 +4358,42 @@
         }
       }
     },
+    "/auth/sessions:set-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "setPasswordAndSignIn",
+        "security": [],
+        "summary": "Set a new password and finish the sign-in",
+        "description": "The fourth door a password is set through (ADR-0068 §3, §5). The password was right and no longer meets the rule - too short for a tightened policy, older than the expiry, or older than the moment somebody asked everybody for a new one - so the sign-in continues by setting a new one. Confirming it **is** the sign-in, exactly as the enrolment step works.\nThe pending credential can do this and nothing else, and it dies on use. Every session of the account ends: the rule refused the password that opened them.\nThis is the whole of the enforcement. No job walks accounts and no job walks tenants - the rule is applied where the plaintext already is, which is the moment somebody uses it, so a workspace of ten and one of ten thousand cost the same.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInPasswordChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Set, and signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/sign-in-rules": {
       "get": {
         "tags": [
@@ -5107,10 +5143,13 @@
         ],
         "operationId": "updateWorkspace",
         "summary": "Change how the workspace is set up",
-        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.\nThe slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
+        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the field with a consequence beyond its own row: switching it on makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is recorded like the security decision it is.\nThe slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\n`sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
           }
         ],
         "requestBody": {
@@ -10681,6 +10720,22 @@
           "current": {
             "type": "boolean",
             "description": "Whether this session is the one answering the call."
+          },
+          "signed_in_with": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "PASSWORD",
+              "PASSWORD_TOTP",
+              "PASSWORD_RECOVERY",
+              "OIDC",
+              "INVITATION",
+              "RESET",
+              null
+            ],
+            "description": "How this session was opened (ADR-0068 §3). Null for one opened before this was recorded, which is not \"unknown method\" so much as \"before this existed\" - a client leaves the line out rather than printing a word nobody can act on.\n"
           }
         }
       },
@@ -11197,6 +11252,253 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock, as everywhere else."
+          },
+          "sign_in_policy": {
+            "$ref": "#/components/schemas/SignInPolicy",
+            "description": "How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.\n"
+          }
+        }
+      },
+      "SignInPolicyNumber": {
+        "type": "object",
+        "description": "One numeric switch, at the three levels that decide it. Zero is off for every one of them.\n",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "integer",
+            "description": "What is in force in this workspace."
+          },
+          "installation": {
+            "type": "integer",
+            "description": "What the level above set, which is what this workspace may tighten."
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "SignInPolicyFlag": {
+        "type": "object",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "boolean"
+          },
+          "installation": {
+            "type": "boolean"
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "SignInPolicyText": {
+        "type": "object",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "installation": {
+            "type": "string"
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "SignInMethod": {
+        "type": "string",
+        "enum": [
+          "PASSWORD",
+          "OIDC"
+        ],
+        "description": "One way into a workspace. A named schema, so that every reader of one shares a type."
+      },
+      "SignInPolicyMethods": {
+        "type": "object",
+        "required": [
+          "value",
+          "installation",
+          "lock"
+        ],
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            }
+          },
+          "installation": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            }
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock"
+          }
+        }
+      },
+      "PolicyLock": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "INSTANCE",
+          "PLAN",
+          null
+        ],
+        "description": "Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because \"ask your administrator\" and \"ask your provider\" are different sentences, and a screen told the wrong one sends somebody to the wrong person (ADR-0070 §3).\n"
+      },
+      "SignInPolicy": {
+        "type": "object",
+        "description": "The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.\n**A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.\n",
+        "required": [
+          "password",
+          "mfa_required_for",
+          "methods",
+          "session",
+          "legal",
+          "rotation_from"
+        ],
+        "properties": {
+          "password": {
+            "$ref": "#/components/schemas/PasswordPolicySettings"
+          },
+          "mfa_required_for": {
+            "$ref": "#/components/schemas/SignInPolicyText",
+            "description": "`NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into."
+          },
+          "methods": {
+            "$ref": "#/components/schemas/SignInPolicyMethods"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionPolicySettings"
+          },
+          "legal": {
+            "$ref": "#/components/schemas/LegalPolicySettings"
+          },
+          "rotation_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.\n"
+          }
+        }
+      },
+      "PasswordPolicySettings": {
+        "type": "object",
+        "description": "The thirteen switches about the password itself, each at its three levels.",
+        "required": [
+          "min_length",
+          "min_lowercase",
+          "min_uppercase",
+          "min_digits",
+          "min_symbols",
+          "min_classes",
+          "max_repeat",
+          "common_passwords",
+          "context_words",
+          "breach_check",
+          "max_age_days",
+          "history_count",
+          "min_age_hours"
+        ],
+        "properties": {
+          "min_length": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_lowercase": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_uppercase": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_digits": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_symbols": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_classes": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "max_repeat": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "common_passwords": {
+            "$ref": "#/components/schemas/SignInPolicyFlag"
+          },
+          "context_words": {
+            "$ref": "#/components/schemas/SignInPolicyFlag"
+          },
+          "breach_check": {
+            "$ref": "#/components/schemas/SignInPolicyFlag"
+          },
+          "max_age_days": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "history_count": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "min_age_hours": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          }
+        }
+      },
+      "SessionPolicySettings": {
+        "type": "object",
+        "description": "The two bounds a session answers to beside its own expiry.",
+        "required": [
+          "max_days",
+          "idle_minutes"
+        ],
+        "properties": {
+          "max_days": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          },
+          "idle_minutes": {
+            "$ref": "#/components/schemas/SignInPolicyNumber"
+          }
+        }
+      },
+      "LegalPolicySettings": {
+        "type": "object",
+        "description": "The four links, each with its own lock - B2C locks them, B2B leaves them open.",
+        "required": [
+          "imprint_url",
+          "privacy_url",
+          "terms_url",
+          "accessibility_url"
+        ],
+        "properties": {
+          "imprint_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "privacy_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "terms_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "accessibility_url": {
+            "$ref": "#/components/schemas/SignInPolicyText"
           }
         }
       },
@@ -11219,6 +11521,101 @@
           },
           "require_admin_totp": {
             "type": "boolean"
+          },
+          "sign_in_policy": {
+            "$ref": "#/components/schemas/SignInPolicyChange",
+            "description": "The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.\nThree refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.\n"
+          }
+        }
+      },
+      "SignInPolicyChange": {
+        "type": "object",
+        "description": "The switches, flat: the thirteen the password has, the two about factors and methods, the two session bounds, the four legal links, and the rotation as an action.\n",
+        "properties": {
+          "min_length": {
+            "type": "integer"
+          },
+          "min_lowercase": {
+            "type": "integer"
+          },
+          "min_uppercase": {
+            "type": "integer"
+          },
+          "min_digits": {
+            "type": "integer"
+          },
+          "min_symbols": {
+            "type": "integer"
+          },
+          "min_classes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "max_repeat": {
+            "type": "integer",
+            "description": "0 is off."
+          },
+          "common_passwords": {
+            "type": "boolean"
+          },
+          "context_words": {
+            "type": "boolean"
+          },
+          "breach_check": {
+            "type": "boolean"
+          },
+          "max_age_days": {
+            "type": "integer",
+            "description": "0 is off, which is the shipped value."
+          },
+          "history_count": {
+            "type": "integer",
+            "description": "0 is off. At most ten."
+          },
+          "min_age_hours": {
+            "type": "integer",
+            "description": "0 is off. At most a day."
+          },
+          "mfa_required_for": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ADMINS",
+              "EVERYONE"
+            ]
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignInMethod"
+            }
+          },
+          "session_max_days": {
+            "type": "integer"
+          },
+          "session_idle_minutes": {
+            "type": "integer",
+            "description": "0 is off."
+          },
+          "imprint_url": {
+            "type": "string"
+          },
+          "privacy_url": {
+            "type": "string"
+          },
+          "terms_url": {
+            "type": "string"
+          },
+          "accessibility_url": {
+            "type": "string"
+          },
+          "rotation_from": {
+            "type": "string",
+            "enum": [
+              "now"
+            ],
+            "description": "The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.\n"
           }
         }
       },
@@ -11375,6 +11772,24 @@
             "items": {
               "$ref": "#/components/schemas/PasswordViolation"
             }
+          }
+        }
+      },
+      "SignInPasswordChange": {
+        "type": "object",
+        "required": [
+          "pending_token",
+          "password"
+        ],
+        "properties": {
+          "pending_token": {
+            "type": "string",
+            "description": "The credential the `PASSWORD_CHANGE` challenge handed out. It dies on use."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The new password, judged against this workspace's rule in full."
           }
         }
       },
@@ -11546,11 +11961,7 @@
           "methods": {
             "type": "array",
             "items": {
-              "type": "string",
-              "enum": [
-                "PASSWORD",
-                "OIDC"
-              ]
+              "$ref": "#/components/schemas/SignInMethod"
             },
             "description": "The ways in, in the order a screen draws them. `OIDC` is absent where no provider is configured, whatever the policy says: a button leading to a flow with no provider behind it is a button that answers an error.\n"
           },
@@ -11592,10 +12003,15 @@
               "enum": [
                 "TOTP",
                 "RECOVERY",
-                "ENROLL"
+                "ENROLL",
+                "PASSWORD_CHANGE"
               ]
             },
-            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a tenant switch routes into enrolment instead of into a session.\n"
+            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.\n"
+          },
+          "password_rules": {
+            "$ref": "#/components/schemas/PasswordRules",
+            "description": "Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.\n"
           }
         }
       },

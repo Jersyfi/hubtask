@@ -151,6 +151,7 @@ class Session(TypedDict, total=False):
     user_agent: str | None
     ip_class: str | None
     current: Required[bool]
+    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET"] | None
 
 class SessionTokens(TypedDict, total=False):
     """The pair and its session, shown for the only time. What is stored of the refresh token is a hash under its own purpose label; the access token is not stored at all - it verifies by its signature."""
@@ -271,6 +272,69 @@ class Workspace(TypedDict, total=False):
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
+    sign_in_policy: "SignInPolicy"
+
+class SignInPolicyNumber(TypedDict, total=False):
+    """One numeric switch, at the three levels that decide it. Zero is off for every one of them."""
+    value: Required[int]
+    installation: Required[int]
+    lock: Required["PolicyLock"]
+
+class SignInPolicyFlag(TypedDict, total=False):
+    value: Required[bool]
+    installation: Required[bool]
+    lock: Required["PolicyLock"]
+
+class SignInPolicyText(TypedDict, total=False):
+    value: Required[str]
+    installation: Required[str]
+    lock: Required["PolicyLock"]
+
+SignInMethod = Literal["PASSWORD", "OIDC"]
+
+class SignInPolicyMethods(TypedDict, total=False):
+    value: Required[list["SignInMethod"]]
+    installation: Required[list["SignInMethod"]]
+    lock: Required["PolicyLock"]
+
+PolicyLock = Literal["INSTANCE", "PLAN"] | None
+
+class SignInPolicy(TypedDict, total=False):
+    """The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
+    password: Required["PasswordPolicySettings"]
+    mfa_required_for: Required["SignInPolicyText"]
+    methods: Required["SignInPolicyMethods"]
+    session: Required["SessionPolicySettings"]
+    legal: Required["LegalPolicySettings"]
+    rotation_from: Required[str | None]
+
+class PasswordPolicySettings(TypedDict, total=False):
+    """The thirteen switches about the password itself, each at its three levels."""
+    min_length: Required["SignInPolicyNumber"]
+    min_lowercase: Required["SignInPolicyNumber"]
+    min_uppercase: Required["SignInPolicyNumber"]
+    min_digits: Required["SignInPolicyNumber"]
+    min_symbols: Required["SignInPolicyNumber"]
+    min_classes: Required["SignInPolicyNumber"]
+    max_repeat: Required["SignInPolicyNumber"]
+    common_passwords: Required["SignInPolicyFlag"]
+    context_words: Required["SignInPolicyFlag"]
+    breach_check: Required["SignInPolicyFlag"]
+    max_age_days: Required["SignInPolicyNumber"]
+    history_count: Required["SignInPolicyNumber"]
+    min_age_hours: Required["SignInPolicyNumber"]
+
+class SessionPolicySettings(TypedDict, total=False):
+    """The two bounds a session answers to beside its own expiry."""
+    max_days: Required["SignInPolicyNumber"]
+    idle_minutes: Required["SignInPolicyNumber"]
+
+class LegalPolicySettings(TypedDict, total=False):
+    """The four links, each with its own lock - B2C locks them, B2B leaves them open."""
+    imprint_url: Required["SignInPolicyText"]
+    privacy_url: Required["SignInPolicyText"]
+    terms_url: Required["SignInPolicyText"]
+    accessibility_url: Required["SignInPolicyText"]
 
 class WorkspaceUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here."""
@@ -278,6 +342,32 @@ class WorkspaceUpdate(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     require_admin_totp: bool
+    sign_in_policy: "SignInPolicyChange"
+
+class SignInPolicyChange(TypedDict, total=False):
+    """The switches, flat: the thirteen the password has, the two about factors and methods, the two session bounds, the four legal links, and the rotation as an action."""
+    min_length: int
+    min_lowercase: int
+    min_uppercase: int
+    min_digits: int
+    min_symbols: int
+    min_classes: int
+    max_repeat: int
+    common_passwords: bool
+    context_words: bool
+    breach_check: bool
+    max_age_days: int
+    history_count: int
+    min_age_hours: int
+    mfa_required_for: Literal["NONE", "ADMINS", "EVERYONE"]
+    methods: list["SignInMethod"]
+    session_max_days: int
+    session_idle_minutes: int
+    imprint_url: str
+    privacy_url: str
+    terms_url: str
+    accessibility_url: str
+    rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
     """How this workspace signs people in through its own provider. The client secret is not a member: it is sealed at configuration time and read only by the token exchange."""
@@ -314,6 +404,10 @@ class PasswordViolation(TypedDict, total=False):
 
 class PasswordCheckResult(TypedDict, total=False):
     violations: Required[list["PasswordViolation"]]
+
+class SignInPasswordChange(TypedDict, total=False):
+    pending_token: Required[str]
+    password: Required[str]
 
 class PasswordForgot(TypedDict, total=False):
     email: Required[str]
@@ -354,7 +448,7 @@ class LegalLinks(TypedDict, total=False):
 class SignInRules(TypedDict, total=False):
     """The least a sign-in screen needs, and deliberately no more."""
     workspace_host: Required[str]
-    methods: Required[list[Literal["PASSWORD", "OIDC"]]]
+    methods: Required[list["SignInMethod"]]
     providers: Required[list["ProviderSummary"]]
     password: Required["PasswordRules"]
     legal: Required["LegalLinks"]
@@ -363,7 +457,8 @@ class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]
     expires_at: Required[str]
-    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL"]]]
+    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE"]]]
+    password_rules: "PasswordRules"
 
 class SignInCompletion(TypedDict, total=False):
     pending_token: Required[str]

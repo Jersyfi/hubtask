@@ -1295,6 +1295,8 @@ type Session struct {
 	GrantID          pgtype.UUID
 	Scopes           []string
 	SignedInWith     *string
+	HardExpiresAt    pgtype.Timestamptz
+	IdleMinutes      *int32
 }
 
 type SessionRefreshToken struct {

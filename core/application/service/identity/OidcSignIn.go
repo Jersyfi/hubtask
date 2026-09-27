@@ -222,8 +222,12 @@ func (h CompleteOidcSignIn) Execute(
 		return SessionPair{}, err
 	}
 
-	return w.Session.openSession(ctx, scope, state.TenantID(), account,
-		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil)
+	// No bounds resolved here: a provider sign-in never held a password, so there is nothing for
+	// the rule to judge, and the workspace's session switches reach it with the next milestone that
+	// gives this path the resolver. What it does record is how it was opened.
+	return w.Session.openSessionWith(ctx, scope, state.TenantID(), account,
+		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
+		domain.SessionPolicy{}, domain.SignedInWithOidc)
 }
 
 // settleAccount finds the person the subject names, links them, or makes them.

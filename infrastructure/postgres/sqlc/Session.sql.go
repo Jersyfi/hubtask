@@ -560,6 +560,12 @@ func (q *Queries) FindRefreshTokenByHash(ctx context.Context, tokenHash []byte) 
 const findSessionForAuth = `-- name: FindSessionForAuth :one
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
+       s.hard_expires_at, s.idle_minutes, s.signed_in_with,
+       -- The rotation cutoff (ADR-0068 §3), off the row this query already joins: a session opened
+       -- before the moment somebody asked everybody for a new password is refused on its next
+       -- request. One extraction on a row already in hand, which is what makes the enforcement cost
+       -- nothing per request.
+       (n.settings #>> '{sign_in_policy,rotation_from}') AS rotation_from,
        g.client_id AS grant_client_id,
        a.kind     AS account_kind,
        a.status   AS account_status,
@@ -587,6 +593,10 @@ type FindSessionForAuthRow struct {
 	RevokedAt          pgtype.Timestamptz
 	GrantID            pgtype.UUID
 	Scopes             []string
+	HardExpiresAt      pgtype.Timestamptz
+	IdleMinutes        *int32
+	SignedInWith       *string
+	RotationFrom       interface{}
 	GrantClientID      pgtype.UUID
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
@@ -616,6 +626,10 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.RevokedAt,
 		&i.GrantID,
 		&i.Scopes,
+		&i.HardExpiresAt,
+		&i.IdleMinutes,
+		&i.SignedInWith,
+		&i.RotationFrom,
 		&i.GrantClientID,
 		&i.AccountKind,
 		&i.AccountStatus,
@@ -747,23 +761,29 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 const insertSession = `-- name: InsertSession :exec
 
 INSERT INTO session
-  (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes)
+  (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes,
+   hard_expires_at, idle_minutes, signed_in_with)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8
+  $7, $8,
+  -- The session's own bounds and how it was opened (migration 0100, ADR-0068 §3).
+  $9, $10, $11
 )
 `
 
 type InsertSessionParams struct {
-	ID        pgtype.UUID
-	AccountID pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	UserAgent *string
-	IpClass   *string
-	ExpiresAt pgtype.Timestamptz
-	GrantID   pgtype.UUID
-	Scopes    []string
+	ID            pgtype.UUID
+	AccountID     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	UserAgent     *string
+	IpClass       *string
+	ExpiresAt     pgtype.Timestamptz
+	GrantID       pgtype.UUID
+	Scopes        []string
+	HardExpiresAt pgtype.Timestamptz
+	IdleMinutes   *int32
+	SignedInWith  *string
 }
 
 // ============================== Sessions ==============================
@@ -779,6 +799,9 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.ExpiresAt,
 		arg.GrantID,
 		arg.Scopes,
+		arg.HardExpiresAt,
+		arg.IdleMinutes,
+		arg.SignedInWith,
 	)
 	return err
 }
@@ -1033,7 +1056,8 @@ func (q *Queries) SealedMfaEnrollmentsNotUnder(ctx context.Context, keyID string
 }
 
 const sessionsForAccount = `-- name: SessionsForAccount :many
-SELECT id, account_id, created_at, last_seen_at, user_agent, ip_class, expires_at, revoked_at
+SELECT id, account_id, created_at, last_seen_at, user_agent, ip_class, expires_at, revoked_at,
+       hard_expires_at, idle_minutes, signed_in_with
 FROM session
 WHERE account_id = $1
   AND revoked_at IS NULL
@@ -1047,14 +1071,17 @@ type SessionsForAccountParams struct {
 }
 
 type SessionsForAccountRow struct {
-	ID         pgtype.UUID
-	AccountID  pgtype.UUID
-	CreatedAt  pgtype.Timestamptz
-	LastSeenAt pgtype.Timestamptz
-	UserAgent  *string
-	IpClass    *string
-	ExpiresAt  pgtype.Timestamptz
-	RevokedAt  pgtype.Timestamptz
+	ID            pgtype.UUID
+	AccountID     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	LastSeenAt    pgtype.Timestamptz
+	UserAgent     *string
+	IpClass       *string
+	ExpiresAt     pgtype.Timestamptz
+	RevokedAt     pgtype.Timestamptz
+	HardExpiresAt pgtype.Timestamptz
+	IdleMinutes   *int32
+	SignedInWith  *string
 }
 
 // One's own live sessions, newest first. The dead ones are deliberately absent: a listing is for
@@ -1077,6 +1104,9 @@ func (q *Queries) SessionsForAccount(ctx context.Context, arg SessionsForAccount
 			&i.IpClass,
 			&i.ExpiresAt,
 			&i.RevokedAt,
+			&i.HardExpiresAt,
+			&i.IdleMinutes,
+			&i.SignedInWith,
 		); err != nil {
 			return nil, err
 		}

@@ -30,6 +30,10 @@ type SessionCredential struct {
 	// TokenRatePerMinute is the workspace's own request-rate ceiling (H-08), Credential's
 	// reason. 0 means the installation's default applies.
 	TokenRatePerMinute int64
+	// RotationFrom is the workspace's rotation cutoff (ADR-0068 §3), read off the tenant row this
+	// credential already joins. A session opened before it is refused on its next request - which
+	// is the whole of the enforcement, at no cost per request.
+	RotationFrom time.Time
 }
 
 // RefreshCredential is what the exchange reads: the presented link of the chain, its session,

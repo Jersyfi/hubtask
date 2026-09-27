@@ -216,8 +216,9 @@ func (h RedeemInvitation) Execute(
 		return SessionPair{}, err
 	}
 
-	return w.openSession(ctx, scope, token.TenantID(), account,
-		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil)
+	return w.openSessionWith(ctx, scope, token.TenantID(), account,
+		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil,
+		rules.Effective.Policy.Sessions, domain.SignedInWithInvitation)
 }
 
 // rulesFor resolves the workspace's rule, or the product's default on an installation wired

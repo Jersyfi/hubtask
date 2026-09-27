@@ -409,8 +409,12 @@ func (h ResetPassword) answer(
 ) (SignInResult, error) {
 	session := h.Writer.Session
 
-	challenge, err := session.challengeFor(ctx, scope, account, SignInCommand{
+	challenge, verdict, err := session.challengeFor(ctx, scope, account, SignInCommand{
 		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		// The password was just set and judged in full, so the change step must not fire again on
+		// the very password the rule accepted. The empty candidate is what says so: nothing to
+		// judge, and the verdict's other answers - the factor and the bounds - are what is wanted.
+		Password: secret.Secret{},
 	}, nil)
 	if err != nil {
 		return SignInResult{}, err
@@ -419,8 +423,9 @@ func (h ResetPassword) answer(
 		return SignInResult{Challenge: challenge}, nil
 	}
 
-	pair, err := session.openSession(ctx, scope, tenantID, account,
-		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil)
+	pair, err := session.openSessionWith(ctx, scope, tenantID, account,
+		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil,
+		verdict.Sessions, domain.SignedInWithReset)
 	if err != nil {
 		return SignInResult{}, err
 	}
