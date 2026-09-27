@@ -158,9 +158,9 @@ func TestTheMethodsAreNeverEmptyAndKeepTheContractsOrder(t *testing.T) {
 		t.Errorf("methods %v, want both back", resolved.Policy.Methods)
 	}
 
-	ordered := Effective(PolicyLayer{Patch: PolicyPatch{Methods: methodsOf(MethodOidc, MethodPassword)}},
+	ordered := Effective(PolicyLayer{Patch: PolicyPatch{Methods: methodsOf(MethodOidc, MethodDirect)}},
 		PolicyLayer{}, PolicyLayer{})
-	if ordered.Policy.Methods[0] != MethodPassword {
+	if ordered.Policy.Methods[0] != MethodDirect {
 		t.Errorf("methods %v, want the contract's order", ordered.Policy.Methods)
 	}
 }
@@ -175,7 +175,7 @@ func TestTighteningHasADirectionPerSwitch(t *testing.T) {
 			BreachCheck: false, MaxAgeDays: 90, HistoryCount: 3, MinAgeHours: 2,
 		},
 		MfaRequiredFor: MfaForAdmins,
-		Methods:        []string{MethodPassword, MethodOidc},
+		Methods:        []string{MethodDirect, MethodOidc},
 		Sessions:       SessionPolicy{MaxDays: 14, IdleMinutes: 60},
 	}
 
@@ -215,7 +215,7 @@ func TestTighteningHasADirectionPerSwitch(t *testing.T) {
 		{SwitchMaxAgeDays, PolicyPatch{MaxAgeDays: intOf(180)}},
 		{SwitchHistoryCount, PolicyPatch{HistoryCount: intOf(1)}},
 		{SwitchMfaRequiredFor, PolicyPatch{MfaRequiredFor: requirementOf(MfaForNobody)}},
-		{SwitchMethods, PolicyPatch{Methods: methodsOf(MethodPassword, MethodOidc, "PASSKEY")}},
+		{SwitchMethods, PolicyPatch{Methods: methodsOf(MethodDirect, MethodOidc, "PASSKEY")}},
 		{SwitchSessionMaxDays, PolicyPatch{SessionMaxDays: intOf(30)}},
 		{SwitchSessionIdleMinutes, PolicyPatch{SessionIdleMinutes: intOf(0)}},
 	}
@@ -377,7 +377,7 @@ func TestEverySwitchIsAddressable(t *testing.T) {
 		MinSymbols: intOf(1), MinClasses: intOf(4), MaxRepeat: intOf(2),
 		CommonPasswords: boolOf(true), ContextWords: boolOf(true), BreachCheck: boolOf(true),
 		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(1),
-		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodPassword),
+		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodDirect),
 		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), RotationFrom: &moment,
 	}
 
@@ -446,7 +446,7 @@ func TestEverySwitchMergesIntoItsOwnField(t *testing.T) {
 		MinSymbols: intOf(4), MinClasses: intOf(4), MaxRepeat: intOf(2),
 		CommonPasswords: boolOf(true), ContextWords: boolOf(true), BreachCheck: boolOf(true),
 		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(6),
-		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodPassword),
+		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodDirect),
 		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), RotationFrom: &moment,
 	}
 
