@@ -60,42 +60,51 @@ type ResolvedPolicy struct {
 	BlocklistFile string
 }
 
-// Resolve answers the rule in force inside the transaction the caller already opened.
+// Resolve answers the rule in force, in **one** scope.
 //
-// The instance level is read under the installation scope and the workspace's under its own: two
-// transactions, because the two rows live on two sides of the tenant boundary and one transaction
-// cannot be on both. The instance read is read-only, which is the only thing that scope permits.
+// Both rows are read under the workspace's own scope, and that is deliberate rather than
+// convenient: `instance_setting` carries no row-level policy (ADR-0070 §2), so it is as readable
+// under a tenant's scope as under none - and a second scope would be a *second* transaction. Which
+// matters for one reason: this resolver is called from inside transactions other people opened -
+// the workspace patch's, the credential read's - and a nested unit of work that changes tenant is
+// refused outright (`postgres.tenant_switch_in_transaction`), silently turning the whole resolution
+// into an error that the callers above read as a policy decision. It cost an afternoon once.
+//
+// With no workspace to resolve for - a host nobody answers at - there is no tenant to be in, and
+// the installation scope is the honest one.
 func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (ResolvedPolicy, error) {
-	var instance repository.InstanceLevel
-	err := r.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
-		func(ctx context.Context) error {
-			read, err := r.Instance.Read(ctx)
-			instance = read
-			return err
-		})
-	if err != nil {
-		return ResolvedPolicy{}, err
+	scope := persistence.InstallationScope()
+	if !tenantID.IsZero() {
+		scope = persistence.Scope{TenantID: tenantID}
 	}
 
-	workspace := domain.Workspace{}
-	if !tenantID.IsZero() {
-		err = r.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
-			func(ctx context.Context) error {
-				read, err := r.Workspaces.Find(ctx)
-				if err != nil {
-					if errors.Is(err, shared.ErrNotFound) {
-						// A host that resolves to no row answers the installation's level, which
-						// is what a workspace with nothing set answers too.
-						return nil
-					}
-					return err
-				}
-				workspace = read
-				return nil
-			})
+	var (
+		instance  repository.InstanceLevel
+		workspace domain.Workspace
+	)
+	err := r.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		read, err := r.Instance.Read(ctx)
 		if err != nil {
-			return ResolvedPolicy{}, err
+			return err
 		}
+		instance = read
+		if tenantID.IsZero() {
+			return nil
+		}
+		found, err := r.Workspaces.Find(ctx)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				// A host that resolves to no row answers the installation's level, which is what
+				// a workspace with nothing set answers too.
+				return nil
+			}
+			return err
+		}
+		workspace = found
+		return nil
+	})
+	if err != nil {
+		return ResolvedPolicy{}, err
 	}
 
 	legal, legalLocks := domain.EffectiveLegal(instance.Legal, workspace.Settings.LegalLayer())
@@ -191,6 +200,11 @@ type GetSignInRulesCommand struct {
 	Host         string
 	TenantSlug   string
 	TenantHeader string
+	// HasAccount is whether the caller is somebody with a password already. It decides two lines
+	// and nothing else: the history depth and "not the one you have now" are answered to a reader
+	// who has one and withheld from a reader who does not - a line under a field that can never be
+	// met is a line that only worries people, and a guesser must not learn the depth at all.
+	HasAccount bool
 }
 
 // GetSignInRules answers the public route.
@@ -235,7 +249,7 @@ func (h GetSignInRules) Execute(
 		WorkspaceHost: strings.TrimSpace(cmd.Host),
 		Methods:       methods,
 		Providers:     providers,
-		Password:      passwordRulesView(resolved, false),
+		Password:      passwordRulesView(resolved, cmd.HasAccount),
 		Legal:         resolved.Legal,
 	}, nil
 }
@@ -447,12 +461,16 @@ func (h GetSignInRules) Descriptor() usecase.Descriptor {
 }
 
 func (h GetSignInRules) invoke(
-	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	rules, err := h.Execute(ctx, GetSignInRulesCommand{
 		Host:         in.String("host"),
 		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
+		// The route is public, and a caller who *is* signed in is still the caller: the profile's
+		// password field reads this very answer, and it needs the two lines a signed-out visitor
+		// must not be given.
+		HasAccount: actor.IsAuthenticated() && !actor.AccountID.IsZero(),
 	})
 	if err != nil {
 		return nil, err

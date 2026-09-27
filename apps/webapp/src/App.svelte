@@ -101,11 +101,28 @@ import ContainerView from './views/ContainerView.svelte';
     if (session.isSignedIn && route.name === 'administration') router.replace(firstScreen(ADMINISTRATION));
   });
 
+  /**
+   * The address the sign-in card is reached at when somebody types it or follows a link to it.
+   *
+   * Deliberately not a route: the card is drawn for anybody who is signed out, wherever they are,
+   * which is what makes a deep link survive an expired session. This constant exists for the one
+   * place that has to know the difference - the moment after a sign-in, when the card stops being
+   * drawn and this address resolves to nothing.
+   */
+  const signInPath = '/sign-in';
+
   // Signing in again returns the reader to what they were looking at when the session ended. The
   // path is taken once: one that navigated twice would fight the reader's next click.
+  //
+  // And where there is none, the overview. `/sign-in` is an address the product prints itself -
+  // in a reset mail's neighbour, in the card's own links - and it is deliberately *not* a route:
+  // the card is drawn for anybody who is signed out, wherever they are. Which means that the
+  // moment the sign-in succeeds the card stops being drawn and the address resolves to nothing,
+  // so without this line a successful sign-in ends on the frame's "nothing at this address" -
+  // the one place it must not.
   $effect(() => {
     if (!session.isSignedIn) return;
-    const intended = session.takeIntendedPath();
+    const intended = session.takeIntendedPath() ?? (route.path === signInPath ? '/' : undefined);
     if (intended && intended !== route.path) router.navigate(intended);
   });
 
