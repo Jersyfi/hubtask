@@ -1,6 +1,6 @@
 # ADR-0070 — The instance layer: operators, instance settings, and the elevated session
 
-**Status:** proposed · **Date:** 2026-09-26
+**Status:** accepted · **Date:** 2026-09-26
 
 ## Context
 
@@ -158,6 +158,31 @@ in the route table, and `routes.test.ts` already asserts that the tagged set and
 feature entitlements — are a milestone of their own. This ADR only makes sure they do not need a
 second model: the resolver takes them, the workspace has the column, and the lock knows where it
 came from.
+
+## What is built, and what this decision still owes
+
+SI built the layer itself and one of §5's three doors. The accepted decision stands whole; what
+follows is the record of where the code is against it, so that nobody reads this document as a
+description of what exists.
+
+**Built.** The `operator` register with its four functions, `instance_setting` with the three
+boundary lists entered, the lock with its origin, `tenant.plan_id`, the resolver's plan parameter,
+`GET`/`PUT /admin/settings`, `GET`/`POST /admin/operators`, `DELETE /admin/operators/{accountId}`,
+`POST /auth/sessions:elevate` with `session.elevated_until`, and the journal at both ends of an
+elevation.
+
+**Not built, each its own task.** The `/instance` route area — so the elevation works today and
+there is nothing to look at with it but JSON. `hubctl admin settings|operator|legal|provider`.
+`HUBTASK_INSTANCE_FILE` in either mode, and therefore the health report's line saying which source
+is in force.
+
+**And one thing §1 says that the code does differently.** There is no `HUBTASK_OPERATORS`. The
+bootstrap is the rule §1 already states for the private installation, used as the way in: an empty
+register answers *yes* to `is_operator`, so the first `POST /admin/operators` on a fresh
+installation is made by whoever can already mint the scope, and from that row onwards the register
+is the bound. One mechanism instead of two, and no address parsed at start-up. An environment
+variable can still be added later for an installation that wants the register present before its
+first request; nothing here forecloses it.
 
 ## What the implementation settled
 

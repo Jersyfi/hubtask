@@ -779,7 +779,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0067 | The S3-compatible server the tests run against is SeaweedFS, in one place | accepted |
 | 0068 | The sign-in rule: three levels, a lock, and the password over its lifetime | accepted |
 | 0069 | A third-party brand mark is content, and the button stays ours | accepted |
-| 0070 | The instance layer: operators, instance settings, and the elevated session | proposed |
+| 0070 | The instance layer: operators, instance settings, and the elevated session | accepted |
 
 ---
 
