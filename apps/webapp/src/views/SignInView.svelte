@@ -219,6 +219,9 @@
       <Stack gap="200">
         {@render identity()}
         {#if usingRecovery}
+          <!-- The focus goes into the code. This step exists to receive one and nothing else on
+               it can be answered first, so leaving the caret nowhere would cost every reader a
+               click or a Tab before they could type what they came here to type. -->
           <CodeField
             label={t('app.sign_in.recovery_label')}
             hint={t('app.sign_in.recovery_hint')}
@@ -226,6 +229,7 @@
             length={8}
             groupOf={4}
             isRequired
+            isAutofocused
           />
         {:else}
           <CodeField
@@ -233,6 +237,7 @@
             hint={t('app.sign_in.code_hint')}
             bind:value={code}
             isRequired
+            isAutofocused
           />
         {/if}
         {#if expiry}

@@ -1131,7 +1131,9 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 			Text: forms,
 		}.Descriptor(),
-		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore}.Descriptor(),
+		identity.GetOwnAccount{
+			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,

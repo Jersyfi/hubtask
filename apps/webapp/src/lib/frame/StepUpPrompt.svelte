@@ -12,7 +12,7 @@
   // factor is asked for a code, one without is asked for its password, and a refusal that named
   // nothing falls back to the password because that is the one every account has.
 
-  import { Banner, Button, Dialog, Input, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, CodeField, Dialog, Input, Stack } from '@hubtask/design-system/components';
 
   import { stepUp } from '../data/stepup.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -59,13 +59,13 @@
 
       <form id="step-up" onsubmit={prove}>
         {#if wantsCode}
-          <Input
+          <!-- The same field the sign-in's second step draws, because it is the same six digits
+               from the same authenticator. A modal focuses its first control by itself, so there
+               is nothing to ask for here. -->
+          <CodeField
             label={t('app.step_up.code_label')}
             hint={t('app.step_up.code_hint')}
             bind:value={code}
-            autocomplete="one-time-code"
-            inputmode="numeric"
-            spellcheck={false}
             isRequired
           />
         {:else}

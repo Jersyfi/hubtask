@@ -398,15 +398,11 @@ func (h ChangePassword) Execute(
 	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
 		return shared.ErrUnauthenticated.WithDetail("access.credential_required")
 	}
-	if cmd.StepUpToken == "" {
-		return shared.ErrForbidden.WithDetail("auth.step_up_required")
-	}
-	satisfied, err := w.StepUp.Satisfied(ctx, actor.AccountID, cmd.StepUpToken)
-	if err != nil {
+	// Demand names the methods on the refusal, which is the whole of what the prompt is built
+	// from: without them a person with an authenticator was asked for their password.
+	if err := stepupport.Demand(
+		ctx, w.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 		return err
-	}
-	if !satisfied {
-		return shared.ErrForbidden.WithDetail("auth.step_up_required")
 	}
 
 	candidate, err := h.candidateFor(ctx, actor, cmd.Password)
@@ -535,12 +531,9 @@ func (h CheckPassword) candidateFor(
 
 	switch {
 	case cmd.StepUpToken != "" && actor.IsAuthenticated() && !actor.AccountID.IsZero():
-		satisfied, err := w.StepUp.Satisfied(ctx, actor.AccountID, cmd.StepUpToken)
-		if err != nil {
+		if err := stepupport.Demand(
+			ctx, w.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 			return PasswordCandidate{}, err
-		}
-		if !satisfied {
-			return PasswordCandidate{}, shared.ErrForbidden.WithDetail("auth.step_up_required")
 		}
 		return h.forAccount(ctx, actor.TenantID, actor.AccountID, cmd.Password, false)
 	case actor.IsAuthenticated() && !actor.AccountID.IsZero():

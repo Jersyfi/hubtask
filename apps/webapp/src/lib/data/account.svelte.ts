@@ -62,6 +62,39 @@ class Actor {
     return this.account?.week_start ?? null;
   }
 
+  /**
+   * Whether this account holds an armed second factor.
+   *
+   * `undefined` where nothing is known yet, or where the installation is older than the field -
+   * and a screen must treat that as "not answered" rather than as "no". Guessing in either
+   * direction is how the security screen came to offer actions the server refuses.
+   */
+  get hasSecondFactor(): boolean | undefined {
+    return this.account?.has_second_factor;
+  }
+
+  /**
+   * How many recovery codes are left, or `undefined` where there is nothing to count.
+   *
+   * Absent is not zero. It is answered only for an account that holds a second factor, so a screen
+   * reading it knows both things from one field.
+   */
+  get recoveryCodesLeft(): number | undefined {
+    return this.account?.recovery_codes_remaining;
+  }
+
+  /**
+   * Reads the account again.
+   *
+   * For the two moments this document changes without a write to it: arming a second factor and
+   * taking one off. Both move `has_second_factor`, and a screen still holding the old answer would
+   * offer the action that was just taken.
+   */
+  async reread(): Promise<void> {
+    if (platform.bearer() === undefined) return;
+    await engine.refresh<Account>({ path: PATH });
+  }
+
   start(): () => void {
     if (platform.bearer() === undefined) {
       // Nobody is signed in, so nothing is known - including whatever a previous session read.

@@ -14,6 +14,13 @@
   // says `Escape` closes the topmost *layer*, which may be a popover opened from inside this
   // dialog. So `cancel` is refused and the register decides - which is exactly what
   // `layers.ts` was written before this component to make possible.
+  //
+  // The one other thing it does not get right is where the focus lands. `showModal` focuses the
+  // first focusable descendant, which in this layout is the dismiss control in the header - so a
+  // dialog whose whole purpose is to be answered opened with the caret on its close button. Where
+  // the body holds a field, the focus goes into the field instead; where it holds none, the
+  // browser's own answer stands, because focusing a destructive button for somebody would be
+  // worse than focusing nothing.
 
   import type { Snippet } from 'svelte';
 
@@ -42,7 +49,20 @@
   const titleId = `dialog-${Math.random().toString(36).slice(2, 9)}`;
 
   let node = $state<HTMLDialogElement | null>(null);
+  let body = $state<HTMLDivElement | null>(null);
   let opener: Element | null = null;
+
+  /** The first control in the body somebody would type into, if there is one. */
+  function firstField(): HTMLElement | undefined {
+    const candidates = body?.querySelectorAll<HTMLElement>(
+      'input:not([type="hidden"]), textarea, select, [contenteditable="true"]',
+    );
+    for (const candidate of candidates ?? []) {
+      const disabled = candidate.matches(':disabled') || candidate.getAttribute('aria-disabled') === 'true';
+      if (!disabled && candidate.offsetParent !== null) return candidate;
+    }
+    return undefined;
+  }
 
   function close() {
     if (!isOpen) return;
@@ -60,6 +80,7 @@
 
     opener = document.activeElement;
     if (!dialog.open) dialog.showModal();
+    firstField()?.focus();
 
     const handle = layers.open('dialog', close);
     const onKeydown = escapeHandler();
@@ -99,7 +120,7 @@
         <IconButton icon="x" label={dismissLabel} size="sm" onclick={() => close()} />
       {/if}
     </header>
-    <div class="body">{@render children()}</div>
+    <div class="body" bind:this={body}>{@render children()}</div>
     {#if actions}
       <footer class="actions">{@render actions()}</footer>
     {/if}

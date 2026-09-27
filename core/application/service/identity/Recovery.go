@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -119,18 +120,13 @@ func (h RegenerateRecoveryCodes) Execute(
 func (w SessionWriter) requireStepUp(
 	ctx context.Context, actor appshared.ActorContext, token string,
 ) error {
-	verifier := StepUpVerifier{Writer: w}
-	if token == "" {
-		return shared.ErrForbidden.WithDetail("auth.step_up_required")
-	}
-	satisfied, err := verifier.Satisfied(ctx, actor.AccountID, token)
-	if err != nil {
-		return err
-	}
-	if !satisfied {
-		return shared.ErrForbidden.WithDetail("auth.step_up_required")
-	}
-	return nil
+	// Through the port's own Demand rather than by hand. Demand is what puts `params.methods` on
+	// the refusal - the password for every account, the code where a factor is armed - and the
+	// contract promises that list at `POST /auth/step-up`: "a client builds its prompt from that
+	// list, never from a guess". Written out here, the list was missing, so every client fell back
+	// to the password and an account with an authenticator was asked for the wrong thing.
+	return stepupport.Demand(
+		ctx, StepUpVerifier{Writer: w}, actor.TenantID, actor.AccountID, token)
 }
 
 // Descriptor is the catalogue entry.

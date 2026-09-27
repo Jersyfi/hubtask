@@ -250,7 +250,7 @@ func TestALockedSwitchIsRefusedAgainstItsField(t *testing.T) {
 		Locks:  map[PolicySwitch]LockOrigin{SwitchMinLength: LockInstance},
 	}
 
-	_, _, err := resolved.Tightened(PolicyPatch{MinLength: intOf(20)})
+	_, _, err := resolved.Tightened(DefaultSignInPolicy(), PolicyPatch{MinLength: intOf(20)})
 
 	var refusal *shared.Error
 	if !errors.As(err, &refusal) || len(refusal.Fields) != 1 {
@@ -265,12 +265,79 @@ func TestALockedSwitchIsRefusedAgainstItsField(t *testing.T) {
 	}
 }
 
+// A form sends every row it shows, including the rows it is not allowed to move. Sending a locked
+// switch back at the value it already holds asks for nothing, so it is refused by nothing - and
+// without that, moving any one switch on a screen where some other switch is locked answers a
+// refusal naming a switch nobody touched, and writes neither.
+func TestALockedSwitchSentBackUnchangedIsNotARefusal(t *testing.T) {
+	resolved := EffectivePolicy{
+		Policy: DefaultSignInPolicy(),
+		Locks:  map[PolicySwitch]LockOrigin{SwitchCommonPasswords: LockInstance},
+	}
+
+	result, moved, err := resolved.Tightened(DefaultSignInPolicy(), PolicyPatch{
+		CommonPasswords: boolOf(resolved.Policy.Password.CommonPasswords),
+		BreachCheck:     boolOf(!resolved.Policy.Password.BreachCheck),
+	})
+	if err != nil {
+		t.Fatalf("a locked switch at its own value was refused: %v", err)
+	}
+	if len(moved) != 1 || moved[0].Field != string(SwitchBreachCheck) {
+		t.Fatalf("changes %v, want only the one that moved", moved)
+	}
+	if result.Password.BreachCheck == DefaultSignInPolicy().Password.BreachCheck {
+		t.Error("the switch that was allowed to move did not move")
+	}
+
+	// Moving it is still refused, which is the whole of the lock.
+	if _, _, err := resolved.Tightened(DefaultSignInPolicy(), PolicyPatch{
+		CommonPasswords: boolOf(!resolved.Policy.Password.CommonPasswords),
+	}); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("moving a locked switch answered %v", err)
+	}
+}
+
+// A workspace may relax its *own* tightening, down to the level above and no further. Without this
+// a workspace's setting was a one-way ratchet: somebody who raised the minimum length to twenty
+// could not put it back to nineteen, because nineteen is below what they themselves had just typed -
+// so a mistyped switch was permanent and the only way back was the control plane.
+func TestAWorkspaceMayRelaxItsOwnTighteningDownToTheLevelAbove(t *testing.T) {
+	instance := PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12), SessionMaxDays: intOf(30)}}
+	// The workspace has already gone past it, in both directions the switches run.
+	workspace := PolicyLayer{Patch: PolicyPatch{MinLength: intOf(20), SessionMaxDays: intOf(7)}}
+	resolved := Effective(instance, PolicyLayer{}, workspace)
+	above := Effective(instance, PolicyLayer{}, PolicyLayer{}).Policy
+
+	result, moved, err := resolved.Tightened(above, PolicyPatch{
+		MinLength:      intOf(16),
+		SessionMaxDays: intOf(14),
+	})
+	if err != nil {
+		t.Fatalf("relaxing its own value towards the installation's was refused: %v", err)
+	}
+	if result.Password.MinLength != 16 || result.Sessions.MaxDays != 14 {
+		t.Errorf("the rule reads %d/%d, want 16/14", result.Password.MinLength, result.Sessions.MaxDays)
+	}
+	if len(moved) != 2 {
+		t.Errorf("changes %v, want both", moved)
+	}
+
+	// And not one step past it. The installation's floor is the thing that holds.
+	for _, patch := range []PolicyPatch{{MinLength: intOf(11)}, {SessionMaxDays: intOf(31)}} {
+		_, _, err := resolved.Tightened(above, patch)
+		var refusal *shared.Error
+		if !errors.As(err, &refusal) || refusal.DetailCode != "auth.policy_loosens" {
+			t.Errorf("going below the installation answered %v", err)
+		}
+	}
+}
+
 // A value set to what it already holds is not a change: a client sending the whole form back
 // would otherwise write an audit entry saying nothing happened, every time.
 func TestOnlyWhatMovedIsAChange(t *testing.T) {
 	resolved := Effective(PolicyLayer{}, PolicyLayer{}, PolicyLayer{})
 
-	_, moved, err := resolved.Tightened(PolicyPatch{
+	_, moved, err := resolved.Tightened(DefaultSignInPolicy(), PolicyPatch{
 		MinLength:    intOf(MinPasswordLength),
 		HistoryCount: intOf(5),
 	})
@@ -425,7 +492,7 @@ func TestAnUndeclaredSwitchIsCarriedByNothing(t *testing.T) {
 	if err := Tighten("what_i_had_for_lunch", DefaultSignInPolicy(), patch); err != nil {
 		t.Errorf("a name the patch does not carry was judged: %v", err)
 	}
-	if _, moved, err := (EffectivePolicy{Policy: DefaultSignInPolicy()}).Tightened(
+	if _, moved, err := (EffectivePolicy{Policy: DefaultSignInPolicy()}).Tightened(DefaultSignInPolicy(),
 		PolicyPatch{},
 	); err != nil || len(moved) != 0 {
 		t.Errorf("an empty patch moved %v (%v)", moved, err)

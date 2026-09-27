@@ -620,16 +620,43 @@ func isSubset(proposed, inForce []string) bool {
 }
 
 // Tightened applies a workspace's patch onto the rule in force, refusing a switch the level
-// above locked and a switch the patch loosens - by field, so that a screen with eighteen rows
-// marks the one that was wrong.
+// above locked and a switch that would go below `above` - by field, so that a screen with eighteen
+// rows marks the one that was wrong.
+//
+// `above` is the level above this workspace - the installation, and the plan once there is one -
+// resolved *without* the workspace's own layer. It is a parameter rather than a field on this
+// value, and both halves of that are deliberate.
+//
+// A parameter, because a field would be a field a caller could leave zero, and a zero policy has
+// every minimum at nothing: forgetting it would quietly permit the loosening this refuses.
+//
+// The level above rather than the rule in force, because the rule in force already contains the
+// workspace's own value, and comparing with it makes a workspace's own setting a one-way ratchet.
+// Somebody who raised the minimum length to twenty could not put it back to nineteen - not because
+// nineteen breaks any rule of the installation's, but because it is below what they themselves had
+// typed a moment earlier. A mistyped switch would then be permanent, and the only way back would be
+// the control plane. What ADR-0068 requires is that a workspace never goes below the level above,
+// which is what this compares against, and it is the same comparison `Effective` makes when it
+// resolves a stored row.
 //
 // It answers the fields that moved for the audit entry, in a stable order, WorkspaceChange's
 // discipline: a value set to what it already is is not a change.
-func (e EffectivePolicy) Tightened(patch PolicyPatch) (SignInPolicy, []FieldChange, error) {
+func (e EffectivePolicy) Tightened(above SignInPolicy, patch PolicyPatch) (SignInPolicy, []FieldChange, error) {
 	moved := map[string]FieldChange{}
 	result := e.Policy
 
 	for _, name := range patch.Decided() {
+		before := SwitchText(result, name)
+		next := applySwitch(result, name, patch)
+		after := SwitchText(next, name)
+		if after == before {
+			// Set to what it already is. That is not a change, so there is nothing here for the
+			// lock below or the direction after it to refuse - and refusing it anyway is what a
+			// screen meets, because a form sends every row it shows. Somebody who moved one
+			// switch was told they may not change a *different* one, naming a switch they had
+			// not touched, and the one they did move was not written.
+			continue
+		}
 		if origin := e.LockOf(name); origin != LockNone {
 			return SignInPolicy{}, nil, shared.ErrValidation.
 				WithDetail("auth.policy_locked").
@@ -640,14 +667,11 @@ func (e EffectivePolicy) Tightened(patch PolicyPatch) (SignInPolicy, []FieldChan
 					Params: map[string]string{"origin": string(origin)},
 				})
 		}
-		if err := Tighten(name, e.Policy, patch); err != nil {
+		if err := Tighten(name, above, patch); err != nil {
 			return SignInPolicy{}, nil, err
 		}
-		before := SwitchText(result, name)
-		result = applySwitch(result, name, patch)
-		if after := SwitchText(result, name); after != before {
-			moved[string(name)] = FieldChange{Field: string(name), From: before, To: after}
-		}
+		result = next
+		moved[string(name)] = FieldChange{Field: string(name), From: before, To: after}
 	}
 
 	return bounded(result), sortedChanges(moved), nil

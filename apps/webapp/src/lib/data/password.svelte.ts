@@ -24,6 +24,7 @@ import { engine } from './engine.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
 import { session } from '../session.svelte.ts';
+import { stepUp } from './stepup.svelte.ts';
 
 const FORGOT = '/auth/password:forgot';
 const RESET = '/auth/password:reset';
@@ -119,17 +120,23 @@ class Password {
    * Changes the password of the signed-in account, behind the step-up the server demands.
    *
    * The step-up is the proof of the old password, which is why there is no "current password"
-   * field: asking for it beside a step-up would be asking twice for one thing (3.3.7).
+   * field: asking for it beside a step-up would be asking twice for one thing (3.3.7). And it is
+   * `stepUp.around` that makes that true - without it the server's `403 auth.step_up_required`
+   * arrives as a red sentence asking for a proof on a screen offering nowhere to give one, which
+   * is exactly the screen somebody meets when the one field they see is the new password.
    */
-  async change(newPassword: string, stepUpToken?: string): Promise<boolean> {
+  async change(newPassword: string): Promise<boolean> {
     this.#working = true;
     this.#problem = undefined;
     this.#changed = false;
     try {
-      await engine.mutate<void>('POST', CHANGE, {
-        password: newPassword,
-        ...(stepUpToken ? { step_up_token: stepUpToken } : {}),
-      });
+      // The grant travels in `X-Hubtask-Step-Up`, which is what the option puts it in - never in
+      // the body. The descriptor declares `password` and nothing else, so a `step_up_token` member
+      // is refused as an input key that does not exist: `422 usecase.input_invalid` against
+      // `/step_up_token`, after the prompt was answered correctly.
+      await stepUp.around((stepUpToken) =>
+        engine.mutate<void>('POST', CHANGE, { password: newPassword }, { stepUpToken }),
+      );
       this.#changed = true;
       return true;
     } catch (cause) {

@@ -206,17 +206,9 @@ func (w WorkspaceWriter) proveForPolicy(
 	if w.StepUp == nil {
 		return nil
 	}
-	if token == "" {
-		return shared.ErrForbidden.WithDetail("auth.step_up_required")
-	}
-	satisfied, err := w.StepUp.Satisfied(ctx, actor.AccountID, token)
-	if err != nil {
-		return err
-	}
-	if !satisfied {
-		return shared.ErrForbidden.WithDetail("auth.step_up_required")
-	}
-	return nil
+	// Demand rather than the same three checks written out: it is what names the methods on the
+	// refusal, which is what a client builds its prompt from.
+	return stepupport.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, token)
 }
 
 // record writes the trail entry: which fields moved, from what, to what.

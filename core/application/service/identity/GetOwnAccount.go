@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -42,6 +43,15 @@ type GetOwnAccount struct {
 	// nobody can act on it. Here it is beside the account, where the screen that makes new ones is.
 	// Nil answers nothing, which is what an installation wired without the second factor does.
 	Recovery repository.RecoveryCodes
+	// Enrollments answers the one question no read in the contract answered: whether this account
+	// holds a second factor at all.
+	//
+	// The security screen said so in its own comment and worked around it - it offered enrolment
+	// and let the server refuse one that was already armed. That is survivable for enrolment and
+	// wrong for everything beside it. Without this, a screen cannot tell an account with no
+	// authenticator from one whose codes have all been spent, so it showed somebody with no
+	// authenticator a red "none left" and offered them two actions the server would refuse.
+	Enrollments repository.MfaEnrollments
 }
 
 // Execute returns the account of the authenticated actor.
@@ -58,15 +68,21 @@ type GetOwnAccount struct {
 // found through the transaction wrapper that sets `app.tenant_id` (ADR-0010). An actor of another
 // tenant does not resolve here because row level security does not return the row, which is what
 // the cross-tenant test asserts rather than assumes.
-// OwnAccount is the account plus the one thing about it that is not on the row: how many recovery
-// codes are left. A second value rather than a field on the domain type, because the count is a
-// projection of another table and an account is not the place to cache one.
+// OwnAccount is the account plus the two things about it that are not on the row: whether a second
+// factor is armed, and how many recovery codes are left. Two further values rather than fields on
+// the domain type, because both are projections of other tables and an account is not the place to
+// cache one.
 type OwnAccount struct {
 	Account domain.Account
-	// RecoveryCodesRemaining is -1 only on an installation wired without the second factor, where
-	// there is nothing to count at all. Zero is answered *as zero*: an account with no enrolment
-	// has no live codes, which is literally true and reads as "enrol" rather than as a gap - and
-	// for an account that has one, zero is the number to act on.
+	// HasSecondFactor is whether an *armed* enrolment stands. An enrolment begun and never
+	// confirmed protects nobody and locks nobody out, so it counts as none here - the same reading
+	// the sign-in path takes.
+	HasSecondFactor bool
+	// RecoveryCodesRemaining is -1 where there is nothing to count: an installation wired without
+	// the second factor, or an account that holds none. Its codes are not "zero left", they are a
+	// thing that does not exist yet, and a screen told zero sends somebody to make codes the server
+	// would refuse to make. Where a factor is armed, zero is answered as zero, because there zero
+	// is the number to act on.
 	RecoveryCodesRemaining int
 }
 
@@ -130,10 +146,23 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 	}
 
 	answer := OwnAccount{Account: account, RecoveryCodesRemaining: -1}
-	if h.Recovery == nil {
+	if h.Recovery == nil || h.Enrollments == nil {
 		return answer, nil
 	}
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		enrollment, err := h.Enrollments.Find(ctx, actor.AccountID)
+		switch {
+		case errors.Is(err, shared.ErrNotFound):
+			return nil
+		case err != nil:
+			return err
+		case enrollment.ConfirmedAt.IsZero():
+			// Begun and not armed. The codes shown on the enrolment screen are still the ones
+			// that count, and this screen has nothing to say about them yet.
+			return nil
+		}
+		answer.HasSecondFactor = true
+
 		remaining, err := h.Recovery.Remaining(ctx, actor.AccountID)
 		if err != nil {
 			return err
@@ -155,6 +184,7 @@ func (h GetOwnAccount) invoke(
 		return nil, err
 	}
 	out := accountOutput(own.Account)
+	out["has_second_factor"] = own.HasSecondFactor
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

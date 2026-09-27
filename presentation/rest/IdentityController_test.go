@@ -124,6 +124,39 @@ func TestAnUnsetPreferenceIsAbsentRatherThanEmpty(t *testing.T) {
 	}
 }
 
+// The second factor and the codes reach the body, which is not something the schema can be trusted
+// to say: `accountResponse` is a hand-written projection, and a member the use case answers but the
+// projection does not copy is a member that validates, generates and never arrives. That is exactly
+// what happened to `has_second_factor` - answered by the use case, absent from every response.
+func TestTheSecondFactorAndTheCodeCountReachTheBody(t *testing.T) {
+	out := ownAccount()
+	out["has_second_factor"] = true
+	out["recovery_codes_remaining"] = 0
+
+	recorder := identityRequest(t, &catalogue{out: out}, http.MethodGet, "/accounts/me")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	var body openapi.Account
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if body.HasSecondFactor == nil || !*body.HasSecondFactor {
+		t.Errorf("has_second_factor = %v, want true", body.HasSecondFactor)
+	}
+	if body.RecoveryCodesRemaining == nil || *body.RecoveryCodesRemaining != 0 {
+		t.Errorf("recovery_codes_remaining = %v, want zero answered as zero", body.RecoveryCodesRemaining)
+	}
+
+	// An account holding no factor answers neither number, and absent is not zero.
+	bare := ownAccount()
+	bare["has_second_factor"] = false
+	recorder = identityRequest(t, &catalogue{out: bare}, http.MethodGet, "/accounts/me")
+	if strings.Contains(recorder.Body.String(), `"recovery_codes_remaining"`) {
+		t.Errorf("a count was answered for an account with no factor: %s", recorder.Body)
+	}
+}
+
 // A merge patch says "leave it alone" by omission and "clear it" by an empty string or a null: the
 // contract declares null for all three preferences. The generated pointer reads a null as an
 // omission, so the handler reads presence from the bytes (issue 709).

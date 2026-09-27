@@ -61,6 +61,7 @@ class Account(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    has_second_factor: bool
     recovery_codes_remaining: int
 
 class Actor(TypedDict, total=False):

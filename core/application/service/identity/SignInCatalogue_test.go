@@ -6,7 +6,9 @@ package identity
 import (
 	"errors"
 	"testing"
+	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -265,17 +267,22 @@ func TestTheFlatPatchIsReadAndChecked(t *testing.T) {
 	}
 }
 
-// The count of recovery codes rides beside the account, where somebody can act on it.
+// The count of recovery codes rides beside the account, where somebody can act on it - and only
+// for an account that holds a second factor, because for every other one the number is not zero,
+// it is nothing.
 func TestTheOwnAccountCarriesTheRecoveryCount(t *testing.T) {
 	fixture := newRecoveryFixture(t)
+	enrollments := newEnrollments()
 	handler := GetOwnAccount{
-		Accounts:   fixture.writer.People,
-		UnitOfWork: &unitOfWork{},
-		Recovery:   fixture.writer.Recovery,
+		Accounts:    fixture.writer.People,
+		UnitOfWork:  &unitOfWork{},
+		Recovery:    fixture.writer.Recovery,
+		Enrollments: enrollments,
 	}
 	actor := recoveryActor()
 	actor.Scopes = []string{accountsRead}
 
+	// No enrolment at all: the account reads, and neither answer is invented.
 	own, err := handler.ExecuteWithRecovery(t.Context(), actor)
 	if err != nil {
 		t.Fatalf("reading: %v", err)
@@ -283,18 +290,45 @@ func TestTheOwnAccountCarriesTheRecoveryCount(t *testing.T) {
 	if own.Account.ID != account {
 		t.Errorf("the account reads %v", own.Account.ID)
 	}
-	if own.RecoveryCodesRemaining != 0 {
-		t.Errorf("the count reads %d, want zero answered as zero", own.RecoveryCodesRemaining)
+	if own.HasSecondFactor {
+		t.Error("an account with no enrolment was said to hold a second factor")
+	}
+	if own.RecoveryCodesRemaining != -1 {
+		t.Errorf("the count reads %d, want nothing to count", own.RecoveryCodesRemaining)
 	}
 
-	// Without the store there is nothing to count, and the member is absent rather than zero.
+	// Begun and never confirmed protects nobody, so it is still none.
+	enrollments.rows[account] = &repository.MfaEnrollment{AccountID: account}
+	begun, err := handler.ExecuteWithRecovery(t.Context(), actor)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if begun.HasSecondFactor || begun.RecoveryCodesRemaining != -1 {
+		t.Errorf("an unconfirmed enrolment answered %v/%d", begun.HasSecondFactor, begun.RecoveryCodesRemaining)
+	}
+
+	// Armed, with every code spent: zero is answered as zero, because there it is the number to
+	// act on - and the screen that offers new ones is the one reading this.
+	enrollments.rows[account].ConfirmedAt = time.Unix(1, 0).UTC()
+	armed, err := handler.ExecuteWithRecovery(t.Context(), actor)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if !armed.HasSecondFactor {
+		t.Error("an armed enrolment was not reported")
+	}
+	if armed.RecoveryCodesRemaining != 0 {
+		t.Errorf("the count reads %d, want zero answered as zero", armed.RecoveryCodesRemaining)
+	}
+
+	// Without the store there is nothing to count, and both members are absent.
 	handler.Recovery = nil
 	none, err := handler.ExecuteWithRecovery(t.Context(), actor)
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}
-	if none.RecoveryCodesRemaining != -1 {
-		t.Errorf("an installation with no second factor answered %d", none.RecoveryCodesRemaining)
+	if none.HasSecondFactor || none.RecoveryCodesRemaining != -1 {
+		t.Errorf("an installation with no second factor answered %v/%d", none.HasSecondFactor, none.RecoveryCodesRemaining)
 	}
 }
 

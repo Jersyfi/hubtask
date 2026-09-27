@@ -72,7 +72,7 @@ func (w WorkspaceWriter) applyPolicy(
 		patch.RotationFrom = &moment
 	}
 
-	if _, moved, err := resolved.Effective.Tightened(patch); err != nil {
+	if _, moved, err := resolved.Effective.Tightened(resolved.Installation, patch); err != nil {
 		return domain.Workspace{}, nil, err
 	} else if len(moved) > 0 || change.RotateNow {
 		changed := stored
@@ -115,6 +115,22 @@ func (WorkspaceWriter) applyLegal(
 		if !held {
 			continue
 		}
+		checked, err := domain.ValidLegalURL(name, value)
+		if err != nil {
+			return domain.LegalLinks{}, nil, err
+		}
+		// Against the rule in force rather than against this workspace's own row, because the rule
+		// in force is what the screen read and therefore what it sends back. A link inherited from
+		// the instance is stored here as nothing at all, so comparing with the stored row makes
+		// every inherited link look changed - which is how sending the form back unchanged was
+		// refused for a locked link nobody had touched.
+		if checked == resolved.Legal.Of(name) {
+			// Sent unchanged, which a form does for every field it shows. Not a change, so the
+			// lock below has nothing to refuse - see EffectivePolicy.Tightened for the same rule
+			// and the same reason. It also means an inherited link is not silently pinned to this
+			// workspace by a save that did not touch it.
+			continue
+		}
 		if origin := resolved.LegalLock[name]; origin != domain.LockNone {
 			return domain.LegalLinks{}, nil, shared.ErrValidation.
 				WithDetail("auth.policy_locked").
@@ -125,15 +141,8 @@ func (WorkspaceWriter) applyLegal(
 					Params: map[string]string{"origin": string(origin)},
 				})
 		}
-		checked, err := domain.ValidLegalURL(name, value)
-		if err != nil {
-			return domain.LegalLinks{}, nil, err
-		}
-		if checked == links.Of(name) {
-			continue
-		}
 		moved = append(moved, domain.FieldChange{
-			Field: string(name), From: links.Of(name), To: checked,
+			Field: string(name), From: resolved.Legal.Of(name), To: checked,
 		})
 		links = links.With(name, checked)
 	}

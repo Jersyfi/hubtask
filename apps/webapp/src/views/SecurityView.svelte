@@ -13,14 +13,18 @@
   // for. They used to be a plain list with no way to copy them, which is a set of ten codes
   // somebody has to retype by hand at the worst possible moment.
   //
-  // **Whether one is armed is not something this client is told.** No read answers it, and
-  // inferring it from a sign-in that did not ask for a code would be inferring from an absence. So
-  // the screen offers enrolment, and the server refuses one that is already armed — in its own
-  // words, which is the honest answer rather than a guess.
+  // **Whether one is armed decides what this screen offers.** `GET /accounts/me` answers
+  // `has_second_factor`, and everything below the password hangs off it. Before it was answered,
+  // this screen could not tell an account with no authenticator from one whose codes had all been
+  // spent, and so it showed somebody with no authenticator a red "none left", a button to make new
+  // codes the server would refuse to make, and a way to switch off a factor they did not have. An
+  // action that cannot be taken is not offered here, in any of the three places - the whole panel
+  // is absent, and what stands in its place says what would put it there.
   //
   // **Taking it off asks for the password again**, which is the one case where being signed in is
   // not enough: a stolen session removing the factor is exactly the attack the factor exists
-  // against (`security.md` §5).
+  // against (`security.md` §5). And it says what it costs before it is opened, because "turn it
+  // off" on its own names neither the thing nor the consequence.
 
   import { canCopy } from '@hubtask/design-system/components';
   import { Banner, Button, EmptyState, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
@@ -37,16 +41,16 @@
   import { t } from '../lib/i18n/i18n.svelte.ts';
 
   const account = $derived(actor.account);
-  /**
-   * How many recovery codes are left.
-   *
-   * Read defensively: an installation that has not shipped the field yet answers nothing, and a
-   * screen that turned that into "0 left" would send somebody to make new codes they do not need.
-   */
-  const left = $derived.by(() => {
-    const answered = (account as unknown as { recovery_codes_remaining?: unknown } | undefined)?.recovery_codes_remaining;
-    return typeof answered === 'number' ? answered : undefined;
-  });
+
+  // Whether a second factor is armed. The bundle ships inside the binary that answers this
+  // (ADR-0028), so the field is never missing from a server this client is talking to; `=== true`
+  // is nevertheless what is asked, because the permissive reading of an unanswered question is
+  // what put three refusals on this screen.
+  const armed = $derived(actor.hasSecondFactor === true);
+
+  // How many recovery codes are left. Answered only where a factor is armed, so it needs no
+  // defence of its own: the panel that reads it is inside that branch.
+  const left = $derived(actor.recoveryCodesLeft);
 
   let disablePassword = $state('');
   let newPassword = $state('');
@@ -66,7 +70,17 @@
   }
 
   async function newCodes(): Promise<void> {
-    if (await mfa.regenerate()) announcer.say(t('auth.recovery_regenerated'));
+    if (await mfa.regenerate()) {
+      announcer.say(t('auth.recovery_regenerated'));
+      // The count moved. Nothing pushes it, so it is read again rather than guessed at.
+      await actor.reread();
+    }
+  }
+
+  async function armedFactor(): Promise<void> {
+    notice = t('app.mfa.armed');
+    announcer.say(notice);
+    await actor.reread();
   }
 
   async function disableFactor(event: SubmitEvent): Promise<void> {
@@ -76,6 +90,7 @@
     if (await mfa.disable(password)) {
       notice = t('app.mfa.disabled');
       announcer.say(notice);
+      await actor.reread();
     }
   }
 </script>
@@ -119,87 +134,91 @@
       </Stack>
     </div>
 
+    <!-- The factor and the codes under one heading, because the codes are the factor's: they are
+         made with it, they stop working when it goes, and a panel of its own suggested otherwise. -->
     <div class="panel">
       <Stack gap="150">
-        <!-- The panel names the value itself, so the section does not name it twice. -->
-        {#if !mfa.fresh}
-          <h2>{t('app.recovery.title')}</h2>
-          <!-- The count the contract has carried since H-02 and no screen had ever shown. Zero is
-               the number to act on, so it is the one that is said in the danger tone. -->
-          {#if left !== undefined}
-            {#if left === 0}
-              <Banner tone="danger">{t('app.recovery.none_left')}</Banner>
-            {:else}
-              <p class="quiet">{t('app.recovery.left', { count: String(left), total: '10' })}</p>
-            {/if}
-          {/if}
-        {/if}
-        {#if mfa.fresh}
-          <OneTimeSecret
-            value={mfa.fresh.join('\n')}
-            label={t('app.recovery.title')}
-            hint={t('app.mfa.recovery_hint')}
-            revealLabel={t('app.recovery.reveal')}
-            hideLabel={t('app.password.hide')}
-            copyLabel={canCopy(navigator.clipboard) ? t('app.recovery.copy') : undefined}
-            copiedLabel={t('app.recovery.copied')}
-            acknowledgementLabel={t('app.recovery.acknowledge')}
-            notAcknowledgedReason={t('app.recovery.not_acknowledged')}
-            dismissLabel={t('app.recovery.dismiss')}
-            onDismiss={() => mfa.forget()}
-          />
-        {:else}
-          <p class="quiet">{t('app.recovery.regenerate_hint')}</p>
-          <div>
-            <Button
-              tone="secondary"
-              isBusy={mfa.isWorking}
-              busyLabel={t('app.recovery.regenerating')}
-              onclick={() => void newCodes()}
-            >
-              {t('app.recovery.regenerate')}
-            </Button>
-          </div>
-        {/if}
-      </Stack>
-    </div>
-
-    <div class="panel">
-      <Stack gap="150">
-        <TotpEnrollment
-          onarmed={() => {
-            notice = t('app.mfa.armed');
-            announcer.say(notice);
-          }}
-        />
+        <h2>{t('app.mfa.title')}</h2>
+        <p class="quiet">{armed ? t('app.mfa.on') : t('app.mfa.off')}</p>
+        <!-- Beside the state it is about. At the foot of the panel it sat under the "turn it off"
+             section and read as a caption for it. -->
         {#if notice}<p class="quiet">{notice}</p>{/if}
-      </Stack>
-    </div>
 
-    <div class="panel">
-      <details>
-        <summary>{t('app.mfa.disable')}</summary>
-        <Stack gap="150">
-          <p class="quiet">{t('app.mfa.disable_hint')}</p>
-          <form onsubmit={disableFactor}>
+        {#if armed}
+          <div class="section">
             <Stack gap="150">
-              <Input
-                label={t('app.step_up.password_label')}
-                bind:value={disablePassword}
-                type="password"
-                autocomplete="current-password"
-                spellcheck={false}
-                isRequired
-              />
-              <div>
-                <Button type="submit" tone="danger" isBusy={mfa.isWorking} busyLabel={t('app.mfa.disabling')}>
-                  {t('app.mfa.disable')}
-                </Button>
-              </div>
+              <h3>{t('app.recovery.title')}</h3>
+              {#if mfa.fresh}
+                <OneTimeSecret
+                  value={mfa.fresh.join('\n')}
+                  label={t('app.recovery.title')}
+                  hint={t('app.mfa.recovery_hint')}
+                  revealLabel={t('app.recovery.reveal')}
+                  hideLabel={t('app.password.hide')}
+                  copyLabel={canCopy(navigator.clipboard) ? t('app.recovery.copy') : undefined}
+                  copiedLabel={t('app.recovery.copied')}
+                  acknowledgementLabel={t('app.recovery.acknowledge')}
+                  notAcknowledgedReason={t('app.recovery.not_acknowledged')}
+                  dismissLabel={t('app.recovery.dismiss')}
+                  onDismiss={() => mfa.forget()}
+                />
+              {:else}
+                <!-- Zero is the number to act on, so it is the one said in the danger tone - and
+                     here it is always a number somebody can act on, because the button beside it
+                     works. -->
+                {#if left === 0}
+                  <Banner tone="danger">{t('app.recovery.none_left')}</Banner>
+                {:else if left !== undefined}
+                  <p class="quiet">{t('app.recovery.left', { count: String(left), total: '10' })}</p>
+                {/if}
+                <p class="quiet">{t('app.recovery.regenerate_hint')}</p>
+                <div>
+                  <Button
+                    tone="secondary"
+                    isBusy={mfa.isWorking}
+                    busyLabel={t('app.recovery.regenerating')}
+                    onclick={() => void newCodes()}
+                  >
+                    {t('app.recovery.regenerate')}
+                  </Button>
+                </div>
+              {/if}
             </Stack>
-          </form>
-        </Stack>
-      </details>
+          </div>
+
+          <div class="section">
+            <details>
+              <summary>{t('app.mfa.disable_summary')}</summary>
+              <Stack gap="150">
+                <p class="quiet">{t('app.mfa.disable_body')}</p>
+                <p class="quiet">{t('app.mfa.disable_hint')}</p>
+                <form onsubmit={disableFactor}>
+                  <Stack gap="150">
+                    <Input
+                      label={t('app.step_up.password_label')}
+                      bind:value={disablePassword}
+                      type="password"
+                      autocomplete="current-password"
+                      spellcheck={false}
+                      isRequired
+                    />
+                    <div>
+                      <Button type="submit" tone="danger" isBusy={mfa.isWorking} busyLabel={t('app.mfa.disabling')}>
+                        {t('app.mfa.disable')}
+                      </Button>
+                    </div>
+                  </Stack>
+                </form>
+              </Stack>
+            </details>
+          </div>
+        {:else}
+          <TotpEnrollment onarmed={() => void armedFactor()} />
+          <!-- Said where the codes would be, so that the question "where are my recovery codes"
+               has an answer on the screen rather than a button that refuses. -->
+          <p class="quiet">{t('app.recovery.none_yet')}</p>
+        {/if}
+      </Stack>
     </div>
   </Stack>
 {/if}
@@ -215,6 +234,13 @@
     background: var(--bg-surface);
   }
 
+  /* A rule rather than a second box: these belong to the panel above them, and a nested surface
+     would say they are separate things. */
+  .section {
+    padding-block-start: var(--sp-150);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
   form { margin: 0; max-inline-size: 52ch; }
 
   summary { cursor: pointer; color: var(--text-primary); }
@@ -225,6 +251,13 @@
     margin: 0;
     font-family: var(--font-display);
     font-size: var(--fs-300);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: var(--fs-200);
     font-weight: var(--fw-semibold);
     line-height: var(--lh-tight);
   }
