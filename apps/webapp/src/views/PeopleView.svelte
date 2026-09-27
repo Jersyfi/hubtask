@@ -20,7 +20,19 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, RoleBadge, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import {
+    Badge,
+    Banner,
+    Button,
+    Input,
+    PageHeader,
+    Pagination,
+    RoleBadge,
+    Select,
+    Spinner,
+    Stack,
+    Table,
+  } from '@hubtask/design-system/components';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -35,6 +47,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { listing } from '../lib/listing.svelte.ts';
 
   /** The workspace itself. One scope, named once, so the read and the writes cannot disagree. */
   const TENANT = { scopeType: 'TENANT' } as const;
@@ -99,11 +112,29 @@
   );
 
   const columns = $derived([
-    { id: 'who', label: t('app.people.who') },
-    { id: 'role', label: t('app.people.role_column') },
-    { id: 'status', label: t('app.people.status') },
+    { id: 'who', label: t('app.people.who'), isSortable: true },
+    { id: 'role', label: t('app.people.role_column'), isSortable: true },
+    { id: 'status', label: t('app.people.status'), isSortable: true },
     { id: 'actions', label: t('app.people.actions'), isLabelHidden: true },
   ]);
+
+  // The list on this screen is the one that actually grows - a workspace of two hundred people is
+  // two hundred rows, and the server answers `GET /memberships` in one response with no cursor.
+  // So it is sorted and paged here, over a list the client is already holding whole.
+  //
+  // The role sorts by the **word** rather than by the enum's own order: a reader sorting this
+  // column is looking for "every administrator together", and `ADMIN` before `MEMBER` in a
+  // language where the words run the other way would be an order that looks arbitrary.
+  const list = listing({
+    rows: () => holders,
+    read: (holder, columnId) => {
+      if (columnId === 'role') return t(`app.people.role.${holder.role.toLowerCase()}`);
+      if (columnId === 'status') return statusOf(holder.accountId);
+      return nameOf(holder);
+    },
+    pageSize: 25,
+    what: t('app.people.title'),
+  });
 
   /**
    * The workspace is the only scope here, so every badge says the same thing about reach. Derived
@@ -205,8 +236,14 @@
     {#if holders.length === 0}
       <p class="quiet"><Spinner label={t('app.people.reading')} /> <span>{t('app.people.reading')}</span></p>
     {:else}
-      <Table label={t('app.people.title')} isLabelHidden {columns}>
-        {#each holders as holder (holder.membershipId)}
+      <Table
+        label={t('app.people.title')}
+        isLabelHidden
+        {columns}
+        sort={list.sort}
+        onSort={(next) => list.sortBy(next)}
+      >
+        {#each list.page.rows as holder (holder.membershipId)}
           <tr>
             <th scope="row" class="who">
               <!-- A membership granted to a group reaches the people in it. The group's own
@@ -244,6 +281,10 @@
           </tr>
         {/each}
       </Table>
+
+      {#if list.hasPages}
+        <Pagination onPage={(number) => list.goTo(number)} {...list.pager} />
+      {/if}
     {/if}
 
     <RevokeDialog

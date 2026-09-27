@@ -15,9 +15,19 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import {
+    Button,
+    EmptyState,
+    ErrorState,
+    Pagination,
+    Skeleton,
+    Stack,
+    Table,
+  } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
+
+  import { listing } from '../lib/listing.svelte.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { sessions } from '../lib/data/sessions.svelte.ts';
@@ -39,10 +49,10 @@
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
   const columns = $derived([
-    { id: 'client', label: t('app.sessions.client') },
-    { id: 'created', label: t('app.sessions.created') },
-    { id: 'used', label: t('app.sessions.last_used') },
-    { id: 'network', label: t('app.sessions.network') },
+    { id: 'client', label: t('app.sessions.client'), isSortable: true },
+    { id: 'created', label: t('app.sessions.created'), isSortable: true },
+    { id: 'used', label: t('app.sessions.last_used'), isSortable: true },
+    { id: 'network', label: t('app.sessions.network'), isSortable: true },
     { id: 'end', label: t('app.sessions.end'), isLabelHidden: true, align: 'end' as const },
   ]);
 
@@ -51,13 +61,33 @@
    *
    * The server answers them in its own order; which one a reader looks for is the one they do not
    * recognise, and that is the one that arrived last.
+   *
+   * This is the list's own order and not a column, which is why the third press of a heading
+   * matters here: it is the only way back to it.
    */
-  const shown = $derived(
+  const ordered = $derived(
     [...sessions.all].sort((a, b) => {
       if (a.current !== b.current) return a.current ? -1 : 1;
       return String(b.created_at).localeCompare(String(a.created_at));
     }),
   );
+
+  // Thirty rows is a year of phones, laptops and browsers, and thirty rows is where a reader stops
+  // reading. Sorted and paged in the client, because the whole list is already here: `/auth/sessions`
+  // answers it in one response and has no cursor.
+  const list = listing({
+    rows: () => ordered,
+    read: (row, columnId) => {
+      if (columnId === 'created') return row.created_at;
+      if (columnId === 'used') return row.last_used_at;
+      if (columnId === 'network') return row.ip_class;
+      return row.user_agent;
+    },
+    pageSize: 15,
+    what: t('app.sessions.title'),
+  });
+
+  const shown = $derived(list.page.rows);
 
   /** An instant as this reader reads one: their locale, their clock (`i18n-l10n.md` §4). */
   function when(at: string | null | undefined): string {
@@ -112,7 +142,13 @@
       {:else if shown.length === 0}
         <p class="quiet">{t('app.sessions.none')}</p>
       {:else}
-        <Table label={t('app.sessions.title')} isLabelHidden {columns}>
+        <Table
+          label={t('app.sessions.title')}
+          isLabelHidden
+          {columns}
+          sort={list.sort}
+          onSort={(next) => list.sortBy(next)}
+        >
           {#each shown as row (row.id)}
             <tr>
               <th scope="row" class="what">
@@ -130,6 +166,10 @@
             </tr>
           {/each}
         </Table>
+
+        {#if list.hasPages}
+          <Pagination onPage={(number) => list.goTo(number)} {...list.pager} />
+        {/if}
 
         <div class="everywhere">
           <!-- Said before it is pressed, because it ends this session too: a control whose

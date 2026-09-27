@@ -24,7 +24,18 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Checkbox, Input, OneTimeSecret, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import {
+    Badge,
+    Banner,
+    Button,
+    Checkbox,
+    Input,
+    OneTimeSecret,
+    Pagination,
+    Spinner,
+    Stack,
+    Table,
+  } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { tokens, type MintedToken } from '../lib/data/tokens.svelte.ts';
@@ -32,6 +43,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { listing } from '../lib/listing.svelte.ts';
 
   interface Props {
     /** A service account's tokens, where the caller may mint for one. Absent means their own. */
@@ -63,14 +75,39 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
+  // Scopes are not sortable: the cell is a list, and sorting a list of lists by its first entry
+  // would be an order nobody asked for that looks like one somebody did.
   const columns = $derived([
-    { id: 'name', label: t('app.tokens.name') },
+    { id: 'name', label: t('app.tokens.name'), isSortable: true },
     { id: 'scopes', label: t('app.tokens.scopes') },
-    { id: 'expiry', label: t('app.tokens.expires') },
-    { id: 'used', label: t('app.tokens.last_used') },
-    { id: 'state', label: t('app.tokens.state') },
+    { id: 'expiry', label: t('app.tokens.expires'), isSortable: true },
+    { id: 'used', label: t('app.tokens.last_used'), isSortable: true },
+    { id: 'state', label: t('app.tokens.state'), isSortable: true },
     { id: 'actions', label: t('app.tokens.actions'), isLabelHidden: true },
   ]);
+
+  // Sorted and paged here, because the whole list is here: `GET /auth/tokens` answers it in one
+  // response for a personal account, and nothing on this screen is holding a cursor.
+  const list = listing({
+    rows: () => held,
+    read: (token, columnId) => {
+      if (columnId === 'expiry') return token.expires_at;
+      if (columnId === 'used') return token.last_used_at;
+      // The state is a word the reader sees, so it sorts as that word rather than as a timestamp:
+      // "every revoked one together" is the question somebody sorting this column is asking.
+      if (columnId === 'state') return stateOf(token);
+      return token.name;
+    },
+    pageSize: 15,
+    what: t('app.tokens.title'),
+  });
+
+  /** Which of the three words the state column draws. Read twice: once to sort, once to render. */
+  function stateOf(token: { revoked_at?: string | null; expires_at: string }): string {
+    if (token.revoked_at) return t('app.tokens.revoked');
+    if (new Date(token.expires_at).getTime() <= Date.now()) return t('app.tokens.expired');
+    return t('app.tokens.live');
+  }
 
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : undefined;
@@ -152,8 +189,14 @@
   {:else if held.length === 0}
     <p class="quiet">{t('app.tokens.none')}</p>
   {:else}
-    <Table label={t('app.tokens.title')} isLabelHidden {columns}>
-      {#each held as token (token.id)}
+    <Table
+      label={t('app.tokens.title')}
+      isLabelHidden
+      {columns}
+      sort={list.sort}
+      onSort={(next) => list.sortBy(next)}
+    >
+      {#each list.page.rows as token (token.id)}
         <tr>
           <th scope="row" class="name">{token.name}</th>
           <td class="scopes">{token.scopes.join(', ')}</td>
@@ -192,6 +235,10 @@
         </tr>
       {/each}
     </Table>
+
+    {#if list.hasPages}
+      <Pagination onPage={(number) => list.goTo(number)} {...list.pager} />
+    {/if}
   {/if}
 
   <Stack gap="150">
