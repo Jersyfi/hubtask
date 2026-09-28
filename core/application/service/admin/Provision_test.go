@@ -101,6 +101,31 @@ func (s *journalStore) Record(_ context.Context, entry adminrepo.InstanceEvent) 
 	return nil
 }
 
+// Page walks what was recorded, newest first, as the real one does (SI-17).
+func (s *journalStore) Page(
+	_ context.Context, cursor string, size int,
+) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
+	newest := make([]adminrepo.InstanceEvent, 0, len(s.entries))
+	for i := len(s.entries) - 1; i >= 0; i-- {
+		newest = append(newest, s.entries[i])
+	}
+	// The cursor is the identifier of the last entry of the page before, which is enough for a
+	// fake: what the tests here are about is the authorisation and the clamp, not the keyset.
+	if cursor != "" {
+		for i, entry := range newest {
+			if entry.ID.String() == cursor {
+				newest = newest[i+1:]
+				break
+			}
+		}
+	}
+	if len(newest) > size {
+		last := newest[size-1]
+		return newest[:size], adminrepo.PageInfo{NextCursor: last.ID.String(), HasMore: true}, nil
+	}
+	return newest, adminrepo.PageInfo{}, nil
+}
+
 type accountsStore struct{ inserted []domain.Account }
 
 func (s *accountsStore) Insert(_ context.Context, account domain.Account) error {

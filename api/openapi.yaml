@@ -3938,6 +3938,58 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/overview:
+    get:
+      tags: [admin]
+      operationId: readInstanceOverview
+      summary: How big this installation is and how its workspaces stand
+      description: >
+        The dashboard's first screen (SI-17, ADR-0070 §5): the workspaces by state, and how many
+        accounts they hold between them.
+
+        **Counts and states, never rows.** The tenant boundary is a database policy rather than a
+        role, and this answer does not go around it - what it reads is a function that can answer
+        five integers and nothing else. What an operator needs to run an installation is counts,
+        states and limits; the health of the machinery is `GET /meta/health`, which is where it
+        already lives.
+
+        Behind `admin:tenants` **and** the operator register, both.
+      responses:
+        "200":
+          description: The census
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceOverview"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/journal:
+    get:
+      tags: [admin]
+      operationId: listInstanceJournal
+      summary: The installation's own record
+      description: >
+        What was provisioned, suspended, resumed and deleted, and what the operator changed - newest
+        first (H-06, audit.md §6). Evidence of acts whose per-tenant trail cannot hold them: after a
+        hard delete the workspace's own audit chain is gone by design, which is the reason this
+        record exists.
+
+        Identifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it
+        readable at all after the workspace it names is gone.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: One page, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceJournalPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/identity-providers:
     get:
       tags: [admin]
@@ -8947,6 +8999,66 @@ components:
             A message code for the one thing about this provider that is not like the others -
             Google's single issuer for every account there is, Microsoft's directory-specific
             issuer. Absent where there is none.
+
+    InstanceOverview:
+      type: object
+      description: >
+        The installation at a glance. Counts and states; the contents of a workspace are behind a
+        database policy this answer does not reach through (ADR-0070 §5).
+      required:
+        [workspaces_active, workspaces_suspended, workspaces_pending_deletion,
+         accounts_active, accounts_total]
+      properties:
+        workspaces_active: { type: integer }
+        workspaces_suspended: { type: integer }
+        workspaces_pending_deletion:
+          type: integer
+          description: Workspaces inside the grace period of a deletion request.
+        accounts_active:
+          type: integer
+          description: Live people, which is what "how big is this installation" means.
+        accounts_total:
+          type: integer
+          description: >
+            Including the invited and the suspended, and excluding the deleted - an account that was
+            deleted is gone as far as anybody operating the installation is concerned.
+
+    InstanceJournalEntry:
+      type: object
+      description: >
+        One act the installation recorded. The workspace is named by a bare identifier and its slug:
+        the row it names is usually gone, which is the reason the journal exists.
+      required: [id, occurred_at, action]
+      properties:
+        id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        action:
+          type: string
+          description: >
+            `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`,
+            `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by
+            the client (ADR-0011).
+        tenant_id: { type: [string, "null"], format: uuid }
+        tenant_slug: { type: [string, "null"] }
+        actor_label:
+          type: [string, "null"]
+          description: The acting operator's own label - the installation's administrator, never a workspace's person.
+        details:
+          type: object
+          additionalProperties: true
+          description: >
+            The counts and moments of the act, as the evidence entry recorded them. Never content:
+            a journal carrying a title or a URL would be a journal carrying somebody's data into a
+            place nothing ever deletes from.
+
+    InstanceJournalPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/InstanceJournalEntry" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     SessionElevation:
       type: object

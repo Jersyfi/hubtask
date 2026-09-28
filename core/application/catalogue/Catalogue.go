@@ -282,6 +282,8 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ReadInstanceSettings{}.Descriptor(),
 		adminservice.WriteInstanceSettings{}.Descriptor(),
 		adminservice.ListOperators{}.Descriptor(),
+		adminservice.ReadInstanceOverview{}.Descriptor(),
+		adminservice.ListInstanceJournal{}.Descriptor(),
 		adminservice.AddOperator{}.Descriptor(),
 		adminservice.RemoveOperator{}.Descriptor(),
 		adminservice.ProvisionTenant{}.Descriptor(),

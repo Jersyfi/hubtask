@@ -62,6 +62,40 @@ func (q *Queries) DropOperator(ctx context.Context, accountID pgtype.UUID) (bool
 	return drop_operator, err
 }
 
+const instanceCensus = `-- name: InstanceCensus :one
+SELECT workspaces_active::bigint, workspaces_suspended::bigint,
+       workspaces_pending_deletion::bigint,
+       accounts_active::bigint, accounts_total::bigint
+FROM instance_census()
+`
+
+type InstanceCensusRow struct {
+	WorkspacesActive          int64
+	WorkspacesSuspended       int64
+	WorkspacesPendingDeletion int64
+	AccountsActive            int64
+	AccountsTotal             int64
+}
+
+// The installation at a glance (SI-17): counts, states and limits, never rows. Through the function
+// rather than against the tables: `account` is behind row level security and FORCE, so the
+// application role cannot count across workspaces at all - and narrow by construction is what makes
+// that exception acceptable (migration 0105).
+// The casts are for the generator: it cannot see into the function's OUT table
+// (`AdminTenants`' own note).
+func (q *Queries) InstanceCensus(ctx context.Context) (InstanceCensusRow, error) {
+	row := q.db.QueryRow(ctx, instanceCensus)
+	var i InstanceCensusRow
+	err := row.Scan(
+		&i.WorkspacesActive,
+		&i.WorkspacesSuspended,
+		&i.WorkspacesPendingDeletion,
+		&i.AccountsActive,
+		&i.AccountsTotal,
+	)
+	return i, err
+}
+
 const isOperator = `-- name: IsOperator :one
 SELECT is_operator($1)
 `

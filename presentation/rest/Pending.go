@@ -1033,6 +1033,17 @@ func (pending) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Reques
 	notAvailable(w, r)
 }
 
+// The installation at a glance, and its own record (SI-17, ADR-0070 §5).
+func (pending) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListInstanceJournal(
+	w http.ResponseWriter, r *http.Request, _ openapi.ListInstanceJournalParams,
+) {
+	notAvailable(w, r)
+}
+
 // The providers the installation offers every workspace (SI-10, ADR-0070 §2).
 func (pending) ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)

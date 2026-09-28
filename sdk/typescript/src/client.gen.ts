@@ -804,6 +804,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/admin/operators/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** How big this installation is and how its workspaces stand */
+  readInstanceOverview(options: CallOptions = {}): Promise<operations["readInstanceOverview"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/overview", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The installation's own record */
+  listInstanceJournal(options: CallOptions & { readonly query?: NonNullable<operations["listInstanceJournal"]['parameters']['query']> } = {}): Promise<operations["listInstanceJournal"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/journal", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The providers this installation offers every workspace */
   listInstanceIdentityProviders(options: CallOptions = {}): Promise<operations["listInstanceIdentityProviders"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/identity-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -207,7 +207,7 @@ func TestTheHardDeleteLeavesNothingCountableAndTheNeighbourEverything(t *testing
 
 	deletion := adminservice.HardDeleteTenant{
 		Tenants: tenants, Purge: postgres.NewTenantPurge(),
-		Journal: postgres.NewInstanceJournal(), Store: store,
+		Journal: postgres.NewInstanceJournal(pageCursors()), Store: store,
 		UnitOfWork: uow, Clock: systemClock{}, IDs: &entropyIDs{},
 	}
 	outcome, err := deletion.Execute(ctx, doomedTenant,

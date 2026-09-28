@@ -2470,6 +2470,30 @@ CREATE TABLE instance_setting (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- The installation at a glance (SI-17, migration 0105). Counts, states and limits - never rows,
+-- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
+-- behind row level security and FORCE, so the application role cannot count across workspaces at
+-- all, and narrow by construction is what makes the exception acceptable - five integers, and no way
+-- to ask for anybody's data.
+CREATE OR REPLACE FUNCTION instance_census()
+RETURNS TABLE (
+  workspaces_active           bigint,
+  workspaces_suspended        bigint,
+  workspaces_pending_deletion bigint,
+  accounts_active             bigint,
+  accounts_total              bigint
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT
+    (SELECT count(*) FROM tenant WHERE status = 'ACTIVE'),
+    (SELECT count(*) FROM tenant WHERE status = 'SUSPENDED'),
+    (SELECT count(*) FROM tenant WHERE status = 'PENDING_DELETION'),
+    (SELECT count(*) FROM account WHERE deleted_at IS NULL AND status = 'ACTIVE'),
+    (SELECT count(*) FROM account WHERE deleted_at IS NULL)
+$$;
+REVOKE ALL ON FUNCTION instance_census() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION instance_census() TO hubtask_app;
+
 -- ============ The instance's own journal (H-06) ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
 -- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and

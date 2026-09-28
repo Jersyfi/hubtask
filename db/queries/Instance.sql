@@ -50,3 +50,15 @@ SELECT add_operator(sqlc.arg('account_id'), sqlc.narg('added_by'));
 -- name: DropOperator :one
 -- False where the register would have been emptied: the last operator cannot remove themselves.
 SELECT drop_operator(sqlc.arg('account_id'));
+
+-- name: InstanceCensus :one
+-- The installation at a glance (SI-17): counts, states and limits, never rows. Through the function
+-- rather than against the tables: `account` is behind row level security and FORCE, so the
+-- application role cannot count across workspaces at all - and narrow by construction is what makes
+-- that exception acceptable (migration 0105).
+-- The casts are for the generator: it cannot see into the function's OUT table
+-- (`AdminTenants`' own note).
+SELECT workspaces_active::bigint, workspaces_suspended::bigint,
+       workspaces_pending_deletion::bigint,
+       accounts_active::bigint, accounts_total::bigint
+FROM instance_census();

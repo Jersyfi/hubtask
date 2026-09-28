@@ -425,6 +425,28 @@ class IdentityProviderPreset(TypedDict, total=False):
     instructions: Required[str]
     particular: str | None
 
+class InstanceOverview(TypedDict, total=False):
+    """The installation at a glance. Counts and states; the contents of a workspace are behind a database policy this answer does not reach through (ADR-0070 §5)."""
+    workspaces_active: Required[int]
+    workspaces_suspended: Required[int]
+    workspaces_pending_deletion: Required[int]
+    accounts_active: Required[int]
+    accounts_total: Required[int]
+
+class InstanceJournalEntry(TypedDict, total=False):
+    """One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists."""
+    id: Required[str]
+    occurred_at: Required[str]
+    action: Required[str]
+    tenant_id: str | None
+    tenant_slug: str | None
+    actor_label: str | None
+    details: dict[str, Any]
+
+class InstanceJournalPage(TypedDict, total=False):
+    data: Required[list["InstanceJournalEntry"]]
+    page: Required["PageInfo"]
+
 class SessionElevation(TypedDict, total=False):
     """How long this session carries the control plane's scope."""
     elevated_until: Required[str]

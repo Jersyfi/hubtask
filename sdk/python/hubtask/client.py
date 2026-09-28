@@ -643,6 +643,14 @@ class Client:
         """Take an account out of the register"""
         return self._call("DELETE", "/admin/operators/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "void")
 
+    def read_instance_overview(self) -> "InstanceOverview":
+        """How big this installation is and how its workspaces stand"""
+        return self._call("GET", "/admin/overview", {}, None, {}, None, "none", None, "json")
+
+    def list_instance_journal(self, *, query: dict[str, Any] | None = None) -> "InstanceJournalPage":
+        """The installation's own record"""
+        return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
+
     def list_instance_identity_providers(self) -> dict[str, Any]:
         """The providers this installation offers every workspace"""
         return self._call("GET", "/admin/identity-providers", {}, None, {}, None, "none", None, "json")

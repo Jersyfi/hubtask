@@ -1092,7 +1092,7 @@ func run() error {
 	operators := postgres.NewOperatorRepository()
 	instanceWriter := adminservice.InstanceWriter{
 		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
-		Journal:    postgres.NewInstanceJournal(),
+		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
@@ -1207,7 +1207,7 @@ func run() error {
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
 		identity.ElevateSession{
 			Writer: sessionWriter, Operators: operators,
-			Journal: postgres.NewInstanceJournal(), UnitOfWork: unitOfWork,
+			Journal: postgres.NewInstanceJournal(cursors), UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		identity.GetSignInRules{
@@ -1743,6 +1743,10 @@ func run() error {
 		adminservice.ReadInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.WriteInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListOperators{Writer: instanceWriter}.Descriptor(),
+		adminservice.ReadInstanceOverview{
+			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
+		}.Descriptor(),
+		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
 		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
@@ -1750,7 +1754,7 @@ func run() error {
 		// since ADR-0070 §1: the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
 		adminservice.ProvisionTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
 			Containers: containers, Buckets: buckets, Labels: labels,
 			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
@@ -1765,15 +1769,15 @@ func run() error {
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}}.Descriptor(),
 		adminservice.RequestTenantDeletion{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -2745,7 +2749,7 @@ func run() error {
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{
 			Deletion: adminservice.HardDeleteTenant{
 				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),
-				Journal: postgres.NewInstanceJournal(), Store: mediaStore,
+				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 		},
@@ -2864,7 +2868,7 @@ func run() error {
 			},
 			OfflineWindow: cfg.Retention.TombstoneWindow,
 			StreamEvidence: streamEvidenceInBackground{
-				Journal: postgres.NewInstanceJournal(), IDs: ids, Work: backgroundWork,
+				Journal: postgres.NewInstanceJournal(cursors), IDs: ids, Work: backgroundWork,
 				Clock: clockadapter.System{},
 			},
 		}

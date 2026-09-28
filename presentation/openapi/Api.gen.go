@@ -5342,6 +5342,42 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstanceJournalEntry One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists.
+type InstanceJournalEntry struct {
+	// Action `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`, `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by the client (ADR-0011).
+	Action string `json:"action"`
+
+	// ActorLabel The acting operator's own label - the installation's administrator, never a workspace's person.
+	ActorLabel *string `json:"actor_label,omitempty"`
+
+	// Details The counts and moments of the act, as the evidence entry recorded them. Never content: a journal carrying a title or a URL would be a journal carrying somebody's data into a place nothing ever deletes from.
+	Details    *map[string]interface{} `json:"details,omitempty"`
+	Id         openapi_types.UUID      `json:"id"`
+	OccurredAt time.Time               `json:"occurred_at"`
+	TenantId   *openapi_types.UUID     `json:"tenant_id,omitempty"`
+	TenantSlug *string                 `json:"tenant_slug,omitempty"`
+}
+
+// InstanceJournalPage defines model for InstanceJournalPage.
+type InstanceJournalPage struct {
+	Data []InstanceJournalEntry `json:"data"`
+	Page PageInfo               `json:"page"`
+}
+
+// InstanceOverview The installation at a glance. Counts and states; the contents of a workspace are behind a database policy this answer does not reach through (ADR-0070 §5).
+type InstanceOverview struct {
+	// AccountsActive Live people, which is what "how big is this installation" means.
+	AccountsActive int `json:"accounts_active"`
+
+	// AccountsTotal Including the invited and the suspended, and excluding the deleted - an account that was deleted is gone as far as anybody operating the installation is concerned.
+	AccountsTotal    int `json:"accounts_total"`
+	WorkspacesActive int `json:"workspaces_active"`
+
+	// WorkspacesPendingDeletion Workspaces inside the grace period of a deletion request.
+	WorkspacesPendingDeletion int `json:"workspaces_pending_deletion"`
+	WorkspacesSuspended       int `json:"workspaces_suspended"`
+}
+
 // InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.
 type InstanceSetting struct {
 	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
@@ -8161,6 +8197,12 @@ type InviteAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListInstanceJournalParams defines parameters for ListInstanceJournal.
+type ListInstanceJournalParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key (api-guidelines.md §5).
@@ -9486,6 +9528,9 @@ type ServerInterface interface {
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
 	// (PUT /admin/identity-providers/{providerId})
 	ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ListInstanceJournal The installation's own record
+	// (GET /admin/journal)
+	ListInstanceJournal(w http.ResponseWriter, r *http.Request, params ListInstanceJournalParams)
 	// ListOperators Who operates this installation
 	// (GET /admin/operators)
 	ListOperators(w http.ResponseWriter, r *http.Request)
@@ -9495,6 +9540,9 @@ type ServerInterface interface {
 	// RemoveOperator Take an account out of the register
 	// (DELETE /admin/operators/{accountId})
 	RemoveOperator(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ReadInstanceOverview How big this installation is and how its workspaces stand
+	// (GET /admin/overview)
+	ReadInstanceOverview(w http.ResponseWriter, r *http.Request)
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	// (GET /admin/settings)
 	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
@@ -10555,6 +10603,52 @@ func (siw *ServerInterfaceWrapper) ConfigureInstanceIdentityProvider(w http.Resp
 	handler.ServeHTTP(w, r)
 }
 
+// ListInstanceJournal operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceJournal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListInstanceJournalParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceJournal(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListOperators operation middleware
 func (siw *ServerInterfaceWrapper) ListOperators(w http.ResponseWriter, r *http.Request) {
 
@@ -10600,6 +10694,20 @@ func (siw *ServerInterfaceWrapper) RemoveOperator(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RemoveOperator(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadInstanceOverview operation middleware
+func (siw *ServerInterfaceWrapper) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadInstanceOverview(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -19860,6 +19968,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/overview", wrapper.ReadInstanceOverview)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/journal", wrapper.ListInstanceJournal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/identity-providers", wrapper.ListInstanceIdentityProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers", wrapper.CreateInstanceIdentityProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.RemoveInstanceIdentityProvider)

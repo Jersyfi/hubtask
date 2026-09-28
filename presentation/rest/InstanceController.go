@@ -21,6 +21,8 @@ import (
 const (
 	readInstanceSettingsUseCase  = "ReadInstanceSettings"
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
+	readInstanceOverviewUseCase  = "ReadInstanceOverview"
+	listInstanceJournalUseCase   = "ListInstanceJournal"
 	listOperatorsUseCase         = "ListOperators"
 	addOperatorUseCase           = "AddOperator"
 	removeOperatorUseCase        = "RemoveOperator"
@@ -208,4 +210,88 @@ func (c *RestController) ElevateSession(
 			RemainingSeconds: out.Int("remaining_seconds"),
 		})
 	})
+}
+
+// ReadInstanceOverview answers GET /admin/overview.
+func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(
+		r.Context(), readInstanceOverviewUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, openapi.InstanceOverview{
+		WorkspacesActive:          censusCount(out["workspaces_active"]),
+		WorkspacesSuspended:       censusCount(out["workspaces_suspended"]),
+		WorkspacesPendingDeletion: censusCount(out["workspaces_pending_deletion"]),
+		AccountsActive:            censusCount(out["accounts_active"]),
+		AccountsTotal:             censusCount(out["accounts_total"]),
+	})
+}
+
+// ListInstanceJournal answers GET /admin/journal.
+func (c *RestController) ListInstanceJournal(
+	w http.ResponseWriter, r *http.Request, params openapi.ListInstanceJournalParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["limit"] = *params.Size
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), listInstanceJournalUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	entries := make([]openapi.InstanceJournalEntry, 0, len(rows))
+	for _, row := range rows {
+		entry := openapi.InstanceJournalEntry{
+			Id:         uuidValue(row.String("id")),
+			OccurredAt: timeValue(row["occurred_at"]),
+			Action:     row.String("action"),
+		}
+		if tenantID := row.String("tenant_id"); tenantID != "" {
+			id := uuidValue(tenantID)
+			entry.TenantId = &id
+		}
+		if slug := row.String("tenant_slug"); slug != "" {
+			entry.TenantSlug = &slug
+		}
+		if label := row.String("actor_label"); label != "" {
+			entry.ActorLabel = &label
+		}
+		if details, held := row["details"].(map[string]any); held && len(details) > 0 {
+			entry.Details = &details
+		}
+		entries = append(entries, entry)
+	}
+	writeJSON(w, r, http.StatusOK, openapi.InstanceJournalPage{
+		Data: entries,
+		Page: pageResponse(out),
+	})
+}
+
+// censusCount narrows one of the census's numbers. The catalogue is untyped by construction - it is
+// one shape for three channels - and a count comes out of the database as an `int64`, which the
+// contract calls an integer.
+func censusCount(value any) int {
+	counted, _ := value.(int64)
+	return int(counted)
 }
