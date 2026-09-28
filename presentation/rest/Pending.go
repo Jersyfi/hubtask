@@ -1009,6 +1009,20 @@ func (pending) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) OfferIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

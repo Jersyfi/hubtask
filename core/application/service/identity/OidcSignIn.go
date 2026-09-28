@@ -262,9 +262,20 @@ func (w OidcWriter) settleAccount(
 			return err
 		}
 
-		// A first arrival. If the provider vouched for an address inside the configured
-		// domains, and an account here already holds it, this is the same person.
-		if configured.MayLink(arriving.Email, arriving.EmailVerified) {
+		// A first arrival, and the first gate is admission: may this provider bring this person
+		// into this workspace at all (SI-10, the concept's §8). Under DOMAINS an address outside
+		// the configured list is refused here - not provisioned a desk of its own, which is what
+		// made the mode indistinguishable from ANY.
+		if !configured.MayAdmit(arriving.Email, arriving.EmailVerified) {
+			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+				return err
+			}
+			return shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
+		}
+
+		// Admitted. If an account here already holds the address the provider vouched for, this is
+		// the same person.
+		if configured.MayClaim(arriving.Email, arriving.EmailVerified) {
 			existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 			switch {
 			case err == nil:
@@ -286,11 +297,11 @@ func (w OidcWriter) settleAccount(
 			}
 		}
 
-		// The mode's other half (SI-10): INVITED_ONLY has no way in but claiming an account that
-		// already exists, so a subject that reached here is one nobody invited. Refused and
-		// recorded - a provider whose people are all being turned away is something an operator has
-		// to be able to read, and the person is told plainly rather than being provisioned a desk
-		// they were never meant to have.
+		// Admitted, and no account here holds the address: INVITED_ONLY has no way in but an
+		// account that already exists, so this is somebody nobody invited. Refused and recorded -
+		// a provider whose people are all being turned away is something an operator has to be
+		// able to read, and the person is told plainly rather than being provisioned a desk they
+		// were never meant to have.
 		if !configured.MayProvision() {
 			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
 				return err

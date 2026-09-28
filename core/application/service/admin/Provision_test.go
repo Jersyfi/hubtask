@@ -482,8 +482,8 @@ func TestAProvisionedWorkspaceGetsItsCanonicalHost(t *testing.T) {
 	if host.Host != "acme.hubtask.example" {
 		t.Errorf("the host is %q, want the slug under the installation's domain", host.Host)
 	}
-	if !host.Canonical || host.State != domain.HostVerified {
-		t.Errorf("the host is %+v, want a verified canonical one", host)
+	if !host.Canonical || host.State != domain.HostActive {
+		t.Errorf("the host is %+v, want an active canonical one", host)
 	}
 	if host.Verification == "" {
 		t.Error("the host carries no mark, so promoting a custom one later would need a backfill")

@@ -43,6 +43,39 @@ type WorkspaceSettings struct {
 	// Legal is what this workspace set for its own sign-in footer. Empty where the instance's
 	// stand, which is what a B2C installation locks and a B2B one leaves open (SI-12).
 	Legal LegalLinks
+	// OfferedProviders are the installation's providers this workspace switched **on** (SI-10).
+	//
+	// A list of the ones taken rather than of the ones refused, and that is the whole decision: an
+	// installation's provider is "für alle Arbeitsbereiche angeboten, nirgends an" - offering it is
+	// the installation's, taking it is the workspace's. A list of refusals would mean a provider
+	// the installation adds tomorrow is on everywhere tonight.
+	OfferedProviders []shared.ID
+}
+
+// Offers reports whether this workspace switched on a provider the installation offers.
+func (w WorkspaceSettings) Offers(providerID shared.ID) bool {
+	for _, offered := range w.OfferedProviders {
+		if offered == providerID {
+			return true
+		}
+	}
+	return false
+}
+
+// WithOffer answers the settings with one installation provider switched on or off. A value, not a
+// mutation: a settings document two callers could edit in place is one they would edit at once.
+func (w WorkspaceSettings) WithOffer(providerID shared.ID, offered bool) WorkspaceSettings {
+	kept := make([]shared.ID, 0, len(w.OfferedProviders)+1)
+	for _, each := range w.OfferedProviders {
+		if each != providerID {
+			kept = append(kept, each)
+		}
+	}
+	if offered {
+		kept = append(kept, providerID)
+	}
+	w.OfferedProviders = kept
+	return w
 }
 
 // SignInLayer is this workspace as a level of the resolution.

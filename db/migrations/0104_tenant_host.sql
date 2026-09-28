@@ -8,7 +8,8 @@
 -- place a schema change is expensive. So the table lands now, empty of the feature:
 --
 --   * **a row per host**, with the canonical one written when a workspace is provisioned;
---   * **a state**, because a host somebody typed is not a host they own;
+--   * **a state** - PENDING, VERIFIED, ACTIVE, BROKEN - because a host somebody typed is not a host
+--     they own, and one that worked and stopped is not one that never worked;
 --   * **a verification mark**, which is what a DNS record has to carry before the state may move;
 --   * **the canonical flag**, because a mail, a redirect and an invitation link have to name one
 --     host and not whichever was asked for.
@@ -24,9 +25,9 @@
 -- one person who needs to read it, and it guards nothing that secrecy would protect: what it proves
 -- is control of a zone, and only somebody who controls the zone can put it there.
 --
--- **The canonical row is verified by construction.** It is derived from the slug under the
--- installation's own domain, so there is nothing for anybody to prove: the installation already
--- answers at it.
+-- **The canonical row is ACTIVE by construction.** It is derived from the slug under the
+-- installation's own domain, so there is nothing for anybody to prove and nothing to wait for: the
+-- installation already answers at it, certificate and all.
 
 -- +goose Up
 CREATE TABLE IF NOT EXISTS tenant_host (
@@ -34,8 +35,14 @@ CREATE TABLE IF NOT EXISTS tenant_host (
   -- Lowercase, because a host is case-insensitive and two rows differing only in case would be one
   -- host that two workspaces could claim.
   host         text NOT NULL CHECK (host = lower(host) AND length(host) BETWEEN 4 AND 253),
+  -- The four the concept's §6.5 names, and §6.6 builds the fallback on:
+  --   PENDING  - claimed, proving nothing. A host somebody typed is not a host they own.
+  --   VERIFIED - the zone carried the mark. It may become canonical; it is not serving yet.
+  --   ACTIVE   - verified, its certificate in place, and answering. The canonical one is this.
+  --   BROKEN   - it was ACTIVE and stopped. The provider host becomes canonical again by itself,
+  --              which is why this is a state and not a deletion: the row is the way back.
   state        text NOT NULL DEFAULT 'PENDING'
-                 CHECK (state IN ('PENDING', 'VERIFIED', 'FAILED')),
+                 CHECK (state IN ('PENDING', 'VERIFIED', 'ACTIVE', 'BROKEN')),
   verification text NOT NULL CHECK (length(verification) BETWEEN 8 AND 200),
   verified_at  timestamptz,
   is_canonical boolean NOT NULL DEFAULT false,

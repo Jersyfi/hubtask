@@ -452,8 +452,10 @@ CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 CREATE TABLE tenant_host (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   host         text NOT NULL CHECK (host = lower(host) AND length(host) BETWEEN 4 AND 253),
+  -- PENDING claimed · VERIFIED the zone carried the mark · ACTIVE serving, and the canonical one
+  -- is ACTIVE · BROKEN it was ACTIVE and stopped, which is why the row stays: it is the way back.
   state        text NOT NULL DEFAULT 'PENDING'
-                 CHECK (state IN ('PENDING', 'VERIFIED', 'FAILED')),
+                 CHECK (state IN ('PENDING', 'VERIFIED', 'ACTIVE', 'BROKEN')),
   verification text NOT NULL CHECK (length(verification) BETWEEN 8 AND 200),
   verified_at  timestamptz,
   is_canonical boolean NOT NULL DEFAULT false,

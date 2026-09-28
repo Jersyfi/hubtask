@@ -114,10 +114,10 @@ func TestWhatMayBeALinkingDomain(t *testing.T) {
 	}
 }
 
-// Linking hands somebody an account that already exists. Both conditions guard that door, and
-// the subdomain case is the one that looks harmless and is not: `example.org.evil.net` ends in
-// nothing this list contains, and `staff.example.org` is a different organisation's mail.
-func TestWhenAnArrivingAddressMayClaimAnExistingAccount(t *testing.T) {
+// DOMAINS admits only the list. Both conditions guard that door, and the subdomain case is the one
+// that looks harmless and is not: `example.org.evil.net` ends in nothing this list contains, and
+// `staff.example.org` is a different organisation's mail.
+func TestWhenAnArrivingAddressIsAdmittedUnderDomains(t *testing.T) {
 	in := providerInput()
 	in.AllowedEmailDomains = []string{"example.org", "example.net"}
 	provider, err := NewIdentityProvider(in)
@@ -144,21 +144,26 @@ func TestWhenAnArrivingAddressMayClaimAnExistingAccount(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := provider.MayLink(c.email, c.verified); got != c.want {
-				t.Errorf("MayLink(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
+			if got := provider.MayAdmit(c.email, c.verified); got != c.want {
+				t.Errorf("MayAdmit(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
 			}
 		})
 	}
 }
 
-// A workspace that configured no domains links nobody, however verified the address is.
-func TestNoConfiguredDomainsLinksNothing(t *testing.T) {
+// A workspace that configured no domains admits nobody under DOMAINS, however verified the address
+// is. Before the column existed an empty list meant "link nobody, provision everybody"; it means
+// "nobody" now, which is what the mode's own name promises.
+func TestNoConfiguredDomainsAdmitsNobody(t *testing.T) {
 	provider, err := NewIdentityProvider(providerInput())
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	if provider.MayLink("ada@example.org", true) {
-		t.Error("an address linked against an empty domain list")
+	if provider.MayAdmit("ada@example.org", true) {
+		t.Error("an address was admitted against an empty domain list")
+	}
+	if provider.MayClaim("ada@example.org", true) {
+		t.Error("an address claimed an account against an empty domain list")
 	}
 }
 
@@ -177,8 +182,12 @@ func TestAProviderNeedsItsClientAndItsKey(t *testing.T) {
 		t.Error("a provider without an id was accepted")
 	}
 
+	// A preset that vouches for its addresses, because an installation's provider must be one:
+	// `TestAnUnverifiedPresetIsNeverTheInstallationsProvider` is where that rule is asserted.
 	installation := providerInput()
 	installation.TenantID = shared.ID("")
+	installation.Issuer = "https://accounts.google.com"
+	installation.Kind = "GOOGLE"
 	configured, err := NewIdentityProvider(installation)
 	if err != nil {
 		t.Fatalf("the installation's own provider was refused: %v", err)

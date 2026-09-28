@@ -177,7 +177,7 @@ func TestTheInstallationsProviderBelongsToNoWorkspace(t *testing.T) {
 
 	stored, err := ConfigureInstanceIdentityProvider{Writer: writer}.Execute(
 		t.Context(), operator(), identityservice.ConfigureIdentityProviderCommand{
-			Issuer: "https://id.platform.example", ClientID: "hubtask",
+			Issuer: "https://accounts.google.com", ClientID: "hubtask", Kind: "GOOGLE",
 			ClientSecret: secret.New("s3cr3t"), Enabled: true,
 		})
 	if err != nil {
@@ -217,7 +217,7 @@ func TestTheInstanceProviderOperationsDemandTheRegisterAsWellAsTheScope(t *testi
 	writer, store, relying, _ := newInstanceProviderWriter(newRegister(secondOperator))
 
 	cmd := identityservice.ConfigureIdentityProviderCommand{
-		Issuer: "https://id.platform.example", ClientID: "hubtask",
+		Issuer: "https://accounts.google.com", ClientID: "hubtask", Kind: "GOOGLE",
 		ClientSecret: secret.New("s3cr3t"), Enabled: true,
 	}
 	if _, err := (ConfigureInstanceIdentityProvider{Writer: writer}).
@@ -258,7 +258,8 @@ func TestTheInstanceProviderUseCasesGoThroughTheRegistry(t *testing.T) {
 
 	added, err := registry.Invoke(
 		t.Context(), ConfigureInstanceIdentityProviderName, operator(), usecase.Input{
-			"issuer":        "https://id.platform.example",
+			"issuer":        "https://accounts.google.com",
+			"kind":          "GOOGLE",
 			"client_id":     "hubtask",
 			"client_secret": "s3cr3t",
 			"display_name":  "The platform",

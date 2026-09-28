@@ -42,9 +42,10 @@ func TestTheCanonicalHostIsDerived(t *testing.T) {
 	}
 }
 
-// The canonical row arrives verified, and that is not a shortcut: the installation already answers
-// at its own domain, so there is nobody to prove anything to.
-func TestTheCanonicalRowIsVerifiedOnArrival(t *testing.T) {
+// The canonical row arrives ACTIVE, and that is not a shortcut: the installation already answers
+// at its own domain, certificate and all, so there is nobody to prove anything to and nothing to
+// wait for.
+func TestTheCanonicalRowIsActiveOnArrival(t *testing.T) {
 	at := time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC)
 	host, err := NewCanonicalHost(NewCanonicalHostInput{
 		TenantID: sessionTenant, Host: "acme.hubtask.example",
@@ -53,7 +54,7 @@ func TestTheCanonicalRowIsVerifiedOnArrival(t *testing.T) {
 	if err != nil {
 		t.Fatalf("building the canonical host: %v", err)
 	}
-	if host.State != HostVerified || host.VerifiedAt.IsZero() {
+	if host.State != HostActive || host.VerifiedAt.IsZero() {
 		t.Errorf("the canonical host is %q, verified at %v", host.State, host.VerifiedAt)
 	}
 	if !host.Canonical {

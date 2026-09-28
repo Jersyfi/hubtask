@@ -14,15 +14,67 @@ import (
 
 // The relying party's configuration use cases (H-04, SI-10).
 const (
-	listIdentityProvidersUseCase       = "ListIdentityProviders"
-	configureIdentityProviderUseCase   = "ConfigureIdentityProvider"
-	removeIdentityProviderUseCase      = "RemoveIdentityProvider"
-	listIdentityProviderPresetsUseCase = "ListIdentityProviderPresets"
+	readIdentityProviderUseCase           = "ReadIdentityProvider"
+	configureFirstIdentityProviderUseCase = "ConfigureFirstIdentityProvider"
+	offerIdentityProviderUseCase          = "OfferIdentityProvider"
+	listIdentityProvidersUseCase          = "ListIdentityProviders"
+	configureIdentityProviderUseCase      = "ConfigureIdentityProvider"
+	removeIdentityProviderUseCase         = "RemoveIdentityProvider"
+	listIdentityProviderPresetsUseCase    = "ListIdentityProviderPresets"
 
 	listInstanceIdentityProvidersUseCase     = "ListInstanceIdentityProviders"
 	configureInstanceIdentityProviderUseCase = "ConfigureInstanceIdentityProvider"
 	removeInstanceIdentityProviderUseCase    = "RemoveInstanceIdentityProvider"
 )
+
+// ReadIdentityProvider answers GET /identity-provider — the singular surface, kept.
+func (c *RestController) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(
+		r.Context(), readIdentityProviderUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
+}
+
+// ConfigureFirstIdentityProvider answers PUT /identity-provider.
+func (c *RestController) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	c.writeProvider(w, r, configureFirstIdentityProviderUseCase, "", http.StatusOK)
+}
+
+// OfferIdentityProvider answers POST /identity-providers/{providerId}:offer.
+func (c *RestController) OfferIdentityProvider(
+	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.ProviderOffer
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), offerIdentityProviderUseCase, actorOf(r), usecase.Input{
+		"id":      providerID.String(),
+		"offered": body.Offered,
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
+}
 
 // ListIdentityProviders answers GET /identity-providers.
 func (c *RestController) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
@@ -217,6 +269,9 @@ func identityProviderResponse(out usecase.Output) openapi.IdentityProvider {
 	}
 	if enabled, held := out["enabled"].(bool); held {
 		answer.Enabled = enabled
+	}
+	if offered, held := out["offered_here"].(bool); held {
+		answer.OfferedHere = &offered
 	}
 	if created, held := out["created_at"].(time.Time); held {
 		answer.CreatedAt = created

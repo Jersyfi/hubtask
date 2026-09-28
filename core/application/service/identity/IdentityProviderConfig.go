@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"strconv"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -68,6 +69,9 @@ type IdentityProviderWriter struct {
 	// asking the provider to prove it exists before a workspace is pointed at it.
 	Relying    provider.Port
 	Authorizer Authorizer
+	// Workspaces is where a workspace's own switches for the installation's providers live. Nil
+	// answers "nothing is taken", which is the honest reading on a build wired without it.
+	Workspaces repository.Workspaces
 	// RedirectURL is this installation's own callback, which every registration form at every
 	// provider asks for. It is what the presets' instructions are rendered with.
 	RedirectURL string
@@ -98,13 +102,39 @@ func (h ListIdentityProviders) Execute(
 	err := w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
 			read, err := w.Providers.List(ctx)
-			found = read
+			if err != nil {
+				return err
+			}
+			found, err = w.withOffers(ctx, read)
 			return err
 		})
 	if err != nil {
 		return nil, err
 	}
 	return found, nil
+}
+
+// withOffers fills in whether each row is a way into *this* workspace.
+//
+// Read once for the whole listing rather than per row: it is one settings document, and a read per
+// provider would be three reads of the same thing on a screen that shows three.
+func (w IdentityProviderWriter) withOffers(
+	ctx context.Context, rows []domain.IdentityProvider,
+) ([]domain.IdentityProvider, error) {
+	var settings domain.WorkspaceSettings
+	if w.Workspaces != nil {
+		workspace, err := w.Workspaces.Find(ctx)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return nil, err
+		}
+		settings = workspace.Settings
+	}
+	answered := make([]domain.IdentityProvider, 0, len(rows))
+	for _, row := range rows {
+		row.OfferedHere = offeredHere(row, settings)
+		answered = append(answered, row)
+	}
+	return answered, nil
 }
 
 // ConfigureIdentityProvider writes one, new or existing.
@@ -337,6 +367,7 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"scope":                 providerScope(configured),
 		"allowed_email_domains": configured.AllowedEmailDomains,
 		"enabled":               configured.Enabled,
+		"offered_here":          configured.OfferedHere,
 		"created_at":            configured.CreatedAt,
 		"version":               configured.Version,
 	}

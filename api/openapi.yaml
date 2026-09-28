@@ -4245,6 +4245,59 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /identity-provider:
+    get:
+      tags: [auth]
+      operationId: readIdentityProvider
+      summary: The workspace's first identity provider
+      description: >
+        **Kept, because nothing in this contract disappears.** It was the whole of the provider
+        surface before providers became plural (SI-10), and a caller written against it keeps
+        working: it reads the workspace's own first provider, in the order the collection lists
+        them, and `PUT` writes that one - creating it where there is none.
+
+        It cannot reach a second provider, it never answers one the installation offers, and it has
+        no `DELETE`: removing one of several through a route that cannot name which would be a
+        route that removes the wrong one. Use `/identity-providers` for all of that.
+
+        Needs the permission that manages structure, or the auditor's read-only configuration
+        permission (A-4). The client secret is never a member of the answer.
+      responses:
+        "200":
+          description: The first provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [auth]
+      operationId: configureFirstIdentityProvider
+      summary: Set the workspace's first identity provider
+      description: >
+        Sets the first provider whole, or creates it where the workspace has none. The same rules
+        the collection applies - discovery before anything is stored, the mark held to its issuer,
+        a public provider held to `INVITED_ONLY`. Auditable.
+
+        The client secret is required when there is nothing to keep, and optional afterwards, as on
+        the collection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProviderConfiguration"
+      responses:
+        "200":
+          description: Configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /identity-providers:
     get:
       tags: [auth]
@@ -4345,6 +4398,42 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /identity-providers/{providerId}:offer:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      tags: [auth]
+      operationId: offerIdentityProvider
+      summary: Switch a provider on or off as a way in here
+      description: >
+        One verb for two stores, because it is one question: **is this a way into this workspace**.
+
+        For the workspace's own provider it is the row's `enabled`. For one the installation offers,
+        it is this workspace's own switch - the row belongs to the installation and is not the
+        workspace's to change, but whether it is *offered here* is (ADR-0070 §2, the concept's §8:
+        "für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner schaltet selbst").
+
+        **An installation's provider is off until a workspace switches it on.** Offering every
+        workspace a way in is the installation's decision; taking it is the workspace's.
+
+        The last way in cannot be switched off: a workspace that turned off its only method would
+        be a workspace nobody can reach. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderOffer"
+      responses:
+        "200":
+          description: Switched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8619,11 +8708,13 @@ components:
         host: { type: string }
         state:
           type: string
-          enum: [PENDING, VERIFIED, FAILED]
+          enum: [PENDING, VERIFIED, ACTIVE, BROKEN]
           description: >
-            `PENDING` resolves nothing: a host somebody typed is not a host they own. `FAILED` is a
-            claim that was checked and did not hold, kept rather than deleted so that a second
-            attempt meets a row saying what happened.
+            `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is
+            one whose zone carried the mark and which may become canonical; it is not serving yet.
+            `ACTIVE` is verified, its certificate in place, and answering - the canonical host is
+            always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is
+            the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
         is_canonical:
           type: boolean
           description: >
@@ -8633,9 +8724,9 @@ components:
           type: [string, "null"]
           description: >
             What the zone has to carry before the state may move - a value published in a DNS record,
-            which is why it is the one presented value in this contract that is not a digest. Absent
-            for a host that is already verified and for the canonical one, because there is nothing
-            left for anybody to publish.
+            which is why it is the one presented value in this contract that is not a digest. Present
+            for a `PENDING` or `BROKEN` host, because those are the two a zone still has to prove;
+            absent for the canonical one and for anything already serving.
         verified_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
@@ -8865,20 +8956,37 @@ components:
         enabled:
           type: boolean
           description: >
-            Off leaves the configuration in place and refuses the flow. It is the switch to reach
-            for while a provider is being changed, rather than deleting and retyping a secret.
+            Whether the row itself is switched on. For a workspace's own provider this is the
+            switch; for one the installation offers it is the *installation's* - a workspace that
+            wants it off switches `offered_here` instead.
+        offered_here:
+          type: boolean
+          readOnly: true
+          description: >
+            Whether this provider is a way into **this** workspace. Always true for its own rows
+            while they are enabled; for a row the installation offers, it is this workspace's own
+            switch, and it is **false until somebody turns it on** — offering it is the
+            installation's decision, taking it is the workspace's (ADR-0070 §2).
         allowed_email_domains:
           type: array
           items: { type: string }
           description: >
-            The domains inside which a verified address may claim an account that already exists,
-            under `DOMAINS`. Empty means no claiming happens at all: every subject is provisioned as
-            its own account, which is the safe reading of "not configured".
+            The domains a verified address must be inside for this provider to admit it, under
+            `DOMAINS`. **Empty admits nobody** under that mode: the list is the mode, and a mode
+            with no list lets no one in.
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    ProviderOffer:
+      type: object
+      required: [offered]
+      properties:
+        offered:
+          type: boolean
+          description: Whether this provider is a way into this workspace.
 
     IdentityProviderKind:
       type: string

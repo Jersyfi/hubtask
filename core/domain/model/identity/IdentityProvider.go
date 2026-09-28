@@ -18,21 +18,28 @@ import (
 // pastes a directory into.
 const MaxAllowedEmailDomains = 10
 
-// Provisioning is who gets an account on a first arrival through a provider (SI-10).
+// Provisioning is who a provider may bring in at all (SI-10, the concept's §8).
 //
-// One axis, three positions, and the axis is **how freely an arriving subject may claim an account
-// that already exists here**. That is the only question with a security answer: creating an account
-// gives somebody an empty desk, and claiming one gives them somebody else's.
+// One axis, three positions, and the axis is **who comes in** - not how freely somebody claims an
+// account that already exists. That is the reading the concept fixes, and the difference is one
+// case: a subject whose address is outside `AllowedEmailDomains`.
 //
-//   - INVITED_ONLY - it must claim one. A verified address that meets no account here is refused,
-//     and nothing is created. The mode a public provider is held to.
-//   - DOMAINS - it may claim one inside `AllowedEmailDomains`, and is provisioned otherwise. What
-//     this installation did before there was a column for it.
-//   - ANY - it may claim one on any address the provider says it verified. For a provider that *is*
-//     the workspace's directory, where every address in it belongs to the workspace anyway.
+//   - INVITED_ONLY - only somebody who was invited here first. A verified address must meet an
+//     account that already exists; anything else is refused and nothing is created. The mode a
+//     public provider is held to.
+//   - DOMAINS - only inside `AllowedEmailDomains`. A verified address in the list comes in - linked
+//     to the account that already holds it, or provisioned where there is none. An address outside
+//     the list is **refused**, which is what makes this different from ANY.
+//   - ANY - everybody the provider vouches for. For a provider that is the workspace's own
+//     directory, where its population *is* the workspace's.
 //
-// An unverified address never claims anything, in any of the three: an address the provider did not
-// vouch for is somebody typing, and acting on it hands over the account it belongs to.
+// An unverified address comes in nowhere. An address the provider did not vouch for is somebody
+// typing, and acting on it hands over the account it belongs to - or invents one in its name.
+//
+// **An empty list under DOMAINS admits nobody.** Before this column existed, an empty list meant
+// "link nobody, provision everybody"; it means "nobody" now. That is the one place where the safe
+// reading changed rather than stayed, and it is the reading the mode's own name promises.
+
 type Provisioning string
 
 const (
@@ -81,9 +88,13 @@ type IdentityProvider struct {
 	Position            int
 	AllowedEmailDomains []string
 	Enabled             bool
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	Version             int
+	// OfferedHere is whether this provider is a way into the workspace that is reading it. Not a
+	// column: for a workspace's own row it *is* `Enabled`, and for the installation's it is the
+	// reading workspace's own switch, which lives in its settings (SI-10).
+	OfferedHere bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int
 }
 
 // Installation reports whether this row belongs to no workspace.
@@ -132,6 +143,17 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 	provisioning, err := resolvedProvisioning(in.Provisioning, preset)
 	if err != nil {
 		return IdentityProvider{}, err
+	}
+
+	// The second half of the concept's §8 security sentence: a provider whose addresses this
+	// installation cannot vouch for "kann nur ANY oder DOMAINS sein **und ist deshalb nie
+	// Installations-Anbieter**". The reason is the blast radius: an installation's provider is
+	// offered to every workspace, and one that can only be DOMAINS or ANY provisions accounts in
+	// each of them.
+	if in.TenantID.IsZero() && !preset.AddressesVerified {
+		return IdentityProvider{}, shared.ErrValidation.
+			WithDetail("identity_provider.installation_unverified").
+			WithParams(map[string]string{"kind": string(kind)})
 	}
 
 	domains, err := normalisedDomains(in.AllowedEmailDomains)
@@ -314,31 +336,36 @@ func normalisedDomains(raw []string) ([]string, error) {
 	return domains, nil
 }
 
-// MayLink answers whether an arriving address may claim an account that already exists here.
+// MayAdmit answers whether this provider may bring an arriving subject into the workspace at all.
 //
-// Two conditions in every mode, and both are the point. The address must be one the provider says
-// it verified - an unverified claim is somebody typing an address, and acting on it hands them the
-// account it belongs to. And the mode has to permit it: DOMAINS permits it inside the configured
-// list, which empty means nowhere; INVITED_ONLY and ANY permit it anywhere, which is what they are
-// for - the first because claiming is the only way in it has, the second because the provider is
-// the workspace's own directory.
-func (p IdentityProvider) MayLink(email string, verified bool) bool {
-	if !verified {
+// The first gate, and the one that decides between a refusal and everything else. `MayClaim` and
+// `MayProvision` below say what happens to somebody who got through it.
+func (p IdentityProvider) MayAdmit(email string, verified bool) bool {
+	if !verified || emailDomain(email) == "" {
 		return false
 	}
 	switch p.Provisioning {
 	case ProvisionInvitedOnly, ProvisionAny:
-		return emailDomain(email) != ""
+		return true
 	case ProvisionDomains:
 		return p.linksDomain(email)
 	default:
-		// An unknown mode links nothing. A row this build does not understand is a row it does
-		// not act on, which is the only safe reading of a value written by a newer one.
+		// A mode this build does not understand admits nobody. A row written by a newer one is a
+		// row this one does not act on, which is the only safe reading of it.
 		return false
 	}
 }
 
-// MayProvision answers whether a subject with no account here gets one.
+// MayClaim answers whether an admitted subject may take over an account that already exists.
+//
+// True in every mode, because admission already required an address the provider vouched for and,
+// under DOMAINS, one inside the configured list. What differs between the modes is who is admitted,
+// not what an admitted person may do - which is the whole of the concept's reading.
+func (p IdentityProvider) MayClaim(email string, verified bool) bool {
+	return p.MayAdmit(email, verified)
+}
+
+// MayProvision answers whether an admitted subject with no account here gets one.
 //
 // False for INVITED_ONLY alone, and that is the whole of the mode: somebody has to have invited
 // them first.

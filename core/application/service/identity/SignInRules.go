@@ -225,6 +225,8 @@ type GetSignInRules struct {
 	Resolver  SignInPolicyResolver
 	Tenants   repository.TenantDirectory
 	Providers repository.IdentityProviders
+	// Workspaces answers which of the installation's providers this workspace took.
+	Workspaces repository.Workspaces
 
 	UnitOfWork persistence.UnitOfWork
 	// Multi is decision 3's mode switch, SessionWriter's: in single mode there is one workspace
@@ -312,7 +314,10 @@ func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]
 		return []ProviderSummary{}, nil
 	}
 
-	var inForce []domain.IdentityProvider
+	var (
+		inForce  []domain.IdentityProvider
+		settings domain.WorkspaceSettings
+	)
 	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
 			read, err := h.Providers.List(ctx)
@@ -323,6 +328,15 @@ func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]
 				return err
 			}
 			inForce = read
+			if h.Workspaces == nil {
+				return nil
+			}
+			// Which of the installation's rows this workspace took. One read for the whole card.
+			workspace, err := h.Workspaces.Find(ctx)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			settings = workspace.Settings
 			return nil
 		})
 	if err != nil {
@@ -331,7 +345,10 @@ func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]
 
 	summaries := make([]ProviderSummary, 0, len(inForce))
 	for _, configured := range inForce {
-		if configured.Issuer == "" || !configured.Enabled {
+		// A provider the installation offers is not a button until this workspace took it: "für
+		// alle Arbeitsbereiche angeboten, nirgends an" (SI-10). A button that led to a way in
+		// nobody here chose would be the installation deciding for the workspace.
+		if configured.Issuer == "" || !offeredHere(configured, settings) {
 			continue
 		}
 		scope := ProviderScopeWorkspace

@@ -3,7 +3,11 @@
 
 package identity
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
 
 // The mark a provider draws is a piece of borrowed trust, so an issuer has to belong to the preset
 // that claims it (ADR-0069 §3).
@@ -112,9 +116,10 @@ func TestWhatAPresetPermitsAsProvisioning(t *testing.T) {
 	}
 }
 
-// The ladder, on the one axis that has a security answer: how freely an arriving subject may claim
-// an account that already exists here.
-func TestTheProvisioningLadder(t *testing.T) {
+// The axis the concept fixes: **who comes in**. The difference between DOMAINS and ANY is one case
+// - an address outside the configured list - and getting it wrong makes the two modes the same
+// thing under two names.
+func TestWhoEachModeAdmits(t *testing.T) {
 	invited := providerInput()
 	invited.Issuer = "https://login.microsoftonline.com/9188040d/v2.0"
 	invited.Kind = "MICROSOFT"
@@ -143,27 +148,32 @@ func TestTheProvisioningLadder(t *testing.T) {
 		provider     IdentityProvider
 		email        string
 		verified     bool
-		mayLink      bool
+		admitted     bool
 		mayProvision bool
 	}{
-		{name: "INVITED_ONLY claims outside the list and creates nothing",
-			provider: invitedOnly, email: "ada@elsewhere.org", verified: true, mayLink: true},
-		{name: "INVITED_ONLY still refuses an unverified address",
+		{name: "INVITED_ONLY admits a verified address and creates nothing",
+			provider: invitedOnly, email: "ada@elsewhere.org", verified: true, admitted: true},
+		{name: "INVITED_ONLY refuses an unverified one",
 			provider: invitedOnly, email: "ada@elsewhere.org"},
-		{name: "DOMAINS claims inside the list and creates outside it",
-			provider: byDomain, email: "ada@example.org", verified: true, mayLink: true, mayProvision: true},
-		{name: "DOMAINS claims nothing outside the list",
+		{name: "DOMAINS admits inside the list and may create there",
+			provider: byDomain, email: "ada@example.org", verified: true, admitted: true, mayProvision: true},
+		{name: "DOMAINS refuses outside the list - the case that makes it not ANY",
 			provider: byDomain, email: "ada@elsewhere.org", verified: true, mayProvision: true},
-		{name: "ANY claims on any verified address",
-			provider: anybody, email: "ada@elsewhere.org", verified: true, mayLink: true, mayProvision: true},
+		{name: "ANY admits any verified address",
+			provider: anybody, email: "ada@elsewhere.org", verified: true, admitted: true, mayProvision: true},
 		{name: "ANY refuses an unverified one too",
 			provider: anybody, email: "ada@elsewhere.org", mayProvision: true},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := c.provider.MayLink(c.email, c.verified); got != c.mayLink {
-				t.Errorf("MayLink = %v, want %v", got, c.mayLink)
+			if got := c.provider.MayAdmit(c.email, c.verified); got != c.admitted {
+				t.Errorf("MayAdmit = %v, want %v", got, c.admitted)
+			}
+			// Whoever is admitted may claim; the modes differ in who is admitted, not in what an
+			// admitted person may do.
+			if got := c.provider.MayClaim(c.email, c.verified); got != c.admitted {
+				t.Errorf("MayClaim = %v, want %v", got, c.admitted)
 			}
 			if got := c.provider.MayProvision(); got != c.mayProvision {
 				t.Errorf("MayProvision = %v, want %v", got, c.mayProvision)
@@ -172,12 +182,37 @@ func TestTheProvisioningLadder(t *testing.T) {
 	}
 }
 
-// A row written by a newer build, read by this one: an unknown mode links nothing rather than
+// A provider whose addresses this installation cannot vouch for may be a workspace's own and may
+// never be offered to every workspace on the installation - the second half of the concept's §8
+// security sentence, and the blast radius is the reason.
+func TestAnUnverifiedPresetIsNeverTheInstallationsProvider(t *testing.T) {
+	offered := providerInput()
+	offered.TenantID = shared.ID("")
+	if _, err := NewIdentityProvider(offered); err == nil {
+		t.Error("a GENERIC provider was offered to every workspace on the installation")
+	}
+
+	// The same provider is fine as one workspace's own.
+	if _, err := NewIdentityProvider(providerInput()); err != nil {
+		t.Errorf("a workspace's own GENERIC provider was refused: %v", err)
+	}
+
+	// And a preset that does vouch for its addresses may be the installation's.
+	verified := providerInput()
+	verified.TenantID = shared.ID("")
+	verified.Issuer = "https://accounts.google.com"
+	verified.Kind = "GOOGLE"
+	if _, err := NewIdentityProvider(verified); err != nil {
+		t.Errorf("Google was refused as the installation's provider: %v", err)
+	}
+}
+
+// A row written by a newer build, read by this one: an unknown mode admits nobody rather than
 // guessing which of the three it resembles.
-func TestAnUnknownModeLinksNothing(t *testing.T) {
+func TestAnUnknownModeAdmitsNobody(t *testing.T) {
 	provider := IdentityProvider{Provisioning: "TOMORROWS_MODE", AllowedEmailDomains: []string{"example.org"}}
-	if provider.MayLink("ada@example.org", true) {
-		t.Error("a mode this build does not know linked an address")
+	if provider.MayAdmit("ada@example.org", true) {
+		t.Error("a mode this build does not know admitted an address")
 	}
 	if provider.MayProvision() {
 		t.Error("a mode this build does not know provisioned an account")

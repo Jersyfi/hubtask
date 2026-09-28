@@ -281,7 +281,7 @@ class Workspace(TypedDict, total=False):
 class WorkspaceHost(TypedDict, total=False):
     """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
     host: Required[str]
-    state: Required[Literal["PENDING", "VERIFIED", "FAILED"]]
+    state: Required[Literal["PENDING", "VERIFIED", "ACTIVE", "BROKEN"]]
     is_canonical: Required[bool]
     verification: str | None
     verified_at: str | None
@@ -393,10 +393,14 @@ class IdentityProvider(TypedDict, total=False):
     provisioning: Required["IdentityProviderProvisioning"]
     position: Required[int]
     enabled: Required[bool]
+    offered_here: bool
     allowed_email_domains: Required[list[str]]
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
+
+class ProviderOffer(TypedDict, total=False):
+    offered: Required[bool]
 
 IdentityProviderKind = Literal["GENERIC", "GOOGLE", "MICROSOFT"]
 

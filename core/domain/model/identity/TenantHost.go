@@ -19,19 +19,27 @@ import (
 // invitation link have to name one host rather than whichever the request arrived at, and that is
 // what `Canonical` answers.
 
-// HostState is how far a host has got.
+// HostState is how far a host has got (the concept's §6.5).
+//
+// Four, and the fourth is the one that makes the model worth landing early: a host that *was*
+// serving and stopped is not a host that never worked, and §6.6's fallback - the provider host
+// becomes canonical again by itself - is keyed on exactly that difference.
 type HostState string
 
 const (
 	// HostPending is a host somebody claimed. It resolves nothing: a host typed is not a host owned,
 	// and acting on the claim is how one workspace answers at another's domain.
 	HostPending HostState = "PENDING"
-	// HostVerified is a host whose zone carried the mark. The canonical one is verified by
-	// construction - the installation already answers at it.
+	// HostVerified is a host whose zone carried the mark. It may become canonical; it is not
+	// serving yet - the certificate is the operator's next step.
 	HostVerified HostState = "VERIFIED"
-	// HostFailed is a claim that was checked and did not hold. Kept rather than deleted, so a
-	// second attempt meets a row that says what happened rather than an absence.
-	HostFailed HostState = "FAILED"
+	// HostActive is verified, its certificate in place, and answering. The canonical host is
+	// always this one, and the derived host is this from the moment a workspace exists.
+	HostActive HostState = "ACTIVE"
+	// HostBroken was ACTIVE and stopped - the record went, the certificate lapsed, the zone moved.
+	// Kept rather than deleted, because the row is the way back: when it recovers it is ACTIVE
+	// again without anybody doing anything, and until then the provider host is canonical.
+	HostBroken HostState = "BROKEN"
 )
 
 // MaxHostLength is a hostname's own bound (RFC 1035's 255 octets, less the length byte and the root
@@ -92,9 +100,9 @@ type NewCanonicalHostInput struct {
 
 // NewCanonicalHost builds the row a workspace gets when it is provisioned.
 //
-// VERIFIED on arrival, and that is not a shortcut: the host is the installation's own domain with
-// the workspace's slug in front of it, so the installation already answers at it and there is
-// nobody to prove anything to.
+// ACTIVE on arrival, and that is not a shortcut: the host is the installation's own domain with
+// the workspace's slug in front of it, so the installation already answers at it, certificate and
+// all, and there is nobody to prove anything to.
 func NewCanonicalHost(in NewCanonicalHostInput) (TenantHost, error) {
 	host, err := normalisedHost(in.Host)
 	if err != nil {
@@ -104,7 +112,7 @@ func NewCanonicalHost(in NewCanonicalHostInput) (TenantHost, error) {
 		return TenantHost{}, shared.ErrInternal.WithDetail("tenant_host.incomplete")
 	}
 	return TenantHost{
-		TenantID: in.TenantID, Host: host, State: HostVerified,
+		TenantID: in.TenantID, Host: host, State: HostActive,
 		Verification: in.Verification, VerifiedAt: in.Now.UTC(),
 		Canonical: true, CreatedAt: in.Now.UTC(),
 	}, nil

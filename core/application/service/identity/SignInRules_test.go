@@ -277,15 +277,20 @@ func rulesProviders(rows ...domain.IdentityProvider) *providerStore {
 	return store
 }
 
-// The installation's own provider is offered to a workspace that configured none of its own, and it
-// says which level it came from - so a settings screen can show it as inherited rather than as the
-// workspace's own choice (SI-10).
-func TestTheInstallationsProviderIsOfferedToEveryWorkspace(t *testing.T) {
-	handler, _, _ := newRulesFixture()
+// An installation's provider is **offered** to every workspace and is **on** in none of them until
+// somebody there switches it on (SI-10, the concept's §8).
+//
+// That is the whole difference between offering and deciding: the installation says "this exists
+// for you", and the workspace says whether its people see a button for it. A provider that appeared
+// on by itself would be the installation deciding how a workspace signs in.
+func TestAnInstallationsProviderIsNotAButtonUntilTheWorkspaceTakesIt(t *testing.T) {
+	handler, workspace, _ := newRulesFixture()
+	handler.Workspaces = workspace
+	offered := shared.ID("01936f2a-7c1e-7000-8000-0000000000b2")
 	handler.Providers = rulesProviders(
 		domain.IdentityProvider{
-			ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000b2"), Kind: domain.KindGeneric,
-			DisplayName: "id.platform.example", Issuer: "https://id.platform.example", Enabled: true,
+			ID: offered, Kind: domain.KindGoogle,
+			DisplayName: "Google", Issuer: "https://accounts.google.com", Enabled: true,
 		},
 		domain.IdentityProvider{
 			ID: rulesProviderRow, TenantID: rulesTenant, Kind: domain.KindGeneric,
@@ -297,15 +302,27 @@ func TestTheInstallationsProviderIsOfferedToEveryWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
-	if len(rules.Providers) != 2 {
-		t.Fatalf("providers %+v, want both levels", rules.Providers)
+	if len(rules.Providers) != 1 || rules.Providers[0].Scope != ProviderScopeWorkspace {
+		t.Fatalf("providers %+v, want only the workspace's own", rules.Providers)
+	}
+
+	// The workspace takes it, and now it is a button — saying which level it came from, so that a
+	// settings screen can draw it as inherited rather than as this workspace's choice.
+	workspace.row.Settings = workspace.row.Settings.WithOffer(offered, true)
+
+	taken, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(taken.Providers) != 2 {
+		t.Fatalf("providers %+v, want both levels", taken.Providers)
 	}
 	scopes := map[string]string{}
-	for _, offered := range rules.Providers {
-		scopes[offered.DisplayName] = offered.Scope
+	for _, one := range taken.Providers {
+		scopes[one.DisplayName] = one.Scope
 	}
-	if scopes["id.platform.example"] != ProviderScopeInstallation {
-		t.Errorf("the installation's row is %q", scopes["id.platform.example"])
+	if scopes["Google"] != ProviderScopeInstallation {
+		t.Errorf("the installation's row is %q", scopes["Google"])
 	}
 	if scopes["id.acme.example"] != ProviderScopeWorkspace {
 		t.Errorf("the workspace's own row is %q", scopes["id.acme.example"])

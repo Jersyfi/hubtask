@@ -2594,16 +2594,16 @@ func (e RuleActionResultStatus) Valid() bool {
 
 // Defines values for RuleFindingLevel.
 const (
-	ATTENTION RuleFindingLevel = "ATTENTION"
-	BROKEN    RuleFindingLevel = "BROKEN"
+	RuleFindingLevelATTENTION RuleFindingLevel = "ATTENTION"
+	RuleFindingLevelBROKEN    RuleFindingLevel = "BROKEN"
 )
 
 // Valid indicates whether the value is a known member of the RuleFindingLevel enum.
 func (e RuleFindingLevel) Valid() bool {
 	switch e {
-	case ATTENTION:
+	case RuleFindingLevelATTENTION:
 		return true
-	case BROKEN:
+	case RuleFindingLevelBROKEN:
 		return true
 	default:
 		return false
@@ -3425,7 +3425,8 @@ func (e WorkspaceStatus) Valid() bool {
 
 // Defines values for WorkspaceHostState.
 const (
-	WorkspaceHostStateFAILED   WorkspaceHostState = "FAILED"
+	WorkspaceHostStateACTIVE   WorkspaceHostState = "ACTIVE"
+	WorkspaceHostStateBROKEN   WorkspaceHostState = "BROKEN"
 	WorkspaceHostStatePENDING  WorkspaceHostState = "PENDING"
 	WorkspaceHostStateVERIFIED WorkspaceHostState = "VERIFIED"
 )
@@ -3433,7 +3434,9 @@ const (
 // Valid indicates whether the value is a known member of the WorkspaceHostState enum.
 func (e WorkspaceHostState) Valid() bool {
 	switch e {
-	case WorkspaceHostStateFAILED:
+	case WorkspaceHostStateACTIVE:
+		return true
+	case WorkspaceHostStateBROKEN:
 		return true
 	case WorkspaceHostStatePENDING:
 		return true
@@ -5193,7 +5196,7 @@ type HttpRequestCallMethod string
 
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
-	// AllowedEmailDomains The domains inside which a verified address may claim an account that already exists, under `DOMAINS`. Empty means no claiming happens at all: every subject is provisioned as its own account, which is the safe reading of "not configured".
+	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
 	// ClientId This installation's registration with the provider.
@@ -5203,7 +5206,7 @@ type IdentityProvider struct {
 	// DisplayName The name on the button. The issuer's host where nobody set one, which discloses nothing new: pressing the button sends the person to exactly that host.
 	DisplayName string `json:"display_name"`
 
-	// Enabled Off leaves the configuration in place and refuses the flow. It is the switch to reach for while a provider is being changed, rather than deleting and retyping a secret.
+	// Enabled Whether the row itself is switched on. For a workspace's own provider this is the switch; for one the installation offers it is the *installation's* - a workspace that wants it off switches `offered_here` instead.
 	Enabled bool               `json:"enabled"`
 	Id      openapi_types.UUID `json:"id"`
 
@@ -5212,6 +5215,9 @@ type IdentityProvider struct {
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's (ADR-0070 §2).
+	OfferedHere *bool `json:"offered_here,omitempty"`
 
 	// Position The order the buttons are drawn in.
 	Position int `json:"position"`
@@ -6243,6 +6249,12 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderOffer defines model for ProviderOffer.
+type ProviderOffer struct {
+	// Offered Whether this provider is a way into this workspace.
+	Offered bool `json:"offered"`
+}
 
 // ProviderSummary One way into this workspace, as a sign-in card needs it.
 type ProviderSummary struct {
@@ -8048,15 +8060,15 @@ type WorkspaceHost struct {
 	// IsCanonical Which host a mail, a redirect and an invitation link name. Exactly one per workspace, enforced by a partial unique index rather than by a rule somebody has to remember.
 	IsCanonical bool `json:"is_canonical"`
 
-	// State `PENDING` resolves nothing: a host somebody typed is not a host they own. `FAILED` is a claim that was checked and did not hold, kept rather than deleted so that a second attempt meets a row saying what happened.
+	// State `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 	State WorkspaceHostState `json:"state"`
 
-	// Verification What the zone has to carry before the state may move - a value published in a DNS record, which is why it is the one presented value in this contract that is not a digest. Absent for a host that is already verified and for the canonical one, because there is nothing left for anybody to publish.
+	// Verification What the zone has to carry before the state may move - a value published in a DNS record, which is why it is the one presented value in this contract that is not a digest. Present for a `PENDING` or `BROKEN` host, because those are the two a zone still has to prove; absent for the canonical one and for anything already serving.
 	Verification *string    `json:"verification,omitempty"`
 	VerifiedAt   *time.Time `json:"verified_at,omitempty"`
 }
 
-// WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `FAILED` is a claim that was checked and did not hold, kept rather than deleted so that a second attempt meets a row saying what happened.
+// WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
 
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
@@ -9304,11 +9316,17 @@ type CreateGroupJSONRequestBody = GroupCreate
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
+// ConfigureFirstIdentityProviderJSONRequestBody defines body for ConfigureFirstIdentityProvider for application/json ContentType.
+type ConfigureFirstIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
 // CreateIdentityProviderJSONRequestBody defines body for CreateIdentityProvider for application/json ContentType.
 type CreateIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
+// OfferIdentityProviderJSONRequestBody defines body for OfferIdentityProvider for application/json ContentType.
+type OfferIdentityProviderJSONRequestBody = ProviderOffer
 
 // ImportEntriesJSONRequestBody defines body for ImportEntries for application/json ContentType.
 type ImportEntriesJSONRequestBody = ImportRequest
@@ -9843,6 +9861,12 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+	// ReadIdentityProvider The workspace's first identity provider
+	// (GET /identity-provider)
+	ReadIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// ConfigureFirstIdentityProvider Set the workspace's first identity provider
+	// (PUT /identity-provider)
+	ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request)
 	// ListIdentityProviderPresets The providers Hubtask has a preset for, and what registering takes
 	// (GET /identity-provider-presets)
 	ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request)
@@ -9858,6 +9882,9 @@ type ServerInterface interface {
 	// ConfigureIdentityProvider Replace one of the workspace's identity providers
 	// (PUT /identity-providers/{providerId})
 	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// OfferIdentityProvider Switch a provider on or off as a way in here
+	// (POST /identity-providers/{providerId}:offer)
+	OfferIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
 	// ImportEntries Import entries from another system into a hub
 	// (POST /imports)
 	ImportEntries(w http.ResponseWriter, r *http.Request, params ImportEntriesParams)
@@ -14072,6 +14099,34 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ReadIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureFirstIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureFirstIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListIdentityProviderPresets operation middleware
 func (siw *ServerInterfaceWrapper) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request) {
 
@@ -14157,6 +14212,32 @@ func (siw *ServerInterfaceWrapper) ConfigureIdentityProvider(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfigureIdentityProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OfferIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) OfferIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OfferIdentityProvider(w, r, providerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -19980,10 +20061,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-providers", wrapper.ListIdentityProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/identity-providers", wrapper.CreateIdentityProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-providers/{providerId}", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-providers/{providerId}", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/identity-providers/{providerId}:offer", wrapper.OfferIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider-presets", wrapper.ListIdentityProviderPresets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:decompose", wrapper.SuggestDecomposition)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)

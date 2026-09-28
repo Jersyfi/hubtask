@@ -691,6 +691,14 @@ class Client:
         """Change how the workspace is set up"""
         return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
+    def read_identity_provider(self) -> "IdentityProvider":
+        """The workspace's first identity provider"""
+        return self._call("GET", "/identity-provider", {}, None, {}, None, "none", None, "json")
+
+    def configure_first_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+        """Set the workspace's first identity provider"""
+        return self._call("PUT", "/identity-provider", {}, None, {}, body, "json", "application/json", "json")
+
     def list_identity_providers(self) -> dict[str, Any]:
         """The providers people can sign in to this workspace through"""
         return self._call("GET", "/identity-providers", {}, None, {}, None, "none", None, "json")
@@ -706,6 +714,10 @@ class Client:
     def remove_identity_provider(self, provider_id: str) -> None:
         """Remove one of the workspace's identity providers"""
         return self._call("DELETE", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
+
+    def offer_identity_provider(self, provider_id: str, body: "ProviderOffer") -> "IdentityProvider":
+        """Switch a provider on or off as a way in here"""
+        return self._call("POST", "/identity-providers/{providerId}:offer", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
 
     def list_identity_provider_presets(self) -> dict[str, Any]:
         """The providers Hubtask has a preset for, and what registering takes"""

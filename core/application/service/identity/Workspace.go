@@ -313,10 +313,12 @@ func workspaceOutput(
 				"is_canonical": host.Canonical,
 				"created_at":   host.CreatedAt,
 			}
-			// The mark travels with the row a zone still has to carry it. Not for the canonical
-			// one: it was verified by construction, and a value nobody has to publish is a value
-			// nobody has to be shown.
-			if !host.Canonical && host.State != domain.HostVerified {
+			// The mark travels with a row whose zone still has to carry it - which is a claim that
+			// is PENDING or one that BROKE and has to be proved again. Not for the canonical one:
+			// it is ACTIVE by construction, and a value nobody has to publish is a value nobody
+			// has to be shown.
+			if !host.Canonical &&
+				(host.State == domain.HostPending || host.State == domain.HostBroken) {
 				row["verification"] = host.Verification
 			}
 			if !host.VerifiedAt.IsZero() {

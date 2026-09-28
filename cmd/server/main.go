@@ -1081,6 +1081,9 @@ func run() error {
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Relying:    relyingParty,
 		Authorizer: authorizer,
+		// Which of the installation's providers this workspace took (SI-10): the switch lives in
+		// the workspace's settings, because the row is the installation's.
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries (SI-10).
 		RedirectURL: oidcRedirectURL,
@@ -1212,7 +1215,10 @@ func run() error {
 		}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
-			Providers:  postgres.NewIdentityProviderRepository(),
+			Providers: postgres.NewIdentityProviderRepository(),
+			// Which of the installation's providers this workspace took: an offered one is not a
+			// button until somebody here switched it on (SI-10).
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
@@ -1240,6 +1246,11 @@ func run() error {
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ListIdentityProviders{Writer: identityProviderWriter}.Descriptor(),
+		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ConfigureFirstIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.OfferIdentityProvider{
+			Writer: identityProviderWriter, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ListIdentityProviderPresets{Writer: identityProviderWriter}.Descriptor(),
 		adminservice.ListInstanceIdentityProviders{Writer: instanceProviderWriter}.Descriptor(),

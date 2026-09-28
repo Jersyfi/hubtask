@@ -93,14 +93,14 @@ func TestAWorkspacesHostsStayHomeAndAHostBelongsToOneWorkspace(t *testing.T) {
 			t.Fatalf("A holds %d hosts, want one", len(listed))
 		}
 		row := listed[0]
-		if row.Host != "idp-a.hosts.example" || !row.Canonical || row.State != domain.HostVerified {
+		if row.Host != "idp-a.hosts.example" || !row.Canonical || row.State != domain.HostActive {
 			t.Errorf("A's host came back as %+v", row)
 		}
 		if row.TenantID != idpTenantA {
 			t.Errorf("the mapped row belongs to %q, want A", row.TenantID)
 		}
 		if row.VerifiedAt.IsZero() {
-			t.Error("a verified host carries no moment")
+			t.Error("an active host carries no moment")
 		}
 
 		return nil

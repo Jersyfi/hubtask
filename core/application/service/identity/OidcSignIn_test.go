@@ -287,9 +287,14 @@ func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 	}
 }
 
-// The two ways linking must not happen: an address the provider did not verify, and one outside
-// the configured domains. Both provision instead - a new account is the safe answer.
-func TestLinkingNeedsAVerifiedAddressInsideTheDomains(t *testing.T) {
+// The two ways an arrival is refused under DOMAINS: an address the provider did not verify, and one
+// outside the configured list.
+//
+// **Both are a refusal now, not a new account.** Before SI-10 they were provisioned, which made
+// DOMAINS the same thing as ANY under a name that promised otherwise - and meant that pointing a
+// workspace at Google handed a desk to anybody who asked. The concept's §8 fixes the axis: the mode
+// says who comes in.
+func TestAnAddressOutsideTheDomainsIsRefusedRatherThanProvisioned(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	existing := domain.Account{
 		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000e1"), TenantID: tenant,
@@ -312,18 +317,49 @@ func TestLinkingNeedsAVerifiedAddressInsideTheDomains(t *testing.T) {
 			f := newOidcFixture(t, at, existing)
 			f.relying.identity = c.identity
 
-			pair, err := CompleteOidcSignIn{Writer: f.writer}.
+			_, err := CompleteOidcSignIn{Writer: f.writer}.
 				Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
-			if err != nil {
-				t.Fatalf("completing: %v", err)
+			if !errors.Is(err, shared.ErrForbidden) {
+				t.Fatalf("completing answered %v, want a refusal", err)
 			}
-			if pair.Session.AccountID == existing.ID {
-				t.Error("an unverified or out-of-domain address took over an existing account")
+			if shared.AsError(err).DetailCode != "identity_provider.not_admitted" {
+				t.Errorf("the refusal is %q", shared.AsError(err).DetailCode)
+			}
+			// Nothing was created and nothing was taken over.
+			if len(f.accounts.inserted) != 0 {
+				t.Errorf("%d accounts were provisioned for a refused arrival", len(f.accounts.inserted))
 			}
 			if containsAction(auditActions(f.session.audit.entries), OidcLinkedAction) {
 				t.Error("a link was recorded where none should have happened")
 			}
+			// And the refusal is in the trail: a provider turning everybody away is a thing an
+			// operator has to be able to read.
+			if !containsAction(auditActions(f.session.audit.entries), OidcRefusedAction) {
+				t.Error("the refusal was not recorded")
+			}
 		})
+	}
+}
+
+// ANY is the mode for a provider whose population is the workspace's own: a verified address it
+// does not know is still admitted, and becomes an account.
+func TestUnderAnyAVerifiedStrangerIsProvisioned(t *testing.T) {
+	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	f := newOidcFixture(t, at)
+	f.store.rows[0].Provisioning = domain.ProvisionAny
+	f.relying.identity = provider.Identity{
+		Subject: "s-any", Email: "ada@elsewhere.org", EmailVerified: true, DisplayName: "Ada"}
+
+	pair, err := CompleteOidcSignIn{Writer: f.writer}.
+		Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+	if err != nil {
+		t.Fatalf("completing: %v", err)
+	}
+	if pair.Session.AccountID.IsZero() {
+		t.Error("no session was opened")
+	}
+	if !containsAction(auditActions(f.session.audit.entries), OidcProvisionedAction) {
+		t.Error("the arrival was not recorded as a provisioning")
 	}
 }
 

@@ -864,6 +864,16 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** The workspace's first identity provider */
+  readIdentityProvider(options: CallOptions = {}): Promise<operations["readIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/identity-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set the workspace's first identity provider */
+  configureFirstIdentityProvider(body: NonNullable<operations["configureFirstIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureFirstIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/identity-provider", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The providers people can sign in to this workspace through */
   listIdentityProviders(options: CallOptions = {}): Promise<operations["listIdentityProviders"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/identity-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -882,6 +892,11 @@ export class HubtaskClient {
   /** Remove one of the workspace's identity providers */
   removeIdentityProvider(providerId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/identity-providers/{providerId}", { "providerId": providerId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Switch a provider on or off as a way in here */
+  offerIdentityProvider(providerId: string, body: NonNullable<operations["offerIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["offerIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/identity-providers/{providerId}:offer", { "providerId": providerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** The providers Hubtask has a preset for, and what registering takes */
