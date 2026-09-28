@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { ADMINISTRATION, DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -163,4 +163,27 @@ test('every row of the section resolves to a route it claims, and every screen i
     .map((route) => route.name)
     .filter((name) => !claimed.has(name));
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
+});
+
+test('the installation section lists every screen of its area, and every word of it', () => {
+  // The same two invariants the administration has, for the same two reasons: with no index screen
+  // the column *is* the section (ADR-0065 decision 1), so a screen nothing lists is a screen nobody
+  // reaches — and SI-12 added two of them to a list that already existed.
+  for (const group of INSTANCE) {
+    for (const row of group.rows) {
+      assert.ok(row.code in SOURCE, row.code);
+      const resolution = resolve(ROUTES, row.path);
+      assert.ok(resolution.name, `${row.id} points at ${row.path}, which resolves to nothing`);
+      if (row.routes.length === 0) continue;
+      assert.ok(row.routes.includes(resolution.name), `${row.id} lands on ${resolution.name} but does not claim it`);
+    }
+  }
+  const claimed = new Set(INSTANCE.flatMap((group) => group.rows).flatMap((row) => row.routes));
+  const unlisted = ROUTES.filter((route) => route.area === 'instance')
+    .map((route) => route.name)
+    .filter((name) => !claimed.has(name));
+  assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
+
+  // And its front door is a screen of the section rather than the way out.
+  assert.equal(firstScreen(INSTANCE), '/instance');
 });

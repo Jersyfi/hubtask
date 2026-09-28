@@ -1,20 +1,27 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The installation's workspaces and their lifecycle (SI-17, ADR-0070 §5).
+  // The installation's workspaces and their whole lifecycle (SI-17, ADR-0070 §5).
   //
-  // **The one legitimate tenant enumerator**, and it lists the `tenant` row and nothing inside it:
-  // the slug, the display name, the standing, and — while a deletion request stands — when the
-  // grace runs out. There is no way from here into a workspace's contents, because the boundary is
-  // a database policy and this screen does not go around it.
+  // **Everything the control plane can do, this screen can do.** §5.5 lists it: "Liste, Zustand,
+  // Anlegen, Sperren, Fortsetzen, Löschen, Export, Quoten: die Steuerungsebene, die es schon gibt,
+  // zum Klicken." An operator who can only read here and has to reach for a terminal to act is an
+  // operator for whom the dashboard is a status page — and the API is the product, with three doors
+  // onto it rather than one door and two windows.
   //
-  // **Suspending and resuming are here; deleting is not.** A hard delete ends a workspace's own
-  // audit chain by design and is irreversible after its grace; it is the one lifecycle act this
-  // screen deliberately leaves to `hubctl`, where the person doing it has typed the slug.
+  // **And never a row from inside a workspace.** The `tenant` row, its standing, its limits. The
+  // tenant boundary is a database policy rather than a role, and this screen does not go around it:
+  // what an operator needs to run an installation is counts, states and limits.
+  //
+  // **Every act that costs something says so where it is done.** The deletion asks for the display
+  // name to be typed — the server compares it, and a deletion nobody typed the name of is a deletion
+  // somebody clicked past. The owner's redemption token is shown once, through `OneTimeSecret`, and
+  // dies with the panel.
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, OneTimeSecret, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import type { AdminTenant, ProvisionedTenant, TenantQuotas } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -31,8 +38,22 @@
 
   const { onnavigate }: Props = $props();
 
+  /** Which act is open, and on which workspace. One at a time: two dialogs would be two answers. */
+  let acting = $state<{ kind: 'new' | 'delete' | 'export' | 'quotas'; tenant?: AdminTenant } | undefined>(undefined);
   let working = $state<string | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  /** The owner's way in, from the one answer that carries it. Held by the screen, never the store. */
+  let provisioned = $state<ProvisionedTenant | undefined>(undefined);
+
+  // The new workspace's fields.
+  let slug = $state('');
+  let displayName = $state('');
+  let ownerEmail = $state('');
+  let ownerName = $state('');
+  // What a deletion must be told, and what an export and the quotas need.
+  let confirmation = $state('');
+  let targetId = $state('');
+  let quotas = $state<TenantQuotas>({});
 
   $effect(() => {
     const stop = untrack(() => instance.openWorkspaces());
@@ -45,8 +66,7 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
-  /** The columns, in the order the rows render their cells. The last carries the controls and is
-      announced rather than drawn: a heading over two buttons says nothing a reader needs. */
+  /** The columns, in the order the rows render their cells. */
   const columns = $derived([
     { id: 'workspace', label: t('app.instance.column_workspace') },
     { id: 'state', label: t('app.instance.column_state') },
@@ -54,11 +74,37 @@
     { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
   ]);
 
-  async function shift(tenantId: string, action: 'suspend' | 'resume'): Promise<void> {
-    working = tenantId;
+  /** The quota fields, by the name the contract gives each. Drawn from the list, not by hand. */
+  const QUOTAS = [
+    'api_requests_per_minute',
+    'items',
+    'media_bytes',
+    'automation_runs_per_hour',
+    'webhook_targets',
+    'export_jobs',
+    'ai_tokens_per_day',
+  ] as const;
+
+  function open(kind: 'new' | 'delete' | 'export' | 'quotas', tenant?: AdminTenant): void {
+    acting = { kind, tenant };
+    failure = undefined;
+    confirmation = '';
+    targetId = '';
+    quotas = {};
+    if (kind === 'new') {
+      slug = '';
+      displayName = '';
+      ownerEmail = '';
+      ownerName = '';
+    }
+  }
+
+  async function run(id: string, call: () => Promise<void>): Promise<void> {
+    working = id;
     failure = undefined;
     try {
-      await instance.shift(tenantId, action);
+      await call();
+      acting = undefined;
     } catch (cause) {
       failure =
         cause instanceof TransportError
@@ -69,6 +115,13 @@
     }
   }
 
+  function readQuota(name: string, raw: string): void {
+    const trimmed = raw.trim();
+    // An empty field is the installation's default, not zero: the contract's absent number and a
+    // zero are different limits, and only one of them is "unset".
+    quotas = { ...quotas, [name]: trimmed === '' ? undefined : Number(trimmed) };
+  }
+
   $effect(() => page.entitle(t('app.instance.workspaces')));
 </script>
 
@@ -77,12 +130,30 @@
 
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="200">
-      <p class="quiet">{t('app.instance.workspaces_intro')}</p>
+      <p class="prose">{t('app.instance.workspaces_intro')}</p>
 
       {#if failure}
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
         </Banner>
+      {/if}
+
+      {#if provisioned}
+        <!-- The owner's way in, once. It is not in the store and not in the listing: it exists in
+             the answer that created the workspace and nowhere else. -->
+        <OneTimeSecret
+          value={provisioned.owner_redemption_token}
+          label={t('app.instance.owner_token_title')}
+          hint={t('app.instance.owner_token_hint')}
+          revealLabel={t('app.instance.reveal')}
+          hideLabel={t('app.instance.hide')}
+          copyLabel={t('app.instance.copy')}
+          copiedLabel={t('app.instance.copied')}
+          acknowledgementLabel={t('app.instance.owner_token_kept')}
+          notAcknowledgedReason={t('app.instance.owner_token_keep_first')}
+          dismissLabel={t('app.instance.done')}
+          onDismiss={() => (provisioned = undefined)}
+        />
       {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -94,11 +165,16 @@
         <Banner tone="danger" title={unreadable.message}>
           {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
         </Banner>
-      {:else if workspaces.length === 0}
-        <Banner tone="info">{t('app.instance.workspaces_none')}</Banner>
       {:else}
-        <Table label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
-          {#each workspaces as workspace (workspace.id)}
+        <div>
+          <Button tone="primary" onclick={() => open('new')}>{t('app.instance.workspace_new')}</Button>
+        </div>
+
+        {#if workspaces.length === 0}
+          <Banner tone="info">{t('app.instance.workspaces_none')}</Banner>
+        {:else}
+          <Table label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
+            {#each workspaces as workspace (workspace.id)}
               <tr>
                 <td>
                   <span class="name">{workspace.display_name}</span>
@@ -124,36 +200,185 @@
                 </td>
                 <td class="slug">{formatDateTime(workspace.created_at, messages.locale)}</td>
                 <td>
-                  {#if workspace.status === 'ACTIVE'}
-                    <Button
-                      tone="subtle"
-                      isBusy={working === workspace.id}
-                      busyLabel={t('app.instance.working')}
-                      onclick={() => void shift(workspace.id, 'suspend')}
-                    >
-                      {t('app.instance.suspend')}
+                  <div class="row">
+                    {#if workspace.status === 'ACTIVE'}
+                      <Button
+                        tone="subtle"
+                        isBusy={working === workspace.id}
+                        busyLabel={t('app.instance.working')}
+                        onclick={() => void run(workspace.id, () => instance.shift(workspace.id, 'suspend'))}
+                      >
+                        {t('app.instance.suspend')}
+                      </Button>
+                    {:else if workspace.status === 'SUSPENDED'}
+                      <Button
+                        tone="subtle"
+                        isBusy={working === workspace.id}
+                        busyLabel={t('app.instance.working')}
+                        onclick={() => void run(workspace.id, () => instance.shift(workspace.id, 'resume'))}
+                      >
+                        {t('app.instance.resume')}
+                      </Button>
+                    {/if}
+                    <Button tone="subtle" onclick={() => open('quotas', workspace)}>
+                      {t('app.instance.quotas')}
                     </Button>
-                  {:else if workspace.status === 'SUSPENDED'}
-                    <Button
-                      tone="subtle"
-                      isBusy={working === workspace.id}
-                      busyLabel={t('app.instance.working')}
-                      onclick={() => void shift(workspace.id, 'resume')}
-                    >
-                      {t('app.instance.resume')}
+                    <Button tone="subtle" onclick={() => open('export', workspace)}>
+                      {t('app.instance.export')}
                     </Button>
-                  {/if}
+                    {#if workspace.status !== 'PENDING_DELETION'}
+                      <Button tone="subtle" onclick={() => open('delete', workspace)}>
+                        {t('app.instance.delete')}
+                      </Button>
+                    {/if}
+                  </div>
                 </td>
               </tr>
-          {/each}
-        </Table>
+            {/each}
+          </Table>
+        {/if}
       {/if}
     </Stack>
   </InstanceGate>
 </Stack>
 
+<Dialog
+  title={t('app.instance.workspace_new')}
+  isOpen={acting?.kind === 'new'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
+    <Button
+      tone="primary"
+      isBusy={working === 'new'}
+      busyLabel={t('app.instance.working')}
+      onclick={() =>
+        void run('new', async () => {
+          provisioned = await instance.provision({
+            slug: slug.trim(),
+            display_name: displayName.trim(),
+            owner_email: ownerEmail.trim(),
+            ...(ownerName.trim() === '' ? {} : { owner_display_name: ownerName.trim() }),
+          });
+        })}
+    >
+      {t('app.instance.workspace_create')}
+    </Button>
+  {/snippet}
+  <Stack gap="150">
+    <p class="prose">{t('app.instance.workspace_new_intro')}</p>
+    <Input label={t('app.instance.slug_label')} hint={t('app.instance.slug_hint')} bind:value={slug} autocomplete="off" spellcheck={false} isRequired />
+    <Input label={t('app.instance.name_label')} bind:value={displayName} autocomplete="off" isRequired />
+    <Input label={t('app.instance.owner_email_label')} hint={t('app.instance.owner_email_hint')} bind:value={ownerEmail} type="email" autocomplete="off" isRequired />
+    <Input label={t('app.instance.owner_name_label')} bind:value={ownerName} autocomplete="off" />
+  </Stack>
+</Dialog>
+
+<Dialog
+  title={t('app.instance.delete_title')}
+  isOpen={acting?.kind === 'delete'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.keep')}</Button>
+    <Button
+      tone="danger"
+      isBusy={working === 'delete'}
+      busyLabel={t('app.instance.working')}
+      onclick={() =>
+        void run('delete', () =>
+          instance.requestDeletion(acting?.tenant?.id ?? '', confirmation.trim()),
+        )}
+    >
+      {t('app.instance.delete_now')}
+    </Button>
+  {/snippet}
+  <Stack gap="150">
+    <!-- What it costs, before the button and not in a help page. -->
+    <Banner tone="warning">{t('app.instance.delete_cost')}</Banner>
+    <Input
+      label={t('app.instance.delete_confirm_label', { name: acting?.tenant?.display_name ?? '' })}
+      hint={t('app.instance.delete_confirm_hint')}
+      bind:value={confirmation}
+      autocomplete="off"
+      spellcheck={false}
+      isRequired
+    />
+  </Stack>
+</Dialog>
+
+<Dialog
+  title={t('app.instance.export_title')}
+  isOpen={acting?.kind === 'export'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
+    <Button
+      tone="primary"
+      isBusy={working === 'export'}
+      busyLabel={t('app.instance.working')}
+      onclick={() =>
+        void run('export', () =>
+          instance.exportWorkspace(acting?.tenant?.id ?? '', targetId.trim()),
+        )}
+    >
+      {t('app.instance.export_start')}
+    </Button>
+  {/snippet}
+  <Stack gap="150">
+    <p class="prose">{t('app.instance.export_intro')}</p>
+    <Input
+      label={t('app.instance.export_target_label')}
+      hint={t('app.instance.export_target_hint')}
+      bind:value={targetId}
+      autocomplete="off"
+      spellcheck={false}
+      isRequired
+    />
+  </Stack>
+</Dialog>
+
+<Dialog
+  title={t('app.instance.quotas_title', { name: acting?.tenant?.display_name ?? '' })}
+  isOpen={acting?.kind === 'quotas'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
+    <Button
+      tone="primary"
+      isBusy={working === 'quotas'}
+      busyLabel={t('app.instance.working')}
+      onclick={() => void run('quotas', () => instance.setQuotas(acting?.tenant?.id ?? '', quotas))}
+    >
+      {t('app.instance.quotas_save')}
+    </Button>
+  {/snippet}
+  <Stack gap="150">
+    <p class="prose">{t('app.instance.quotas_intro')}</p>
+    {#each QUOTAS as name (name)}
+      <Input
+        label={t(`app.instance.quota.${name}`)}
+        value={quotas[name] === undefined ? '' : String(quotas[name])}
+        oninput={(event) => readQuota(name, (event.currentTarget as HTMLInputElement).value)}
+        type="number"
+        inputmode="numeric"
+        autocomplete="off"
+      />
+    {/each}
+  </Stack>
+</Dialog>
+
 <style>
+  .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
+  .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
 </style>

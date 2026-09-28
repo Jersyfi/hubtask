@@ -313,6 +313,8 @@ export const INSTANCE: readonly SectionGroup[] = [
       { id: 'overview', icon: 'gauge', code: 'app.instance.overview', path: '/instance', routes: ['instance'] },
       { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
       { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
+      { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
+      { id: 'encryption', icon: 'lock', code: 'app.instance.encryption', path: '/instance/encryption', routes: ['instance-encryption'] },
     ],
   },
   {

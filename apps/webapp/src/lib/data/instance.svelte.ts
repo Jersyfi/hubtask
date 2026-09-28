@@ -20,16 +20,24 @@
 
 import type {
   AdminTenant,
+  IdentityProvider,
+  IdentityProviderConfiguration,
+  IdentityProviderPreset,
+  EncryptionStatus,
   InstanceJournalEntry,
   InstanceOverview,
   InstanceSettings,
   Operator,
+  ProvisionedTenant,
+  TenantProvision,
+  TenantQuotas,
   ResourceState,
   SessionElevation,
 } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
+import { identityProviderPresetPath } from './identityprovider.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ELEVATE = '/auth/sessions:elevate';
@@ -38,6 +46,11 @@ const TENANTS = '/admin/tenants';
 const SETTINGS = '/admin/settings';
 const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
+const PROVIDERS = '/admin/identity-providers';
+const ENCRYPTION = '/admin/encryption';
+
+/** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
+const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION];
 
 /** How often the remaining time is recomputed. A second: it is a clock somebody is reading. */
 const TICK_MS = 1_000;
@@ -55,6 +68,12 @@ class Instance {
   #settings = $state<ResourceState<InstanceSettings>>({ status: 'idle' });
   #operators = $state<ResourceState<readonly Operator[]>>({ status: 'idle' });
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
+  #providers = $state<ResourceState<readonly IdentityProvider[]>>({ status: 'idle' });
+  #encryption = $state<ResourceState<EncryptionStatus>>({ status: 'idle' });
+  // The presets are neither the installation's nor a workspace's: they are what Hubtask knows about
+  // three issuers, and the same list answers at both levels. Read through the path the workspace's
+  // own store already names, so one route has one constant.
+  #presets = $state<ResourceState<readonly IdentityProviderPreset[]>>({ status: 'idle' });
 
   /** Whether this session carries the control plane's scope right now. */
   get isElevated(): boolean {
@@ -100,6 +119,18 @@ class Instance {
     return this.#journal;
   }
 
+  get providers(): readonly IdentityProvider[] {
+    return this.#providers.status === 'ready' ? this.#providers.data : [];
+  }
+
+  get providersState(): ResourceState<readonly IdentityProvider[]> {
+    return this.#providers;
+  }
+
+  get encryption(): ResourceState<EncryptionStatus> {
+    return this.#encryption;
+  }
+
   /**
    * Raises this session for an hour.
    *
@@ -112,7 +143,7 @@ class Instance {
         'POST',
         ELEVATE,
         undefined,
-        { stepUpToken, invalidates: [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL] },
+        { stepUpToken, invalidates: EVERYTHING },
       ),
     );
     this.#until = raised.elevated_until;
@@ -163,6 +194,47 @@ class Instance {
     });
   }
 
+  /**
+   * The installation's providers and the presets behind them, together.
+   *
+   * One subscription for both because the form cannot be drawn without the second: a kind whose
+   * preset has not arrived is a kind whose permitted modes are unknown, and offering all three
+   * would be guessing in the permissive direction.
+   */
+  openProviders(): () => void {
+    const stopProviders = engine.subscribe<readonly IdentityProvider[]>({ path: PROVIDERS }, (next) => {
+      this.#providers = next;
+    });
+    const stopPresets = engine.subscribe<readonly IdentityProviderPreset[]>(
+      { path: identityProviderPresetPath },
+      (next) => {
+        this.#presets = next;
+      },
+    );
+    return () => {
+      stopProviders();
+      stopPresets();
+    };
+  }
+
+  /**
+   * The keyring's census.
+   *
+   * **Read only, and that is the concept's own exception** (§5.7): "Der Schlüsselring bleibt in der
+   * Umgebung und in `/admin/encryption`; ein Dashboard zeigt seinen Zustand und dreht ihn nicht."
+   * A rotation is an operator at a terminal with the new key in their hand, not a button.
+   */
+  /** What each kind takes to register, and which admission modes it permits. */
+  get presets(): readonly IdentityProviderPreset[] {
+    return this.#presets.status === 'ready' ? this.#presets.data : [];
+  }
+
+  openEncryption(): () => void {
+    return engine.subscribe<EncryptionStatus>({ path: ENCRYPTION }, (next) => {
+      this.#encryption = next;
+    });
+  }
+
   openJournal(): () => void {
     return engine.subscribe<{ readonly data: readonly InstanceJournalEntry[] }>(
       { path: JOURNAL },
@@ -198,21 +270,118 @@ class Instance {
     );
   }
 
-  /** Suspends a workspace, resumes one, or asks for its deletion. Each is audited and journalled. */
+  /** Suspends a workspace or resumes one. Both are audited and journalled. */
   async shift(tenantId: string, action: 'suspend' | 'resume'): Promise<void> {
     await stepUp.around((stepUpToken) =>
-      engine.mutate(
-        'POST',
-        `${TENANTS}/${tenantId}:${action}`,
-        undefined,
-        { stepUpToken, invalidates: [TENANTS, OVERVIEW, JOURNAL] },
-      ),
+      engine.mutate('POST', `${TENANTS}/${tenantId}:${action}`, undefined, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /**
+   * Provisions a workspace, and answers the owner's way in.
+   *
+   * The redemption token is returned rather than held: it exists in this one answer and nowhere
+   * else, the screen shows it through `OneTimeSecret`, and it dies with that screen. A store that
+   * kept it would be a store holding a credential for as long as the tab is open.
+   */
+  async provision(request: TenantProvision): Promise<ProvisionedTenant> {
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<ProvisionedTenant>('POST', TENANTS, request, {
+        idempotencyKey: crypto.randomUUID(),
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /**
+   * Asks for a workspace to be deleted, which starts the grace period.
+   *
+   * The display name is typed by the person asking and is sent as the confirmation — the server
+   * compares it, which is the whole point: a deletion nobody typed the name of is a deletion
+   * somebody clicked past.
+   */
+  async requestDeletion(tenantId: string, confirmation: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('POST', `${TENANTS}/${tenantId}:delete`, { confirmation }, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /** Exports a workspace to one of its backup targets. Answered `202`: the work is a job. */
+  async exportWorkspace(tenantId: string, targetId: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('POST', `${TENANTS}/${tenantId}:export`, { target_id: targetId }, {
+        stepUpToken,
+        invalidates: [JOURNAL, OVERVIEW],
+      }),
+    );
+  }
+
+  /** Sets a workspace's quotas. An absent number is the installation's default, not zero. */
+  async setQuotas(tenantId: string, quotas: TenantQuotas): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('PATCH', `${TENANTS}/${tenantId}/quotas`, quotas, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /**
+   * Writes the installation's own values.
+   *
+   * Refused while a file enforces them, which the answer says with `is_enforced_from_file` — the
+   * screen reads that and offers no controls rather than offering a refusal (ADR-0070 §5: one API,
+   * three doors, and one source per mode).
+   */
+  async writeSettings(settings: InstanceSettings): Promise<InstanceSettings> {
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<InstanceSettings>('PUT', SETTINGS, settings, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
+    );
+  }
+
+  /** Adds a provider the installation offers every workspace, or replaces one. */
+  async configureProvider(
+    body: IdentityProviderConfiguration,
+    id?: string,
+  ): Promise<IdentityProvider> {
+    return stepUp.around((stepUpToken) =>
+      id === undefined
+        ? engine.mutate<IdentityProvider>('POST', PROVIDERS, body, {
+            stepUpToken,
+            invalidates: EVERYTHING,
+          })
+        : engine.mutate<IdentityProvider>('PUT', `${PROVIDERS}/${id}`, body, {
+            stepUpToken,
+            invalidates: EVERYTHING,
+          }),
+    );
+  }
+
+  /** Withdraws one from every workspace at once. */
+  async removeProvider(id: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('DELETE', `${PROVIDERS}/${id}`, undefined, {
+        stepUpToken,
+        invalidates: EVERYTHING,
+      }),
     );
   }
 }
 
 export const instance = new Instance();
 export {
+  ENCRYPTION as instanceEncryptionPath,
+  PROVIDERS as instanceProvidersPath,
   ELEVATE as instanceElevatePath,
   JOURNAL as instanceJournalPath,
   OPERATORS as instanceOperatorsPath,

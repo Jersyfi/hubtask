@@ -26,9 +26,11 @@ import ContainerView from './views/ContainerView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
+  import InstanceEncryptionView from './views/InstanceEncryptionView.svelte';
   import InstanceJournalView from './views/InstanceJournalView.svelte';
   import InstanceOperatorsView from './views/InstanceOperatorsView.svelte';
   import InstanceOverviewView from './views/InstanceOverviewView.svelte';
+  import InstanceProvidersView from './views/InstanceProvidersView.svelte';
   import InstanceSettingsView from './views/InstanceSettingsView.svelte';
   import InstanceWorkspacesView from './views/InstanceWorkspacesView.svelte';
   import ProfileView from './views/ProfileView.svelte';
@@ -219,6 +221,10 @@ import ContainerView from './views/ContainerView.svelte';
     <InstanceWorkspacesView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-settings'}
     <InstanceSettingsView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-providers'}
+    <InstanceProvidersView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-encryption'}
+    <InstanceEncryptionView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-operators'}
     <InstanceOperatorsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-journal'}

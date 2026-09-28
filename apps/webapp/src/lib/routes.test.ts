@@ -80,15 +80,23 @@ test('the instance area is exactly the routes under its prefix', () => {
   assert.ok(tagged.length >= 1, 'the area is empty, which means the reading is broken');
 });
 
-test('the instance area is exactly the five screens ADR-0070 §5 names', () => {
-  // Five, and a sixth would be the thing §5 forbids: what an operator needs to run an installation
-  // is counts, states and limits, and a screen showing anything inside a workspace does not belong
-  // to this area however convenient it would be.
+test('the instance area is exactly the screens ADR-0070 §5 names', () => {
+  // The number is not the rule; the rule is what §5 forbids. What an operator needs to run an
+  // installation is counts, states and limits, and a screen showing anything *inside* a workspace
+  // does not belong to this area however convenient it would be. The list is written out so that
+  // adding one is a decision somebody made against that sentence rather than a file that appeared.
+  //
+  // Seven since SI-12: the two the control plane had only at a terminal — the providers it offers
+  // every workspace, and the keyring's census — joined it when the parity rule was written down
+  // (ADR-0070 §5). Neither reads into a workspace: one is the installation's own rows, the other is
+  // a count per key that names no workspace at all.
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
     'instance',
+    'instance-encryption',
     'instance-journal',
     'instance-operators',
+    'instance-providers',
     'instance-settings',
     'instance-workspaces',
   ]);
