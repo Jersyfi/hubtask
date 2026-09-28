@@ -161,7 +161,7 @@ came from.
 
 ## What is built, and what this decision still owes
 
-SI built the layer itself and one of §5's three doors. The accepted decision stands whole; what
+SI built the layer itself and two of §5's three doors. The accepted decision stands whole; what
 follows is the record of where the code is against it, so that nobody reads this document as a
 description of what exists.
 
@@ -169,12 +169,21 @@ description of what exists.
 boundary lists entered, the lock with its origin, `tenant.plan_id`, the resolver's plan parameter,
 `GET`/`PUT /admin/settings`, `GET`/`POST /admin/operators`, `DELETE /admin/operators/{accountId}`,
 `POST /auth/sessions:elevate` with `session.elevated_until`, and the journal at both ends of an
-elevation.
+elevation. **Since SI-17** the `/instance` route area with its five screens, and the two reads they
+needed: `GET /admin/overview` (the census) and `GET /admin/journal`. **Since SI-10** the providers
+in the plural at both levels, `/admin/identity-providers` among them.
 
-**Not built, each its own task.** The `/instance` route area — so the elevation works today and
-there is nothing to look at with it but JSON. `hubctl admin settings|operator|legal|provider`.
+**Not built, each its own task.** `hubctl admin settings|operator|legal|provider`.
 `HUBTASK_INSTANCE_FILE` in either mode, and therefore the health report's line saying which source
-is in force.
+is in force — the instance values screen reads `source` and will say which door is in force the day
+there is more than one.
+
+**And one gap the plural providers opened.** The installation's own provider holds a sealed client
+secret, and the re-seal's driver runs the resealers per tenant (`RunReseal` takes the actor's
+workspace). `ListIdentityProviderSecrets` compares the tenant with `IS NOT DISTINCT FROM`, so a pass
+under the installation's own scope would pick up exactly the rows that belong to no workspace — what
+is missing is a driver that runs one. Until then an installation-level provider's secret stays under
+the key it was sealed with, which a key rotation's census will report rather than hide.
 
 **And one thing §1 says that the code does differently.** There is no `HUBTASK_OPERATORS`. The
 bootstrap is the rule §1 already states for the private installation, used as the way in: an empty
@@ -186,7 +195,7 @@ first request; nothing here forecloses it.
 
 ## What the implementation settled
 
-Three things, decided while SI-05 and SI-06 were built.
+Three things decided while SI-05 and SI-06 were built, and three more while SI-10 and SI-17 were.
 
 1. **The operator register keys on the account alone, and lives behind four functions.** §1 does not
    say how it is reached. It carries no row-level policy *and* no grant to the application role:
@@ -206,3 +215,25 @@ Three things, decided while SI-05 and SI-06 were built.
    and never `elevated_until`, and that a second hour needs a second proof. And the scope is granted
    per request rather than at the elevation, so an operator removed while a raised session is open
    loses the control plane on their next call rather than at the end of the hour.
+
+4. **The census is a fourth `SECURITY DEFINER` function, and it answers five integers.** §5 says the
+   dashboard shows counts and never rows; the overview needs a count of accounts *across*
+   workspaces, and `account` is behind row level security and `FORCE`, so the application role
+   cannot produce one at all. `instance_census()` is the narrow door for it — no parameter, five
+   `bigint`s, and a caller that wanted rows would have to change the function, which is a migration
+   somebody reviews. The workspace counts go through the same function rather than through
+   `/admin/tenants`, because the overview's numbers have to agree with each other on one instant,
+   which one statement gives and two do not.
+
+5. **`/instance` is a fourth route area, not a second `administration`.**
+   [ADR-0032](ADR-0032-client-capability-matrix.md) names three; the shells exclude this one exactly as
+   they exclude administration, and the reason it is its own is the capability: an administrator
+   runs a workspace and an operator runs the installation. A shell that shipped one because it
+   shipped the other would be shipping the control plane by accident. It is drawn by the *same*
+   section column as the other two, which is §5's "not a second frame" kept literally.
+
+6. **The journal gained a read, and the port's own comment was the thing that changed.** It said
+   "there is no read method because no API serves it — reading it is the operator's, at the
+   database". §5's dashboard is the API that serves it, so `Journal` has a `Page` now: newest first,
+   keyed on the moment *and* the identifier, because two entries can share a moment and an offset
+   would then skip or repeat one.

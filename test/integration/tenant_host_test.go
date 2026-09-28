@@ -13,6 +13,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -55,24 +56,32 @@ func TestAWorkspacesHostsStayHomeAndAHostBelongsToOneWorkspace(t *testing.T) {
 		if len(listed) != 0 {
 			t.Errorf("B sees %d of A's hosts", len(listed))
 		}
-
-		// And cannot claim it. The unique index is installation-wide, so the refusal crosses the
-		// boundary although the read does not - which is the whole point: a host B could claim is a
-		// host B could answer at.
-		stolen, err := domain.NewCanonicalHost(domain.NewCanonicalHostInput{
-			TenantID: idpTenantB, Host: "idp-a.hosts.example",
-			Verification: domain.HostVerificationPrefix + "ddddeeeeffff", Now: now,
-		})
-		if err != nil {
-			t.Fatalf("building B's claim: %v", err)
-		}
-		if err := hosts.Insert(ctx, stolen); err == nil {
-			t.Error("B claimed a host that belongs to A")
-		} else if !isHostTaken(err) {
-			t.Errorf("B's claim answered %v, want a conflict", err)
-		}
 		return nil
 	})
+
+	// And B cannot claim it. The unique index is installation-wide, so the refusal crosses the
+	// boundary although the read does not - which is the whole point: a host B could claim is a host
+	// B could answer at.
+	//
+	// In a transaction of its own, because a unique violation poisons the one it happens in: every
+	// statement after it is refused and the commit becomes a rollback. That is PostgreSQL's rule
+	// rather than this repository's, and it is why a caller that means to survive a conflict has to
+	// end the transaction on it.
+	stolen, err := domain.NewCanonicalHost(domain.NewCanonicalHostInput{
+		TenantID: idpTenantB, Host: "idp-a.hosts.example",
+		Verification: domain.HostVerificationPrefix + "ddddeeeeffff", Now: now,
+	})
+	if err != nil {
+		t.Fatalf("building B's claim: %v", err)
+	}
+	claimed := uow.Within(ctx, persistence.Scope{TenantID: idpTenantB}, func(ctx context.Context) error {
+		return hosts.Insert(ctx, stolen)
+	})
+	if claimed == nil {
+		t.Error("B claimed a host that belongs to A")
+	} else if !isHostTaken(claimed) {
+		t.Errorf("B's claim answered %v, want a conflict", claimed)
+	}
 
 	// A reads its own, canonical and verified by construction.
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
@@ -94,20 +103,23 @@ func TestAWorkspacesHostsStayHomeAndAHostBelongsToOneWorkspace(t *testing.T) {
 			t.Error("a verified host carries no moment")
 		}
 
-		// One canonical host per workspace, in the index: a second is refused rather than leaving
-		// two rows for a mail to choose between.
-		second, err := domain.NewCanonicalHost(domain.NewCanonicalHostInput{
-			TenantID: idpTenantA, Host: "another.hosts.example",
-			Verification: domain.HostVerificationPrefix + "gggghhhhiiii", Now: now,
-		})
-		if err != nil {
-			t.Fatalf("building a second canonical host: %v", err)
-		}
-		if err := hosts.Insert(ctx, second); err == nil {
-			t.Error("a workspace took a second canonical host")
-		}
 		return nil
 	})
+
+	// One canonical host per workspace, in the index: a second is refused rather than leaving two
+	// rows for a mail to choose between. Its own transaction, for the reason B's claim needed one.
+	second, err := domain.NewCanonicalHost(domain.NewCanonicalHostInput{
+		TenantID: idpTenantA, Host: "another.hosts.example",
+		Verification: domain.HostVerificationPrefix + "gggghhhhiiii", Now: now,
+	})
+	if err != nil {
+		t.Fatalf("building a second canonical host: %v", err)
+	}
+	if err := uow.Within(ctx, persistence.Scope{TenantID: idpTenantA}, func(ctx context.Context) error {
+		return hosts.Insert(ctx, second)
+	}); err == nil {
+		t.Error("a workspace took a second canonical host")
+	}
 }
 
 // isHostTaken is the reading of "somebody already has it" this file gives.

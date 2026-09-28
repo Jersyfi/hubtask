@@ -28,6 +28,14 @@ Three feature areas structure the decision:
   quotas, backup and restore, retention policies, audit query and export, data subject requests,
   OIDC/security policy, licensing, automation rule administration.
 
+**A fourth arrived with [ADR-0070](ADR-0070-the-instance-layer.md) §5, and is treated as the third
+is:** the **instance** area — the level *above* the workspaces, at `/instance` in the same web app.
+It is excluded from the shells exactly as administration is, and it is its own area rather than a
+part of administration because the two are different capabilities: an administrator runs a
+workspace, an operator runs the installation, and a shell that shipped one because it shipped the
+other would be shipping the control plane by accident. Everything this decision says about
+administration and the shells applies to it unchanged.
+
 ## Options
 
 **A. Full parity everywhere, no exceptions.** The purest reading of "all functions in all

@@ -650,6 +650,9 @@ func TestTheTablesOutsideTheRuleAreTheDocumentedOnes(t *testing.T) {
 		"restore_run":             "restores from an installation-wide target",
 		"instance_event": "a bare identifier of a workspace that is usually gone - a reference " +
 			"would forbid the very rows the journal exists for (H-06, migration 0067)",
+		"identity_provider": "NULL is the installation's own provider, which every workspace reads " +
+			"and none writes - the read policy admits it and the write policy does not " +
+			"(SI-10, migration 0103)",
 	}
 
 	rows, err := admin.Query(ctx, `

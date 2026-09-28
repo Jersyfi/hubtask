@@ -79,3 +79,17 @@ adapter, not the library's own tests; Dependabot's security updates are ungroupe
 is unparked — it is built against this decision. The alternatives stay recorded rather than
 deleted: option 2 remains the swap that keeps the task's shape if go-oidc ever has to go, which
 is precisely what confining the import to `infrastructure/oidc` buys.
+
+## What the implementation settled
+
+**Microsoft's shared endpoint is refused at configuration time (SI-10).** The contract above says
+`iss` equals the configured issuer *exactly*, and go-oidc enforces it. A provider registered against
+`login.microsoftonline.com/common` mints tokens whose `iss` names the *directory* rather than
+`common`, so every sign-in through such a configuration would fail the first check — three days
+later, by whoever tried to sign in first.
+
+The alternative would have been to weaken the issuer comparison for one provider, which is the one
+thing this decision exists to prevent. So the refusal is in the domain instead: a `MICROSOFT`
+provider whose issuer path is `/common` is refused where somebody is looking at the form, with a
+message code that says to use the directory's own issuer address. The library's rule is untouched,
+and the preset's registration instructions say the same thing in advance.

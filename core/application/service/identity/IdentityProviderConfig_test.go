@@ -6,10 +6,12 @@ package identity
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -351,5 +353,148 @@ func TestAProviderNeedsItsClientSecret(t *testing.T) {
 	}
 	if len(f.relying.checked) != 0 {
 		t.Error("discovery ran for a configuration that could never work")
+	}
+}
+
+// Every provider use case goes through the registry the way a request does: the descriptor
+// declares, the registry validates against that declaration, and the handler is reached with an
+// input it accepts.
+//
+// It is one test rather than four because the failure it catches is one thing: an input key a
+// descriptor does not declare is refused by the registry before the handler ever sees it, and a
+// test that called the handler directly would never meet that refusal. That is how a use case comes
+// to pass every unit test and answer 422 to every request.
+func TestTheProviderUseCasesGoThroughTheRegistry(t *testing.T) {
+	at := time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC)
+	f := newProviderFixture(at)
+	f.writer.RedirectURL = "https://hubtask.example/auth/callback"
+
+	descriptors := []usecase.Descriptor{
+		ConfigureIdentityProvider{Writer: f.writer}.Descriptor(),
+		ListIdentityProviders{Writer: f.writer}.Descriptor(),
+		RemoveIdentityProvider{Writer: f.writer}.Descriptor(),
+		ListIdentityProviderPresets{Writer: f.writer}.Descriptor(),
+	}
+	registry, err := usecase.NewRegistry(nil, descriptors...)
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+
+	added, err := registry.Invoke(t.Context(), ConfigureIdentityProviderName, providerActor(), usecase.Input{
+		"issuer":                "https://login.example.org",
+		"client_id":             "hubtask",
+		"client_secret":         "s3cr3t",
+		"display_name":          "Staff directory",
+		"provisioning":          "DOMAINS",
+		"position":              1,
+		"allowed_email_domains": []any{"example.org"},
+		"enabled":               true,
+	})
+	if err != nil {
+		t.Fatalf("adding through the registry: %v", err)
+	}
+	if added["display_name"] != "Staff directory" || added["scope"] != ProviderScopeWorkspace {
+		t.Errorf("the answer is %v", added)
+	}
+	id, _ := added["id"].(string)
+	if id == "" {
+		t.Fatal("the answer carries no identifier, so nothing could be replaced or removed")
+	}
+
+	// Replacing without a secret keeps the sealed one, which is the contract's promise and the
+	// reason `client_secret` is not a required field.
+	replaced, err := registry.Invoke(t.Context(), ConfigureIdentityProviderName, providerActor(), usecase.Input{
+		"id":           id,
+		"issuer":       "https://login.example.org",
+		"client_id":    "hubtask",
+		"display_name": "The other name",
+		"enabled":      false,
+	})
+	if err != nil {
+		t.Fatalf("replacing through the registry: %v", err)
+	}
+	if replaced["display_name"] != "The other name" || replaced["enabled"] != false {
+		t.Errorf("the replacement answered %v", replaced)
+	}
+	if f.store.sealed[f.store.only(t).ID].IsZero() {
+		t.Error("a replacement without a secret lost the one that was sealed")
+	}
+
+	listed, err := registry.Invoke(t.Context(), ListIdentityProvidersName, providerActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing through the registry: %v", err)
+	}
+	rows, held := listed["data"].([]usecase.Output)
+	if !held || len(rows) != 1 {
+		t.Fatalf("the listing answered %v", listed)
+	}
+
+	// The presets carry this installation's own callback, rendered into the instructions by
+	// whichever client shows them - the code travels, never the sentence (rule 8).
+	presets, err := registry.Invoke(t.Context(), ListIdentityProviderPresetsName, providerActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("reading the presets: %v", err)
+	}
+	presetRows, held := presets["data"].([]usecase.Output)
+	if !held || len(presetRows) != len(domain.ProviderPresets()) {
+		t.Fatalf("the presets answered %v", presets)
+	}
+	for _, preset := range presetRows {
+		if preset["redirect_uri"] != "https://hubtask.example/auth/callback" {
+			t.Errorf("a preset carries the callback %v", preset["redirect_uri"])
+		}
+		if preset["instructions"] == "" {
+			t.Errorf("the %v preset carries no instructions", preset["kind"])
+		}
+	}
+
+	if _, err := registry.Invoke(t.Context(), RemoveIdentityProviderName, providerActor(), usecase.Input{
+		"id": id,
+	}); err != nil {
+		t.Fatalf("removing through the registry: %v", err)
+	}
+	if len(f.store.rows) != 0 {
+		t.Errorf("the removal left %d rows", len(f.store.rows))
+	}
+}
+
+// A public provider may only be INVITED_ONLY, and the refusal arrives from the use case rather than
+// from the store: nothing is written and the provider is never asked to prove it exists.
+func TestAPublicProviderIsHeldToInvitedOnly(t *testing.T) {
+	f := newProviderFixture(time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC))
+
+	cmd := configureCommand()
+	cmd.Issuer = "https://accounts.google.com"
+	cmd.Kind = "GOOGLE"
+	cmd.Provisioning = "ANY"
+
+	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).
+		Execute(t.Context(), providerActor(), cmd); err == nil {
+		t.Fatal("a public provider was configured to provision anybody")
+	}
+	if len(f.store.rows) != 0 || len(f.relying.checked) != 0 {
+		t.Error("a refused configuration reached the store or the provider")
+	}
+}
+
+// The bound on the collection is the workspace's own rows: an installation's are not a workspace's
+// to be limited by, and the count the check reads says so.
+func TestAWorkspaceMayNotConfigureMoreThanTheBound(t *testing.T) {
+	f := newProviderFixture(time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC))
+
+	for i := range MaxProvidersPerWorkspace {
+		cmd := configureCommand()
+		cmd.Issuer = "https://login" + strconv.Itoa(i) + ".example.org"
+		if _, err := (ConfigureIdentityProvider{Writer: f.writer}).
+			Execute(t.Context(), providerActor(), cmd); err != nil {
+			t.Fatalf("configuring provider %d: %v", i, err)
+		}
+	}
+
+	cmd := configureCommand()
+	cmd.Issuer = "https://one-too-many.example.org"
+	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).
+		Execute(t.Context(), providerActor(), cmd); err == nil {
+		t.Error("a workspace configured one provider past the bound")
 	}
 }
