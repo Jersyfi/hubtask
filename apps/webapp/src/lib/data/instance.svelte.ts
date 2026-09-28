@@ -28,6 +28,7 @@ import type {
   SessionElevation,
 } from '@hubtask/sync-engine';
 
+import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 
@@ -42,7 +43,10 @@ const JOURNAL = '/admin/journal';
 const TICK_MS = 1_000;
 
 class Instance {
-  #until = $state<string | undefined>(undefined);
+  // Read from the seam rather than started empty: the elevation belongs to the session, and a
+  // reload that forgot it would send the reader back to the door while the hour still stands at the
+  // server - where passing it again would start a *new* hour (SI-17, ADR-0070 §4).
+  #until = $state<string | undefined>(platform.elevatedUntil());
   #now = $state(Date.now());
   #ticking: ReturnType<typeof setInterval> | undefined;
 
@@ -113,6 +117,7 @@ class Instance {
     );
     this.#until = raised.elevated_until;
     this.#now = Date.now();
+    platform.rememberElevation(raised.elevated_until);
   }
 
   /**

@@ -19,6 +19,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -116,10 +117,12 @@
                   {#if workspace.purge_after}
                     <!-- The grace, where one stands: the number an operator needs before deciding
                          whether there is still time to resume. -->
-                    <span class="slug">{t('app.instance.purge_after', { at: workspace.purge_after })}</span>
+                    <span class="slug">
+                      {t('app.instance.purge_after', { at: formatDateTime(workspace.purge_after, messages.locale) })}
+                    </span>
                   {/if}
                 </td>
-                <td class="slug">{workspace.created_at}</td>
+                <td class="slug">{formatDateTime(workspace.created_at, messages.locale)}</td>
                 <td>
                   {#if workspace.status === 'ACTIVE'}
                     <Button

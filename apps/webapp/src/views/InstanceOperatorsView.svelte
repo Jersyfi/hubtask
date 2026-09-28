@@ -19,6 +19,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -100,7 +101,7 @@
             <tr>
               <td class="mono">{operator.account_id}</td>
               <td class="mono">{operator.tenant_id}</td>
-              <td class="quiet-cell">{operator.added_at}</td>
+              <td class="quiet-cell">{formatDateTime(operator.added_at, messages.locale)}</td>
               <td>
                 <Button
                   tone="subtle"

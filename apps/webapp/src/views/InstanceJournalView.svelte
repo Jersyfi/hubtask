@@ -21,6 +21,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -62,12 +63,25 @@
     return rendered === code ? action : rendered;
   }
 
-  /** The details, as the one line of counts and moments they are. */
+  /**
+   * The details, as the one line of counts and moments they are.
+   *
+   * An identifier is shortened to its first group. The whole of it is in the database for anybody
+   * who has to correlate a row; on a screen it is twelve columns of hex that push the sentence
+   * beside it off the table, and the journal's value is the sentence.
+   */
   function summarise(details: Record<string, unknown> | undefined): string {
     if (!details) return '';
     return Object.entries(details)
-      .map(([key, value]) => `${key}: ${String(value)}`)
+      .map(([key, value]) => `${key}: ${shorten(value)}`)
       .join(' · ');
+  }
+
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  function shorten(value: unknown): string {
+    const text = Array.isArray(value) ? value.join(', ') : String(value);
+    return UUID.test(text) ? `${text.slice(0, 8)}…` : text;
   }
 
   $effect(() => page.entitle(t('app.instance.journal')));
@@ -95,7 +109,7 @@
         <Table label={t('app.instance.journal')} isLabelHidden columns={columns}>
           {#each entries as entry (entry.id)}
             <tr>
-              <td class="quiet-cell">{entry.occurred_at}</td>
+              <td class="quiet-cell">{formatDateTime(entry.occurred_at, messages.locale)}</td>
               <td>
                 <span class="action">{wordFor(entry.action)}</span>
                 {#if entry.details}
@@ -105,8 +119,10 @@
               <td>
                 {#if entry.tenant_slug}
                   <span class="action">{entry.tenant_slug}</span>
-                {/if}
-                {#if entry.tenant_id}
+                {:else if entry.tenant_id}
+                  <!-- The identifier only where there is no slug. A workspace the journal names is
+                       usually gone, and the slug is what a person recognises; the identifier beside
+                       it would be a column of wrapped hex nobody reads. -->
                   <span class="mono">{entry.tenant_id}</span>
                 {/if}
               </td>

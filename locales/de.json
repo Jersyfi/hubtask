@@ -769,7 +769,7 @@
   "app.instance.action.instance_operator_removed": "Betreiber entfernt",
   "app.instance.action.instance_provider_configured": "Anmeldeanbieter eingerichtet",
   "app.instance.action.instance_provider_removed": "Anmeldeanbieter entfernt",
-  "app.instance.action.session_elevated": "Sitzung auf die Installation gehoben",
+  "app.instance.action.instance_session_elevated": "Sitzung auf die Installation gehoben",
   "app.step_up.title": "Beweise, dass du es bist",
   "app.step_up.why": "Das hier ist unumkehrbar, darum fragt Hubtask noch einmal, bevor es passiert. Nichts ändert sich, bis du antwortest.",
   "app.step_up.password_label": "Dein Passwort",

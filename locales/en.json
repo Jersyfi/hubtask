@@ -1598,7 +1598,7 @@
   "app.instance.action.instance_operator_removed": "Operator removed",
   "app.instance.action.instance_provider_configured": "Sign-in provider configured",
   "app.instance.action.instance_provider_removed": "Sign-in provider removed",
-  "app.instance.action.session_elevated": "Session raised to the installation",
+  "app.instance.action.instance_session_elevated": "Session raised to the installation",
   "app.admin.ai": "AI",
   "app.ai.title": "AI",
   "app.ai.intro": "Which provider this workspace asks, under which models, and whether its content may be sent there at all. Choosing a provider and consenting to use it are two decisions, and both are made here.",

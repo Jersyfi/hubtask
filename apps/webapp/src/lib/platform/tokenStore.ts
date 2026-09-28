@@ -64,6 +64,20 @@ export interface TokenStore {
   /** The credential the exchange presents, or `undefined` when there is none to present. */
   readRefresh(): string | undefined;
   write(pair: SessionPair): void;
+  /**
+   * When this session's elevation to the control plane ends, or `undefined` where it carries none
+   * (SI-17, ADR-0070 §4).
+   *
+   * Beside the pair, and for the same reason the account is: the elevation belongs to the session
+   * and a reload must not lose it. **Losing it is worse than remembering it** — the door would ask
+   * for a second proof while the first hour still stands at the server, and passing it would start
+   * a *new* hour, which is the one thing "it does not slide" forbids.
+   *
+   * It is a moment, not a credential: a client that wrote itself a later one would simply be
+   * refused by the server on its next call, because the scope is granted per request from the row.
+   */
+  readElevatedUntil(): string | undefined;
+  rememberElevatedUntil(until: string): void;
   clear(): void;
 }
 
@@ -79,6 +93,8 @@ export const REFRESH_KEY = 'hubtask.refresh';
  * cannot be reached has no `/accounts/me` to learn the account from - only this, and the copy.
  */
 export const ACCOUNT_KEY = 'hubtask.account';
+/** When the elevation ends (SI-17). A moment, kept for the tab, cleared with the pair. */
+export const ELEVATED_UNTIL_KEY = 'hubtask.elevated_until';
 
 /**
  * A store over the storage given, or over nothing.
@@ -113,6 +129,7 @@ export function tokenStore(storage: TokenStorage | undefined): TokenStore {
   };
 
   let account: string | undefined;
+  let elevatedUntil: string | undefined;
 
   return {
     readAccount(): string | undefined {
@@ -135,18 +152,37 @@ export function tokenStore(storage: TokenStorage | undefined): TokenStore {
       return refresh;
     },
 
+    readElevatedUntil(): string | undefined {
+      elevatedUntil = load(ELEVATED_UNTIL_KEY, elevatedUntil);
+      return elevatedUntil;
+    },
+
+    rememberElevatedUntil(until: string): void {
+      elevatedUntil = until;
+      put(ELEVATED_UNTIL_KEY, until);
+    },
+
     write(pair: SessionPair): void {
       access = pair.access;
       refresh = pair.refresh;
       put(TOKEN_KEY, pair.access);
       put(REFRESH_KEY, pair.refresh);
+      // A new session is not the old one's elevation. Written on every sign-in rather than only on
+      // sign-out, because the tab may be reused by somebody else entirely.
+      elevatedUntil = undefined;
+      try {
+        storage?.removeItem(ELEVATED_UNTIL_KEY);
+      } catch {
+        // Nothing left to do: the copy this module could reach is gone.
+      }
     },
 
     clear(): void {
       access = undefined;
       refresh = undefined;
       account = undefined;
-      for (const key of [TOKEN_KEY, REFRESH_KEY, ACCOUNT_KEY]) {
+      elevatedUntil = undefined;
+      for (const key of [TOKEN_KEY, REFRESH_KEY, ACCOUNT_KEY, ELEVATED_UNTIL_KEY]) {
         try {
           storage?.removeItem(key);
         } catch {
