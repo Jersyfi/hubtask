@@ -281,6 +281,45 @@ export const SETTINGS: readonly SectionGroup[] = [
   },
 ];
 
+/**
+ * The level above the workspaces (SI-17, ADR-0070 §5).
+ *
+ * A third section beside the administration and Your settings, drawn by the same column for the
+ * reason the ADR gives: "not a second bundle, not a second frame, not a second translation". What
+ * makes it different is who it is for - an administrator runs a workspace, an operator runs the
+ * installation - and the area tag is where that difference lives.
+ *
+ * Five rows and no more. What an operator needs to run an installation is counts, states and limits;
+ * a sixth row showing anything inside a workspace would be the thing ADR-0070 §5 forbids.
+ */
+export const INSTANCE: readonly SectionGroup[] = [
+  // The way back, first and alone, exactly as the other two sections' is: a section a reader cannot
+  // leave is a trap.
+  {
+    id: 'back',
+    rows: [
+      { id: 'back', icon: 'chevron-left', code: 'app.instance.back', path: '/', routes: [] },
+    ],
+  },
+  {
+    id: 'installation',
+    code: 'app.instance.group_installation',
+    rows: [
+      { id: 'overview', icon: 'gauge', code: 'app.instance.overview', path: '/instance', routes: ['instance'] },
+      { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
+      { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
+    ],
+  },
+  {
+    id: 'evidence',
+    code: 'app.instance.group_evidence',
+    rows: [
+      { id: 'operators', icon: 'shield', code: 'app.instance.operators', path: '/instance/operators', routes: ['instance-operators'] },
+      { id: 'journal', icon: 'clock', code: 'app.instance.journal', path: '/instance/journal', routes: ['instance-journal'] },
+    ],
+  },
+];
+
 /** Kept as the name the rest of the client uses for the trash's row. */
 export const TRASH = TRASH_ROW;
 

@@ -229,6 +229,14 @@ async function views() {
     ['item', await load('ItemView'), { id: ITEM }],
     ['collection', await load('ContainerView'), { id: COLLECTION, onnavigate: noop }],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
+    // The level above the workspaces (SI-17). Each draws its door until the session is raised,
+    // which is the state every one of them is in here - and the one this test needs, because a
+    // raised session is not a thing a server-rendered screen can have.
+    ['instance', await load('InstanceOverviewView'), { onnavigate: noop }],
+    ['instance-workspaces', await load('InstanceWorkspacesView'), { onnavigate: noop }],
+    ['instance-settings', await load('InstanceSettingsView'), { onnavigate: noop }],
+    ['instance-operators', await load('InstanceOperatorsView'), { onnavigate: noop }],
+    ['instance-journal', await load('InstanceJournalView'), { onnavigate: noop }],
     ['sign-in', await load('SignInView'), {}],
     ['redeem', await load('RedeemView'), { onnavigate: noop }],
     ['reset', await load('ResetView'), { onnavigate: noop }],

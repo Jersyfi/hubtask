@@ -96,10 +96,25 @@ export const ROUTES: readonly Route[] = [
   { name: 'item', pattern: '/items/:id' },
   { name: 'hub', pattern: '/hubs/:id' },
   { name: 'collection', pattern: '/collections/:id' },
+  // The level above the workspaces (ADR-0070 §5, SI-17). Its own area, excluded from the shells as
+  // administration is: an administrator runs a workspace and an operator runs the installation, and
+  // a shell that shipped one because it shipped the other would ship the control plane by accident.
+  //
+  // Not reachable without a raised session - which is the server's rule and not this table's: every
+  // screen here reads a route behind `admin:tenants`, and a reader without the scope meets the
+  // refusal rather than a list that is quietly empty.
+  { name: 'instance', pattern: '/instance', area: 'instance' },
+  { name: 'instance-workspaces', pattern: '/instance/workspaces', area: 'instance' },
+  { name: 'instance-settings', pattern: '/instance/settings', area: 'instance' },
+  { name: 'instance-operators', pattern: '/instance/operators', area: 'instance' },
+  { name: 'instance-journal', pattern: '/instance/journal', area: 'instance' },
 ];
 
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */
 export const ADMINISTRATION_PREFIX = '/administration';
+
+/** The instance area's own prefix, for the same reason (SI-17, ADR-0070 §5). */
+export const INSTANCE_PREFIX = '/instance';
 
 /**
  * What `/collections/:id?item=:itemId` means at a width (ADR-0061 decision 4): from `large` up,

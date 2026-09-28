@@ -468,3 +468,24 @@ export type NotificationPreferenceUpdate = components['schemas']['NotificationPr
 export type ImportKind = components['schemas']['ImportKind'];
 export type ImportRequest = components['schemas']['ImportRequest'];
 export type ImportRun = components['schemas']['ImportRun'];
+
+/**
+ * The level above the workspaces, as its dashboard reads it (SI-17, ADR-0070 §5).
+ *
+ * Counts, states and limits — never rows. The tenant boundary is a database policy rather than a
+ * role, and none of these answers goes around it: the overview is five integers, the journal holds
+ * identifiers, slugs, counts and moments, and the workspace listing is the control plane's own view
+ * of the `tenant` row rather than of anything inside it.
+ */
+export type InstanceOverview = components['schemas']['InstanceOverview'];
+export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
+export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
+/** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */
+export type AdminTenant = components['schemas']['AdminTenant'];
+/** The installation's own switches, each with where its lock came from. */
+export type InstanceSettings = components['schemas']['InstanceSettings'];
+export type InstanceSetting = components['schemas']['InstanceSetting'];
+/** Who operates this installation. An empty register is the private installation (ADR-0070 §1). */
+export type Operator = components['schemas']['Operator'];
+/** How long this session carries the control plane's scope. It does not slide. */
+export type SessionElevation = components['schemas']['SessionElevation'];

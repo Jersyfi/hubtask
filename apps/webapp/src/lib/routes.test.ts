@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ADMINISTRATION_PREFIX, ROUTES, paneFor } from './routes.ts';
+import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, paneFor } from './routes.ts';
 import { normalisePath, resolve } from './router.ts';
 
 test('the administration area is exactly the routes under its prefix', () => {
@@ -63,14 +63,51 @@ test('the administration area is exactly the screens F4 built, by name', () => {
   ]);
 });
 
-test('every route resolves to one of the three areas, and the profile ones are named', () => {
-  // ADR-0032's three areas are the whole of what the mobile shell switches on. A route that
-  // resolved to none would be one the shell had to classify by reading it; a profile route that
-  // was not tagged would ship as end-user and be excluded from nothing, which is not what
-  // "own security is not administration" means.
+test('the instance area is exactly the routes under its prefix', () => {
+  // SI-17's acceptance in one assertion, and the same one the administration has: the level above
+  // the workspaces is excluded from the shells by its area (ADR-0070 §5), so a screen that lives
+  // under `/instance` and forgot the tag would ship the control plane in the mobile shell.
+  const tagged = ROUTES.filter((route) => route.area === 'instance').map((r) => r.pattern);
+  const underPrefix = ROUTES.filter(
+    (route) => route.pattern === INSTANCE_PREFIX || route.pattern.startsWith(`${INSTANCE_PREFIX}/`),
+  ).map((r) => r.pattern);
+
+  assert.deepEqual(
+    [...tagged].sort(),
+    [...underPrefix].sort(),
+    'a route under /instance is missing the tag, or a tagged route lives elsewhere',
+  );
+  assert.ok(tagged.length >= 1, 'the area is empty, which means the reading is broken');
+});
+
+test('the instance area is exactly the five screens ADR-0070 §5 names', () => {
+  // Five, and a sixth would be the thing §5 forbids: what an operator needs to run an installation
+  // is counts, states and limits, and a screen showing anything inside a workspace does not belong
+  // to this area however convenient it would be.
+  const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
+  assert.deepEqual(built, [
+    'instance',
+    'instance-journal',
+    'instance-operators',
+    'instance-settings',
+    'instance-workspaces',
+  ]);
+});
+
+test('every route resolves to one of the four areas, and the profile ones are named', () => {
+  // The areas are the whole of what the mobile shell switches on. A route that resolved to none
+  // would be one the shell had to classify by reading it; a profile route that was not tagged would
+  // ship as end-user and be excluded from nothing, which is not what "own security is not
+  // administration" means.
+  //
+  // Four since SI-17: ADR-0070 §5 puts the level above the workspaces in this same app, and the
+  // shells exclude it as they exclude administration.
   for (const route of ROUTES) {
     const area = resolve(ROUTES, route.pattern.replaceAll(/:\w+/g, 'x')).area;
-    assert.ok(['end-user', 'profile', 'administration'].includes(area), `${route.name} is in ${area}`);
+    assert.ok(
+      ['end-user', 'profile', 'administration', 'instance'].includes(area),
+      `${route.name} is in ${area}`,
+    );
   }
   // Your settings is a section since ADR-0065 decision 3, so the area is its eight screens rather
   // than the two it began with. Every one of them is about the reader themselves, which is what

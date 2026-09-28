@@ -46,6 +46,9 @@
   let provisioning = $state('DOMAINS');
   let domains = $state('');
   let enabled = $state(true);
+  /** The order the buttons are drawn in. Kept rather than shown: a workspace with two providers
+      orders them by adding them, and a control for it would be a control for a list of two. */
+  let position = $state(0);
   let confirmingRemoval = $state<string | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -106,6 +109,7 @@
     provisioning = 'DOMAINS';
     domains = '';
     enabled = true;
+    position = identityProvider.own.length;
     failure = undefined;
     saved = false;
   }
@@ -121,6 +125,7 @@
     provisioning = provider.provisioning;
     domains = (provider.allowed_email_domains ?? []).join('\n');
     enabled = provider.enabled;
+    position = provider.position;
     failure = undefined;
     saved = false;
   }
@@ -141,6 +146,7 @@
       display_name: displayName.trim(),
       kind: kind as IdentityProvider['kind'],
       provisioning: provisioning as IdentityProvider['provisioning'],
+      position,
       enabled,
       allowed_email_domains: readDomains(domains),
     };
