@@ -10,7 +10,6 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/sealing"
-	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -91,12 +90,26 @@ type resealProviderStore struct {
 	rewrapped []string
 }
 
-func (p *resealProviderStore) FindWithSecret(context.Context) (identity.IdentityProvider, cryptoport.Sealed, error) {
-	return identity.IdentityProvider{}, p.sealed, p.err
+// resealProviderRow is the one row these tests work through. Plural since SI-10, and the fake
+// answers a list of one: what the tests are about is the purpose and the guard, not the count.
+const resealProviderRow = shared.ID("018f2a1b-0000-7000-8000-0000000000e9")
+
+func (p *resealProviderStore) ListSealed(context.Context) ([]repository.SealedProviderSecret, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	if p.sealed.IsZero() {
+		return nil, nil
+	}
+	return []repository.SealedProviderSecret{
+		{ProviderID: resealProviderRow, Sealed: p.sealed},
+	}, nil
 }
 
-func (p *resealProviderStore) RewrapSecret(_ context.Context, sealed cryptoport.Sealed, expected string) (bool, error) {
-	p.rewrapped = append(p.rewrapped, expected+"->"+sealed.KeyID)
+func (p *resealProviderStore) RewrapSecret(
+	_ context.Context, providerID shared.ID, sealed cryptoport.Sealed, expected string,
+) (bool, error) {
+	p.rewrapped = append(p.rewrapped, providerID.String()+":"+expected+"->"+sealed.KeyID)
 	return true, nil
 }
 
@@ -109,10 +122,10 @@ func TestTheClientSecretMovesUnderTheWorkspacesPurpose(t *testing.T) {
 	if err != nil || outcome.Rewrapped != 1 {
 		t.Fatalf("re-sealing: %+v, %v", outcome, err)
 	}
-	if len(ring.purposes) != 1 || ring.purposes[0] != clientSecretPurpose(tenant) {
+	if len(ring.purposes) != 1 || ring.purposes[0] != ClientSecretPurpose(tenant) {
 		t.Errorf("purposes %v", ring.purposes)
 	}
-	if len(store.rewrapped) != 1 || store.rewrapped[0] != "k1->k2" {
+	if len(store.rewrapped) != 1 || store.rewrapped[0] != resealProviderRow.String()+":k1->k2" {
 		t.Errorf("rewrapped %v", store.rewrapped)
 	}
 }

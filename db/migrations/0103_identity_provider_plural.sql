@@ -124,6 +124,14 @@ JOIN identity_provider p ON p.tenant_id = a.tenant_id
 WHERE a.external_subject IS NOT NULL AND a.deleted_at IS NULL
 ON CONFLICT DO NOTHING;
 
+-- Which provider a sign-in was begun for. The callback cannot work it out: the state names the
+-- workspace, and a workspace now has several ways in - so the flow has to remember the one it left
+-- through, or the exchange would be signed with the wrong client secret.
+--
+-- Nullable, for the rolling window and for nothing else: a flow opened by the previous binary
+-- carries none, and the callback reads that as "the one provider this workspace had".
+ALTER TABLE oidc_flow ADD COLUMN IF NOT EXISTS provider_id uuid;
+
 ALTER TABLE account_identity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE account_identity FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON account_identity

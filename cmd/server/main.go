@@ -1071,6 +1071,9 @@ func run() error {
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Relying:    relyingParty,
 		Authorizer: authorizer,
+		// The one value every registration form at every provider asks for, and it is this
+		// installation's own rather than anything a request carries (SI-10).
+		RedirectURL: oidcRedirectURL,
 	}
 
 	// The operator register and the installation's own settings (ADR-0070 §1, §2). Built here
@@ -1081,6 +1084,14 @@ func run() error {
 		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
 		Journal:    postgres.NewInstanceJournal(),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	// The control plane's half of the provider store (SI-10): the same writer, under the scope that
+	// has no tenant, behind the scope and the operator register both.
+	instanceProviderWriter := adminservice.InstanceProviderWriter{
+		Instance:  instanceWriter,
+		Providers: postgres.NewIdentityProviderRepository(),
+		Configure: identityProviderWriter,
 	}
 
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
@@ -1218,8 +1229,12 @@ func run() error {
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
-		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ListIdentityProviders{Writer: identityProviderWriter}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ListIdentityProviderPresets{Writer: identityProviderWriter}.Descriptor(),
+		adminservice.ListInstanceIdentityProviders{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.ConfigureInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),

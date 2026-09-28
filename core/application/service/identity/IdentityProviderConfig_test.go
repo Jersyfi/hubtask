@@ -18,50 +18,120 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
-// providerStore is the configuration, in memory.
+// providerStore is the collection, in memory. Plural since SI-10, and it keeps the installation's
+// rows beside a workspace's - because the read the use cases make sees both and the write does not.
 type providerStore struct {
-	configured *domain.IdentityProvider
-	sealed     cryptoport.Sealed
-	deletes    int
+	rows    []domain.IdentityProvider
+	sealed  map[shared.ID]cryptoport.Sealed
+	deletes int
+	// scope is the workspace the fake is standing in for. A row of another tenant is invisible to
+	// it, and a row of no tenant is readable and not writable - which is what the policy does.
+	scope shared.ID
 }
 
-func (s *providerStore) Upsert(
-	_ context.Context, configured domain.IdentityProvider, sealed cryptoport.Sealed, now time.Time,
-) (domain.IdentityProvider, error) {
-	stored := configured
-	if s.configured != nil {
-		stored.Version = s.configured.Version + 1
-		stored.UpdatedAt = now
-	}
-	s.configured, s.sealed = &stored, sealed
-	return stored, nil
+func newProviderStore(scope shared.ID) *providerStore {
+	return &providerStore{sealed: map[shared.ID]cryptoport.Sealed{}, scope: scope}
 }
 
-func (s *providerStore) Find(context.Context) (domain.IdentityProvider, error) {
-	if s.configured == nil {
-		return domain.IdentityProvider{}, shared.ErrNotFound.
-			WithDetail("identity_provider.not_configured")
+// visible is the read policy: this level's rows and the installation's.
+func (s *providerStore) visible() []domain.IdentityProvider {
+	found := []domain.IdentityProvider{}
+	for _, row := range s.rows {
+		if row.TenantID == s.scope || row.Installation() {
+			found = append(found, row)
+		}
 	}
-	return *s.configured, nil
+	return found
+}
+
+// writable is the write policy: this level's rows only.
+func (s *providerStore) writable(id shared.ID) int {
+	for i, row := range s.rows {
+		if row.ID == id && row.TenantID == s.scope {
+			return i
+		}
+	}
+	return -1
+}
+
+func (s *providerStore) List(context.Context) ([]domain.IdentityProvider, error) {
+	return s.visible(), nil
+}
+
+func (s *providerStore) Count(context.Context) (int, error) {
+	counted := 0
+	for _, row := range s.rows {
+		if row.TenantID == s.scope {
+			counted++
+		}
+	}
+	return counted, nil
+}
+
+func (s *providerStore) Find(_ context.Context, id shared.ID) (domain.IdentityProvider, error) {
+	for _, row := range s.visible() {
+		if row.ID == id {
+			return row, nil
+		}
+	}
+	return domain.IdentityProvider{}, shared.ErrNotFound.WithDetail("identity_provider.not_found")
 }
 
 func (s *providerStore) FindWithSecret(
-	context.Context,
+	_ context.Context, id shared.ID,
 ) (domain.IdentityProvider, cryptoport.Sealed, error) {
-	if s.configured == nil {
-		return domain.IdentityProvider{}, cryptoport.Sealed{}, shared.ErrNotFound.
-			WithDetail("identity_provider.not_configured")
+	found, err := s.Find(context.Background(), id)
+	if err != nil {
+		return domain.IdentityProvider{}, cryptoport.Sealed{}, err
 	}
-	return *s.configured, s.sealed, nil
+	return found, s.sealed[id], nil
 }
 
-func (s *providerStore) Delete(context.Context) (bool, error) {
+func (s *providerStore) Insert(
+	_ context.Context, configured domain.IdentityProvider, sealed cryptoport.Sealed,
+) (domain.IdentityProvider, error) {
+	s.rows = append(s.rows, configured)
+	s.sealed[configured.ID] = sealed
+	return configured, nil
+}
+
+func (s *providerStore) Update(
+	_ context.Context, configured domain.IdentityProvider,
+	sealed *cryptoport.Sealed, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	at := s.writable(configured.ID)
+	if at < 0 {
+		return domain.IdentityProvider{}, false, nil
+	}
+	stored := configured
+	stored.Version = s.rows[at].Version + 1
+	stored.CreatedAt = s.rows[at].CreatedAt
+	stored.UpdatedAt = now
+	s.rows[at] = stored
+	if sealed != nil {
+		s.sealed[stored.ID] = *sealed
+	}
+	return stored, true, nil
+}
+
+func (s *providerStore) Delete(_ context.Context, id shared.ID) (bool, error) {
 	s.deletes++
-	if s.configured == nil {
+	at := s.writable(id)
+	if at < 0 {
 		return false, nil
 	}
-	s.configured = nil
+	s.rows = append(s.rows[:at], s.rows[at+1:]...)
+	delete(s.sealed, id)
 	return true, nil
+}
+
+// only answers the single row, for a test that does not care which key it got.
+func (s *providerStore) only(t *testing.T) domain.IdentityProvider {
+	t.Helper()
+	if len(s.rows) != 1 {
+		t.Fatalf("the store holds %d providers, want one", len(s.rows))
+	}
+	return s.rows[0]
 }
 
 // relyingDouble stands in for the library. What matters to these tests is whether it was asked.
@@ -98,7 +168,8 @@ type providerFixture struct {
 func newProviderFixture(at time.Time) *providerFixture {
 	session := mfaFixture(at)
 	f := &providerFixture{
-		store: &providerStore{}, relying: &relyingDouble{}, auth: &authorizer{}, session: session,
+		store: newProviderStore(tenant), relying: &relyingDouble{},
+		auth: &authorizer{}, session: session,
 	}
 	f.writer = IdentityProviderWriter{
 		Session: session.writer, Providers: f.store, Relying: f.relying, Authorizer: f.auth,
@@ -137,7 +208,7 @@ func TestTheProviderIsAskedToProveItExistsBeforeAnythingIsStored(t *testing.T) {
 	if len(f.relying.checked) != 1 {
 		t.Errorf("discovery ran %d times", len(f.relying.checked))
 	}
-	if f.store.configured != nil {
+	if len(f.store.rows) != 0 {
 		t.Error("the configuration was stored despite the refusal")
 	}
 	if len(f.session.audit.entries) != 0 {
@@ -155,14 +226,15 @@ func TestTheClientSecretIsSealedAndNeverAnswered(t *testing.T) {
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	if f.store.sealed.IsZero() {
+	sealed := f.store.sealed[configured.ID]
+	if sealed.IsZero() {
 		t.Fatal("nothing was sealed")
 	}
-	if string(f.store.sealed.Ciphertext) == "s3cr3t" {
+	if string(sealed.Ciphertext) == "s3cr3t" {
 		t.Error("the secret reached the store in clear")
 	}
 	// The read shape has no field for it, which is the structural half of the promise.
-	out := providerOutput(configured)
+	out := ProviderOutput(configured)
 	for _, forbidden := range []string{"client_secret", "secret", "client_secret_enc"} {
 		if _, held := out[forbidden]; held {
 			t.Errorf("the answer carries %q", forbidden)
@@ -183,7 +255,7 @@ func TestConfiguringAndRemovingAreRecorded(t *testing.T) {
 		t.Fatalf("configuring: %v", err)
 	}
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
-		Execute(t.Context(), providerActor()); err != nil {
+		Execute(t.Context(), providerActor(), f.store.only(t).ID); err != nil {
 		t.Fatalf("removing: %v", err)
 	}
 
@@ -196,9 +268,14 @@ func TestConfiguringAndRemovingAreRecorded(t *testing.T) {
 	if got := f.session.audit.entries[1].Action; got != IdentityProviderRemovedAction {
 		t.Errorf("the second entry is %q", got)
 	}
+	// The row is the target since SI-10: there are several, and which one changed is the first
+	// thing a reader of the trail needs.
 	for _, entry := range f.session.audit.entries {
-		if entry.TargetID != tenant {
-			t.Errorf("the entry targets %q, want the workspace", entry.TargetID)
+		if entry.TargetID.IsZero() {
+			t.Error("the entry names no provider")
+		}
+		if entry.TenantID != tenant {
+			t.Errorf("the entry belongs to %q, want the workspace", entry.TenantID)
 		}
 	}
 }
@@ -209,7 +286,7 @@ func TestRemovingAProviderThatIsNotThereIsNotAFailure(t *testing.T) {
 	f := newProviderFixture(time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC))
 
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
-		Execute(t.Context(), providerActor()); err != nil {
+		Execute(t.Context(), providerActor(), shared.ID("01936f2a-7c1e-7000-8000-00000000ffff")); err != nil {
 		t.Fatalf("removing nothing: %v", err)
 	}
 	if len(f.session.audit.entries) != 0 {
@@ -224,8 +301,8 @@ func TestTheAuthoriserIsAskedAndOnlyTheReadOffersTheAuditorsWay(t *testing.T) {
 
 	_, _ = ConfigureIdentityProvider{Writer: f.writer}.
 		Execute(t.Context(), providerActor(), configureCommand())
-	_, _ = ReadIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor())
-	_ = RemoveIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor())
+	_, _ = ListIdentityProviders{Writer: f.writer}.Execute(t.Context(), providerActor())
+	_ = RemoveIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor(), f.store.only(t).ID)
 
 	if len(f.auth.requests) != 3 {
 		t.Fatalf("the authoriser was asked %d times, want 3", len(f.auth.requests))
@@ -253,10 +330,10 @@ func TestARefusedCallerChangesNothing(t *testing.T) {
 		t.Errorf("configuring answered %v", err)
 	}
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
-		Execute(t.Context(), providerActor()); !errors.Is(err, shared.ErrForbidden) {
+		Execute(t.Context(), providerActor(), shared.ID("01936f2a-7c1e-7000-8000-0000000000e1")); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("removing answered %v", err)
 	}
-	if f.store.configured != nil || f.store.deletes != 0 || len(f.relying.checked) != 0 {
+	if len(f.store.rows) != 0 || f.store.deletes != 0 || len(f.relying.checked) != 0 {
 		t.Error("a refused caller reached the store or the provider")
 	}
 }

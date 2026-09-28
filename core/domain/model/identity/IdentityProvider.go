@@ -410,21 +410,25 @@ func NewOidcFlowState(tenantID shared.ID, material []byte) (Token, error) {
 // The state is not a field. It is minted, hashed and stored by the adapter the way every
 // presented token here is - what this carries is the two values that never leave the server.
 type OidcFlow struct {
-	ID        shared.ID
-	TenantID  shared.ID
-	Nonce     string
-	Verifier  string
-	CreatedAt time.Time
-	ExpiresAt time.Time
+	ID       shared.ID
+	TenantID shared.ID
+	// ProviderID is the way in this sign-in left through. Zero only for a flow opened before there
+	// was more than one, which the callback reads as "the one provider this workspace had".
+	ProviderID shared.ID
+	Nonce      string
+	Verifier   string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
 type NewOidcFlowInput struct {
-	ID       shared.ID
-	TenantID shared.ID
-	Nonce    string
-	Verifier string
-	Now      time.Time
+	ID         shared.ID
+	TenantID   shared.ID
+	ProviderID shared.ID
+	Nonce      string
+	Verifier   string
+	Now        time.Time
 }
 
 // NewOidcFlow opens one.
@@ -433,12 +437,13 @@ type NewOidcFlowInput struct {
 // short enough to guess makes PKCE decorative, and the one place that would notice is a test
 // nobody wrote.
 func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
-	if in.ID.IsZero() || in.TenantID.IsZero() || in.Now.IsZero() ||
+	if in.ID.IsZero() || in.TenantID.IsZero() || in.ProviderID.IsZero() || in.Now.IsZero() ||
 		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 {
 		return OidcFlow{}, shared.ErrInternal.WithDetail("identity_provider.flow_incomplete")
 	}
 	return OidcFlow{
-		ID: in.ID, TenantID: in.TenantID, Nonce: in.Nonce, Verifier: in.Verifier,
+		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
+		Nonce: in.Nonce, Verifier: in.Verifier,
 		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }

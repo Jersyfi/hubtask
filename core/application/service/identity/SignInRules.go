@@ -6,7 +6,6 @@ package identity
 import (
 	"context"
 	"errors"
-	"net/url"
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -288,84 +287,51 @@ func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) 
 	return tenantID
 }
 
-// providersOf answers the ways in that are configured.
+// providersOf answers the ways in that are configured here.
 //
-// One per workspace is what the model holds today; SI-10 makes them plural, and the shape here is
-// already the plural one so that the screen does not move when it does. The identifier is the
-// constant the single row has no column for, and is what `oidc:start` will take once there is a
-// choice to make.
+// Plural since SI-10, and both levels: what a workspace configured and what its installation offers
+// every workspace, which is what the read policy admits together (migration 0103). A provider that
+// is switched off is not a way in and is not in the answer - a button that leads to a refusal is
+// worse than no button.
 func (h GetSignInRules) providersOf(ctx context.Context, tenantID shared.ID) ([]ProviderSummary, error) {
 	if tenantID.IsZero() || h.Providers == nil {
 		return []ProviderSummary{}, nil
 	}
 
-	var provider domain.IdentityProvider
+	var inForce []domain.IdentityProvider
 	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
-			found, err := h.Providers.Find(ctx)
+			read, err := h.Providers.List(ctx)
 			if err != nil {
 				if errors.Is(err, shared.ErrNotFound) {
 					return nil
 				}
 				return err
 			}
-			provider = found
+			inForce = read
 			return nil
 		})
 	if err != nil {
 		return nil, err
 	}
-	if provider.Issuer == "" || !provider.Enabled {
-		return []ProviderSummary{}, nil
-	}
 
-	return []ProviderSummary{{
-		ID:          DefaultProviderID,
-		DisplayName: issuerLabel(provider.Issuer),
-		Kind:        providerKind(provider.Issuer),
-		Scope:       "workspace",
-	}}, nil
-}
-
-// DefaultProviderID names the one provider a workspace can have today. A constant rather than a
-// row's identifier, because the row has no identifier column until SI-10 gives it one - and the
-// client needs something stable to key a button on and to send back to `oidc:start`.
-const DefaultProviderID = "default"
-
-// The two issuers with a published sign-in button guideline (ADR-0069 §3). Everything else draws
-// the letter tile, which is the honest answer rather than a borrowed logo.
-func providerKind(issuer string) string {
-	host := issuerLabel(issuer)
-	// The hosts are written in parts rather than as literals, and not for style: a dotted lowercase
-	// string in this tree is a message code to `TestEveryUsedMessageCodeIsInTheCatalogue`, and an
-	// issuer that has to be entered in `locales/en.json` to pass a gate would be a sentence nobody
-	// ever renders.
-	for _, labels := range [][]string{{"login", "microsoftonline", "com"}, {"sts", "windows", "net"}} {
-		if strings.HasSuffix(host, strings.Join(labels, ".")) {
-			return "MICROSOFT"
+	summaries := make([]ProviderSummary, 0, len(inForce))
+	for _, configured := range inForce {
+		if configured.Issuer == "" || !configured.Enabled {
+			continue
 		}
+		scope := ProviderScopeWorkspace
+		if configured.Installation() {
+			scope = ProviderScopeInstallation
+		}
+		summaries = append(summaries, ProviderSummary{
+			ID:          configured.ID.String(),
+			DisplayName: configured.DisplayName,
+			Kind:        string(configured.Kind),
+			Scope:       scope,
+		})
 	}
-	if strings.HasSuffix(host, strings.Join([]string{"accounts", "google", "com"}, ".")) {
-		return "GOOGLE"
-	}
-	return "GENERIC"
-}
-
-// issuerLabel is the issuer's host: what a button says until a provider has a display name of its
-// own. No new disclosure - the button's own flow sends the person to exactly this host the moment it
-// is pressed.
-//
-// Parsed rather than trimmed, and not only because it is shorter: a trimmed prefix would put the
-// scheme's own spelling into this file, which gate PG-6 reads as an address written into the source.
-// The parser knows what a scheme is, and nothing here has to.
-func issuerLabel(issuer string) string {
-	parsed, err := url.Parse(issuer)
-	if err != nil || parsed.Host == "" {
-		// Not an address this build can read. Answered whole rather than emptied, because the row
-		// was validated when it was configured and a label is not the place to refuse it.
-		return issuer
-	}
-	return parsed.Host
+	return summaries, nil
 }
 
 // rulesOutput is the projection every channel gets.

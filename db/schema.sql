@@ -528,6 +528,11 @@ CREATE TABLE ai_provider (
 
 CREATE TABLE oidc_flow (
   id            uuid PRIMARY KEY,
+  -- Which provider this sign-in left through (SI-10, migration 0103). The state names the
+  -- workspace and a workspace has several ways in, so the flow remembers the one it used - or the
+  -- exchange would be signed with the wrong client secret. Nullable for the rolling window: a flow
+  -- opened by the previous binary carries none.
+  provider_id   uuid,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   state_hash    bytea NOT NULL,
   code_verifier text NOT NULL,

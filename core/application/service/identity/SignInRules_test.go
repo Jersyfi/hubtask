@@ -46,7 +46,7 @@ func newRulesFixture() (GetSignInRules, *workspaceStore, *instanceSettings) {
 			Workspaces: workspace, Instance: instance, UnitOfWork: &unitOfWork{},
 		},
 		Tenants:    tenantDirectory{single: tenant},
-		Providers:  &providerStore{},
+		Providers:  rulesProviders(),
 		UnitOfWork: &unitOfWork{},
 		Multi:      true,
 	}
@@ -203,15 +203,20 @@ func TestOidcIsNotOfferedWithoutAProvider(t *testing.T) {
 		t.Errorf("providers %+v, want none", without.Providers)
 	}
 
-	handler.Providers = &providerStore{configured: &domain.IdentityProvider{
-		Issuer: "https://login.microsoftonline.com/contoso/v2.0", Enabled: true,
-	}}
+	handler.Providers = rulesProviders(domain.IdentityProvider{
+		ID: rulesProviderRow, TenantID: rulesTenant, Kind: domain.KindMicrosoft,
+		DisplayName: "login.microsoftonline.com",
+		Issuer:      "https://login.microsoftonline.com/contoso/v2.0", Enabled: true,
+	})
 	with, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
 	if len(with.Providers) != 1 || with.Providers[0].Kind != "MICROSOFT" {
 		t.Fatalf("providers %+v", with.Providers)
+	}
+	if with.Providers[0].ID != rulesProviderRow.String() {
+		t.Errorf("the button is keyed on %q, want the row", with.Providers[0].ID)
 	}
 	if with.Providers[0].Scope != "workspace" {
 		t.Errorf("scope %q", with.Providers[0].Scope)
@@ -228,9 +233,10 @@ func TestOidcIsNotOfferedWithoutAProvider(t *testing.T) {
 // A provider a workspace switched off is not a way in either.
 func TestADisabledProviderIsNotOffered(t *testing.T) {
 	handler, _, _ := newRulesFixture()
-	handler.Providers = &providerStore{configured: &domain.IdentityProvider{
+	handler.Providers = rulesProviders(domain.IdentityProvider{
+		ID: rulesProviderRow, TenantID: rulesTenant,
 		Issuer: "https://id.acme.example", Enabled: false,
-	}}
+	})
 
 	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
 	if err != nil {
@@ -256,3 +262,52 @@ func TestTheOldBooleanStillDecidesTheNewSwitch(t *testing.T) {
 }
 
 func intOf(value int) *int { return &value }
+
+// rulesProviderRow is the key of the row these fixtures configure, and `rulesTenant` is the
+// workspace the slug resolves to - the row has to belong to it, or the fake's own read policy hides
+// it, which is what the real policy would do as well.
+const rulesProviderRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000b1")
+
+var rulesTenant = tenant
+
+// rulesProviders is a store holding exactly these rows.
+func rulesProviders(rows ...domain.IdentityProvider) *providerStore {
+	store := newProviderStore(rulesTenant)
+	store.rows = rows
+	return store
+}
+
+// The installation's own provider is offered to a workspace that configured none of its own, and it
+// says which level it came from - so a settings screen can show it as inherited rather than as the
+// workspace's own choice (SI-10).
+func TestTheInstallationsProviderIsOfferedToEveryWorkspace(t *testing.T) {
+	handler, _, _ := newRulesFixture()
+	handler.Providers = rulesProviders(
+		domain.IdentityProvider{
+			ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000b2"), Kind: domain.KindGeneric,
+			DisplayName: "id.platform.example", Issuer: "https://id.platform.example", Enabled: true,
+		},
+		domain.IdentityProvider{
+			ID: rulesProviderRow, TenantID: rulesTenant, Kind: domain.KindGeneric,
+			DisplayName: "id.acme.example", Issuer: "https://id.acme.example", Enabled: true,
+		},
+	)
+
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(rules.Providers) != 2 {
+		t.Fatalf("providers %+v, want both levels", rules.Providers)
+	}
+	scopes := map[string]string{}
+	for _, offered := range rules.Providers {
+		scopes[offered.DisplayName] = offered.Scope
+	}
+	if scopes["id.platform.example"] != ProviderScopeInstallation {
+		t.Errorf("the installation's row is %q", scopes["id.platform.example"])
+	}
+	if scopes["id.acme.example"] != ProviderScopeWorkspace {
+		t.Errorf("the workspace's own row is %q", scopes["id.acme.example"])
+	}
+}

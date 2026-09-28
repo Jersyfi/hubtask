@@ -78,6 +78,10 @@ type StartOidcSignIn struct{ Writer OidcWriter }
 // StartOidcSignInCommand carries the tenant hints of decision 3, and a login hint if the caller
 // has one.
 type StartOidcSignInCommand struct {
+	// ProviderID names the way in. Zero is allowed while a workspace has exactly one, which keeps
+	// a caller that predates the plural working; with a choice to make, not making it is refused
+	// rather than guessed.
+	ProviderID   shared.ID
 	LoginHint    string
 	TenantSlug   string
 	TenantHeader string
@@ -102,7 +106,7 @@ func (h StartOidcSignIn) Execute(
 	}
 	scope := persistence.Scope{TenantID: tenantID}
 
-	configured, sealed, err := w.provider(ctx, scope)
+	configured, sealed, err := w.provider(ctx, scope, cmd.ProviderID)
 	if err != nil {
 		return OidcAuthorization{}, err
 	}
@@ -114,7 +118,7 @@ func (h StartOidcSignIn) Execute(
 
 	now := w.Session.Clock.Now()
 	flow, err := domain.NewOidcFlow(domain.NewOidcFlowInput{
-		ID: w.Session.IDs.NewID(), TenantID: tenantID,
+		ID: w.Session.IDs.NewID(), TenantID: tenantID, ProviderID: configured.ID,
 		Nonce: nonce, Verifier: verifier, Now: now,
 	})
 	if err != nil {
@@ -180,11 +184,6 @@ func (h CompleteOidcSignIn) Execute(
 	}
 	scope := persistence.Scope{TenantID: state.TenantID()}
 
-	configured, sealed, err := w.provider(ctx, scope)
-	if err != nil {
-		return SessionPair{}, err
-	}
-
 	// Burned first, in its own transaction: whatever happens afterwards, this state is spent.
 	// A failure that rolled the burn back would leave a handle somebody could present again.
 	var flow domain.OidcFlow
@@ -200,6 +199,15 @@ func (h CompleteOidcSignIn) Execute(
 		flow = found
 		return nil
 	}); err != nil {
+		return SessionPair{}, err
+	}
+
+	// The provider is read *after* the burn and from the flow, not from the request: which way in
+	// this sign-in left through is the one thing about the return leg that this installation itself
+	// wrote down, and signing the exchange with another provider's secret is how a code meant for
+	// one becomes an identity from another.
+	configured, sealed, err := w.provider(ctx, scope, flow.ProviderID)
+	if err != nil {
 		return SessionPair{}, err
 	}
 
@@ -245,7 +253,7 @@ func (w OidcWriter) settleAccount(
 	var account domain.Account
 	err := w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		// The subject first: on every arrival after the first, this is the whole of it.
-		found, err := w.External.FindBySubject(ctx, arriving.Subject)
+		found, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
 		switch {
 		case err == nil:
 			account = found
@@ -261,7 +269,7 @@ func (w OidcWriter) settleAccount(
 			switch {
 			case err == nil:
 				linked, err := w.External.LinkSubject(
-					ctx, existing.ID, arriving.Subject, w.Session.Clock.Now())
+					ctx, configured.ID, existing.ID, arriving.Subject, w.Session.Clock.Now())
 				if err != nil {
 					return err
 				}
@@ -299,7 +307,7 @@ func (w OidcWriter) settleAccount(
 			return err
 		}
 		if _, err := w.External.LinkSubject(
-			ctx, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
+			ctx, configured.ID, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
 			return err
 		}
 		account = provisioned
@@ -311,17 +319,30 @@ func (w OidcWriter) settleAccount(
 	return account, nil
 }
 
-// provider reads the workspace's configuration and refuses the flow when there is none or it is
-// switched off - which is a refusal a person can act on, rather than a page that fails later.
+// provider reads the configuration a flow runs under and refuses the flow when there is none or it
+// is switched off - which is a refusal a person can act on, rather than a page that fails later.
+//
+// A zero identifier is answered from the collection: with exactly one way in there is nothing to
+// choose, and with several, not choosing is refused rather than guessed. That is also what a flow
+// opened before the column existed reads as.
 func (w OidcWriter) provider(
-	ctx context.Context, scope persistence.Scope,
+	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, secret.Secret, error) {
 	var (
 		configured domain.IdentityProvider
 		opened     secret.Secret
 	)
 	err := w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		found, sealed, err := w.Providers.FindWithSecret(ctx)
+		chosen := providerID
+		if chosen.IsZero() {
+			only, err := w.onlyProvider(ctx)
+			if err != nil {
+				return err
+			}
+			chosen = only
+		}
+
+		found, sealed, err := w.Providers.FindWithSecret(ctx, chosen)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
 				return shared.ErrValidation.WithDetail("identity_provider.not_configured")
@@ -331,7 +352,10 @@ func (w OidcWriter) provider(
 		if !found.Enabled {
 			return shared.ErrValidation.WithDetail("identity_provider.disabled")
 		}
-		plaintext, err := w.Session.Encryptor.Open(ctx, sealed, clientSecretPurpose(scope.TenantID))
+		// The purpose is the level's, so a row of the installation's opens under the installation's
+		// purpose and a workspace's under its own - which is what keeps a ciphertext from opening
+		// in a workspace it was not sealed for (E-02).
+		plaintext, err := w.Session.Encryptor.Open(ctx, sealed, ClientSecretPurpose(found.TenantID))
 		if err != nil {
 			return err
 		}
@@ -342,6 +366,29 @@ func (w OidcWriter) provider(
 		return domain.IdentityProvider{}, secret.Secret{}, err
 	}
 	return configured, opened, nil
+}
+
+// onlyProvider answers the single way in, or says which of the refusals applies: none configured,
+// or a choice nobody made.
+func (w OidcWriter) onlyProvider(ctx context.Context) (shared.ID, error) {
+	inForce, err := w.Providers.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	enabled := make([]domain.IdentityProvider, 0, len(inForce))
+	for _, candidate := range inForce {
+		if candidate.Enabled {
+			enabled = append(enabled, candidate)
+		}
+	}
+	switch len(enabled) {
+	case 0:
+		return "", shared.ErrValidation.WithDetail("identity_provider.not_configured")
+	case 1:
+		return enabled[0].ID, nil
+	default:
+		return "", shared.ErrValidation.WithDetail("identity_provider.choice_required")
+	}
 }
 
 // draw mints the three unguessable values one flow needs, through the entropy port (rule 4).
@@ -461,6 +508,8 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 			"single use: it is spent at the callback whether or not the callback succeeds.",
 		SideEffects: "Writes a short-lived sign-in flow and asks the provider for its metadata.",
 		Input: []usecase.Field{
+			{Name: "provider_id", Kind: usecase.KindString,
+				Description: "Which way in to use. Absent is allowed while the workspace has exactly one."},
 			{Name: "login_hint", Kind: usecase.KindString,
 				Description: "An address to save somebody typing it twice. It never decides which account is signed in."},
 			{Name: "tenant_slug", Kind: usecase.KindString,
@@ -482,7 +531,12 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 func (h StartOidcSignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	providerID, err := in.ID("provider_id")
+	if err != nil {
+		return nil, err
+	}
 	authorization, err := h.Execute(ctx, StartOidcSignInCommand{
+		ProviderID:   providerID,
 		LoginHint:    in.String("login_hint"),
 		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
