@@ -429,6 +429,10 @@ class IdentityProviderPreset(TypedDict, total=False):
     instructions: Required[str]
     particular: str | None
 
+class InstanceReach(TypedDict, total=False):
+    """Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one."""
+    reachable: Required[bool]
+
 class InstanceOverview(TypedDict, total=False):
     """The installation at a glance. Counts and states; the contents of a workspace are behind a database policy this answer does not reach through (ADR-0070 §5)."""
     workspaces_active: Required[int]
@@ -2188,6 +2192,7 @@ class Capabilities(TypedDict, total=False):
     limits: dict[str, Any]
     features: dict[str, Any]
     legal: "LegalLinks"
+    instance: "InstanceReach"
 
 class RoleDescription(TypedDict, total=False):
     """One row of the role matrix: the permissions the role carries, and what it may do to a single entry."""

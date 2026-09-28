@@ -4571,7 +4571,11 @@ type Capabilities struct {
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search` and `natural_ordering`.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health` (observability-reliability.md §7), so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace (`ai-first.md` §2); an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU (`i18n-l10n.md` §5). Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
-	Features  *map[string]bool `json:"features,omitempty"`
+	Features *map[string]bool `json:"features,omitempty"`
+
+	// Instance What this caller may do at the level above the workspaces (SI-17, ADR-0070 §5). Caller- scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
+	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled (`apps/webapp/CLAUDE.md`).
+	Instance  *InstanceReach `json:"instance,omitempty"`
 	ItemTypes *[]struct {
 		AllowedChildTypes *[]ItemType `json:"allowed_child_types,omitempty"`
 		Capabilities      *[]string   `json:"capabilities,omitempty"`
@@ -5388,6 +5392,13 @@ type InstanceOverview struct {
 	// WorkspacesPendingDeletion Workspaces inside the grace period of a deletion request.
 	WorkspacesPendingDeletion int `json:"workspaces_pending_deletion"`
 	WorkspacesSuspended       int `json:"workspaces_suspended"`
+}
+
+// InstanceReach Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one.
+type InstanceReach struct {
+	// Reachable Whether this account is in the operator register (ADR-0070 §1) — the first of the two conditions on the instance area. The second is the elevation, which is a session's state and not the manifest's.
+	// On a private installation the register is empty and means *the workspace's owner*, so a single-workspace installation answers true to its owner and false to everybody else.
+	Reachable bool `json:"reachable"`
 }
 
 // InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.

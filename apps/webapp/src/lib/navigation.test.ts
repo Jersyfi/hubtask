@@ -85,9 +85,26 @@ test('the search exists once', () => {
 });
 
 test('the administration row is offered only where the server says so', () => {
-  const ids = (reachable: boolean) => account({ isAdministrationReachable: reachable }).map((destination) => destination.id);
+  const ids = (reachable: boolean) =>
+    account({ isAdministrationReachable: reachable, isInstanceReachable: false }).map((destination) => destination.id);
   assert.deepEqual(ids(true), ['profile', 'administration', 'tour', 'about', 'sign-out']);
   assert.deepEqual(ids(false), ['profile', 'tour', 'about', 'sign-out']);
+});
+
+test('the instance row is offered only to an operator, and is absent rather than disabled', () => {
+  // SI-17: the level above the workspaces is drawn for an account in the operator register and for
+  // nobody else. Absent, not greyed — somebody who is not an operator was never going to have it,
+  // and a row they cannot use is a row they have to ask about (ADR-0070 §5).
+  const ids = (reachable: boolean) =>
+    account({ isAdministrationReachable: true, isInstanceReachable: reachable }).map((destination) => destination.id);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'instance', 'tour', 'about', 'sign-out']);
+  assert.ok(!ids(false).includes('instance'), 'a non-operator was offered the control plane');
+
+  // And it is the row every screen of the area is current for, so the menu marks one place rather
+  // than none while somebody is inside it.
+  for (const route of ROUTES.filter((each) => each.area === 'instance')) {
+    assert.equal(currentDestination({ name: route.name, area: 'instance' }), 'instance', route.name);
+  }
 });
 
 test('the installation is still in the list, under another name, and signing out is last', () => {
@@ -101,7 +118,7 @@ test('the installation is still in the list, under another name, and signing out
   assert.equal(about?.area, undefined, 'everyone may read what this installation is');
   // ADR-0065 decision 5 reverses decision 6's order: signing out is the last thing a reader does
   // in a session, and a row under it is a row somebody reaches past.
-  const group = account({ isAdministrationReachable: false });
+  const group = account({ isAdministrationReachable: false, isInstanceReachable: false });
   assert.equal(group.at(-1)?.id, 'sign-out', 'something is drawn under signing out');
   assert.equal(group.at(-2)?.id, 'about');
 });

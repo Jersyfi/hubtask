@@ -9108,6 +9108,24 @@ components:
             Google's single issuer for every account there is, Microsoft's directory-specific
             issuer. Absent where there is none.
 
+    InstanceReach:
+      type: object
+      description: >
+        Whether the caller may reach the level above the workspaces, and nothing about anybody else.
+        It answers about the account asking; it is not a directory of operators and cannot be asked
+        about one.
+      required: [reachable]
+      properties:
+        reachable:
+          type: boolean
+          description: >
+            Whether this account is in the operator register (ADR-0070 §1) — the first of the two
+            conditions on the instance area. The second is the elevation, which is a session's state
+            and not the manifest's.
+
+            On a private installation the register is empty and means *the workspace's owner*, so a
+            single-workspace installation answers true to its owner and false to everybody else.
+
     InstanceOverview:
       type: object
       description: >
@@ -14070,6 +14088,17 @@ components:
             asking a sign-in route for them. A link the installation never set is **absent**, not
             empty: a private installation owes nobody an imprint, and four links pointing nowhere are
             worse than none.
+        instance:
+          $ref: "#/components/schemas/InstanceReach"
+          description: >
+            What this caller may do at the level above the workspaces (SI-17, ADR-0070 §5). Caller-
+            scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers
+            `reachable: false`, and the answer changes with the actor.
+
+            **This is what decides whether a client draws a way into `/instance` at all.** Hubtask
+            does not draw a control somebody may not use and then refuse it: what the installation
+            permits is read, never compiled in, and a capability that is refused outright is absent
+            rather than disabled (`apps/webapp/CLAUDE.md`).
     RoleDescription:
       type: object
       description: >

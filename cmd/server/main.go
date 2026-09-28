@@ -1983,7 +1983,10 @@ func run() error {
 			// The four links the installation is obliged to show, through the one resolver that
 			// knows the levels (SI-12). The same object `/auth/sign-in-rules` reads, so a footer
 			// inside the application and the signed-out card cannot disagree.
-			Legal:      signInPolicyResolver,
+			Legal: signInPolicyResolver,
+			// Whether the caller operates this installation (SI-17). The same register the
+			// control plane checks, so the menu cannot offer what the route refuses.
+			Operators:  operators,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 			// The same catalogue the mint validates against, so the manifest cannot offer a scope

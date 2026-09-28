@@ -134,6 +134,13 @@ type Capabilities struct {
 	Limits map[string]int64
 	// Features says which optional parts of the installation are configured.
 	Features map[string]bool
+	// InstanceReachable is whether this caller is in the operator register (SI-17, ADR-0070 §1).
+	//
+	// It is what decides whether a client draws a way into `/instance` at all. Hubtask does not
+	// draw a control somebody may not use and then refuse it - what the installation permits is
+	// read, never compiled in, and a capability that is refused outright is absent rather than
+	// disabled. A caller with no credential is false, which is also the honest answer.
+	InstanceReachable bool
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (SI-12, ADR-0068 §7).
 	//
@@ -184,6 +191,15 @@ type LegalPolicy interface {
 	Legal(ctx context.Context, tenantID shared.ID) (identity.LegalLinks, error)
 }
 
+// OperatorRegister answers whether one account operates this installation (SI-17, ADR-0070 §1).
+//
+// An interface here rather than the repository, for LegalPolicy's reason: what this package needs
+// is one question answered about the caller, and a package that held the register could be asked
+// for the list.
+type OperatorRegister interface {
+	Holds(ctx context.Context, accountID shared.ID) (bool, error)
+}
+
 // AiProviders answers which provider the caller's workspace uses (J-02). An interface here rather
 // than the adapter, because the application layer may not import one (ADR-0001) - the same
 // declaration work.AiProviders and suggestion.Providers make, for the same reason.
@@ -219,7 +235,11 @@ type GetCapabilities struct {
 	Providers AiProviders
 	// Legal answers the four links (SI-12). Optional, like Semantic and for the same reason: a
 	// build wired without it answers none, which is what an installation with no instance layer has.
-	Legal      LegalPolicy
+	Legal LegalPolicy
+	// Operators answers whether the caller may reach the level above the workspaces (SI-17).
+	// Optional: a build wired without it answers false, which draws no way in - the safe direction,
+	// because a control that is not drawn is one nobody is refused at.
+	Operators  OperatorRegister
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 	// Actions is every automation action kind that is a use case, handed in from the catalogue at
@@ -304,6 +324,25 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			return Capabilities{}, err
 		}
 		legal = resolved
+	}
+
+	// Whether this caller operates the installation. Only for somebody who is signed in: an
+	// anonymous caller has no account to be in a register, and false is then the accurate answer
+	// rather than merely the safe one.
+	//
+	// In the installation's own scope, because the register belongs to no workspace - and outside
+	// the transaction above for the resolver's reason: a nested unit of work that changes tenant is
+	// refused outright.
+	instanceReachable := false
+	if g.Operators != nil && actor.IsAuthenticated() && !actor.AccountID.IsZero() {
+		if err := g.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
+			func(ctx context.Context) error {
+				held, err := g.Operators.Holds(ctx, actor.AccountID)
+				instanceReachable = held
+				return err
+			}); err != nil {
+			return Capabilities{}, err
+		}
 	}
 
 	var ai aiprovider.ProviderCapabilities
@@ -418,7 +457,8 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// serves is read, never compiled in.
 			"sign_in_rules": true,
 		},
-		Legal: legal,
+		Legal:             legal,
+		InstanceReachable: instanceReachable,
 	}, nil
 }
 

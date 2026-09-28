@@ -290,6 +290,11 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	// installation owes nobody an imprint, and the mapping says so from one place (SI-12).
 	legal := legalLinksResponse(source.Legal)
 
+	// Whether this caller may reach the level above the workspaces. Always present, never omitted:
+	// an absent field would read as "this build does not know", and a client would then have to
+	// guess - which is the thing the manifest exists to prevent.
+	instance := openapi.InstanceReach{Reachable: source.InstanceReachable}
+
 	return openapi.Capabilities{
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
@@ -311,6 +316,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Limits:                 &limits,
 		Features:               &features,
 		Legal:                  legal,
+		Instance:               &instance,
 	}
 }
 

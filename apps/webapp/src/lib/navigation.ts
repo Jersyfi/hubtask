@@ -76,6 +76,11 @@ export const DESTINATIONS: readonly Destination[] = [
   // said the same thing with one mark.
   { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
   { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
+  // The level above the workspaces (SI-17, ADR-0070 §5). Drawn only for an account in the operator
+  // register, which the manifest answers — never compiled in, and **absent** rather than disabled
+  // where it does not apply: somebody who is not an operator was never going to have it, and a
+  // greyed row would be an invitation to ask why.
+  { id: 'instance', group: 'account', icon: 'gauge', code: 'app.nav.instance', target: { kind: 'route', path: '/instance' }, routes: ['instance'], area: 'instance' },
   { id: 'tour', group: 'account', icon: 'compass', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
   // The installation: four facts — the product version, the API version, the tenancy and the
   // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
@@ -345,17 +350,27 @@ export function primary(): readonly Destination[] {
 }
 
 /**
- * The account group, with the one row the server decides. The administration area is offered
- * only where `GET /quotas` is not refused — the frame's `quotas.isReachable`, which is the
- * area's condition exactly and the one place in this client where hiding beats a gate (the
- * reasoning is in `AppFrame`).
+ * The account group, with the two rows the server decides.
+ *
+ * The administration area is offered only where `GET /quotas` is not refused — the frame's
+ * `quotas.isReachable`, which is the area's condition exactly. The instance area is offered only
+ * where the manifest says this account is in the operator register (SI-17, ADR-0070 §1).
+ *
+ * These are the places in this client where **hiding beats a gate**, and the rule that decides it
+ * is the same one `CapabilityGate` follows: a gate explains a refusal somebody might otherwise
+ * have expected, and hiding is right where they never might have. A member who is not an operator
+ * is not being refused the control plane — it is not theirs, the way another workspace is not.
  */
-export function account(options: { readonly isAdministrationReachable: boolean }): readonly Destination[] {
-  return DESTINATIONS.filter(
-    (destination) =>
-      destination.group === 'account' &&
-      (destination.area !== 'administration' || options.isAdministrationReachable),
-  );
+export function account(options: {
+  readonly isAdministrationReachable: boolean;
+  readonly isInstanceReachable: boolean;
+}): readonly Destination[] {
+  return DESTINATIONS.filter((destination) => {
+    if (destination.group !== 'account') return false;
+    if (destination.area === 'administration') return options.isAdministrationReachable;
+    if (destination.area === 'instance') return options.isInstanceReachable;
+    return true;
+  });
 }
 
 /**
@@ -365,6 +380,9 @@ export function account(options: { readonly isAdministrationReachable: boolean }
  */
 export function currentDestination(route: { readonly name: string | null; readonly area: Area }): string | undefined {
   if (route.area === 'administration') return 'administration';
+  // And the same for the instance area: the table names its five screens, and the list carries one
+  // row for all of them.
+  if (route.area === 'instance') return 'instance';
   // And the same for Your settings, which is a section of its own since ADR-0065 decision 3: its
   // screens are the area, and the list should not have to name each of them twice.
   if (route.area === 'profile') return 'profile';

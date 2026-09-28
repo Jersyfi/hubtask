@@ -2529,10 +2529,23 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
 CREATE OR REPLACE FUNCTION is_operator(p_account uuid) RETURNS boolean
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT
-    -- An empty register is the private installation: nothing was configured, and the owner is the
-    -- operator exactly as they were before this table existed.
-    NOT EXISTS (SELECT 1 FROM operator)
-    OR EXISTS (SELECT 1 FROM operator WHERE account_id = p_account)
+    EXISTS (SELECT 1 FROM operator WHERE account_id = p_account)
+    -- An empty register is the private installation, and it means the workspace's OWNER role
+    -- holders rather than everybody (migration 0106): the dashboard draws a way in for whoever may
+    -- reach it, so a guest who could raise their session would see and use the control plane.
+    OR (
+      NOT EXISTS (SELECT 1 FROM operator)
+      AND EXISTS (
+        SELECT 1
+        FROM membership m
+        JOIN account a ON a.tenant_id = m.tenant_id AND a.id = m.account_id
+        WHERE m.account_id = p_account
+          AND m.role = 'OWNER'
+          AND m.scope_type = 'TENANT'
+          AND a.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+      )
+    )
 $$;
 
 CREATE OR REPLACE FUNCTION operator_register() RETURNS SETOF operator

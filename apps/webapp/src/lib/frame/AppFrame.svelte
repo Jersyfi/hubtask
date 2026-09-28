@@ -150,7 +150,14 @@
   const sectionRow = $derived(
     section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
-  const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
+  const accountGroup = $derived(
+    account({
+      isAdministrationReachable: quotas.isReachable === true,
+      // The manifest's answer about this caller, and nothing compiled in (SI-17). False until it
+      // has been read, which is the third value every capability question here has.
+      isInstanceReachable: manifest.isInstanceReachable,
+    }),
+  );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
   const bottomDestinations = $derived([
     ...primary().map((each) => ({
