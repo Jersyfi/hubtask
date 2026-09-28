@@ -20,6 +20,12 @@
  * one: discovery runs against the issuer before anything is stored, and a half-changed configuration
  * is a workspace whose sign-in is broken in a way nobody asked for.
  *
+ * **One switch is a workspace's even on a row that is not.** An installation's provider is offered
+ * everywhere and on nowhere; `:offer` is the one verb that answers "is this a way in here", over
+ * the row's own `enabled` for a workspace's provider and over the workspace's own list for an
+ * inherited one (ADR-0070 §2). That is why an inherited row carries exactly one control and no
+ * others.
+ *
  * **The presets are read once and are not a provider.** They are three rows and this installation's
  * own callback address — what a registration form asks for — so they live beside the listing rather
  * than inside it.
@@ -87,6 +93,20 @@ class IdentityProviderStore {
   /** Adds one. The listing is invalidated, so the screen sees what the server stored. */
   async add(body: IdentityProviderConfiguration): Promise<IdentityProvider> {
     return engine.mutate<IdentityProvider>('POST', PATH, body, { invalidates: [PATH] });
+  }
+
+  /**
+   * Switches a provider on or off as a way into this workspace.
+   *
+   * The same call for both levels, because it is the same question. The server refuses switching
+   * off the last way in — a workspace nobody can reach is not a state a click may produce — and the
+   * screen shows that refusal rather than predicting it: whether another way exists is the server's
+   * count, and a client that kept its own would disagree with it eventually.
+   */
+  async offer(id: string, offered: boolean): Promise<IdentityProvider> {
+    return engine.mutate<IdentityProvider>('POST', `${PATH}/${id}:offer`, { offered }, {
+      invalidates: [PATH],
+    });
   }
 
   /** Replaces one, whole. */

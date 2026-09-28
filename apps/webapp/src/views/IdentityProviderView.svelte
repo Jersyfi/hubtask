@@ -4,9 +4,12 @@
   // The workspace's identity providers, configured (H-04, SI-10).
   //
   // **Plural, and two levels deep.** The listing carries this workspace's own rows and the ones its
-  // installation offers every workspace on it. An inherited row is drawn with **no controls at all**
-  // rather than controls that answer a refusal: it is not this workspace's to change, and a disabled
-  // switch beside it would be a promise that pressing harder helps.
+  // installation offers every workspace on it. An inherited row is not this workspace's to change,
+  // so it carries no field and no remove — and exactly one switch, which is the workspace's own:
+  // whether the offer is taken here. "Für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner
+  // schaltet selbst" (ADR-0070 §2). It starts off, because offering is the installation's decision
+  // and taking is this workspace's, and a provider the installation adds tomorrow must not be a way
+  // in here tonight.
   //
   // **The client secret goes one way, and this screen says so rather than pretending.** It is sealed
   // on the way in and is a member of no answer (E-02), so editing an existing provider shows an empty
@@ -38,6 +41,8 @@
 
   /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
   let editing = $state<string | undefined>(undefined);
+  /** Which inherited row is being switched, so its control is not pressed twice. */
+  let offering = $state<string | undefined>(undefined);
   let issuer = $state('');
   let clientId = $state('');
   let clientSecret = $state('');
@@ -186,6 +191,26 @@
     }
   }
 
+  /**
+   * Takes an offered provider, or gives it back.
+   *
+   * The server answers the refusal when this was the last way in, and the listing is re-read either
+   * way: the switch draws what the server stored rather than what was pressed, so a refused switch
+   * springs back instead of sitting on a state nothing holds.
+   */
+  async function offer(id: string, offered: boolean): Promise<void> {
+    offering = id;
+    failure = undefined;
+    saved = false;
+    try {
+      await identityProvider.offer(id, offered);
+    } catch (cause) {
+      failure = problemOf(cause);
+    } finally {
+      offering = undefined;
+    }
+  }
+
   /** One domain per line, or separated by commas — whichever somebody pastes. */
   function readDomains(written: string): string[] {
     return written
@@ -256,11 +281,21 @@
                   <span class="name">{provider.display_name}</span>
                   <span class="detail">{provider.issuer}</span>
                 </div>
-                <Badge tone={provider.enabled ? 'neutral' : 'warning'}>
-                  {provider.enabled
-                    ? t('app.identity_provider.badge_inherited')
-                    : t('app.identity_provider.badge_off')}
-                </Badge>
+                {#if provider.enabled}
+                  <Switch
+                    label={t('app.identity_provider.offered_here_label')}
+                    hint={t('app.identity_provider.offered_here_hint')}
+                    checked={provider.offered_here === true}
+                    disabledReason={offering === provider.id ? t('app.identity_provider.offering') : undefined}
+                    onchange={(event) =>
+                      void offer(provider.id, (event.currentTarget as HTMLInputElement).checked)}
+                  />
+                {:else}
+                  <!-- Switched off at the installation. Not a refusal this workspace can lift, and
+                       not a switch: a control that cannot do anything is a control somebody presses
+                       twice before asking. -->
+                  <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
+                {/if}
               </li>
             {/each}
           </ul>

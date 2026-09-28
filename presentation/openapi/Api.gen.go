@@ -5226,9 +5226,9 @@ type IdentityProvider struct {
 	// Position The order the buttons are drawn in.
 	Position int `json:"position"`
 
-	// Provisioning How freely an arriving subject may claim an account that already exists here - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
-	// `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside them. `ANY` claims on any address the provider says it verified, which is for a provider that *is* the workspace's directory.
-	// An address the provider did not vouch for claims nothing, in all three.
+	// Provisioning Who this provider may admit, and what happens to whoever it admitted - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
+	// `INVITED_ONLY` admits anyone the provider vouched for and creates nothing: a verified address that meets no account here is refused. `DOMAINS` admits **only** addresses inside `allowed_email_domains`, and creates an account for one that meets none - so an empty list admits nobody, because the list is the mode. `ANY` admits every address the provider says it verified and creates what is missing, which is for a provider that *is* the workspace's directory.
+	// An address the provider did not vouch for is admitted by none of the three.
 	Provisioning IdentityProviderProvisioning `json:"provisioning"`
 
 	// Scope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
@@ -5294,9 +5294,9 @@ type IdentityProviderPreset struct {
 	Scopes []string `json:"scopes"`
 }
 
-// IdentityProviderProvisioning How freely an arriving subject may claim an account that already exists here - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
-// `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside them. `ANY` claims on any address the provider says it verified, which is for a provider that *is* the workspace's directory.
-// An address the provider did not vouch for claims nothing, in all three.
+// IdentityProviderProvisioning Who this provider may admit, and what happens to whoever it admitted - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
+// `INVITED_ONLY` admits anyone the provider vouched for and creates nothing: a verified address that meets no account here is refused. `DOMAINS` admits **only** addresses inside `allowed_email_domains`, and creates an account for one that meets none - so an empty list admits nobody, because the list is the mode. `ANY` admits every address the provider says it verified and creates what is missing, which is for a provider that *is* the workspace's directory.
+// An address the provider did not vouch for is admitted by none of the three.
 type IdentityProviderProvisioning string
 
 // ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
