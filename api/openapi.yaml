@@ -3938,6 +3938,89 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/identity-providers:
+    get:
+      tags: [admin]
+      operationId: listInstanceIdentityProviders
+      summary: The providers this installation offers every workspace
+      description: >
+        Every workspace on this installation reads these and draws their buttons; none may change
+        them, which is the row-level policy and not a check in a handler. Behind `admin:tenants`
+        **and** the operator register, both (ADR-0070 §1).
+      responses:
+        "200":
+          description: The installation's providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: createInstanceIdentityProvider
+      summary: Offer every workspace a way in
+      description: >
+        The same rules as a workspace's own provider - discovery before anything is stored, the
+        mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because
+        it is the same use case underneath. Journalled in the installation's own evidence, where no
+        workspace's trail could hold it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProviderConfiguration"
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/identity-providers/{providerId}:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    put:
+      tags: [admin]
+      operationId: configureInstanceIdentityProvider
+      summary: Replace one of the installation's providers
+      description: >
+        Set whole, with the secret's one exception: omitting it keeps the one that is sealed.
+        Journalled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProviderConfiguration"
+      responses:
+        "200":
+          description: Configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [admin]
+      operationId: removeInstanceIdentityProvider
+      summary: Withdraw a provider from every workspace at once
+      description: >
+        Every workspace loses that way in the moment this returns. The accounts it signed in keep
+        their rows and their live sessions; what they lose is the way back. Journalled.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/encryption:
     get:
       tags: [admin]
@@ -4110,40 +4193,80 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
-  /identity-provider:
+  /identity-providers:
     get:
       tags: [auth]
-      operationId: readIdentityProvider
-      summary: How this workspace signs people in through its own provider
+      operationId: listIdentityProviders
+      summary: The providers people can sign in to this workspace through
       description: >
-        The configured issuer, client id and allowed email domains, and whether the provider is
-        switched on. Needs the permission that manages structure, or the auditor's read-only
-        configuration permission (A-4): which provider vouches for this workspace's people is
-        configuration an auditor reads.
+        The workspace's own providers and the ones its installation offers every workspace, each
+        with its issuer, the mark it draws, whom it lets in and whether it is switched on. `scope`
+        says which level a row belongs to: an `installation` row is offered to this workspace and
+        is not its to change.
+
+        Needs the permission that manages structure, or the auditor's read-only configuration
+        permission (A-4): which provider vouches for this workspace's people is configuration an
+        auditor reads.
 
         The client secret is never a member of this answer. It is sealed at configuration time
         (E-02) and read only by the token exchange.
       responses:
         "200":
-          description: The configuration
+          description: The providers in force
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [auth]
+      operationId: createIdentityProvider
+      summary: Add a provider this workspace signs its people in through
+      description: >
+        Discovery runs before anything is stored, through the guarded client, so an issuer this
+        installation cannot reach or that disagrees with its own metadata is refused rather than
+        saved and discovered later by a person trying to sign in.
+
+        Two refusals belong to the preset rather than to the form. A **public** provider - one
+        anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything
+        else provisions every person alive an account here. And a preset whose addresses this
+        installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an
+        account that already exists to whoever arrives with its address.
+
+        The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProviderConfiguration"
+      responses:
+        "201":
+          description: Added
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/IdentityProvider"
         "4XX":
           $ref: "#/components/responses/Problem"
+
+  /identity-providers/{providerId}:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
     put:
       tags: [auth]
       operationId: configureIdentityProvider
-      summary: Configure the workspace's identity provider
+      summary: Replace one of the workspace's identity providers
       description: >
-        Sets the provider whole - issuer, client id, client secret and the email domains a
-        linked account may match within. Discovery runs before anything is stored, through the
-        guarded client, so an issuer this installation cannot reach or that disagrees with its
-        own metadata is refused rather than saved and discovered later by a person trying to
-        sign in.
+        Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
+        client secret is the one exception - omitting it keeps the one that is sealed, which is the
+        only way to change a name or a mode without retyping a value nothing can read back.
 
-        The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+        A provider of the `installation` scope is answered `404` here: it is offered to this
+        workspace and is not its to change. Auditable.
       requestBody:
         required: true
         content:
@@ -4162,7 +4285,7 @@ paths:
     delete:
       tags: [auth]
       operationId: removeIdentityProvider
-      summary: Remove the workspace's identity provider
+      summary: Remove one of the workspace's identity providers
       description: >
         The configuration and its sealed secret go. Accounts provisioned through it keep their
         rows and their sessions - what they lose is the way to sign in again, which is why an
@@ -4170,6 +4293,32 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /identity-provider-presets:
+    get:
+      tags: [auth]
+      operationId: listIdentityProviderPresets
+      summary: The providers Hubtask has a preset for, and what registering takes
+      description: >
+        Three rows and this installation's own callback address, which is the value every
+        registration form at every provider asks for. `instructions` and `particular` are message
+        codes (ADR-0011) rendered with `redirect_uri`; `provisioning` is the modes the preset
+        permits, so a screen offers only what would be accepted rather than three of which two are
+        refused.
+
+        Behind the same permission as reading the providers. There is no reason for a signed-out
+        visitor to read registration instructions.
+      responses:
+        "200":
+          description: The presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IdentityProviderPreset"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -7278,6 +7427,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    ProviderId:
+      name: providerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     DeviceId:
       name: deviceId
       in: path
@@ -8001,6 +8156,13 @@ components:
         workspace comes from the subdomain or the tenant header, and the redirect URI is this
         installation's own. A caller with nothing to add may omit the body entirely.
       properties:
+        provider_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Which way in to use, from `GET /auth/sign-in-rules`. Omitting it is allowed while the
+            workspace has exactly one provider switched on; with a choice to make, not making it is
+            refused rather than guessed.
         login_hint:
           type: [string, "null"]
           description: >
@@ -8574,10 +8736,18 @@ components:
     IdentityProvider:
       type: object
       description: >
-        How this workspace signs people in through its own provider. The client secret is not a
-        member: it is sealed at configuration time and read only by the token exchange.
-      required: [issuer, client_id, enabled, allowed_email_domains, created_at, version]
+        One provider people can sign in through. The client secret is not a member: it is sealed at
+        configuration time and read only by the token exchange.
+      required: [id, scope, issuer, client_id, display_name, kind, provisioning, position, enabled, allowed_email_domains, created_at, version]
       properties:
+        id: { type: string, format: uuid }
+        scope:
+          type: string
+          enum: [workspace, installation]
+          description: >
+            Which level this row belongs to. `installation` is offered to every workspace on this
+            installation and is not any one of theirs to change - a settings screen shows it as
+            inherited, without controls.
         issuer:
           type: string
           format: uri
@@ -8587,6 +8757,16 @@ components:
         client_id:
           type: string
           description: This installation's registration with the provider.
+        display_name:
+          type: string
+          description: >
+            The name on the button. The issuer's host where nobody set one, which discloses nothing
+            new: pressing the button sends the person to exactly that host.
+        kind: { $ref: "#/components/schemas/IdentityProviderKind" }
+        provisioning: { $ref: "#/components/schemas/IdentityProviderProvisioning" }
+        position:
+          type: integer
+          description: The order the buttons are drawn in.
         enabled:
           type: boolean
           description: >
@@ -8596,14 +8776,38 @@ components:
           type: array
           items: { type: string }
           description: >
-            The domains inside which a verified address may link an arriving subject to an
-            existing local account. Empty means no linking happens at all: every subject is
-            provisioned as its own account, which is the safe reading of "not configured".
+            The domains inside which a verified address may claim an account that already exists,
+            under `DOMAINS`. Empty means no claiming happens at all: every subject is provisioned as
+            its own account, which is the safe reading of "not configured".
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    IdentityProviderKind:
+      type: string
+      enum: [GENERIC, GOOGLE, MICROSOFT]
+      description: >
+        The preset a provider was configured from, which decides the mark its button draws
+        (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo.
+        A stated kind the issuer does not belong to is refused: a Google mark over somebody else's
+        issuer is borrowed trust on a sign-in screen.
+
+    IdentityProviderProvisioning:
+      type: string
+      enum: [INVITED_ONLY, DOMAINS, ANY]
+      description: >
+        How freely an arriving subject may claim an account that already exists here - the one axis
+        with a security answer, because creating an account gives somebody an empty desk and
+        claiming one gives them somebody else's.
+
+        `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and
+        nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside
+        them. `ANY` claims on any address the provider says it verified, which is for a provider
+        that *is* the workspace's directory.
+
+        An address the provider did not vouch for claims nothing, in all three.
 
     IdentityProviderConfiguration:
       type: object
@@ -8611,7 +8815,7 @@ components:
         The provider, set whole. Discovery is performed before anything is stored, so an issuer
         that cannot be reached or that disagrees with its own metadata is refused here rather
         than by the first person who tries to sign in.
-      required: [issuer, client_id, client_secret]
+      required: [issuer, client_id]
       properties:
         issuer:
           type: string
@@ -8619,11 +8823,29 @@ components:
         client_id:
           type: string
         client_secret:
-          type: string
+          type: [string, "null"]
           writeOnly: true
           description: >
-            Sealed on the way in (E-02) and never answered again. Sending it a second time
-            replaces it; there is no way to read it back, by design.
+            Sealed on the way in (E-02) and never answered again. Required when adding a provider.
+            Omitted on a replace it keeps the one that is sealed - there is no way to read it back,
+            by design, and retyping it to change a name is how names stay wrong.
+        display_name:
+          type: [string, "null"]
+          maxLength: 200
+          description: The name on the button. Absent is the issuer's host.
+        kind:
+          $ref: "#/components/schemas/IdentityProviderKind"
+          description: Absent is read from the issuer.
+        provisioning:
+          $ref: "#/components/schemas/IdentityProviderProvisioning"
+          description: >
+            Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public
+            provider, `DOMAINS` for everything else.
+        position:
+          type: integer
+          minimum: 0
+          maximum: 99
+          default: 0
         enabled:
           type: boolean
           default: true
@@ -8632,9 +8854,56 @@ components:
           items: { type: string }
           default: []
           description: >
-            Domains a verified address may link within. A domain here is a promise that the
+            Domains a verified address may claim within. A domain here is a promise that the
             provider controls it - anything else hands somebody an account by asserting an
             address they do not own.
+
+    IdentityProviderPreset:
+      type: object
+      description: >
+        What follows from which provider a workspace picked: the scopes its registration has to
+        permit, whether it may sign in people nobody invited, the one thing about it that is not
+        like the others, and the instructions for registering with it.
+      required: [kind, scopes, addresses_verified, public, provisioning, redirect_uri, instructions]
+      properties:
+        kind: { $ref: "#/components/schemas/IdentityProviderKind" }
+        scopes:
+          type: array
+          items: { type: string }
+          description: What the authorization request asks for, and what the registration must permit.
+        addresses_verified:
+          type: boolean
+          description: >
+            Whether this issuer's addresses are verified by construction. False is not an accusation
+            - it is that this installation cannot know, and the safe reading of "cannot know" is the
+            one that does not give away an account. It is what decides whether `INVITED_ONLY` is
+            available.
+        public:
+          type: boolean
+          description: >
+            Whether anybody in the world can hold an account at this issuer. A public provider is
+            held to `INVITED_ONLY`, and that is not an operator's to relax.
+        provisioning:
+          type: array
+          items: { $ref: "#/components/schemas/IdentityProviderProvisioning" }
+          description: The modes this preset permits, strictest first.
+        redirect_uri:
+          type: string
+          format: uri
+          description: >
+            This installation's own callback, which every registration form asks for. Nothing about
+            it comes from a request.
+        instructions:
+          type: string
+          description: >
+            A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an
+            operator has to do at the provider for this to work.
+        particular:
+          type: [string, "null"]
+          description: >
+            A message code for the one thing about this provider that is not like the others -
+            Google's single issuer for every account there is, Microsoft's directory-specific
+            issuer. Absent where there is none.
 
     SessionElevation:
       type: object

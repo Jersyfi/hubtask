@@ -167,6 +167,7 @@ class SessionTokens(TypedDict, total=False):
 
 class OidcStart(TypedDict, total=False):
     """What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely."""
+    provider_id: str | None
     login_hint: str | None
 
 class OidcAuthorization(TypedDict, total=False):
@@ -372,22 +373,47 @@ class SignInPolicyChange(TypedDict, total=False):
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
-    """How this workspace signs people in through its own provider. The client secret is not a member: it is sealed at configuration time and read only by the token exchange."""
+    """One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange."""
+    id: Required[str]
+    scope: Required[Literal["workspace", "installation"]]
     issuer: Required[str]
     client_id: Required[str]
+    display_name: Required[str]
+    kind: Required["IdentityProviderKind"]
+    provisioning: Required["IdentityProviderProvisioning"]
+    position: Required[int]
     enabled: Required[bool]
     allowed_email_domains: Required[list[str]]
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
 
+IdentityProviderKind = Literal["GENERIC", "GOOGLE", "MICROSOFT"]
+
+IdentityProviderProvisioning = Literal["INVITED_ONLY", "DOMAINS", "ANY"]
+
 class IdentityProviderConfiguration(TypedDict, total=False):
     """The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in."""
     issuer: Required[str]
     client_id: Required[str]
-    client_secret: Required[str]
+    client_secret: str | None
+    display_name: str | None
+    kind: "IdentityProviderKind"
+    provisioning: "IdentityProviderProvisioning"
+    position: int
     enabled: bool
     allowed_email_domains: list[str]
+
+class IdentityProviderPreset(TypedDict, total=False):
+    """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
+    kind: Required["IdentityProviderKind"]
+    scopes: Required[list[str]]
+    addresses_verified: Required[bool]
+    public: Required[bool]
+    provisioning: Required[list["IdentityProviderProvisioning"]]
+    redirect_uri: Required[str]
+    instructions: Required[str]
+    particular: str | None
 
 class SessionElevation(TypedDict, total=False):
     """How long this session carries the control plane's scope."""

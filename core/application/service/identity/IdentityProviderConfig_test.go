@@ -78,9 +78,9 @@ func (s *providerStore) Find(_ context.Context, id shared.ID) (domain.IdentityPr
 }
 
 func (s *providerStore) FindWithSecret(
-	_ context.Context, id shared.ID,
+	ctx context.Context, id shared.ID,
 ) (domain.IdentityProvider, cryptoport.Sealed, error) {
-	found, err := s.Find(context.Background(), id)
+	found, err := s.Find(ctx, id)
 	if err != nil {
 		return domain.IdentityProvider{}, cryptoport.Sealed{}, err
 	}

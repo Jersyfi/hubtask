@@ -152,15 +152,16 @@ func (IdentityProviderRepository) Insert(
 		return identity.IdentityProvider{}, err
 	}
 	row, err := queries.InsertIdentityProvider(ctx, sqlc.InsertIdentityProviderParams{
-		ID:                  key,
-		Issuer:              configured.Issuer,
-		ClientID:            configured.ClientID,
-		ClientSecretEnc:     sealed.Ciphertext,
-		ClientSecretKeyID:   sealed.KeyID,
-		DisplayName:         configured.DisplayName,
-		Kind:                string(configured.Kind),
-		Provisioning:        string(configured.Provisioning),
-		Position:            int32(configured.Position),
+		ID:                key,
+		Issuer:            configured.Issuer,
+		ClientID:          configured.ClientID,
+		ClientSecretEnc:   sealed.Ciphertext,
+		ClientSecretKeyID: sealed.KeyID,
+		DisplayName:       configured.DisplayName,
+		Kind:              string(configured.Kind),
+		Provisioning:      string(configured.Provisioning),
+		// Bounded by the domain at MaxProviderPosition, two decimal digits.
+		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
 		AllowedEmailDomains: configured.AllowedEmailDomains,
 		Enabled:             configured.Enabled,
 		Now:                 pgtype.Timestamptz{Time: configured.CreatedAt, Valid: true},
@@ -193,13 +194,14 @@ func (IdentityProviderRepository) Update(
 		return identity.IdentityProvider{}, false, err
 	}
 	params := sqlc.UpdateIdentityProviderParams{
-		ID:                  key,
-		Issuer:              configured.Issuer,
-		ClientID:            configured.ClientID,
-		DisplayName:         configured.DisplayName,
-		Kind:                string(configured.Kind),
-		Provisioning:        string(configured.Provisioning),
-		Position:            int32(configured.Position),
+		ID:           key,
+		Issuer:       configured.Issuer,
+		ClientID:     configured.ClientID,
+		DisplayName:  configured.DisplayName,
+		Kind:         string(configured.Kind),
+		Provisioning: string(configured.Provisioning),
+		// Bounded by the domain at MaxProviderPosition, two decimal digits.
+		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
 		AllowedEmailDomains: configured.AllowedEmailDomains,
 		Enabled:             configured.Enabled,
 		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
@@ -359,11 +361,16 @@ func (r OidcFlowRepository) Consume(
 	}, true, nil
 }
 
-// ExternalAccountRepository is the seam `account.external_subject` cut in phase 0 (H-04).
+// ExternalAccountRepository is the link between a provider's subject and an account (H-04, SI-10).
+//
+// `account_identity` since the providers became plural: `account.external_subject` held one subject
+// per account and could not say which provider vouched for it. The column is left where it is - a
+// rolling update still reads it - and nothing here writes it any more, which is why an account's
+// links live in the table and the column is a contract step for a later migration.
 //
 // Its own type rather than a method on AccountRepository, for the reason every slice here has
-// one: the sign-in flow needs two statements about a column nothing else touches, and a
-// repository that could write the subject from anywhere is one that eventually does.
+// one: the sign-in flow needs two statements about a table nothing else touches, and a
+// repository that could write a link from anywhere is one that eventually does.
 type ExternalAccountRepository struct{}
 
 func NewExternalAccountRepository() ExternalAccountRepository { return ExternalAccountRepository{} }

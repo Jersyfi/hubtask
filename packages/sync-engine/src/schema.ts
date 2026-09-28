@@ -290,6 +290,23 @@ export type AiJurisdiction = components['schemas']['AiJurisdiction'];
 export type AccessToken = components['schemas']['AccessToken'];
 export type IdentityProviderConfiguration =
   components['schemas']['IdentityProviderConfiguration'];
+/** The preset a provider was configured from, which decides the mark its button draws (ADR-0069). */
+export type IdentityProviderKind = components['schemas']['IdentityProviderKind'];
+/**
+ * How freely an arriving subject may claim an account that already exists (SI-10). The one axis with
+ * a security answer: creating an account gives somebody an empty desk, and claiming one gives them
+ * somebody else's.
+ */
+export type IdentityProviderProvisioning =
+  components['schemas']['IdentityProviderProvisioning'];
+/**
+ * What follows from which provider a workspace picked: the scopes its registration has to permit,
+ * whether it may sign in people nobody invited, and the instructions for registering with it.
+ *
+ * `instructions` and `particular` are message codes rendered with `redirect_uri` - there is no
+ * display text in this answer, as there is none in any (ADR-0011).
+ */
+export type IdentityProviderPreset = components['schemas']['IdentityProviderPreset'];
 
 /**
  * One step of an entry's history. `code` is a message the client renders, never a sentence — which

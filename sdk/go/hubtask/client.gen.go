@@ -1482,6 +1482,66 @@ func (e HttpRequestCallMethod) Valid() bool {
 	}
 }
 
+// Defines values for IdentityProviderScope.
+const (
+	IdentityProviderScopeInstallation IdentityProviderScope = "installation"
+	IdentityProviderScopeWorkspace    IdentityProviderScope = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderScope enum.
+func (e IdentityProviderScope) Valid() bool {
+	switch e {
+	case IdentityProviderScopeInstallation:
+		return true
+	case IdentityProviderScopeWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IdentityProviderKind.
+const (
+	GENERIC   IdentityProviderKind = "GENERIC"
+	GOOGLE    IdentityProviderKind = "GOOGLE"
+	MICROSOFT IdentityProviderKind = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderKind enum.
+func (e IdentityProviderKind) Valid() bool {
+	switch e {
+	case GENERIC:
+		return true
+	case GOOGLE:
+		return true
+	case MICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IdentityProviderProvisioning.
+const (
+	ANY         IdentityProviderProvisioning = "ANY"
+	DOMAINS     IdentityProviderProvisioning = "DOMAINS"
+	INVITEDONLY IdentityProviderProvisioning = "INVITED_ONLY"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderProvisioning enum.
+func (e IdentityProviderProvisioning) Valid() bool {
+	switch e {
+	case ANY:
+		return true
+	case DOMAINS:
+		return true
+	case INVITEDONLY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImportKind.
 const (
 	ImportKindCSV           ImportKind = "CSV"
@@ -5112,37 +5172,103 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
-// IdentityProvider How this workspace signs people in through its own provider. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
+// IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
-	// AllowedEmailDomains The domains inside which a verified address may link an arriving subject to an existing local account. Empty means no linking happens at all: every subject is provisioned as its own account, which is the safe reading of "not configured".
+	// AllowedEmailDomains The domains inside which a verified address may claim an account that already exists, under `DOMAINS`. Empty means no claiming happens at all: every subject is provisioned as its own account, which is the safe reading of "not configured".
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
 	// ClientId This installation's registration with the provider.
 	ClientId  string    `json:"client_id"`
 	CreatedAt time.Time `json:"created_at"`
 
+	// DisplayName The name on the button. The issuer's host where nobody set one, which discloses nothing new: pressing the button sends the person to exactly that host.
+	DisplayName string `json:"display_name"`
+
 	// Enabled Off leaves the configuration in place and refuses the flow. It is the switch to reach for while a provider is being changed, rather than deleting and retyping a secret.
-	Enabled bool `json:"enabled"`
+	Enabled bool               `json:"enabled"`
+	Id      openapi_types.UUID `json:"id"`
 
 	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first of T-13's checks.
-	Issuer    string     `json:"issuer"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	Issuer string `json:"issuer"`
+
+	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	Kind IdentityProviderKind `json:"kind"`
+
+	// Position The order the buttons are drawn in.
+	Position int `json:"position"`
+
+	// Provisioning How freely an arriving subject may claim an account that already exists here - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
+	// `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside them. `ANY` claims on any address the provider says it verified, which is for a provider that *is* the workspace's directory.
+	// An address the provider did not vouch for claims nothing, in all three.
+	Provisioning IdentityProviderProvisioning `json:"provisioning"`
+
+	// Scope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
+	Scope     IdentityProviderScope `json:"scope"`
+	UpdatedAt *time.Time            `json:"updated_at,omitempty"`
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
 }
 
+// IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
+type IdentityProviderScope string
+
 // IdentityProviderConfiguration The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in.
 type IdentityProviderConfiguration struct {
-	// AllowedEmailDomains Domains a verified address may link within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
+	// AllowedEmailDomains Domains a verified address may claim within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
 	AllowedEmailDomains *[]string `json:"allowed_email_domains,omitempty"`
 	ClientId            string    `json:"client_id"`
 
-	// ClientSecret Sealed on the way in (E-02) and never answered again. Sending it a second time replaces it; there is no way to read it back, by design.
+	// ClientSecret Sealed on the way in (E-02) and never answered again. Required when adding a provider. Omitted on a replace it keeps the one that is sealed - there is no way to read it back, by design, and retyping it to change a name is how names stay wrong.
 	ClientSecret *string `json:"client_secret,omitempty"`
-	Enabled      *bool   `json:"enabled,omitempty"`
-	Issuer       string  `json:"issuer"`
+
+	// DisplayName The name on the button. Absent is the issuer's host.
+	DisplayName *string `json:"display_name,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+	Issuer      string  `json:"issuer"`
+
+	// Kind Absent is read from the issuer.
+	Kind     *IdentityProviderKind `json:"kind,omitempty"`
+	Position *int                  `json:"position,omitempty"`
+
+	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
+	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
 }
+
+// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+type IdentityProviderKind string
+
+// IdentityProviderPreset What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it.
+type IdentityProviderPreset struct {
+	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know, and the safe reading of "cannot know" is the one that does not give away an account. It is what decides whether `INVITED_ONLY` is available.
+	AddressesVerified bool `json:"addresses_verified"`
+
+	// Instructions A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
+	Instructions string `json:"instructions"`
+
+	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	Kind IdentityProviderKind `json:"kind"`
+
+	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
+	Particular *string `json:"particular,omitempty"`
+
+	// Provisioning The modes this preset permits, strictest first.
+	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
+
+	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
+	Public bool `json:"public"`
+
+	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
+	RedirectUri string `json:"redirect_uri"`
+
+	// Scopes What the authorization request asks for, and what the registration must permit.
+	Scopes []string `json:"scopes"`
+}
+
+// IdentityProviderProvisioning How freely an arriving subject may claim an account that already exists here - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
+// `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside them. `ANY` claims on any address the provider says it verified, which is for a provider that *is* the workspace's directory.
+// An address the provider did not vouch for claims nothing, in all three.
+type IdentityProviderProvisioning string
 
 // ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
 type ImportKind string
@@ -5867,6 +5993,9 @@ type OidcCallback struct {
 type OidcStart struct {
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
 	LoginHint *string `json:"login_hint,omitempty"`
+
+	// ProviderId Which way in to use, from `GET /auth/sign-in-rules`. Omitting it is allowed while the workspace has exactly one provider switched on; with a choice to make, not making it is refused rather than guessed.
+	ProviderId *openapi_types.UUID `json:"provider_id,omitempty"`
 }
 
 // Operator One row of the register: an account of some workspace that operates this installation.
@@ -7954,6 +8083,9 @@ type PageSize = int
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
 
+// ProviderId defines model for ProviderId.
+type ProviderId = openapi_types.UUID
+
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
 
@@ -8932,6 +9064,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
+type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
+// ConfigureInstanceIdentityProviderJSONRequestBody defines body for ConfigureInstanceIdentityProvider for application/json ContentType.
+type ConfigureInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
@@ -9081,6 +9219,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// CreateIdentityProviderJSONRequestBody defines body for CreateIdentityProvider for application/json ContentType.
+type CreateIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
@@ -9505,6 +9646,56 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstanceIdentityProviders The providers this installation offers every workspace
+	//
+	// Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both (ADR-0070 §1).
+	//
+	// Corresponds with GET /admin/identity-providers (the `ListInstanceIdentityProviders` operationId).
+	ListInstanceIdentityProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceIdentityProviderWithBody Offer every workspace a way in
+	//
+	// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+	CreateInstanceIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceIdentityProvider Offer every workspace a way in
+	//
+	// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+	CreateInstanceIdentityProvider(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveInstanceIdentityProvider Withdraw a provider from every workspace at once
+	//
+	// Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.
+	//
+	// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
+	RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureInstanceIdentityProviderWithBody Replace one of the installation's providers
+	//
+	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+	ConfigureInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
+	//
+	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+	ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListOperators Who operates this installation
 	//
@@ -10824,40 +11015,71 @@ type ClientInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RemoveIdentityProvider Remove the workspace's identity provider
+	// ListIdentityProviderPresets The providers Hubtask has a preset for, and what registering takes
 	//
-	// The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
+	// Three rows and this installation's own callback address, which is the value every registration form at every provider asks for. `instructions` and `particular` are message codes (ADR-0011) rendered with `redirect_uri`; `provisioning` is the modes the preset permits, so a screen offers only what would be accepted rather than three of which two are refused.
+	// Behind the same permission as reading the providers. There is no reason for a signed-out visitor to read registration instructions.
 	//
-	// Corresponds with DELETE /identity-provider (the `RemoveIdentityProvider` operationId).
-	RemoveIdentityProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with GET /identity-provider-presets (the `ListIdentityProviderPresets` operationId).
+	ListIdentityProviderPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadIdentityProvider How this workspace signs people in through its own provider
+	// ListIdentityProviders The providers people can sign in to this workspace through
 	//
-	// The configured issuer, client id and allowed email domains, and whether the provider is switched on. Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
+	// The workspace's own providers and the ones its installation offers every workspace, each with its issuer, the mark it draws, whom it lets in and whether it is switched on. `scope` says which level a row belongs to: an `installation` row is offered to this workspace and is not its to change.
+	// Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
 	// The client secret is never a member of this answer. It is sealed at configuration time (E-02) and read only by the token exchange.
 	//
-	// Corresponds with GET /identity-provider (the `ReadIdentityProvider` operationId).
-	ReadIdentityProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with GET /identity-providers (the `ListIdentityProviders` operationId).
+	ListIdentityProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ConfigureIdentityProviderWithBody Configure the workspace's identity provider
+	// CreateIdentityProviderWithBody Add a provider this workspace signs its people in through
 	//
-	// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+	CreateIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ConfigureIdentityProvider Configure the workspace's identity provider
+	// CreateIdentityProvider Add a provider this workspace signs its people in through
 	//
-	// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProvider(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+	CreateIdentityProvider(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveIdentityProvider Remove one of the workspace's identity providers
+	//
+	// The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
+	//
+	// Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
+	RemoveIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureIdentityProviderWithBody Replace one of the workspace's identity providers
+	//
+	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+	ConfigureIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureIdentityProvider Replace one of the workspace's identity providers
+	//
+	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+	ConfigureIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ImportEntriesWithBody Import entries from another system into a hub
 	//
@@ -12960,6 +13182,116 @@ func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...Request
 // Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResealSecretsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstanceIdentityProviders The providers this installation offers every workspace
+//
+// Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both (ADR-0070 §1).
+//
+// Corresponds with GET /admin/identity-providers (the `ListInstanceIdentityProviders` operationId).
+func (c *Client) ListInstanceIdentityProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceIdentityProvidersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceIdentityProviderWithBody Offer every workspace a way in
+//
+// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+func (c *Client) CreateInstanceIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceIdentityProviderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceIdentityProvider Offer every workspace a way in
+//
+// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+func (c *Client) CreateInstanceIdentityProvider(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceIdentityProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveInstanceIdentityProvider Withdraw a provider from every workspace at once
+//
+// Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.
+//
+// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
+func (c *Client) RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveInstanceIdentityProviderRequest(c.Server, providerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureInstanceIdentityProviderWithBody Replace one of the installation's providers
+//
+// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+func (c *Client) ConfigureInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceIdentityProviderRequestWithBody(c.Server, providerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureInstanceIdentityProvider Replace one of the installation's providers
+//
+// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+func (c *Client) ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceIdentityProviderRequest(c.Server, providerId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -15818,13 +16150,14 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 	return c.Client.Do(req)
 }
 
-// RemoveIdentityProvider Remove the workspace's identity provider
+// ListIdentityProviderPresets The providers Hubtask has a preset for, and what registering takes
 //
-// The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
+// Three rows and this installation's own callback address, which is the value every registration form at every provider asks for. `instructions` and `particular` are message codes (ADR-0011) rendered with `redirect_uri`; `provisioning` is the modes the preset permits, so a screen offers only what would be accepted rather than three of which two are refused.
+// Behind the same permission as reading the providers. There is no reason for a signed-out visitor to read registration instructions.
 //
-// Corresponds with DELETE /identity-provider (the `RemoveIdentityProvider` operationId).
-func (c *Client) RemoveIdentityProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRemoveIdentityProviderRequest(c.Server)
+// Corresponds with GET /identity-provider-presets (the `ListIdentityProviderPresets` operationId).
+func (c *Client) ListIdentityProviderPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListIdentityProviderPresetsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -15835,14 +16168,15 @@ func (c *Client) RemoveIdentityProvider(ctx context.Context, reqEditors ...Reque
 	return c.Client.Do(req)
 }
 
-// ReadIdentityProvider How this workspace signs people in through its own provider
+// ListIdentityProviders The providers people can sign in to this workspace through
 //
-// The configured issuer, client id and allowed email domains, and whether the provider is switched on. Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
+// The workspace's own providers and the ones its installation offers every workspace, each with its issuer, the mark it draws, whom it lets in and whether it is switched on. `scope` says which level a row belongs to: an `installation` row is offered to this workspace and is not its to change.
+// Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
 // The client secret is never a member of this answer. It is sealed at configuration time (E-02) and read only by the token exchange.
 //
-// Corresponds with GET /identity-provider (the `ReadIdentityProvider` operationId).
-func (c *Client) ReadIdentityProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewReadIdentityProviderRequest(c.Server)
+// Corresponds with GET /identity-providers (the `ListIdentityProviders` operationId).
+func (c *Client) ListIdentityProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListIdentityProvidersRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -15853,16 +16187,17 @@ func (c *Client) ReadIdentityProvider(ctx context.Context, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
-// ConfigureIdentityProviderWithBody Configure the workspace's identity provider
+// CreateIdentityProviderWithBody Add a provider this workspace signs its people in through
 //
-// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 // The secret is sealed on the way in and appears in no answer afterwards. Auditable.
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureIdentityProviderRequestWithBody(c.Server, contentType, body)
+// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+func (c *Client) CreateIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateIdentityProviderRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -15873,16 +16208,74 @@ func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, contentT
 	return c.Client.Do(req)
 }
 
-// ConfigureIdentityProvider Configure the workspace's identity provider
+// CreateIdentityProvider Add a provider this workspace signs its people in through
 //
-// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
 // The secret is sealed on the way in and appears in no answer afterwards. Auditable.
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-func (c *Client) ConfigureIdentityProvider(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureIdentityProviderRequest(c.Server, body)
+// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+func (c *Client) CreateIdentityProvider(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateIdentityProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveIdentityProvider Remove one of the workspace's identity providers
+//
+// The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
+//
+// Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
+func (c *Client) RemoveIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveIdentityProviderRequest(c.Server, providerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureIdentityProviderWithBody Replace one of the workspace's identity providers
+//
+// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureIdentityProviderRequestWithBody(c.Server, providerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureIdentityProvider Replace one of the workspace's identity providers
+//
+// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+func (c *Client) ConfigureIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureIdentityProviderRequest(c.Server, providerId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -20058,6 +20451,154 @@ func NewResealSecretsRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListInstanceIdentityProvidersRequest constructs an http.Request for the ListInstanceIdentityProviders method
+func NewListInstanceIdentityProvidersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/identity-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceIdentityProviderRequest calls the generic CreateInstanceIdentityProvider builder with application/json body
+func NewCreateInstanceIdentityProviderRequest(server string, body CreateInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceIdentityProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstanceIdentityProviderRequestWithBody constructs an http.Request for the CreateInstanceIdentityProvider method, with any body, and a specified content type
+func NewCreateInstanceIdentityProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/identity-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveInstanceIdentityProviderRequest constructs an http.Request for the RemoveInstanceIdentityProvider method
+func NewRemoveInstanceIdentityProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/identity-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfigureInstanceIdentityProviderRequest calls the generic ConfigureInstanceIdentityProvider builder with application/json body
+func NewConfigureInstanceIdentityProviderRequest(server string, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureInstanceIdentityProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+}
+
+// NewConfigureInstanceIdentityProviderRequestWithBody constructs an http.Request for the ConfigureInstanceIdentityProvider method, with any body, and a specified content type
+func NewConfigureInstanceIdentityProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/identity-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -24890,8 +25431,8 @@ func NewUpdateGroupRequestWithBody(server string, groupId GroupId, params *Updat
 	return req, nil
 }
 
-// NewRemoveIdentityProviderRequest constructs an http.Request for the RemoveIdentityProvider method
-func NewRemoveIdentityProviderRequest(server string) (*http.Request, error) {
+// NewListIdentityProviderPresetsRequest constructs an http.Request for the ListIdentityProviderPresets method
+func NewListIdentityProviderPresetsRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -24899,34 +25440,7 @@ func NewRemoveIdentityProviderRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/identity-provider")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewReadIdentityProviderRequest constructs an http.Request for the ReadIdentityProvider method
-func NewReadIdentityProviderRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/identity-provider")
+	operationPath := fmt.Sprintf("/identity-provider-presets")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -24944,19 +25458,8 @@ func NewReadIdentityProviderRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewConfigureIdentityProviderRequest calls the generic ConfigureIdentityProvider builder with application/json body
-func NewConfigureIdentityProviderRequest(server string, body ConfigureIdentityProviderJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewConfigureIdentityProviderRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewConfigureIdentityProviderRequestWithBody constructs an http.Request for the ConfigureIdentityProvider method, with any body, and a specified content type
-func NewConfigureIdentityProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewListIdentityProvidersRequest constructs an http.Request for the ListIdentityProviders method
+func NewListIdentityProvidersRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -24964,7 +25467,126 @@ func NewConfigureIdentityProviderRequestWithBody(server string, contentType stri
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/identity-provider")
+	operationPath := fmt.Sprintf("/identity-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateIdentityProviderRequest calls the generic CreateIdentityProvider builder with application/json body
+func NewCreateIdentityProviderRequest(server string, body CreateIdentityProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateIdentityProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateIdentityProviderRequestWithBody constructs an http.Request for the CreateIdentityProvider method, with any body, and a specified content type
+func NewCreateIdentityProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/identity-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveIdentityProviderRequest constructs an http.Request for the RemoveIdentityProvider method
+func NewRemoveIdentityProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/identity-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfigureIdentityProviderRequest calls the generic ConfigureIdentityProvider builder with application/json body
+func NewConfigureIdentityProviderRequest(server string, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureIdentityProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+}
+
+// NewConfigureIdentityProviderRequestWithBody constructs an http.Request for the ConfigureIdentityProvider method, with any body, and a specified content type
+func NewConfigureIdentityProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/identity-providers/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -32332,6 +32954,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecretsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ResealSecretsResult, error)
 
+	// ListInstanceIdentityProvidersWithResponse The providers this installation offers every workspace
+	//
+	// Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both (ADR-0070 §1).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/identity-providers (the `ListInstanceIdentityProviders` operationId).
+	ListInstanceIdentityProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceIdentityProvidersResult, error)
+
+	// CreateInstanceIdentityProviderWithBodyWithResponse Offer every workspace a way in
+	//
+	// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+	CreateInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error)
+
+	// CreateInstanceIdentityProviderWithResponse Offer every workspace a way in
+	//
+	// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+	CreateInstanceIdentityProviderWithResponse(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error)
+
+	// RemoveInstanceIdentityProviderWithResponse Withdraw a provider from every workspace at once
+	//
+	// Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
+	RemoveInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceIdentityProviderResult, error)
+
+	// ConfigureInstanceIdentityProviderWithBodyWithResponse Replace one of the installation's providers
+	//
+	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+	ConfigureInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
+
+	// ConfigureInstanceIdentityProviderWithResponse Replace one of the installation's providers
+	//
+	// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+	ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
+
 	// ListOperatorsWithResponse Who operates this installation
 	//
 	// The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
@@ -33780,44 +34456,77 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
-	// RemoveIdentityProviderWithResponse Remove the workspace's identity provider
+	// ListIdentityProviderPresetsWithResponse The providers Hubtask has a preset for, and what registering takes
+	//
+	// Three rows and this installation's own callback address, which is the value every registration form at every provider asks for. `instructions` and `particular` are message codes (ADR-0011) rendered with `redirect_uri`; `provisioning` is the modes the preset permits, so a screen offers only what would be accepted rather than three of which two are refused.
+	// Behind the same permission as reading the providers. There is no reason for a signed-out visitor to read registration instructions.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /identity-provider-presets (the `ListIdentityProviderPresets` operationId).
+	ListIdentityProviderPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListIdentityProviderPresetsResult, error)
+
+	// ListIdentityProvidersWithResponse The providers people can sign in to this workspace through
+	//
+	// The workspace's own providers and the ones its installation offers every workspace, each with its issuer, the mark it draws, whom it lets in and whether it is switched on. `scope` says which level a row belongs to: an `installation` row is offered to this workspace and is not its to change.
+	// Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
+	// The client secret is never a member of this answer. It is sealed at configuration time (E-02) and read only by the token exchange.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /identity-providers (the `ListIdentityProviders` operationId).
+	ListIdentityProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListIdentityProvidersResult, error)
+
+	// CreateIdentityProviderWithBodyWithResponse Add a provider this workspace signs its people in through
+	//
+	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
+	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+	CreateIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error)
+
+	// CreateIdentityProviderWithResponse Add a provider this workspace signs its people in through
+	//
+	// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+	// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
+	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+	CreateIdentityProviderWithResponse(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error)
+
+	// RemoveIdentityProviderWithResponse Remove one of the workspace's identity providers
 	//
 	// The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with DELETE /identity-provider (the `RemoveIdentityProvider` operationId).
-	RemoveIdentityProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error)
+	// Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
+	RemoveIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error)
 
-	// ReadIdentityProviderWithResponse How this workspace signs people in through its own provider
+	// ConfigureIdentityProviderWithBodyWithResponse Replace one of the workspace's identity providers
 	//
-	// The configured issuer, client id and allowed email domains, and whether the provider is switched on. Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
-	// The client secret is never a member of this answer. It is sealed at configuration time (E-02) and read only by the token exchange.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with GET /identity-provider (the `ReadIdentityProvider` operationId).
-	ReadIdentityProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadIdentityProviderResult, error)
-
-	// ConfigureIdentityProviderWithBodyWithResponse Configure the workspace's identity provider
-	//
-	// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
-	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
+	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+	ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
 
-	// ConfigureIdentityProviderWithResponse Configure the workspace's identity provider
+	// ConfigureIdentityProviderWithResponse Replace one of the workspace's identity providers
 	//
-	// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
-	// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+	// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+	// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProviderWithResponse(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
+	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+	ConfigureIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
 
 	// ImportEntriesWithBodyWithResponse Import entries from another system into a hub
 	//
@@ -36268,6 +36977,191 @@ func (r ResealSecretsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResealSecretsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstanceIdentityProvidersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstanceIdentityProvidersResult) GetJSON200() *[]IdentityProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListInstanceIdentityProvidersResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstanceIdentityProvidersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstanceIdentityProvidersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstanceIdentityProvidersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstanceIdentityProvidersResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceIdentityProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceIdentityProviderResult) GetJSON201() *IdentityProvider {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateInstanceIdentityProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceIdentityProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceIdentityProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceIdentityProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceIdentityProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveInstanceIdentityProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveInstanceIdentityProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveInstanceIdentityProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveInstanceIdentityProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveInstanceIdentityProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveInstanceIdentityProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfigureInstanceIdentityProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfigureInstanceIdentityProviderResult) GetJSON200() *IdentityProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfigureInstanceIdentityProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfigureInstanceIdentityProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfigureInstanceIdentityProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfigureInstanceIdentityProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfigureInstanceIdentityProviderResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -41363,6 +42257,150 @@ func (r UpdateGroupResult) ContentType() string {
 	return ""
 }
 
+type ListIdentityProviderPresetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]IdentityProviderPreset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListIdentityProviderPresetsResult) GetJSON200() *[]IdentityProviderPreset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListIdentityProviderPresetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListIdentityProviderPresetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListIdentityProviderPresetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListIdentityProviderPresetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListIdentityProviderPresetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListIdentityProvidersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListIdentityProvidersResult) GetJSON200() *[]IdentityProvider {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListIdentityProvidersResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListIdentityProvidersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListIdentityProvidersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListIdentityProvidersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListIdentityProvidersResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateIdentityProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *IdentityProvider
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateIdentityProviderResult) GetJSON201() *IdentityProvider {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateIdentityProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateIdentityProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateIdentityProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateIdentityProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateIdentityProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RemoveIdentityProviderResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -41398,54 +42436,6 @@ func (r RemoveIdentityProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RemoveIdentityProviderResult) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type ReadIdentityProviderResult struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *IdentityProvider
-	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
-	ApplicationproblemJSON4XX *Problem
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ReadIdentityProviderResult) GetJSON200() *IdentityProvider {
-	return r.JSON200
-}
-
-// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r ReadIdentityProviderResult) GetApplicationproblemJSON4XX() *Problem {
-	return r.ApplicationproblemJSON4XX
-}
-
-// GetBody returns the raw response body bytes
-func (r ReadIdentityProviderResult) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r ReadIdentityProviderResult) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ReadIdentityProviderResult) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ReadIdentityProviderResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -48743,6 +49733,96 @@ func (c *ClientWithResponses) ResealSecretsWithResponse(ctx context.Context, req
 	return ParseResealSecretsResult(rsp)
 }
 
+// ListInstanceIdentityProvidersWithResponse The providers this installation offers every workspace
+//
+// Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both (ADR-0070 §1).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/identity-providers (the `ListInstanceIdentityProviders` operationId).
+func (c *ClientWithResponses) ListInstanceIdentityProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceIdentityProvidersResult, error) {
+	rsp, err := c.ListInstanceIdentityProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstanceIdentityProvidersResult(rsp)
+}
+
+// CreateInstanceIdentityProviderWithBodyWithResponse Offer every workspace a way in
+//
+// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) CreateInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error) {
+	rsp, err := c.CreateInstanceIdentityProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceIdentityProviderResult(rsp)
+}
+
+// CreateInstanceIdentityProviderWithResponse Offer every workspace a way in
+//
+// The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) CreateInstanceIdentityProviderWithResponse(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error) {
+	rsp, err := c.CreateInstanceIdentityProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceIdentityProviderResult(rsp)
+}
+
+// RemoveInstanceIdentityProviderWithResponse Withdraw a provider from every workspace at once
+//
+// Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) RemoveInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceIdentityProviderResult, error) {
+	rsp, err := c.RemoveInstanceIdentityProvider(ctx, providerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveInstanceIdentityProviderResult(rsp)
+}
+
+// ConfigureInstanceIdentityProviderWithBodyWithResponse Replace one of the installation's providers
+//
+// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error) {
+	rsp, err := c.ConfigureInstanceIdentityProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureInstanceIdentityProviderResult(rsp)
+}
+
+// ConfigureInstanceIdentityProviderWithResponse Replace one of the installation's providers
+//
+// Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
+func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error) {
+	rsp, err := c.ConfigureInstanceIdentityProvider(ctx, providerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureInstanceIdentityProviderResult(rsp)
+}
+
 // ListOperatorsWithResponse Who operates this installation
 //
 // The register of ADR-0070 §1. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
@@ -51109,63 +52189,114 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 	return ParseUpdateGroupResult(rsp)
 }
 
-// RemoveIdentityProviderWithResponse Remove the workspace's identity provider
+// ListIdentityProviderPresetsWithResponse The providers Hubtask has a preset for, and what registering takes
+//
+// Three rows and this installation's own callback address, which is the value every registration form at every provider asks for. `instructions` and `particular` are message codes (ADR-0011) rendered with `redirect_uri`; `provisioning` is the modes the preset permits, so a screen offers only what would be accepted rather than three of which two are refused.
+// Behind the same permission as reading the providers. There is no reason for a signed-out visitor to read registration instructions.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /identity-provider-presets (the `ListIdentityProviderPresets` operationId).
+func (c *ClientWithResponses) ListIdentityProviderPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListIdentityProviderPresetsResult, error) {
+	rsp, err := c.ListIdentityProviderPresets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListIdentityProviderPresetsResult(rsp)
+}
+
+// ListIdentityProvidersWithResponse The providers people can sign in to this workspace through
+//
+// The workspace's own providers and the ones its installation offers every workspace, each with its issuer, the mark it draws, whom it lets in and whether it is switched on. `scope` says which level a row belongs to: an `installation` row is offered to this workspace and is not its to change.
+// Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
+// The client secret is never a member of this answer. It is sealed at configuration time (E-02) and read only by the token exchange.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /identity-providers (the `ListIdentityProviders` operationId).
+func (c *ClientWithResponses) ListIdentityProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListIdentityProvidersResult, error) {
+	rsp, err := c.ListIdentityProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListIdentityProvidersResult(rsp)
+}
+
+// CreateIdentityProviderWithBodyWithResponse Add a provider this workspace signs its people in through
+//
+// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
+// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+func (c *ClientWithResponses) CreateIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error) {
+	rsp, err := c.CreateIdentityProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateIdentityProviderResult(rsp)
+}
+
+// CreateIdentityProviderWithResponse Add a provider this workspace signs its people in through
+//
+// Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
+// Two refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.
+// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
+func (c *ClientWithResponses) CreateIdentityProviderWithResponse(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error) {
+	rsp, err := c.CreateIdentityProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateIdentityProviderResult(rsp)
+}
+
+// RemoveIdentityProviderWithResponse Remove one of the workspace's identity providers
 //
 // The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with DELETE /identity-provider (the `RemoveIdentityProvider` operationId).
-func (c *ClientWithResponses) RemoveIdentityProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error) {
-	rsp, err := c.RemoveIdentityProvider(ctx, reqEditors...)
+// Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
+func (c *ClientWithResponses) RemoveIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error) {
+	rsp, err := c.RemoveIdentityProvider(ctx, providerId, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseRemoveIdentityProviderResult(rsp)
 }
 
-// ReadIdentityProviderWithResponse How this workspace signs people in through its own provider
+// ConfigureIdentityProviderWithBodyWithResponse Replace one of the workspace's identity providers
 //
-// The configured issuer, client id and allowed email domains, and whether the provider is switched on. Needs the permission that manages structure, or the auditor's read-only configuration permission (A-4): which provider vouches for this workspace's people is configuration an auditor reads.
-// The client secret is never a member of this answer. It is sealed at configuration time (E-02) and read only by the token exchange.
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with GET /identity-provider (the `ReadIdentityProvider` operationId).
-func (c *ClientWithResponses) ReadIdentityProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadIdentityProviderResult, error) {
-	rsp, err := c.ReadIdentityProvider(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseReadIdentityProviderResult(rsp)
-}
-
-// ConfigureIdentityProviderWithBodyWithResponse Configure the workspace's identity provider
-//
-// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
-// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
-	rsp, err := c.ConfigureIdentityProviderWithBody(ctx, contentType, body, reqEditors...)
+// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+func (c *ClientWithResponses) ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
+	rsp, err := c.ConfigureIdentityProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseConfigureIdentityProviderResult(rsp)
 }
 
-// ConfigureIdentityProviderWithResponse Configure the workspace's identity provider
+// ConfigureIdentityProviderWithResponse Replace one of the workspace's identity providers
 //
-// Sets the provider whole - issuer, client id, client secret and the email domains a linked account may match within. Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.
-// The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+// Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.
+// A provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /identity-provider (the `ConfigureIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.Context, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
-	rsp, err := c.ConfigureIdentityProvider(ctx, body, reqEditors...)
+// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
+func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
+	rsp, err := c.ConfigureIdentityProvider(ctx, providerId, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -54678,6 +55809,134 @@ func ParseResealSecretsResult(rsp *http.Response) (*ResealSecretsResult, error) 
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstanceIdentityProvidersResult parses an HTTP response from a ListInstanceIdentityProvidersWithResponse call
+func ParseListInstanceIdentityProvidersResult(rsp *http.Response) (*ListInstanceIdentityProvidersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstanceIdentityProvidersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceIdentityProviderResult parses an HTTP response from a CreateInstanceIdentityProviderWithResponse call
+func ParseCreateInstanceIdentityProviderResult(rsp *http.Response) (*CreateInstanceIdentityProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceIdentityProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveInstanceIdentityProviderResult parses an HTTP response from a RemoveInstanceIdentityProviderWithResponse call
+func ParseRemoveInstanceIdentityProviderResult(rsp *http.Response) (*RemoveInstanceIdentityProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveInstanceIdentityProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfigureInstanceIdentityProviderResult parses an HTTP response from a ConfigureInstanceIdentityProviderWithResponse call
+func ParseConfigureInstanceIdentityProviderResult(rsp *http.Response) (*ConfigureInstanceIdentityProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfigureInstanceIdentityProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -58366,6 +59625,105 @@ func ParseUpdateGroupResult(rsp *http.Response) (*UpdateGroupResult, error) {
 	return response, nil
 }
 
+// ParseListIdentityProviderPresetsResult parses an HTTP response from a ListIdentityProviderPresetsWithResponse call
+func ParseListIdentityProviderPresetsResult(rsp *http.Response) (*ListIdentityProviderPresetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListIdentityProviderPresetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []IdentityProviderPreset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListIdentityProvidersResult parses an HTTP response from a ListIdentityProvidersWithResponse call
+func ParseListIdentityProvidersResult(rsp *http.Response) (*ListIdentityProvidersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListIdentityProvidersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateIdentityProviderResult parses an HTTP response from a CreateIdentityProviderWithResponse call
+func ParseCreateIdentityProviderResult(rsp *http.Response) (*CreateIdentityProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateIdentityProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest IdentityProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRemoveIdentityProviderResult parses an HTTP response from a RemoveIdentityProviderWithResponse call
 func ParseRemoveIdentityProviderResult(rsp *http.Response) (*RemoveIdentityProviderResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -58382,39 +59740,6 @@ func ParseRemoveIdentityProviderResult(rsp *http.Response) (*RemoveIdentityProvi
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
-		var dest Problem
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON4XX = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseReadIdentityProviderResult parses an HTTP response from a ReadIdentityProviderWithResponse call
-func ParseReadIdentityProviderResult(rsp *http.Response) (*ReadIdentityProviderResult, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ReadIdentityProviderResult{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest IdentityProvider
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

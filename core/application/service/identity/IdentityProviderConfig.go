@@ -447,11 +447,11 @@ func (h ListIdentityProviders) invoke(
 	if err != nil {
 		return nil, err
 	}
-	providers := make([]any, 0, len(found))
+	rows := make([]usecase.Output, 0, len(found))
 	for _, configured := range found {
-		providers = append(providers, ProviderOutput(configured))
+		rows = append(rows, ProviderOutput(configured))
 	}
-	return usecase.Output{"providers": providers}, nil
+	return usecase.Output{"data": rows}, nil
 }
 
 func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
@@ -602,9 +602,9 @@ func (h ListIdentityProviderPresets) invoke(
 	if err != nil {
 		return nil, err
 	}
-	out := make([]any, 0, len(presets))
+	rows := make([]usecase.Output, 0, len(presets))
 	for _, preset := range presets {
-		out = append(out, presetOutput(preset, h.Writer.RedirectURL))
+		rows = append(rows, presetOutput(preset, h.Writer.RedirectURL))
 	}
-	return usecase.Output{"presets": out}, nil
+	return usecase.Output{"data": rows}, nil
 }

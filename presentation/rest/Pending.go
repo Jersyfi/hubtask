@@ -1009,15 +1009,48 @@ func (pending) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-func (pending) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+func (pending) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-func (pending) ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request) {
+func (pending) CreateIdentityProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-func (pending) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
+func (pending) ConfigureIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// The providers the installation offers every workspace (SI-10, ADR-0070 §2).
+func (pending) ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureInstanceIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveInstanceIdentityProvider(
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+) {
 	notAvailable(w, r)
 }
 

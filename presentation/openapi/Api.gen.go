@@ -1476,6 +1476,66 @@ func (e HttpRequestCallMethod) Valid() bool {
 	}
 }
 
+// Defines values for IdentityProviderScope.
+const (
+	IdentityProviderScopeInstallation IdentityProviderScope = "installation"
+	IdentityProviderScopeWorkspace    IdentityProviderScope = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderScope enum.
+func (e IdentityProviderScope) Valid() bool {
+	switch e {
+	case IdentityProviderScopeInstallation:
+		return true
+	case IdentityProviderScopeWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IdentityProviderKind.
+const (
+	GENERIC   IdentityProviderKind = "GENERIC"
+	GOOGLE    IdentityProviderKind = "GOOGLE"
+	MICROSOFT IdentityProviderKind = "MICROSOFT"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderKind enum.
+func (e IdentityProviderKind) Valid() bool {
+	switch e {
+	case GENERIC:
+		return true
+	case GOOGLE:
+		return true
+	case MICROSOFT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IdentityProviderProvisioning.
+const (
+	ANY         IdentityProviderProvisioning = "ANY"
+	DOMAINS     IdentityProviderProvisioning = "DOMAINS"
+	INVITEDONLY IdentityProviderProvisioning = "INVITED_ONLY"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderProvisioning enum.
+func (e IdentityProviderProvisioning) Valid() bool {
+	switch e {
+	case ANY:
+		return true
+	case DOMAINS:
+		return true
+	case INVITEDONLY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImportKind.
 const (
 	ImportKindCSV           ImportKind = "CSV"
@@ -5106,37 +5166,103 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
-// IdentityProvider How this workspace signs people in through its own provider. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
+// IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
-	// AllowedEmailDomains The domains inside which a verified address may link an arriving subject to an existing local account. Empty means no linking happens at all: every subject is provisioned as its own account, which is the safe reading of "not configured".
+	// AllowedEmailDomains The domains inside which a verified address may claim an account that already exists, under `DOMAINS`. Empty means no claiming happens at all: every subject is provisioned as its own account, which is the safe reading of "not configured".
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
 	// ClientId This installation's registration with the provider.
 	ClientId  string    `json:"client_id"`
 	CreatedAt time.Time `json:"created_at"`
 
+	// DisplayName The name on the button. The issuer's host where nobody set one, which discloses nothing new: pressing the button sends the person to exactly that host.
+	DisplayName string `json:"display_name"`
+
 	// Enabled Off leaves the configuration in place and refuses the flow. It is the switch to reach for while a provider is being changed, rather than deleting and retyping a secret.
-	Enabled bool `json:"enabled"`
+	Enabled bool               `json:"enabled"`
+	Id      openapi_types.UUID `json:"id"`
 
 	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first of T-13's checks.
-	Issuer    string     `json:"issuer"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	Issuer string `json:"issuer"`
+
+	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	Kind IdentityProviderKind `json:"kind"`
+
+	// Position The order the buttons are drawn in.
+	Position int `json:"position"`
+
+	// Provisioning How freely an arriving subject may claim an account that already exists here - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
+	// `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside them. `ANY` claims on any address the provider says it verified, which is for a provider that *is* the workspace's directory.
+	// An address the provider did not vouch for claims nothing, in all three.
+	Provisioning IdentityProviderProvisioning `json:"provisioning"`
+
+	// Scope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
+	Scope     IdentityProviderScope `json:"scope"`
+	UpdatedAt *time.Time            `json:"updated_at,omitempty"`
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
 }
 
+// IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
+type IdentityProviderScope string
+
 // IdentityProviderConfiguration The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in.
 type IdentityProviderConfiguration struct {
-	// AllowedEmailDomains Domains a verified address may link within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
+	// AllowedEmailDomains Domains a verified address may claim within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
 	AllowedEmailDomains *[]string `json:"allowed_email_domains,omitempty"`
 	ClientId            string    `json:"client_id"`
 
-	// ClientSecret Sealed on the way in (E-02) and never answered again. Sending it a second time replaces it; there is no way to read it back, by design.
+	// ClientSecret Sealed on the way in (E-02) and never answered again. Required when adding a provider. Omitted on a replace it keeps the one that is sealed - there is no way to read it back, by design, and retyping it to change a name is how names stay wrong.
 	ClientSecret *string `json:"client_secret,omitempty"`
-	Enabled      *bool   `json:"enabled,omitempty"`
-	Issuer       string  `json:"issuer"`
+
+	// DisplayName The name on the button. Absent is the issuer's host.
+	DisplayName *string `json:"display_name,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+	Issuer      string  `json:"issuer"`
+
+	// Kind Absent is read from the issuer.
+	Kind     *IdentityProviderKind `json:"kind,omitempty"`
+	Position *int                  `json:"position,omitempty"`
+
+	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
+	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
 }
+
+// IdentityProviderKind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+type IdentityProviderKind string
+
+// IdentityProviderPreset What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it.
+type IdentityProviderPreset struct {
+	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know, and the safe reading of "cannot know" is the one that does not give away an account. It is what decides whether `INVITED_ONLY` is available.
+	AddressesVerified bool `json:"addresses_verified"`
+
+	// Instructions A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
+	Instructions string `json:"instructions"`
+
+	// Kind The preset a provider was configured from, which decides the mark its button draws (ADR-0069). `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
+	Kind IdentityProviderKind `json:"kind"`
+
+	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
+	Particular *string `json:"particular,omitempty"`
+
+	// Provisioning The modes this preset permits, strictest first.
+	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
+
+	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
+	Public bool `json:"public"`
+
+	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
+	RedirectUri string `json:"redirect_uri"`
+
+	// Scopes What the authorization request asks for, and what the registration must permit.
+	Scopes []string `json:"scopes"`
+}
+
+// IdentityProviderProvisioning How freely an arriving subject may claim an account that already exists here - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.
+// `INVITED_ONLY` must claim one: a verified address that meets no account here is refused and nothing is created. `DOMAINS` claims inside `allowed_email_domains` and provisions outside them. `ANY` claims on any address the provider says it verified, which is for a provider that *is* the workspace's directory.
+// An address the provider did not vouch for claims nothing, in all three.
+type IdentityProviderProvisioning string
 
 // ImportKind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
 type ImportKind string
@@ -5861,6 +5987,9 @@ type OidcCallback struct {
 type OidcStart struct {
 	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
 	LoginHint *string `json:"login_hint,omitempty"`
+
+	// ProviderId Which way in to use, from `GET /auth/sign-in-rules`. Omitting it is allowed while the workspace has exactly one provider switched on; with a choice to make, not making it is refused rather than guessed.
+	ProviderId *openapi_types.UUID `json:"provider_id,omitempty"`
 }
 
 // Operator One row of the register: an account of some workspace that operates this installation.
@@ -7948,6 +8077,9 @@ type PageSize = int
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
 
+// ProviderId defines model for ProviderId.
+type ProviderId = openapi_types.UUID
+
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
 
@@ -8926,6 +9058,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
+type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
+// ConfigureInstanceIdentityProviderJSONRequestBody defines body for ConfigureInstanceIdentityProvider for application/json ContentType.
+type ConfigureInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
+
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
@@ -9075,6 +9213,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// CreateIdentityProviderJSONRequestBody defines body for CreateIdentityProvider for application/json ContentType.
+type CreateIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
@@ -9285,6 +9426,18 @@ type ServerInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	// (POST /admin/encryption:reseal)
 	ResealSecrets(w http.ResponseWriter, r *http.Request)
+	// ListInstanceIdentityProviders The providers this installation offers every workspace
+	// (GET /admin/identity-providers)
+	ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request)
+	// CreateInstanceIdentityProvider Offer every workspace a way in
+	// (POST /admin/identity-providers)
+	CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// RemoveInstanceIdentityProvider Withdraw a provider from every workspace at once
+	// (DELETE /admin/identity-providers/{providerId})
+	RemoveInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
+	// (PUT /admin/identity-providers/{providerId})
+	ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
 	// ListOperators Who operates this installation
 	// (GET /admin/operators)
 	ListOperators(w http.ResponseWriter, r *http.Request)
@@ -9594,15 +9747,21 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
-	// RemoveIdentityProvider Remove the workspace's identity provider
-	// (DELETE /identity-provider)
-	RemoveIdentityProvider(w http.ResponseWriter, r *http.Request)
-	// ReadIdentityProvider How this workspace signs people in through its own provider
-	// (GET /identity-provider)
-	ReadIdentityProvider(w http.ResponseWriter, r *http.Request)
-	// ConfigureIdentityProvider Configure the workspace's identity provider
-	// (PUT /identity-provider)
-	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// ListIdentityProviderPresets The providers Hubtask has a preset for, and what registering takes
+	// (GET /identity-provider-presets)
+	ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request)
+	// ListIdentityProviders The providers people can sign in to this workspace through
+	// (GET /identity-providers)
+	ListIdentityProviders(w http.ResponseWriter, r *http.Request)
+	// CreateIdentityProvider Add a provider this workspace signs its people in through
+	// (POST /identity-providers)
+	CreateIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// RemoveIdentityProvider Remove one of the workspace's identity providers
+	// (DELETE /identity-providers/{providerId})
+	RemoveIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ConfigureIdentityProvider Replace one of the workspace's identity providers
+	// (PUT /identity-providers/{providerId})
+	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
 	// ImportEntries Import entries from another system into a hub
 	// (POST /imports)
 	ImportEntries(w http.ResponseWriter, r *http.Request, params ImportEntriesParams)
@@ -10259,6 +10418,86 @@ func (siw *ServerInterfaceWrapper) ResealSecrets(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResealSecrets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstanceIdentityProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceIdentityProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveInstanceIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveInstanceIdentityProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureInstanceIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureInstanceIdentityProvider(w, r, providerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13677,11 +13916,11 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
-// RemoveIdentityProvider operation middleware
-func (siw *ServerInterfaceWrapper) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
+// ListIdentityProviderPresets operation middleware
+func (siw *ServerInterfaceWrapper) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RemoveIdentityProvider(w, r)
+		siw.Handler.ListIdentityProviderPresets(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13691,11 +13930,51 @@ func (siw *ServerInterfaceWrapper) RemoveIdentityProvider(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
-// ReadIdentityProvider operation middleware
-func (siw *ServerInterfaceWrapper) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+// ListIdentityProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ReadIdentityProvider(w, r)
+		siw.Handler.ListIdentityProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveIdentityProvider(w, r, providerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13708,8 +13987,20 @@ func (siw *ServerInterfaceWrapper) ReadIdentityProvider(w http.ResponseWriter, r
 // ConfigureIdentityProvider operation middleware
 func (siw *ServerInterfaceWrapper) ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConfigureIdentityProvider(w, r)
+		siw.Handler.ConfigureIdentityProvider(w, r, providerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -19521,15 +19812,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/identity-providers", wrapper.ListInstanceIdentityProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers", wrapper.CreateInstanceIdentityProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.RemoveInstanceIdentityProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.ConfigureInstanceIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/encryption", wrapper.ReadEncryptionStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
-	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-providers", wrapper.ListIdentityProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/identity-providers", wrapper.CreateIdentityProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-providers/{providerId}", wrapper.RemoveIdentityProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-providers/{providerId}", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider-presets", wrapper.ListIdentityProviderPresets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:decompose", wrapper.SuggestDecomposition)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:suggest-fields", wrapper.AiSuggestFields)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize", wrapper.AiSummarize)

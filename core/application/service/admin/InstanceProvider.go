@@ -182,11 +182,11 @@ func (h ListInstanceIdentityProviders) invoke(
 	if err != nil {
 		return nil, err
 	}
-	providers := make([]any, 0, len(found))
+	rows := make([]usecase.Output, 0, len(found))
 	for _, configured := range found {
-		providers = append(providers, identityservice.ProviderOutput(configured))
+		rows = append(rows, identityservice.ProviderOutput(configured))
 	}
-	return usecase.Output{"providers": providers}, nil
+	return usecase.Output{"data": rows}, nil
 }
 
 func (h ConfigureInstanceIdentityProvider) Descriptor() usecase.Descriptor {

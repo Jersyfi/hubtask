@@ -103,40 +103,57 @@ func TestAnEnrolmentIsReSealedOnlyFromItsOwnTenant(t *testing.T) {
 	})
 }
 
-// Gate SG-3: IdentityProviderSealing.RewrapSecret.
+// Gate SG-3: IdentityProviderSealing.ListSealed and RewrapSecret.
 func TestAProviderSecretIsReSealedOnlyFromItsOwnTenant(t *testing.T) {
 	ctx := context.Background()
 	seedIdentityProviderTenants(ctx, t)
 	providers := postgres.NewIdentityProviderRepository()
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	now := time.Now().UTC()
+	row := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe51")
 
 	configured, err := identity.NewIdentityProvider(identity.NewIdentityProviderInput{
-		TenantID: idpTenantA, Issuer: "https://login.reseal.example", ClientID: "hubtask-a",
+		ID: row, TenantID: idpTenantA, Issuer: "https://login.reseal.example", ClientID: "hubtask-a",
 		AllowedEmailDomains: []string{"a.example"}, Enabled: true, Now: now,
 	})
 	if err != nil {
 		t.Fatalf("building the configuration: %v", err)
 	}
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
-		_, err := providers.Upsert(ctx, configured, sealedSecret(), now)
+		_, err := providers.Insert(ctx, configured, sealedSecret())
 		return err
 	})
 
 	inTenant(t, uow, idpTenantB, func(ctx context.Context) error {
-		if moved, err := providers.RewrapSecret(ctx, movedSecret("k2"), "k1"); err != nil || moved {
+		// The census does not name it either, which is what keeps a rotation next door from ever
+		// reaching for it.
+		listed, err := providers.ListSealed(ctx)
+		if err != nil {
+			t.Fatalf("B's census: %v", err)
+		}
+		for _, entry := range listed {
+			if entry.ProviderID == row {
+				t.Error("another tenant's provider secret is in this tenant's census")
+			}
+		}
+		if moved, err := providers.RewrapSecret(ctx, row, movedSecret("k2"), "k1"); err != nil || moved {
 			t.Errorf("another tenant's provider secret was rewrapped from here (%v, %v)", moved, err)
 		}
 		return nil
 	})
 
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
-		if moved, err := providers.RewrapSecret(ctx, movedSecret("k2"), "k1"); err != nil || !moved {
+		if moved, err := providers.RewrapSecret(ctx, row, movedSecret("k2"), "k1"); err != nil || !moved {
 			t.Fatalf("rewrapping (%v, %v)", moved, err)
 		}
-		_, sealed, err := providers.FindWithSecret(ctx)
+		_, sealed, err := providers.FindWithSecret(ctx, row)
 		if err != nil || sealed.KeyID != "k2" {
 			t.Errorf("the provider still names %q after the rewrap (%v)", sealed.KeyID, err)
+		}
+		// The guard is the key the row named when it was read: a second pass with the stale
+		// expectation moves nothing.
+		if moved, err := providers.RewrapSecret(ctx, row, movedSecret("k3"), "k1"); err != nil || moved {
+			t.Errorf("a rewrap guarded on a stale key moved the row (%v, %v)", moved, err)
 		}
 		return nil
 	})

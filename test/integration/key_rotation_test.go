@@ -262,6 +262,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 	mfaPurpose := cryptoport.Purpose("account_mfa.secret:" + sessionAccountA.String())
 	idpPurpose := cryptoport.Purpose("identity_provider.client_secret:" + tenantA.String())
 	provider, err := identity.NewIdentityProvider(identity.NewIdentityProviderInput{
+		ID:       shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd41"),
 		TenantID: tenantA, Issuer: "https://login.rotation.example", ClientID: "hubtask",
 		AllowedEmailDomains: []string{"rotation.example"}, Enabled: true, Now: now,
 	})
@@ -279,7 +280,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 		if _, err := mfa.Upsert(ctx, sessionAccountA, seal("totp-secret", mfaPurpose), now); err != nil {
 			t.Fatalf("storing the enrolment: %v", err)
 		}
-		if _, err := providers.Upsert(ctx, provider, seal("client-secret", idpPurpose), now); err != nil {
+		if _, err := providers.Insert(ctx, provider, seal("client-secret", idpPurpose)); err != nil {
 			t.Fatalf("storing the provider: %v", err)
 		}
 		// The seeded subscription carries a fake secret; the drill needs one the envelope sealed.
@@ -362,7 +363,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 		if err != nil || opened.Reveal() != "totp-secret" {
 			t.Errorf("the second factor after retirement: %v", err)
 		}
-		_, sealed, err := providers.FindWithSecret(ctx)
+		_, sealed, err := providers.FindWithSecret(ctx, provider.ID)
 		if err != nil {
 			t.Fatal(err)
 		}

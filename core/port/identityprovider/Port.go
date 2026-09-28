@@ -64,7 +64,8 @@ type Exchange struct {
 // has a use for. A claim nobody consumes is a claim nobody has to reason about.
 type Identity struct {
 	// Subject is the provider's stable identifier for the person: what lands in
-	// `account.external_subject` and what finds them again on every later sign-in.
+	// `account_identity` beside the provider that vouched for it, and what finds them again on
+	// every later sign-in.
 	Subject string
 	// Email is the address the token carried, empty when it carried none.
 	Email string
