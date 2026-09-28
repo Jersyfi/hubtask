@@ -3429,6 +3429,27 @@ func (e WorkspaceStatus) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceHostState.
+const (
+	WorkspaceHostStateFAILED   WorkspaceHostState = "FAILED"
+	WorkspaceHostStatePENDING  WorkspaceHostState = "PENDING"
+	WorkspaceHostStateVERIFIED WorkspaceHostState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceHostState enum.
+func (e WorkspaceHostState) Valid() bool {
+	switch e {
+	case WorkspaceHostStateFAILED:
+		return true
+	case WorkspaceHostStatePENDING:
+		return true
+	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -4556,6 +4577,10 @@ type Capabilities struct {
 		// Type Extensible; /meta/capabilities returns the valid values.
 		Type *ItemType `json:"type,omitempty"`
 	} `json:"item_types,omitempty"`
+
+	// Legal The four links this installation is obliged to show, resolved for the caller's workspace or - where the caller has none - for the installation itself (SI-12, `data-protection.md` §6).
+	// Here as well as on `GET /auth/sign-in-rules`, and not by duplication: that route is what a signed-out card reads, and a footer inside the application needs the same four without asking a sign-in route for them. A link the installation never set is **absent**, not empty: a private installation owes nobody an imprint, and four links pointing nowhere are worse than none.
+	Legal  *LegalLinks             `json:"legal,omitempty"`
 	Limits *map[string]interface{} `json:"limits,omitempty"`
 
 	// NotificationCategories The categories a person can be told about, and the rows a notification-preference form has. A closed set in a check constraint rather than an enum in this document, so that a client reads it here instead of compiling it in; `INVITATION` is in the list and is the one no preference switches off.
@@ -7957,9 +7982,13 @@ type Workspace struct {
 	DefaultLocale string `json:"default_locale"`
 
 	// DefaultTimeZone An IANA zone, for the same position in the same chain.
-	DefaultTimeZone string             `json:"default_time_zone"`
-	DisplayName     string             `json:"display_name"`
-	Id              openapi_types.UUID `json:"id"`
+	DefaultTimeZone string `json:"default_time_zone"`
+	DisplayName     string `json:"display_name"`
+
+	// Hosts The hosts this workspace answers at (SI-12). **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
+	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
+	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
+	Id    openapi_types.UUID `json:"id"`
 
 	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
 	RequireAdminTotp bool `json:"require_admin_totp"`
@@ -7980,6 +8009,25 @@ type Workspace struct {
 
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
+
+// WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
+type WorkspaceHost struct {
+	CreatedAt time.Time `json:"created_at"`
+	Host      string    `json:"host"`
+
+	// IsCanonical Which host a mail, a redirect and an invitation link name. Exactly one per workspace, enforced by a partial unique index rather than by a rule somebody has to remember.
+	IsCanonical bool `json:"is_canonical"`
+
+	// State `PENDING` resolves nothing: a host somebody typed is not a host they own. `FAILED` is a claim that was checked and did not hold, kept rather than deleted so that a second attempt meets a row saying what happened.
+	State WorkspaceHostState `json:"state"`
+
+	// Verification What the zone has to carry before the state may move - a value published in a DNS record, which is why it is the one presented value in this contract that is not a digest. Absent for a host that is already verified and for the canonical one, because there is nothing left for anybody to publish.
+	Verification *string    `json:"verification,omitempty"`
+	VerifiedAt   *time.Time `json:"verified_at,omitempty"`
+}
+
+// WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `FAILED` is a claim that was checked and did not hold, kept rather than deleted so that a second attempt meets a row saying what happened.
+type WorkspaceHostState string
 
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
 type WorkspaceUpdate struct {

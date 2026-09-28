@@ -948,6 +948,13 @@ func run() error {
 	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
 	// out of the query and hands them to the API.
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+	// The installation's own host, which the canonical host of every new workspace is derived from
+	// (SI-12). Parsed rather than trimmed: the parser knows what a scheme and a port are, and gate
+	// PG-6 reads a trimmed prefix in this tree as an address written into the source.
+	installationHost := ""
+	if parsed, err := url.Parse(cfg.BaseURL); err == nil {
+		installationHost = parsed.Hostname()
+	}
 
 	oidcWriter := identity.OidcWriter{
 		Domains:     domains,
@@ -1055,6 +1062,9 @@ func run() error {
 
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// The hosts the workspace answers at (SI-12). Read-only: nothing resolves a request
+		// through them yet.
+		Hosts:      postgres.NewTenantHostRepository(),
 		Authorizer: authorizer,
 		Audit:      auditSink,
 		UnitOfWork: unitOfWork,
@@ -1747,6 +1757,9 @@ func run() error {
 			Domains: domains, Text: forms,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+			// The one host the new workspace answers at (SI-12). The installation's own host comes
+			// from the configured base URL and never from a request.
+			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		}.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
@@ -1951,7 +1964,11 @@ func run() error {
 			// the workspace has AI while the route refuses (issue 502). Budgeted, which is the
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
-			Providers:  budgetedAi,
+			Providers: budgetedAi,
+			// The four links the installation is obliged to show, through the one resolver that
+			// knows the levels (SI-12). The same object `/auth/sign-in-rules` reads, so a footer
+			// inside the application and the signed-out card cannot disagree.
+			Legal:      signInPolicyResolver,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 			// The same catalogue the mint validates against, so the manifest cannot offer a scope

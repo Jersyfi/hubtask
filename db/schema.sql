@@ -443,6 +443,29 @@ CREATE TABLE oauth_code (
 );
 CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 
+-- The hosts a workspace answers at (SI-12, migration 0104). The model custom domains need, without
+-- the feature: nothing resolves through this table yet - `resolve_tenant` still reads the slug - and
+-- what it buys is that the milestone which adds custom domains adds no column to the table every
+-- request touches. The canonical row is derived from the slug under the installation's own domain
+-- and is verified by construction; the verification mark of any other row is published in a DNS
+-- record, which is why it is the one presented value here that is not a digest.
+CREATE TABLE tenant_host (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  host         text NOT NULL CHECK (host = lower(host) AND length(host) BETWEEN 4 AND 253),
+  state        text NOT NULL DEFAULT 'PENDING'
+                 CHECK (state IN ('PENDING', 'VERIFIED', 'FAILED')),
+  verification text NOT NULL CHECK (length(verification) BETWEEN 8 AND 200),
+  verified_at  timestamptz,
+  is_canonical boolean NOT NULL DEFAULT false,
+  created_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, host)
+);
+-- One host, one workspace, installation-wide: two workspaces claiming the same host is the failure
+-- this table exists to make impossible.
+CREATE UNIQUE INDEX tenant_host_host_uq ON tenant_host (host);
+-- One canonical host per workspace. A mail, a redirect and an invitation link have to name one.
+CREATE UNIQUE INDEX tenant_host_canonical_uq ON tenant_host (tenant_id) WHERE is_canonical;
+
 -- The providers a workspace signs its people in through (H-04, SI-10, migration 0103). Plural,
 -- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
 -- none writes - see the two policies below. The client secret is sealed under E-02's envelope - a
@@ -2158,7 +2181,8 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'account_identity','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
+    'account_identity','tenant_host','oidc_flow','ai_provider','ai_suggestion','ai_request',
+    'item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',

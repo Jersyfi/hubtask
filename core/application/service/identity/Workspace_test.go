@@ -258,7 +258,7 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}
-	out := workspaceOutput(read, nil)
+	out := workspaceOutput(read, nil, nil)
 	for _, wanted := range []string{
 		"id", "slug", "display_name", "status", "default_locale", "default_time_zone",
 		"require_admin_totp", "created_at", "version",
@@ -276,7 +276,7 @@ func TestTheAnswerCarriesWhatTheContractDeclares(t *testing.T) {
 		t.Error("anchoring is off and the answer names a target")
 	}
 	read.Settings.AuditAnchorTargetID = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
-	if got := workspaceOutput(read, nil)["audit_anchor_target_id"]; got != "0192f000-0000-7000-8000-0000000000b1" {
+	if got := workspaceOutput(read, nil, nil)["audit_anchor_target_id"]; got != "0192f000-0000-7000-8000-0000000000b1" {
 		t.Errorf("the answer names %v as the anchoring target", got)
 	}
 }

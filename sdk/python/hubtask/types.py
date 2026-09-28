@@ -276,6 +276,16 @@ class Workspace(TypedDict, total=False):
     updated_at: str | None
     version: Required[int]
     sign_in_policy: "SignInPolicy"
+    hosts: list["WorkspaceHost"]
+
+class WorkspaceHost(TypedDict, total=False):
+    """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
+    host: Required[str]
+    state: Required[Literal["PENDING", "VERIFIED", "FAILED"]]
+    is_canonical: Required[bool]
+    verification: str | None
+    verified_at: str | None
+    created_at: Required[str]
 
 class SignInPolicyNumber(TypedDict, total=False):
     """One numeric switch, at the three levels that decide it. Zero is off for every one of them."""
@@ -2151,6 +2161,7 @@ class Capabilities(TypedDict, total=False):
     roles: list["RoleDescription"]
     limits: dict[str, Any]
     features: dict[str, Any]
+    legal: "LegalLinks"
 
 class RoleDescription(TypedDict, total=False):
     """One row of the role matrix: the permissions the role carries, and what it may do to a single entry."""

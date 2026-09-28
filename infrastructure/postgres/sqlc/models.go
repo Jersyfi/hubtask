@@ -1397,6 +1397,16 @@ type Tenant struct {
 	PlanID          pgtype.UUID
 }
 
+type TenantHost struct {
+	TenantID     pgtype.UUID
+	Host         string
+	State        string
+	Verification string
+	VerifiedAt   pgtype.Timestamptz
+	IsCanonical  bool
+	CreatedAt    pgtype.Timestamptz
+}
+
 type Tombstone struct {
 	TenantID   pgtype.UUID
 	Entity     string

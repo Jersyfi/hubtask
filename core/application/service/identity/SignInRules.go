@@ -121,6 +121,20 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 	}, nil
 }
 
+// Legal answers the links in force for a workspace, or the installation's own where the identifier
+// is zero (SI-12).
+//
+// The manifest's own question, answered by the one resolver rather than by a second read: a footer
+// inside the application needs the same four links the signed-out card shows, and two resolutions of
+// one rule is the drift ADR-0068 exists to prevent.
+func (r SignInPolicyResolver) Legal(ctx context.Context, tenantID shared.ID) (domain.LegalLinks, error) {
+	resolved, err := r.Resolve(ctx, tenantID)
+	if err != nil {
+		return domain.LegalLinks{}, err
+	}
+	return resolved.Legal, nil
+}
+
 // ProviderSummary is one way in, as a sign-in screen needs it: enough to draw a button, and
 // nothing about how the exchange works.
 type ProviderSummary struct {

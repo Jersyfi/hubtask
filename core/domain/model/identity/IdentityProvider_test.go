@@ -240,7 +240,8 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 	good := strings.Repeat("v", 43)
 
 	flow, err := NewOidcFlow(NewOidcFlowInput{
-		ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at,
+		ID: id, TenantID: sessionTenant, ProviderID: providerRow,
+		Nonce: "n", Verifier: good, Now: at,
 	})
 	if err != nil {
 		t.Fatalf("opening a flow: %v", err)
@@ -250,14 +251,17 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 	}
 
 	cases := map[string]NewOidcFlowInput{
-		"no identifier": {TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at},
-		"no workspace":  {ID: id, Nonce: "n", Verifier: good, Now: at},
-		"no nonce":      {ID: id, TenantID: sessionTenant, Verifier: good, Now: at},
-		"short verifier": {ID: id, TenantID: sessionTenant, Nonce: "n",
+		"no identifier": {TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n", Verifier: good, Now: at},
+		"no workspace":  {ID: id, ProviderID: providerRow, Nonce: "n", Verifier: good, Now: at},
+		// Which provider the browser left through. Without it the callback would have to guess
+		// which client secret to sign the exchange with (SI-10).
+		"no provider": {ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at},
+		"no nonce":    {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Verifier: good, Now: at},
+		"short verifier": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n",
 			Verifier: strings.Repeat("v", 42), Now: at},
-		"long verifier": {ID: id, TenantID: sessionTenant, Nonce: "n",
+		"long verifier": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n",
 			Verifier: strings.Repeat("v", 129), Now: at},
-		"no clock": {ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good},
+		"no clock": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n", Verifier: good},
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {

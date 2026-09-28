@@ -55,6 +55,10 @@ type WorkspaceWriter struct {
 	// wired before the instance layer, where a patch that touches the policy is refused rather
 	// than written into a row nothing would read.
 	Resolver SignInPolicyResolver
+	// Hosts is the hosts this workspace answers at (SI-12). Optional: a build wired without it
+	// answers none, which is what an installation whose workspaces predate migration 0104 has -
+	// and nothing resolves a request through them, so an empty list costs nobody anything.
+	Hosts repository.TenantHosts
 	// StepUp is the proof a policy change demands (H-03). A workspace's sign-in rule is what
 	// decides whether a stolen tab can weaken the way in, so the one patch that touches it asks
 	// the person to prove themselves afresh - and the name, the locale and the zone do not.
@@ -95,6 +99,27 @@ func (h ReadWorkspace) Execute(
 		return domain.Workspace{}, err
 	}
 	return found, nil
+}
+
+// hostsOf answers the hosts this workspace answers at, in the same transaction shape every other
+// read here uses. Empty where the store is not wired or the workspace predates migration 0104,
+// which is the honest reading of "nothing here says otherwise".
+func (w WorkspaceWriter) hostsOf(
+	ctx context.Context, actor appshared.ActorContext,
+) ([]domain.TenantHost, error) {
+	if w.Hosts == nil {
+		return nil, nil
+	}
+	var hosts []domain.TenantHost
+	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		read, err := w.Hosts.List(ctx)
+		hosts = read
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return hosts, nil
 }
 
 // UpdateWorkspace changes how the workspace is set up.
@@ -250,7 +275,9 @@ func (w WorkspaceWriter) record(
 // force, what the level above set, and where a lock came from. It is absent rather than empty on an
 // installation with no instance layer - a screen that drew eighteen rows of the product's defaults
 // and could not save any of them would be a screen that lies about what it offers.
-func workspaceOutput(workspace domain.Workspace, resolved *ResolvedPolicy) usecase.Output {
+func workspaceOutput(
+	workspace domain.Workspace, resolved *ResolvedPolicy, hosts []domain.TenantHost,
+) usecase.Output {
 	out := usecase.Output{
 		"id":                 workspace.ID.String(),
 		"slug":               workspace.Slug,
@@ -273,6 +300,31 @@ func workspaceOutput(workspace domain.Workspace, resolved *ResolvedPolicy) useca
 	}
 	if resolved != nil {
 		out["sign_in_policy"] = signInPolicyOutput(*resolved)
+	}
+	// The hosts this workspace answers at (SI-12). Read-only and absent where there are none: the
+	// canonical one is derived from the slug and nothing resolves a request through the table yet,
+	// so an empty array would read as "this workspace is reachable nowhere".
+	if len(hosts) > 0 {
+		rows := make([]usecase.Output, 0, len(hosts))
+		for _, host := range hosts {
+			row := usecase.Output{
+				"host":         host.Host,
+				"state":        string(host.State),
+				"is_canonical": host.Canonical,
+				"created_at":   host.CreatedAt,
+			}
+			// The mark travels with the row a zone still has to carry it. Not for the canonical
+			// one: it was verified by construction, and a value nobody has to publish is a value
+			// nobody has to be shown.
+			if !host.Canonical && host.State != domain.HostVerified {
+				row["verification"] = host.Verification
+			}
+			if !host.VerifiedAt.IsZero() {
+				row["verified_at"] = host.VerifiedAt
+			}
+			rows = append(rows, row)
+		}
+		out["hosts"] = rows
 	}
 	return out
 }
@@ -302,7 +354,11 @@ func (h ReadWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID)), nil
+	hosts, err := h.Writer.hostsOf(ctx, actor)
+	if err != nil {
+		return nil, err
+	}
+	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
 }
 
 func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
@@ -373,7 +429,11 @@ func (h UpdateWorkspace) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID)), nil
+	hosts, err := h.Writer.hostsOf(ctx, actor)
+	if err != nil {
+		return nil, err
+	}
+	return workspaceOutput(workspace, h.Writer.resolvedPolicy(ctx, actor.TenantID), hosts), nil
 }
 
 // resolvedPolicy answers the rule for the projection, or nil where there is no level above to

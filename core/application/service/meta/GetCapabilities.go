@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -133,6 +134,14 @@ type Capabilities struct {
 	Limits map[string]int64
 	// Features says which optional parts of the installation are configured.
 	Features map[string]bool
+	// Legal is the four links this installation is obliged to show, resolved for the caller's
+	// workspace or - where there is none - for the installation itself (SI-12, ADR-0068 §7).
+	//
+	// Here as well as on `/auth/sign-in-rules`, and not by duplication: that route is what a
+	// *signed-out* card reads, and a footer inside the application needs the same four without
+	// asking a sign-in route for them. An installation that set none answers none, because a
+	// private installation owes nobody an imprint.
+	Legal identity.LegalLinks
 }
 
 // RoleDescription is one row of that matrix: the columns the role carries unqualified, and how far
@@ -163,6 +172,16 @@ func roleMatrix() []RoleDescription {
 		})
 	}
 	return described
+}
+
+// LegalPolicy answers the links an installation is obliged to show, resolved through the levels
+// (SI-12). An interface here rather than the resolver itself, for AiProviders' reason: the
+// application layer may not import an adapter, and this package may not reach into another service's
+// internals - what it needs is one question answered.
+type LegalPolicy interface {
+	// Legal answers the links in force for a workspace, or the installation's own where the
+	// identifier is zero.
+	Legal(ctx context.Context, tenantID shared.ID) (identity.LegalLinks, error)
 }
 
 // AiProviders answers which provider the caller's workspace uses (J-02). An interface here rather
@@ -197,7 +216,10 @@ type GetCapabilities struct {
 	// Providers answers what the caller's workspace can ask a model to do (issue 502). Optional,
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise".
-	Providers  AiProviders
+	Providers AiProviders
+	// Legal answers the four links (SI-12). Optional, like Semantic and for the same reason: a
+	// build wired without it answers none, which is what an installation with no instance layer has.
+	Legal      LegalPolicy
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 	// Actions is every automation action kind that is a use case, handed in from the catalogue at
@@ -270,6 +292,18 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 	supportedLocales := []i18n.LocaleInfo{{Tag: "en", Direction: "ltr", WeekStart: "SUNDAY", DecimalSeparator: "."}}
 	if g.Locales != nil {
 		supportedLocales = g.Locales.SupportedLocales()
+	}
+
+	// The links, resolved for the caller's workspace or for the installation where there is none.
+	// Outside the transaction above for the resolver's own reason: it opens one, and a nested unit
+	// of work that changes tenant is refused outright.
+	var legal identity.LegalLinks
+	if g.Legal != nil {
+		resolved, err := g.Legal.Legal(ctx, actor.TenantID)
+		if err != nil {
+			return Capabilities{}, err
+		}
+		legal = resolved
 	}
 
 	var ai aiprovider.ProviderCapabilities
@@ -384,6 +418,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// serves is read, never compiled in.
 			"sign_in_rules": true,
 		},
+		Legal: legal,
 	}, nil
 }
 

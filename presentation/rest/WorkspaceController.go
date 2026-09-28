@@ -151,6 +151,25 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
 	}
+	if rows, held := out["hosts"].([]usecase.Output); held && len(rows) > 0 {
+		hosts := make([]openapi.WorkspaceHost, 0, len(rows))
+		for _, row := range rows {
+			host := openapi.WorkspaceHost{
+				Host:        row.String("host"),
+				State:       openapi.WorkspaceHostState(row.String("state")),
+				IsCanonical: boolValue(row["is_canonical"]),
+				CreatedAt:   timeValue(row["created_at"]),
+			}
+			if mark := row.String("verification"); mark != "" {
+				host.Verification = &mark
+			}
+			if verified, ok := row["verified_at"].(time.Time); ok && !verified.IsZero() {
+				host.VerifiedAt = &verified
+			}
+			hosts = append(hosts, host)
+		}
+		answer.Hosts = &hosts
+	}
 	return answer
 }
 

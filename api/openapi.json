@@ -11664,6 +11664,60 @@
           "sign_in_policy": {
             "$ref": "#/components/schemas/SignInPolicy",
             "description": "How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.\n"
+          },
+          "hosts": {
+            "type": "array",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceHost"
+            },
+            "description": "The hosts this workspace answers at (SI-12). **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.\nAbsent where there are none, which is every workspace provisioned before the table existed. An empty array would read as \"this workspace is reachable nowhere\".\n"
+          }
+        }
+      },
+      "WorkspaceHost": {
+        "type": "object",
+        "description": "One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.\n",
+        "required": [
+          "host",
+          "state",
+          "is_canonical",
+          "created_at"
+        ],
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VERIFIED",
+              "FAILED"
+            ],
+            "description": "`PENDING` resolves nothing: a host somebody typed is not a host they own. `FAILED` is a claim that was checked and did not hold, kept rather than deleted so that a second attempt meets a row saying what happened.\n"
+          },
+          "is_canonical": {
+            "type": "boolean",
+            "description": "Which host a mail, a redirect and an invitation link name. Exactly one per workspace, enforced by a partial unique index rather than by a rule somebody has to remember.\n"
+          },
+          "verification": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the zone has to carry before the state may move - a value published in a DNS record, which is why it is the one presented value in this contract that is not a digest. Absent for a host that is already verified and for the canonical one, because there is nothing left for anybody to publish.\n"
+          },
+          "verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -21127,6 +21181,10 @@
             "additionalProperties": {
               "type": "boolean"
             }
+          },
+          "legal": {
+            "$ref": "#/components/schemas/LegalLinks",
+            "description": "The four links this installation is obliged to show, resolved for the caller's workspace or - where the caller has none - for the installation itself (SI-12, `data-protection.md` §6).\nHere as well as on `GET /auth/sign-in-rules`, and not by duplication: that route is what a signed-out card reads, and a footer inside the application needs the same four without asking a sign-in route for them. A link the installation never set is **absent**, not empty: a private installation owes nobody an imprint, and four links pointing nowhere are worse than none.\n"
           }
         }
       },
