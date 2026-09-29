@@ -49,6 +49,14 @@ afterwards, with the rule that the last operator cannot remove themselves.
 **In single mode the register is empty and that means the owner.** A private installation changes
 in no way; it has one workspace and its owner is its operator, which is what is true today.
 
+*Amended 2026-09-28 (SI-17).* "The owner" is the whole of it, and the first build read it as
+"anybody": `is_operator` answered *yes* to every account of every workspace while the register was
+empty. On the private installation the sentence describes, those are the same set. On a shared one
+— the arrangement multi mode exists for, before its operator gets round to adding themselves —
+they are not, and every guest was an operator. The empty-register branch now requires an active
+`OWNER` membership at tenant scope, which is what §1 meant and what was true before the table
+existed. Adding the first operator turns the branch off, unchanged.
+
 **A service account may be an operator.** A purchase platform that provisions workspaces needs a
 credential that does not belong to a person who may leave, and the first day of a platform is the
 day that becomes true — not the day plans arrive.
@@ -116,6 +124,29 @@ The API is the product; `hubctl` and the dashboard are two clients of it, and a 
 role, and the dashboard does not go around it. What an operator needs to run an installation is
 counts, states and limits — not rows.
 
+*Amended 2026-09-28 (SI-12, SI-17).* Three doors to one API means three doors to the **same verbs**,
+and the first build gave the dashboard only the reads. That is not a door; it is a window. Two
+sentences settle it, and they are the same sentence read in both directions:
+
+- **Whatever the API serves and the configuration permits, the dashboard offers.** Every verb of
+  the control plane has a control on the screen that already shows its subject — the workspace
+  lifecycle and its limits, the instance values, the providers this installation offers — so that
+  running an installation does not require a terminal. Where the configuration closes a door, the
+  screen draws no control at all rather than one the server refuses: `HUBTASK_INSTANCE_FILE` in
+  `enforce` mode is the case that exists today, and `is_enforced_from_file` is what says so.
+- **One exception, and it is named here so it is not read as an oversight:** the key ring. It stays
+  in the environment ([ADR-0045](./ADR-0045-master-key-in-the-environment.md)) and the dashboard
+  *shows its census and does not turn it*. A rotation needs the new key in the process before the
+  first value is re-sealed; a button in a browser could start one for a key nothing is holding,
+  which ends with values no key opens. The screen says that where the buttons would be.
+
+**And the area is offered to an operator and to nobody else.** Not disabled for everyone else —
+**absent**. The manifest answers `instance.reachable`, caller-scoped like every other entry in it,
+read against the operator register; the navigation row exists only where that is true. A greyed row
+would tell a guest on somebody else's installation that a control plane is there and that they are
+outside it, which is a question they then have to ask somebody. `CapabilityGate` is for a refusal a
+person might otherwise have expected; this is the other case, where they never might have.
+
 ### 6. What does not move to the instance layer
 
 Rate limits and the lockout curve (protection from an attacker is not a preference) · the key ring
@@ -169,9 +200,12 @@ description of what exists.
 boundary lists entered, the lock with its origin, `tenant.plan_id`, the resolver's plan parameter,
 `GET`/`PUT /admin/settings`, `GET`/`POST /admin/operators`, `DELETE /admin/operators/{accountId}`,
 `POST /auth/sessions:elevate` with `session.elevated_until`, and the journal at both ends of an
-elevation. **Since SI-17** the `/instance` route area with its five screens, and the two reads they
-needed: `GET /admin/overview` (the census) and `GET /admin/journal`. **Since SI-10** the providers
-in the plural at both levels, `/admin/identity-providers` among them.
+elevation. **Since SI-17** the `/instance` route area, and the two reads it needed:
+`GET /admin/overview` (the census) and `GET /admin/journal`. **Since SI-10** the providers in the
+plural at both levels, `/admin/identity-providers` among them. **Since §5's amendment** the area is
+seven screens rather than five — the providers and the key ring's census joined it — every verb the
+control plane serves has a control, and `instance.reachable` in `/meta/capabilities` decides whether
+the area is offered at all.
 
 **Not built, each its own task.** `hubctl admin settings|operator|legal|provider`.
 `HUBTASK_INSTANCE_FILE` in either mode, and therefore the health report's line saying which source
@@ -195,7 +229,7 @@ first request; nothing here forecloses it.
 
 ## What the implementation settled
 
-Three things decided while SI-05 and SI-06 were built, and three more while SI-10 and SI-17 were.
+Three things decided while SI-05 and SI-06 were built, and five more while SI-10 and SI-17 were.
 
 1. **The operator register keys on the account alone, and lives behind four functions.** §1 does not
    say how it is reached. It carries no row-level policy *and* no grant to the application role:
@@ -232,7 +266,23 @@ Three things decided while SI-05 and SI-06 were built, and three more while SI-1
    shipped the other would be shipping the control plane by accident. It is drawn by the *same*
    section column as the other two, which is §5's "not a second frame" kept literally.
 
-6. **The journal gained a read, and the port's own comment was the thing that changed.** It said
+6. **What the dashboard may write is the server's answer, never the screen's guess.** §5's
+   amendment says the dashboard offers whatever the configuration permits, and there are exactly two
+   ways a screen could know what that is: ask, or decide. It asks. `is_enforced_from_file` on the
+   settings document is what removes the controls from the instance values screen; the presets'
+   `provisioning` list is what removes the modes a provider may not hold; `instance.reachable` is
+   what removes the area. A client that worked any of these out for itself would be a second copy of
+   a rule, and the copies disagree on the installation nobody tested.
+
+7. **Absence is the refusal for a level, and `CapabilityGate` is the refusal for an entry.** The two
+   look alike and are not. A person refused an *entry* was reaching for something they could
+   plausibly have had, and `domain-model.md` §2 is explicit that this must never become silent
+   ignoring — so the gate renders the reason. A person outside the operator register was never
+   reaching for anything: they have no workspace where the control plane applies, and a disabled row
+   is a fact about somebody else's installation that they cannot act on. The rule this settles, for
+   the next level somebody adds: **explain a refusal, omit a level**.
+
+8. **The journal gained a read, and the port's own comment was the thing that changed.** It said
    "there is no read method because no API serves it — reading it is the operator's, at the
    database". §5's dashboard is the API that serves it, so `Journal` has a `Page` now: newest first,
    keyed on the moment *and* the identifier, because two entries can share a moment and an offset

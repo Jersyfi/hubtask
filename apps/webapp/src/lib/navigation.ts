@@ -382,8 +382,8 @@ export function account(options: {
  */
 export function currentDestination(route: { readonly name: string | null; readonly area: Area }): string | undefined {
   if (route.area === 'administration') return 'administration';
-  // And the same for the instance area: the table names its five screens, and the list carries one
-  // row for all of them.
+  // And the same for the instance area: the table names its screens, and the list carries one row
+  // for all of them.
   if (route.area === 'instance') return 'instance';
   // And the same for Your settings, which is a section of its own since ADR-0065 decision 3: its
   // screens are the area, and the list should not have to name each of them twice.
