@@ -57,6 +57,21 @@ they are not, and every guest was an operator. The empty-register branch now req
 `OWNER` membership at tenant scope, which is what §1 meant and what was true before the table
 existed. Adding the first operator turns the branch off, unchanged.
 
+*Amended again 2026-09-29 (SI-12).* "Every active owner" is still not what the sentence says: it has
+**one workspace** in it, and the walk of the finished screens showed why that matters. A workspace
+provisioned from the dashboard has an owner, and the moment that owner became active they were an
+operator of the whole installation — able to suspend and delete every other customer. The branch is
+now bound to an installation that has exactly one workspace. More than one, and the register has to
+be filled, because an installation hosting customers with nobody registered to run it is a
+misconfiguration rather than a state with a default.
+
+It cannot lock anybody out, and the order things happen in is the reason: provisioning a second
+workspace needs `admin:tenants`, which on an empty register only the single workspace's owner can
+mint. By the time there are two, somebody was an operator and could have registered themselves.
+("The oldest workspace's owner" was tried first and is worse — measured on the walk database, the
+oldest workspace had no active owner at all, which left the installation with no operator and no
+way to appoint one.)
+
 **A service account may be an operator.** A purchase platform that provisions workspaces needs a
 credential that does not belong to a person who may leave, and the first day of a platform is the
 day that becomes true — not the day plans arrive.

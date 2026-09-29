@@ -2536,6 +2536,7 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
     -- reach it, so a guest who could raise their session would see and use the control plane.
     OR (
       NOT EXISTS (SELECT 1 FROM operator)
+      AND (SELECT count(*) FROM tenant) = 1
       AND EXISTS (
         SELECT 1
         FROM membership m
