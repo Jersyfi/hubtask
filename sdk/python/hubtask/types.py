@@ -395,6 +395,7 @@ class IdentityProvider(TypedDict, total=False):
     enabled: Required[bool]
     offered_here: bool
     allowed_email_domains: Required[list[str]]
+    allowed_directories: Required[list[str]]
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
@@ -417,6 +418,7 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     position: int
     enabled: bool
     allowed_email_domains: list[str]
+    allowed_directories: list[str]
 
 class IdentityProviderPreset(TypedDict, total=False):
     """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
@@ -428,6 +430,8 @@ class IdentityProviderPreset(TypedDict, total=False):
     redirect_uri: Required[str]
     instructions: Required[str]
     particular: str | None
+    directory_claim: str | None
+    supports_templated_issuer: Required[bool]
 
 class InstanceReach(TypedDict, total=False):
     """Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one."""

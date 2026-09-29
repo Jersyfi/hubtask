@@ -50,6 +50,7 @@
   let kind = $state('GENERIC');
   let provisioning = $state('DOMAINS');
   let domains = $state('');
+  let directories = $state('');
   let enabled = $state(true);
   /** The order the buttons are drawn in. Kept rather than shown: a workspace with two providers
       orders them by adding them, and a control for it would be a control for a list of two. */
@@ -113,6 +114,7 @@
     kind = 'GENERIC';
     provisioning = 'DOMAINS';
     domains = '';
+    directories = '';
     enabled = true;
     position = identityProvider.own.length;
     failure = undefined;
@@ -129,6 +131,7 @@
     kind = provider.kind;
     provisioning = provider.provisioning;
     domains = (provider.allowed_email_domains ?? []).join('\n');
+    directories = (provider.allowed_directories ?? []).join('\n');
     enabled = provider.enabled;
     position = provider.position;
     failure = undefined;
@@ -154,6 +157,7 @@
       position,
       enabled,
       allowed_email_domains: readDomains(domains),
+      allowed_directories: readDomains(directories),
     };
     // Sent only when it was typed. An empty string and an absent field are two different requests:
     // absent keeps the sealed one, and that is the contract's promise rather than this screen's rule.
@@ -428,13 +432,33 @@
               bind:value={provisioning}
             />
             {#if provisioning === 'DOMAINS'}
-              <Textarea
-                label={t('app.identity_provider.domains_label')}
-                hint={t('app.identity_provider.domains_hint')}
-                bind:value={domains}
-                rows={3}
-                spellcheck={false}
-              />
+              <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which
+                   it is comes from the preset's `directory_claim`: a provider that names
+                   organisations is admitted on the organisation, and one that does not has nothing
+                   but the address's domain. Drawing both would draw one that is ignored. -->
+              {#if preset?.directory_claim}
+                <Textarea
+                  label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
+                  hint={t(`app.identity_provider.directories_hint_${preset.directory_claim}`)}
+                  bind:value={directories}
+                  rows={3}
+                  spellcheck={false}
+                />
+              {:else}
+                <Textarea
+                  label={t('app.identity_provider.domains_label')}
+                  hint={t('app.identity_provider.domains_hint')}
+                  bind:value={domains}
+                  rows={3}
+                  spellcheck={false}
+                />
+              {/if}
+            {/if}
+            {#if preset?.supports_templated_issuer}
+              <!-- Said where the issuer is typed rather than after a refusal: the shared endpoints
+                   are what make one registration serve many customers, and they are also what needs
+                   the directories named. -->
+              <Banner tone="info">{t('app.identity_provider.shared_endpoint')}</Banner>
             {/if}
             <Switch
               label={t('app.identity_provider.enabled_label')}

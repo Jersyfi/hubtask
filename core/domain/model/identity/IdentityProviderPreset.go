@@ -57,6 +57,30 @@ type ProviderPreset struct {
 	// reading of "cannot know" is the one that does not give away an account.
 	AddressesVerified bool
 
+	// DirectoryClaim is the claim that names the organisation a person belongs to, as this
+	// provider calls it: `tid` at Microsoft, `hd` at Google.
+	//
+	// **It is what admission is decided on**, and the reason is that both providers say so in their
+	// own words. Google: "The domain of the email claim is insufficient to ensure that the account
+	// is managed by a domain or organization - you must verify the `hd` claim explicitly."
+	// Microsoft: the `email` claim "isn't guaranteed to be correct and is mutable over time - never
+	// use it for authorization". An address is a name; a directory is a fact the provider vouched
+	// for (ADR-0071 §1).
+	//
+	// Empty is GENERIC, and it stays empty: there is no claim in OIDC core that means this, and
+	// inventing one for an issuer this installation knows nothing about would be a guess. A GENERIC
+	// provider therefore admits on `allowed_email_domains`, which is all its token offers.
+	DirectoryClaim string
+
+	// IssuerTemplates are the issuer strings this preset accepts with a `{tenantid}` placeholder
+	// in them — the multi-directory endpoints (ADR-0071 §3).
+	//
+	// Microsoft publishes one: the discovery document at `/common/v2.0` answers
+	// `https://login.microsoftonline.com/{tenantid}/v2.0`, and documents the rule — substitute the
+	// token's `tid` and compare exactly. This field is what says the preset knows that shape; the
+	// substitution itself is the adapter's, and what decides who comes in is the directory list.
+	SupportsTemplatedIssuer bool
+
 	// Public is whether anybody in the world can hold an account at this issuer.
 	//
 	// A public provider may **only** be INVITED_ONLY, and the rule is not an operator's to relax:
@@ -92,9 +116,10 @@ var providerPresets = []ProviderPreset{
 		// One issuer for every Google account there is, private ones included. The `hd` claim is
 		// how a token says which domain it came from - and this installation does not read it,
 		// because INVITED_ONLY makes the question moot: the account has to exist here already.
-		Public:       true,
-		Particular:   "identity_provider.preset.google.particular",
-		Instructions: "identity_provider.preset.google.instructions",
+		DirectoryClaim: "hd",
+		Public:         true,
+		Particular:     "identity_provider.preset.google.particular",
+		Instructions:   "identity_provider.preset.google.instructions",
 	},
 	{
 		Kind: KindMicrosoft,
@@ -105,11 +130,15 @@ var providerPresets = []ProviderPreset{
 		Scopes:            []string{"openid", "email", "profile"},
 		AddressesVerified: true,
 		Public:            false,
-		// `common` is the multi-directory endpoint, and a token minted behind it names the
-		// *directory* in `iss` - never `common`. ADR-0036 compares the issuer exactly and is not
-		// weakened for one provider, so the configuration has to name the directory.
-		Particular:   "identity_provider.preset.microsoft.particular",
-		Instructions: "identity_provider.preset.microsoft.instructions",
+		DirectoryClaim:    "tid",
+		// `common` and `organizations` are the multi-directory endpoints, and a token minted behind
+		// one names the *directory* in `iss` - never `common`. Microsoft publishes the issuer as a
+		// template and documents the rule: substitute the token's `tid` and compare exactly. That
+		// keeps ADR-0036 §2's comparison exact and moves the question of *which* directories may
+		// come in to where it belongs — `allowed_directories` (ADR-0071 §3).
+		SupportsTemplatedIssuer: true,
+		Particular:              "identity_provider.preset.microsoft.particular",
+		Instructions:            "identity_provider.preset.microsoft.instructions",
 	},
 	{
 		Kind:              KindGeneric,
@@ -138,10 +167,14 @@ func PresetOf(kind ProviderKind) (ProviderPreset, bool) {
 	return ProviderPreset{}, false
 }
 
-// microsoftCommonSegment is the path segment of the multi-directory endpoint. A configuration that
-// names it is refused rather than saved: every sign-in through it would fail the issuer check, and
-// the place to say so is the form.
-const microsoftCommonSegment = "/common"
+// microsoftMultiDirectorySegments are the addresses that stand for *many* directories rather than
+// one (ADR-0071 §3).
+//
+// `/consumers` is deliberately not among them: it publishes one fixed directory - the one personal
+// Microsoft accounts live in - so a row pointed at it is already bounded to exactly that, and
+// asking for a list on top would be asking somebody to type a GUID the endpoint already answered.
+// It is the configuration for "a private person signs in with their own Microsoft account".
+var microsoftMultiDirectorySegments = []string{"/common", "/organizations"}
 
 // ParseProviderKind reads a kind and refuses what is not one.
 func ParseProviderKind(raw string) (ProviderKind, error) {

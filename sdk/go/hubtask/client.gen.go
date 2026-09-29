@@ -5206,7 +5206,11 @@ type HttpRequestCallMethod string
 
 // IdentityProvider One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
 type IdentityProvider struct {
-	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
+	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain ([ADR-0071](https://github.com/Jersyfi/hubtask/blob/main/docs/adr/ADR-0071-provider-admission.md)).
+	// **This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.
+	AllowedDirectories []string `json:"allowed_directories"`
+
+	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
 	// ClientId This installation's registration with the provider.
@@ -5250,7 +5254,11 @@ type IdentityProviderScope string
 
 // IdentityProviderConfiguration The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in.
 type IdentityProviderConfiguration struct {
-	// AllowedEmailDomains Domains a verified address may claim within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
+	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids (`9188040d-6c67-4c5b-b112-36a304b66dad` is personal Microsoft accounts), Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list.
+	// **Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0` with no directories named is every organisation in the world, and that is a decision rather than a default.
+	AllowedDirectories *[]string `json:"allowed_directories,omitempty"`
+
+	// AllowedEmailDomains Domains this provider admits under `DOMAINS`, for a preset with no directory claim. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
 	AllowedEmailDomains *[]string `json:"allowed_email_domains,omitempty"`
 	ClientId            string    `json:"client_id"`
 
@@ -5278,6 +5286,9 @@ type IdentityProviderPreset struct {
 	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know, and the safe reading of "cannot know" is the one that does not give away an account. It is what decides whether `INVITED_ONLY` is available.
 	AddressesVerified bool `json:"addresses_verified"`
 
+	// DirectoryClaim The claim this provider names an organisation in: `tid` at Microsoft, `hd` at Google. Absent for a provider that has none, and that is what decides whether `DOMAINS` reads `allowed_directories` or `allowed_email_domains` — so a screen asks for the one the server will actually consult.
+	DirectoryClaim *string `json:"directory_claim,omitempty"`
+
 	// Instructions A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
 	Instructions string `json:"instructions"`
 
@@ -5298,6 +5309,9 @@ type IdentityProviderPreset struct {
 
 	// Scopes What the authorization request asks for, and what the registration must permit.
 	Scopes []string `json:"scopes"`
+
+	// SupportsTemplatedIssuer Whether this provider publishes a multi-directory issuer with a `{tenantid}` placeholder. Where it does, its shared endpoints can be configured, and naming the directories is then required rather than optional.
+	SupportsTemplatedIssuer bool `json:"supports_templated_issuer"`
 }
 
 // IdentityProviderProvisioning Who this provider may admit, and what happens to whoever it admitted - the one axis with a security answer, because creating an account gives somebody an empty desk and claiming one gives them somebody else's.

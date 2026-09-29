@@ -87,7 +87,10 @@ type IdentityProvider struct {
 	Provisioning        Provisioning
 	Position            int
 	AllowedEmailDomains []string
-	Enabled             bool
+	// AllowedDirectories are the organisations this row admits, in the provider's own identifiers
+	// (ADR-0071 §2). Read instead of the domains where the preset has a directory claim.
+	AllowedDirectories []string
+	Enabled            bool
 	// OfferedHere is whether this provider is a way into the workspace that is reading it. Not a
 	// column: for a workspace's own row it *is* `Enabled`, and for the installation's it is the
 	// reading workspace's own switch, which lives in its settings (SI-10).
@@ -114,8 +117,11 @@ type NewIdentityProviderInput struct {
 	Provisioning        string
 	Position            int
 	AllowedEmailDomains []string
-	Enabled             bool
-	Now                 time.Time
+	// AllowedDirectories are the organisations this row admits, in the provider's own identifiers
+	// (ADR-0071 §2). Read instead of the domains where the preset has a directory claim.
+	AllowedDirectories []string
+	Enabled            bool
+	Now                time.Time
 }
 
 // NewIdentityProvider validates a configuration and normalises what has a normal form.
@@ -161,6 +167,20 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		return IdentityProvider{}, err
 	}
 
+	directories, err := normalisedDirectories(in.AllowedDirectories, preset)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
+	// A multi-directory endpoint with nothing naming the directories is every organisation in the
+	// world, and that is a decision rather than a default (ADR-0071 §3). Refused at configuration
+	// so that nobody discovers it by meeting a stranger in their workspace.
+	if multiDirectoryIssuer(issuer) && preset.SupportsTemplatedIssuer && len(directories) == 0 {
+		return IdentityProvider{}, shared.ErrValidation.
+			WithDetail("identity_provider.directories_required").
+			WithParams(map[string]string{"issuer": issuer})
+	}
+
 	if in.Position < 0 || in.Position > MaxProviderPosition {
 		return IdentityProvider{}, shared.ErrValidation.
 			WithDetail("identity_provider.position_invalid").
@@ -175,7 +195,7 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 	return IdentityProvider{
 		ID: in.ID, TenantID: in.TenantID, Issuer: issuer, ClientID: clientID,
 		DisplayName: displayName, Kind: kind, Provisioning: provisioning, Position: in.Position,
-		AllowedEmailDomains: domains, Enabled: in.Enabled,
+		AllowedEmailDomains: domains, AllowedDirectories: directories, Enabled: in.Enabled,
 		CreatedAt: in.Now.UTC(), Version: 1,
 	}, nil
 }
@@ -223,14 +243,58 @@ func resolvedKind(stated, issuer string) (ProviderKind, ProviderPreset, error) {
 			WithDetail("identity_provider.kind_mismatch").
 			WithParams(map[string]string{"kind": string(kind), "issuer": issuer})
 	}
-	// The one provider whose own multi-directory endpoint cannot work here: a token minted behind
-	// it names the directory in `iss`, and ADR-0036 compares that exactly.
-	if kind == KindMicrosoft && multiDirectoryIssuer(issuer) {
+	// A multi-directory endpoint used to be refused here, because ADR-0036 compares `iss` exactly
+	// and a token minted behind `common` names the *directory* rather than `common`. ADR-0071 §3
+	// keeps the exact comparison and changes what it compares against: the issuer template the
+	// provider itself publishes, with the token's `tid` substituted. What the endpoint needs
+	// instead is a bound - `AllowedDirectories` - and that is checked below, where the list is.
+	if kind == KindMicrosoft && multiDirectoryIssuer(issuer) && !preset.SupportsTemplatedIssuer {
 		return "", ProviderPreset{}, shared.ErrValidation.
 			WithDetail("identity_provider.issuer_multi_directory").
 			WithParams(map[string]string{"issuer": issuer})
 	}
 	return kind, preset, nil
+}
+
+// MaxAllowedDirectories bounds the directory list, for the reason the domains list is bounded.
+const MaxAllowedDirectories = 20
+
+// normalisedDirectories checks the list against what the preset can read it as (ADR-0071 §2).
+//
+// A preset with no directory claim has no use for one, and a list on such a row would be a list
+// nothing consults - which is worse than no list, because somebody wrote it believing it bounded
+// something. Refused rather than dropped.
+func normalisedDirectories(raw []string, preset ProviderPreset) ([]string, error) {
+	if len(raw) > MaxAllowedDirectories {
+		return nil, shared.ErrValidation.
+			WithDetail("identity_provider.directories_too_many").
+			WithParams(map[string]string{"limit": strconv.Itoa(MaxAllowedDirectories)})
+	}
+	if len(raw) > 0 && preset.DirectoryClaim == "" {
+		return nil, shared.ErrValidation.
+			WithDetail("identity_provider.directories_unsupported").
+			WithParams(map[string]string{"kind": string(preset.Kind)})
+	}
+
+	seen := map[string]bool{}
+	directories := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		// Lower case and nothing else: a directory identifier is a GUID at one provider and a host
+		// at another, and this package is not the place that knows which. What it refuses is the
+		// shapes that could not be either.
+		directory := strings.ToLower(strings.TrimSpace(entry))
+		if directory == "" || strings.ContainsAny(directory, " /?#%@\\") {
+			return nil, shared.ErrValidation.
+				WithDetail("identity_provider.directory_invalid").
+				WithParams(map[string]string{"directory": strings.TrimSpace(entry)})
+		}
+		if seen[directory] {
+			continue
+		}
+		seen[directory] = true
+		directories = append(directories, directory)
+	}
+	return directories, nil
 }
 
 // multiDirectoryIssuer reports whether an issuer's path is the shared endpoint rather than one
@@ -240,8 +304,12 @@ func multiDirectoryIssuer(issuer string) bool {
 	if err != nil {
 		return false
 	}
-	return parsed.Path == microsoftCommonSegment ||
-		strings.HasPrefix(parsed.Path, microsoftCommonSegment+"/")
+	for _, segment := range microsoftMultiDirectorySegments {
+		if parsed.Path == segment || strings.HasPrefix(parsed.Path, segment+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // resolvedProvisioning reads the mode and holds it to what the preset permits.
@@ -336,19 +404,53 @@ func normalisedDomains(raw []string) ([]string, error) {
 	return domains, nil
 }
 
+// Arriving is what a provider vouched for about the person at the door (ADR-0071 §1).
+//
+// Four facts, and the two new ones are the point. An address is a **name**: `verified` says the
+// provider confirmed delivery to it, and nothing more. A **directory** is a fact the provider
+// vouched for — `tid` at Microsoft, `hd` at Google — and it is the one that says which organisation
+// this person belongs to. Both providers this product presets say in their own documentation that
+// the address is the wrong thing to authorise on.
+type Arriving struct {
+	// Email is the address the token carried.
+	Email string
+	// EmailVerified is the provider's confirmation that mail reaches it.
+	EmailVerified bool
+	// Directory is the provider's identifier for the organisation, empty where the token named
+	// none — a personal account, or an issuer with no such claim.
+	Directory string
+	// AddressAuthoritative is whether the provider vouches for the address **and** the domain it
+	// sits in: Google's `email_verified` together with a matching `hd`, Microsoft's `xms_edov`.
+	//
+	// It is what `INVITED_ONLY` needs, because claiming an account that already exists is done on
+	// the strength of an address, and an address nobody owns the domain of is an assertion.
+	AddressAuthoritative bool
+}
+
 // MayAdmit answers whether this provider may bring an arriving subject into the workspace at all.
 //
 // The first gate, and the one that decides between a refusal and everything else. `MayClaim` and
 // `MayProvision` below say what happens to somebody who got through it.
-func (p IdentityProvider) MayAdmit(email string, verified bool) bool {
-	if !verified || emailDomain(email) == "" {
+//
+// **Under `DOMAINS` the question is the directory where the preset has one** (ADR-0071 §2). Not
+// "prefers" — instead of. Two lists that both admit are two doors, and the weaker one decides which
+// is why the domains list is not consulted at all for a preset that knows better. What it keeps is
+// the one case where it is all there is: a `GENERIC` issuer, whose token offers no directory claim
+// and never will.
+func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
+	if !arriving.EmailVerified || emailDomain(arriving.Email) == "" {
 		return false
 	}
 	switch p.Provisioning {
-	case ProvisionInvitedOnly, ProvisionAny:
+	case ProvisionInvitedOnly:
+		// Claiming an account that already exists is done on the strength of an address, so the
+		// address has to be one the provider owns the domain of. A personal account with a
+		// verified address at somebody else's domain is precisely the case this refuses.
+		return arriving.AddressAuthoritative
+	case ProvisionAny:
 		return true
 	case ProvisionDomains:
-		return p.linksDomain(email)
+		return p.admitsDirectoryOf(arriving)
 	default:
 		// A mode this build does not understand admits nobody. A row written by a newer one is a
 		// row this one does not act on, which is the only safe reading of it.
@@ -356,13 +458,39 @@ func (p IdentityProvider) MayAdmit(email string, verified bool) bool {
 	}
 }
 
+// admitsDirectoryOf is `DOMAINS`, read against whichever thing this preset can be sure of.
+func (p IdentityProvider) admitsDirectoryOf(arriving Arriving) bool {
+	preset, known := PresetOf(p.Kind)
+	if known && preset.DirectoryClaim != "" {
+		// The preset has a directory claim, so the directory list is the gate — and an empty list
+		// admits nobody, exactly as an empty domains list does. A row migrated from before
+		// ADR-0071 has domains and no directories and therefore admits nobody until an
+		// administrator names one; failing closed is the only direction that does not hand out
+		// accounts, and the screen says so rather than leaving it to be discovered.
+		return arriving.Directory != "" && containsFold(p.AllowedDirectories, arriving.Directory)
+	}
+	return p.linksDomain(arriving.Email)
+}
+
+// containsFold is the comparison both lists use: a directory identifier is a GUID or a host, and
+// neither has a case somebody typed on purpose.
+func containsFold(list []string, value string) bool {
+	for _, each := range list {
+		if strings.EqualFold(each, value) {
+			return true
+		}
+	}
+	return false
+}
+
 // MayClaim answers whether an admitted subject may take over an account that already exists.
 //
-// True in every mode, because admission already required an address the provider vouched for and,
-// under DOMAINS, one inside the configured list. What differs between the modes is who is admitted,
-// not what an admitted person may do - which is the whole of the concept's reading.
-func (p IdentityProvider) MayClaim(email string, verified bool) bool {
-	return p.MayAdmit(email, verified)
+// True in every mode, because admission already asked the harder question: under `INVITED_ONLY`
+// that the provider owns the address's domain, and under `DOMAINS` that the person comes from a
+// directory this row names. What differs between the modes is who is admitted, not what an
+// admitted person may do - which is the whole of the concept's reading.
+func (p IdentityProvider) MayClaim(arriving Arriving) bool {
+	return p.MayAdmit(arriving)
 }
 
 // MayProvision answers whether an admitted subject with no account here gets one.

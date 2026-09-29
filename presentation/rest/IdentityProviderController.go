@@ -171,6 +171,9 @@ func (c *RestController) writeProvider(
 	if body.AllowedEmailDomains != nil {
 		in["allowed_email_domains"] = *body.AllowedEmailDomains
 	}
+	if body.AllowedDirectories != nil {
+		in["allowed_directories"] = *body.AllowedDirectories
+	}
 	if body.Enabled != nil {
 		in["enabled"] = *body.Enabled
 	}
@@ -260,12 +263,16 @@ func identityProviderResponse(out usecase.Output) openapi.IdentityProvider {
 		Kind:                openapi.IdentityProviderKind(out.String("kind")),
 		Provisioning:        openapi.IdentityProviderProvisioning(out.String("provisioning")),
 		AllowedEmailDomains: []string{},
+		AllowedDirectories:  []string{},
 	}
 	if position, held := out["position"].(int); held {
 		answer.Position = position
 	}
 	if domains, held := out["allowed_email_domains"].([]string); held {
 		answer.AllowedEmailDomains = domains
+	}
+	if directories, held := out["allowed_directories"].([]string); held {
+		answer.AllowedDirectories = directories
 	}
 	if enabled, held := out["enabled"].(bool); held {
 		answer.Enabled = enabled
@@ -308,6 +315,12 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 	}
 	if particular := out.String("particular"); particular != "" {
 		answer.Particular = &particular
+	}
+	if claim := out.String("directory_claim"); claim != "" {
+		answer.DirectoryClaim = &claim
+	}
+	if templated, held := out["supports_templated_issuer"].(bool); held {
+		answer.SupportsTemplatedIssuer = templated
 	}
 	return answer
 }

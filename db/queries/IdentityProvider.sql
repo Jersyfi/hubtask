@@ -12,7 +12,7 @@
 -- read policy admits together (migration 0103). The workspace's come first - its own choices sit
 -- above the default it inherited - and the sealed secret is in none of it.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 FROM identity_provider
 ORDER BY (tenant_id IS NULL), position, created_at, id;
 
@@ -20,7 +20,7 @@ ORDER BY (tenant_id IS NULL), position, created_at, id;
 -- What a reader is allowed to see: never the sealed secret. The one caller that needs it asks for
 -- it by name below, so a read cannot spill it by accident.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -28,7 +28,7 @@ WHERE id = sqlc.arg('id');
 -- The token exchange's own read, separate from the one above so that opening the envelope is a
 -- deliberate call and not a field that happens to be in a struct somebody logged.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  client_secret_enc, client_secret_key_id, allowed_email_domains, enabled
+  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -44,15 +44,17 @@ SELECT count(*) FROM identity_provider WHERE tenant_id = current_tenant_id();
 -- nobody. A caller cannot choose which, because there is nothing to pass.
 INSERT INTO identity_provider
   (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
-   display_name, kind, provisioning, position, allowed_email_domains, enabled, created_at)
+   display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
+   enabled, created_at)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('issuer'), sqlc.arg('client_id'),
   sqlc.arg('client_secret_enc'), sqlc.arg('client_secret_key_id'),
   sqlc.arg('display_name'), sqlc.arg('kind'), sqlc.arg('provisioning'), sqlc.arg('position'),
-  sqlc.arg('allowed_email_domains'), sqlc.arg('enabled'), sqlc.arg('now')
+  sqlc.arg('allowed_email_domains'), sqlc.arg('allowed_directories'),
+  sqlc.arg('enabled'), sqlc.arg('now')
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version;
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version;
 
 -- name: UpdateIdentityProvider :one
 -- Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
@@ -71,12 +73,13 @@ UPDATE identity_provider SET
   provisioning          = sqlc.arg('provisioning'),
   position              = sqlc.arg('position'),
   allowed_email_domains = sqlc.arg('allowed_email_domains'),
+  allowed_directories   = sqlc.arg('allowed_directories'),
   enabled               = sqlc.arg('enabled'),
   updated_at            = sqlc.arg('now'),
   version               = version + 1
 WHERE id = sqlc.arg('id')
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version;
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version;
 
 -- name: DeleteIdentityProvider :execrows
 DELETE FROM identity_provider WHERE id = sqlc.arg('id');

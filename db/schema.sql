@@ -490,6 +490,7 @@ CREATE TABLE identity_provider (
                           CHECK (provisioning IN ('INVITED_ONLY', 'DOMAINS', 'ANY')),
   position              integer NOT NULL DEFAULT 0,
   allowed_email_domains text[] NOT NULL DEFAULT '{}',
+  allowed_directories text[] NOT NULL DEFAULT '{}',
   enabled               boolean NOT NULL DEFAULT true,
   created_at            timestamptz NOT NULL,
   updated_at            timestamptz,

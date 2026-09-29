@@ -65,6 +65,13 @@ type fakeIDP struct {
 	omitIDToken bool
 	// discoveries counts how often the metadata was fetched, for the caching test.
 	discoveries int
+	// published is what the discovery document names as its issuer, which is the server's own
+	// address for every ordinary provider and something else for a multi-directory endpoint.
+	published string
+	// algorithms is what the document says it signs with, empty meaning it says nothing.
+	algorithms []string
+	// extraClaims are put into every token this provider signs.
+	extraClaims map[string]any
 }
 
 func newFakeIDP(t *testing.T) *fakeIDP {
@@ -78,12 +85,16 @@ func newFakeIDP(t *testing.T) *fakeIDP {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 		idp.discoveries++
-		writeJSON(w, map[string]any{
-			"issuer":                 idp.issuer(),
+		document := map[string]any{
+			"issuer":                 idp.publishedIssuer(),
 			"authorization_endpoint": idp.issuer() + "/authorize",
 			"token_endpoint":         idp.issuer() + "/token",
 			"jwks_uri":               idp.issuer() + "/jwks",
-		})
+		}
+		if len(idp.algorithms) > 0 {
+			document["id_token_signing_alg_values_supported"] = idp.algorithms
+		}
+		writeJSON(w, document)
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"keys": []any{map[string]any{
@@ -108,6 +119,15 @@ func newFakeIDP(t *testing.T) *fakeIDP {
 
 func (f *fakeIDP) issuer() string { return f.server.URL }
 
+// publishedIssuer is what the document names, which is the address itself unless a test said
+// otherwise — the multi-directory case, where the endpoint is not the identity.
+func (f *fakeIDP) publishedIssuer() string {
+	if f.published != "" {
+		return f.published
+	}
+	return f.issuer()
+}
+
 // wellFormed is the token every tampering below is a variation of.
 func (f *fakeIDP) wellFormed(now time.Time) idToken {
 	return idToken{
@@ -131,6 +151,9 @@ func (f *fakeIDP) sign(t *testing.T, token idToken) string {
 	}
 	if !token.omitNonce {
 		claims["nonce"] = token.nonce
+	}
+	for name, value := range f.extraClaims {
+		claims[name] = value
 	}
 
 	signing := segment(t, header) + "." + segment(t, claims)

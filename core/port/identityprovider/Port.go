@@ -33,6 +33,9 @@ type Config struct {
 	// taken from a request: a redirect target a caller chooses is how authorization codes end
 	// up somewhere else.
 	RedirectURL string
+	// DirectoryClaim is the claim the adapter reads the organisation out of, as the preset names
+	// it: `tid`, `hd`, or empty where this provider has none (ADR-0071 §1).
+	DirectoryClaim string
 }
 
 // Authorization is what one sign-in needs on its way out. The three unguessable values are drawn
@@ -75,6 +78,19 @@ type Identity struct {
 	EmailVerified bool
 	// DisplayName is what to call them until they say otherwise.
 	DisplayName string
+	// Directory is the provider's own identifier for the organisation this person belongs to:
+	// Microsoft's `tid`, Google's `hd`. Empty where the token named none — a personal account, or
+	// an issuer that has no such claim.
+	//
+	// It is what admission is decided on under DOMAINS (ADR-0071 §1), because an address is a name
+	// and a directory is something the provider vouched for. Which claim carries it is the
+	// preset's, so nothing inwards of the adapter learns a provider's vocabulary.
+	Directory string
+	// AddressAuthoritative is whether the provider vouches for the address **and** the domain it
+	// sits in: Google's `email_verified` together with a matching `hd`, Microsoft's `xms_edov`.
+	// `EmailVerified` alone says mail arrives there, which is not the same claim and not enough to
+	// hand over an account that already exists.
+	AddressAuthoritative bool
 }
 
 // Port is the relying party.

@@ -130,6 +130,7 @@ func (h StartOidcSignIn) Execute(
 	url, err := w.Relying.AuthorizationURL(ctx, provider.Config{
 		Issuer: configured.Issuer, ClientID: configured.ClientID,
 		ClientSecret: sealed, RedirectURL: w.RedirectURL,
+		DirectoryClaim: directoryClaimOf(configured),
 	}, provider.Authorization{
 		State: state.Secret(), Nonce: nonce, CodeVerifier: verifier, LoginHint: cmd.LoginHint,
 	})
@@ -214,6 +215,7 @@ func (h CompleteOidcSignIn) Execute(
 	identity, err := w.Relying.Exchange(ctx, provider.Config{
 		Issuer: configured.Issuer, ClientID: configured.ClientID,
 		ClientSecret: sealed, RedirectURL: w.RedirectURL,
+		DirectoryClaim: directoryClaimOf(configured),
 	}, provider.Exchange{
 		Code: cmd.Code, CodeVerifier: flow.Verifier, Nonce: flow.Nonce,
 	})
@@ -266,7 +268,7 @@ func (w OidcWriter) settleAccount(
 		// into this workspace at all (SI-10, the concept's §8). Under DOMAINS an address outside
 		// the configured list is refused here - not provisioned a desk of its own, which is what
 		// made the mode indistinguishable from ANY.
-		if !configured.MayAdmit(arriving.Email, arriving.EmailVerified) {
+		if !configured.MayAdmit(admissionOf(arriving)) {
 			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
 				return err
 			}
@@ -275,7 +277,7 @@ func (w OidcWriter) settleAccount(
 
 		// Admitted. If an account here already holds the address the provider vouched for, this is
 		// the same person.
-		if configured.MayClaim(arriving.Email, arriving.EmailVerified) {
+		if configured.MayClaim(admissionOf(arriving)) {
 			existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 			switch {
 			case err == nil:
@@ -610,4 +612,30 @@ func (h CompleteOidcSignIn) invoke(
 		return nil, err
 	}
 	return pairOutput(pair), nil
+}
+
+// directoryClaimOf is the preset's name for the claim the adapter reads the organisation out of.
+//
+// Read from the preset rather than stored on the row: it is a property of the provider, not of a
+// workspace's configuration of it, and a column would be a second place for it to be wrong.
+func directoryClaimOf(configured domain.IdentityProvider) string {
+	preset, known := domain.PresetOf(configured.Kind)
+	if !known {
+		return ""
+	}
+	return preset.DirectoryClaim
+}
+
+// admissionOf is the port's identity as the domain's admission question (ADR-0071 §1).
+//
+// A translation and nothing else: the adapter reads whichever claim its preset names and the domain
+// asks about `Directory` and `AddressAuthoritative` without knowing that one provider calls it
+// `tid` and another `hd`. Rule 1 — the domain learns no provider's vocabulary.
+func admissionOf(arriving provider.Identity) domain.Arriving {
+	return domain.Arriving{
+		Email:                arriving.Email,
+		EmailVerified:        arriving.EmailVerified,
+		Directory:            arriving.Directory,
+		AddressAuthoritative: arriving.AddressAuthoritative,
+	}
 }

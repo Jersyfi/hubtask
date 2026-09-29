@@ -156,7 +156,10 @@ type ConfigureIdentityProviderCommand struct {
 	Provisioning        string
 	Position            int
 	AllowedEmailDomains []string
-	Enabled             bool
+	// AllowedDirectories are the organisations this row admits, in the provider's own identifiers
+	// (ADR-0071 §2): Microsoft tenant ids, Google Workspace domains.
+	AllowedDirectories []string
+	Enabled            bool
 }
 
 // Execute validates, asks the provider to prove it exists, seals the secret and stores the lot.
@@ -205,7 +208,8 @@ func (w IdentityProviderWriter) ConfigureAt(
 		ID: id, TenantID: tenantID, Issuer: cmd.Issuer, ClientID: cmd.ClientID,
 		DisplayName: cmd.DisplayName, Kind: cmd.Kind, Provisioning: cmd.Provisioning,
 		Position: cmd.Position, AllowedEmailDomains: cmd.AllowedEmailDomains,
-		Enabled: cmd.Enabled, Now: w.Session.Clock.Now(),
+		AllowedDirectories: cmd.AllowedDirectories,
+		Enabled:            cmd.Enabled, Now: w.Session.Clock.Now(),
 	})
 	if err != nil {
 		return domain.IdentityProvider{}, err
@@ -329,6 +333,8 @@ func (w IdentityProviderWriter) record(
 				To: string(configured.Provisioning)},
 			audit.Change{Field: "allowed_email_domains", Classification: audit.Open,
 				To: strconv.Itoa(len(configured.AllowedEmailDomains))},
+			audit.Change{Field: "allowed_directories", Classification: audit.Open,
+				To: strconv.Itoa(len(configured.AllowedDirectories))},
 			audit.Change{Field: "enabled", Classification: audit.Open,
 				To: strconv.FormatBool(configured.Enabled)})
 	}
@@ -366,6 +372,7 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"position":              configured.Position,
 		"scope":                 providerScope(configured),
 		"allowed_email_domains": configured.AllowedEmailDomains,
+		"allowed_directories":   configured.AllowedDirectories,
 		"enabled":               configured.Enabled,
 		"offered_here":          configured.OfferedHere,
 		"created_at":            configured.CreatedAt,
@@ -407,6 +414,12 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 		"redirect_uri":       redirectURL,
 		"instructions":       preset.Instructions,
 		"provisioning":       provisioningOf(preset),
+		// What a screen needs to ask for the list the server will actually read (ADR-0071 §2),
+		// rather than the one that would be ignored.
+		"supports_templated_issuer": preset.SupportsTemplatedIssuer,
+	}
+	if preset.DirectoryClaim != "" {
+		out["directory_claim"] = preset.DirectoryClaim
 	}
 	if preset.Particular != "" {
 		out["particular"] = preset.Particular
@@ -509,11 +522,13 @@ func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 			{Name: "kind", Kind: usecase.KindString,
 				Description: "The preset: GENERIC, GOOGLE or MICROSOFT. Absent is read from the issuer."},
 			{Name: "provisioning", Kind: usecase.KindString,
-				Description: "INVITED_ONLY, DOMAINS or ANY - how freely an arriving subject may claim an account that already exists."},
+				Description: "INVITED_ONLY, DOMAINS or ANY - who this provider may admit, and what happens to whoever it admitted."},
 			{Name: "position", Kind: usecase.KindInt,
 				Description: "The order the buttons are drawn in."},
 			{Name: "allowed_email_domains", Kind: usecase.KindList,
-				Description: "Domains a verified address may link within, under DOMAINS. Empty links nothing."},
+				Description: "Domains this provider admits under DOMAINS, for a preset with no directory claim. Empty admits nobody."},
+			{Name: "allowed_directories", Kind: usecase.KindList,
+				Description: "The organisations this provider admits under DOMAINS, in its own identifiers: Microsoft tenant ids, Google Workspace domains. Read instead of the domains where the preset has one."},
 			{Name: "enabled", Kind: usecase.KindBool,
 				Description: "Off keeps the configuration and refuses the flow."},
 		},
@@ -549,6 +564,10 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 	if err != nil {
 		return ConfigureIdentityProviderCommand{}, err
 	}
+	directories, err := in.StringList("allowed_directories")
+	if err != nil {
+		return ConfigureIdentityProviderCommand{}, err
+	}
 	enabled := true
 	if in.Present("enabled") {
 		enabled = in.Bool("enabled")
@@ -562,6 +581,7 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 		Provisioning:        in.String("provisioning"),
 		Position:            in.Int("position"),
 		AllowedEmailDomains: domains,
+		AllowedDirectories:  directories,
 		Enabled:             enabled,
 	}
 	id, err := in.ID("id")

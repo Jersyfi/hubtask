@@ -167,12 +167,12 @@ func TestWhoEachModeAdmits(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := c.provider.MayAdmit(c.email, c.verified); got != c.admitted {
+			if got := c.provider.MayAdmit(Arriving{Email: c.email, EmailVerified: c.verified, AddressAuthoritative: c.verified}); got != c.admitted {
 				t.Errorf("MayAdmit = %v, want %v", got, c.admitted)
 			}
 			// Whoever is admitted may claim; the modes differ in who is admitted, not in what an
 			// admitted person may do.
-			if got := c.provider.MayClaim(c.email, c.verified); got != c.admitted {
+			if got := c.provider.MayClaim(Arriving{Email: c.email, EmailVerified: c.verified, AddressAuthoritative: c.verified}); got != c.admitted {
 				t.Errorf("MayClaim = %v, want %v", got, c.admitted)
 			}
 			if got := c.provider.MayProvision(); got != c.mayProvision {
@@ -211,7 +211,7 @@ func TestAnUnverifiedPresetIsNeverTheInstallationsProvider(t *testing.T) {
 // guessing which of the three it resembles.
 func TestAnUnknownModeAdmitsNobody(t *testing.T) {
 	provider := IdentityProvider{Provisioning: "TOMORROWS_MODE", AllowedEmailDomains: []string{"example.org"}}
-	if provider.MayAdmit("ada@example.org", true) {
+	if provider.MayAdmit(Arriving{Email: "ada@example.org", EmailVerified: true, AddressAuthoritative: true}) {
 		t.Error("a mode this build does not know admitted an address")
 	}
 	if provider.MayProvision() {

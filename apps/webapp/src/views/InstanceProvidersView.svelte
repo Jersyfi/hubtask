@@ -50,6 +50,7 @@
   let displayName = $state('');
   let provisioning = $state('INVITED_ONLY');
   let domains = $state('');
+  let directories = $state('');
   let position = $state('0');
   let isEnabled = $state(true);
 
@@ -113,6 +114,7 @@
       displayName = '';
       provisioning = 'INVITED_ONLY';
       domains = '';
+      directories = '';
       position = '0';
       isEnabled = true;
     }
@@ -124,6 +126,7 @@
       displayName = provider.display_name;
       provisioning = provider.provisioning;
       domains = provider.allowed_email_domains.join(', ');
+      directories = (provider.allowed_directories ?? []).join(', ');
       position = String(provider.position);
       isEnabled = provider.enabled;
     }
@@ -147,10 +150,11 @@
 
   /** The body both the add and the change send, with the secret left out where it is empty. */
   function body(): Parameters<typeof instance.configureProvider>[0] {
-    const list = domains
-      .split(',')
-      .map((each) => each.trim())
-      .filter((each) => each !== '');
+    const split = (written: string) =>
+      written
+        .split(',')
+        .map((each) => each.trim())
+        .filter((each) => each !== '');
     return {
       issuer: issuer.trim(),
       client_id: clientId.trim(),
@@ -160,7 +164,8 @@
       ...(displayName.trim() === '' ? {} : { display_name: displayName.trim() }),
       kind: kind as IdentityProvider['kind'],
       provisioning: provisioning as IdentityProvider['provisioning'],
-      allowed_email_domains: list,
+      allowed_email_domains: split(domains),
+      allowed_directories: split(directories),
       position: Number(position) || 0,
       enabled: isEnabled,
     };
@@ -307,13 +312,31 @@
     />
 
     {#if provisioning === 'DOMAINS'}
-      <Input
-        label={t('app.instance.provider_domains_label')}
-        hint={t('app.instance.provider_domains_hint')}
-        bind:value={domains}
-        autocomplete="off"
-        spellcheck={false}
-      />
+      <!-- The list the server will read, and only that one (ADR-0071 §2). -->
+      {#if preset?.directory_claim}
+        <Input
+          label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
+          hint={t(`app.identity_provider.directories_hint_${preset.directory_claim}`)}
+          bind:value={directories}
+          autocomplete="off"
+          spellcheck={false}
+        />
+      {:else}
+        <Input
+          label={t('app.instance.provider_domains_label')}
+          hint={t('app.instance.provider_domains_hint')}
+          bind:value={domains}
+          autocomplete="off"
+          spellcheck={false}
+        />
+      {/if}
+    {/if}
+    {#if preset?.supports_templated_issuer}
+      <!-- The platform case, said where the issuer is typed: one registration at the provider
+           serving many customers, and the directory list is what bounds it. -->
+      <Banner tone="info" title={t('app.instance.provider_shared_title')}>
+        {t('app.instance.provider_shared')}
+      </Banner>
     {/if}
 
     <Input label={t('app.instance.provider_position_label')} hint={t('app.instance.provider_position_hint')} bind:value={position} type="number" inputmode="numeric" autocomplete="off" />

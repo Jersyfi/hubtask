@@ -12252,6 +12252,7 @@
           "position",
           "enabled",
           "allowed_email_domains",
+          "allowed_directories",
           "created_at",
           "version"
         ],
@@ -12305,7 +12306,14 @@
             "items": {
               "type": "string"
             },
-            "description": "The domains a verified address must be inside for this provider to admit it, under `DOMAINS`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.\n"
+            "description": "The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.\n"
+          },
+          "allowed_directories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain ([ADR-0071](https://github.com/Jersyfi/hubtask/blob/main/docs/adr/ADR-0071-provider-admission.md)).\n**This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.\n"
           },
           "created_at": {
             "type": "string",
@@ -12409,7 +12417,15 @@
               "type": "string"
             },
             "default": [],
-            "description": "Domains a verified address may claim within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.\n"
+            "description": "Domains this provider admits under `DOMAINS`, for a preset with no directory claim. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.\n"
+          },
+          "allowed_directories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids (`9188040d-6c67-4c5b-b112-36a304b66dad` is personal Microsoft accounts), Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list.\n**Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0` with no directories named is every organisation in the world, and that is a decision rather than a default.\n"
           }
         }
       },
@@ -12423,7 +12439,8 @@
           "public",
           "provisioning",
           "redirect_uri",
-          "instructions"
+          "instructions",
+          "supports_templated_issuer"
         ],
         "properties": {
           "kind": {
@@ -12466,6 +12483,17 @@
               "null"
             ],
             "description": "A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.\n"
+          },
+          "directory_claim": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The claim this provider names an organisation in: `tid` at Microsoft, `hd` at Google. Absent for a provider that has none, and that is what decides whether `DOMAINS` reads `allowed_directories` or `allowed_email_domains` — so a screen asks for the one the server will actually consult.\n"
+          },
+          "supports_templated_issuer": {
+            "type": "boolean",
+            "description": "Whether this provider publishes a multi-directory issuer with a `{tenantid}` placeholder. Where it does, its shared endpoints can be configured, and naming the directories is then required rather than optional.\n"
           }
         }
       },

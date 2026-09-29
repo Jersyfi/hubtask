@@ -58,7 +58,7 @@ func (IdentityProviderRepository) List(ctx context.Context) ([]identity.Identity
 	for _, row := range rows {
 		configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 			row.DisplayName, row.Kind, row.Provisioning, row.Position,
-			row.AllowedEmailDomains, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+			row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func (IdentityProviderRepository) Find(
 	}
 	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
-		row.AllowedEmailDomains, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
 }
 
 func (IdentityProviderRepository) FindWithSecret(
@@ -130,7 +130,7 @@ func (IdentityProviderRepository) FindWithSecret(
 	}
 	configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
-		row.AllowedEmailDomains, row.Enabled,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled,
 		pgtype.Timestamptz{}, pgtype.Timestamptz{}, 0)
 	if err != nil {
 		return identity.IdentityProvider{}, crypto.Sealed{}, err
@@ -163,6 +163,7 @@ func (IdentityProviderRepository) Insert(
 		// Bounded by the domain at MaxProviderPosition, two decimal digits.
 		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
 		AllowedEmailDomains: configured.AllowedEmailDomains,
+		AllowedDirectories:  configured.AllowedDirectories,
 		Enabled:             configured.Enabled,
 		Now:                 pgtype.Timestamptz{Time: configured.CreatedAt, Valid: true},
 	})
@@ -178,7 +179,7 @@ func (IdentityProviderRepository) Insert(
 	}
 	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
-		row.AllowedEmailDomains, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
 }
 
 func (IdentityProviderRepository) Update(
@@ -203,6 +204,7 @@ func (IdentityProviderRepository) Update(
 		// Bounded by the domain at MaxProviderPosition, two decimal digits.
 		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
 		AllowedEmailDomains: configured.AllowedEmailDomains,
+		AllowedDirectories:  configured.AllowedDirectories,
 		Enabled:             configured.Enabled,
 		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
 	}
@@ -230,7 +232,7 @@ func (IdentityProviderRepository) Update(
 	}
 	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
-		row.AllowedEmailDomains, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
 	return stored, err == nil, err
 }
 
@@ -258,7 +260,7 @@ func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID) (boo
 // `Installation()` reads.
 func providerFrom(
 	id, tenantID pgtype.UUID, issuer, clientID, displayName, kind, provisioning string,
-	position int32, domains []string, enabled bool,
+	position int32, domains, directories []string, enabled bool,
 	createdAt, updatedAt pgtype.Timestamptz, version int32,
 ) (identity.IdentityProvider, error) {
 	key, err := idFrom(id)
@@ -282,6 +284,7 @@ func providerFrom(
 		Provisioning:        identity.Provisioning(provisioning),
 		Position:            int(position),
 		AllowedEmailDomains: domains,
+		AllowedDirectories:  directories,
 		Enabled:             enabled,
 		CreatedAt:           createdAt.Time,
 		UpdatedAt:           updatedAt.Time,

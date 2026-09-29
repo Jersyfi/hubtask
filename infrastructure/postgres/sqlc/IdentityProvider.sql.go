@@ -147,7 +147,7 @@ func (q *Queries) FindAccountByProviderSubject(ctx context.Context, arg FindAcco
 
 const findIdentityProviderByID = `-- name: FindIdentityProviderByID :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 FROM identity_provider
 WHERE id = $1
 `
@@ -162,6 +162,7 @@ type FindIdentityProviderByIDRow struct {
 	Provisioning        string
 	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
@@ -183,6 +184,7 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 		&i.Provisioning,
 		&i.Position,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -193,7 +195,7 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 
 const findIdentityProviderSecret = `-- name: FindIdentityProviderSecret :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  client_secret_enc, client_secret_key_id, allowed_email_domains, enabled
+  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled
 FROM identity_provider
 WHERE id = $1
 `
@@ -210,6 +212,7 @@ type FindIdentityProviderSecretRow struct {
 	ClientSecretEnc     []byte
 	ClientSecretKeyID   string
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 }
 
@@ -230,6 +233,7 @@ func (q *Queries) FindIdentityProviderSecret(ctx context.Context, id pgtype.UUID
 		&i.ClientSecretEnc,
 		&i.ClientSecretKeyID,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
 	)
 	return i, err
@@ -238,15 +242,17 @@ func (q *Queries) FindIdentityProviderSecret(ctx context.Context, id pgtype.UUID
 const insertIdentityProvider = `-- name: InsertIdentityProvider :one
 INSERT INTO identity_provider
   (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
-   display_name, kind, provisioning, position, allowed_email_domains, enabled, created_at)
+   display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
+   enabled, created_at)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5,
   $6, $7, $8, $9,
-  $10, $11, $12
+  $10, $11,
+  $12, $13
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 `
 
 type InsertIdentityProviderParams struct {
@@ -260,6 +266,7 @@ type InsertIdentityProviderParams struct {
 	Provisioning        string
 	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	Now                 pgtype.Timestamptz
 }
@@ -274,6 +281,7 @@ type InsertIdentityProviderRow struct {
 	Provisioning        string
 	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
@@ -296,6 +304,7 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		arg.Provisioning,
 		arg.Position,
 		arg.AllowedEmailDomains,
+		arg.AllowedDirectories,
 		arg.Enabled,
 		arg.Now,
 	)
@@ -310,6 +319,7 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		&i.Provisioning,
 		&i.Position,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -424,7 +434,7 @@ func (q *Queries) ListIdentityProviderSecrets(ctx context.Context) ([]ListIdenti
 const listIdentityProviders = `-- name: ListIdentityProviders :many
 
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 FROM identity_provider
 ORDER BY (tenant_id IS NULL), position, created_at, id
 `
@@ -439,6 +449,7 @@ type ListIdentityProvidersRow struct {
 	Provisioning        string
 	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
@@ -475,6 +486,7 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 			&i.Provisioning,
 			&i.Position,
 			&i.AllowedEmailDomains,
+			&i.AllowedDirectories,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -529,12 +541,13 @@ UPDATE identity_provider SET
   provisioning          = $7,
   position              = $8,
   allowed_email_domains = $9,
-  enabled               = $10,
-  updated_at            = $11,
+  allowed_directories   = $10,
+  enabled               = $11,
+  updated_at            = $12,
   version               = version + 1
-WHERE id = $12
+WHERE id = $13
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
-  allowed_email_domains, enabled, created_at, updated_at, version
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 `
 
 type UpdateIdentityProviderParams struct {
@@ -547,6 +560,7 @@ type UpdateIdentityProviderParams struct {
 	Provisioning        string
 	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	Now                 pgtype.Timestamptz
 	ID                  pgtype.UUID
@@ -562,6 +576,7 @@ type UpdateIdentityProviderRow struct {
 	Provisioning        string
 	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
@@ -585,6 +600,7 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		arg.Provisioning,
 		arg.Position,
 		arg.AllowedEmailDomains,
+		arg.AllowedDirectories,
 		arg.Enabled,
 		arg.Now,
 		arg.ID,
@@ -600,6 +616,7 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		&i.Provisioning,
 		&i.Position,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,

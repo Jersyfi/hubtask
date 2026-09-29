@@ -144,7 +144,7 @@ func TestWhenAnArrivingAddressIsAdmittedUnderDomains(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := provider.MayAdmit(c.email, c.verified); got != c.want {
+			if got := provider.MayAdmit(Arriving{Email: c.email, EmailVerified: c.verified, AddressAuthoritative: c.verified}); got != c.want {
 				t.Errorf("MayAdmit(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
 			}
 		})
@@ -159,10 +159,10 @@ func TestNoConfiguredDomainsAdmitsNobody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	if provider.MayAdmit("ada@example.org", true) {
+	if provider.MayAdmit(Arriving{Email: "ada@example.org", EmailVerified: true, AddressAuthoritative: true}) {
 		t.Error("an address was admitted against an empty domain list")
 	}
-	if provider.MayClaim("ada@example.org", true) {
+	if provider.MayClaim(Arriving{Email: "ada@example.org", EmailVerified: true, AddressAuthoritative: true}) {
 		t.Error("an address claimed an account against an empty domain list")
 	}
 }
