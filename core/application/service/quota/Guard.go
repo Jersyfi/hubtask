@@ -40,7 +40,11 @@ func (g Guard) limits(ctx context.Context) (Limits, error) {
 	if err != nil {
 		return Limits{}, err
 	}
-	return Resolve(overrides, g.Tenancy), nil
+	instance, err := g.Store.InstanceOverrides(ctx)
+	if err != nil {
+		return Limits{}, err
+	}
+	return Resolve(overrides, instance, g.Tenancy), nil
 }
 
 // check is every capacity quota's shape: resolve, count, report the ratio, refuse at the wall.

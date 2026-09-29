@@ -96,6 +96,40 @@ func (q *Queries) InstanceCensus(ctx context.Context) (InstanceCensusRow, error)
 	return i, err
 }
 
+const instanceQuotaDefaults = `-- name: InstanceQuotaDefaults :many
+SELECT key, value FROM instance_setting WHERE key LIKE 'quota.%'
+`
+
+type InstanceQuotaDefaultsRow struct {
+	Key   string
+	Value []byte
+}
+
+// What the installation set as the default ceiling for each quota, which every workspace that set
+// nothing of its own falls back to (ADR-0070 §2, the concept's §6.7).
+//
+// `instance_setting` carries no row level security — that is its documented exception — so this
+// read works inside a tenant's own transaction, where the quota guard runs.
+func (q *Queries) InstanceQuotaDefaults(ctx context.Context) ([]InstanceQuotaDefaultsRow, error) {
+	rows, err := q.db.Query(ctx, instanceQuotaDefaults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InstanceQuotaDefaultsRow{}
+	for rows.Next() {
+		var i InstanceQuotaDefaultsRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const isOperator = `-- name: IsOperator :one
 SELECT is_operator($1)
 `

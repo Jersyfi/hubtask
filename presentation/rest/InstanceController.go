@@ -69,6 +69,12 @@ func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Re
 	if body.Legal != nil {
 		in["legal"] = instanceSettingMap(*body.Legal)
 	}
+	if body.Localisation != nil {
+		in["localisation"] = instanceSettingMap(*body.Localisation)
+	}
+	if body.Quotas != nil {
+		in["quotas"] = instanceSettingMap(*body.Quotas)
+	}
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
 	}
@@ -181,6 +187,12 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if legal := instanceSettingsOf(out["legal"]); legal != nil {
 		answer.Legal = &legal
+	}
+	if localisation := instanceSettingsOf(out["localisation"]); localisation != nil {
+		answer.Localisation = &localisation
+	}
+	if quotas := instanceSettingsOf(out["quotas"]); quotas != nil {
+		answer.Quotas = &quotas
 	}
 	if file := out.String("blocklist_file"); file != "" {
 		answer.BlocklistFile = &file

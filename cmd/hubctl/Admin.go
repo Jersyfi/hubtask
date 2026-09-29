@@ -13,7 +13,13 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The control plane (H-06): provisioning, the lifecycle, and the archive a workspace leaves with.
+// The control plane (H-06, SI-17): provisioning, the lifecycle, the archive a workspace leaves
+// with — and since ADR-0070 §5 the instance level too, which is the second of its three doors.
+//
+// "Ein Betreiber wählt seine Tür, nicht seinen Funktionsumfang": every verb the dashboard has is
+// here. `settings` for the values and their locks, `operator` for the register, `provider` for the
+// ways in this installation offers, and `legal` is `settings` under its own area rather than a
+// group of its own — four links are not a noun.
 //
 // It is the one legitimate tenant enumerator, and it is reached with a credential no session
 // carries: a personal access token minted for `admin:tenants`, behind a step-up (0.6.0 decision
@@ -38,6 +44,24 @@ func adminGroup() group {
 				// The export waits on a job, and `--timeout` bounds one call rather than one
 				// piece of work.
 				waits: true,
+			},
+			{
+				name:    "settings",
+				usage:   "show|set|clear …",
+				summary: "the values this installation decided for every workspace on it",
+				run:     adminSettings,
+			},
+			{
+				name:    "operator",
+				usage:   "ls|add|rm …",
+				summary: "who may run this installation",
+				run:     adminOperator,
+			},
+			{
+				name:    "provider",
+				usage:   "ls|add|rm …",
+				summary: "the ways in this installation offers every workspace",
+				run:     adminProvider,
 			},
 			{
 				name:    "encryption",

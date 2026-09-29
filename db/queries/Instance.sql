@@ -69,3 +69,11 @@ SELECT workspaces_active::bigint, workspaces_suspended::bigint,
        workspaces_pending_deletion::bigint,
        accounts_active::bigint, accounts_total::bigint
 FROM instance_census();
+
+-- name: InstanceQuotaDefaults :many
+-- What the installation set as the default ceiling for each quota, which every workspace that set
+-- nothing of its own falls back to (ADR-0070 §2, the concept's §6.7).
+--
+-- `instance_setting` carries no row level security — that is its documented exception — so this
+-- read works inside a tenant's own transaction, where the quota guard runs.
+SELECT key, value FROM instance_setting WHERE key LIKE 'quota.%';

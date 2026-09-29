@@ -43,7 +43,7 @@ func TestTheResolutionLaysOverridesOverTheModesColumn(t *testing.T) {
 	resolved := Resolve(repository.Overrides{
 		Items:          ceiling(1_000),
 		WebhookTargets: ceiling(Unlimited),
-	}, env.TenancyMulti)
+	}, repository.Overrides{}, env.TenancyMulti)
 	if resolved.Items != 1_000 {
 		t.Errorf("the override lost: %d", resolved.Items)
 	}
@@ -83,10 +83,17 @@ func TestTheCapacityRefusalNamesTheQuotaAndTheCeiling(t *testing.T) {
 
 type storeFake struct {
 	overrides repository.Overrides
+	// instance is the installation's level, left empty by the cases that measure a workspace's
+	// own against the product's defaults.
+	instance repository.Overrides
 }
 
 func (s *storeFake) Overrides(context.Context) (repository.Overrides, error) {
 	return s.overrides, nil
+}
+
+func (s *storeFake) InstanceOverrides(context.Context) (repository.Overrides, error) {
+	return s.instance, nil
 }
 
 func (s *storeFake) SetOverrides(
@@ -405,5 +412,48 @@ func TestTheAiBudgetMeasuresACalendarDay(t *testing.T) {
 	}
 	if usage.meteredMetric != AiTokensPerDay {
 		t.Errorf("the budget counted %q", usage.meteredMetric)
+	}
+}
+
+// The three levels, in the order §6.7 fixes once and for all: the product's table, then the
+// installation's, then the workspace's own. What each of the three cases below is about is a
+// different one of them winning, because "the installation sets a default" and "the installation
+// decides" are different products.
+func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
+	product := Defaults(env.TenancyMulti)
+
+	// Nothing set anywhere: the product's table, untouched.
+	if bare := Resolve(repository.Overrides{}, repository.Overrides{}, env.TenancyMulti); bare != product {
+		t.Errorf("an empty resolution moved the product's defaults: %+v", bare)
+	}
+
+	// The installation alone: its ceiling replaces the product's for every workspace.
+	installation := repository.Overrides{
+		ExportJobs:     ceiling(9),
+		AiTokensPerDay: ceiling(50_000),
+	}
+	inherited := Resolve(repository.Overrides{}, installation, env.TenancyMulti)
+	if inherited.ExportJobs != 9 || inherited.AiTokensPerDay != 50_000 {
+		t.Errorf("the installation's defaults did not reach a workspace that set nothing: %+v", inherited)
+	}
+	if inherited.APIRequestsPerMinute != product.APIRequestsPerMinute {
+		t.Errorf("a quota the installation left alone moved: %d", inherited.APIRequestsPerMinute)
+	}
+
+	// And the workspace's own is still the last word - which is the half that would be lost by
+	// applying the two in the other order.
+	own := Resolve(repository.Overrides{ExportJobs: ceiling(1)}, installation, env.TenancyMulti)
+	if own.ExportJobs != 1 {
+		t.Errorf("a workspace's own exception lost to the installation's default: %d", own.ExportJobs)
+	}
+	if own.AiTokensPerDay != 50_000 {
+		t.Errorf("the installation's default was dropped by an unrelated exception: %d", own.AiTokensPerDay)
+	}
+
+	// A configured unlimited at the installation is a decision, not an absence: it has to beat a
+	// bounded product default, which is the case a `!= 0` test would get wrong.
+	unbounded := Resolve(repository.Overrides{}, repository.Overrides{ExportJobs: ceiling(Unlimited)}, env.TenancyMulti)
+	if unbounded.ExportJobs != Unlimited {
+		t.Errorf("an installation's configured unlimited lost to the default: %d", unbounded.ExportJobs)
 	}
 }

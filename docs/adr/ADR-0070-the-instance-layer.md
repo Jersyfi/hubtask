@@ -222,10 +222,15 @@ seven screens rather than five — the providers and the key ring's census joine
 control plane serves has a control, and `instance.reachable` in `/meta/capabilities` decides whether
 the area is offered at all.
 
-**Not built, each its own task.** `hubctl admin settings|operator|legal|provider`.
-`HUBTASK_INSTANCE_FILE` in either mode, and therefore the health report's line saying which source
-is in force — the instance values screen reads `source` and will say which door is in force the day
-there is more than one.
+**All three doors are built since SI-17's second round.** `hubctl admin settings|operator|provider`
+— `legal` is `settings` under its own area rather than a group of its own, because four links are
+not a noun — and `HUBTASK_INSTANCE_FILE` in both modes, with `HUBTASK_INSTANCE_FILE_MODE` choosing
+between them. The file goes through `WriteInstanceSettings` exactly as the other two doors do, which
+is "drei Türen, eine API" meant literally: one set of refusals covers all three, and a value a file
+may set is a value the API accepts. `enforce` refuses the writing routes while it is in force, with
+the path in the refusal.
+
+**Not built, and each its own task.** Nothing of §5 remains.
 
 **And one gap the plural providers opened.** The installation's own provider holds a sealed client
 secret, and the re-seal's driver runs the resealers per tenant (`RunReseal` takes the actor's
@@ -244,7 +249,7 @@ first request; nothing here forecloses it.
 
 ## What the implementation settled
 
-Three things decided while SI-05 and SI-06 were built, and five more while SI-10 and SI-17 were.
+Three things decided while SI-05 and SI-06 were built, and seven more while SI-10 and SI-17 were.
 
 1. **The operator register keys on the account alone, and lives behind four functions.** §1 does not
    say how it is reached. It carries no row-level policy *and* no grant to the application role:
@@ -281,7 +286,19 @@ Three things decided while SI-05 and SI-06 were built, and five more while SI-10
    shipped the other would be shipping the control plane by accident. It is drawn by the *same*
    section column as the other two, which is §5's "not a second frame" kept literally.
 
-6. **What the dashboard may write is the server's answer, never the screen's guess.** §5's
+6. **The instance level is four areas, and two of them are different in kind.** §5.3's table names
+   the sign-in switches, the legal links, the quotas and the localisation defaults. A lock is
+   meaningful on a ceiling — "Tarif, Ausnahme je Bereich" — and **forbidden** on a language, which
+   §5.7 says in its own words: "eine Instanz gibt einen Standard, nie ein Schloss". So
+   `LocalisationDefaults` has nowhere to put a lock and a write that carries one is refused rather
+   than partly obeyed. A type that cannot hold the thing cannot grow it by accident.
+
+7. **The quota level resolves as `Effective(product, instance, plan, workspace)` from the first
+   day.** §6.7 asks for exactly that, with `plan = nil` until there are plans, and `Resolve` takes
+   the installation's overrides as a second value rather than a fourth level added later. A
+   workspace's own exception is still the last word; what changed is what it is an exception *to*.
+
+8. **What the dashboard may write is the server's answer, never the screen's guess.** §5's
    amendment says the dashboard offers whatever the configuration permits, and there are exactly two
    ways a screen could know what that is: ask, or decide. It asks. `is_enforced_from_file` on the
    settings document is what removes the controls from the instance values screen; the presets'
@@ -289,7 +306,7 @@ Three things decided while SI-05 and SI-06 were built, and five more while SI-10
    what removes the area. A client that worked any of these out for itself would be a second copy of
    a rule, and the copies disagree on the installation nobody tested.
 
-7. **Absence is the refusal for a level, and `CapabilityGate` is the refusal for an entry.** The two
+9. **Absence is the refusal for a level, and `CapabilityGate` is the refusal for an entry.** The two
    look alike and are not. A person refused an *entry* was reaching for something they could
    plausibly have had, and `domain-model.md` §2 is explicit that this must never become silent
    ignoring — so the gate renders the reason. A person outside the operator register was never
@@ -297,7 +314,7 @@ Three things decided while SI-05 and SI-06 were built, and five more while SI-10
    is a fact about somebody else's installation that they cannot act on. The rule this settles, for
    the next level somebody adds: **explain a refusal, omit a level**.
 
-8. **The journal gained a read, and the port's own comment was the thing that changed.** It said
+10. **The journal gained a read, and the port's own comment was the thing that changed.** It said
    "there is no read method because no API serves it — reading it is the operator's, at the
    database". §5's dashboard is the API that serves it, so `Journal` has a `Page` now: newest first,
    keyed on the moment *and* the identifier, because two entries can share a moment and an offset

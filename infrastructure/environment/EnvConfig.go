@@ -47,6 +47,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		LogFormat:            get("HUBTASK_LOG_FORMAT", "json"),
 		LogLevel:             get("HUBTASK_LOG_LEVEL", "info"),
 		Tenancy:              env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single")),
+		InstanceFile:         get("HUBTASK_INSTANCE_FILE", ""),
+		InstanceFileMode:     get("HUBTASK_INSTANCE_FILE_MODE", "seed"),
 		StepUpWindow:         getDuration("HUBTASK_STEP_UP_WINDOW", 5*time.Minute),
 		ShutdownGraceSeconds: getInt("HUBTASK_SHUTDOWN_GRACE_SECONDS", 30),
 		// Longer than it usually needs to be, because the cost of being wrong is asymmetric: a

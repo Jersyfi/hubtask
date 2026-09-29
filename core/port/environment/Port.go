@@ -67,6 +67,15 @@ type Config struct {
 
 	Tenancy TenancyMode
 
+	// InstanceFile is the path to the installation's own configuration file, and the third of
+	// ADR-0070 §5's three doors. Empty is "no file", which is every installation that configures
+	// its level through the API or the dashboard.
+	InstanceFile string
+	// InstanceFileMode is `seed` or `enforce`. `seed` writes the level once at the first start
+	// that finds it empty; `enforce` writes it at every start and refuses the writing routes in
+	// between, because a save the next restart undoes is worse than a refusal.
+	InstanceFileMode string
+
 	// StepUpWindow is how long a fresh re-authentication covers the one privileged action it is
 	// presented to (H-03, security.md §5). Minutes, deliberately: long enough to type the typed
 	// tenant name after proving oneself, short enough that a walked-away terminal is not a

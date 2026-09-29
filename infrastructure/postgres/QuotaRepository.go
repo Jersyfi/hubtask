@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -39,6 +40,58 @@ type quotasDocument struct {
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
+}
+
+// quotaSettingPrefix is where a quota's default lives in the instance level's key space. The
+// suffix is the quota's own name, which is `quotasDocument`'s JSON tag.
+const quotaSettingPrefix = "quota."
+
+// InstanceOverrides answers what the installation set as its defaults.
+//
+// One row per quota rather than one document, because `instance_setting` is a key/value table with
+// a lock per key and that is what the whole instance level is: the operator may lock a ceiling, and
+// a document would have nowhere to put the lock.
+//
+// A malformed row is skipped rather than failing the read, `Overrides`' reasoning exactly: a value
+// this build cannot parse is the operator's to repair, and refusing every request until then would
+// be the worse outcome.
+func (QuotaRepository) InstanceOverrides(ctx context.Context) (repository.Overrides, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.Overrides{}, err
+	}
+
+	rows, err := queries.InstanceQuotaDefaults(ctx)
+	if err != nil {
+		return repository.Overrides{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the installation's quota defaults: %w", err))
+	}
+
+	// Reassembled into the document this adapter already knows how to read, by the suffix of each
+	// key. The names are the document's own JSON tags rather than a list imported from the use
+	// case: an adapter that called into the application layer would be the one thing
+	// `project-structure.md` §2 forbids, and this knowledge is the adapter's anyway.
+	fields := make(map[string]json.RawMessage, len(rows))
+	for _, row := range rows {
+		suffix, isQuota := strings.CutPrefix(row.Key, quotaSettingPrefix)
+		if !isQuota {
+			continue
+		}
+		fields[suffix] = row.Value
+	}
+	encoded, err := json.Marshal(fields)
+	if err != nil {
+		return repository.Overrides{}, shared.Internalf("postgres: encoding the quota defaults: %w", err)
+	}
+
+	var document quotasDocument
+	if err := json.Unmarshal(encoded, &document); err != nil {
+		// Fail closed into the product's defaults rather than into an outage, `Overrides`'
+		// reasoning exactly: a value this build cannot read is the operator's to repair.
+		return repository.Overrides{}, nil
+	}
+	return fromDocument(document), nil
 }
 
 // Overrides answers what the transaction's tenant configured.

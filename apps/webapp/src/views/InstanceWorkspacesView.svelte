@@ -56,9 +56,19 @@
   let quotas = $state<TenantQuotas>({});
 
   $effect(() => {
-    const stop = untrack(() => instance.openWorkspaces());
-    return stop;
+    // The instance level too, so the limits dialog can say what an empty field actually means:
+    // "the installation's default" is not a helpful sentence without the number.
+    const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings()]);
+    return () => stops.forEach((stop) => stop());
   });
+
+  /** The installation's own ceiling for a quota, where it set one. */
+  function instanceDefault(name: string): string | undefined {
+    const settings = instance.settings.status === 'ready' ? instance.settings.data : undefined;
+    const entry = settings?.quotas?.[name];
+    if (!entry?.set) return undefined;
+    return String(entry.value);
+  }
 
   const reading = $derived(instance.workspacesState);
   const workspaces = $derived(instance.workspaces);
@@ -386,8 +396,14 @@
   <Stack gap="150">
     <p class="prose">{t('app.instance.quotas_intro')}</p>
     {#each QUOTAS as name (name)}
+      <!-- The placeholder is the installation's own ceiling where it set one, so an empty field
+           shows the number it falls back to rather than only saying that it falls back. -->
       <Input
         label={t(`app.instance.quota.${name}`)}
+        hint={instanceDefault(name) !== undefined
+          ? t('app.instance.quota_default', { value: instanceDefault(name) ?? '' })
+          : t('app.instance.quota_product_default')}
+        placeholder={instanceDefault(name)}
         value={quotas[name] === undefined ? '' : String(quotas[name])}
         oninput={(event) => readQuota(name, (event.currentTarget as HTMLInputElement).value)}
         type="number"

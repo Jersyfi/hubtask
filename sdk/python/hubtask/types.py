@@ -497,9 +497,11 @@ class InstanceSetting(TypedDict, total=False):
     locked: Required[bool]
 
 class InstanceSettings(TypedDict, total=False):
-    """The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about."""
+    """The installation's own level (ADR-0070 §2): the sign-in switches, the legal links, the localisation defaults and the quota ceilings."""
     sign_in: dict[str, Any]
     legal: dict[str, Any]
+    localisation: dict[str, Any]
+    quotas: dict[str, Any]
     blocklist_file: str
     source: str
     is_enforced_from_file: bool

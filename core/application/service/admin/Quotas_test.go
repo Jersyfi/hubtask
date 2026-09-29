@@ -20,10 +20,17 @@ import (
 )
 
 type quotaStoreFake struct {
+	instance  quotarepo.Overrides
 	overrides quotarepo.Overrides
 	versions  []int
 	written   bool
 	writeOK   bool
+}
+
+// InstanceOverrides is the installation's level, which these cases leave empty: what they measure
+// is the workspace's own against the product's defaults.
+func (s *quotaStoreFake) InstanceOverrides(context.Context) (quotarepo.Overrides, error) {
+	return s.instance, nil
 }
 
 func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error) {

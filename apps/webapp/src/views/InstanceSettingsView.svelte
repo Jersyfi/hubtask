@@ -72,6 +72,10 @@
   const rows = $derived([
     ...Object.entries(settings?.sign_in ?? {}).map(([key, setting]) => ({ area: 'sign_in', key, setting })),
     ...Object.entries(settings?.legal ?? {}).map(([key, setting]) => ({ area: 'legal', key, setting })),
+    // The two areas SI-17 added: the defaults a workspace inherits, and the ceilings it falls back
+    // to. Drawn in the same table because they are the same model — a value, and who may change it.
+    ...Object.entries(settings?.localisation ?? {}).map(([key, setting]) => ({ area: 'localisation', key, setting })),
+    ...Object.entries(settings?.quotas ?? {}).map(([key, setting]) => ({ area: 'quotas', key, setting })),
   ]);
 
   /** A value as one line. The switches are numbers, flags, strings and lists of strings. */
@@ -97,12 +101,15 @@
     saved = false;
   }
 
+  /** The four areas the level is written in, which is what a row's `area` is. */
+  type SettingArea = 'sign_in' | 'legal' | 'localisation' | 'quotas';
+
   /** Reads one switch out of the draft, and writes it back whole. */
-  function setting(area: 'sign_in' | 'legal', key: string): InstanceSetting | undefined {
+  function setting(area: SettingArea, key: string): InstanceSetting | undefined {
     return draft?.[area]?.[key];
   }
 
-  function put(area: 'sign_in' | 'legal', key: string, next: InstanceSetting): void {
+  function put(area: SettingArea, key: string, next: InstanceSetting): void {
     if (!draft) return;
     draft = { ...draft, [area]: { ...(draft[area] ?? {}), [key]: next } };
   }
@@ -114,7 +121,7 @@
    * deciding — and a workspace that had been told the value goes back to deciding for itself. That
    * is what "the write replaces" means and why clearing has a control of its own.
    */
-  function clear(area: 'sign_in' | 'legal', key: string): void {
+  function clear(area: SettingArea, key: string): void {
     if (!draft) return;
     const kept = { ...(draft[area] ?? {}) };
     delete kept[key];
@@ -130,6 +137,8 @@
       await instance.writeSettings({
         sign_in: draft.sign_in,
         legal: draft.legal,
+        localisation: draft.localisation,
+        quotas: draft.quotas,
         blocklist_file: draft.blocklist_file,
       });
       draft = undefined;
@@ -205,7 +214,7 @@
                     oninput={(event) => {
                       const raw = (event.currentTarget as HTMLInputElement).value;
                       if (raw.trim() === '') {
-                        clear(row.area as 'sign_in' | 'legal', row.key);
+                        clear(row.area as SettingArea, row.key);
                         return;
                       }
                       // The value keeps the kind the server answered: a number stays a number, a
@@ -218,7 +227,7 @@
                           : typeof was === 'boolean'
                             ? raw === 'true'
                             : raw;
-                      put(row.area as 'sign_in' | 'legal', row.key, {
+                      put(row.area as SettingArea, row.key, {
                         set: true,
                         value,
                         locked: current?.locked ?? false,
@@ -231,8 +240,11 @@
                     label={t('app.instance.locked_label')}
                     hint={t('app.instance.locked_hint')}
                     checked={current?.locked === true}
+                    disabledReason={row.area === 'localisation'
+                      ? t('app.instance.locked_never_localisation')
+                      : undefined}
                     onchange={(event) =>
-                      put(row.area as 'sign_in' | 'legal', row.key, {
+                      put(row.area as SettingArea, row.key, {
                         set: current?.set ?? row.setting.set,
                         value: current?.value ?? row.setting.value,
                         locked: (event.currentTarget as HTMLInputElement).checked,

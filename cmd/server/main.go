@@ -31,6 +31,7 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	importrepo "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -86,6 +87,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
+	"github.com/Jersyfi/hubtask/infrastructure/instancefile"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	oidcadapter "github.com/Jersyfi/hubtask/infrastructure/oidc"
@@ -1093,7 +1095,26 @@ func run() error {
 	// because the register is also what bounds the control-plane scope at both of its ends - the
 	// mint and the exercise - and both of those are wired above.
 	operators := postgres.NewOperatorRepository()
+
+	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
+	// requests carries the mode, so a read reports where the values came from and a write refuses
+	// while a file enforces them. The seeding write below uses the plain one deliberately — the
+	// file is what is allowed to write while it enforces, and it is the only thing that is.
+	instanceFileMode, err := instancefile.ParseMode(cfg.InstanceFileMode)
+	if err != nil {
+		return err
+	}
+	servingSettings := postgres.FromFile(cfg.InstanceFile, instanceFileMode == instancefile.ModeEnforce)
+
 	instanceWriter := adminservice.InstanceWriter{
+		Settings: servingSettings, Operators: operators,
+		Journal:    postgres.NewInstanceJournal(cursors),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	// The same writer over the *plain* repository, for the one caller allowed to write while a
+	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
+	instanceFileWriter := adminservice.InstanceWriter{
 		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -2891,6 +2912,22 @@ func run() error {
 
 	// TODO(0.1.0): start the automation loop for the automation role.
 
+	// The third door, applied (ADR-0070 §5). It goes through `WriteInstanceSettings` exactly as the
+	// dashboard and `hubctl` do — "drei Türen, eine API" meant literally — so a value a file may
+	// set is a value the API accepts, and one set of refusals covers all three.
+	//
+	// After the registry and before the first request: a file that names a switch this build
+	// refuses should stop the start rather than serve one request under a configuration nobody
+	// asked for.
+	if err := applyInstanceFile(ctx, applyingInstanceFile{
+		path: cfg.InstanceFile, mode: instanceFileMode,
+		settings:   postgres.NewInstanceSettingRepository(),
+		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
+		unitOfWork: unitOfWork,
+	}); err != nil {
+		return err
+	}
+
 	registry.MarkStarted()
 
 	// hubtask_dependency_up is described as "self-diagnosis as a time series" (§4), and a series
@@ -3447,4 +3484,75 @@ func (b backupRunsInBackground) LastSuccessPerTarget(
 		return err
 	})
 	return moments, err
+}
+
+// applyingInstanceFile is what the third door needs: the path, the mode, and the two halves of a
+// write that is allowed to happen while the API's own is refused.
+type applyingInstanceFile struct {
+	path string
+	mode instancefile.Mode
+	// settings is the plain repository, used to ask whether the level is already there. `seed`
+	// turns on that question and nothing else.
+	settings   identityrepository.InstanceSettings
+	write      adminservice.WriteInstanceSettings
+	unitOfWork persistenceport.UnitOfWork
+}
+
+// applyInstanceFile writes the file's level, in the mode the operator chose (ADR-0070 §5).
+//
+// `seed` writes once, at the first start that finds the level empty — "schreibt sie beim ersten
+// Start und lässt sie danach in Ruhe". `enforce` writes at every start, which is what makes the
+// API's refusal honest rather than an inconvenience: the file really is the source.
+//
+// No file configured is the ordinary case and does nothing at all.
+func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
+	if applying.path == "" {
+		return nil
+	}
+
+	document, found, err := instancefile.Read(applying.path)
+	if err != nil {
+		return err
+	}
+	if !found {
+		// Configured for a file nobody has written yet. Not an error: the deployment this mode is
+		// for is one where the file arrives with the next rollout.
+		slog.Info("the instance file names nothing yet",
+			"source", applying.path, "mode", string(applying.mode))
+		return nil
+	}
+
+	if applying.mode == instancefile.ModeSeed {
+		var already bool
+		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),
+			func(ctx context.Context) error {
+				level, err := applying.settings.Read(ctx)
+				if err != nil {
+					return err
+				}
+				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
+					!level.Localisation.IsZero() || !level.Quotas.IsZero()
+				return nil
+			}); err != nil {
+			return err
+		}
+		if already {
+			slog.Info("the instance level is already set; the file seeded it once",
+				"source", applying.path)
+			return nil
+		}
+	}
+
+	// Through the use case, with the system actor: the file is a client of the API and meets every
+	// refusal the other two doors meet.
+	level, err := adminservice.InstanceLevelOf(document)
+	if err != nil {
+		return err
+	}
+	if _, err := applying.write.ExecuteAsFile(ctx, level, applying.path); err != nil {
+		return err
+	}
+	slog.Info("the instance level was written from the file",
+		"source", applying.path, "mode", string(applying.mode))
+	return nil
 }

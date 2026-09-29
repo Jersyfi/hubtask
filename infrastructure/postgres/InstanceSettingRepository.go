@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -24,10 +25,33 @@ import (
 // default and a column per switch would be a migration per preference; on the other side of this
 // seam the level is the typed value the domain resolves, and nothing above here parses anything.
 // It is `settingsDocument`'s discipline applied one level up.
-type InstanceSettingRepository struct{}
+type InstanceSettingRepository struct {
+	// source is what a read reports as the origin of the values in force: "database", or the path
+	// of the file that wrote them (ADR-0070 §5). One source per mode, never two.
+	source string
+	// enforced is the `enforce` mode: the file is rewritten at every start, so the writing routes
+	// refuse rather than accept a change the next restart would silently undo.
+	enforced bool
+}
 
 func NewInstanceSettingRepository() InstanceSettingRepository {
-	return InstanceSettingRepository{}
+	return InstanceSettingRepository{source: "database"}
+}
+
+// FromFile is the repository that knows a file is in play.
+//
+// `seed` leaves this a plain database repository once the seeding is done — the file wrote the
+// values once and the API owns them from then on, which is what "schreibt sie beim ersten Start und
+// lässt sie danach in Ruhe" means. `enforce` keeps both facts, because both are answers a reader
+// needs: where the values came from, and why a save is refused.
+func FromFile(path string, enforced bool) InstanceSettingRepository {
+	if path == "" {
+		return NewInstanceSettingRepository()
+	}
+	if !enforced {
+		return InstanceSettingRepository{source: "database"}
+	}
+	return InstanceSettingRepository{source: path, enforced: true}
 }
 
 var _ repository.InstanceSettings = InstanceSettingRepository{}
@@ -37,6 +61,11 @@ var _ repository.InstanceSettings = InstanceSettingRepository{}
 const (
 	signInArea = "sign_in"
 	legalArea  = "legal"
+	// localisationArea holds the three defaults a workspace inherits. No lock is written here,
+	// ever: the concept forbids one, and the type has nowhere to put it.
+	localisationArea = "localisation"
+	// quotaArea holds one ceiling per quota, keyed by the quota's own name.
+	quotaArea = "quota"
 )
 
 // The keys, as one list rather than as literals in a read and a write that could disagree.
@@ -86,7 +115,7 @@ var switchKeys = map[identity.PolicySwitch]string{
 }
 
 // Read answers the whole level.
-func (InstanceSettingRepository) Read(ctx context.Context) (repository.InstanceLevel, error) {
+func (r InstanceSettingRepository) Read(ctx context.Context) (repository.InstanceLevel, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return repository.InstanceLevel{}, err
@@ -102,7 +131,11 @@ func (InstanceSettingRepository) Read(ctx context.Context) (repository.InstanceL
 	level := repository.InstanceLevel{
 		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
 		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
-		Source: "database",
+		Quotas: identity.QuotaDefaults{
+			Limits: map[string]int64{}, Locks: map[string]bool{},
+		},
+		Source:             r.source,
+		IsEnforcedFromFile: r.enforced,
 	}
 	for _, row := range rows {
 		locked := row.LockOrigin != "OPEN"
@@ -188,7 +221,27 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		patch.Methods = &methods
 	case keyBlocklistFile:
 		level.BlocklistFile, err = word()
+	case localisationArea + ".locale":
+		level.Localisation.Locale, err = word()
+	case localisationArea + ".time_zone":
+		level.Localisation.TimeZone, err = word()
+	case localisationArea + ".week_start":
+		var start *int
+		if start, err = number(); err == nil {
+			level.Localisation.WeekStart = *start
+		}
 	default:
+		if name, isQuota := strings.CutPrefix(key, quotaArea+"."); isQuota {
+			var ceiling int64
+			if err = json.Unmarshal(raw, &ceiling); err != nil {
+				return malformedSetting(key, err)
+			}
+			level.Quotas.Limits[name] = ceiling
+			if locked {
+				level.Quotas.Locks[name] = true
+			}
+			return nil
+		}
 		if link, isLegal := legalLinkOf(key); isLegal {
 			var value string
 			if value, err = word(); err == nil {
@@ -239,7 +292,7 @@ func malformedSetting(key string, cause error) error {
 }
 
 // Write replaces the level whole.
-func (InstanceSettingRepository) Write(
+func (r InstanceSettingRepository) Write(
 	ctx context.Context, level repository.InstanceLevel, by shared.ID, at time.Time,
 ) error {
 	queries, err := queriesFrom(ctx)
@@ -276,7 +329,7 @@ func (InstanceSettingRepository) Write(
 	}
 
 	if err := queries.DeleteInstanceSettingsExcept(ctx, sqlc.DeleteInstanceSettingsExceptParams{
-		Areas: []string{signInArea, legalArea},
+		Areas: []string{signInArea, legalArea, localisationArea, quotaArea},
 		Kept:  kept,
 	}); err != nil {
 		return shared.ErrUnavailable.
@@ -391,6 +444,46 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 			key:   legalArea + "." + string(link),
 			value: encoded,
 			lock:  lockOf(level.Legal.Locks[link], ""),
+		})
+	}
+
+	// The three localisation defaults, each written only where the installation decided it, and
+	// each with `OPEN` — the concept's §5.7 says an instance gives a default and never a lock, and
+	// writing the lock unconditionally is how that stays true however the level was assembled.
+	for key, value := range map[string]string{
+		localisationArea + ".locale":    level.Localisation.Locale,
+		localisationArea + ".time_zone": level.Localisation.TimeZone,
+	} {
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, shared.Internalf("postgres: encoding the instance setting %q: %w", key, err)
+		}
+		rows = append(rows, settingRow{key: key, value: encoded, lock: "OPEN"})
+	}
+	if level.Localisation.WeekStart != 0 {
+		encoded, err := json.Marshal(level.Localisation.WeekStart)
+		if err != nil {
+			return nil, shared.Internalf("postgres: encoding the week start: %w", err)
+		}
+		rows = append(rows, settingRow{
+			key: localisationArea + ".week_start", value: encoded, lock: "OPEN",
+		})
+	}
+
+	// One row per quota, because the lock is per quota: an operator may fix one ceiling and leave
+	// the others to each workspace.
+	for name, ceiling := range level.Quotas.Limits {
+		encoded, err := json.Marshal(ceiling)
+		if err != nil {
+			return nil, shared.Internalf("postgres: encoding the quota default %q: %w", name, err)
+		}
+		rows = append(rows, settingRow{
+			key:   quotaArea + "." + name,
+			value: encoded,
+			lock:  lockOf(level.Quotas.Locks[name], identity.LockInstance),
 		})
 	}
 
