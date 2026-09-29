@@ -5409,13 +5409,17 @@ type InstanceReach struct {
 	Reachable bool `json:"reachable"`
 }
 
-// InstanceSetting One switch of the installation's level: what it set, and whether a workspace may tighten it.
+// InstanceSetting One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it.
+// **Every switch is answered, decided or not.** A reader has to be able to see that a switch exists and that this installation has left it to each workspace — which is a different fact from the switch not existing, and the only way a screen can draw the whole level without keeping a list of its own that would be wrong the day one is added.
 type InstanceSetting struct {
 	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
 	Locked bool `json:"locked"`
 
-	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words.
-	Value interface{} `json:"value"`
+	// Set Whether the installation decided this one. False means each workspace decides it, and `value` is then absent — not zero, not empty, absent, because a zero is a decision.
+	Set bool `json:"set"`
+
+	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words. Absent where `set` is false.
+	Value interface{} `json:"value,omitempty"`
 }
 
 // InstanceSettings The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about.

@@ -342,15 +342,26 @@ func (h RemoveOperator) Execute(
 
 // instanceLevelOutput is the projection the control plane reads and writes back.
 //
-// The switches the operator decided, and only those: a level that answered the product's defaults
-// for everything it had not decided would be a level nobody could tell apart from one that had
-// decided them, and "the operator chose nothing here" is a value the resolver acts on.
+// **Every switch, decided or not.** The concept names eighteen for this milestone, and answering
+// only the decided ones left a screen showing four — with no way for a reader to learn that the
+// other fourteen exist, let alone that this installation has left them to each workspace. A
+// catalogue the client hard-coded instead would be the thing `/meta/capabilities` exists to
+// prevent: wrong on somebody's installation the day a switch is added.
+//
+// So each entry carries `set`, and that is the distinction the resolver acts on: "the operator
+// chose nothing here" is a value, and it is not the same as the product's default. An unset entry
+// carries no `value` at all rather than a zero somebody would read as a decision.
 func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	patch := level.Policy.Patch
 	settings := usecase.Output{}
 
+	// Every switch the domain knows, in the order a screen draws them, unset until one is put.
+	for _, name := range identity.PolicySwitches() {
+		settings[string(name)] = usecase.Output{"set": false, "locked": level.Policy.Locks[name]}
+	}
+
 	put := func(name identity.PolicySwitch, value any) {
-		entry := usecase.Output{"value": value, "locked": level.Policy.Locks[name]}
+		entry := usecase.Output{"set": true, "value": value, "locked": level.Policy.Locks[name]}
 		settings[string(name)] = entry
 	}
 	if patch.MinLength != nil {
@@ -409,13 +420,16 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 		put(identity.SwitchSessionIdleMinutes, *patch.SessionIdleMinutes)
 	}
 
+	// The four links, for the switches' reason: a screen that drew only the two somebody filled in
+	// is a screen that never mentions terms or an accessibility statement.
 	legal := usecase.Output{}
 	for _, link := range identity.LegalLinkNames() {
 		value := level.Legal.Links.Of(link)
-		if value == "" && !level.Legal.Locks[link] {
-			continue
+		entry := usecase.Output{"set": value != "", "locked": level.Legal.Locks[link]}
+		if value != "" {
+			entry["value"] = value
 		}
-		legal[string(link)] = usecase.Output{"value": value, "locked": level.Legal.Locks[link]}
+		legal[string(link)] = entry
 	}
 
 	out := usecase.Output{

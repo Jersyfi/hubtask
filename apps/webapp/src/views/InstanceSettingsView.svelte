@@ -13,6 +13,12 @@
   // no controls at all rather than offering a refusal. `is_enforced_from_file` is what says so, and
   // it is the server's answer rather than this screen's guess.
   //
+  // **Every switch is drawn, decided or not.** The server answers the whole catalogue with a `set`
+  // flag — eighteen sign-in switches and four legal links — because a reader has to be able to see
+  // that a switch exists and that this installation has left it to each workspace. That is a
+  // different fact from the switch not existing, and the screen keeps no list of its own: one here
+  // would be wrong on somebody's installation the day a switch is added.
+  //
   // **Every switch carries its lock.** Open means a workspace may tighten it; locked means the value
   // applies and the workspace's control is off — "ein geschlossenes Feld ist sichtbar mit Wert,
   // Schloss und 'Set by the installation' — nie unsichtbar" (§5.3). A workspace sees the same fact
@@ -74,6 +80,9 @@
     if (value === null || value === undefined) return '';
     return String(value);
   }
+
+  /** How many of the catalogue this installation has actually decided, for the line above it. */
+  const decided = $derived(rows.filter((row) => row.setting.set).length);
 
   /**
    * Opens the editor on what is in force.
@@ -170,6 +179,7 @@
             {settings?.source ?? ''}
           </Banner>
         {/if}
+        <p class="quiet-line">{t('app.instance.settings_decided', { decided, total: rows.length })}</p>
         {#if settings?.blocklist_file}
           <p class="quiet-line">{t('app.instance.blocklist_file', { path: settings.blocklist_file })}</p>
         {/if}
@@ -191,7 +201,7 @@
                 <div class="field">
                   <Input
                     label={row.area + '.' + row.key}
-                    value={current === undefined ? '' : shown(current.value)}
+                    value={current?.set ? shown(current.value) : ''}
                     oninput={(event) => {
                       const raw = (event.currentTarget as HTMLInputElement).value;
                       if (raw.trim() === '') {
@@ -201,7 +211,7 @@
                       // The value keeps the kind the server answered: a number stays a number, a
                       // flag a flag. A switch retyped into a string would be a switch the domain
                       // refuses on the way back in.
-                      const was = row.setting.value;
+                      const was = row.setting.set ? row.setting.value : '';
                       const value =
                         typeof was === 'number'
                           ? Number(raw)
@@ -209,6 +219,7 @@
                             ? raw === 'true'
                             : raw;
                       put(row.area as 'sign_in' | 'legal', row.key, {
+                        set: true,
                         value,
                         locked: current?.locked ?? false,
                       });
@@ -222,6 +233,7 @@
                     checked={current?.locked === true}
                     onchange={(event) =>
                       put(row.area as 'sign_in' | 'legal', row.key, {
+                        set: current?.set ?? row.setting.set,
                         value: current?.value ?? row.setting.value,
                         locked: (event.currentTarget as HTMLInputElement).checked,
                       })}
@@ -258,7 +270,15 @@
             {#each rows as row (row.area + '.' + row.key)}
               <tr>
                 <td class="mono">{row.area}.{row.key}</td>
-                <td>{shown(row.setting.value)}</td>
+                <td>
+                  {#if row.setting.set}
+                    {shown(row.setting.value)}
+                  {:else}
+                    <!-- Not a blank cell: "this installation decided nothing here" is a fact worth
+                         a sentence, and the workspace is who decides it instead. -->
+                    <span class="undecided">{t('app.instance.value_undecided')}</span>
+                  {/if}
+                </td>
                 <td>
                   <Badge tone={row.setting.locked ? 'warning' : 'neutral'}>
                     {row.setting.locked ? t('app.instance.lock_locked') : t('app.instance.lock_open')}
@@ -284,6 +304,7 @@
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
   .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
+  .undecided { color: var(--text-secondary); font-size: var(--fs-100); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   /* A form is neither prose nor a table (ADR-0065 decision 2): the fields carry a measure of their

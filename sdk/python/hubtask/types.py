@@ -491,8 +491,9 @@ class SignInPasswordChange(TypedDict, total=False):
     password: Required[str]
 
 class InstanceSetting(TypedDict, total=False):
-    """One switch of the installation's level: what it set, and whether a workspace may tighten it."""
-    value: Required[Any]
+    """One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it."""
+    set: Required[bool]
+    value: Any
     locked: Required[bool]
 
 class InstanceSettings(TypedDict, total=False):

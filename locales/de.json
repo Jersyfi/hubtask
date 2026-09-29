@@ -907,6 +907,8 @@
   "app.instance.cancel": "Abbrechen",
   "app.instance.lock_open": "Ja",
   "app.instance.lock_locked": "Nein, das gilt",
+  "app.instance.value_undecided": "Jeder Arbeitsbereich entscheidet",
+  "app.instance.settings_decided": "Diese Installation hat {decided} von {total} Schaltern entschieden. Den Rest entscheidet jeder Arbeitsbereich selbst.",
   "app.instance.source_database": "Diese Werte wurden über die API gesetzt und stehen in der Datenbank.",
   "app.instance.source_file": "Diese Werte kommen aus der Datei dieser Installation und wurden beim Start geschrieben.",
   "app.instance.source_file_enforced": "Diese Werte kommen aus der Datei dieser Installation und werden bei jedem Start neu geschrieben. Sie hier oder über die API zu ändern, wird abgelehnt.",

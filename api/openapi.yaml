@@ -9311,12 +9311,24 @@ components:
     InstanceSetting:
       type: object
       description: >
-        One switch of the installation's level: what it set, and whether a workspace may tighten it.
-      required: [value, locked]
+        One switch of the installation's level: whether it decided anything, what it set, and
+        whether a workspace may tighten it.
+
+        **Every switch is answered, decided or not.** A reader has to be able to see that a switch
+        exists and that this installation has left it to each workspace — which is a different fact
+        from the switch not existing, and the only way a screen can draw the whole level without
+        keeping a list of its own that would be wrong the day one is added.
+      required: [set, locked]
       properties:
+        set:
+          type: boolean
+          description: >
+            Whether the installation decided this one. False means each workspace decides it, and
+            `value` is then absent — not zero, not empty, absent, because a zero is a decision.
         value:
           description: >
             The value, of whatever kind the switch is - a number, a flag, a word or a list of words.
+            Absent where `set` is false.
         locked:
           type: boolean
           description: >

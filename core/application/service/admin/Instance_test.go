@@ -347,7 +347,13 @@ func TestTheLevelIsReadFromTheDocument(t *testing.T) {
 
 // The projection answers what was decided and nothing else: a level that answered the product's
 // defaults would be one nobody could tell apart from an operator who had chosen them.
-func TestTheProjectionAnswersOnlyWhatWasDecided(t *testing.T) {
+// The projection answers the whole catalogue, and says which of it was decided.
+//
+// It answered only the decided switches until SI-17's walk: four rows on a screen the concept gives
+// eighteen switches, with no way for a reader to learn that the other fourteen exist or that this
+// installation has left them to each workspace. Those are different facts, and `set` is what tells
+// them apart — an undecided entry carries no `value` at all, because a zero is a decision.
+func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 	out := instanceLevelOutput(identityrepo.InstanceLevel{
 		Policy: identity.PolicyLayer{
 			Patch: identity.PolicyPatch{MinLength: intOf(18)},
@@ -358,13 +364,38 @@ func TestTheProjectionAnswersOnlyWhatWasDecided(t *testing.T) {
 	})
 
 	settings, _ := out["sign_in"].(usecase.Output)
-	if len(settings) != 1 {
-		t.Fatalf("the projection answers %v", settings)
+	if len(settings) != len(identity.PolicySwitches()) {
+		t.Fatalf("the projection answers %d switches, want every one of the %d",
+			len(settings), len(identity.PolicySwitches()))
 	}
-	entry, _ := settings["min_length"].(usecase.Output)
-	if entry["value"] != 18 || entry["locked"] != true {
-		t.Errorf("min_length reads %v", entry)
+	for _, name := range identity.PolicySwitches() {
+		if _, held := settings[string(name)]; !held {
+			t.Errorf("%s is missing from the projection", name)
+		}
 	}
+
+	decided, _ := settings["min_length"].(usecase.Output)
+	if decided["set"] != true || decided["value"] != 18 || decided["locked"] != true {
+		t.Errorf("min_length reads %v", decided)
+	}
+
+	// And an undecided one is undecided rather than zero: a screen drawing `0` would be showing a
+	// decision nobody made, and the resolver acts on the difference.
+	undecided, _ := settings["min_digits"].(usecase.Output)
+	if undecided["set"] != false {
+		t.Errorf("min_digits reads %v, want it undecided", undecided)
+	}
+	if _, held := undecided["value"]; held {
+		t.Errorf("an undecided switch carries a value: %v", undecided)
+	}
+
+	// The four legal links, for the same reason: a screen drawing only what somebody filled in
+	// never mentions terms or an accessibility statement.
+	legal, _ := out["legal"].(usecase.Output)
+	if len(legal) != len(identity.LegalLinkNames()) {
+		t.Errorf("the projection answers %d links, want %d", len(legal), len(identity.LegalLinkNames()))
+	}
+
 	if _, held := out["blocklist_file"]; held {
 		t.Error("a file nobody configured was answered")
 	}

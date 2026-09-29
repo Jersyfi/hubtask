@@ -1697,6 +1697,8 @@
   "app.instance.cancel": "Cancel",
   "app.instance.lock_open": "Yes",
   "app.instance.lock_locked": "No, this applies",
+  "app.instance.value_undecided": "Each workspace decides",
+  "app.instance.settings_decided": "This installation has decided {decided} of {total} switches. The rest are each workspace's.",
   "app.instance.source_database": "These values were set through the API and are stored in the database.",
   "app.instance.source_file": "These values come from this installation's file and were written at start.",
   "app.instance.source_file_enforced": "These values come from this installation's file and are written again at every start. Changing them here or through the API is refused.",

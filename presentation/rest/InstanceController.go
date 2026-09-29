@@ -163,6 +163,12 @@ func (c *RestController) RemoveOperator(
 func instanceSettingMap(sent map[string]openapi.InstanceSetting) map[string]any {
 	settings := make(map[string]any, len(sent))
 	for name, setting := range sent {
+		// A switch a client sent back without a value is one it is clearing, which is what the
+		// write means by "the installation stops deciding it" - so `set` travels no further than
+		// the read that carried it.
+		if setting.Value == nil {
+			continue
+		}
 		settings[name] = map[string]any{"value": setting.Value, "locked": setting.Locked}
 	}
 	return settings
@@ -200,7 +206,8 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 			continue
 		}
 		locked, _ := entry["locked"].(bool)
-		settings[name] = openapi.InstanceSetting{Value: entry["value"], Locked: locked}
+		set, _ := entry["set"].(bool)
+		settings[name] = openapi.InstanceSetting{Set: set, Value: entry["value"], Locked: locked}
 	}
 	return settings
 }
