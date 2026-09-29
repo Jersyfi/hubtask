@@ -74,6 +74,26 @@
     { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
   ]);
 
+  /**
+   * What a mode is called for a given preset.
+   *
+   * `DOMAINS` reads two different lists depending on the provider (ADR-0071 §2), so it cannot have
+   * one sentence: a row that says "the domains below" while the server reads directories is a row
+   * that describes somebody else's configuration.
+   */
+  function admissionLabel(kind: string, mode: string): string {
+    const claim = presets.find((each) => each.kind === kind)?.directory_claim;
+    if (mode === 'DOMAINS' && claim) return t(`app.identity_provider.provisioning.directories_${claim}`);
+    return t(`app.identity_provider.provisioning.${mode.toLowerCase()}`);
+  }
+
+  /** The list this row is actually read against: the directories where the preset has them. */
+  function admits(provider: IdentityProvider): readonly string[] {
+    return presets.find((each) => each.kind === provider.kind)?.directory_claim
+      ? (provider.allowed_directories ?? [])
+      : provider.allowed_email_domains;
+  }
+
   /** The preset the chosen kind carries, which decides what the form may offer. */
   const preset = $derived<IdentityProviderPreset | undefined>(
     presets.find((each) => each.kind === kind),
@@ -213,9 +233,9 @@
                 </td>
                 <td class="mono">{provider.issuer}</td>
                 <td>
-                  <span>{t(`app.identity_provider.provisioning.${provider.provisioning.toLowerCase()}`)}</span>
-                  {#if provider.allowed_email_domains.length > 0}
-                    <span class="slug">{provider.allowed_email_domains.join(', ')}</span>
+                  <span>{admissionLabel(provider.kind, provider.provisioning)}</span>
+                  {#if admits(provider).length > 0}
+                    <span class="slug">{admits(provider).join(', ')}</span>
                   {/if}
                 </td>
                 <td>
@@ -305,10 +325,7 @@
       label={t('app.instance.provider_admission_label')}
       hint={t('app.instance.provider_admission_hint')}
       bind:value={provisioning}
-      options={modes.map((mode) => ({
-        value: mode,
-        label: t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
-      }))}
+      options={modes.map((mode) => ({ value: mode, label: admissionLabel(kind, mode) }))}
     />
 
     {#if provisioning === 'DOMAINS'}

@@ -2099,6 +2099,8 @@
   "app.identity_provider.provisioning_hint": "Admitting somebody is the part with a cost, so a provider Hubtask cannot vouch for is not offered the strictest setting - and one anybody in the world holds an account at is offered nothing else. Only what this provider is allowed to do is shown.",
   "app.identity_provider.provisioning.invited_only": "Only people who already have an account here",
   "app.identity_provider.provisioning.domains": "Only addresses in the domains below",
+  "app.identity_provider.provisioning.directories_tid": "Only the Microsoft directories below",
+  "app.identity_provider.provisioning.directories_hd": "Only the Google Workspace domains below",
   "app.identity_provider.provisioning.any": "Anybody the provider vouches for",
   "app.identity_provider.issuer_label": "Issuer",
   "app.identity_provider.issuer_hint": "The https address the provider identifies itself by. Hubtask fetches its metadata before saving, so an address it cannot reach is refused here rather than by the first person who tries to sign in.",

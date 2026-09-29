@@ -709,6 +709,8 @@
   "app.identity_provider.provisioning_hint": "Jemanden hereinzulassen ist der Teil mit den Kosten. Einem Anbieter, für den Hubtask nicht geradestehen kann, wird deshalb die strengste Einstellung nicht angeboten – und einem, bei dem jeder auf der Welt ein Konto hat, gar keine andere. Gezeigt wird nur, was dieser Anbieter darf.",
   "app.identity_provider.provisioning.invited_only": "Nur Personen, die hier schon ein Konto haben",
   "app.identity_provider.provisioning.domains": "Nur Adressen in den Domänen unten",
+  "app.identity_provider.provisioning.directories_tid": "Nur die Microsoft-Verzeichnisse unten",
+  "app.identity_provider.provisioning.directories_hd": "Nur die Google-Workspace-Domänen unten",
   "app.identity_provider.provisioning.any": "Alle, für die der Anbieter geradesteht",
   "app.identity_provider.issuer_label": "Aussteller",
   "app.identity_provider.issuer_hint": "Die https-Adresse, unter der sich der Anbieter ausweist. Hubtask holt seine Metadaten vor dem Speichern, darum wird eine unerreichbare Adresse hier abgelehnt und nicht erst bei der ersten Person, die sich anmelden will.",

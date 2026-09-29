@@ -100,7 +100,12 @@
   const provisioningOptions = $derived(
     (preset?.provisioning ?? []).map((mode) => ({
       value: mode,
-      label: t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
+      // `DOMAINS` reads the directories for a preset that has them (ADR-0071 §2), so the sentence
+      // beside the choice has to be the one the server will act on.
+      label:
+        mode === 'DOMAINS' && preset?.directory_claim
+          ? t(`app.identity_provider.provisioning.directories_${preset.directory_claim}`)
+          : t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
     })),
   );
 
