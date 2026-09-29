@@ -42,6 +42,13 @@ SELECT is_operator(sqlc.arg('account_id'));
 -- The listing, for the control plane's own screen.
 SELECT * FROM operator_register();
 
+-- name: ResolveOperatorAccount :one
+-- The account an address names inside one workspace, through the register's own narrow door
+-- (migration 0109). An operator cannot list accounts across workspaces - `account` is behind row
+-- level security - so an identifier is not something they can look up, and an address and a slug
+-- are what a person knows. Answers one identifier or nothing.
+SELECT resolve_operator_account(sqlc.arg('slug'), sqlc.arg('email'));
+
 -- name: AddOperator :one
 -- The workspace comes from the account rather than from the caller: false is "no such account", and
 -- a pair that could disagree would be a pair somebody eventually gets wrong.

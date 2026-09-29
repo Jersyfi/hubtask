@@ -51,6 +51,8 @@ func (s *instanceStore) Write(
 type registerStore struct {
 	accounts map[shared.ID]bool
 	order    []shared.ID
+	// addresses is what the register's narrow door answers: "slug\x00email" to an account.
+	addresses map[string]shared.ID
 }
 
 func newRegister(held ...shared.ID) *registerStore {
@@ -60,6 +62,10 @@ func newRegister(held ...shared.ID) *registerStore {
 		store.order = append(store.order, id)
 	}
 	return store
+}
+
+func (s *registerStore) Resolve(_ context.Context, slug, email string) (shared.ID, error) {
+	return s.addresses[slug+"\x00"+email], nil
 }
 
 func (s *registerStore) Holds(_ context.Context, accountID shared.ID) (bool, error) {
@@ -220,6 +226,43 @@ func TestAddingAnOperatorIsIdempotentAndChecksTheAccount(t *testing.T) {
 	}
 	if err := (AddOperator{Writer: writer}).Execute(t.Context(), operator(), ""); !errors.Is(err, shared.ErrValidation) {
 		t.Errorf("an empty identifier answered %v", err)
+	}
+}
+
+// An operator is named the way a person can name one, because an identifier is not something they
+// can look up: `account` is behind row level security, so no screen may list accounts across
+// workspaces and none can offer one to pick.
+func TestAnOperatorIsRegisteredByWorkspaceAndAddress(t *testing.T) {
+	register := newRegister(operatorID)
+	register.addresses = map[string]shared.ID{"acme\x00ada@acme.example": secondOperator}
+	writer, _, journal := newInstanceWriter(register)
+
+	if err := (AddOperator{Writer: writer}).
+		ExecuteByAddress(t.Context(), operator(), "acme", "ada@acme.example"); err != nil {
+		t.Fatalf("registering by address was refused: %v", err)
+	}
+	if len(journal.entries) != 1 {
+		t.Errorf("%d journal entries, want one", len(journal.entries))
+	}
+
+	// A pair that matches nothing answers the same refusal a wrong identifier does - deliberately
+	// the same, because whether an address exists in a workspace is what somebody probing wants to
+	// learn, and they could already learn as much by trying the identifier form.
+	err := (AddOperator{Writer: writer}).
+		ExecuteByAddress(t.Context(), operator(), "acme", "nobody@acme.example")
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("an address nobody holds answered %v", err)
+	}
+	if code := shared.AsError(err).DetailCode; code != "admin.operator_unknown_account" {
+		t.Errorf("refused with %q, want the same code a wrong identifier gives", code)
+	}
+
+	// And neither half on its own names anybody.
+	for _, missing := range [][2]string{{"", "ada@acme.example"}, {"acme", ""}} {
+		if err := (AddOperator{Writer: writer}).
+			ExecuteByAddress(t.Context(), operator(), missing[0], missing[1]); !errors.Is(err, shared.ErrValidation) {
+			t.Errorf("half a pair (%q, %q) answered %v", missing[0], missing[1], err)
+		}
 	}
 }
 

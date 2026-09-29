@@ -511,8 +511,10 @@ class Operator(TypedDict, total=False):
     added_by: str | None
 
 class OperatorAdd(TypedDict, total=False):
-    """The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong."""
-    account_id: Required[str]
+    """One account, named either way."""
+    account_id: str
+    workspace: str
+    email: str
 
 class PasswordForgot(TypedDict, total=False):
     email: Required[str]

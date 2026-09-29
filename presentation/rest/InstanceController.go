@@ -126,9 +126,20 @@ func (c *RestController) AddOperator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := c.UseCases.Invoke(r.Context(), addOperatorUseCase, actorOf(r), usecase.Input{
-		"account_id": body.AccountId.String(),
-	}); err != nil {
+	// Either form, and the registry refuses a request that carries neither: the workspace and the
+	// address for a screen, the identifier for a script that already has one.
+	in := usecase.Input{}
+	if body.AccountId != nil {
+		in["account_id"] = body.AccountId.String()
+	}
+	if body.Workspace != nil {
+		in["workspace"] = *body.Workspace
+	}
+	if body.Email != nil {
+		in["email"] = string(*body.Email)
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), addOperatorUseCase, actorOf(r), in); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}

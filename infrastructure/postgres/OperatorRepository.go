@@ -83,6 +83,28 @@ func (OperatorRepository) List(ctx context.Context) ([]repository.Operator, erro
 	return operators, nil
 }
 
+// Resolve answers the account an address names inside one workspace.
+func (OperatorRepository) Resolve(ctx context.Context, slug, email string) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return shared.ID(""), err
+	}
+	found, err := queries.ResolveOperatorAccount(ctx, sqlc.ResolveOperatorAccountParams{
+		Slug: slug, Email: email,
+	})
+	if err != nil {
+		return shared.ID(""), shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("resolving an operator's account: %w", err))
+	}
+	if !found.Valid {
+		// Nothing matched. Not an error here: the caller turns it into the one refusal, which is
+		// the same one a wrong identifier produced before.
+		return shared.ID(""), nil
+	}
+	return idFrom(found)
+}
+
 // Add puts an account in.
 func (OperatorRepository) Add(ctx context.Context, accountID, by shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)

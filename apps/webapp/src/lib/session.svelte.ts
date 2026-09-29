@@ -33,6 +33,7 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { manifest } from './data/capabilities.svelte.ts';
+import { instance } from './data/instance.svelte.ts';
 import { engine, whenCredentialRefused } from './data/engine.ts';
 import { live } from './data/live.svelte.ts';
 import { messages } from './i18n/i18n.svelte.ts';
@@ -257,6 +258,7 @@ class Session {
   /** What a completed enforcement enrolment hands back: the pair, and a session with it. */
   hold(pair: { access: string; refresh: string }): void {
     engine.reset();
+    instance.forget();
     platform.holdSession(pair);
     this.#pending = undefined;
     this.#owed = undefined;
@@ -308,6 +310,7 @@ class Session {
       }
 
       engine.reset();
+      instance.forget();
       platform.holdSession({ access: answer.access_token, refresh: answer.refresh_token });
       // Answered only where a recovery code was spent, and `0` is the number that matters - so
       // the test is against `null` and `undefined` rather than against falsiness.
@@ -397,6 +400,10 @@ class Session {
    * connections, not intentions.
    */
   #discard(): void {
+    // The elevation belongs to the session that proved for it (ADR-0070 §4), and this store is a
+    // module singleton whose clock outlived one. Signing out and back in inside one page load left
+    // the countdown running for whoever signed in next.
+    instance.forget();
     live.stop();
     platform.releaseBearer();
     engine.reset();

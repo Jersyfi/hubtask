@@ -18,6 +18,13 @@
   //
   // **It does not slide.** Nothing here asks for another hour on the reader's behalf: activity
   // extends a session's own horizon and never this, and a second hour is a second decision.
+  //
+  // **The proof is asked for on arrival, once.** Somebody who pressed *Installation* has already
+  // said what they want; making them read a page and press a second button to be asked is a step
+  // that carries no decision. So the step-up opens by itself the first time the area is entered —
+  // and cancelling it leaves the door standing with its explanation, which is where a reader who
+  // arrived by accident wants to be. It is asked **once** per visit: a prompt that reopened after
+  // every cancel would be a prompt nobody can leave.
 
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
@@ -42,6 +49,8 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** Whether this reader raised the session here, so that its end is a change rather than a state. */
   let wasElevated = $state(false);
+  /** Whether the proof has already been asked for on this visit, so it is asked once. */
+  let asked = $state(false);
 
   $effect(() => {
     // `untrack` for the reason every store here records: the clock writes the store and writing it
@@ -60,7 +69,16 @@
     }
     // The hour ran out under somebody who was working. Back to the application, because every read
     // on this screen is refused from this moment and a dead dashboard says nothing about why.
-    if (wasElevated) onleave();
+    if (wasElevated) {
+      onleave();
+      return;
+    }
+    // Arrived and not raised: ask now. `untrack`, because `raise()` writes the store this effect
+    // reads and an effect that tracked that would ask again the moment the answer came back.
+    if (!asked) {
+      asked = true;
+      untrack(() => void raise());
+    }
   });
 
   /** The clock as a person reads it: minutes while there are minutes, seconds at the end. */

@@ -14,7 +14,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -31,13 +31,20 @@
 
   const { onnavigate }: Props = $props();
 
-  let accountId = $state('');
+  let workspace = $state('');
+  let email = $state('');
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   $effect(() => {
-    const stop = untrack(() => instance.openOperators());
-    return stop;
+    // The workspaces too: the form offers them by name rather than asking for a slug from memory,
+    // and this screen is behind the same door that already read them.
+    const stopOperators = untrack(() => instance.openOperators());
+    const stopWorkspaces = untrack(() => instance.openWorkspaces());
+    return () => {
+      stopOperators();
+      stopWorkspaces();
+    };
   });
 
   const reading = $derived(instance.operatorsState);
@@ -121,20 +128,37 @@
         class="panel"
         onsubmit={(event) => {
           event.preventDefault();
-          const id = accountId.trim();
-          if (id === '') return;
+          const slug = workspace.trim();
+          const address = email.trim();
+          if (slug === '' || address === '') return;
           void run(async () => {
-            await instance.addOperator(id);
-            accountId = '';
+            await instance.addOperator(slug, address);
+            workspace = '';
+            email = '';
           });
         }}
       >
         <Stack gap="150">
           <h2 class="section">{t('app.instance.operator_add_title')}</h2>
+          <!-- The workspace's address and the address somebody signs in with: the two things an
+               operator actually knows. The workspaces screen lists the first, and the second is
+               what the person themselves would tell them. -->
+          <Select
+            label={t('app.instance.operator_workspace_label')}
+            hint={t('app.instance.operator_workspace_hint')}
+            placeholder={t('app.instance.operator_workspace_placeholder')}
+            bind:value={workspace}
+            options={instance.workspaces.map((each) => ({
+              value: each.slug,
+              label: `${each.display_name} (${each.slug})`,
+            }))}
+            isRequired
+          />
           <Input
-            label={t('app.instance.operator_account_label')}
-            hint={t('app.instance.operator_account_hint')}
-            bind:value={accountId}
+            label={t('app.instance.operator_email_label')}
+            hint={t('app.instance.operator_email_hint')}
+            bind:value={email}
+            type="email"
             autocomplete="off"
             spellcheck={false}
             isRequired

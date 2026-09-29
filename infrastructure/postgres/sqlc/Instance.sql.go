@@ -210,3 +210,23 @@ func (q *Queries) ReadInstanceSettings(ctx context.Context) ([]InstanceSetting, 
 	}
 	return items, nil
 }
+
+const resolveOperatorAccount = `-- name: ResolveOperatorAccount :one
+SELECT resolve_operator_account($1, $2)
+`
+
+type ResolveOperatorAccountParams struct {
+	Slug  string
+	Email string
+}
+
+// The account an address names inside one workspace, through the register's own narrow door
+// (migration 0109). An operator cannot list accounts across workspaces - `account` is behind row
+// level security - so an identifier is not something they can look up, and an address and a slug
+// are what a person knows. Answers one identifier or nothing.
+func (q *Queries) ResolveOperatorAccount(ctx context.Context, arg ResolveOperatorAccountParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, resolveOperatorAccount, arg.Slug, arg.Email)
+	var resolve_operator_account pgtype.UUID
+	err := row.Scan(&resolve_operator_account)
+	return resolve_operator_account, err
+}

@@ -115,6 +115,20 @@
     }
   }
 
+  /**
+   * Whether the address being typed is one an existing workspace already answers at.
+   *
+   * Answered from the table this screen already holds rather than by asking the server on every
+   * keystroke: the operator is looking at every workspace on the installation, so the one fact
+   * needed is already here. The server still refuses a collision — two operators typing at once is
+   * a race no client can win — and this is the half that means nobody meets that refusal after
+   * filling in four fields.
+   */
+  const slugTaken = $derived(
+    slug.trim() !== '' &&
+      workspaces.some((each) => each.slug.toLowerCase() === slug.trim().toLowerCase()),
+  );
+
   function readQuota(name: string, raw: string): void {
     const trimmed = raw.trim();
     // An empty field is the installation's default, not zero: the contract's absent number and a
@@ -252,6 +266,7 @@
     <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
     <Button
       tone="primary"
+      disabledReason={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : undefined}
       isBusy={working === 'new'}
       busyLabel={t('app.instance.working')}
       onclick={() =>
@@ -269,7 +284,15 @@
   {/snippet}
   <Stack gap="150">
     <p class="prose">{t('app.instance.workspace_new_intro')}</p>
-    <Input label={t('app.instance.slug_label')} hint={t('app.instance.slug_hint')} bind:value={slug} autocomplete="off" spellcheck={false} isRequired />
+    <Input
+      label={t('app.instance.slug_label')}
+      hint={t('app.instance.slug_hint')}
+      error={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : undefined}
+      bind:value={slug}
+      autocomplete="off"
+      spellcheck={false}
+      isRequired
+    />
     <Input label={t('app.instance.name_label')} bind:value={displayName} autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_email_label')} hint={t('app.instance.owner_email_hint')} bind:value={ownerEmail} type="email" autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_name_label')} bind:value={ownerName} autocomplete="off" />

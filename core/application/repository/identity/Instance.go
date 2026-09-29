@@ -79,6 +79,18 @@ type Operators interface {
 	// List answers the whole register, for the control plane's own screen.
 	List(ctx context.Context) ([]Operator, error)
 
+	// Resolve answers the account an address names inside one workspace, and zero where the pair
+	// matches nothing.
+	//
+	// It exists because an account id is not something an operator can look up: `account` is behind
+	// row level security, so the control plane cannot list accounts across workspaces and the
+	// screen would be asking somebody to type a UUID out of the database by hand (migration 0109).
+	// An address and a workspace are what a person actually knows.
+	//
+	// **One identifier and nothing else.** Not a list, not a search, not a name — and no more than
+	// a caller already learns by trying `Add`, so nothing here widens what the control plane sees.
+	Resolve(ctx context.Context, slug, email string) (shared.ID, error)
+
 	// Add puts an account in. False means it was already there **or** that no such account exists:
 	// the first is not an error - a caller asking for somebody to be an operator got what they
 	// asked for - and the second is, which the caller tells apart by reading the register.

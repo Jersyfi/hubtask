@@ -5,6 +5,7 @@ package admin
 
 import (
 	"context"
+	"strings"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -226,6 +227,47 @@ type AddOperator struct{ Writer InstanceWriter }
 // Execute adds. An account that is already an operator is not an error: the caller asked for
 // somebody to be one, and they are.
 func (h AddOperator) Execute(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID,
+) error {
+	return h.execute(ctx, actor, accountID)
+}
+
+// ExecuteByAddress names the account the way a person can: the workspace it is in, and the address
+// it signs in with.
+//
+// The identifier form stays — a script that already has one keeps working — and this is the form a
+// screen uses, because an account id is not something an operator can look up at all: `account` is
+// behind row level security, so the control plane cannot list accounts across workspaces.
+// Resolution happens through the register's own narrow door and answers one identifier or nothing.
+func (h AddOperator) ExecuteByAddress(
+	ctx context.Context, actor appshared.ActorContext, slug, email string,
+) error {
+	w := h.Writer
+	if err := w.authorize(ctx, actor); err != nil {
+		return err
+	}
+	if strings.TrimSpace(slug) == "" || strings.TrimSpace(email) == "" {
+		return shared.ErrValidation.WithDetail("admin.operator_incomplete")
+	}
+
+	var found shared.ID
+	if err := w.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		resolved, err := w.Operators.Resolve(ctx, slug, email)
+		found = resolved
+		return err
+	}); err != nil {
+		return err
+	}
+	if found.IsZero() {
+		// The same refusal a wrong identifier produced, and deliberately the same: whether an
+		// address exists in a workspace is exactly what somebody probing would want to learn, and
+		// the caller may already learn as much by trying the identifier form.
+		return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
+	}
+	return h.execute(ctx, actor, found)
+}
+
+func (h AddOperator) execute(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID,
 ) error {
 	w := h.Writer
@@ -673,10 +715,20 @@ func (h AddOperator) Descriptor() usecase.Descriptor {
 		TokenScope:  adminTenantsScope,
 		Input: []usecase.Field{
 			{
-				Name: "account_id", Kind: usecase.KindString, Required: true,
-				Description: "The account. It has to exist, and the workspace it lives in is " +
-					"read from it rather than named - a pair that could disagree is a pair " +
-					"somebody eventually gets wrong.",
+				Name: "account_id", Kind: usecase.KindString,
+				Description: "The account, where the caller has its identifier. The workspace it " +
+					"lives in is read from it rather than named - a pair that could disagree is " +
+					"a pair somebody eventually gets wrong.",
+			},
+			{
+				Name: "workspace", Kind: usecase.KindString,
+				Description: "The workspace's address, with `email`, where the caller does not " +
+					"have an identifier - which is every screen, because the control plane " +
+					"cannot list accounts across workspaces and so cannot show one.",
+			},
+			{
+				Name: "email", Kind: usecase.KindString,
+				Description: "The address the account signs in with, inside `workspace`.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -693,6 +745,15 @@ func (h AddOperator) Descriptor() usecase.Descriptor {
 func (h AddOperator) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	// Two ways of naming one account, and neither is required on its own: a script has the
+	// identifier, a person has the address. Both absent is the incomplete refusal, which is the
+	// same one an empty identifier already produced.
+	if in.Present("workspace") || in.Present("email") {
+		if err := h.ExecuteByAddress(ctx, actor, in.String("workspace"), in.String("email")); err != nil {
+			return nil, err
+		}
+		return usecase.Output{}, nil
+	}
 	accountID, err := in.ID("account_id")
 	if err != nil {
 		return nil, err

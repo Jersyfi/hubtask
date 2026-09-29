@@ -137,6 +137,29 @@ class Instance {
    * Through the step-up wrapper rather than with a token this module asked for: the call is refused
    * without a proof, and the wrapper is the one place that knows what to do with that refusal.
    */
+  /**
+   * Forgets the elevation, because the session it belonged to is gone.
+   *
+   * This store is a module singleton and its clock was not: signing out and back in inside one page
+   * load left `#until` where it was, so the area drew itself with a live countdown over a session
+   * the server refuses every call from — "Du arbeitest an der Installation. Noch 17 Minuten" beside
+   * "Das verwendete Token darf das nicht". Worse, it did that for **whoever signed in next**,
+   * which is a control plane drawn for somebody who was never offered it.
+   *
+   * An elevation belongs to one session (ADR-0070 §4: "hängt an dieser einen Sitzung, endet mit
+   * ihr"), so every path that ends or replaces a session ends this too.
+   */
+  forget(): void {
+    this.#until = undefined;
+    this.#overview = { status: 'idle' };
+    this.#workspaces = { status: 'idle' };
+    this.#settings = { status: 'idle' };
+    this.#operators = { status: 'idle' };
+    this.#journal = { status: 'idle' };
+    this.#providers = { status: 'idle' };
+    this.#encryption = { status: 'idle' };
+  }
+
   async elevate(): Promise<void> {
     const raised = await stepUp.around((stepUpToken) =>
       engine.mutate<SessionElevation>(
@@ -245,9 +268,17 @@ class Instance {
   }
 
   /** Adds somebody to the register. The workspace comes from the account, never from the caller. */
-  async addOperator(accountId: string): Promise<void> {
+  /**
+   * Registers an operator, named the way a person can name one: the workspace, and the address.
+   *
+   * Not the account id. `account` is behind row level security, so the control plane cannot list
+   * accounts across workspaces and therefore cannot offer one to pick — which left the screen
+   * asking somebody to type a UUID they would have had to get out of the database by hand. The
+   * contract keeps the identifier form for a script that already has one.
+   */
+  async addOperator(workspace: string, email: string): Promise<void> {
     await stepUp.around((stepUpToken) =>
-      engine.mutate('POST', OPERATORS, { account_id: accountId }, {
+      engine.mutate('POST', OPERATORS, { workspace, email }, {
         stepUpToken,
         invalidates: [OPERATORS, JOURNAL],
       }),

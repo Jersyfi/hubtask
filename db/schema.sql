@@ -2555,6 +2555,20 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT o.* FROM operator o ORDER BY o.added_at, o.account_id
 $$;
 
+-- An operator is named by address and workspace, because an account id is not something anybody
+-- can look up: `account` is behind row level security, so the control plane cannot list accounts
+-- across workspaces (migration 0109). One pair in, one identifier or nothing out.
+CREATE OR REPLACE FUNCTION resolve_operator_account(p_slug text, p_email text) RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT a.id
+  FROM account a
+  JOIN tenant t ON t.id = a.tenant_id
+  WHERE lower(t.slug) = lower(btrim(p_slug))
+    AND lower(a.email) = lower(btrim(p_email))
+    AND a.deleted_at IS NULL
+  LIMIT 1
+$$;
+
 CREATE OR REPLACE FUNCTION add_operator(p_account uuid, p_by uuid) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
 DECLARE added integer;

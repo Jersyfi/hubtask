@@ -6094,9 +6094,18 @@ type Operator struct {
 	TenantId openapi_types.UUID  `json:"tenant_id"`
 }
 
-// OperatorAdd The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
+// OperatorAdd One account, named either way.
+// **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
+// **By workspace and address** otherwise, which is every screen. An account id is not something an operator can look up: `account` is behind row level security, so the control plane cannot list accounts across workspaces and therefore cannot show one. A workspace's address and the address somebody signs in with are what a person knows. The pair resolves through the register's own narrow door and answers one account or nothing — never a list, and never more than trying the identifier form already tells a caller.
+// Exactly one of the two forms. Neither is refused as incomplete.
 type OperatorAdd struct {
-	AccountId openapi_types.UUID `json:"account_id"`
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Email The address the account signs in with, inside `workspace`.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Workspace The workspace's address, with `email`.
+	Workspace *string `json:"workspace,omitempty"`
 }
 
 // PageInfo defines model for PageInfo.
