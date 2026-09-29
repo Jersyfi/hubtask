@@ -405,6 +405,13 @@ INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_pre
           '01936f2a-7c1e-7000-8000-0000000000e1', 'the control plane bootstrap',
           decode('$ADMIN_HASH', 'hex'), 'hbt_pat_', ARRAY['admin:tenants'],
           now() + interval '15 minutes');
+-- And into the register (ADR-0070 §1). The scope alone has not been enough since SI-05: it is
+-- checked again where it is exercised, and the empty-register fallback is the *single-workspace*
+-- installation's — which this is not, the moment it provisions the second. An installation that
+-- hosts workspaces registers whoever runs it, and seeding that row is what these scripts are
+-- standing in for.
+INSERT INTO operator (tenant_id, account_id)
+  VALUES ('$OPERATOR_TENANT', '01936f2a-7c1e-7000-8000-0000000000e1');
 COMMIT;" > /dev/null
 
 api() { curl -sS "http://127.0.0.1:$MULTI_HTTP_PORT/api/v1$1" "${@:2}"; }

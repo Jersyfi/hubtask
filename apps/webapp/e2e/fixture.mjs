@@ -194,6 +194,10 @@ const ARRAYS = new Set([
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
   '/integrations/calendar-feeds',
+  // The provider surface, plural since SI-10 and read by the administration's sign-in screen. Both
+  // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
+  // like from the outside.
+  '/identity-providers', '/identity-provider-presets',
 ]);
 
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */

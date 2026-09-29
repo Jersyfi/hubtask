@@ -200,9 +200,13 @@ func TestTheInstallationsProviderIsReadByEveryWorkspaceAndWrittenByNone(t *testi
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	now := time.Now().UTC()
 
+	// A `GOOGLE` row rather than a `GENERIC` one, and the reason is ADR-0071 §2 rather than
+	// convenience: a provider whose addresses this installation cannot vouch for may never be an
+	// installation provider, because that row reaches every workspace. What this test is about is
+	// the policy — read by all, written by none — so it uses a kind the policy lets exist.
 	offered, err := domain.NewIdentityProvider(domain.NewIdentityProviderInput{
-		ID: idpRowShare, Issuer: "https://id.platform.example", ClientID: "hubtask-platform",
-		Enabled: true, Now: now,
+		ID: idpRowShare, Issuer: "https://accounts.google.com", ClientID: "hubtask-platform",
+		Kind: string(domain.KindGoogle), Enabled: true, Now: now,
 	})
 	if err != nil {
 		t.Fatalf("building the installation's configuration: %v", err)
