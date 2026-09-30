@@ -179,17 +179,22 @@ for everybody.
 **Broken when** an input refuses what a person pastes, a keyboard cannot reach a control, or a
 state is told only in colour.
 
-### P-14: AI is optional, and consent is a person's
+### P-14: AI is optional, and nobody consents in another's place
 
 **Rule.** The product with AI switched off is the whole product. Content is sent to a model only
 after the workspace has consented, and no operator, plan or default gives that consent in its
-place. Who processes the content, and where, is always visible.
+place. Inside the workspace a person may keep what they authored out, unless the workspace makes AI
+part of everybody's work on a named legal basis, which every person then sees instead of the
+switch. Who processes the content, and where, is always visible.
 
-**Why.** [ai-first.md](../architecture/ai-first.md) §2 and [ADR-0049](../adr/ADR-0049-ai-provider-surface.md);
-a provider may offer a model, never impose one.
+**Why.** [ai-first.md](../architecture/ai-first.md) §2, [ADR-0049](../adr/ADR-0049-ai-provider-surface.md)
+and [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §3; a provider may offer a model,
+never impose one. Only the controller can name a legal basis, so only the workspace can make AI
+part of everybody's work ([data-protection.md](../architecture/data-protection.md) §4.1).
 
-**Broken when** a feature stops working without AI, or content leaves the installation without a
-consent the workspace itself gave.
+**Broken when** a feature stops working without AI; content leaves the installation without a
+consent the workspace itself gave; or a person's content reaches a model after they objected,
+without a legal basis shown to them.
 
 ### P-15: Hubtask holds state; the platform holds the business
 
@@ -207,4 +212,8 @@ what Hubtask does.
 
 ## Replaced
 
-Nothing yet. A principle that changes moves here with the date and the reason.
+A principle that changes moves here with the date and the reason.
+
+| Date | Principle | Was | Why it changed |
+|---|---|---|---|
+| 2026-10-01 | P-14 | *AI is optional, and consent is a person's* — the rule already said the workspace consents | Since [data-protection.md](../architecture/data-protection.md) §4.1 (2026-09-30) a workspace may make AI part of everybody's work on a named legal basis, where no person consents at all. The title now names what holds at every level: no operator or plan consents for a workspace, and no workspace overrides a person without a basis it names. Decided by the owner. |
