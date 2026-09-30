@@ -50,8 +50,8 @@ page says how many codes remain and leads to setting the authenticator up again.
 ## Today
 
 Checks 4 and 7 hold since SC-03 (`signin.test.mjs`: the recovery code pasted with its dashes into a
-text field, and the heading asserted exactly). Found while checking the rest, and not tracked by a
-task yet:
+text field, and the heading asserted exactly). Found while checking the rest, tracked in
+issue #1100:
 
 * **Check 2 fails at its end:** the remaining time is shown and counts down, but when it reaches
   zero the card stays on the step at `0:00` — nothing says the time ran out and nothing returns to
