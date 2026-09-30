@@ -187,6 +187,11 @@
           </div>
 
           <div class="section">
+            {#if actor.secondFactorRequired}
+              <!-- Not a switch the server would refuse (P-05): the workspace's rule demands the
+                   factor of this person, and the sentence says so where the control would be. -->
+              <p class="quiet">{t('app.mfa.required_by_workspace')}</p>
+            {:else}
             <details>
               <summary>{t('app.mfa.disable_summary')}</summary>
               <Stack gap="150">
@@ -211,6 +216,7 @@
                 </form>
               </Stack>
             </details>
+            {/if}
           </div>
         {:else}
           <TotpEnrollment onarmed={() => void armedFactor()} />

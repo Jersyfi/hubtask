@@ -1451,6 +1451,7 @@
   "app.mfa.disable_hint": "Your password, again. A stolen session removing the second factor is the attack the factor exists against, so being signed in is not enough here.",
   "app.mfa.disable_body": "Your sign-in goes back to the password alone, and the ten recovery codes stop working. Do this when the authenticator is being replaced, not to make signing in quicker.",
   "app.mfa.disabled": "The second factor is off.",
+  "app.mfa.required_by_workspace": "Your workspace requires a second factor, so it stays on.",
   "app.sign_in.code_label": "Code from your authenticator",
   "app.sign_in.code_hint": "Six digits, the one showing now.",
   "app.sign_in.recovery_label": "Recovery code",
