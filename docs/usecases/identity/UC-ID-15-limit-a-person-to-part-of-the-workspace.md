@@ -5,7 +5,7 @@ context: identity
 actors: [PE-owner, PE-admin, PE-guest, PE-child]
 deployments: [D2, D3, D4, D6]
 serves: [P-01, P-05]
-state: built
+state: partial
 tasks: [B-02]
 checked_by: [core/domain/service/Authorization_test.go]
 ---
@@ -36,3 +36,10 @@ found.
 
 * Rights only add up; nothing *removes* access that a higher role grants. Keeping a hub private
   from an administrator is UC-ID-16.
+
+## Today
+
+* **Checks 1–5 hold through the API, not through the web app.** The invitation always grants its
+  role on the whole workspace (`PeopleView.svelte`), and the members dialog only offers people who
+  already hold a membership along the path — so a child or a guest cannot be limited to one hub or
+  one entry from the screens. Issue #1079.
