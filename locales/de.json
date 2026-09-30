@@ -363,7 +363,7 @@
   "app.sign_in.code_label": "Code aus deinem Authenticator",
   "app.sign_in.code_hint": "Sechs Ziffern, die gerade angezeigt werden.",
   "app.sign_in.recovery_label": "Wiederherstellungscode",
-  "app.sign_in.recovery_hint": "Einer der zehn, die beim Einrichten des Faktors gezeigt wurden. Jeder funktioniert einmal.",
+  "app.sign_in.recovery_hint": "Einer der zehn Codes, die du beim Einrichten des Faktors gespeichert hast: vier Gruppen aus je vier Buchstaben und Ziffern. Füge ihn ein, wie er ist, mit Bindestrichen. Jeder funktioniert einmal.",
   "app.sign_in.use_recovery": "Ich habe meinen Authenticator nicht",
   "app.sign_in.use_code": "Stattdessen einen Code verwenden",
   "app.sign_in.second_factor_hint": "Dein Passwort war richtig. Dieses Konto fragt zusätzlich nach einem Code aus deinem Authenticator.",

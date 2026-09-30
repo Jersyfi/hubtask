@@ -183,6 +183,48 @@ test('a second factor becomes the second step, with the code field and the ident
   }
 });
 
+// UC-ID-02 check 4: the recovery code as it was shown - four groups of four letters and digits,
+// pasted in one go with its dashes - reaches the server whole, from a field with a text keyboard.
+// Before SC-03 the field was numeric and eight long, so every recovery code was cut off and refused.
+test('a recovery code is taken as it was shown, dashes and all, with a text keyboard', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const { browser, page } = await open(origin, async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/api/v1/auth/sessions:verify')) {
+      sent.verify = request.postDataJSON();
+      return route.fulfill({ status: 201, json: { ...TOKENS, recovery_codes_remaining: 7 } });
+    }
+    return stubFor({ answer: owed })(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    await page.getByRole('button', { name: 'I do not have my authenticator' }).click();
+    const field = page.getByLabel('Recovery code');
+    // The focus follows the step: the field is where the next keystroke lands.
+    await page.waitForFunction(() => document.activeElement?.getAttribute('autocomplete') === 'off');
+    assert.equal(await field.getAttribute('inputmode'), 'text', 'a recovery code holds letters');
+    assert.equal(await field.getAttribute('maxlength'), null, 'nothing cuts a pasted code off');
+
+    // Pasted, not typed: one insertion of the whole code, as a password manager or the clipboard
+    // delivers it.
+    await field.focus();
+    await page.keyboard.insertText('K7QM-2XRT-P4ZL-3VWA');
+    assert.equal(await field.inputValue(), 'K7QM-2XRT-P4ZL-3VWA');
+
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await field.waitFor({ state: 'detached' });
+    assert.equal(sent.verify?.recovery_code, 'K7QM-2XRT-P4ZL-3VWA', 'the code reached the server whole');
+    assert.equal(sent.verify?.code, undefined, 'the recovery code was not sent as an authenticator code');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 test('the rules under a password are the workspace’s, and the server’s lines wait for the local ones', async () => {
   const { origin, close } = await serve(DIST);
   const asked = [];

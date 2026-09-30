@@ -1453,7 +1453,7 @@
   "app.sign_in.code_label": "Code from your authenticator",
   "app.sign_in.code_hint": "Six digits, the one showing now.",
   "app.sign_in.recovery_label": "Recovery code",
-  "app.sign_in.recovery_hint": "One of the ten shown when you set the factor up. Each works once.",
+  "app.sign_in.recovery_hint": "One of the ten codes you saved when you set the factor up: four groups of four letters and digits. Paste it as it is, dashes and all. Each works once.",
   "app.sign_in.use_recovery": "I do not have my authenticator",
   "app.sign_in.use_code": "Use a code instead",
   "app.sign_in.second_factor_hint": "Your password was right. This account also asks for a code from your authenticator.",
