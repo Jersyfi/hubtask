@@ -60,7 +60,7 @@ var (
 	deployment  = regexp.MustCompile("(?m)^\\| `(D\\d)` \\|")
 	principleID = regexp.MustCompile(`(?m)^### (P-\d{2}):`)
 	numbered    = regexp.MustCompile(`(?m)^\d+\.\s+\S`)
-	ucIndexRow    = regexp.MustCompile(`(?m)^\|\s*\[(UC-[A-Z]{2,3}-\d{2,3})\]\(([^)]+)\)\s*\|[^|]*\|[^|]*\|\s*` + "`?" + `([a-z]+)` + "`?" + `\s*\|`)
+	ucIndexRow  = regexp.MustCompile(`(?m)^\|\s*\[(UC-[A-Z]{2,3}-\d{2,3})\]\(([^)]+)\)\s*\|[^|]*\|[^|]*\|\s*` + "`?" + `([a-z]+)` + "`?" + `\s*\|`)
 	taskHeading = regexp.MustCompile(`(?m)^## ([A-Z0-9]+-\d{2,3}) `)
 )
 
