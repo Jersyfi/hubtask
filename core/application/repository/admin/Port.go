@@ -87,12 +87,38 @@ type InstanceEvent struct {
 	Details map[string]any
 }
 
-// Journal is the instance's own record. Append-only by grant; there is no read method because no
-// API serves it - reading it is the operator's, at the database.
+// Journal is the instance's own record. Append-only by grant, and read by one screen (SI-17): the
+// dashboard's journal, newest first, one page at a time.
 type Journal interface {
 	// Record writes one entry. The table has no row-level-security policy, so this works inside
 	// whatever transaction the act runs in - including the one that ends the tenant it names.
 	Record(ctx context.Context, entry InstanceEvent) error
+
+	// Page walks the journal backwards from `cursor`, empty for the first page. The entries and
+	// whether there is another page behind them.
+	Page(ctx context.Context, cursor string, size int) ([]InstanceEvent, PageInfo, error)
+}
+
+// PageInfo is the walk's state, as every other listing in this product reports it.
+type PageInfo struct {
+	NextCursor string
+	HasMore    bool
+}
+
+// Census is the installation at a glance (SI-17, ADR-0070 §5): counts, states and limits, never
+// rows. The tenant boundary is a database policy rather than a role, and the dashboard does not go
+// around it - what it reads is five integers, through a function that can answer nothing else.
+type Census struct {
+	WorkspacesActive          int64
+	WorkspacesSuspended       int64
+	WorkspacesPendingDeletion int64
+	AccountsActive            int64
+	AccountsTotal             int64
+}
+
+// Installation answers the census.
+type Installation interface {
+	Census(ctx context.Context) (Census, error)
 }
 
 // Footprint is the §5 stores, counted: what the evidence entry records before the fall, and what

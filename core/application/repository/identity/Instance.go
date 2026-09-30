@@ -23,6 +23,18 @@ type InstanceLevel struct {
 	Policy identity.PolicyLayer
 	// Legal is the instance's four links and their locks.
 	Legal identity.LegalLayer
+	// Localisation is the default language, time zone and week start a workspace inherits when it
+	// has set none of its own.
+	//
+	// **A default, never a lock** — the concept's §5.7 in its own words: "Eine Instanz gibt einen
+	// Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der
+	// Betreiber es so eingestellt hat, ist ein Produktfehler." So there is no lock map beside it,
+	// which is the structural way of saying it rather than a check somebody can forget.
+	Localisation identity.LocalisationDefaults
+	// Quotas are the ceilings the installation sets for every workspace that sets none of its own:
+	// the middle level of `Effective(product, instance, plan, workspace)` (§6.7). A lock here is
+	// meaningful — an operator may forbid a workspace raising its own — so the locks travel.
+	Quotas identity.QuotaDefaults
 	// BlocklistFile is the path to the operator's own list of refused passwords, read offline.
 	// Instance-only and deliberately not a workspace switch: the file is on the operator's disk,
 	// so there is nothing for a workspace to point at (ADR-0068 §1, and the reason the thirteenth
@@ -78,6 +90,18 @@ type Operators interface {
 
 	// List answers the whole register, for the control plane's own screen.
 	List(ctx context.Context) ([]Operator, error)
+
+	// Resolve answers the account an address names inside one workspace, and zero where the pair
+	// matches nothing.
+	//
+	// It exists because an account id is not something an operator can look up: `account` is behind
+	// row level security, so the control plane cannot list accounts across workspaces and the
+	// screen would be asking somebody to type a UUID out of the database by hand (migration 0109).
+	// An address and a workspace are what a person actually knows.
+	//
+	// **One identifier and nothing else.** Not a list, not a search, not a name — and no more than
+	// a caller already learns by trying `Add`, so nothing here widens what the control plane sees.
+	Resolve(ctx context.Context, slug, email string) (shared.ID, error)
 
 	// Add puts an account in. False means it was already there **or** that no such account exists:
 	// the first is not an error - a caller asking for somebody to be an operator got what they

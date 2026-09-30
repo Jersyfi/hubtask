@@ -28,6 +28,30 @@ Three feature areas structure the decision:
   quotas, backup and restore, retention policies, audit query and export, data subject requests,
   OIDC/security policy, licensing, automation rule administration.
 
+**A fourth arrived with [ADR-0070](ADR-0070-the-instance-layer.md) §5, and is treated as the third
+is:** the **instance** area — the level *above* the workspaces, at `/instance` in the same web app.
+It is excluded from the shells exactly as administration is, and it is its own area rather than a
+part of administration because the two are different capabilities: an administrator runs a
+workspace, an operator runs the installation, and a shell that shipped one because it shipped the
+other would be shipping the control plane by accident. Everything this decision says about
+administration and the shells applies to it unchanged.
+
+*Amended 2026-09-28 (SI-12, SI-17).* Two things about the instance area that follow from parity
+being the default, and that the first build got the wrong way round:
+
+* **Parity for this area is measured against the API, not against the web app's own reads.** It is
+  the only area with a second first-party client — `hubctl admin` — and "all functions in all
+  clients" counts that one too. The list of verbs is the control plane's route list, and the
+  dashboard carries all of them, with the one exception ADR-0070 §5 names and justifies: the key
+  ring's rotation, which needs the key in the process. A screen that showed a value and sent its
+  reader to a terminal to change it was failing this decision's default, not applying it.
+* **Which area a person is *offered* is the manifest's answer, and an area they are outside is
+  absent.** Parity is about what a client can do for somebody entitled to it; it says nothing about
+  showing a locked door to somebody who is not. The manifest carries `instance.reachable` for
+  exactly this, beside the entries every other area already reads, and the destination exists only
+  where it is true. The general rule, so the next area does not have to ask: **explain a refusal,
+  omit a level.**
+
 ## Options
 
 **A. Full parity everywhere, no exceptions.** The purest reading of "all functions in all

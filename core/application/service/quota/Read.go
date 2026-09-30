@@ -102,7 +102,11 @@ func Standings(
 	if err != nil {
 		return nil, err
 	}
-	limits := Resolve(overrides, mode)
+	instance, err := store.InstanceOverrides(ctx)
+	if err != nil {
+		return nil, err
+	}
+	limits := Resolve(overrides, instance, mode)
 
 	configured := map[string]bool{
 		APIRequestsPerMinute:  overrides.APIRequestsPerMinute != nil,

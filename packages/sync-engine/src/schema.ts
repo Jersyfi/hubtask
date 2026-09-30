@@ -290,6 +290,23 @@ export type AiJurisdiction = components['schemas']['AiJurisdiction'];
 export type AccessToken = components['schemas']['AccessToken'];
 export type IdentityProviderConfiguration =
   components['schemas']['IdentityProviderConfiguration'];
+/** The preset a provider was configured from, which decides the mark its button draws (ADR-0069). */
+export type IdentityProviderKind = components['schemas']['IdentityProviderKind'];
+/**
+ * How freely an arriving subject may claim an account that already exists (SI-10). The one axis with
+ * a security answer: creating an account gives somebody an empty desk, and claiming one gives them
+ * somebody else's.
+ */
+export type IdentityProviderProvisioning =
+  components['schemas']['IdentityProviderProvisioning'];
+/**
+ * What follows from which provider a workspace picked: the scopes its registration has to permit,
+ * whether it may sign in people nobody invited, and the instructions for registering with it.
+ *
+ * `instructions` and `particular` are message codes rendered with `redirect_uri` - there is no
+ * display text in this answer, as there is none in any (ADR-0011).
+ */
+export type IdentityProviderPreset = components['schemas']['IdentityProviderPreset'];
 
 /**
  * One step of an entry's history. `code` is a message the client renders, never a sentence — which
@@ -451,3 +468,34 @@ export type NotificationPreferenceUpdate = components['schemas']['NotificationPr
 export type ImportKind = components['schemas']['ImportKind'];
 export type ImportRequest = components['schemas']['ImportRequest'];
 export type ImportRun = components['schemas']['ImportRun'];
+
+/**
+ * The level above the workspaces, as its dashboard reads it (SI-17, ADR-0070 §5).
+ *
+ * Counts, states and limits — never rows. The tenant boundary is a database policy rather than a
+ * role, and none of these answers goes around it: the overview is five integers, the journal holds
+ * identifiers, slugs, counts and moments, and the workspace listing is the control plane's own view
+ * of the `tenant` row rather than of anything inside it.
+ */
+export type InstanceOverview = components['schemas']['InstanceOverview'];
+export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
+export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
+/** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */
+export type AdminTenant = components['schemas']['AdminTenant'];
+/** The installation's own switches, each with where its lock came from. */
+export type InstanceSettings = components['schemas']['InstanceSettings'];
+export type InstanceSetting = components['schemas']['InstanceSetting'];
+/** Who operates this installation. An empty register is the private installation (ADR-0070 §1). */
+export type Operator = components['schemas']['Operator'];
+/** How long this session carries the control plane's scope. It does not slide. */
+export type SessionElevation = components['schemas']['SessionElevation'];
+/** What provisioning a workspace asks for, and the owner's way in that it answers once. */
+export type TenantProvision = components['schemas']['TenantProvision'];
+export type ProvisionedTenant = components['schemas']['ProvisionedTenant'];
+/** A workspace's limits, each absent where the installation's default applies. */
+export type TenantQuotas = components['schemas']['TenantQuotas'];
+/**
+ * The master keyring's census. Read at the instance layer and never turned there: a rotation is an
+ * operator at a terminal with the new key in their hand (ADR-0045, the concept's §5.7).
+ */
+export type EncryptionStatus = components['schemas']['EncryptionStatus'];

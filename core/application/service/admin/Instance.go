@@ -5,9 +5,11 @@ package admin
 
 import (
 	"context"
+	"strings"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/quota"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -130,6 +132,19 @@ type WriteInstanceSettings struct{ Writer InstanceWriter }
 // A `PUT` rather than a merge, because a merge over eighteen switches that can each be absent has no
 // way to say "unset this one" - and "the operator decided nothing here" is a value the resolver acts
 // on, so it has to be expressible.
+// ExecuteAsFile writes the level on behalf of the instance file, at start-up.
+//
+// **The one caller that is not a person**, and the one that may write while a file enforces —
+// because it *is* the file. It carries no actor: there is nobody to authorise, nothing has a
+// session yet, and the journal records the source rather than a name. Everything else about it is
+// the same write, including the entry in the journal, which is what makes a change that arrived
+// from a repository as visible as one somebody clicked.
+func (h WriteInstanceSettings) ExecuteAsFile(
+	ctx context.Context, level identityrepo.InstanceLevel, source string,
+) (identityrepo.InstanceLevel, error) {
+	return h.write(ctx, appshared.ActorContext{AccountName: source}, level)
+}
+
 func (h WriteInstanceSettings) Execute(
 	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel,
 ) (identityrepo.InstanceLevel, error) {
@@ -137,6 +152,13 @@ func (h WriteInstanceSettings) Execute(
 	if err := w.authorize(ctx, actor); err != nil {
 		return identityrepo.InstanceLevel{}, err
 	}
+	return h.write(ctx, actor, level)
+}
+
+func (h WriteInstanceSettings) write(
+	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel,
+) (identityrepo.InstanceLevel, error) {
+	w := h.Writer
 
 	var written identityrepo.InstanceLevel
 	// The system scope: no tenant, and write access to the tables the schema deliberately left
@@ -146,6 +168,15 @@ func (h WriteInstanceSettings) Execute(
 		before, err := w.Settings.Read(ctx)
 		if err != nil {
 			return err
+		}
+		// A file in `enforce` mode is the source, and it is rewritten at every start. A save
+		// accepted here would be a save the next restart silently undoes, which is worse than a
+		// refusal: the operator would believe their change took (ADR-0070 §5, the concept's §5.4 —
+		// "ein Ort je Betriebsart, nie zwei").
+		if before.IsEnforcedFromFile {
+			return shared.ErrConflict.
+				WithDetail("admin.instance_enforced_from_file").
+				WithParams(map[string]string{"source": before.Source})
 		}
 		if err := w.Settings.Write(ctx, level, actor.AccountID, w.Clock.Now()); err != nil {
 			return err
@@ -228,6 +259,47 @@ type AddOperator struct{ Writer InstanceWriter }
 func (h AddOperator) Execute(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID,
 ) error {
+	return h.execute(ctx, actor, accountID)
+}
+
+// ExecuteByAddress names the account the way a person can: the workspace it is in, and the address
+// it signs in with.
+//
+// The identifier form stays — a script that already has one keeps working — and this is the form a
+// screen uses, because an account id is not something an operator can look up at all: `account` is
+// behind row level security, so the control plane cannot list accounts across workspaces.
+// Resolution happens through the register's own narrow door and answers one identifier or nothing.
+func (h AddOperator) ExecuteByAddress(
+	ctx context.Context, actor appshared.ActorContext, slug, email string,
+) error {
+	w := h.Writer
+	if err := w.authorize(ctx, actor); err != nil {
+		return err
+	}
+	if strings.TrimSpace(slug) == "" || strings.TrimSpace(email) == "" {
+		return shared.ErrValidation.WithDetail("admin.operator_incomplete")
+	}
+
+	var found shared.ID
+	if err := w.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		resolved, err := w.Operators.Resolve(ctx, slug, email)
+		found = resolved
+		return err
+	}); err != nil {
+		return err
+	}
+	if found.IsZero() {
+		// The same refusal a wrong identifier produced, and deliberately the same: whether an
+		// address exists in a workspace is exactly what somebody probing would want to learn, and
+		// the caller may already learn as much by trying the identifier form.
+		return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
+	}
+	return h.execute(ctx, actor, found)
+}
+
+func (h AddOperator) execute(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID,
+) error {
 	w := h.Writer
 	if err := w.authorize(ctx, actor); err != nil {
 		return err
@@ -300,15 +372,26 @@ func (h RemoveOperator) Execute(
 
 // instanceLevelOutput is the projection the control plane reads and writes back.
 //
-// The switches the operator decided, and only those: a level that answered the product's defaults
-// for everything it had not decided would be a level nobody could tell apart from one that had
-// decided them, and "the operator chose nothing here" is a value the resolver acts on.
+// **Every switch, decided or not.** The concept names eighteen for this milestone, and answering
+// only the decided ones left a screen showing four — with no way for a reader to learn that the
+// other fourteen exist, let alone that this installation has left them to each workspace. A
+// catalogue the client hard-coded instead would be the thing `/meta/capabilities` exists to
+// prevent: wrong on somebody's installation the day a switch is added.
+//
+// So each entry carries `set`, and that is the distinction the resolver acts on: "the operator
+// chose nothing here" is a value, and it is not the same as the product's default. An unset entry
+// carries no `value` at all rather than a zero somebody would read as a decision.
 func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	patch := level.Policy.Patch
 	settings := usecase.Output{}
 
+	// Every switch the domain knows, in the order a screen draws them, unset until one is put.
+	for _, name := range identity.PolicySwitches() {
+		settings[string(name)] = usecase.Output{"set": false, "locked": level.Policy.Locks[name]}
+	}
+
 	put := func(name identity.PolicySwitch, value any) {
-		entry := usecase.Output{"value": value, "locked": level.Policy.Locks[name]}
+		entry := usecase.Output{"set": true, "value": value, "locked": level.Policy.Locks[name]}
 		settings[string(name)] = entry
 	}
 	if patch.MinLength != nil {
@@ -367,18 +450,43 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 		put(identity.SwitchSessionIdleMinutes, *patch.SessionIdleMinutes)
 	}
 
+	// The four links, for the switches' reason: a screen that drew only the two somebody filled in
+	// is a screen that never mentions terms or an accessibility statement.
 	legal := usecase.Output{}
 	for _, link := range identity.LegalLinkNames() {
 		value := level.Legal.Links.Of(link)
-		if value == "" && !level.Legal.Locks[link] {
-			continue
+		entry := usecase.Output{"set": value != "", "locked": level.Legal.Locks[link]}
+		if value != "" {
+			entry["value"] = value
 		}
-		legal[string(link)] = usecase.Output{"value": value, "locked": level.Legal.Locks[link]}
+		legal[string(link)] = entry
+	}
+
+	// The three localisation defaults, each with `set` and no lock at all — the type has nowhere
+	// to put one, and the concept's §5.7 is why.
+	localisation := usecase.Output{
+		"locale":     settingOf(level.Localisation.Locale != "", level.Localisation.Locale),
+		"time_zone":  settingOf(level.Localisation.TimeZone != "", level.Localisation.TimeZone),
+		"week_start": settingOf(level.Localisation.WeekStart != 0, level.Localisation.WeekStart),
+	}
+
+	// Every quota, decided or not, for the switches' reason: a screen that drew only the ceilings
+	// somebody set could not show that the others exist and are each workspace's.
+	quotas := usecase.Output{}
+	for _, name := range quota.Names() {
+		ceiling, decided := level.Quotas.Of(name)
+		entry := usecase.Output{"set": decided, "locked": level.Quotas.Locked(name)}
+		if decided {
+			entry["value"] = ceiling
+		}
+		quotas[name] = entry
 	}
 
 	out := usecase.Output{
 		"sign_in":               settings,
 		"legal":                 legal,
+		"localisation":          localisation,
+		"quotas":                quotas,
 		"source":                level.Source,
 		"is_enforced_from_file": level.IsEnforcedFromFile,
 	}
@@ -388,15 +496,124 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	return out
 }
 
+// applyLocalisation reads the three defaults, and refuses a lock however it is sent.
+//
+// Not ignored — refused. "Eine Instanz gibt einen Standard, nie ein Schloss" (§5.7), and a `PUT`
+// that carried one and was silently obeyed in part is a `PUT` whose author believes something
+// untrue about their own installation.
+func applyLocalisation(level *identityrepo.InstanceLevel, raw any) error {
+	sent, isObject := raw.(map[string]any)
+	if !isObject {
+		return nil
+	}
+	for name, entry := range sent {
+		field, isObject := entry.(map[string]any)
+		if !isObject {
+			return refusedInstanceValue("localisation." + name)
+		}
+		if locked, _ := field["locked"].(bool); locked {
+			return shared.ErrValidation.
+				WithDetail("admin.localisation_never_locked").
+				WithParams(map[string]string{"setting": name})
+		}
+		switch name {
+		case "locale":
+			level.Localisation.Locale, _ = field["value"].(string)
+		case "time_zone":
+			level.Localisation.TimeZone, _ = field["value"].(string)
+		case "week_start":
+			start, isNumber := intOfInput(field["value"])
+			if !isNumber || start < 1 || start > identity.MaxWeekStart {
+				return refusedInstanceValue("localisation.week_start")
+			}
+			level.Localisation.WeekStart = start
+		default:
+			// A key a newer client knows and this build does not, which is the `PUT`'s own rule.
+			continue
+		}
+	}
+	return nil
+}
+
+// applyQuotaDefaults reads one ceiling per quota, and a lock per ceiling.
+//
+// A quota's name is the contract's enum, so an unknown one is skipped rather than refused - the
+// rule the sign-in switches follow, and for the same reason: a newer client should lose the key it
+// has and this build does not, rather than lose the save.
+func applyQuotaDefaults(level *identityrepo.InstanceLevel, raw any) error {
+	sent, isObject := raw.(map[string]any)
+	if !isObject {
+		return nil
+	}
+	known := map[string]bool{}
+	for _, name := range quota.Names() {
+		known[name] = true
+	}
+	for name, entry := range sent {
+		if !known[name] {
+			continue
+		}
+		field, isObject := entry.(map[string]any)
+		if !isObject {
+			return refusedInstanceValue("quotas." + name)
+		}
+		if _, held := field["value"]; !held {
+			// Cleared: the installation stops deciding this ceiling, and the product's default
+			// applies again. A lock with no value would be a lock on nothing.
+			continue
+		}
+		ceiling, isNumber := intOfInput(field["value"])
+		if !isNumber || ceiling < 0 {
+			return refusedInstanceValue("quotas." + name)
+		}
+		level.Quotas.Limits[name] = int64(ceiling)
+		if locked, _ := field["locked"].(bool); locked {
+			level.Quotas.Locks[name] = true
+		}
+	}
+	return nil
+}
+
+// intOfInput reads a number out of a decoded JSON document, which carries one as a float.
+func intOfInput(value any) (int, bool) {
+	switch number := value.(type) {
+	case int:
+		return number, true
+	case int64:
+		return int(number), true
+	case float64:
+		return int(number), number == float64(int64(number))
+	default:
+		return 0, false
+	}
+}
+
+// settingOf is one entry of a level: decided or not, and the value only where it was.
+func settingOf(decided bool, value any) usecase.Output {
+	entry := usecase.Output{"set": decided}
+	if decided {
+		entry["value"] = value
+	}
+	return entry
+}
+
 // instanceLevelFrom reads the document a `PUT` carried. An unknown key is ignored rather than
 // refused, for the reason the adapter ignores an unknown row: a newer client talking to an older
 // server should lose the switch it does not have rather than the save.
 //
+// InstanceLevelOf is `instanceLevelFrom` for the one caller outside this package: the instance
+// file, which is the third of §5's three doors and goes through the same mapping the other two do.
+//
 //nolint:gocyclo,cyclop // one case per switch is the mapping; splitting it hides which key is which
+func InstanceLevelOf(document map[string]any) (identityrepo.InstanceLevel, error) {
+	return instanceLevelFrom(usecase.Input(document))
+}
+
 func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 	level := identityrepo.InstanceLevel{
 		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
 		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
+		Quotas: identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
 	}
 
 	sent, _ := in["sign_in"].(map[string]any)
@@ -412,6 +629,13 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		if err := applyInstanceSwitch(&level.Policy.Patch, name, entry["value"]); err != nil {
 			return identityrepo.InstanceLevel{}, err
 		}
+	}
+
+	if err := applyLocalisation(&level, in["localisation"]); err != nil {
+		return identityrepo.InstanceLevel{}, err
+	}
+	if err := applyQuotaDefaults(&level, in["quotas"]); err != nil {
+		return identityrepo.InstanceLevel{}, err
 	}
 
 	legal, _ := in["legal"].(map[string]any)
@@ -545,7 +769,8 @@ func (h ReadInstanceSettings) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ReadInstanceSettingsName,
 		Summary: "Answers what this installation has decided for every workspace on it: the " +
-			"sign-in switches, which of them are locked, and the operator's legal links. Only " +
+			"sign-in switches, which of them are locked, the legal links, the localisation " +
+			"defaults and the quota ceilings. Every key of every area, decided or not. Only " +
 			"what was decided - a level that answered the product's defaults for everything " +
 			"else would be one nobody could tell apart from an operator who had chosen them.",
 		SideEffects: "None. Reads only.",
@@ -593,6 +818,18 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 			{
 				Name: "legal", Kind: usecase.KindObject,
 				Description: "The four links, each `{value, locked}`.",
+			},
+			{
+				Name: "localisation", Kind: usecase.KindObject,
+				Description: "`locale`, `time_zone` and `week_start` - what a workspace that set " +
+					"none of its own inherits. A default and never a lock: a write that carries " +
+					"one is refused rather than partly obeyed.",
+			},
+			{
+				Name: "quotas", Kind: usecase.KindObject,
+				Description: "One ceiling per quota, each `{value, locked}` - the middle level " +
+					"of Effective(product, instance, plan, workspace). A workspace's own still " +
+					"wins unless the ceiling is locked; 0 is unlimited and absent is undecided.",
 			},
 			{
 				Name: "blocklist_file", Kind: usecase.KindString,
@@ -673,10 +910,20 @@ func (h AddOperator) Descriptor() usecase.Descriptor {
 		TokenScope:  adminTenantsScope,
 		Input: []usecase.Field{
 			{
-				Name: "account_id", Kind: usecase.KindString, Required: true,
-				Description: "The account. It has to exist, and the workspace it lives in is " +
-					"read from it rather than named - a pair that could disagree is a pair " +
-					"somebody eventually gets wrong.",
+				Name: "account_id", Kind: usecase.KindString,
+				Description: "The account, where the caller has its identifier. The workspace it " +
+					"lives in is read from it rather than named - a pair that could disagree is " +
+					"a pair somebody eventually gets wrong.",
+			},
+			{
+				Name: "workspace", Kind: usecase.KindString,
+				Description: "The workspace's address, with `email`, where the caller does not " +
+					"have an identifier - which is every screen, because the control plane " +
+					"cannot list accounts across workspaces and so cannot show one.",
+			},
+			{
+				Name: "email", Kind: usecase.KindString,
+				Description: "The address the account signs in with, inside `workspace`.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -693,6 +940,15 @@ func (h AddOperator) Descriptor() usecase.Descriptor {
 func (h AddOperator) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	// Two ways of naming one account, and neither is required on its own: a script has the
+	// identifier, a person has the address. Both absent is the incomplete refusal, which is the
+	// same one an empty identifier already produced.
+	if in.Present("workspace") || in.Present("email") {
+		if err := h.ExecuteByAddress(ctx, actor, in.String("workspace"), in.String("email")); err != nil {
+			return nil, err
+		}
+		return usecase.Output{}, nil
+	}
 	accountID, err := in.ID("account_id")
 	if err != nil {
 		return nil, err

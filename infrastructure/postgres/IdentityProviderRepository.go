@@ -18,8 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// The relying party's two stores (H-04). No method takes a tenant: row level security bounds
-// every statement, and the workspace is the provider row's key (ADR-0010).
+// The relying party's stores (H-04, SI-10). No method takes a tenant: row level security bounds
+// every statement, and which level a row belongs to is the scope's answer rather than a
+// parameter's (ADR-0010, migration 0103).
 
 type IdentityProviderRepository struct{}
 
@@ -42,104 +43,253 @@ var (
 	_ repository.OidcFlows         = OidcFlowRepository{}
 )
 
-func (IdentityProviderRepository) Upsert(
-	ctx context.Context, configured identity.IdentityProvider, sealed crypto.Sealed, now time.Time,
+func (IdentityProviderRepository) List(ctx context.Context) ([]identity.IdentityProvider, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListIdentityProviders(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the identity providers: %w", err))
+	}
+	providers := make([]identity.IdentityProvider, 0, len(rows))
+	for _, row := range rows {
+		configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+			row.DisplayName, row.Kind, row.Provisioning, row.Position,
+			row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, configured)
+	}
+	return providers, nil
+}
+
+func (IdentityProviderRepository) Count(ctx context.Context) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	counted, err := queries.CountIdentityProviders(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the identity providers: %w", err))
+	}
+	return int(counted), nil
+}
+
+func (IdentityProviderRepository) Find(
+	ctx context.Context, id shared.ID,
 ) (identity.IdentityProvider, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return identity.IdentityProvider{}, err
 	}
-	row, err := queries.UpsertIdentityProvider(ctx, sqlc.UpsertIdentityProviderParams{
-		Issuer:              configured.Issuer,
-		ClientID:            configured.ClientID,
-		ClientSecretEnc:     sealed.Ciphertext,
-		ClientSecretKeyID:   sealed.KeyID,
-		AllowedEmailDomains: configured.AllowedEmailDomains,
-		Enabled:             configured.Enabled,
-		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
-	})
-	if err != nil {
-		return identity.IdentityProvider{}, shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("writing the identity provider: %w", err))
-	}
-	return identity.IdentityProvider{
-		TenantID:            configured.TenantID,
-		Issuer:              row.Issuer,
-		ClientID:            row.ClientID,
-		AllowedEmailDomains: row.AllowedEmailDomains,
-		Enabled:             row.Enabled,
-		CreatedAt:           row.CreatedAt.Time,
-		UpdatedAt:           row.UpdatedAt.Time,
-		Version:             int(row.Version),
-	}, nil
-}
-
-func (IdentityProviderRepository) Find(ctx context.Context) (identity.IdentityProvider, error) {
-	queries, err := queriesFrom(ctx)
+	key, err := uuidOf(id)
 	if err != nil {
 		return identity.IdentityProvider{}, err
 	}
-	row, err := queries.FindIdentityProvider(ctx)
+	row, err := queries.FindIdentityProviderByID(ctx, key)
 	if err != nil {
 		if IsNoRows(err) {
 			return identity.IdentityProvider{}, shared.ErrNotFound.
-				WithDetail("identity_provider.not_configured")
+				WithDetail("identity_provider.not_found")
 		}
 		return identity.IdentityProvider{}, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the identity provider: %w", err))
 	}
-	return identity.IdentityProvider{
-		Issuer:              row.Issuer,
-		ClientID:            row.ClientID,
-		AllowedEmailDomains: row.AllowedEmailDomains,
-		Enabled:             row.Enabled,
-		CreatedAt:           row.CreatedAt.Time,
-		UpdatedAt:           row.UpdatedAt.Time,
-		Version:             int(row.Version),
-	}, nil
+	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+		row.DisplayName, row.Kind, row.Provisioning, row.Position,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
 }
 
 func (IdentityProviderRepository) FindWithSecret(
-	ctx context.Context,
+	ctx context.Context, id shared.ID,
 ) (identity.IdentityProvider, crypto.Sealed, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return identity.IdentityProvider{}, crypto.Sealed{}, err
 	}
-	row, err := queries.FindIdentityProviderSecret(ctx)
+	key, err := uuidOf(id)
+	if err != nil {
+		return identity.IdentityProvider{}, crypto.Sealed{}, err
+	}
+	row, err := queries.FindIdentityProviderSecret(ctx, key)
 	if err != nil {
 		if IsNoRows(err) {
 			return identity.IdentityProvider{}, crypto.Sealed{}, shared.ErrNotFound.
-				WithDetail("identity_provider.not_configured")
+				WithDetail("identity_provider.not_found")
 		}
 		return identity.IdentityProvider{}, crypto.Sealed{}, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the identity provider: %w", err))
 	}
-	return identity.IdentityProvider{
-		Issuer:              row.Issuer,
-		ClientID:            row.ClientID,
-		AllowedEmailDomains: row.AllowedEmailDomains,
-		Enabled:             row.Enabled,
-	}, crypto.Sealed{
+	configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+		row.DisplayName, row.Kind, row.Provisioning, row.Position,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled,
+		pgtype.Timestamptz{}, pgtype.Timestamptz{}, 0)
+	if err != nil {
+		return identity.IdentityProvider{}, crypto.Sealed{}, err
+	}
+	return configured, crypto.Sealed{
 		KeyID: row.ClientSecretKeyID, Ciphertext: row.ClientSecretEnc,
 	}, nil
 }
 
-func (IdentityProviderRepository) Delete(ctx context.Context) (bool, error) {
+func (IdentityProviderRepository) Insert(
+	ctx context.Context, configured identity.IdentityProvider, sealed crypto.Sealed,
+) (identity.IdentityProvider, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.IdentityProvider{}, err
+	}
+	key, err := uuidOf(configured.ID)
+	if err != nil {
+		return identity.IdentityProvider{}, err
+	}
+	row, err := queries.InsertIdentityProvider(ctx, sqlc.InsertIdentityProviderParams{
+		ID:                key,
+		Issuer:            configured.Issuer,
+		ClientID:          configured.ClientID,
+		ClientSecretEnc:   sealed.Ciphertext,
+		ClientSecretKeyID: sealed.KeyID,
+		DisplayName:       configured.DisplayName,
+		Kind:              string(configured.Kind),
+		Provisioning:      string(configured.Provisioning),
+		// Bounded by the domain at MaxProviderPosition, two decimal digits.
+		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
+		AllowedEmailDomains: configured.AllowedEmailDomains,
+		AllowedDirectories:  configured.AllowedDirectories,
+		Enabled:             configured.Enabled,
+		Now:                 pgtype.Timestamptz{Time: configured.CreatedAt, Valid: true},
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return identity.IdentityProvider{}, shared.ErrConflict.
+				WithDetail("identity_provider.issuer_taken").
+				WithParams(map[string]string{"issuer": configured.Issuer})
+		}
+		return identity.IdentityProvider{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the identity provider: %w", err))
+	}
+	return providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+		row.DisplayName, row.Kind, row.Provisioning, row.Position,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+}
+
+func (IdentityProviderRepository) Update(
+	ctx context.Context, configured identity.IdentityProvider,
+	sealed *crypto.Sealed, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	key, err := uuidOf(configured.ID)
+	if err != nil {
+		return identity.IdentityProvider{}, false, err
+	}
+	params := sqlc.UpdateIdentityProviderParams{
+		ID:           key,
+		Issuer:       configured.Issuer,
+		ClientID:     configured.ClientID,
+		DisplayName:  configured.DisplayName,
+		Kind:         string(configured.Kind),
+		Provisioning: string(configured.Provisioning),
+		// Bounded by the domain at MaxProviderPosition, two decimal digits.
+		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
+		AllowedEmailDomains: configured.AllowedEmailDomains,
+		AllowedDirectories:  configured.AllowedDirectories,
+		Enabled:             configured.Enabled,
+		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
+	}
+	// Nil is "keep what is sealed", which the statement's COALESCE reads from these two being
+	// absent. Both or neither: an envelope and the key it was wrapped under are one value.
+	if sealed != nil {
+		params.ClientSecretEnc = sealed.Ciphertext
+		params.ClientSecretKeyID = &sealed.KeyID
+	}
+	row, err := queries.UpdateIdentityProvider(ctx, params)
+	if err != nil {
+		if IsNoRows(err) {
+			// No such row *here*: gone, or the installation's own reached for by a workspace,
+			// which the write policy refuses rather than this method.
+			return identity.IdentityProvider{}, false, nil
+		}
+		if isUniqueViolation(err) {
+			return identity.IdentityProvider{}, false, shared.ErrConflict.
+				WithDetail("identity_provider.issuer_taken").
+				WithParams(map[string]string{"issuer": configured.Issuer})
+		}
+		return identity.IdentityProvider{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the identity provider: %w", err))
+	}
+	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
+		row.DisplayName, row.Kind, row.Provisioning, row.Position,
+		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
+	return stored, err == nil, err
+}
+
+func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return false, err
 	}
-	removed, err := queries.DeleteIdentityProvider(ctx)
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	removed, err := queries.DeleteIdentityProvider(ctx, key)
 	if err != nil {
 		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("removing the identity provider: %w", err))
 	}
 	return removed > 0, nil
+}
+
+// providerFrom is the one mapper, and the tenant is in it deliberately: three mappers in this
+// package once dropped `tenant_id` and every retry, replay and correction answered 500 for it. A
+// NULL tenant is not an omission here - it is the installation's own row, which is what
+// `Installation()` reads.
+func providerFrom(
+	id, tenantID pgtype.UUID, issuer, clientID, displayName, kind, provisioning string,
+	position int32, domains, directories []string, enabled bool,
+	createdAt, updatedAt pgtype.Timestamptz, version int32,
+) (identity.IdentityProvider, error) {
+	key, err := idFrom(id)
+	if err != nil {
+		return identity.IdentityProvider{}, err
+	}
+	var tenant shared.ID
+	if tenantID.Valid {
+		tenant, err = idFrom(tenantID)
+		if err != nil {
+			return identity.IdentityProvider{}, err
+		}
+	}
+	return identity.IdentityProvider{
+		ID:                  key,
+		TenantID:            tenant,
+		Issuer:              issuer,
+		ClientID:            clientID,
+		DisplayName:         displayName,
+		Kind:                identity.ProviderKind(kind),
+		Provisioning:        identity.Provisioning(provisioning),
+		Position:            int(position),
+		AllowedEmailDomains: domains,
+		AllowedDirectories:  directories,
+		Enabled:             enabled,
+		CreatedAt:           createdAt.Time,
+		UpdatedAt:           updatedAt.Time,
+		Version:             int(version),
+	}, nil
 }
 
 func (r OidcFlowRepository) Insert(
@@ -153,8 +303,13 @@ func (r OidcFlowRepository) Insert(
 	if err != nil {
 		return err
 	}
+	provider, err := uuidOf(flow.ProviderID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertOidcFlow(ctx, sqlc.InsertOidcFlowParams{
 		ID:           id,
+		ProviderID:   provider,
 		StateHash:    r.stateHasher.Hash(presented.Secret()),
 		CodeVerifier: flow.Verifier,
 		Nonce:        flow.Nonce,
@@ -193,17 +348,32 @@ func (r OidcFlowRepository) Consume(
 	if err != nil {
 		return identity.OidcFlow{}, false, err
 	}
+	// A flow the previous binary opened carries no provider, which the caller reads as "the one
+	// this workspace had". Zero rather than an error: the row is valid, it is just older than the
+	// column.
+	var providerID shared.ID
+	if row.ProviderID.Valid {
+		providerID, err = idFrom(row.ProviderID)
+		if err != nil {
+			return identity.OidcFlow{}, false, err
+		}
+	}
 	return identity.OidcFlow{
-		ID: id, TenantID: presented.TenantID(),
+		ID: id, TenantID: presented.TenantID(), ProviderID: providerID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier,
 	}, true, nil
 }
 
-// ExternalAccountRepository is the seam `account.external_subject` cut in phase 0 (H-04).
+// ExternalAccountRepository is the link between a provider's subject and an account (H-04, SI-10).
+//
+// `account_identity` since the providers became plural: `account.external_subject` held one subject
+// per account and could not say which provider vouched for it. The column is left where it is - a
+// rolling update still reads it - and nothing here writes it any more, which is why an account's
+// links live in the table and the column is a contract step for a later migration.
 //
 // Its own type rather than a method on AccountRepository, for the reason every slice here has
-// one: the sign-in flow needs two statements about a column nothing else touches, and a
-// repository that could write the subject from anywhere is one that eventually does.
+// one: the sign-in flow needs two statements about a table nothing else touches, and a
+// repository that could write a link from anywhere is one that eventually does.
 type ExternalAccountRepository struct{}
 
 func NewExternalAccountRepository() ExternalAccountRepository { return ExternalAccountRepository{} }
@@ -211,13 +381,19 @@ func NewExternalAccountRepository() ExternalAccountRepository { return ExternalA
 var _ repository.ExternalAccounts = ExternalAccountRepository{}
 
 func (ExternalAccountRepository) FindBySubject(
-	ctx context.Context, subject string,
+	ctx context.Context, providerID shared.ID, subject string,
 ) (identity.Account, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return identity.Account{}, err
 	}
-	row, err := queries.FindAccountByExternalSubject(ctx, &subject)
+	provider, err := uuidOf(providerID)
+	if err != nil {
+		return identity.Account{}, err
+	}
+	row, err := queries.FindAccountByProviderSubject(ctx, sqlc.FindAccountByProviderSubjectParams{
+		ProviderID: provider, Subject: subject,
+	})
 	if err != nil {
 		if IsNoRows(err) {
 			return identity.Account{}, shared.ErrNotFound.WithDetail("accounts.not_found")
@@ -232,20 +408,25 @@ func (ExternalAccountRepository) FindBySubject(
 }
 
 func (ExternalAccountRepository) LinkSubject(
-	ctx context.Context, accountID shared.ID, subject string, now time.Time,
+	ctx context.Context, providerID, accountID shared.ID, subject string, now time.Time,
 ) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return false, err
 	}
-	id, err := uuidOf(accountID)
+	provider, err := uuidOf(providerID)
 	if err != nil {
 		return false, err
 	}
-	linked, err := queries.LinkAccountExternalSubject(ctx, sqlc.LinkAccountExternalSubjectParams{
-		ID:              id,
-		ExternalSubject: &subject,
-		Now:             pgtype.Timestamptz{Time: now, Valid: true},
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	linked, err := queries.LinkAccountIdentity(ctx, sqlc.LinkAccountIdentityParams{
+		ProviderID: provider,
+		Subject:    subject,
+		Now:        pgtype.Timestamptz{Time: now, Valid: true},
+		AccountID:  account,
 	})
 	if err != nil {
 		return false, shared.ErrUnavailable.
@@ -257,16 +438,49 @@ func (ExternalAccountRepository) LinkSubject(
 
 var _ repository.IdentityProviderSealing = IdentityProviderRepository{}
 
+func (IdentityProviderRepository) ListSealed(
+	ctx context.Context,
+) ([]repository.SealedProviderSecret, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListIdentityProviderSecrets(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the identity providers' secrets: %w", err))
+	}
+	sealed := make([]repository.SealedProviderSecret, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		sealed = append(sealed, repository.SealedProviderSecret{
+			ProviderID: id,
+			Sealed: crypto.Sealed{
+				KeyID: row.ClientSecretKeyID, Ciphertext: row.ClientSecretEnc,
+			},
+		})
+	}
+	return sealed, nil
+}
+
 func (IdentityProviderRepository) RewrapSecret(
-	ctx context.Context, sealed crypto.Sealed, expectedKeyID string,
+	ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string,
 ) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return false, err
 	}
+	key, err := uuidOf(providerID)
+	if err != nil {
+		return false, err
+	}
 	changed, err := queries.RewrapIdentityProviderSecret(ctx, sqlc.RewrapIdentityProviderSecretParams{
 		ClientSecretEnc: sealed.Ciphertext, ClientSecretKeyID: sealed.KeyID,
-		ExpectedKeyID: expectedKeyID,
+		ID: key, ExpectedKeyID: expectedKeyID,
 	})
 	if err != nil {
 		return false, shared.ErrUnavailable.

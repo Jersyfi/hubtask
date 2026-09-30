@@ -21,9 +21,20 @@ export const BUCKETS = [
   { id: '01a0e2e0-0000-7000-8000-000000000023', collection_id: COLLECTION.id, name: 'Done', order_key: 'a2', wip_limit: null, is_done_bucket: true, version: 1 },
 ];
 const item = (n, title, extra = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000000${n}`, type: 'TASK', title, collection_id: COLLECTION.id, parent_id: null, depth: 0, order_key: `a${n}`, version: 1, completion: { is_completed: false }, labels: [], label_ids: [], ...extra });
+
+/**
+ * A date this many days from today, as the one dated entry carries.
+ *
+ * Relative, and it has to be: the timeline opens on a window around *today*, so a fixture pinned to
+ * a calendar date is a fixture that expires. `2026-09-25` did, on 2026-09-30, and the drag test
+ * went red on every branch at once — nothing to do with the diff that happened to be in flight.
+ * Two days out rather than zero, so the entry sits inside the window on any scale without landing
+ * on the marker for today.
+ */
+const inDays = (days) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 export const ITEMS = [
   item('31', 'Order the tiles for the splashback and the floor', { label_ids: [LABELS[0].id], labels: [LABELS[0]], bucket_id: BUCKETS[0].id }),
-  item('32', 'Book the electrician', { label_ids: [LABELS[1].id], labels: [LABELS[1]], bucket_id: BUCKETS[1].id, due_at: '2026-09-25T09:00:00Z' }),
+  item('32', 'Book the electrician', { label_ids: [LABELS[1].id], labels: [LABELS[1]], bucket_id: BUCKETS[1].id, due_at: `${inDays(2)}T09:00:00Z` }),
   item('33', 'Measure the worktop', { bucket_id: BUCKETS[0].id }),
   item('34', 'Choose the paint', { bucket_id: null }),
   item('35', 'Clear the room', { bucket_id: BUCKETS[2].id, completion: { is_completed: true } }),
@@ -194,6 +205,10 @@ const ARRAYS = new Set([
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
   '/integrations/calendar-feeds',
+  // The provider surface, plural since SI-10 and read by the administration's sign-in screen. Both
+  // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
+  // like from the outside.
+  '/identity-providers', '/identity-provider-presets',
 ]);
 
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */

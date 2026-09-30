@@ -12,28 +12,47 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
-// IdentityProviders is the workspace's configured provider (H-04).
+// IdentityProviders is the providers in force where the transaction is (H-04, SI-10).
+//
+// No method takes a tenant, and one of them deliberately sees two levels: the read policy admits a
+// workspace's own rows and the installation's together (migration 0103), so `List` is the answer to
+// "how can somebody sign in here" without a caller having to ask twice and merge.
 //
 // Reading the configuration and reading its secret are two methods, deliberately. The ordinary
 // read is what a person and an auditor get, and it cannot spill the secret because the secret is
 // not in what it answers; the exchange asks for the envelope by name, which makes opening it a
 // decision somebody wrote down rather than a field that happened to be in a struct.
 type IdentityProviders interface {
-	// Upsert sets the configuration whole and answers it as stored. A workspace has one
-	// provider, so this is a write with no identifier: the row's key is the workspace.
-	Upsert(ctx context.Context, provider identity.IdentityProvider, sealed crypto.Sealed, now time.Time) (identity.IdentityProvider, error)
+	// List answers the providers in force here - the workspace's own first, then the
+	// installation's - in the order their buttons are drawn.
+	List(ctx context.Context) ([]identity.IdentityProvider, error)
 
-	// Find answers the configuration without its secret, or an error wrapping
-	// shared.ErrNotFound when the workspace has configured none.
-	Find(ctx context.Context) (identity.IdentityProvider, error)
+	// Count answers how many this level has configured, for the bound an insert is held to. The
+	// installation's rows are not a workspace's to be limited by, so they are not in it.
+	Count(ctx context.Context) (int, error)
+
+	// Find answers one by its identifier without its secret, or an error wrapping
+	// shared.ErrNotFound. A workspace finds the installation's rows too: it has to, because one
+	// of them may be the way its own people sign in.
+	Find(ctx context.Context, id shared.ID) (identity.IdentityProvider, error)
 
 	// FindWithSecret answers it with the sealed client secret, for the token exchange and for
 	// nothing else.
-	FindWithSecret(ctx context.Context) (identity.IdentityProvider, crypto.Sealed, error)
+	FindWithSecret(ctx context.Context, id shared.ID) (identity.IdentityProvider, crypto.Sealed, error)
 
-	// Delete removes the configuration and its sealed secret. False is "there was none", which
-	// is not an error - a caller asking for it to be gone got what they asked for.
-	Delete(ctx context.Context) (bool, error)
+	// Insert writes a new one. Which level it lands at is the scope's answer and not a
+	// parameter's: the statement writes `current_tenant_id()`, which is NULL in the
+	// installation's own scope.
+	Insert(ctx context.Context, provider identity.IdentityProvider, sealed crypto.Sealed) (identity.IdentityProvider, error)
+
+	// Update sets one whole. A nil `sealed` is "keep the secret that is already there", which is
+	// the only way to change a display name without retyping a value nothing can read back.
+	// False is "no such row here", which includes a workspace reaching for the installation's.
+	Update(ctx context.Context, provider identity.IdentityProvider, sealed *crypto.Sealed, now time.Time) (identity.IdentityProvider, bool, error)
+
+	// Delete removes one and its sealed secret. False is "there was none", which is not an error -
+	// a caller asking for it to be gone got what they asked for.
+	Delete(ctx context.Context, id shared.ID) (bool, error)
 }
 
 // OidcFlows keeps the handful of minutes between sending somebody to their provider and their
@@ -48,24 +67,39 @@ type OidcFlows interface {
 	Consume(ctx context.Context, presented identity.Token, now time.Time) (identity.OidcFlow, bool, error)
 }
 
-// ExternalAccounts is the seam phase 0 cut: `account.external_subject`, under the unique index
-// that makes one provider subject one account per workspace.
+// ExternalAccounts is the link between a provider's subject and an account here (SI-10).
+//
+// `account_identity` rather than `account.external_subject`: one column cannot say *which* provider
+// vouched for a subject, and with providers in the plural that is the whole question. The column
+// stays where it is, read by nothing new - a rolling update still finds the accounts it already
+// knew - and every link written from here lands in the table.
 type ExternalAccounts interface {
 	// FindBySubject answers the account a provider's subject already names, or an error
 	// wrapping shared.ErrNotFound on the first arrival.
-	FindBySubject(ctx context.Context, subject string) (identity.Account, error)
+	FindBySubject(ctx context.Context, providerID shared.ID, subject string) (identity.Account, error)
 
-	// LinkSubject writes the subject onto an account. False means the account was not there to
-	// link; the unique index is what refuses a subject already spoken for, and it refuses rather
-	// than this method, because two sign-ins racing must not both win.
-	LinkSubject(ctx context.Context, accountID shared.ID, subject string, now time.Time) (bool, error)
+	// LinkSubject writes the link. False means the account was not there to link; the unique
+	// index is what refuses a subject already spoken for, and it refuses rather than this method,
+	// because two sign-ins racing must not both win.
+	LinkSubject(ctx context.Context, providerID, accountID shared.ID, subject string, now time.Time) (bool, error)
 }
 
-// IdentityProviderSealing is the re-seal's one write on the provider (ADR-0045). The read is
-// FindWithSecret's, which is already the deliberate way to the sealed value; what a rotation adds
-// is only the way to put a moved wrapping back.
+// SealedProviderSecret is one row's wrapping, as a rotation needs it: which row, and what is
+// sealed on it.
+type SealedProviderSecret struct {
+	ProviderID shared.ID
+	Sealed     crypto.Sealed
+}
+
+// IdentityProviderSealing is the re-seal's own slice of the provider store (ADR-0045).
+//
+// Its read is not FindWithSecret's: a rotation works through every row of its level rather than
+// asking for one by identifier, and with providers in the plural those are two different questions.
 type IdentityProviderSealing interface {
-	// RewrapSecret writes the moved wrapping, guarded by the key the row named when it was read.
-	// False means there is no provider, or it changed in between.
-	RewrapSecret(ctx context.Context, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+	// ListSealed answers every row of this level that holds a wrapping.
+	ListSealed(ctx context.Context) ([]SealedProviderSecret, error)
+
+	// RewrapSecret writes the moved wrapping on one row, guarded by the key it named when it was
+	// read. False means the row is gone, or it changed in between.
+	RewrapSecret(ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
 }

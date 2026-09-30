@@ -78,7 +78,7 @@ Nine decisions taken while cutting, beyond what the ADRs hold:
 
 ---
 
-## SI-01 — The three records, and the documents they change **[L]**
+## SI-01 — The three records, and the documents they change **[L]** · *built*
 
 *Depends on: nothing.*
 
@@ -270,7 +270,7 @@ answered to its holder and to nobody else; zero is answered as zero rather than 
 
 ---
 
-## SI-10 — Providers in the plural **[L]**
+## SI-10 — Providers in the plural **[L]** · *built*
 
 *Depends on: SI-05.*
 
@@ -298,7 +298,7 @@ the tenant-boundary test names the new NULL-row rule.
 
 ---
 
-## SI-11 — The marks, and the button that carries them **[L]**
+## SI-11 — The marks, and the button that carries them **[L]** · *built*
 
 *Depends on: SI-01, SI-10.*
 
@@ -315,7 +315,7 @@ on one axis at 375 px and at 200 % zoom.
 
 ---
 
-## SI-12 — Legal links, and the hosts a workspace answers at **[L]** · *the links are built; `tenant_host` is not*
+## SI-12 — Legal links, and the hosts a workspace answers at **[L]** · *built*
 
 *Depends on: SI-05.*
 
@@ -333,7 +333,7 @@ with nothing set shows no line at all, because a private installation owes nobod
 
 ---
 
-## SI-13 — The card, and the steps the server names **[L]** · *built, in review*
+## SI-13 — The card, and the steps the server names **[L]** · *built*
 
 *Depends on: nothing, behind `features.sign_in_rules`.*
 
@@ -351,7 +351,7 @@ SI-18 passes.
 
 ---
 
-## SI-14 — The rules under a password field **[L]** · *built, in review*
+## SI-14 — The rules under a password field **[L]** · *built*
 
 *Depends on: SI-13.*
 
@@ -369,7 +369,7 @@ character and a word as well as a colour.
 
 ---
 
-## SI-15 — The password on the profile, and the codes **[L]** · *built, in review*
+## SI-15 — The password on the profile, and the codes **[L]** · *built*
 
 *Depends on: SI-03, SI-09.*
 
@@ -385,7 +385,7 @@ as the number to act on.
 
 ---
 
-## SI-16 — The workspace's sign-in settings **[L]** · *built, in review*
+## SI-16 — The workspace's sign-in settings **[L]** · *built*
 
 *Depends on: SI-07, SI-12.*
 
@@ -400,7 +400,7 @@ a field error naming it; the rotation asks before it acts; every change is audit
 
 ---
 
-## SI-17 — The instance dashboard **[L]**
+## SI-17 — The instance dashboard **[L]** · *built*
 
 *Depends on: SI-06, SI-12.*
 
@@ -417,7 +417,7 @@ reader to the application.
 
 ---
 
-## SI-18 — The walk, and the documents current **[L]**
+## SI-18 — The walk, and the documents current **[L]** · *built*
 
 *Depends on: everything.*
 

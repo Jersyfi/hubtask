@@ -22,6 +22,11 @@ type operatorRegister struct {
 	empty    bool
 }
 
+func (r *operatorRegister) Resolve(context.Context, string, string) (shared.ID, error) {
+	// Nothing in this package registers anybody; the door exists so the port is satisfied.
+	return shared.ID(""), nil
+}
+
 func (r *operatorRegister) Holds(_ context.Context, accountID shared.ID) (bool, error) {
 	if r.empty {
 		return true, nil

@@ -167,6 +167,7 @@ class SessionTokens(TypedDict, total=False):
 
 class OidcStart(TypedDict, total=False):
     """What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely."""
+    provider_id: str | None
     login_hint: str | None
 
 class OidcAuthorization(TypedDict, total=False):
@@ -275,6 +276,16 @@ class Workspace(TypedDict, total=False):
     updated_at: str | None
     version: Required[int]
     sign_in_policy: "SignInPolicy"
+    hosts: list["WorkspaceHost"]
+
+class WorkspaceHost(TypedDict, total=False):
+    """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
+    host: Required[str]
+    state: Required[Literal["PENDING", "VERIFIED", "ACTIVE", "BROKEN"]]
+    is_canonical: Required[bool]
+    verification: str | None
+    verified_at: str | None
+    created_at: Required[str]
 
 class SignInPolicyNumber(TypedDict, total=False):
     """One numeric switch, at the three levels that decide it. Zero is off for every one of them."""
@@ -372,22 +383,81 @@ class SignInPolicyChange(TypedDict, total=False):
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
-    """How this workspace signs people in through its own provider. The client secret is not a member: it is sealed at configuration time and read only by the token exchange."""
+    """One provider people can sign in through. The client secret is not a member: it is sealed at configuration time and read only by the token exchange."""
+    id: Required[str]
+    scope: Required[Literal["workspace", "installation"]]
     issuer: Required[str]
     client_id: Required[str]
+    display_name: Required[str]
+    kind: Required["IdentityProviderKind"]
+    provisioning: Required["IdentityProviderProvisioning"]
+    position: Required[int]
     enabled: Required[bool]
+    offered_here: bool
     allowed_email_domains: Required[list[str]]
+    allowed_directories: Required[list[str]]
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
+
+class ProviderOffer(TypedDict, total=False):
+    offered: Required[bool]
+
+IdentityProviderKind = Literal["GENERIC", "GOOGLE", "MICROSOFT"]
+
+IdentityProviderProvisioning = Literal["INVITED_ONLY", "DOMAINS", "ANY"]
 
 class IdentityProviderConfiguration(TypedDict, total=False):
     """The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in."""
     issuer: Required[str]
     client_id: Required[str]
-    client_secret: Required[str]
+    client_secret: str | None
+    display_name: str | None
+    kind: "IdentityProviderKind"
+    provisioning: "IdentityProviderProvisioning"
+    position: int
     enabled: bool
     allowed_email_domains: list[str]
+    allowed_directories: list[str]
+
+class IdentityProviderPreset(TypedDict, total=False):
+    """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
+    kind: Required["IdentityProviderKind"]
+    scopes: Required[list[str]]
+    addresses_verified: Required[bool]
+    public: Required[bool]
+    provisioning: Required[list["IdentityProviderProvisioning"]]
+    redirect_uri: Required[str]
+    instructions: Required[str]
+    particular: str | None
+    directory_claim: str | None
+    supports_templated_issuer: Required[bool]
+
+class InstanceReach(TypedDict, total=False):
+    """Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one."""
+    reachable: Required[bool]
+
+class InstanceOverview(TypedDict, total=False):
+    """The installation at a glance. Counts and states; the contents of a workspace are behind a database policy this answer does not reach through (ADR-0070 §5)."""
+    workspaces_active: Required[int]
+    workspaces_suspended: Required[int]
+    workspaces_pending_deletion: Required[int]
+    accounts_active: Required[int]
+    accounts_total: Required[int]
+
+class InstanceJournalEntry(TypedDict, total=False):
+    """One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists."""
+    id: Required[str]
+    occurred_at: Required[str]
+    action: Required[str]
+    tenant_id: str | None
+    tenant_slug: str | None
+    actor_label: str | None
+    details: dict[str, Any]
+
+class InstanceJournalPage(TypedDict, total=False):
+    data: Required[list["InstanceJournalEntry"]]
+    page: Required["PageInfo"]
 
 class SessionElevation(TypedDict, total=False):
     """How long this session carries the control plane's scope."""
@@ -421,14 +491,17 @@ class SignInPasswordChange(TypedDict, total=False):
     password: Required[str]
 
 class InstanceSetting(TypedDict, total=False):
-    """One switch of the installation's level: what it set, and whether a workspace may tighten it."""
-    value: Required[Any]
+    """One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it."""
+    set: Required[bool]
+    value: Any
     locked: Required[bool]
 
 class InstanceSettings(TypedDict, total=False):
-    """The installation's own level (ADR-0070 §2). Only what the operator decided: a switch that is absent is one no level above a workspace has an opinion about."""
+    """The installation's own level (ADR-0070 §2): the sign-in switches, the legal links, the localisation defaults and the quota ceilings."""
     sign_in: dict[str, Any]
     legal: dict[str, Any]
+    localisation: dict[str, Any]
+    quotas: dict[str, Any]
     blocklist_file: str
     source: str
     is_enforced_from_file: bool
@@ -441,8 +514,10 @@ class Operator(TypedDict, total=False):
     added_by: str | None
 
 class OperatorAdd(TypedDict, total=False):
-    """The account alone. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong."""
-    account_id: Required[str]
+    """One account, named either way."""
+    account_id: str
+    workspace: str
+    email: str
 
 class PasswordForgot(TypedDict, total=False):
     email: Required[str]
@@ -2125,6 +2200,8 @@ class Capabilities(TypedDict, total=False):
     roles: list["RoleDescription"]
     limits: dict[str, Any]
     features: dict[str, Any]
+    legal: "LegalLinks"
+    instance: "InstanceReach"
 
 class RoleDescription(TypedDict, total=False):
     """One row of the role matrix: the permissions the role carries, and what it may do to a single entry."""

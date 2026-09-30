@@ -370,6 +370,14 @@ type AccountGroupMember struct {
 	AccountID pgtype.UUID
 }
 
+type AccountIdentity struct {
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	ProviderID pgtype.UUID
+	Subject    string
+	LinkedAt   pgtype.Timestamptz
+}
+
 type AccountMfa struct {
 	AccountID   pgtype.UUID
 	TenantID    pgtype.UUID
@@ -860,6 +868,13 @@ type IdentityProvider struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
+	ID                  pgtype.UUID
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
+	// The provider's own identifiers for the organisations this row admits: Microsoft tid, Google hd. Empty under DOMAINS with a preset that has a directory claim admits nobody (ADR-0071 §2).
+	AllowedDirectories []string
 }
 
 type ImportRun struct {
@@ -1090,6 +1105,7 @@ type OidcFlow struct {
 	CreatedAt    pgtype.Timestamptz
 	ExpiresAt    pgtype.Timestamptz
 	ConsumedAt   pgtype.Timestamptz
+	ProviderID   pgtype.UUID
 }
 
 type Operator struct {
@@ -1381,6 +1397,16 @@ type Tenant struct {
 	PurgeAfter      pgtype.Timestamptz
 	SyncEpoch       int64
 	PlanID          pgtype.UUID
+}
+
+type TenantHost struct {
+	TenantID     pgtype.UUID
+	Host         string
+	State        string
+	Verification string
+	VerifiedAt   pgtype.Timestamptz
+	IsCanonical  bool
+	CreatedAt    pgtype.Timestamptz
 }
 
 type Tombstone struct {

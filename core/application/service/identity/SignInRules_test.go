@@ -46,7 +46,7 @@ func newRulesFixture() (GetSignInRules, *workspaceStore, *instanceSettings) {
 			Workspaces: workspace, Instance: instance, UnitOfWork: &unitOfWork{},
 		},
 		Tenants:    tenantDirectory{single: tenant},
-		Providers:  &providerStore{},
+		Providers:  rulesProviders(),
 		UnitOfWork: &unitOfWork{},
 		Multi:      true,
 	}
@@ -203,15 +203,20 @@ func TestOidcIsNotOfferedWithoutAProvider(t *testing.T) {
 		t.Errorf("providers %+v, want none", without.Providers)
 	}
 
-	handler.Providers = &providerStore{configured: &domain.IdentityProvider{
-		Issuer: "https://login.microsoftonline.com/contoso/v2.0", Enabled: true,
-	}}
+	handler.Providers = rulesProviders(domain.IdentityProvider{
+		ID: rulesProviderRow, TenantID: rulesTenant, Kind: domain.KindMicrosoft,
+		DisplayName: "login.microsoftonline.com",
+		Issuer:      "https://login.microsoftonline.com/contoso/v2.0", Enabled: true,
+	})
 	with, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
 	if len(with.Providers) != 1 || with.Providers[0].Kind != "MICROSOFT" {
 		t.Fatalf("providers %+v", with.Providers)
+	}
+	if with.Providers[0].ID != rulesProviderRow.String() {
+		t.Errorf("the button is keyed on %q, want the row", with.Providers[0].ID)
 	}
 	if with.Providers[0].Scope != "workspace" {
 		t.Errorf("scope %q", with.Providers[0].Scope)
@@ -228,9 +233,10 @@ func TestOidcIsNotOfferedWithoutAProvider(t *testing.T) {
 // A provider a workspace switched off is not a way in either.
 func TestADisabledProviderIsNotOffered(t *testing.T) {
 	handler, _, _ := newRulesFixture()
-	handler.Providers = &providerStore{configured: &domain.IdentityProvider{
+	handler.Providers = rulesProviders(domain.IdentityProvider{
+		ID: rulesProviderRow, TenantID: rulesTenant,
 		Issuer: "https://id.acme.example", Enabled: false,
-	}}
+	})
 
 	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
 	if err != nil {
@@ -256,3 +262,69 @@ func TestTheOldBooleanStillDecidesTheNewSwitch(t *testing.T) {
 }
 
 func intOf(value int) *int { return &value }
+
+// rulesProviderRow is the key of the row these fixtures configure, and `rulesTenant` is the
+// workspace the slug resolves to - the row has to belong to it, or the fake's own read policy hides
+// it, which is what the real policy would do as well.
+const rulesProviderRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000b1")
+
+var rulesTenant = tenant
+
+// rulesProviders is a store holding exactly these rows.
+func rulesProviders(rows ...domain.IdentityProvider) *providerStore {
+	store := newProviderStore(rulesTenant)
+	store.rows = rows
+	return store
+}
+
+// An installation's provider is **offered** to every workspace and is **on** in none of them until
+// somebody there switches it on (SI-10, the concept's §8).
+//
+// That is the whole difference between offering and deciding: the installation says "this exists
+// for you", and the workspace says whether its people see a button for it. A provider that appeared
+// on by itself would be the installation deciding how a workspace signs in.
+func TestAnInstallationsProviderIsNotAButtonUntilTheWorkspaceTakesIt(t *testing.T) {
+	handler, workspace, _ := newRulesFixture()
+	handler.Workspaces = workspace
+	offered := shared.ID("01936f2a-7c1e-7000-8000-0000000000b2")
+	handler.Providers = rulesProviders(
+		domain.IdentityProvider{
+			ID: offered, Kind: domain.KindGoogle,
+			DisplayName: "Google", Issuer: "https://accounts.google.com", Enabled: true,
+		},
+		domain.IdentityProvider{
+			ID: rulesProviderRow, TenantID: rulesTenant, Kind: domain.KindGeneric,
+			DisplayName: "id.acme.example", Issuer: "https://id.acme.example", Enabled: true,
+		},
+	)
+
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(rules.Providers) != 1 || rules.Providers[0].Scope != ProviderScopeWorkspace {
+		t.Fatalf("providers %+v, want only the workspace's own", rules.Providers)
+	}
+
+	// The workspace takes it, and now it is a button — saying which level it came from, so that a
+	// settings screen can draw it as inherited rather than as this workspace's choice.
+	workspace.row.Settings = workspace.row.Settings.WithOffer(offered, true)
+
+	taken, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(taken.Providers) != 2 {
+		t.Fatalf("providers %+v, want both levels", taken.Providers)
+	}
+	scopes := map[string]string{}
+	for _, one := range taken.Providers {
+		scopes[one.DisplayName] = one.Scope
+	}
+	if scopes["Google"] != ProviderScopeInstallation {
+		t.Errorf("the installation's row is %q", scopes["Google"])
+	}
+	if scopes["id.acme.example"] != ProviderScopeWorkspace {
+		t.Errorf("the workspace's own row is %q", scopes["id.acme.example"])
+	}
+}

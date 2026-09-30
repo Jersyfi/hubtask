@@ -42,6 +42,13 @@ SELECT is_operator(sqlc.arg('account_id'));
 -- The listing, for the control plane's own screen.
 SELECT * FROM operator_register();
 
+-- name: ResolveOperatorAccount :one
+-- The account an address names inside one workspace, through the register's own narrow door
+-- (migration 0109). An operator cannot list accounts across workspaces - `account` is behind row
+-- level security - so an identifier is not something they can look up, and an address and a slug
+-- are what a person knows. Answers one identifier or nothing.
+SELECT resolve_operator_account(sqlc.arg('slug'), sqlc.arg('email'));
+
 -- name: AddOperator :one
 -- The workspace comes from the account rather than from the caller: false is "no such account", and
 -- a pair that could disagree would be a pair somebody eventually gets wrong.
@@ -50,3 +57,23 @@ SELECT add_operator(sqlc.arg('account_id'), sqlc.narg('added_by'));
 -- name: DropOperator :one
 -- False where the register would have been emptied: the last operator cannot remove themselves.
 SELECT drop_operator(sqlc.arg('account_id'));
+
+-- name: InstanceCensus :one
+-- The installation at a glance (SI-17): counts, states and limits, never rows. Through the function
+-- rather than against the tables: `account` is behind row level security and FORCE, so the
+-- application role cannot count across workspaces at all - and narrow by construction is what makes
+-- that exception acceptable (migration 0105).
+-- The casts are for the generator: it cannot see into the function's OUT table
+-- (`AdminTenants`' own note).
+SELECT workspaces_active::bigint, workspaces_suspended::bigint,
+       workspaces_pending_deletion::bigint,
+       accounts_active::bigint, accounts_total::bigint
+FROM instance_census();
+
+-- name: InstanceQuotaDefaults :many
+-- What the installation set as the default ceiling for each quota, which every workspace that set
+-- nothing of its own falls back to (ADR-0070 §2, the concept's §6.7).
+--
+-- `instance_setting` carries no row level security — that is its documented exception — so this
+-- read works inside a tenant's own transaction, where the quota guard runs.
+SELECT key, value FROM instance_setting WHERE key LIKE 'quota.%';

@@ -48,6 +48,10 @@ const (
 	// OidcLinkedAction is the one that matters most in a review: an arriving subject took over
 	// an account that already existed, on the strength of a verified address.
 	OidcLinkedAction audit.Action = "identity.provider_linked"
+	// OidcRefusedAction is a subject the provider vouched for and this workspace would not have
+	// (SI-10): an INVITED_ONLY provider met somebody nobody invited. A trail of these is either a
+	// provisioning rule set too tight or somebody trying the door, and both are worth reading.
+	OidcRefusedAction audit.Action = "identity.provider_refused"
 )
 
 // OidcWriter is what the two halves of the flow share.
@@ -74,6 +78,10 @@ type StartOidcSignIn struct{ Writer OidcWriter }
 // StartOidcSignInCommand carries the tenant hints of decision 3, and a login hint if the caller
 // has one.
 type StartOidcSignInCommand struct {
+	// ProviderID names the way in. Zero is allowed while a workspace has exactly one, which keeps
+	// a caller that predates the plural working; with a choice to make, not making it is refused
+	// rather than guessed.
+	ProviderID   shared.ID
 	LoginHint    string
 	TenantSlug   string
 	TenantHeader string
@@ -98,7 +106,7 @@ func (h StartOidcSignIn) Execute(
 	}
 	scope := persistence.Scope{TenantID: tenantID}
 
-	configured, sealed, err := w.provider(ctx, scope)
+	configured, sealed, err := w.provider(ctx, scope, cmd.ProviderID)
 	if err != nil {
 		return OidcAuthorization{}, err
 	}
@@ -110,7 +118,7 @@ func (h StartOidcSignIn) Execute(
 
 	now := w.Session.Clock.Now()
 	flow, err := domain.NewOidcFlow(domain.NewOidcFlowInput{
-		ID: w.Session.IDs.NewID(), TenantID: tenantID,
+		ID: w.Session.IDs.NewID(), TenantID: tenantID, ProviderID: configured.ID,
 		Nonce: nonce, Verifier: verifier, Now: now,
 	})
 	if err != nil {
@@ -122,6 +130,7 @@ func (h StartOidcSignIn) Execute(
 	url, err := w.Relying.AuthorizationURL(ctx, provider.Config{
 		Issuer: configured.Issuer, ClientID: configured.ClientID,
 		ClientSecret: sealed, RedirectURL: w.RedirectURL,
+		DirectoryClaim: directoryClaimOf(configured),
 	}, provider.Authorization{
 		State: state.Secret(), Nonce: nonce, CodeVerifier: verifier, LoginHint: cmd.LoginHint,
 	})
@@ -176,11 +185,6 @@ func (h CompleteOidcSignIn) Execute(
 	}
 	scope := persistence.Scope{TenantID: state.TenantID()}
 
-	configured, sealed, err := w.provider(ctx, scope)
-	if err != nil {
-		return SessionPair{}, err
-	}
-
 	// Burned first, in its own transaction: whatever happens afterwards, this state is spent.
 	// A failure that rolled the burn back would leave a handle somebody could present again.
 	var flow domain.OidcFlow
@@ -199,9 +203,19 @@ func (h CompleteOidcSignIn) Execute(
 		return SessionPair{}, err
 	}
 
+	// The provider is read *after* the burn and from the flow, not from the request: which way in
+	// this sign-in left through is the one thing about the return leg that this installation itself
+	// wrote down, and signing the exchange with another provider's secret is how a code meant for
+	// one becomes an identity from another.
+	configured, sealed, err := w.provider(ctx, scope, flow.ProviderID)
+	if err != nil {
+		return SessionPair{}, err
+	}
+
 	identity, err := w.Relying.Exchange(ctx, provider.Config{
 		Issuer: configured.Issuer, ClientID: configured.ClientID,
 		ClientSecret: sealed, RedirectURL: w.RedirectURL,
+		DirectoryClaim: directoryClaimOf(configured),
 	}, provider.Exchange{
 		Code: cmd.Code, CodeVerifier: flow.Verifier, Nonce: flow.Nonce,
 	})
@@ -241,7 +255,7 @@ func (w OidcWriter) settleAccount(
 	var account domain.Account
 	err := w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		// The subject first: on every arrival after the first, this is the whole of it.
-		found, err := w.External.FindBySubject(ctx, arriving.Subject)
+		found, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
 		switch {
 		case err == nil:
 			account = found
@@ -250,14 +264,25 @@ func (w OidcWriter) settleAccount(
 			return err
 		}
 
-		// A first arrival. If the provider vouched for an address inside the configured
-		// domains, and an account here already holds it, this is the same person.
-		if configured.LinksAddress(arriving.Email, arriving.EmailVerified) {
+		// A first arrival, and the first gate is admission: may this provider bring this person
+		// into this workspace at all (SI-10, the concept's §8). Under DOMAINS an address outside
+		// the configured list is refused here - not provisioned a desk of its own, which is what
+		// made the mode indistinguishable from ANY.
+		if !configured.MayAdmit(admissionOf(arriving)) {
+			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+				return err
+			}
+			return shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
+		}
+
+		// Admitted. If an account here already holds the address the provider vouched for, this is
+		// the same person.
+		if configured.MayClaim(admissionOf(arriving)) {
 			existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 			switch {
 			case err == nil:
 				linked, err := w.External.LinkSubject(
-					ctx, existing.ID, arriving.Subject, w.Session.Clock.Now())
+					ctx, configured.ID, existing.ID, arriving.Subject, w.Session.Clock.Now())
 				if err != nil {
 					return err
 				}
@@ -274,6 +299,18 @@ func (w OidcWriter) settleAccount(
 			}
 		}
 
+		// Admitted, and no account here holds the address: INVITED_ONLY has no way in but an
+		// account that already exists, so this is somebody nobody invited. Refused and recorded -
+		// a provider whose people are all being turned away is something an operator has to be
+		// able to read, and the person is told plainly rather than being provisioned a desk they
+		// were never meant to have.
+		if !configured.MayProvision() {
+			if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+				return err
+			}
+			return shared.ErrForbidden.WithDetail("identity_provider.not_invited")
+		}
+
 		provisioned, err := domain.ProvisionExternal(
 			w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
 		if err != nil {
@@ -283,7 +320,7 @@ func (w OidcWriter) settleAccount(
 			return err
 		}
 		if _, err := w.External.LinkSubject(
-			ctx, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
+			ctx, configured.ID, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
 			return err
 		}
 		account = provisioned
@@ -295,17 +332,30 @@ func (w OidcWriter) settleAccount(
 	return account, nil
 }
 
-// provider reads the workspace's configuration and refuses the flow when there is none or it is
-// switched off - which is a refusal a person can act on, rather than a page that fails later.
+// provider reads the configuration a flow runs under and refuses the flow when there is none or it
+// is switched off - which is a refusal a person can act on, rather than a page that fails later.
+//
+// A zero identifier is answered from the collection: with exactly one way in there is nothing to
+// choose, and with several, not choosing is refused rather than guessed. That is also what a flow
+// opened before the column existed reads as.
 func (w OidcWriter) provider(
-	ctx context.Context, scope persistence.Scope,
+	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, secret.Secret, error) {
 	var (
 		configured domain.IdentityProvider
 		opened     secret.Secret
 	)
 	err := w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		found, sealed, err := w.Providers.FindWithSecret(ctx)
+		chosen := providerID
+		if chosen.IsZero() {
+			only, err := w.onlyProvider(ctx)
+			if err != nil {
+				return err
+			}
+			chosen = only
+		}
+
+		found, sealed, err := w.Providers.FindWithSecret(ctx, chosen)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
 				return shared.ErrValidation.WithDetail("identity_provider.not_configured")
@@ -315,7 +365,10 @@ func (w OidcWriter) provider(
 		if !found.Enabled {
 			return shared.ErrValidation.WithDetail("identity_provider.disabled")
 		}
-		plaintext, err := w.Session.Encryptor.Open(ctx, sealed, clientSecretPurpose(scope.TenantID))
+		// The purpose is the level's, so a row of the installation's opens under the installation's
+		// purpose and a workspace's under its own - which is what keeps a ciphertext from opening
+		// in a workspace it was not sealed for (E-02).
+		plaintext, err := w.Session.Encryptor.Open(ctx, sealed, ClientSecretPurpose(found.TenantID))
 		if err != nil {
 			return err
 		}
@@ -326,6 +379,29 @@ func (w OidcWriter) provider(
 		return domain.IdentityProvider{}, secret.Secret{}, err
 	}
 	return configured, opened, nil
+}
+
+// onlyProvider answers the single way in, or says which of the refusals applies: none configured,
+// or a choice nobody made.
+func (w OidcWriter) onlyProvider(ctx context.Context) (shared.ID, error) {
+	inForce, err := w.Providers.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	enabled := make([]domain.IdentityProvider, 0, len(inForce))
+	for _, candidate := range inForce {
+		if candidate.Enabled {
+			enabled = append(enabled, candidate)
+		}
+	}
+	switch len(enabled) {
+	case 0:
+		return "", shared.ErrValidation.WithDetail("identity_provider.not_configured")
+	case 1:
+		return enabled[0].ID, nil
+	default:
+		return "", shared.ErrValidation.WithDetail("identity_provider.choice_required")
+	}
 }
 
 // draw mints the three unguessable values one flow needs, through the entropy port (rule 4).
@@ -379,6 +455,28 @@ func (w OidcWriter) recordStart(
 	})
 }
 
+// recordRefusal notes a subject that was turned away. No address and no subject: what a reader
+// needs is that this provider refused somebody, and which issuer it was.
+func (w OidcWriter) recordRefusal(
+	ctx context.Context, tenantID shared.ID, configured domain.IdentityProvider,
+) error {
+	return w.Session.Audit.Append(ctx, audit.Entry{
+		TenantID:   tenantID,
+		OccurredAt: w.Session.Clock.Now(),
+		Action:     OidcRefusedAction,
+		Outcome:    audit.OutcomeDenied,
+		Severity:   audit.SeverityWarning,
+		ActorKind:  shared.ActorSystem,
+		TargetType: identityProviderTarget,
+		TargetID:   tenantID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes: audit.Changes(
+			audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer},
+			audit.Change{Field: "provisioning", Classification: audit.Open,
+				To: string(configured.Provisioning)}),
+	})
+}
+
 // record writes the trail entry for an account that arrived through the provider. The subject is
 // not in it: it identifies a person at their provider, and the account it became is the thing a
 // reader needs.
@@ -423,6 +521,8 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 			"single use: it is spent at the callback whether or not the callback succeeds.",
 		SideEffects: "Writes a short-lived sign-in flow and asks the provider for its metadata.",
 		Input: []usecase.Field{
+			{Name: "provider_id", Kind: usecase.KindString,
+				Description: "Which way in to use. Absent is allowed while the workspace has exactly one."},
 			{Name: "login_hint", Kind: usecase.KindString,
 				Description: "An address to save somebody typing it twice. It never decides which account is signed in."},
 			{Name: "tenant_slug", Kind: usecase.KindString,
@@ -444,7 +544,12 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 func (h StartOidcSignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	providerID, err := in.ID("provider_id")
+	if err != nil {
+		return nil, err
+	}
 	authorization, err := h.Execute(ctx, StartOidcSignInCommand{
+		ProviderID:   providerID,
 		LoginHint:    in.String("login_hint"),
 		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
@@ -507,4 +612,30 @@ func (h CompleteOidcSignIn) invoke(
 		return nil, err
 	}
 	return pairOutput(pair), nil
+}
+
+// directoryClaimOf is the preset's name for the claim the adapter reads the organisation out of.
+//
+// Read from the preset rather than stored on the row: it is a property of the provider, not of a
+// workspace's configuration of it, and a column would be a second place for it to be wrong.
+func directoryClaimOf(configured domain.IdentityProvider) string {
+	preset, known := domain.PresetOf(configured.Kind)
+	if !known {
+		return ""
+	}
+	return preset.DirectoryClaim
+}
+
+// admissionOf is the port's identity as the domain's admission question (ADR-0071 §1).
+//
+// A translation and nothing else: the adapter reads whichever claim its preset names and the domain
+// asks about `Directory` and `AddressAuthoritative` without knowing that one provider calls it
+// `tid` and another `hd`. Rule 1 — the domain learns no provider's vocabulary.
+func admissionOf(arriving provider.Identity) domain.Arriving {
+	return domain.Arriving{
+		Email:                arriving.Email,
+		EmailVerified:        arriving.EmailVerified,
+		Directory:            arriving.Directory,
+		AddressAuthoritative: arriving.AddressAuthoritative,
+	}
 }

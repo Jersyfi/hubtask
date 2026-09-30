@@ -643,6 +643,30 @@ class Client:
         """Take an account out of the register"""
         return self._call("DELETE", "/admin/operators/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "void")
 
+    def read_instance_overview(self) -> "InstanceOverview":
+        """How big this installation is and how its workspaces stand"""
+        return self._call("GET", "/admin/overview", {}, None, {}, None, "none", None, "json")
+
+    def list_instance_journal(self, *, query: dict[str, Any] | None = None) -> "InstanceJournalPage":
+        """The installation's own record"""
+        return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
+
+    def list_instance_identity_providers(self) -> dict[str, Any]:
+        """The providers this installation offers every workspace"""
+        return self._call("GET", "/admin/identity-providers", {}, None, {}, None, "none", None, "json")
+
+    def create_instance_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+        """Offer every workspace a way in"""
+        return self._call("POST", "/admin/identity-providers", {}, None, {}, body, "json", "application/json", "json")
+
+    def configure_instance_identity_provider(self, provider_id: str, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+        """Replace one of the installation's providers"""
+        return self._call("PUT", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_instance_identity_provider(self, provider_id: str) -> None:
+        """Withdraw a provider from every workspace at once"""
+        return self._call("DELETE", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
+
     def read_encryption_status(self) -> "EncryptionStatus":
         """The keyring, and what still names each key"""
         return self._call("GET", "/admin/encryption", {}, None, {}, None, "none", None, "json")
@@ -668,16 +692,36 @@ class Client:
         return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
     def read_identity_provider(self) -> "IdentityProvider":
-        """How this workspace signs people in through its own provider"""
+        """The workspace's first identity provider"""
         return self._call("GET", "/identity-provider", {}, None, {}, None, "none", None, "json")
 
-    def configure_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
-        """Configure the workspace's identity provider"""
+    def configure_first_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+        """Set the workspace's first identity provider"""
         return self._call("PUT", "/identity-provider", {}, None, {}, body, "json", "application/json", "json")
 
-    def remove_identity_provider(self) -> None:
-        """Remove the workspace's identity provider"""
-        return self._call("DELETE", "/identity-provider", {}, None, {}, None, "none", None, "void")
+    def list_identity_providers(self) -> dict[str, Any]:
+        """The providers people can sign in to this workspace through"""
+        return self._call("GET", "/identity-providers", {}, None, {}, None, "none", None, "json")
+
+    def create_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+        """Add a provider this workspace signs its people in through"""
+        return self._call("POST", "/identity-providers", {}, None, {}, body, "json", "application/json", "json")
+
+    def configure_identity_provider(self, provider_id: str, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+        """Replace one of the workspace's identity providers"""
+        return self._call("PUT", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_identity_provider(self, provider_id: str) -> None:
+        """Remove one of the workspace's identity providers"""
+        return self._call("DELETE", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
+
+    def offer_identity_provider(self, provider_id: str, body: "ProviderOffer") -> "IdentityProvider":
+        """Switch a provider on or off as a way in here"""
+        return self._call("POST", "/identity-providers/{providerId}:offer", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_identity_provider_presets(self) -> dict[str, Any]:
+        """The providers Hubtask has a preset for, and what registering takes"""
+        return self._call("GET", "/identity-provider-presets", {}, None, {}, None, "none", None, "json")
 
     def suggest_decomposition(self, item_id: str, *, idempotency_key: str | None = None) -> None:
         """Ask AI what work sits under this entry"""

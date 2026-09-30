@@ -46,6 +46,11 @@ type settingsDocument struct {
 	// zero written here would be a decision the workspace did not make - and would freeze the
 	// instance's default at whatever it happened to be on the day of the save.
 	SignInPolicy *policyDocument `json:"sign_in_policy,omitempty"`
+	// OfferedProviders are the installation's providers this workspace switched on (SI-10). A list
+	// of the ones taken rather than of the ones refused: a provider the installation adds tomorrow
+	// must not be on everywhere tonight. Omitted while empty, which is what a workspace that has
+	// taken none means.
+	OfferedProviders []string `json:"offered_providers,omitempty"`
 }
 
 // policyDocument is the stored patch, flat - the same shape the contract patches, so that the wire
@@ -193,6 +198,7 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 		Settings: identity.WorkspaceSettings{
 			RequireAdminTotp:    settings.RequireAdminTotp,
 			AuditAnchorTargetID: shared.ID(settings.AuditAnchorTargetID),
+			OfferedProviders:    offeredProvidersOf(settings.OfferedProviders),
 			SignIn:              patch,
 			Legal:               links,
 		},
@@ -210,10 +216,15 @@ func (WorkspaceSettingsRepository) Update(
 		return false, err
 	}
 
+	offered := make([]string, 0, len(changed.Settings.OfferedProviders))
+	for _, id := range changed.Settings.OfferedProviders {
+		offered = append(offered, id.String())
+	}
 	payload, err := json.Marshal(settingsDocument{
 		RequireAdminTotp:    changed.Settings.RequireAdminTotp,
 		AuditAnchorTargetID: changed.Settings.AuditAnchorTargetID.String(),
 		SignInPolicy:        signInDocumentOf(changed.Settings.SignIn, changed.Settings.Legal),
+		OfferedProviders:    offered,
 	})
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the workspace settings: %w", err)
@@ -234,4 +245,20 @@ func (WorkspaceSettingsRepository) Update(
 			WithCause(fmt.Errorf("writing the workspace: %w", err))
 	}
 	return rows > 0, nil
+}
+
+// offeredProvidersOf reads the list of installation providers this workspace switched on. A value
+// this build cannot read as an identifier is dropped rather than refused: a stored list is not a
+// request, and one bad entry must not make a workspace unreadable.
+func offeredProvidersOf(stored []string) []shared.ID {
+	if len(stored) == 0 {
+		return nil
+	}
+	offered := make([]shared.ID, 0, len(stored))
+	for _, raw := range stored {
+		if id, err := shared.ParseID(raw); err == nil {
+			offered = append(offered, id)
+		}
+	}
+	return offered
 }

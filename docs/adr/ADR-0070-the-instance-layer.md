@@ -49,6 +49,29 @@ afterwards, with the rule that the last operator cannot remove themselves.
 **In single mode the register is empty and that means the owner.** A private installation changes
 in no way; it has one workspace and its owner is its operator, which is what is true today.
 
+*Amended 2026-09-28 (SI-17).* "The owner" is the whole of it, and the first build read it as
+"anybody": `is_operator` answered *yes* to every account of every workspace while the register was
+empty. On the private installation the sentence describes, those are the same set. On a shared one
+— the arrangement multi mode exists for, before its operator gets round to adding themselves —
+they are not, and every guest was an operator. The empty-register branch now requires an active
+`OWNER` membership at tenant scope, which is what §1 meant and what was true before the table
+existed. Adding the first operator turns the branch off, unchanged.
+
+*Amended again 2026-09-29 (SI-12).* "Every active owner" is still not what the sentence says: it has
+**one workspace** in it, and the walk of the finished screens showed why that matters. A workspace
+provisioned from the dashboard has an owner, and the moment that owner became active they were an
+operator of the whole installation — able to suspend and delete every other customer. The branch is
+now bound to an installation that has exactly one workspace. More than one, and the register has to
+be filled, because an installation hosting customers with nobody registered to run it is a
+misconfiguration rather than a state with a default.
+
+It cannot lock anybody out, and the order things happen in is the reason: provisioning a second
+workspace needs `admin:tenants`, which on an empty register only the single workspace's owner can
+mint. By the time there are two, somebody was an operator and could have registered themselves.
+("The oldest workspace's owner" was tried first and is worse — measured on the walk database, the
+oldest workspace had no active owner at all, which left the installation with no operator and no
+way to appoint one.)
+
 **A service account may be an operator.** A purchase platform that provisions workspaces needs a
 credential that does not belong to a person who may leave, and the first day of a platform is the
 day that becomes true — not the day plans arrive.
@@ -116,6 +139,29 @@ The API is the product; `hubctl` and the dashboard are two clients of it, and a 
 role, and the dashboard does not go around it. What an operator needs to run an installation is
 counts, states and limits — not rows.
 
+*Amended 2026-09-28 (SI-12, SI-17).* Three doors to one API means three doors to the **same verbs**,
+and the first build gave the dashboard only the reads. That is not a door; it is a window. Two
+sentences settle it, and they are the same sentence read in both directions:
+
+- **Whatever the API serves and the configuration permits, the dashboard offers.** Every verb of
+  the control plane has a control on the screen that already shows its subject — the workspace
+  lifecycle and its limits, the instance values, the providers this installation offers — so that
+  running an installation does not require a terminal. Where the configuration closes a door, the
+  screen draws no control at all rather than one the server refuses: `HUBTASK_INSTANCE_FILE` in
+  `enforce` mode is the case that exists today, and `is_enforced_from_file` is what says so.
+- **One exception, and it is named here so it is not read as an oversight:** the key ring. It stays
+  in the environment ([ADR-0045](./ADR-0045-master-key-in-the-environment.md)) and the dashboard
+  *shows its census and does not turn it*. A rotation needs the new key in the process before the
+  first value is re-sealed; a button in a browser could start one for a key nothing is holding,
+  which ends with values no key opens. The screen says that where the buttons would be.
+
+**And the area is offered to an operator and to nobody else.** Not disabled for everyone else —
+**absent**. The manifest answers `instance.reachable`, caller-scoped like every other entry in it,
+read against the operator register; the navigation row exists only where that is true. A greyed row
+would tell a guest on somebody else's installation that a control plane is there and that they are
+outside it, which is a question they then have to ask somebody. `CapabilityGate` is for a refusal a
+person might otherwise have expected; this is the other case, where they never might have.
+
 ### 6. What does not move to the instance layer
 
 Rate limits and the lockout curve (protection from an attacker is not a preference) · the key ring
@@ -161,7 +207,7 @@ came from.
 
 ## What is built, and what this decision still owes
 
-SI built the layer itself and one of §5's three doors. The accepted decision stands whole; what
+SI built the layer itself and two of §5's three doors. The accepted decision stands whole; what
 follows is the record of where the code is against it, so that nobody reads this document as a
 description of what exists.
 
@@ -169,12 +215,29 @@ description of what exists.
 boundary lists entered, the lock with its origin, `tenant.plan_id`, the resolver's plan parameter,
 `GET`/`PUT /admin/settings`, `GET`/`POST /admin/operators`, `DELETE /admin/operators/{accountId}`,
 `POST /auth/sessions:elevate` with `session.elevated_until`, and the journal at both ends of an
-elevation.
+elevation. **Since SI-17** the `/instance` route area, and the two reads it needed:
+`GET /admin/overview` (the census) and `GET /admin/journal`. **Since SI-10** the providers in the
+plural at both levels, `/admin/identity-providers` among them. **Since §5's amendment** the area is
+seven screens rather than five — the providers and the key ring's census joined it — every verb the
+control plane serves has a control, and `instance.reachable` in `/meta/capabilities` decides whether
+the area is offered at all.
 
-**Not built, each its own task.** The `/instance` route area — so the elevation works today and
-there is nothing to look at with it but JSON. `hubctl admin settings|operator|legal|provider`.
-`HUBTASK_INSTANCE_FILE` in either mode, and therefore the health report's line saying which source
-is in force.
+**All three doors are built since SI-17's second round.** `hubctl admin settings|operator|provider`
+— `legal` is `settings` under its own area rather than a group of its own, because four links are
+not a noun — and `HUBTASK_INSTANCE_FILE` in both modes, with `HUBTASK_INSTANCE_FILE_MODE` choosing
+between them. The file goes through `WriteInstanceSettings` exactly as the other two doors do, which
+is "drei Türen, eine API" meant literally: one set of refusals covers all three, and a value a file
+may set is a value the API accepts. `enforce` refuses the writing routes while it is in force, with
+the path in the refusal.
+
+**Not built, and each its own task.** Nothing of §5 remains.
+
+**And one gap the plural providers opened.** The installation's own provider holds a sealed client
+secret, and the re-seal's driver runs the resealers per tenant (`RunReseal` takes the actor's
+workspace). `ListIdentityProviderSecrets` compares the tenant with `IS NOT DISTINCT FROM`, so a pass
+under the installation's own scope would pick up exactly the rows that belong to no workspace — what
+is missing is a driver that runs one. Until then an installation-level provider's secret stays under
+the key it was sealed with, which a key rotation's census will report rather than hide.
 
 **And one thing §1 says that the code does differently.** There is no `HUBTASK_OPERATORS`. The
 bootstrap is the rule §1 already states for the private installation, used as the way in: an empty
@@ -186,7 +249,7 @@ first request; nothing here forecloses it.
 
 ## What the implementation settled
 
-Three things, decided while SI-05 and SI-06 were built.
+Three things decided while SI-05 and SI-06 were built, and seven more while SI-10 and SI-17 were.
 
 1. **The operator register keys on the account alone, and lives behind four functions.** §1 does not
    say how it is reached. It carries no row-level policy *and* no grant to the application role:
@@ -206,3 +269,53 @@ Three things, decided while SI-05 and SI-06 were built.
    and never `elevated_until`, and that a second hour needs a second proof. And the scope is granted
    per request rather than at the elevation, so an operator removed while a raised session is open
    loses the control plane on their next call rather than at the end of the hour.
+
+4. **The census is a fourth `SECURITY DEFINER` function, and it answers five integers.** §5 says the
+   dashboard shows counts and never rows; the overview needs a count of accounts *across*
+   workspaces, and `account` is behind row level security and `FORCE`, so the application role
+   cannot produce one at all. `instance_census()` is the narrow door for it — no parameter, five
+   `bigint`s, and a caller that wanted rows would have to change the function, which is a migration
+   somebody reviews. The workspace counts go through the same function rather than through
+   `/admin/tenants`, because the overview's numbers have to agree with each other on one instant,
+   which one statement gives and two do not.
+
+5. **`/instance` is a fourth route area, not a second `administration`.**
+   [ADR-0032](ADR-0032-client-capability-matrix.md) names three; the shells exclude this one exactly as
+   they exclude administration, and the reason it is its own is the capability: an administrator
+   runs a workspace and an operator runs the installation. A shell that shipped one because it
+   shipped the other would be shipping the control plane by accident. It is drawn by the *same*
+   section column as the other two, which is §5's "not a second frame" kept literally.
+
+6. **The instance level is four areas, and two of them are different in kind.** §5.3's table names
+   the sign-in switches, the legal links, the quotas and the localisation defaults. A lock is
+   meaningful on a ceiling — "Tarif, Ausnahme je Bereich" — and **forbidden** on a language, which
+   §5.7 says in its own words: "eine Instanz gibt einen Standard, nie ein Schloss". So
+   `LocalisationDefaults` has nowhere to put a lock and a write that carries one is refused rather
+   than partly obeyed. A type that cannot hold the thing cannot grow it by accident.
+
+7. **The quota level resolves as `Effective(product, instance, plan, workspace)` from the first
+   day.** §6.7 asks for exactly that, with `plan = nil` until there are plans, and `Resolve` takes
+   the installation's overrides as a second value rather than a fourth level added later. A
+   workspace's own exception is still the last word; what changed is what it is an exception *to*.
+
+8. **What the dashboard may write is the server's answer, never the screen's guess.** §5's
+   amendment says the dashboard offers whatever the configuration permits, and there are exactly two
+   ways a screen could know what that is: ask, or decide. It asks. `is_enforced_from_file` on the
+   settings document is what removes the controls from the instance values screen; the presets'
+   `provisioning` list is what removes the modes a provider may not hold; `instance.reachable` is
+   what removes the area. A client that worked any of these out for itself would be a second copy of
+   a rule, and the copies disagree on the installation nobody tested.
+
+9. **Absence is the refusal for a level, and `CapabilityGate` is the refusal for an entry.** The two
+   look alike and are not. A person refused an *entry* was reaching for something they could
+   plausibly have had, and `domain-model.md` §2 is explicit that this must never become silent
+   ignoring — so the gate renders the reason. A person outside the operator register was never
+   reaching for anything: they have no workspace where the control plane applies, and a disabled row
+   is a fact about somebody else's installation that they cannot act on. The rule this settles, for
+   the next level somebody adds: **explain a refusal, omit a level**.
+
+10. **The journal gained a read, and the port's own comment was the thing that changed.** It said
+   "there is no read method because no API serves it — reading it is the operator's, at the
+   database". §5's dashboard is the API that serves it, so `Journal` has a `Page` now: newest first,
+   keyed on the moment *and* the identifier, because two entries can share a moment and an offset
+   would then skip or repeat one.

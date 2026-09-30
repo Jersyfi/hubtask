@@ -804,6 +804,36 @@ export class HubtaskClient {
     return this.call("DELETE", "/admin/operators/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** How big this installation is and how its workspaces stand */
+  readInstanceOverview(options: CallOptions = {}): Promise<operations["readInstanceOverview"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/overview", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The installation's own record */
+  listInstanceJournal(options: CallOptions & { readonly query?: NonNullable<operations["listInstanceJournal"]['parameters']['query']> } = {}): Promise<operations["listInstanceJournal"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/journal", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The providers this installation offers every workspace */
+  listInstanceIdentityProviders(options: CallOptions = {}): Promise<operations["listInstanceIdentityProviders"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/identity-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Offer every workspace a way in */
+  createInstanceIdentityProvider(body: NonNullable<operations["createInstanceIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createInstanceIdentityProvider"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/identity-providers", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Replace one of the installation's providers */
+  configureInstanceIdentityProvider(providerId: string, body: NonNullable<operations["configureInstanceIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureInstanceIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/identity-providers/{providerId}", { "providerId": providerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Withdraw a provider from every workspace at once */
+  removeInstanceIdentityProvider(providerId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/identity-providers/{providerId}", { "providerId": providerId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The keyring, and what still names each key */
   readEncryptionStatus(options: CallOptions = {}): Promise<operations["readEncryptionStatus"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/encryption", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -834,19 +864,44 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
-  /** How this workspace signs people in through its own provider */
+  /** The workspace's first identity provider */
   readIdentityProvider(options: CallOptions = {}): Promise<operations["readIdentityProvider"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/identity-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Configure the workspace's identity provider */
-  configureIdentityProvider(body: NonNullable<operations["configureIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureIdentityProvider"]['responses'][200]['content']["application/json"]> {
+  /** Set the workspace's first identity provider */
+  configureFirstIdentityProvider(body: NonNullable<operations["configureFirstIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureFirstIdentityProvider"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/identity-provider", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Remove the workspace's identity provider */
-  removeIdentityProvider(options: CallOptions = {}): Promise<void> {
-    return this.call("DELETE", "/identity-provider", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  /** The providers people can sign in to this workspace through */
+  listIdentityProviders(options: CallOptions = {}): Promise<operations["listIdentityProviders"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/identity-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a provider this workspace signs its people in through */
+  createIdentityProvider(body: NonNullable<operations["createIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createIdentityProvider"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/identity-providers", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Replace one of the workspace's identity providers */
+  configureIdentityProvider(providerId: string, body: NonNullable<operations["configureIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/identity-providers/{providerId}", { "providerId": providerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove one of the workspace's identity providers */
+  removeIdentityProvider(providerId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/identity-providers/{providerId}", { "providerId": providerId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Switch a provider on or off as a way in here */
+  offerIdentityProvider(providerId: string, body: NonNullable<operations["offerIdentityProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["offerIdentityProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/identity-providers/{providerId}:offer", { "providerId": providerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The providers Hubtask has a preset for, and what registering takes */
+  listIdentityProviderPresets(options: CallOptions = {}): Promise<operations["listIdentityProviderPresets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/identity-provider-presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Ask AI what work sits under this entry */

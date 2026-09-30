@@ -93,6 +93,14 @@ if [ "$BOOTSTRAP" = true ]; then
 		  VALUES ('$OPERATOR_TOKEN_ID', '$OPERATOR_TENANT', '$OPERATOR_ACCOUNT',
 		          'the control plane bootstrap', decode('$HASH', 'hex'), 'hbt_pat_',
 		          ARRAY['admin:tenants'], now() + interval '365 days');
+		-- And into the register (ADR-0070 §1). The scope is checked again where it is exercised,
+		-- and the empty-register fallback is the *single-workspace* installation's — which a
+		-- development machine stops being the moment it provisions a second. A service account may
+		-- be an operator, which is exactly what §6.2 asks for: a platform that provisions
+		-- workspaces needs a credential that does not belong to a person who may leave.
+		INSERT INTO operator (tenant_id, account_id)
+		  VALUES ('$OPERATOR_TENANT', '$OPERATOR_ACCOUNT')
+		  ON CONFLICT (tenant_id, account_id) DO NOTHING;
 		COMMIT;
 	SQL
 

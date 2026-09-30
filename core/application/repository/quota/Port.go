@@ -33,6 +33,18 @@ type Store interface {
 	// nothing answers the zero value, not an error.
 	Overrides(ctx context.Context) (Overrides, error)
 
+	// InstanceOverrides answers what the **installation** set, which every workspace that set
+	// nothing of its own falls back to (ADR-0070 §2, the concept's §6.7).
+	//
+	// It is on this port rather than on a second one because it is the same question one level up:
+	// "what limits apply here" has three answers now — the product's table, the installation's, and
+	// the workspace's — and a caller that had to consult two ports would be a caller that
+	// eventually consults one. `instance_setting` carries no row level security, so this read works
+	// inside the tenant's own transaction.
+	//
+	// An installation that set nothing answers the zero value, not an error.
+	InstanceOverrides(ctx context.Context) (Overrides, error)
+
 	// SetOverrides replaces the quotas key of the settings document, guarded on the row
 	// version. False means the version moved under the caller.
 	SetOverrides(ctx context.Context, overrides Overrides, expectedVersion int, now time.Time) (bool, error)

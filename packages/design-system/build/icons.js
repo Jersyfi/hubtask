@@ -144,6 +144,13 @@ export const DECLARED = {
     'gauge', // a load against a limit: the quotas screen, and what the health report reads
     'file-user', // a person's request about their own data: access, erasure, objection, export
   ],
+  'The installation section — SI-12': [
+    // One mark the level above the workspaces asked for and the set did not have. The keyring is
+    // the concept a lock names, and it is the one screen of that section that reads without
+    // turning anything: `shield` was taken by the operator register, and two sections' rows must
+    // not share a glyph where they sit in one column.
+    'lock',
+  ],
   'The AI treatment — F5-01': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -

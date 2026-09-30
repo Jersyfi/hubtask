@@ -16,7 +16,7 @@ UPDATE oidc_flow SET consumed_at = $1
 WHERE state_hash = $2
   AND consumed_at IS NULL
   AND expires_at > $1
-RETURNING id, code_verifier, nonce
+RETURNING id, provider_id, code_verifier, nonce
 `
 
 type ConsumeOidcFlowParams struct {
@@ -26,6 +26,7 @@ type ConsumeOidcFlowParams struct {
 
 type ConsumeOidcFlowRow struct {
 	ID           pgtype.UUID
+	ProviderID   pgtype.UUID
 	CodeVerifier string
 	Nonce        string
 }
@@ -35,8 +36,26 @@ type ConsumeOidcFlowRow struct {
 func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams) (ConsumeOidcFlowRow, error) {
 	row := q.db.QueryRow(ctx, consumeOidcFlow, arg.Now, arg.StateHash)
 	var i ConsumeOidcFlowRow
-	err := row.Scan(&i.ID, &i.CodeVerifier, &i.Nonce)
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.CodeVerifier,
+		&i.Nonce,
+	)
 	return i, err
+}
+
+const countIdentityProviders = `-- name: CountIdentityProviders :one
+SELECT count(*) FROM identity_provider WHERE tenant_id = current_tenant_id()
+`
+
+// What the bound is checked against before an insert. The workspace's own only: the installation's
+// rows are not its to be limited by.
+func (q *Queries) CountIdentityProviders(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countIdentityProviders)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const deleteExpiredOidcFlows = `-- name: DeleteExpiredOidcFlows :execrows
@@ -64,25 +83,33 @@ func (q *Queries) DeleteExpiredOidcFlows(ctx context.Context, arg DeleteExpiredO
 }
 
 const deleteIdentityProvider = `-- name: DeleteIdentityProvider :execrows
-DELETE FROM identity_provider
+DELETE FROM identity_provider WHERE id = $1
 `
 
-func (q *Queries) DeleteIdentityProvider(ctx context.Context) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteIdentityProvider)
+func (q *Queries) DeleteIdentityProvider(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteIdentityProvider, id)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
 }
 
-const findAccountByExternalSubject = `-- name: FindAccountByExternalSubject :one
-SELECT id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at
-FROM account
-WHERE external_subject = $1 AND deleted_at IS NULL
+const findAccountByProviderSubject = `-- name: FindAccountByProviderSubject :one
+SELECT a.id, a.tenant_id, a.kind, a.email, a.display_name, a.status, a.locale, a.time_zone,
+  a.week_start, a.celebrations, a.onboarding_completed_at
+FROM account_identity link
+JOIN account a ON a.tenant_id = link.tenant_id AND a.id = link.account_id
+WHERE link.provider_id = $1
+  AND link.subject = $2
+  AND a.deleted_at IS NULL
 `
 
-type FindAccountByExternalSubjectRow struct {
+type FindAccountByProviderSubjectParams struct {
+	ProviderID pgtype.UUID
+	Subject    string
+}
+
+type FindAccountByProviderSubjectRow struct {
 	ID                    pgtype.UUID
 	TenantID              pgtype.UUID
 	Kind                  AccountKind
@@ -97,11 +124,11 @@ type FindAccountByExternalSubjectRow struct {
 }
 
 // The subject the provider vouched for, under the unique index that makes it one account per
-// workspace. Deleted accounts are excluded: an arriving subject whose account was deleted is a
-// first arrival, not a resurrection.
-func (q *Queries) FindAccountByExternalSubject(ctx context.Context, externalSubject *string) (FindAccountByExternalSubjectRow, error) {
-	row := q.db.QueryRow(ctx, findAccountByExternalSubject, externalSubject)
-	var i FindAccountByExternalSubjectRow
+// provider per workspace (migration 0103). Deleted accounts are excluded: an arriving subject whose
+// account was deleted is a first arrival, not a resurrection.
+func (q *Queries) FindAccountByProviderSubject(ctx context.Context, arg FindAccountByProviderSubjectParams) (FindAccountByProviderSubjectRow, error) {
+	row := q.db.QueryRow(ctx, findAccountByProviderSubject, arg.ProviderID, arg.Subject)
+	var i FindAccountByProviderSubjectRow
 	err := row.Scan(
 		&i.ID,
 		&i.TenantID,
@@ -118,30 +145,46 @@ func (q *Queries) FindAccountByExternalSubject(ctx context.Context, externalSubj
 	return i, err
 }
 
-const findIdentityProvider = `-- name: FindIdentityProvider :one
-SELECT issuer, client_id, allowed_email_domains, enabled, created_at, updated_at, version
+const findIdentityProviderByID = `-- name: FindIdentityProviderByID :one
+SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
 FROM identity_provider
+WHERE id = $1
 `
 
-type FindIdentityProviderRow struct {
+type FindIdentityProviderByIDRow struct {
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	Issuer              string
 	ClientID            string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 }
 
-// What a reader is allowed to see: never the sealed secret. The one caller that needs it asks
-// for it by name below, so a read cannot spill it by accident.
-func (q *Queries) FindIdentityProvider(ctx context.Context) (FindIdentityProviderRow, error) {
-	row := q.db.QueryRow(ctx, findIdentityProvider)
-	var i FindIdentityProviderRow
+// What a reader is allowed to see: never the sealed secret. The one caller that needs it asks for
+// it by name below, so a read cannot spill it by accident.
+func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) (FindIdentityProviderByIDRow, error) {
+	row := q.db.QueryRow(ctx, findIdentityProviderByID, id)
+	var i FindIdentityProviderByIDRow
 	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
 		&i.Issuer,
 		&i.ClientID,
+		&i.DisplayName,
+		&i.Kind,
+		&i.Provisioning,
+		&i.Position,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -151,46 +194,152 @@ func (q *Queries) FindIdentityProvider(ctx context.Context) (FindIdentityProvide
 }
 
 const findIdentityProviderSecret = `-- name: FindIdentityProviderSecret :one
-SELECT issuer, client_id, client_secret_enc, client_secret_key_id, allowed_email_domains, enabled
+SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled
 FROM identity_provider
+WHERE id = $1
 `
 
 type FindIdentityProviderSecretRow struct {
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	Issuer              string
 	ClientID            string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
 	ClientSecretEnc     []byte
 	ClientSecretKeyID   string
 	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 }
 
 // The token exchange's own read, separate from the one above so that opening the envelope is a
 // deliberate call and not a field that happens to be in a struct somebody logged.
-func (q *Queries) FindIdentityProviderSecret(ctx context.Context) (FindIdentityProviderSecretRow, error) {
-	row := q.db.QueryRow(ctx, findIdentityProviderSecret)
+func (q *Queries) FindIdentityProviderSecret(ctx context.Context, id pgtype.UUID) (FindIdentityProviderSecretRow, error) {
+	row := q.db.QueryRow(ctx, findIdentityProviderSecret, id)
 	var i FindIdentityProviderSecretRow
 	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
 		&i.Issuer,
 		&i.ClientID,
+		&i.DisplayName,
+		&i.Kind,
+		&i.Provisioning,
+		&i.Position,
 		&i.ClientSecretEnc,
 		&i.ClientSecretKeyID,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
+	)
+	return i, err
+}
+
+const insertIdentityProvider = `-- name: InsertIdentityProvider :one
+INSERT INTO identity_provider
+  (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
+   display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
+   enabled, created_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5,
+  $6, $7, $8, $9,
+  $10, $11,
+  $12, $13
+)
+RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+`
+
+type InsertIdentityProviderParams struct {
+	ID                  pgtype.UUID
+	Issuer              string
+	ClientID            string
+	ClientSecretEnc     []byte
+	ClientSecretKeyID   string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
+	AllowedEmailDomains []string
+	AllowedDirectories  []string
+	Enabled             bool
+	Now                 pgtype.Timestamptz
+}
+
+type InsertIdentityProviderRow struct {
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
+	Issuer              string
+	ClientID            string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
+	AllowedEmailDomains []string
+	AllowedDirectories  []string
+	Enabled             bool
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	Version             int32
+}
+
+// `current_tenant_id()` rather than an argument, and it is what makes one statement serve both
+// levels: a workspace's transaction writes its own row, and the installation's scope - where the
+// setting is the empty string and the function therefore NULL - writes the row that belongs to
+// nobody. A caller cannot choose which, because there is nothing to pass.
+func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentityProviderParams) (InsertIdentityProviderRow, error) {
+	row := q.db.QueryRow(ctx, insertIdentityProvider,
+		arg.ID,
+		arg.Issuer,
+		arg.ClientID,
+		arg.ClientSecretEnc,
+		arg.ClientSecretKeyID,
+		arg.DisplayName,
+		arg.Kind,
+		arg.Provisioning,
+		arg.Position,
+		arg.AllowedEmailDomains,
+		arg.AllowedDirectories,
+		arg.Enabled,
+		arg.Now,
+	)
+	var i InsertIdentityProviderRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Issuer,
+		&i.ClientID,
+		&i.DisplayName,
+		&i.Kind,
+		&i.Provisioning,
+		&i.Position,
+		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }
 
 const insertOidcFlow = `-- name: InsertOidcFlow :exec
 INSERT INTO oidc_flow
-  (id, tenant_id, state_hash, code_verifier, nonce, created_at, expires_at)
+  (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at)
 VALUES (
   $1, current_tenant_id(), $2, $3,
-  $4, $5, $6
+  $4, $5, $6, $7
 )
 `
 
 type InsertOidcFlowParams struct {
 	ID           pgtype.UUID
+	ProviderID   pgtype.UUID
 	StateHash    []byte
 	CodeVerifier string
 	Nonce        string
@@ -201,6 +350,7 @@ type InsertOidcFlowParams struct {
 func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) error {
 	_, err := q.db.Exec(ctx, insertOidcFlow,
 		arg.ID,
+		arg.ProviderID,
 		arg.StateHash,
 		arg.CodeVerifier,
 		arg.Nonce,
@@ -210,117 +360,263 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 	return err
 }
 
-const linkAccountExternalSubject = `-- name: LinkAccountExternalSubject :execrows
-UPDATE account
-SET external_subject = $1,
-    updated_at       = $2,
-    version          = version + 1
-WHERE id = $3 AND deleted_at IS NULL AND external_subject IS NULL
+const linkAccountIdentity = `-- name: LinkAccountIdentity :execrows
+INSERT INTO account_identity (tenant_id, account_id, provider_id, subject, linked_at)
+SELECT a.tenant_id, a.id, $1, $2, $3
+FROM account a
+WHERE a.id = $4 AND a.deleted_at IS NULL
+ON CONFLICT DO NOTHING
 `
 
-type LinkAccountExternalSubjectParams struct {
-	ExternalSubject *string
-	Now             pgtype.Timestamptz
-	ID              pgtype.UUID
+type LinkAccountIdentityParams struct {
+	ProviderID pgtype.UUID
+	Subject    string
+	Now        pgtype.Timestamptz
+	AccountID  pgtype.UUID
 }
 
-// Writes the subject onto an account that has none. The `IS NULL` is what makes this safe to
-// race: a second sign-in that got there first leaves nothing for this one to overwrite, and an
-// account already bound to another subject is never quietly re-pointed.
-func (q *Queries) LinkAccountExternalSubject(ctx context.Context, arg LinkAccountExternalSubjectParams) (int64, error) {
-	result, err := q.db.Exec(ctx, linkAccountExternalSubject, arg.ExternalSubject, arg.Now, arg.ID)
+// Writes the link, and races safely: the unique index on (tenant, provider, subject) is what
+// refuses a subject already spoken for, and `DO NOTHING` is what makes a second sign-in that got
+// there first leave nothing for this one to overwrite. An account already bound to another subject
+// at this provider is never quietly re-pointed, because the primary key refuses that too.
+func (q *Queries) LinkAccountIdentity(ctx context.Context, arg LinkAccountIdentityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, linkAccountIdentity,
+		arg.ProviderID,
+		arg.Subject,
+		arg.Now,
+		arg.AccountID,
+	)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
 }
 
-const rewrapIdentityProviderSecret = `-- name: RewrapIdentityProviderSecret :execrows
-UPDATE identity_provider
-SET client_secret_enc = $1, client_secret_key_id = $2
-WHERE client_secret_key_id = $3
+const listIdentityProviderSecrets = `-- name: ListIdentityProviderSecrets :many
+SELECT id, client_secret_enc, client_secret_key_id
+FROM identity_provider
+WHERE tenant_id IS NOT DISTINCT FROM current_tenant_id()
 `
 
-type RewrapIdentityProviderSecretParams struct {
+type ListIdentityProviderSecretsRow struct {
+	ID                pgtype.UUID
 	ClientSecretEnc   []byte
 	ClientSecretKeyID string
-	ExpectedKeyID     string
 }
 
-// A re-seal (ADR-0045): the wrapping moves, the configuration does not, so the version stays -
-// an operator rotating the installation's keys has not changed anybody's provider.
-func (q *Queries) RewrapIdentityProviderSecret(ctx context.Context, arg RewrapIdentityProviderSecretParams) (int64, error) {
-	result, err := q.db.Exec(ctx, rewrapIdentityProviderSecret, arg.ClientSecretEnc, arg.ClientSecretKeyID, arg.ExpectedKeyID)
+// The re-seal's read (ADR-0045): every row of *this level* that holds a wrapping, so a rotation can
+// move each one under the key it named when it was read.
+//
+// `IS NOT DISTINCT FROM` rather than `=`, and that is the whole difference: in a workspace's scope
+// it is the workspace's own rows, and in the installation's - where `current_tenant_id()` is NULL -
+// it is the rows that belong to no workspace. Which is what makes the installation's provider
+// re-sealable at all, by a pass that runs in that scope.
+func (q *Queries) ListIdentityProviderSecrets(ctx context.Context) ([]ListIdentityProviderSecretsRow, error) {
+	rows, err := q.db.Query(ctx, listIdentityProviderSecrets)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.RowsAffected(), nil
+	defer rows.Close()
+	items := []ListIdentityProviderSecretsRow{}
+	for rows.Next() {
+		var i ListIdentityProviderSecretsRow
+		if err := rows.Scan(&i.ID, &i.ClientSecretEnc, &i.ClientSecretKeyID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-const upsertIdentityProvider = `-- name: UpsertIdentityProvider :one
+const listIdentityProviders = `-- name: ListIdentityProviders :many
 
-INSERT INTO identity_provider
-  (tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
-   allowed_email_domains, enabled, created_at)
-VALUES (
-  current_tenant_id(), $1, $2,
-  $3, $4,
-  $5, $6, $7
-)
-ON CONFLICT (tenant_id) DO UPDATE SET
-  issuer                = excluded.issuer,
-  client_id             = excluded.client_id,
-  client_secret_enc     = excluded.client_secret_enc,
-  client_secret_key_id  = excluded.client_secret_key_id,
-  allowed_email_domains = excluded.allowed_email_domains,
-  enabled               = excluded.enabled,
-  updated_at            = $7,
-  version               = identity_provider.version + 1
-RETURNING issuer, client_id, allowed_email_domains, enabled, created_at, updated_at, version
+SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+FROM identity_provider
+ORDER BY (tenant_id IS NULL), position, created_at, id
 `
 
-type UpsertIdentityProviderParams struct {
+type ListIdentityProvidersRow struct {
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
 	Issuer              string
 	ClientID            string
-	ClientSecretEnc     []byte
-	ClientSecretKeyID   string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
 	AllowedEmailDomains []string
-	Enabled             bool
-	Now                 pgtype.Timestamptz
-}
-
-type UpsertIdentityProviderRow struct {
-	Issuer              string
-	ClientID            string
-	AllowedEmailDomains []string
+	AllowedDirectories  []string
 	Enabled             bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 }
 
-// The relying-party surface (H-04): the workspace's provider, and the flows of one sign-in.
+// The relying-party surface (H-04, SI-10): the providers a workspace signs in through, and the
+// flows of one sign-in.
 //
 // Every statement here runs inside the transaction wrapper that sets `app.tenant_id`, so the
-// policy underneath answers "which workspace" - `current_tenant_id()` is written on insert
-// rather than passed in, the way every tenant-scoped insert in this schema is.
+// policy underneath answers "which level" - `current_tenant_id()` is written on insert rather than
+// passed in, and in the installation's own scope it is NULL, which is exactly the row that belongs
+// to no workspace. One insert statement therefore serves both levels, and nothing has to decide
+// which one it is in.
+// The ways in that are in force here: this workspace's own rows and the installation's, which the
+// read policy admits together (migration 0103). The workspace's come first - its own choices sit
+// above the default it inherited - and the sealed secret is in none of it.
+func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProvidersRow, error) {
+	rows, err := q.db.Query(ctx, listIdentityProviders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIdentityProvidersRow{}
+	for rows.Next() {
+		var i ListIdentityProvidersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Issuer,
+			&i.ClientID,
+			&i.DisplayName,
+			&i.Kind,
+			&i.Provisioning,
+			&i.Position,
+			&i.AllowedEmailDomains,
+			&i.AllowedDirectories,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const rewrapIdentityProviderSecret = `-- name: RewrapIdentityProviderSecret :execrows
+UPDATE identity_provider
+SET client_secret_enc = $1, client_secret_key_id = $2
+WHERE id = $3 AND client_secret_key_id = $4
+`
+
+type RewrapIdentityProviderSecretParams struct {
+	ClientSecretEnc   []byte
+	ClientSecretKeyID string
+	ID                pgtype.UUID
+	ExpectedKeyID     string
+}
+
+// A re-seal (ADR-0045): the wrapping moves, the configuration does not, so the version stays -
+// an operator rotating the installation's keys has not changed anybody's provider.
+func (q *Queries) RewrapIdentityProviderSecret(ctx context.Context, arg RewrapIdentityProviderSecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapIdentityProviderSecret,
+		arg.ClientSecretEnc,
+		arg.ClientSecretKeyID,
+		arg.ID,
+		arg.ExpectedKeyID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateIdentityProvider = `-- name: UpdateIdentityProvider :one
+UPDATE identity_provider SET
+  issuer                = $1,
+  client_id             = $2,
+  client_secret_enc     = coalesce($3, client_secret_enc),
+  client_secret_key_id  = coalesce($4, client_secret_key_id),
+  display_name          = $5,
+  kind                  = $6,
+  provisioning          = $7,
+  position              = $8,
+  allowed_email_domains = $9,
+  allowed_directories   = $10,
+  enabled               = $11,
+  updated_at            = $12,
+  version               = version + 1
+WHERE id = $13
+RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
+  allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version
+`
+
+type UpdateIdentityProviderParams struct {
+	Issuer              string
+	ClientID            string
+	ClientSecretEnc     []byte
+	ClientSecretKeyID   *string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
+	AllowedEmailDomains []string
+	AllowedDirectories  []string
+	Enabled             bool
+	Now                 pgtype.Timestamptz
+	ID                  pgtype.UUID
+}
+
+type UpdateIdentityProviderRow struct {
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
+	Issuer              string
+	ClientID            string
+	DisplayName         string
+	Kind                string
+	Provisioning        string
+	Position            int32
+	AllowedEmailDomains []string
+	AllowedDirectories  []string
+	Enabled             bool
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	Version             int32
+}
+
 // Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
-// version rises on every write, so a concurrent second configuration is visible as a conflict.
-func (q *Queries) UpsertIdentityProvider(ctx context.Context, arg UpsertIdentityProviderParams) (UpsertIdentityProviderRow, error) {
-	row := q.db.QueryRow(ctx, upsertIdentityProvider,
+// secret is the one exception and the reason is that there is no way to read it back - a caller
+// that sent none means "keep the one that is sealed", and COALESCE is what says so in a single
+// statement rather than a read-then-write two sign-ins could interleave.
+//
+// The version rises on every write, so a concurrent second configuration is visible as a conflict.
+func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentityProviderParams) (UpdateIdentityProviderRow, error) {
+	row := q.db.QueryRow(ctx, updateIdentityProvider,
 		arg.Issuer,
 		arg.ClientID,
 		arg.ClientSecretEnc,
 		arg.ClientSecretKeyID,
+		arg.DisplayName,
+		arg.Kind,
+		arg.Provisioning,
+		arg.Position,
 		arg.AllowedEmailDomains,
+		arg.AllowedDirectories,
 		arg.Enabled,
 		arg.Now,
+		arg.ID,
 	)
-	var i UpsertIdentityProviderRow
+	var i UpdateIdentityProviderRow
 	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
 		&i.Issuer,
 		&i.ClientID,
+		&i.DisplayName,
+		&i.Kind,
+		&i.Provisioning,
+		&i.Position,
 		&i.AllowedEmailDomains,
+		&i.AllowedDirectories,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,

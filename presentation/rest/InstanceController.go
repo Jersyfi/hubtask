@@ -21,6 +21,8 @@ import (
 const (
 	readInstanceSettingsUseCase  = "ReadInstanceSettings"
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
+	readInstanceOverviewUseCase  = "ReadInstanceOverview"
+	listInstanceJournalUseCase   = "ListInstanceJournal"
 	listOperatorsUseCase         = "ListOperators"
 	addOperatorUseCase           = "AddOperator"
 	removeOperatorUseCase        = "RemoveOperator"
@@ -66,6 +68,12 @@ func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Re
 	}
 	if body.Legal != nil {
 		in["legal"] = instanceSettingMap(*body.Legal)
+	}
+	if body.Localisation != nil {
+		in["localisation"] = instanceSettingMap(*body.Localisation)
+	}
+	if body.Quotas != nil {
+		in["quotas"] = instanceSettingMap(*body.Quotas)
 	}
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
@@ -124,9 +132,20 @@ func (c *RestController) AddOperator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := c.UseCases.Invoke(r.Context(), addOperatorUseCase, actorOf(r), usecase.Input{
-		"account_id": body.AccountId.String(),
-	}); err != nil {
+	// Either form, and the registry refuses a request that carries neither: the workspace and the
+	// address for a screen, the identifier for a script that already has one.
+	in := usecase.Input{}
+	if body.AccountId != nil {
+		in["account_id"] = body.AccountId.String()
+	}
+	if body.Workspace != nil {
+		in["workspace"] = *body.Workspace
+	}
+	if body.Email != nil {
+		in["email"] = string(*body.Email)
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), addOperatorUseCase, actorOf(r), in); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
@@ -150,6 +169,12 @@ func (c *RestController) RemoveOperator(
 func instanceSettingMap(sent map[string]openapi.InstanceSetting) map[string]any {
 	settings := make(map[string]any, len(sent))
 	for name, setting := range sent {
+		// A switch a client sent back without a value is one it is clearing, which is what the
+		// write means by "the installation stops deciding it" - so `set` travels no further than
+		// the read that carried it.
+		if setting.Value == nil {
+			continue
+		}
 		settings[name] = map[string]any{"value": setting.Value, "locked": setting.Locked}
 	}
 	return settings
@@ -162,6 +187,12 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if legal := instanceSettingsOf(out["legal"]); legal != nil {
 		answer.Legal = &legal
+	}
+	if localisation := instanceSettingsOf(out["localisation"]); localisation != nil {
+		answer.Localisation = &localisation
+	}
+	if quotas := instanceSettingsOf(out["quotas"]); quotas != nil {
+		answer.Quotas = &quotas
 	}
 	if file := out.String("blocklist_file"); file != "" {
 		answer.BlocklistFile = &file
@@ -187,7 +218,8 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 			continue
 		}
 		locked, _ := entry["locked"].(bool)
-		settings[name] = openapi.InstanceSetting{Value: entry["value"], Locked: locked}
+		set, _ := entry["set"].(bool)
+		settings[name] = openapi.InstanceSetting{Set: set, Value: entry["value"], Locked: locked}
 	}
 	return settings
 }
@@ -208,4 +240,88 @@ func (c *RestController) ElevateSession(
 			RemainingSeconds: out.Int("remaining_seconds"),
 		})
 	})
+}
+
+// ReadInstanceOverview answers GET /admin/overview.
+func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(
+		r.Context(), readInstanceOverviewUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, openapi.InstanceOverview{
+		WorkspacesActive:          censusCount(out["workspaces_active"]),
+		WorkspacesSuspended:       censusCount(out["workspaces_suspended"]),
+		WorkspacesPendingDeletion: censusCount(out["workspaces_pending_deletion"]),
+		AccountsActive:            censusCount(out["accounts_active"]),
+		AccountsTotal:             censusCount(out["accounts_total"]),
+	})
+}
+
+// ListInstanceJournal answers GET /admin/journal.
+func (c *RestController) ListInstanceJournal(
+	w http.ResponseWriter, r *http.Request, params openapi.ListInstanceJournalParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["limit"] = *params.Size
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), listInstanceJournalUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	entries := make([]openapi.InstanceJournalEntry, 0, len(rows))
+	for _, row := range rows {
+		entry := openapi.InstanceJournalEntry{
+			Id:         uuidValue(row.String("id")),
+			OccurredAt: timeValue(row["occurred_at"]),
+			Action:     row.String("action"),
+		}
+		if tenantID := row.String("tenant_id"); tenantID != "" {
+			id := uuidValue(tenantID)
+			entry.TenantId = &id
+		}
+		if slug := row.String("tenant_slug"); slug != "" {
+			entry.TenantSlug = &slug
+		}
+		if label := row.String("actor_label"); label != "" {
+			entry.ActorLabel = &label
+		}
+		if details, held := row["details"].(map[string]any); held && len(details) > 0 {
+			entry.Details = &details
+		}
+		entries = append(entries, entry)
+	}
+	writeJSON(w, r, http.StatusOK, openapi.InstanceJournalPage{
+		Data: entries,
+		Page: pageResponse(out),
+	})
+}
+
+// censusCount narrows one of the census's numbers. The catalogue is untyped by construction - it is
+// one shape for three channels - and a count comes out of the database as an `int64`, which the
+// contract calls an integer.
+func censusCount(value any) int {
+	counted, _ := value.(int64)
+	return int(counted)
 }

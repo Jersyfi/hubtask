@@ -44,7 +44,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { ADMINISTRATION, DESTINATIONS, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
+  import { ADMINISTRATION, DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, currentDestination, primary } from '../navigation.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -130,7 +130,9 @@
   /**
    * The section the reader is inside, or nothing while they are in the workspace.
    *
-   * Two of them: the administration (ADR-0063 decision 7) and Your settings (ADR-0065 decision 3).
+   * Three of them: the administration (ADR-0063 decision 7), Your settings (ADR-0065 decision 3)
+   * and the instance (ADR-0070 §5) - the last drawn by this same column, which is the ADR's own
+   * "not a second frame".
    * A section has a navigation of its own and the workspace's tree is not drawn beside it - the
    * reader is in a place, not in a corner of the workspace. The route's **area** answers which,
    * which is the same answer `currentDestination` gives the account group: one fact, read once.
@@ -138,15 +140,24 @@
   const section = $derived(
     route.area === 'administration'
       ? { label: t('app.admin.nav'), groups: ADMINISTRATION }
-      : route.area === 'profile'
-        ? { label: t('app.nav.profile'), groups: SETTINGS }
-        : undefined,
+      : route.area === 'instance'
+        ? { label: t('app.instance.nav'), groups: INSTANCE }
+        : route.area === 'profile'
+          ? { label: t('app.nav.profile'), groups: SETTINGS }
+          : undefined,
   );
   /** Which row of the section's list is current, by the id that list gives it. */
   const sectionRow = $derived(
     section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
-  const accountGroup = $derived(account({ isAdministrationReachable: quotas.isReachable === true }));
+  const accountGroup = $derived(
+    account({
+      isAdministrationReachable: quotas.isReachable === true,
+      // The manifest's answer about this caller, and nothing compiled in (SI-17). False until it
+      // has been read, which is the third value every capability question here has.
+      isInstanceReachable: manifest.isInstanceReachable,
+    }),
+  );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
   const bottomDestinations = $derived([
     ...primary().map((each) => ({

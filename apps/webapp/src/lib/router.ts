@@ -15,7 +15,7 @@
  */
 
 /**
- * Which of ADR-0032's three areas a route belongs to.
+ * Which area a route belongs to.
  *
  * Declared here rather than worked out later, because the mobile shell's one restriction is by
  * area: it ships the end-user features and profile configuration in full, and reaches
@@ -25,8 +25,16 @@
  *
  * `end-user` is the default because it is the overwhelming majority, and a default that is wrong
  * for a new administrative screen is caught by the person adding one rather than by the shell.
+ *
+ * **Four, not ADR-0032's three.** [ADR-0070](../../../../docs/adr/ADR-0070-the-instance-layer.md)
+ * §5 puts the level above the workspaces in this same web app — "a route area `/instance` in the
+ * same web app, not a second bundle, not a second frame, not a second translation" — and the
+ * shells exclude it exactly as they exclude administration. A fourth value rather than reusing
+ * `administration`, because the two are different capabilities: an administrator runs a workspace
+ * and an operator runs the installation, and a shell that shipped one because it shipped the other
+ * would be shipping the control plane by accident.
  */
-export type Area = 'end-user' | 'profile' | 'administration';
+export type Area = 'end-user' | 'profile' | 'administration' | 'instance';
 
 export interface Route {
   /** A stable name the shell switches on — never display text. */

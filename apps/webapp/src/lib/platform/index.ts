@@ -114,6 +114,21 @@ export interface Platform {
   lastAccount(): string | undefined;
 
   /**
+   * When this session's elevation to the control plane ends, and where it is remembered (SI-17,
+   * ADR-0070 §4).
+   *
+   * Beside the pair, and for the reason the account is: a reload must not lose it. **Losing it is
+   * worse than keeping it** — the door would ask for a second proof while the first hour still
+   * stands at the server, and passing it would start a *new* hour, which is the one thing "the
+   * elevation does not slide" forbids.
+   *
+   * A moment, not a credential: a client that wrote itself a later one is refused by the server on
+   * its next call, because the scope is granted per request from the session's own row.
+   */
+  rememberElevation(until: string): void;
+  elevatedUntil(): string | undefined;
+
+  /**
    * How this device introduces itself in the workspace's device list - "Firefox on Linux" -
    * beside the platform, which is `web` here and a shell's own name there.
    */

@@ -42,7 +42,9 @@ func (s *flowStore) Consume(
 	return flow, true, nil
 }
 
-// externalStore is the `account.external_subject` seam.
+// externalStore is the `account_identity` seam. Keyed on the provider *and* the subject since
+// SI-10: the same person at two providers is two links, and a fake that keyed on the subject alone
+// would make the second arrival look like the first.
 type externalStore struct {
 	bySubject map[string]domain.Account
 	links     []string
@@ -56,8 +58,15 @@ func newExternal(accounts *accountStore) *externalStore {
 	return &externalStore{bySubject: map[string]domain.Account{}, accounts: accounts}
 }
 
-func (s *externalStore) FindBySubject(_ context.Context, subject string) (domain.Account, error) {
-	account, found := s.bySubject[subject]
+// linkKey is the unique index of migration 0103, as far as this fake needs it.
+func linkKey(providerID shared.ID, subject string) string {
+	return providerID.String() + "\x00" + subject
+}
+
+func (s *externalStore) FindBySubject(
+	_ context.Context, providerID shared.ID, subject string,
+) (domain.Account, error) {
+	account, found := s.bySubject[linkKey(providerID, subject)]
 	if !found {
 		return domain.Account{}, shared.ErrNotFound.WithDetail("accounts.not_found")
 	}
@@ -65,7 +74,7 @@ func (s *externalStore) FindBySubject(_ context.Context, subject string) (domain
 }
 
 func (s *externalStore) LinkSubject(
-	_ context.Context, accountID shared.ID, subject string, _ time.Time,
+	_ context.Context, providerID, accountID shared.ID, subject string, _ time.Time,
 ) (bool, error) {
 	if s.refuse {
 		return false, nil
@@ -75,7 +84,7 @@ func (s *externalStore) LinkSubject(
 	if !found {
 		account = domain.Account{ID: accountID, TenantID: tenant, Status: domain.AccountActive}
 	}
-	s.bySubject[subject] = account
+	s.bySubject[linkKey(providerID, subject)] = account
 	return true, nil
 }
 
@@ -125,6 +134,7 @@ type oidcFixture struct {
 	external *externalStore
 	accounts *accountStore
 	relying  *arrivingDouble
+	provider domain.IdentityProvider
 }
 
 func newOidcFixture(t *testing.T, at time.Time, existing ...domain.Account) *oidcFixture {
@@ -132,7 +142,7 @@ func newOidcFixture(t *testing.T, at time.Time, existing ...domain.Account) *oid
 	session := mfaFixture(at)
 	accounts := newAccounts(existing...)
 	f := &oidcFixture{
-		session: session, store: &providerStore{}, flows: newFlows(),
+		session: session, store: newProviderStore(tenant), flows: newFlows(),
 		external: newExternal(accounts), accounts: accounts,
 		relying: &arrivingDouble{identity: provider.Identity{
 			Subject: "provider-subject-1", Email: "ada@example.org",
@@ -147,24 +157,37 @@ func newOidcFixture(t *testing.T, at time.Time, existing ...domain.Account) *oid
 	}
 
 	// A configured, enabled provider that links inside example.org.
+	f.provider = configureFixtureProvider(t, f, oidcProviderRow, tenant, "https://login.example.org", at)
+	return f
+}
+
+// oidcProviderRow is the workspace's one provider in these fixtures.
+const oidcProviderRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")
+
+// configureFixtureProvider stores one provider and seals its secret through the fixture's own
+// encryptor, so that opening it in the flow is the real round trip rather than a value the double
+// would refuse as inauthentic.
+func configureFixtureProvider(
+	t *testing.T, f *oidcFixture, id, tenantID shared.ID, issuer string, at time.Time,
+) domain.IdentityProvider {
+	t.Helper()
 	configured, err := domain.NewIdentityProvider(domain.NewIdentityProviderInput{
-		TenantID: tenant, Issuer: "https://login.example.org", ClientID: "hubtask",
+		ID: id, TenantID: tenantID, Issuer: issuer, ClientID: "hubtask",
 		AllowedEmailDomains: []string{"example.org"}, Enabled: true, Now: at,
 	})
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	// Sealed through the fixture's own encryptor, so that opening it in the flow is the real
-	// round trip rather than a value the double would refuse as inauthentic.
-	sealed, err := session.writer.Encryptor.Seal(
-		t.Context(), secret.New("s3cr3t"), clientSecretPurpose(tenant))
+	sealed, err := f.session.writer.Encryptor.Seal(
+		t.Context(), secret.New("s3cr3t"), ClientSecretPurpose(tenantID))
 	if err != nil {
 		t.Fatalf("sealing: %v", err)
 	}
-	if _, err := f.store.Upsert(t.Context(), configured, sealed, at); err != nil {
+	stored, err := f.store.Insert(t.Context(), configured, sealed)
+	if err != nil {
 		t.Fatalf("storing the configuration: %v", err)
 	}
-	return f
+	return stored
 }
 
 // start runs the first half and answers the state it minted.
@@ -264,9 +287,14 @@ func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 	}
 }
 
-// The two ways linking must not happen: an address the provider did not verify, and one outside
-// the configured domains. Both provision instead - a new account is the safe answer.
-func TestLinkingNeedsAVerifiedAddressInsideTheDomains(t *testing.T) {
+// The two ways an arrival is refused under DOMAINS: an address the provider did not verify, and one
+// outside the configured list.
+//
+// **Both are a refusal now, not a new account.** Before SI-10 they were provisioned, which made
+// DOMAINS the same thing as ANY under a name that promised otherwise - and meant that pointing a
+// workspace at Google handed a desk to anybody who asked. The concept's §8 fixes the axis: the mode
+// says who comes in.
+func TestAnAddressOutsideTheDomainsIsRefusedRatherThanProvisioned(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	existing := domain.Account{
 		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000e1"), TenantID: tenant,
@@ -289,18 +317,49 @@ func TestLinkingNeedsAVerifiedAddressInsideTheDomains(t *testing.T) {
 			f := newOidcFixture(t, at, existing)
 			f.relying.identity = c.identity
 
-			pair, err := CompleteOidcSignIn{Writer: f.writer}.
+			_, err := CompleteOidcSignIn{Writer: f.writer}.
 				Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
-			if err != nil {
-				t.Fatalf("completing: %v", err)
+			if !errors.Is(err, shared.ErrForbidden) {
+				t.Fatalf("completing answered %v, want a refusal", err)
 			}
-			if pair.Session.AccountID == existing.ID {
-				t.Error("an unverified or out-of-domain address took over an existing account")
+			if shared.AsError(err).DetailCode != "identity_provider.not_admitted" {
+				t.Errorf("the refusal is %q", shared.AsError(err).DetailCode)
+			}
+			// Nothing was created and nothing was taken over.
+			if len(f.accounts.inserted) != 0 {
+				t.Errorf("%d accounts were provisioned for a refused arrival", len(f.accounts.inserted))
 			}
 			if containsAction(auditActions(f.session.audit.entries), OidcLinkedAction) {
 				t.Error("a link was recorded where none should have happened")
 			}
+			// And the refusal is in the trail: a provider turning everybody away is a thing an
+			// operator has to be able to read.
+			if !containsAction(auditActions(f.session.audit.entries), OidcRefusedAction) {
+				t.Error("the refusal was not recorded")
+			}
 		})
+	}
+}
+
+// ANY is the mode for a provider whose population is the workspace's own: a verified address it
+// does not know is still admitted, and becomes an account.
+func TestUnderAnyAVerifiedStrangerIsProvisioned(t *testing.T) {
+	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	f := newOidcFixture(t, at)
+	f.store.rows[0].Provisioning = domain.ProvisionAny
+	f.relying.identity = provider.Identity{
+		Subject: "s-any", Email: "ada@elsewhere.org", EmailVerified: true, DisplayName: "Ada"}
+
+	pair, err := CompleteOidcSignIn{Writer: f.writer}.
+		Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+	if err != nil {
+		t.Fatalf("completing: %v", err)
+	}
+	if pair.Session.AccountID.IsZero() {
+		t.Error("no session was opened")
+	}
+	if !containsAction(auditActions(f.session.audit.entries), OidcProvisionedAction) {
+		t.Error("the arrival was not recorded as a provisioning")
 	}
 }
 
@@ -339,7 +398,7 @@ func TestAStateIsSpentOnceAndTheReplayIsIndistinguishable(t *testing.T) {
 func TestADisabledAccountIsRefusedAtTheExchange(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	f := newOidcFixture(t, at)
-	f.external.bySubject["provider-subject-1"] = domain.Account{
+	f.external.bySubject[linkKey(oidcProviderRow, "provider-subject-1")] = domain.Account{
 		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000e2"), TenantID: tenant,
 		Kind: domain.AccountUser, Email: "bert@example.org", DisplayName: "Bert",
 		Status: domain.AccountDisabled,
@@ -357,14 +416,14 @@ func TestNoProviderAndASwitchedOffOneBothRefuse(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 
 	none := newOidcFixture(t, at)
-	none.store.configured = nil
+	none.store.rows = nil
 	if _, err := (StartOidcSignIn{Writer: none.writer}).
 		Execute(t.Context(), StartOidcSignInCommand{}); err == nil {
 		t.Error("a workspace with no provider started a sign-in")
 	}
 
 	off := newOidcFixture(t, at)
-	off.store.configured.Enabled = false
+	off.store.rows[0].Enabled = false
 	if _, err := (StartOidcSignIn{Writer: off.writer}).
 		Execute(t.Context(), StartOidcSignInCommand{}); err == nil {
 		t.Error("a switched-off provider started a sign-in")

@@ -91,3 +91,34 @@ test('no storage at all behaves the same way', () => {
   store.clear();
   assert.equal(store.read(), undefined);
 });
+
+test('the elevation survives a reload, and a new session is not the old one\'s hour', () => {
+  // The walk of SI-17 found this: each screen of `/instance` is its own component, and a full page
+  // load threw the elevation away. The door then asked for a second proof while the first hour
+  // still stood at the server — and passing it started a *new* hour, which is exactly what "the
+  // elevation does not slide" forbids (ADR-0070 §4).
+  const storage = fakeStorage();
+  const store = tokenStore(storage);
+  store.write({ access: 'access-1', refresh: 'refresh-1' });
+  store.rememberElevatedUntil('2026-09-28T10:00:00Z');
+
+  assert.equal(
+    tokenStore(storage).readElevatedUntil(),
+    '2026-09-28T10:00:00Z',
+    'a reload forgot when the hour ends',
+  );
+
+  // A second sign-in in the same tab is somebody else as far as this is concerned.
+  tokenStore(storage).write({ access: 'access-2', refresh: 'refresh-2' });
+  assert.equal(
+    tokenStore(storage).readElevatedUntil(),
+    undefined,
+    'a new session inherited the previous one\'s elevation',
+  );
+
+  // And signing out takes it with the pair.
+  const signedIn = tokenStore(storage);
+  signedIn.rememberElevatedUntil('2026-09-28T11:00:00Z');
+  signedIn.clear();
+  assert.equal(tokenStore(storage).readElevatedUntil(), undefined);
+});

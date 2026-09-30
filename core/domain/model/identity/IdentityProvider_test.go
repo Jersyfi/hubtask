@@ -11,8 +11,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+const providerRow = shared.ID("01936f2a-7c1e-7000-8000-0000000000e1")
+
 func providerInput() NewIdentityProviderInput {
 	return NewIdentityProviderInput{
+		ID:       providerRow,
 		TenantID: sessionTenant,
 		Issuer:   "https://login.example.org",
 		ClientID: "hubtask",
@@ -111,10 +114,10 @@ func TestWhatMayBeALinkingDomain(t *testing.T) {
 	}
 }
 
-// Linking hands somebody an account that already exists. Both conditions guard that door, and
-// the subdomain case is the one that looks harmless and is not: `example.org.evil.net` ends in
-// nothing this list contains, and `staff.example.org` is a different organisation's mail.
-func TestWhenAnArrivingAddressMayClaimAnExistingAccount(t *testing.T) {
+// DOMAINS admits only the list. Both conditions guard that door, and the subdomain case is the one
+// that looks harmless and is not: `example.org.evil.net` ends in nothing this list contains, and
+// `staff.example.org` is a different organisation's mail.
+func TestWhenAnArrivingAddressIsAdmittedUnderDomains(t *testing.T) {
 	in := providerInput()
 	in.AllowedEmailDomains = []string{"example.org", "example.net"}
 	provider, err := NewIdentityProvider(in)
@@ -141,36 +144,56 @@ func TestWhenAnArrivingAddressMayClaimAnExistingAccount(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := provider.LinksAddress(c.email, c.verified); got != c.want {
-				t.Errorf("LinksAddress(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
+			if got := provider.MayAdmit(Arriving{Email: c.email, EmailVerified: c.verified, AddressAuthoritative: c.verified}); got != c.want {
+				t.Errorf("MayAdmit(%q, %v) = %v, want %v", c.email, c.verified, got, c.want)
 			}
 		})
 	}
 }
 
-// A workspace that configured no domains links nobody, however verified the address is.
-func TestNoConfiguredDomainsLinksNothing(t *testing.T) {
+// A workspace that configured no domains admits nobody under DOMAINS, however verified the address
+// is. Before the column existed an empty list meant "link nobody, provision everybody"; it means
+// "nobody" now, which is what the mode's own name promises.
+func TestNoConfiguredDomainsAdmitsNobody(t *testing.T) {
 	provider, err := NewIdentityProvider(providerInput())
 	if err != nil {
 		t.Fatalf("configuring: %v", err)
 	}
-	if provider.LinksAddress("ada@example.org", true) {
-		t.Error("an address linked against an empty domain list")
+	if provider.MayAdmit(Arriving{Email: "ada@example.org", EmailVerified: true, AddressAuthoritative: true}) {
+		t.Error("an address was admitted against an empty domain list")
+	}
+	if provider.MayClaim(Arriving{Email: "ada@example.org", EmailVerified: true, AddressAuthoritative: true}) {
+		t.Error("an address claimed an account against an empty domain list")
 	}
 }
 
-// A client id is not optional, and neither is knowing which workspace this belongs to.
-func TestAProviderNeedsItsClientAndItsWorkspace(t *testing.T) {
+// A client id is not optional, and neither is a key. A *workspace* is optional since SI-10: no
+// workspace is the installation's own row, which is the level above every one of them.
+func TestAProviderNeedsItsClientAndItsKey(t *testing.T) {
 	blank := providerInput()
 	blank.ClientID = "  "
 	if _, err := NewIdentityProvider(blank); err == nil {
 		t.Error("a provider without a client id was accepted")
 	}
 
-	homeless := providerInput()
-	homeless.TenantID = shared.ID("")
-	if _, err := NewIdentityProvider(homeless); err == nil {
-		t.Error("a provider without a workspace was accepted")
+	keyless := providerInput()
+	keyless.ID = shared.ID("")
+	if _, err := NewIdentityProvider(keyless); err == nil {
+		t.Error("a provider without an id was accepted")
+	}
+
+	// A preset that vouches for its addresses, because an installation's provider must be one:
+	// `TestAnUnverifiedPresetIsNeverTheInstallationsProvider` is where that rule is asserted.
+	installation := providerInput()
+	installation.TenantID = shared.ID("")
+	installation.Issuer = "https://accounts.google.com"
+	installation.Kind = "GOOGLE"
+	configured, err := NewIdentityProvider(installation)
+	if err != nil {
+		t.Fatalf("the installation's own provider was refused: %v", err)
+	}
+	if !configured.Installation() {
+		t.Error("a provider with no workspace does not call itself the installation's")
 	}
 }
 
@@ -226,7 +249,8 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 	good := strings.Repeat("v", 43)
 
 	flow, err := NewOidcFlow(NewOidcFlowInput{
-		ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at,
+		ID: id, TenantID: sessionTenant, ProviderID: providerRow,
+		Nonce: "n", Verifier: good, Now: at,
 	})
 	if err != nil {
 		t.Fatalf("opening a flow: %v", err)
@@ -236,14 +260,17 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 	}
 
 	cases := map[string]NewOidcFlowInput{
-		"no identifier": {TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at},
-		"no workspace":  {ID: id, Nonce: "n", Verifier: good, Now: at},
-		"no nonce":      {ID: id, TenantID: sessionTenant, Verifier: good, Now: at},
-		"short verifier": {ID: id, TenantID: sessionTenant, Nonce: "n",
+		"no identifier": {TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n", Verifier: good, Now: at},
+		"no workspace":  {ID: id, ProviderID: providerRow, Nonce: "n", Verifier: good, Now: at},
+		// Which provider the browser left through. Without it the callback would have to guess
+		// which client secret to sign the exchange with (SI-10).
+		"no provider": {ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at},
+		"no nonce":    {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Verifier: good, Now: at},
+		"short verifier": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n",
 			Verifier: strings.Repeat("v", 42), Now: at},
-		"long verifier": {ID: id, TenantID: sessionTenant, Nonce: "n",
+		"long verifier": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n",
 			Verifier: strings.Repeat("v", 129), Now: at},
-		"no clock": {ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good},
+		"no clock": {ID: id, TenantID: sessionTenant, ProviderID: providerRow, Nonce: "n", Verifier: good},
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {

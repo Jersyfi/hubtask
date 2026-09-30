@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { ADMINISTRATION, DESTINATIONS, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, currentDestination, firstScreen, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -85,9 +85,26 @@ test('the search exists once', () => {
 });
 
 test('the administration row is offered only where the server says so', () => {
-  const ids = (reachable: boolean) => account({ isAdministrationReachable: reachable }).map((destination) => destination.id);
+  const ids = (reachable: boolean) =>
+    account({ isAdministrationReachable: reachable, isInstanceReachable: false }).map((destination) => destination.id);
   assert.deepEqual(ids(true), ['profile', 'administration', 'tour', 'about', 'sign-out']);
   assert.deepEqual(ids(false), ['profile', 'tour', 'about', 'sign-out']);
+});
+
+test('the instance row is offered only to an operator, and is absent rather than disabled', () => {
+  // SI-17: the level above the workspaces is drawn for an account in the operator register and for
+  // nobody else. Absent, not greyed — somebody who is not an operator was never going to have it,
+  // and a row they cannot use is a row they have to ask about (ADR-0070 §5).
+  const ids = (reachable: boolean) =>
+    account({ isAdministrationReachable: true, isInstanceReachable: reachable }).map((destination) => destination.id);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'instance', 'tour', 'about', 'sign-out']);
+  assert.ok(!ids(false).includes('instance'), 'a non-operator was offered the control plane');
+
+  // And it is the row every screen of the area is current for, so the menu marks one place rather
+  // than none while somebody is inside it.
+  for (const route of ROUTES.filter((each) => each.area === 'instance')) {
+    assert.equal(currentDestination({ name: route.name, area: 'instance' }), 'instance', route.name);
+  }
 });
 
 test('the installation is still in the list, under another name, and signing out is last', () => {
@@ -101,7 +118,7 @@ test('the installation is still in the list, under another name, and signing out
   assert.equal(about?.area, undefined, 'everyone may read what this installation is');
   // ADR-0065 decision 5 reverses decision 6's order: signing out is the last thing a reader does
   // in a session, and a row under it is a row somebody reaches past.
-  const group = account({ isAdministrationReachable: false });
+  const group = account({ isAdministrationReachable: false, isInstanceReachable: false });
   assert.equal(group.at(-1)?.id, 'sign-out', 'something is drawn under signing out');
   assert.equal(group.at(-2)?.id, 'about');
 });
@@ -146,4 +163,27 @@ test('every row of the section resolves to a route it claims, and every screen i
     .map((route) => route.name)
     .filter((name) => !claimed.has(name));
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
+});
+
+test('the installation section lists every screen of its area, and every word of it', () => {
+  // The same two invariants the administration has, for the same two reasons: with no index screen
+  // the column *is* the section (ADR-0065 decision 1), so a screen nothing lists is a screen nobody
+  // reaches — and SI-12 added two of them to a list that already existed.
+  for (const group of INSTANCE) {
+    for (const row of group.rows) {
+      assert.ok(row.code in SOURCE, row.code);
+      const resolution = resolve(ROUTES, row.path);
+      assert.ok(resolution.name, `${row.id} points at ${row.path}, which resolves to nothing`);
+      if (row.routes.length === 0) continue;
+      assert.ok(row.routes.includes(resolution.name), `${row.id} lands on ${resolution.name} but does not claim it`);
+    }
+  }
+  const claimed = new Set(INSTANCE.flatMap((group) => group.rows).flatMap((row) => row.routes));
+  const unlisted = ROUTES.filter((route) => route.area === 'instance')
+    .map((route) => route.name)
+    .filter((name) => !claimed.has(name));
+  assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
+
+  // And its front door is a screen of the section rather than the way out.
+  assert.equal(firstScreen(INSTANCE), '/instance');
 });

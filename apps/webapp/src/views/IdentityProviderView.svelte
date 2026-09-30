@@ -1,47 +1,64 @@
 <!-- SPDX-License-Identifier: BUSL-1.1
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's identity provider, configured (H-04).
+  // The workspace's identity providers, configured (H-04, SI-10).
   //
-  // **The client secret goes one way, and this screen says so rather than pretending.** It is
-  // sealed on the way in and is a member of no answer (E-02), so an already-configured provider
-  // shows an empty secret field with a sentence explaining that leaving it empty is not "no
-  // secret" — it is "the one already sealed". A row of dots standing in for a value nobody can
-  // read would be a screen inventing a fact.
+  // **Plural, and two levels deep.** The listing carries this workspace's own rows and the ones its
+  // installation offers every workspace on it. An inherited row is not this workspace's to change,
+  // so it carries no field and no remove — and exactly one switch, which is the workspace's own:
+  // whether the offer is taken here. "Für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner
+  // schaltet selbst" (ADR-0070 §2). It starts off, because offering is the installation's decision
+  // and taking is this workspace's, and a provider the installation adds tomorrow must not be a way
+  // in here tonight.
   //
-  // **A provider is set whole.** `PUT` is the contract's shape, and the safe one: discovery runs
-  // against the issuer before anything is stored, so an unreachable provider is refused here
-  // rather than by the first person who tries to sign in.
+  // **The client secret goes one way, and this screen says so rather than pretending.** It is sealed
+  // on the way in and is a member of no answer (E-02), so editing an existing provider shows an empty
+  // secret field with a sentence explaining that leaving it empty is not "no secret" — it is "the one
+  // already sealed". A row of dots standing in for a value nobody can read would be a screen
+  // inventing a fact.
   //
-  // **Removal costs something, and it is stated before the button.** The accounts provisioned
-  // through the provider keep their rows and their live sessions; what they lose is the way back
-  // in. For an account that never had a password, that is the whole way back in.
+  // **The modes a preset permits come from the server.** Which of the three a provider may use is a
+  // rule about the provider (a public issuer may only sign in people who were invited first), and the
+  // presets answer it — so the select offers what would be accepted rather than three of which two
+  // are refused. A client that decided this itself would be a second copy of the rule.
   //
-  // The area's navigation arrives with F4-08. This route is tagged `administration` from the day
-  // it exists, so the area's own test finds it already tagged rather than having to classify it.
+  // **Removal costs something, and it is stated before the button.** The accounts provisioned through
+  // the provider keep their rows and their live sessions; what they lose is the way back in. For an
+  // account that never had a password, that is the whole way back in.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Spinner, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import type { IdentityProvider, IdentityProviderConfiguration } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
+  import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
+  /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
+  let editing = $state<string | undefined>(undefined);
+  /** Which inherited row is being switched, so its control is not pressed twice. */
+  let offering = $state<string | undefined>(undefined);
   let issuer = $state('');
   let clientId = $state('');
   let clientSecret = $state('');
+  let displayName = $state('');
+  let kind = $state('GENERIC');
+  let provisioning = $state('DOMAINS');
   let domains = $state('');
+  let directories = $state('');
   let enabled = $state(true);
-  let confirmingRemoval = $state(false);
+  /** The order the buttons are drawn in. Kept rather than shown: a workspace with two providers
+      orders them by adding them, and a control for it would be a control for a list of two. */
+  let position = $state(0);
+  let confirmingRemoval = $state<string | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let saved = $state(false);
-  /** Whether the fields have been filled from the last read. Once only, so typing is not overwritten. */
-  let filled = false;
 
   $effect(() => {
     // `untrack` for the reason every store here records: the read writes the store and writing it
@@ -53,48 +70,114 @@
   // Not named `state`: a variable of that name turns every `$state` in this file into a store
   // subscription, which is a compiler rule rather than a style preference.
   const reading = $derived(identityProvider.state);
-  const provider = $derived(identityProvider.provider);
+  const own = $derived(identityProvider.own);
+  const inherited = $derived(identityProvider.inherited);
 
   /**
-   * A read that failed with `404` is a workspace that has never configured one — the form, not an
-   * error. Anything else is a refusal worth showing: a caller without the permission, a server
-   * that could not answer.
+   * A read that failed with `404` is an installation that does not serve the collection — the
+   * screen the workspace had before SI-10, which is nothing to configure here. Anything else is a
+   * refusal worth showing: a caller without the permission, a server that could not answer.
    */
-  const unconfigured = $derived(reading.status === 'failed' && reading.error.status === 404);
+  const unavailable = $derived(reading.status === 'failed' && reading.error.status === 404);
   const unreadable = $derived(
-    reading.status === 'failed' && !unconfigured ? renderProblem(reading.error, messages) : undefined,
+    reading.status === 'failed' && !unavailable ? renderProblem(reading.error, messages) : undefined,
   );
 
-  $effect(() => {
-    const current = provider;
-    if (!current || filled) return;
-    filled = true;
-    issuer = current.issuer;
-    clientId = current.client_id;
-    domains = (current.allowed_email_domains ?? []).join('\n');
-    enabled = current.enabled;
-  });
+  /** The preset of whichever kind the form is set to, where the presets have been read. */
+  const preset = $derived(identityProvider.presetOf(kind as IdentityProvider['kind']));
+
+  const kindOptions = $derived(
+    identityProvider.presets.map((one) => ({
+      value: one.kind,
+      label: t(`app.identity_provider.kind.${one.kind.toLowerCase()}`),
+    })),
+  );
+
+  /**
+   * The modes this preset permits, in the order they tighten. Empty until the presets are read,
+   * which is the third value of every capability question here: not yet known is not "all of them".
+   */
+  const provisioningOptions = $derived(
+    (preset?.provisioning ?? []).map((mode) => ({
+      value: mode,
+      // `DOMAINS` reads the directories for a preset that has them (ADR-0071 §2), so the sentence
+      // beside the choice has to be the one the server will act on.
+      label:
+        mode === 'DOMAINS' && preset?.directory_claim
+          ? t(`app.identity_provider.provisioning.directories_${preset.directory_claim}`)
+          : t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
+    })),
+  );
+
+  /** Opens the form on a new provider. */
+  function add(): void {
+    editing = '';
+    issuer = '';
+    clientId = '';
+    clientSecret = '';
+    displayName = '';
+    kind = 'GENERIC';
+    provisioning = 'DOMAINS';
+    domains = '';
+    directories = '';
+    enabled = true;
+    position = identityProvider.own.length;
+    failure = undefined;
+    saved = false;
+  }
+
+  /** Opens it on one that exists. The secret stays empty, because nothing can read it back. */
+  function edit(provider: IdentityProvider): void {
+    editing = provider.id;
+    issuer = provider.issuer;
+    clientId = provider.client_id;
+    clientSecret = '';
+    displayName = provider.display_name;
+    kind = provider.kind;
+    provisioning = provider.provisioning;
+    domains = (provider.allowed_email_domains ?? []).join('\n');
+    directories = (provider.allowed_directories ?? []).join('\n');
+    enabled = provider.enabled;
+    position = provider.position;
+    failure = undefined;
+    saved = false;
+  }
+
+  function close(): void {
+    editing = undefined;
+    clientSecret = '';
+  }
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     isWorking = true;
     failure = undefined;
     saved = false;
+    const body: IdentityProviderConfiguration = {
+      issuer: issuer.trim(),
+      client_id: clientId.trim(),
+      display_name: displayName.trim(),
+      kind: kind as IdentityProvider['kind'],
+      provisioning: provisioning as IdentityProvider['provisioning'],
+      position,
+      enabled,
+      allowed_email_domains: readDomains(domains),
+      allowed_directories: readDomains(directories),
+    };
+    // Sent only when it was typed. An empty string and an absent field are two different requests:
+    // absent keeps the sealed one, and that is the contract's promise rather than this screen's rule.
+    if (clientSecret !== '') body.client_secret = clientSecret;
     try {
-      await identityProvider.configure({
-        issuer: issuer.trim(),
-        client_id: clientId.trim(),
-        // Empty means "keep the sealed one", which is only an answer the server can give: a `PUT`
-        // that omitted the secret on a workspace with none would be refused, and that refusal is
-        // the right one to show rather than a rule this screen invents about which case it is in.
-        client_secret: clientSecret,
-        enabled,
-        allowed_email_domains: readDomains(domains),
-      });
+      if (editing === '' || editing === undefined) {
+        await identityProvider.add(body);
+      } else {
+        await identityProvider.configure(editing, body);
+      }
       // Out of the component's state at once. A secret kept for a second submission is a secret
       // sitting in a form for as long as the tab is open.
       clientSecret = '';
       saved = true;
+      editing = undefined;
     } catch (cause) {
       failure = problemOf(cause);
     } finally {
@@ -102,23 +185,38 @@
     }
   }
 
-  async function remove(): Promise<void> {
+  async function remove(id: string): Promise<void> {
     isWorking = true;
     failure = undefined;
     saved = false;
     try {
-      await identityProvider.remove();
-      confirmingRemoval = false;
-      filled = false;
-      issuer = '';
-      clientId = '';
-      clientSecret = '';
-      domains = '';
-      enabled = true;
+      await identityProvider.remove(id);
+      confirmingRemoval = undefined;
+      if (editing === id) close();
     } catch (cause) {
       failure = problemOf(cause);
     } finally {
       isWorking = false;
+    }
+  }
+
+  /**
+   * Takes an offered provider, or gives it back.
+   *
+   * The server answers the refusal when this was the last way in, and the listing is re-read either
+   * way: the switch draws what the server stored rather than what was pressed, so a refused switch
+   * springs back instead of sitting on a state nothing holds.
+   */
+  async function offer(id: string, offered: boolean): Promise<void> {
+    offering = id;
+    failure = undefined;
+    saved = false;
+    try {
+      await identityProvider.offer(id, offered);
+    } catch (cause) {
+      failure = problemOf(cause);
+    } finally {
+      offering = undefined;
     }
   }
 
@@ -154,7 +252,7 @@
     }}
   />
 
-    <Stack gap="300">
+  <Stack gap="300">
     <p class="quiet">{t('app.identity_provider.intro')}</p>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -166,14 +264,13 @@
       <Banner tone="danger" title={unreadable.message}>
         {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
       </Banner>
+    {:else if unavailable}
+      <Banner tone="info">{t('app.identity_provider.not_served')}</Banner>
     {:else}
-      {#if unconfigured}
-        <Banner tone="info">{t('app.identity_provider.none')}</Banner>
-      {/if}
-
       {#if failure}
-        <!-- The server's own sentence: an issuer that could not be reached, a domain that is not
-             one, a caller who may read this and not write it. -->
+        <!-- The server's own sentence: an issuer that could not be reached, a mark on an issuer it
+             does not belong to, a mode the provider may not use, a caller who may read and not
+             write. -->
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
         </Banner>
@@ -181,100 +278,220 @@
         <Banner tone="success">{t('app.identity_provider.saved')}</Banner>
       {/if}
 
-      <form class="panel" onsubmit={save}>
-        <Stack gap="200">
-          <Input
-            label={t('app.identity_provider.issuer_label')}
-            hint={t('app.identity_provider.issuer_hint')}
-            bind:value={issuer}
-            type="url"
-            autocomplete="off"
-            spellcheck={false}
-            isRequired
-          />
-          <Input
-            label={t('app.identity_provider.client_id_label')}
-            hint={t('app.identity_provider.client_id_hint')}
-            bind:value={clientId}
-            autocomplete="off"
-            spellcheck={false}
-            isRequired
-          />
-          <Input
-            label={t('app.identity_provider.client_secret_label')}
-            hint={provider
-              ? t('app.identity_provider.client_secret_kept')
-              : t('app.identity_provider.client_secret_hint')}
-            bind:value={clientSecret}
-            type="password"
-            autocomplete="off"
-            spellcheck={false}
-            isRequired={!provider}
-          />
-          <Textarea
-            label={t('app.identity_provider.domains_label')}
-            hint={t('app.identity_provider.domains_hint')}
-            bind:value={domains}
-            rows={3}
-            spellcheck={false}
-          />
-          <Switch
-            label={t('app.identity_provider.enabled_label')}
-            hint={t('app.identity_provider.enabled_hint')}
-            bind:checked={enabled}
-          />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.identity_provider.saving')}
-            >
-              {t('app.identity_provider.save')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-
-      {#if provider}
+      {#if inherited.length > 0}
         <Stack gap="150">
-          <h2 class="section">{t('app.identity_provider.remove_title')}</h2>
-          <!-- Said before the button rather than in the dialog that follows it: somebody deciding
-               whether to press it is the person who needs to know what it costs. -->
-          <p class="quiet">{t('app.identity_provider.remove_cost')}</p>
-          {#if confirmingRemoval}
-            <Banner tone="warning">{t('app.identity_provider.remove_confirm')}</Banner>
-            <div class="row">
-              <Button
-                tone="danger"
-                isBusy={isWorking}
-                busyLabel={t('app.identity_provider.removing')}
-                onclick={() => void remove()}
-              >
-                {t('app.identity_provider.remove_now')}
-              </Button>
-              <Button tone="subtle" onclick={() => (confirmingRemoval = false)}>
-                {t('app.identity_provider.keep')}
-              </Button>
-            </div>
-          {:else}
-            <div>
-              <Button tone="secondary" onclick={() => (confirmingRemoval = true)}>
-                {t('app.identity_provider.remove')}
-              </Button>
-            </div>
-          {/if}
+          <h2 class="section">{t('app.identity_provider.inherited_title')}</h2>
+          <p class="quiet">{t('app.identity_provider.inherited_intro')}</p>
+          <ul class="providers">
+            {#each inherited as provider (provider.id)}
+              <li class="provider">
+                <ProviderMark kind={provider.kind} name={provider.display_name} />
+                <div class="about">
+                  <span class="name">{provider.display_name}</span>
+                  <span class="detail">{provider.issuer}</span>
+                </div>
+                {#if provider.enabled}
+                  <Switch
+                    label={t('app.identity_provider.offered_here_label')}
+                    hint={t('app.identity_provider.offered_here_hint')}
+                    checked={provider.offered_here === true}
+                    disabledReason={offering === provider.id ? t('app.identity_provider.offering') : undefined}
+                    onchange={(event) =>
+                      void offer(provider.id, (event.currentTarget as HTMLInputElement).checked)}
+                  />
+                {:else}
+                  <!-- Switched off at the installation. Not a refusal this workspace can lift, and
+                       not a switch: a control that cannot do anything is a control somebody presses
+                       twice before asking. -->
+                  <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
+                {/if}
+              </li>
+            {/each}
+          </ul>
         </Stack>
       {/if}
+
+      <Stack gap="150">
+        <h2 class="section">{t('app.identity_provider.own_title')}</h2>
+        {#if own.length === 0}
+          <Banner tone="info">{t('app.identity_provider.none')}</Banner>
+        {:else}
+          <ul class="providers">
+            {#each own as provider (provider.id)}
+              <li class="provider">
+                <ProviderMark kind={provider.kind} name={provider.display_name} />
+                <div class="about">
+                  <span class="name">{provider.display_name}</span>
+                  <span class="detail">{provider.issuer}</span>
+                  <span class="detail">
+                    {t(`app.identity_provider.provisioning.${provider.provisioning.toLowerCase()}`)}
+                  </span>
+                </div>
+                {#if !provider.enabled}
+                  <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
+                {/if}
+                <div class="row">
+                  <Button tone="subtle" onclick={() => edit(provider)}>
+                    {t('app.identity_provider.edit')}
+                  </Button>
+                  <Button tone="subtle" onclick={() => (confirmingRemoval = provider.id)}>
+                    {t('app.identity_provider.remove')}
+                  </Button>
+                </div>
+              </li>
+              {#if confirmingRemoval === provider.id}
+                <li class="confirm">
+                  <!-- Said before the button rather than in the dialog that follows it: somebody
+                       deciding whether to press it is the person who needs to know what it costs. -->
+                  <Banner tone="warning" title={t('app.identity_provider.remove_confirm')}>
+                    {t('app.identity_provider.remove_cost')}
+                  </Banner>
+                  <div class="row">
+                    <Button
+                      tone="danger"
+                      isBusy={isWorking}
+                      busyLabel={t('app.identity_provider.removing')}
+                      onclick={() => void remove(provider.id)}
+                    >
+                      {t('app.identity_provider.remove_now')}
+                    </Button>
+                    <Button tone="subtle" onclick={() => (confirmingRemoval = undefined)}>
+                      {t('app.identity_provider.keep')}
+                    </Button>
+                  </div>
+                </li>
+              {/if}
+            {/each}
+          </ul>
+        {/if}
+
+        {#if editing === undefined}
+          <div>
+            <Button tone="primary" onclick={add}>{t('app.identity_provider.add')}</Button>
+          </div>
+        {/if}
+      </Stack>
+
+      {#if editing !== undefined}
+        <form class="panel" onsubmit={save}>
+          <Stack gap="200">
+            <h2 class="section">
+              {editing === ''
+                ? t('app.identity_provider.add_title')
+                : t('app.identity_provider.edit_title')}
+            </h2>
+            <Select
+              label={t('app.identity_provider.kind_label')}
+              hint={t('app.identity_provider.kind_hint')}
+              options={kindOptions}
+              bind:value={kind}
+            />
+            {#if preset}
+              <!-- The instructions are the server's message code rendered with this installation's
+                   own callback: the one value every registration form at every provider asks for. -->
+              <Banner tone="info" title={t('app.identity_provider.registration')}>
+                {messages.t(preset.instructions, { redirect_uri: preset.redirect_uri })}
+                {#if preset.particular}
+                  {' '}{messages.t(preset.particular, {})}
+                {/if}
+              </Banner>
+            {/if}
+            <Input
+              label={t('app.identity_provider.issuer_label')}
+              hint={t('app.identity_provider.issuer_hint')}
+              bind:value={issuer}
+              type="url"
+              autocomplete="off"
+              spellcheck={false}
+              isRequired
+            />
+            <Input
+              label={t('app.identity_provider.name_label')}
+              hint={t('app.identity_provider.name_hint')}
+              bind:value={displayName}
+              autocomplete="off"
+            />
+            <Input
+              label={t('app.identity_provider.client_id_label')}
+              hint={t('app.identity_provider.client_id_hint')}
+              bind:value={clientId}
+              autocomplete="off"
+              spellcheck={false}
+              isRequired
+            />
+            <Input
+              label={t('app.identity_provider.client_secret_label')}
+              hint={editing === ''
+                ? t('app.identity_provider.client_secret_hint')
+                : t('app.identity_provider.client_secret_kept')}
+              bind:value={clientSecret}
+              type="password"
+              autocomplete="off"
+              spellcheck={false}
+              isRequired={editing === ''}
+            />
+            <Select
+              label={t('app.identity_provider.provisioning_label')}
+              hint={t('app.identity_provider.provisioning_hint')}
+              options={provisioningOptions}
+              bind:value={provisioning}
+            />
+            {#if provisioning === 'DOMAINS'}
+              <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which
+                   it is comes from the preset's `directory_claim`: a provider that names
+                   organisations is admitted on the organisation, and one that does not has nothing
+                   but the address's domain. Drawing both would draw one that is ignored. -->
+              {#if preset?.directory_claim}
+                <Textarea
+                  label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
+                  hint={t(`app.identity_provider.directories_hint_${preset.directory_claim}`)}
+                  bind:value={directories}
+                  rows={3}
+                  spellcheck={false}
+                />
+              {:else}
+                <Textarea
+                  label={t('app.identity_provider.domains_label')}
+                  hint={t('app.identity_provider.domains_hint')}
+                  bind:value={domains}
+                  rows={3}
+                  spellcheck={false}
+                />
+              {/if}
+            {/if}
+            {#if preset?.supports_templated_issuer}
+              <!-- Said where the issuer is typed rather than after a refusal: the shared endpoints
+                   are what make one registration serve many customers, and they are also what needs
+                   the directories named. -->
+              <Banner tone="info">{t('app.identity_provider.shared_endpoint')}</Banner>
+            {/if}
+            <Switch
+              label={t('app.identity_provider.enabled_label')}
+              hint={t('app.identity_provider.enabled_hint')}
+              bind:checked={enabled}
+            />
+            <div class="row">
+              <Button
+                type="submit"
+                tone="primary"
+                isBusy={isWorking}
+                busyLabel={t('app.identity_provider.saving')}
+              >
+                {t('app.identity_provider.save')}
+              </Button>
+              <Button tone="subtle" onclick={close}>{t('app.identity_provider.cancel')}</Button>
+            </div>
+          </Stack>
+        </form>
+      {/if}
     {/if}
-    </Stack>
+  </Stack>
 </Stack>
 
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). The 60ch column that stood here was a document's measure around a
-     screen that is not a document. */
+     one `app.css` gives every paragraph, fields have their own, and a list has none
+     (ADR-0065 decision 2). */
 
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
@@ -286,9 +503,30 @@
     color: var(--text-secondary);
   }
 
+  .providers { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
+
+  /* A row is the mark, what it is, and what may be done to it. The middle column takes the space,
+     so the controls sit on one axis however long the issuers are. */
+  .provider {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-150);
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
+
+  .about { display: grid; gap: var(--sp-025); flex: 1 1 20ch; min-inline-size: 0; }
+  .name { font-weight: var(--fw-medium); }
+  .detail { color: var(--text-secondary); font-size: var(--fs-100); overflow-wrap: anywhere; }
+
+  .confirm { display: grid; gap: var(--sp-100); }
+
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
      input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables beside them take the width. */
+     their own while the lists beside them take the width. */
   form { margin: 0; max-inline-size: 52ch; }
 
   /* The surface a form stands on, as the other screens of the section draw one: a standalone

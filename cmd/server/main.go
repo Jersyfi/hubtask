@@ -31,6 +31,7 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	importrepo "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -86,6 +87,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
+	"github.com/Jersyfi/hubtask/infrastructure/instancefile"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	oidcadapter "github.com/Jersyfi/hubtask/infrastructure/oidc"
@@ -948,6 +950,13 @@ func run() error {
 	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
 	// out of the query and hands them to the API.
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+	// The installation's own host, which the canonical host of every new workspace is derived from
+	// (SI-12). Parsed rather than trimmed: the parser knows what a scheme and a port are, and gate
+	// PG-6 reads a trimmed prefix in this tree as an address written into the source.
+	installationHost := ""
+	if parsed, err := url.Parse(cfg.BaseURL); err == nil {
+		installationHost = parsed.Hostname()
+	}
 
 	oidcWriter := identity.OidcWriter{
 		Domains:     domains,
@@ -1055,6 +1064,9 @@ func run() error {
 
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// The hosts the workspace answers at (SI-12). Read-only: nothing resolves a request
+		// through them yet.
+		Hosts:      postgres.NewTenantHostRepository(),
 		Authorizer: authorizer,
 		Audit:      auditSink,
 		UnitOfWork: unitOfWork,
@@ -1071,16 +1083,49 @@ func run() error {
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Relying:    relyingParty,
 		Authorizer: authorizer,
+		// Which of the installation's providers this workspace took (SI-10): the switch lives in
+		// the workspace's settings, because the row is the installation's.
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// The one value every registration form at every provider asks for, and it is this
+		// installation's own rather than anything a request carries (SI-10).
+		RedirectURL: oidcRedirectURL,
 	}
 
 	// The operator register and the installation's own settings (ADR-0070 §1, §2). Built here
 	// because the register is also what bounds the control-plane scope at both of its ends - the
 	// mint and the exercise - and both of those are wired above.
 	operators := postgres.NewOperatorRepository()
+
+	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
+	// requests carries the mode, so a read reports where the values came from and a write refuses
+	// while a file enforces them. The seeding write below uses the plain one deliberately — the
+	// file is what is allowed to write while it enforces, and it is the only thing that is.
+	instanceFileMode, err := instancefile.ParseMode(cfg.InstanceFileMode)
+	if err != nil {
+		return err
+	}
+	servingSettings := postgres.FromFile(cfg.InstanceFile, instanceFileMode == instancefile.ModeEnforce)
+
 	instanceWriter := adminservice.InstanceWriter{
-		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
-		Journal:    postgres.NewInstanceJournal(),
+		Settings: servingSettings, Operators: operators,
+		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	// The same writer over the *plain* repository, for the one caller allowed to write while a
+	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
+	instanceFileWriter := adminservice.InstanceWriter{
+		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
+		Journal:    postgres.NewInstanceJournal(cursors),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	// The control plane's half of the provider store (SI-10): the same writer, under the scope that
+	// has no tenant, behind the scope and the operator register both.
+	instanceProviderWriter := adminservice.InstanceProviderWriter{
+		Instance:  instanceWriter,
+		Providers: postgres.NewIdentityProviderRepository(),
+		Configure: identityProviderWriter,
 	}
 
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
@@ -1186,12 +1231,15 @@ func run() error {
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
 		identity.ElevateSession{
 			Writer: sessionWriter, Operators: operators,
-			Journal: postgres.NewInstanceJournal(), UnitOfWork: unitOfWork,
+			Journal: postgres.NewInstanceJournal(cursors), UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
-			Providers:  postgres.NewIdentityProviderRepository(),
+			Providers: postgres.NewIdentityProviderRepository(),
+			// Which of the installation's providers this workspace took: an offered one is not a
+			// button until somebody here switched it on (SI-10).
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
@@ -1218,8 +1266,17 @@ func run() error {
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ListIdentityProviders{Writer: identityProviderWriter}.Descriptor(),
 		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ConfigureFirstIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.OfferIdentityProvider{
+			Writer: identityProviderWriter, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ListIdentityProviderPresets{Writer: identityProviderWriter}.Descriptor(),
+		adminservice.ListInstanceIdentityProviders{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.ConfigureInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
@@ -1718,6 +1775,10 @@ func run() error {
 		adminservice.ReadInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.WriteInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListOperators{Writer: instanceWriter}.Descriptor(),
+		adminservice.ReadInstanceOverview{
+			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
+		}.Descriptor(),
+		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
 		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
@@ -1725,27 +1786,30 @@ func run() error {
 		// since ADR-0070 §1: the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
 		adminservice.ProvisionTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Accounts: accounts, Redemption: signInStore, Grants: grants,
 			Containers: containers, Buckets: buckets, Labels: labels,
 			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
 			Domains: domains, Text: forms,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+			// The one host the new workspace answers at (SI-12). The installation's own host comes
+			// from the configured base URL and never from a request.
+			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		}.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}}.Descriptor(),
 		adminservice.RequestTenantDeletion{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -1936,7 +2000,14 @@ func run() error {
 			// the workspace has AI while the route refuses (issue 502). Budgeted, which is the
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
-			Providers:  budgetedAi,
+			Providers: budgetedAi,
+			// The four links the installation is obliged to show, through the one resolver that
+			// knows the levels (SI-12). The same object `/auth/sign-in-rules` reads, so a footer
+			// inside the application and the signed-out card cannot disagree.
+			Legal: signInPolicyResolver,
+			// Whether the caller operates this installation (SI-17). The same register the
+			// control plane checks, so the menu cannot offer what the route refuses.
+			Operators:  operators,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 			// The same catalogue the mint validates against, so the manifest cannot offer a scope
@@ -2713,7 +2784,7 @@ func run() error {
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{
 			Deletion: adminservice.HardDeleteTenant{
 				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),
-				Journal: postgres.NewInstanceJournal(), Store: mediaStore,
+				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 		},
@@ -2832,7 +2903,7 @@ func run() error {
 			},
 			OfflineWindow: cfg.Retention.TombstoneWindow,
 			StreamEvidence: streamEvidenceInBackground{
-				Journal: postgres.NewInstanceJournal(), IDs: ids, Work: backgroundWork,
+				Journal: postgres.NewInstanceJournal(cursors), IDs: ids, Work: backgroundWork,
 				Clock: clockadapter.System{},
 			},
 		}
@@ -2840,6 +2911,22 @@ func run() error {
 	}
 
 	// TODO(0.1.0): start the automation loop for the automation role.
+
+	// The third door, applied (ADR-0070 §5). It goes through `WriteInstanceSettings` exactly as the
+	// dashboard and `hubctl` do — "drei Türen, eine API" meant literally — so a value a file may
+	// set is a value the API accepts, and one set of refusals covers all three.
+	//
+	// After the registry and before the first request: a file that names a switch this build
+	// refuses should stop the start rather than serve one request under a configuration nobody
+	// asked for.
+	if err := applyInstanceFile(ctx, applyingInstanceFile{
+		path: cfg.InstanceFile, mode: instanceFileMode,
+		settings:   postgres.NewInstanceSettingRepository(),
+		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
+		unitOfWork: unitOfWork,
+	}); err != nil {
+		return err
+	}
 
 	registry.MarkStarted()
 
@@ -3397,4 +3484,75 @@ func (b backupRunsInBackground) LastSuccessPerTarget(
 		return err
 	})
 	return moments, err
+}
+
+// applyingInstanceFile is what the third door needs: the path, the mode, and the two halves of a
+// write that is allowed to happen while the API's own is refused.
+type applyingInstanceFile struct {
+	path string
+	mode instancefile.Mode
+	// settings is the plain repository, used to ask whether the level is already there. `seed`
+	// turns on that question and nothing else.
+	settings   identityrepository.InstanceSettings
+	write      adminservice.WriteInstanceSettings
+	unitOfWork persistenceport.UnitOfWork
+}
+
+// applyInstanceFile writes the file's level, in the mode the operator chose (ADR-0070 §5).
+//
+// `seed` writes once, at the first start that finds the level empty — "schreibt sie beim ersten
+// Start und lässt sie danach in Ruhe". `enforce` writes at every start, which is what makes the
+// API's refusal honest rather than an inconvenience: the file really is the source.
+//
+// No file configured is the ordinary case and does nothing at all.
+func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
+	if applying.path == "" {
+		return nil
+	}
+
+	document, found, err := instancefile.Read(applying.path)
+	if err != nil {
+		return err
+	}
+	if !found {
+		// Configured for a file nobody has written yet. Not an error: the deployment this mode is
+		// for is one where the file arrives with the next rollout.
+		slog.Info("the instance file names nothing yet",
+			"source", applying.path, "mode", string(applying.mode))
+		return nil
+	}
+
+	if applying.mode == instancefile.ModeSeed {
+		var already bool
+		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),
+			func(ctx context.Context) error {
+				level, err := applying.settings.Read(ctx)
+				if err != nil {
+					return err
+				}
+				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
+					!level.Localisation.IsZero() || !level.Quotas.IsZero()
+				return nil
+			}); err != nil {
+			return err
+		}
+		if already {
+			slog.Info("the instance level is already set; the file seeded it once",
+				"source", applying.path)
+			return nil
+		}
+	}
+
+	// Through the use case, with the system actor: the file is a client of the API and meets every
+	// refusal the other two doors meet.
+	level, err := adminservice.InstanceLevelOf(document)
+	if err != nil {
+		return err
+	}
+	if _, err := applying.write.ExecuteAsFile(ctx, level, applying.path); err != nil {
+		return err
+	}
+	slog.Info("the instance level was written from the file",
+		"source", applying.path, "mode", string(applying.mode))
+	return nil
 }

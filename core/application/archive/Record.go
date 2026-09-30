@@ -584,7 +584,16 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// administrator reconfigures it, which they must do anyway to type a secret nobody can read
 	// back. The configuration events are in the trail, which is archived.
 	"identity_provider": "§8.4 - a sealed client secret and a live door; a restore must not silently re-open somebody's single sign-on",
-	"oidc_flow":         "one browser round trip with minutes of life, oauth_code's reasoning verbatim",
+	// identity_provider's reasoning, one table further out (SI-10): the link says which provider
+	// vouched for a person, and a restore that re-created it while the provider itself was left out
+	// would leave accounts bound to a door that is not there.
+	"account_identity": "the link to a provider that a restore deliberately does not bring back",
+	"oidc_flow":        "one browser round trip with minutes of life, oauth_code's reasoning verbatim",
+	// Which hosts a workspace answers at is the installation's arrangement rather than the
+	// workspace's data (SI-12): restoring a workspace elsewhere must not claim a host the
+	// installation it lands on does not answer at, and the canonical one is derived from the slug
+	// there anyway.
+	"tenant_host": "hosts belong to the installation that answers at them, not to the archive",
 	// identity_provider's reasoning, pointing outwards instead of inwards (J-02). The row holds a
 	// sealed API key a restore elsewhere cannot open, and - the worse half - a restored workspace
 	// would start sending its content to a provider under a consent nobody gave again. Whether an

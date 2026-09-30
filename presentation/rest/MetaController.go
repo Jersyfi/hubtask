@@ -11,6 +11,7 @@ import (
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -285,6 +286,15 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	tenancy := openapi.CapabilitiesTenancyMode(source.TenancyMode)
 	features := source.Features
 
+	// The four links, absent rather than empty where the installation set none: a private
+	// installation owes nobody an imprint, and the mapping says so from one place (SI-12).
+	legal := legalLinksResponse(source.Legal)
+
+	// Whether this caller may reach the level above the workspaces. Always present, never omitted:
+	// an absent field would read as "this build does not know", and a client would then have to
+	// guess - which is the thing the manifest exists to prevent.
+	instance := openapi.InstanceReach{Reachable: source.InstanceReachable}
+
 	return openapi.Capabilities{
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
@@ -305,6 +315,8 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Roles:                  &roles,
 		Limits:                 &limits,
 		Features:               &features,
+		Legal:                  legal,
+		Instance:               &instance,
 	}
 }
 
@@ -340,4 +352,31 @@ func writeJSON(w http.ResponseWriter, r *http.Request, status int, body any) {
 		slog.WarnContext(r.Context(), "writing the response body failed",
 			slog.String("error", err.Error()))
 	}
+}
+
+// legalLinksResponse maps the four links, or nothing at all.
+//
+// Nil where the installation set none, and each field absent where that one is unset: a private
+// installation owes nobody an imprint, and a footer given four links pointing nowhere is worse than
+// a footer given none (SI-12, data-protection.md §6).
+func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
+	answer := openapi.LegalLinks{}
+	held := false
+	for name, field := range map[identity.LegalLink]**string{
+		identity.LinkImprint:       &answer.ImprintUrl,
+		identity.LinkPrivacy:       &answer.PrivacyUrl,
+		identity.LinkTerms:         &answer.TermsUrl,
+		identity.LinkAccessibility: &answer.AccessibilityUrl,
+	} {
+		value := links.Of(name)
+		if value == "" {
+			continue
+		}
+		held = true
+		*field = &value
+	}
+	if !held {
+		return nil
+	}
+	return &answer
 }

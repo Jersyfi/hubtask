@@ -80,6 +80,10 @@ export const platform: Platform = {
   },
 
   rememberAccount: (id) => store.rememberAccount(id),
+
+  rememberElevation: (until) => store.rememberElevatedUntil(until),
+
+  elevatedUntil: () => store.readElevatedUntil(),
   lastAccount: () => store.readAccount(),
 
   deviceName: browserName,

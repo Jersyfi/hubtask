@@ -27,6 +27,14 @@ enables SSO.
    `infrastructure/httpclient.GuardedClient`, a cache, and a refetch on an unknown `kid`.
 2. `iss` equals the configured issuer exactly; `aud` contains the client id; `exp`/`iat`/`nbf`
    with skew ≤ 60 s; the `nonce` this installation minted for the flow.
+
+   *Refined by [ADR-0071](ADR-0071-provider-admission.md) §3 (2026-09-30).* "Exactly" is unchanged;
+   what that ADR settles is **what the comparand is** when a provider publishes a templated issuer.
+   Microsoft's multi-directory endpoints answer
+   `https://login.microsoftonline.com/{tenantid}/v2.0` and document the rule: substitute the token's
+   `tid`, then compare exactly. Reading `tid` first decides nothing — the signature still has to
+   come from the key set that template's own discovery published, and *which* directories may come
+   in is bounded by `allowed_directories` rather than by the comparison.
 3. An `alg` allowlist that never contains `none` and never lets the token choose the family
    (RS/ES only, per the provider's JWKS).
 4. Discovery (`/.well-known/openid-configuration`) parsed, with the issuer check RFC 8414 asks
@@ -79,3 +87,17 @@ adapter, not the library's own tests; Dependabot's security updates are ungroupe
 is unparked — it is built against this decision. The alternatives stay recorded rather than
 deleted: option 2 remains the swap that keeps the task's shape if go-oidc ever has to go, which
 is precisely what confining the import to `infrastructure/oidc` buys.
+
+## What the implementation settled
+
+**Microsoft's shared endpoint is refused at configuration time (SI-10).** The contract above says
+`iss` equals the configured issuer *exactly*, and go-oidc enforces it. A provider registered against
+`login.microsoftonline.com/common` mints tokens whose `iss` names the *directory* rather than
+`common`, so every sign-in through such a configuration would fail the first check — three days
+later, by whoever tried to sign in first.
+
+The alternative would have been to weaken the issuer comparison for one provider, which is the one
+thing this decision exists to prevent. So the refusal is in the domain instead: a `MICROSOFT`
+provider whose issuer path is `/common` is refused where somebody is looking at the form, with a
+message code that says to use the directory's own issuer address. The library's rule is untouched,
+and the preset's registration instructions say the same thing in advance.

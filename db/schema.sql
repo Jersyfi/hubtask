@@ -443,22 +443,83 @@ CREATE TABLE oauth_code (
 );
 CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 
--- The provider a workspace signs its people in through (H-04). One per workspace, and the
--- primary key says so: a second row cannot exist, so nothing has to decide which one wins. The
--- client secret is sealed under E-02's envelope - a token exchange needs the plaintext, which is
--- why this is not a hash.
+-- The hosts a workspace answers at (SI-12, migration 0104). The model custom domains need, without
+-- the feature: nothing resolves through this table yet - `resolve_tenant` still reads the slug - and
+-- what it buys is that the milestone which adds custom domains adds no column to the table every
+-- request touches. The canonical row is derived from the slug under the installation's own domain
+-- and is verified by construction; the verification mark of any other row is published in a DNS
+-- record, which is why it is the one presented value here that is not a digest.
+CREATE TABLE tenant_host (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  host         text NOT NULL CHECK (host = lower(host) AND length(host) BETWEEN 4 AND 253),
+  -- PENDING claimed · VERIFIED the zone carried the mark · ACTIVE serving, and the canonical one
+  -- is ACTIVE · BROKEN it was ACTIVE and stopped, which is why the row stays: it is the way back.
+  state        text NOT NULL DEFAULT 'PENDING'
+                 CHECK (state IN ('PENDING', 'VERIFIED', 'ACTIVE', 'BROKEN')),
+  verification text NOT NULL CHECK (length(verification) BETWEEN 8 AND 200),
+  verified_at  timestamptz,
+  is_canonical boolean NOT NULL DEFAULT false,
+  created_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, host)
+);
+-- One host, one workspace, installation-wide: two workspaces claiming the same host is the failure
+-- this table exists to make impossible.
+CREATE UNIQUE INDEX tenant_host_host_uq ON tenant_host (host);
+-- One canonical host per workspace. A mail, a redirect and an invitation link have to name one.
+CREATE UNIQUE INDEX tenant_host_canonical_uq ON tenant_host (tenant_id) WHERE is_canonical;
+
+-- The providers a workspace signs its people in through (H-04, SI-10, migration 0103). Plural,
+-- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
+-- none writes - see the two policies below. The client secret is sealed under E-02's envelope - a
+-- token exchange needs the plaintext, which is why this is not a hash.
 CREATE TABLE identity_provider (
-  tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  id                    uuid PRIMARY KEY,
+  tenant_id             uuid REFERENCES tenant(id) ON DELETE CASCADE,
   issuer                text NOT NULL CHECK (length(issuer) BETWEEN 1 AND 500),
   client_id             text NOT NULL CHECK (length(client_id) BETWEEN 1 AND 500),
   client_secret_enc     bytea NOT NULL,
   client_secret_key_id  text NOT NULL,
+  display_name          text NOT NULL DEFAULT '' CHECK (length(display_name) <= 200),
+  -- The preset it was configured from, which decides the mark that is drawn (ADR-0069). GENERIC
+  -- is the letter tile.
+  kind                  text NOT NULL DEFAULT 'GENERIC'
+                          CHECK (kind IN ('GENERIC', 'GOOGLE', 'MICROSOFT')),
+  -- Who gets an account on a first arrival. A public provider may only be INVITED_ONLY, which the
+  -- application enforces: "public" is a property of the preset, not of anything a CHECK can see.
+  provisioning          text NOT NULL DEFAULT 'DOMAINS'
+                          CHECK (provisioning IN ('INVITED_ONLY', 'DOMAINS', 'ANY')),
+  position              integer NOT NULL DEFAULT 0,
   allowed_email_domains text[] NOT NULL DEFAULT '{}',
+  allowed_directories text[] NOT NULL DEFAULT '{}',
   enabled               boolean NOT NULL DEFAULT true,
   created_at            timestamptz NOT NULL,
   updated_at            timestamptz,
   version               integer NOT NULL DEFAULT 1
 );
+-- One registration per issuer per level. NULLS NOT DISTINCT is what makes that true of the
+-- installation's rows: without it every NULL tenant is its own.
+CREATE UNIQUE INDEX identity_provider_issuer_uq
+  ON identity_provider (tenant_id, issuer) NULLS NOT DISTINCT;
+CREATE INDEX identity_provider_tenant_idx
+  ON identity_provider (tenant_id, position, created_at);
+
+-- Which provider vouched for a subject, and which account it became (SI-10, migration 0103).
+-- `account.external_subject` held one subject per account and could not say which provider; this
+-- can. One account holds at most one subject per provider, and one subject names at most one
+-- account per provider per workspace - the workspace is in that key because an installation-wide
+-- provider is one row for everybody and a person may work in two of them.
+CREATE TABLE account_identity (
+  tenant_id   uuid NOT NULL,
+  account_id  uuid NOT NULL,
+  provider_id uuid NOT NULL REFERENCES identity_provider(id) ON DELETE CASCADE,
+  subject     text NOT NULL CHECK (length(subject) BETWEEN 1 AND 255),
+  linked_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id, provider_id),
+  CONSTRAINT account_identity_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX account_identity_subject_uq
+  ON account_identity (tenant_id, provider_id, subject);
 
 -- One browser round trip of authorization code + PKCE. The state is hashed because the caller
 -- presents it back; the verifier and the nonce are kept as they are because one travels to the
@@ -493,6 +554,11 @@ CREATE TABLE ai_provider (
 
 CREATE TABLE oidc_flow (
   id            uuid PRIMARY KEY,
+  -- Which provider this sign-in left through (SI-10, migration 0103). The state names the
+  -- workspace and a workspace has several ways in, so the flow remembers the one it used - or the
+  -- exchange would be signed with the wrong client secret. Nullable for the rolling window: a flow
+  -- opened by the previous binary carries none.
+  provider_id   uuid,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   state_hash    bytea NOT NULL,
   code_verifier text NOT NULL,
@@ -2118,7 +2184,8 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'identity_provider','oidc_flow','ai_provider','ai_suggestion','ai_request','item_embedding',
+    'account_identity','tenant_host','oidc_flow','ai_provider','ai_suggestion','ai_request',
+    'item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
@@ -2158,6 +2225,22 @@ ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON audit_log
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
+
+-- identity_provider is read by every workspace and written by one level only (SI-10, migration
+-- 0103). A NULL row is the installation's: every workspace has to be able to draw its button, and
+-- no workspace may change it. The standard policy would make such a row invisible to everybody,
+-- so the read admits it and the write does not - and the third policy is the installation's own
+-- scope, where `app.tenant_id` is the empty string and `current_tenant_id()` is therefore NULL.
+ALTER TABLE identity_provider ENABLE ROW LEVEL SECURITY;
+ALTER TABLE identity_provider FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_read ON identity_provider FOR SELECT
+  USING (tenant_id = current_tenant_id() OR tenant_id IS NULL);
+CREATE POLICY tenant_write ON identity_provider FOR ALL
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+CREATE POLICY installation_write ON identity_provider FOR ALL
+  USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
+  WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
 
 -- privacy_incident can be installation-wide (tenant_id IS NULL) and is then visible only to
 -- the instance administration.
@@ -2390,6 +2473,30 @@ CREATE TABLE instance_setting (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- The installation at a glance (SI-17, migration 0105). Counts, states and limits - never rows,
+-- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
+-- behind row level security and FORCE, so the application role cannot count across workspaces at
+-- all, and narrow by construction is what makes the exception acceptable - five integers, and no way
+-- to ask for anybody's data.
+CREATE OR REPLACE FUNCTION instance_census()
+RETURNS TABLE (
+  workspaces_active           bigint,
+  workspaces_suspended        bigint,
+  workspaces_pending_deletion bigint,
+  accounts_active             bigint,
+  accounts_total              bigint
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT
+    (SELECT count(*) FROM tenant WHERE status = 'ACTIVE'),
+    (SELECT count(*) FROM tenant WHERE status = 'SUSPENDED'),
+    (SELECT count(*) FROM tenant WHERE status = 'PENDING_DELETION'),
+    (SELECT count(*) FROM account WHERE deleted_at IS NULL AND status = 'ACTIVE'),
+    (SELECT count(*) FROM account WHERE deleted_at IS NULL)
+$$;
+REVOKE ALL ON FUNCTION instance_census() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION instance_census() TO hubtask_app;
+
 -- ============ The instance's own journal (H-06) ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
 -- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and
@@ -2423,15 +2530,43 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
 CREATE OR REPLACE FUNCTION is_operator(p_account uuid) RETURNS boolean
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT
-    -- An empty register is the private installation: nothing was configured, and the owner is the
-    -- operator exactly as they were before this table existed.
-    NOT EXISTS (SELECT 1 FROM operator)
-    OR EXISTS (SELECT 1 FROM operator WHERE account_id = p_account)
+    EXISTS (SELECT 1 FROM operator WHERE account_id = p_account)
+    -- An empty register is the private installation, and it means the workspace's OWNER role
+    -- holders rather than everybody (migration 0106): the dashboard draws a way in for whoever may
+    -- reach it, so a guest who could raise their session would see and use the control plane.
+    OR (
+      NOT EXISTS (SELECT 1 FROM operator)
+      AND (SELECT count(*) FROM tenant) = 1
+      AND EXISTS (
+        SELECT 1
+        FROM membership m
+        JOIN account a ON a.tenant_id = m.tenant_id AND a.id = m.account_id
+        WHERE m.account_id = p_account
+          AND m.role = 'OWNER'
+          AND m.scope_type = 'TENANT'
+          AND a.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+      )
+    )
 $$;
 
 CREATE OR REPLACE FUNCTION operator_register() RETURNS SETOF operator
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT o.* FROM operator o ORDER BY o.added_at, o.account_id
+$$;
+
+-- An operator is named by address and workspace, because an account id is not something anybody
+-- can look up: `account` is behind row level security, so the control plane cannot list accounts
+-- across workspaces (migration 0109). One pair in, one identifier or nothing out.
+CREATE OR REPLACE FUNCTION resolve_operator_account(p_slug text, p_email text) RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT a.id
+  FROM account a
+  JOIN tenant t ON t.id = a.tenant_id
+  WHERE lower(t.slug) = lower(btrim(p_slug))
+    AND lower(a.email) = lower(btrim(p_email))
+    AND a.deleted_at IS NULL
+  LIMIT 1
 $$;
 
 CREATE OR REPLACE FUNCTION add_operator(p_account uuid, p_by uuid) RETURNS boolean

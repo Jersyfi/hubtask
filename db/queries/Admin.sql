@@ -120,6 +120,20 @@ FROM instance_event
 WHERE tenant_id = sqlc.arg('tenant_id')
 ORDER BY occurred_at, id;
 
+-- name: PageInstanceJournal :many
+-- The journal as the dashboard reads it (SI-17): newest first, one page at a time, keyed on the
+-- moment and the identifier together - the same keyset every other listing here walks, because two
+-- entries can share a moment and an offset would then skip or repeat one.
+--
+-- One row more than asked for, so the caller knows whether there is another page without counting
+-- the table.
+SELECT id, occurred_at, action, tenant_id, tenant_slug, actor_label, details
+FROM instance_event
+WHERE sqlc.narg('before_at')::timestamptz IS NULL
+   OR (occurred_at, id) < (sqlc.narg('before_at')::timestamptz, sqlc.narg('before_id')::uuid)
+ORDER BY occurred_at DESC, id DESC
+LIMIT sqlc.arg('limit');
+
 -- ====================== The ordered fall of the structure ==================
 -- A bare DELETE FROM tenant would trip its own cascade: RESTRICT edges (a hub under its
 -- collections, a media object under its covers and attachments, an account under the rules that

@@ -72,6 +72,19 @@ class Manifest {
   }
 
   /**
+   * Whether this account may reach the level above the workspaces (SI-17, ADR-0070 §1).
+   *
+   * **Read, never compiled in**, and `false` until the manifest says otherwise — the third value
+   * every capability question here has: not yet known is not "yes". A way into `/instance` is drawn
+   * only when this is true, and is **absent** rather than disabled when it is not: an account that
+   * is not in the operator register was never going to have it, and `CapabilityGate` is for a
+   * refusal somebody might otherwise have expected.
+   */
+  get isInstanceReachable(): boolean {
+    return this.value?.instance?.reachable === true;
+  }
+
+  /**
    * The locales this installation has, in the shape the renderer resolves against.
    *
    * Empty until the manifest arrives, and empty is the honest answer rather than a default: a

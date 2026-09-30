@@ -26,6 +26,13 @@ import ContainerView from './views/ContainerView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
+  import InstanceEncryptionView from './views/InstanceEncryptionView.svelte';
+  import InstanceJournalView from './views/InstanceJournalView.svelte';
+  import InstanceOperatorsView from './views/InstanceOperatorsView.svelte';
+  import InstanceOverviewView from './views/InstanceOverviewView.svelte';
+  import InstanceProvidersView from './views/InstanceProvidersView.svelte';
+  import InstanceSettingsView from './views/InstanceSettingsView.svelte';
+  import InstanceWorkspacesView from './views/InstanceWorkspacesView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import AppearanceView from './views/AppearanceView.svelte';
   import NotificationsView from './views/NotificationsView.svelte';
@@ -205,6 +212,23 @@ import ContainerView from './views/ContainerView.svelte';
     <DevicesView />
   {:else if route.name === 'grants'}
     <GrantsView />
+  {:else if route.name === 'instance'}
+    <!-- The level above the workspaces (ADR-0070 §5). Its own area, and its own door: every screen
+         here is drawn only while the session is raised, and the hour's end returns the reader to
+         the application rather than leaving them looking at numbers nothing will refresh. -->
+    <InstanceOverviewView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-workspaces'}
+    <InstanceWorkspacesView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-settings'}
+    <InstanceSettingsView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-providers'}
+    <InstanceProvidersView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-encryption'}
+    <InstanceEncryptionView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-operators'}
+    <InstanceOperatorsView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-journal'}
+    <InstanceJournalView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'administration'}
     <!-- The section's front door (ADR-0065 decision 1). The effect above replaces the address with
          the section's first screen, so nothing is drawn here - not even for the tick in between,

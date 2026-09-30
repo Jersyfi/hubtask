@@ -94,14 +94,33 @@ func Defaults(mode env.TenancyMode) Limits {
 	}
 }
 
-// Resolve lays the workspace's overrides over the mode's defaults.
-func Resolve(overrides repository.Overrides, mode env.TenancyMode) Limits {
+// Resolve lays the workspace's overrides over the installation's, and those over the mode's
+// defaults.
+//
+// Three levels, in the order §6.7 names once and for all: `Effective(product, instance, plan,
+// workspace)` with `plan = nil` until there are plans. The product's default is the mode's table
+// above, the installation's is what an operator set on the instance level, and the workspace's is
+// the exception somebody wrote for one of them.
+//
+// `instance` is a value, not a pointer to a level: a caller with nothing to say passes the zero
+// `Limits{}` and `Overrides{}`, and neither changes anything — which is what "with plan = nil"
+// will mean when the fourth level arrives.
+func Resolve(overrides repository.Overrides, instance repository.Overrides, mode env.TenancyMode) Limits {
 	limits := Defaults(mode)
 	apply := func(target *int64, override *int64) {
 		if override != nil {
 			*target = *override
 		}
 	}
+	// The installation first, so a workspace's own exception is still the last word.
+	apply(&limits.APIRequestsPerMinute, instance.APIRequestsPerMinute)
+	apply(&limits.Items, instance.Items)
+	apply(&limits.MediaBytes, instance.MediaBytes)
+	apply(&limits.AutomationRunsPerHour, instance.AutomationRunsPerHour)
+	apply(&limits.WebhookTargets, instance.WebhookTargets)
+	apply(&limits.ExportJobs, instance.ExportJobs)
+	apply(&limits.AiTokensPerDay, instance.AiTokensPerDay)
+
 	apply(&limits.APIRequestsPerMinute, overrides.APIRequestsPerMinute)
 	apply(&limits.Items, overrides.Items)
 	apply(&limits.MediaBytes, overrides.MediaBytes)

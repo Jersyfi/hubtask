@@ -77,3 +77,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0068](./ADR-0068-sign-in-policy-and-the-password-lifetime.md) | The sign-in rule: three levels, a lock, and the password over its lifetime | accepted | Security, domain, client |
 | [0069](./ADR-0069-third-party-brand-marks.md) | A third-party brand mark is content, and the button stays ours | accepted | Design system, legal, client |
 | [0070](./ADR-0070-the-instance-layer.md) | The instance layer: operators, instance settings, and the elevated session | accepted | Security, multi-tenancy, operations |
+| [0071](./ADR-0071-provider-admission.md) | Who a sign-in provider admits: the directory, not the text of an address | accepted | Security, identity, multi-tenancy |

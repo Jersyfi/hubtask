@@ -62,6 +62,74 @@ func (q *Queries) DropOperator(ctx context.Context, accountID pgtype.UUID) (bool
 	return drop_operator, err
 }
 
+const instanceCensus = `-- name: InstanceCensus :one
+SELECT workspaces_active::bigint, workspaces_suspended::bigint,
+       workspaces_pending_deletion::bigint,
+       accounts_active::bigint, accounts_total::bigint
+FROM instance_census()
+`
+
+type InstanceCensusRow struct {
+	WorkspacesActive          int64
+	WorkspacesSuspended       int64
+	WorkspacesPendingDeletion int64
+	AccountsActive            int64
+	AccountsTotal             int64
+}
+
+// The installation at a glance (SI-17): counts, states and limits, never rows. Through the function
+// rather than against the tables: `account` is behind row level security and FORCE, so the
+// application role cannot count across workspaces at all - and narrow by construction is what makes
+// that exception acceptable (migration 0105).
+// The casts are for the generator: it cannot see into the function's OUT table
+// (`AdminTenants`' own note).
+func (q *Queries) InstanceCensus(ctx context.Context) (InstanceCensusRow, error) {
+	row := q.db.QueryRow(ctx, instanceCensus)
+	var i InstanceCensusRow
+	err := row.Scan(
+		&i.WorkspacesActive,
+		&i.WorkspacesSuspended,
+		&i.WorkspacesPendingDeletion,
+		&i.AccountsActive,
+		&i.AccountsTotal,
+	)
+	return i, err
+}
+
+const instanceQuotaDefaults = `-- name: InstanceQuotaDefaults :many
+SELECT key, value FROM instance_setting WHERE key LIKE 'quota.%'
+`
+
+type InstanceQuotaDefaultsRow struct {
+	Key   string
+	Value []byte
+}
+
+// What the installation set as the default ceiling for each quota, which every workspace that set
+// nothing of its own falls back to (ADR-0070 §2, the concept's §6.7).
+//
+// `instance_setting` carries no row level security — that is its documented exception — so this
+// read works inside a tenant's own transaction, where the quota guard runs.
+func (q *Queries) InstanceQuotaDefaults(ctx context.Context) ([]InstanceQuotaDefaultsRow, error) {
+	rows, err := q.db.Query(ctx, instanceQuotaDefaults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InstanceQuotaDefaultsRow{}
+	for rows.Next() {
+		var i InstanceQuotaDefaultsRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const isOperator = `-- name: IsOperator :one
 SELECT is_operator($1)
 `
@@ -175,4 +243,24 @@ func (q *Queries) ReadInstanceSettings(ctx context.Context) ([]InstanceSetting, 
 		return nil, err
 	}
 	return items, nil
+}
+
+const resolveOperatorAccount = `-- name: ResolveOperatorAccount :one
+SELECT resolve_operator_account($1, $2)
+`
+
+type ResolveOperatorAccountParams struct {
+	Slug  string
+	Email string
+}
+
+// The account an address names inside one workspace, through the register's own narrow door
+// (migration 0109). An operator cannot list accounts across workspaces - `account` is behind row
+// level security - so an identifier is not something they can look up, and an address and a slug
+// are what a person knows. Answers one identifier or nothing.
+func (q *Queries) ResolveOperatorAccount(ctx context.Context, arg ResolveOperatorAccountParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, resolveOperatorAccount, arg.Slug, arg.Email)
+	var resolve_operator_account pgtype.UUID
+	err := row.Scan(&resolve_operator_account)
+	return resolve_operator_account, err
 }

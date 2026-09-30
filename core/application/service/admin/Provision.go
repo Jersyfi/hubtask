@@ -12,9 +12,12 @@ package admin
 
 import (
 	"context"
+	"encoding/base32"
+	"strings"
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -135,6 +138,15 @@ type ProvisionTenant struct {
 	// Tenancy is the installation's mode. Provisioning a second workspace only exists in multi
 	// mode: single mode's whole contract is "exactly one tenant, no selection" (§1).
 	Tenancy env.TenancyMode
+	// Hosts records the one host the new workspace answers at (SI-12). Optional: a build wired
+	// without it provisions exactly as before, which is what every installation before migration
+	// 0104 was - nothing resolves through the table yet, so a missing row costs nothing.
+	Hosts identityrepo.TenantHosts
+	// InstallationHost is this installation's own host, from which the canonical one is derived: the
+	// slug in front of it in multi mode, and the host itself in single mode. From the configured
+	// base URL at composition, never from a request - a host a caller chooses is a host a caller
+	// could claim.
+	InstallationHost string
 }
 
 // Execute provisions the workspace and answers the owner's way in.
@@ -209,6 +221,10 @@ func (h ProvisionTenant) Execute(
 			return err
 		}
 		if err := h.Grants.Grant(ctx, grant); err != nil {
+			return err
+		}
+
+		if err := h.seedHost(ctx, tenant, now); err != nil {
 			return err
 		}
 
@@ -502,4 +518,49 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 		out["purge_after"] = record.PurgeAfter
 	}
 	return out
+}
+
+// seedHost writes the one host the new workspace answers at (SI-12).
+//
+// VERIFIED and canonical on arrival: it is the installation's own host with this workspace's slug in
+// front of it, so the installation already answers at it and there is nobody to prove anything to.
+// The mark is drawn all the same, through the entropy port (rule 4), so that promoting a custom host
+// to canonical later is one update rather than a column that has to be filled in first.
+//
+// Silent where the store or the host is not wired: nothing resolves a request through this table, so
+// a build without it provisions exactly as it did before migration 0104.
+//
+// Only reached in multi mode, because provisioning is: single mode's whole contract is one workspace
+// and no selection, and its `tenant_host` therefore stays empty - which costs nothing while nothing
+// resolves through it, and is the first thing the milestone that does will have to fill in.
+func (h ProvisionTenant) seedHost(
+	ctx context.Context, tenant domain.Tenant, now time.Time,
+) error {
+	if h.Hosts == nil || h.InstallationHost == "" {
+		return nil
+	}
+	host := domain.CanonicalHostOf(tenant.Slug, h.InstallationHost, h.Tenancy == env.TenancyMulti)
+	if host == "" {
+		return nil
+	}
+
+	material, err := h.Entropy.Bytes(domain.TokenSecretBytes)
+	if err != nil {
+		return shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
+	}
+	canonical, err := domain.NewCanonicalHost(domain.NewCanonicalHostInput{
+		TenantID: tenant.ID, Host: host,
+		Verification: domain.HostVerificationPrefix + base32Mark(material),
+		Now:          now,
+	})
+	if err != nil {
+		return err
+	}
+	return h.Hosts.Insert(ctx, canonical)
+}
+
+// base32Mark renders the drawn bytes as something a person can read out of a DNS record: no case to
+// get wrong, and no character a zone file has an opinion about.
+func base32Mark(material []byte) string {
+	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(material))
 }

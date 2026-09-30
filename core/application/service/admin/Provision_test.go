@@ -101,6 +101,31 @@ func (s *journalStore) Record(_ context.Context, entry adminrepo.InstanceEvent) 
 	return nil
 }
 
+// Page walks what was recorded, newest first, as the real one does (SI-17).
+func (s *journalStore) Page(
+	_ context.Context, cursor string, size int,
+) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
+	newest := make([]adminrepo.InstanceEvent, 0, len(s.entries))
+	for i := len(s.entries) - 1; i >= 0; i-- {
+		newest = append(newest, s.entries[i])
+	}
+	// The cursor is the identifier of the last entry of the page before, which is enough for a
+	// fake: what the tests here are about is the authorisation and the clamp, not the keyset.
+	if cursor != "" {
+		for i, entry := range newest {
+			if entry.ID.String() == cursor {
+				newest = newest[i+1:]
+				break
+			}
+		}
+	}
+	if len(newest) > size {
+		last := newest[size-1]
+		return newest[:size], adminrepo.PageInfo{NextCursor: last.ID.String(), HasMore: true}, nil
+	}
+	return newest, adminrepo.PageInfo{}, nil
+}
+
 type accountsStore struct{ inserted []domain.Account }
 
 func (s *accountsStore) Insert(_ context.Context, account domain.Account) error {
@@ -207,7 +232,18 @@ type provisionFixture struct {
 	audit      *auditSink
 	renderer   *renderer
 	work       *unitOfWork
+	hosts      *hostsStore
 }
+
+// hostsStore is the hosts a workspace answers at, in memory (SI-12).
+type hostsStore struct{ rows []domain.TenantHost }
+
+func (s *hostsStore) Insert(_ context.Context, host domain.TenantHost) error {
+	s.rows = append(s.rows, host)
+	return nil
+}
+
+func (s *hostsStore) List(context.Context) ([]domain.TenantHost, error) { return s.rows, nil }
 
 func newProvisionFixture() *provisionFixture {
 	f := &provisionFixture{
@@ -215,6 +251,7 @@ func newProvisionFixture() *provisionFixture {
 		redemption: &redemptionStore{}, grants: &grantsStore{}, containers: &containersStore{},
 		buckets: &bucketsStore{}, labels: &labelsStore{}, events: &eventsStore{},
 		changes: &changesStore{}, audit: &auditSink{}, renderer: &renderer{}, work: &unitOfWork{},
+		hosts: &hostsStore{},
 	}
 	f.handler = ProvisionTenant{
 		Tenants: f.tenants, Journal: f.journal, Accounts: f.accounts,
@@ -223,6 +260,7 @@ func newProvisionFixture() *provisionFixture {
 		Audit: f.audit, Renderer: f.renderer, UnitOfWork: f.work,
 		Clock: clock.Fixed(now), IDs: &sequentialIDs{}, HLC: &hlcSource{},
 		Entropy: clock.FixedEntropy{}, Tenancy: env.TenancyMulti, Text: text.Composing{},
+		Hosts: f.hosts, InstallationHost: "hubtask.example",
 	}
 	return f
 }
@@ -424,5 +462,41 @@ func TestTheOwnersNameDefaultsToTheAddress(t *testing.T) {
 	}
 	if f.accounts.inserted[0].DisplayName != "eva@acme.example" {
 		t.Errorf("owner name %q", f.accounts.inserted[0].DisplayName)
+	}
+}
+
+// The one host the new workspace answers at (SI-12): the slug under the installation's own domain,
+// canonical and verified by construction, in the same transaction as everything else provisioning
+// writes.
+func TestAProvisionedWorkspaceGetsItsCanonicalHost(t *testing.T) {
+	f := newProvisionFixture()
+
+	if _, err := f.handler.Execute(t.Context(), operator(), provisionCommand()); err != nil {
+		t.Fatalf("provisioning: %v", err)
+	}
+
+	if len(f.hosts.rows) != 1 {
+		t.Fatalf("%d hosts were written, want the canonical one", len(f.hosts.rows))
+	}
+	host := f.hosts.rows[0]
+	if host.Host != "acme.hubtask.example" {
+		t.Errorf("the host is %q, want the slug under the installation's domain", host.Host)
+	}
+	if !host.Canonical || host.State != domain.HostActive {
+		t.Errorf("the host is %+v, want an active canonical one", host)
+	}
+	if host.Verification == "" {
+		t.Error("the host carries no mark, so promoting a custom one later would need a backfill")
+	}
+}
+
+// A build wired without the store provisions exactly as it did before migration 0104: nothing
+// resolves a request through the table, so a missing row costs nobody anything.
+func TestProvisioningWithoutTheHostStoreStillWorks(t *testing.T) {
+	f := newProvisionFixture()
+	f.handler.Hosts = nil
+
+	if _, err := f.handler.Execute(t.Context(), operator(), provisionCommand()); err != nil {
+		t.Fatalf("provisioning without the host store: %v", err)
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // AdminTenantRepository is the control plane's view of the tenant row (H-06).
@@ -140,9 +141,13 @@ func (AdminTenantRepository) SetStatus(
 // InstanceJournal writes the installation's own evidence (audit.md §6). The table carries no
 // row-level-security policy, so the write lands inside whatever transaction the act runs in -
 // including the one that ends the tenant it names.
-type InstanceJournal struct{}
+type InstanceJournal struct{ cursors security.CursorCodec }
 
-func NewInstanceJournal() InstanceJournal { return InstanceJournal{} }
+// NewInstanceJournal takes the codec the read needs; a writer-only wiring may leave it zero, and
+// only `Page` would notice.
+func NewInstanceJournal(cursors security.CursorCodec) InstanceJournal {
+	return InstanceJournal{cursors: cursors}
+}
 
 var _ repository.Journal = InstanceJournal{}
 
@@ -393,4 +398,138 @@ func (TenantPurge) HardDelete(ctx context.Context, now time.Time) (bool, error) 
 			WithCause(fmt.Errorf("deleting the tenant row: %w", err))
 	}
 	return removed > 0, nil
+}
+
+// Page walks the journal backwards, newest first (SI-17).
+//
+// Keyed on the moment and the identifier together, which is the same keyset every other listing
+// here walks: two entries can share a moment - a provisioning writes one while a suspension writes
+// another - and an offset would then skip or repeat one.
+//
+// No tenant anywhere in it, deliberately: the journal is the installation's own record and its rows
+// are about workspaces that are usually gone, which is the reason the table exists.
+func (j InstanceJournal) Page(
+	ctx context.Context, cursor string, size int,
+) ([]repository.InstanceEvent, repository.PageInfo, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, repository.PageInfo{}, err
+	}
+
+	params := sqlc.PageInstanceJournalParams{Limit: int32(size) + 1} //nolint:gosec // G115: clamped by the use case
+	if cursor != "" {
+		position, err := j.cursors.Decode(cursor)
+		if err != nil {
+			return nil, repository.PageInfo{}, shared.ErrValidation.
+				WithDetail("shared.cursor_invalid")
+		}
+		at, err := time.Parse(time.RFC3339Nano, position.SortKey())
+		if err != nil {
+			return nil, repository.PageInfo{}, shared.ErrValidation.
+				WithDetail("shared.cursor_invalid")
+		}
+		id, err := uuidOf(position.ID)
+		if err != nil {
+			return nil, repository.PageInfo{}, err
+		}
+		params.BeforeAt = pgtype.Timestamptz{Time: at, Valid: true}
+		params.BeforeID = id
+	}
+
+	rows, err := queries.PageInstanceJournal(ctx, params)
+	if err != nil {
+		return nil, repository.PageInfo{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the instance journal: %w", err))
+	}
+
+	page := repository.PageInfo{}
+	if len(rows) > size {
+		// The row past the page is the answer to "is there another", and it is dropped rather than
+		// answered: a caller that got one row more than it asked for would page wrongly.
+		rows = rows[:size]
+		page.HasMore = true
+	}
+
+	entries := make([]repository.InstanceEvent, 0, len(rows))
+	for _, row := range rows {
+		entry, err := instanceEventFrom(row)
+		if err != nil {
+			return nil, repository.PageInfo{}, err
+		}
+		entries = append(entries, entry)
+	}
+	if page.HasMore && len(entries) > 0 {
+		last := entries[len(entries)-1]
+		page.NextCursor = j.cursors.Encode(
+			security.At(last.OccurredAt.UTC().Format(time.RFC3339Nano), last.ID))
+	}
+	return entries, page, nil
+}
+
+// instanceEventFrom maps one row. The details come back as the map they were written from: the
+// journal holds counts and moments, never content, so there is nothing here to narrow.
+func instanceEventFrom(row sqlc.InstanceEvent) (repository.InstanceEvent, error) {
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return repository.InstanceEvent{}, err
+	}
+	entry := repository.InstanceEvent{
+		ID: id, OccurredAt: row.OccurredAt.Time, Action: row.Action,
+	}
+	if row.TenantID.Valid {
+		tenantID, err := idFrom(row.TenantID)
+		if err != nil {
+			return repository.InstanceEvent{}, err
+		}
+		entry.TenantID = tenantID
+	}
+	if row.TenantSlug != nil {
+		entry.TenantSlug = *row.TenantSlug
+	}
+	if row.ActorLabel != nil {
+		entry.ActorLabel = *row.ActorLabel
+	}
+	if len(row.Details) > 0 {
+		details := map[string]any{}
+		if err := json.Unmarshal(row.Details, &details); err != nil {
+			return repository.InstanceEvent{}, shared.ErrInternal.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("decoding the journal details: %w", err))
+		}
+		entry.Details = details
+	}
+	return entry, nil
+}
+
+// InstallationRepository answers the census (SI-17, migration 0105).
+//
+// Its own type rather than a method on one of the others, for the reason every slice here has one:
+// the census reaches through a SECURITY DEFINER function that can answer five integers and nothing
+// else, and a repository that could ask it from anywhere is one that eventually grows a sixth
+// question.
+type InstallationRepository struct{}
+
+func NewInstallationRepository() InstallationRepository { return InstallationRepository{} }
+
+var _ repository.Installation = InstallationRepository{}
+
+func (InstallationRepository) Census(ctx context.Context) (repository.Census, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.Census{}, err
+	}
+	row, err := queries.InstanceCensus(ctx)
+	if err != nil {
+		return repository.Census{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the installation's census: %w", err))
+	}
+	return repository.Census{
+		WorkspacesActive:          row.WorkspacesActive,
+		WorkspacesSuspended:       row.WorkspacesSuspended,
+		WorkspacesPendingDeletion: row.WorkspacesPendingDeletion,
+		AccountsActive:            row.AccountsActive,
+		AccountsTotal:             row.AccountsTotal,
+	}, nil
 }
