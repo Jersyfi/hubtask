@@ -75,8 +75,7 @@ func TestTheMultiDirectoryIssuerIsRefused(t *testing.T) {
 	}
 }
 
-// The two rules the preset puts on the mode, each of them a hole somebody would otherwise
-// configure by accident.
+// The rule the preset puts on the mode, and the one it no longer does.
 func TestWhatAPresetPermitsAsProvisioning(t *testing.T) {
 	google := providerInput()
 	google.Issuer = "https://accounts.google.com"
@@ -101,12 +100,17 @@ func TestWhatAPresetPermitsAsProvisioning(t *testing.T) {
 		t.Errorf("a public provider defaults to %q, want INVITED_ONLY", configured.Provisioning)
 	}
 
-	// The other way round: INVITED_ONLY gives an account that already exists to whoever arrives
-	// with its address, so an issuer this installation cannot vouch for may not use it.
+	// A self-hosted issuer may be INVITED_ONLY since ADR-0071's addendum (E2): the strictest mode
+	// for every preset. What once made it dangerous - connecting an existing account on the
+	// strength of an address - now asks for the account's own proof whatever the mode.
 	generic := providerInput()
 	generic.Provisioning = "INVITED_ONLY"
-	if _, err := NewIdentityProvider(generic); err == nil {
-		t.Error("INVITED_ONLY was accepted on a provider whose addresses nobody vouches for")
+	invitedOnly, err := NewIdentityProvider(generic)
+	if err != nil {
+		t.Fatalf("INVITED_ONLY was refused on a self-hosted issuer: %v", err)
+	}
+	if invitedOnly.MayProvision() {
+		t.Error("an INVITED_ONLY provider may create accounts")
 	}
 
 	unknown := providerInput()
@@ -182,14 +186,27 @@ func TestWhoEachModeAdmits(t *testing.T) {
 	}
 }
 
-// A provider whose addresses this installation cannot vouch for may be a workspace's own and may
-// never be offered to every workspace on the installation - the second half of the concept's §8
-// security sentence, and the blast radius is the reason.
-func TestAnUnverifiedPresetIsNeverTheInstallationsProvider(t *testing.T) {
+// An installation's provider with no directory to bound it is offered to every workspace, so it may
+// admit only the people each workspace invited (ADR-0071's addendum, E2). It replaces "never the
+// installation's provider", which left a platform with its own directory no way to offer it.
+func TestAnInstallationProviderWithoutADirectoryAdmitsOnlyTheInvited(t *testing.T) {
+	for _, mode := range []string{"DOMAINS", "ANY"} {
+		offered := providerInput()
+		offered.TenantID = shared.ID("")
+		offered.Provisioning = mode
+		if _, err := NewIdentityProvider(offered); err == nil {
+			t.Errorf("a self-hosted issuer was offered to every workspace as %s", mode)
+		}
+	}
+
 	offered := providerInput()
 	offered.TenantID = shared.ID("")
-	if _, err := NewIdentityProvider(offered); err == nil {
-		t.Error("a GENERIC provider was offered to every workspace on the installation")
+	configured, err := NewIdentityProvider(offered)
+	if err != nil {
+		t.Fatalf("a self-hosted issuer was refused as the installation's provider: %v", err)
+	}
+	if configured.Provisioning != ProvisionInvitedOnly {
+		t.Errorf("with nothing stated it is %q, want INVITED_ONLY", configured.Provisioning)
 	}
 
 	// The same provider is fine as one workspace's own.

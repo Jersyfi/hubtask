@@ -413,7 +413,10 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 		"public":             preset.Public,
 		"redirect_uri":       redirectURL,
 		"instructions":       preset.Instructions,
-		"provisioning":       provisioningOf(preset),
+		"provisioning":       provisioningOf(preset, false),
+		// The installation's own list is narrower for a preset with no directory claim (ADR-0071's
+		// addendum): offered to every workspace, it may only admit the people each one invited.
+		"installation_provisioning": provisioningOf(preset, true),
 		// What a screen needs to ask for the list the server will actually read (ADR-0071 §2),
 		// rather than the one that would be ignored.
 		"supports_templated_issuer": preset.SupportsTemplatedIssuer,
@@ -427,18 +430,19 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 	return out
 }
 
-// provisioningOf is the modes a preset permits, in the order they tighten. What it is for is a
-// screen that can offer only what would be accepted, rather than one that offers three and has two
-// refused.
-func provisioningOf(preset domain.ProviderPreset) []any {
-	if preset.Public {
+// provisioningOf is the modes a preset permits at a level, in the order they loosen. What it is for
+// is a screen that can offer only what would be accepted, rather than one that offers three and has
+// two refused.
+//
+// INVITED_ONLY is on every list since ADR-0071's addendum (E2): what keeps an address from handing
+// over an account is the account's own proof, not the provider kind.
+func provisioningOf(preset domain.ProviderPreset, installation bool) []any {
+	if preset.Public || (installation && preset.DirectoryClaim == "") {
 		return []any{string(domain.ProvisionInvitedOnly)}
 	}
-	modes := []any{}
-	if preset.AddressesVerified {
-		modes = append(modes, string(domain.ProvisionInvitedOnly))
+	return []any{
+		string(domain.ProvisionInvitedOnly), string(domain.ProvisionDomains), string(domain.ProvisionAny),
 	}
-	return append(modes, string(domain.ProvisionDomains), string(domain.ProvisionAny))
 }
 
 // ListIdentityProviderPresets answers what can be configured and what it takes.

@@ -48,13 +48,14 @@ type ProviderPreset struct {
 	// their registration has to permit.
 	Scopes []string
 
-	// AddressesVerified is whether this issuer's addresses are verified by construction.
+	// AddressesVerified is whether this issuer's addresses are verified by construction - shown to
+	// the person configuring it, and nothing more since ADR-0071's addendum (E2).
 	//
-	// It decides one thing: whether the provider may be INVITED_ONLY. That mode hands an account
-	// that already exists to an arriving subject on the strength of an address, and only an issuer
-	// this installation knows verifies addresses may do that. GENERIC is false - not because a
-	// self-hosted provider is careless, but because this installation cannot know, and the safe
-	// reading of "cannot know" is the one that does not give away an account.
+	// It used to decide whether the provider may be INVITED_ONLY, on the reasoning that the mode
+	// hands an existing account to an arriving subject on the strength of an address. Every mode
+	// did, and the other two created accounts besides. What decides now is the account: one that
+	// holds a credential is connected only after that credential is proven. GENERIC stays false,
+	// because this installation cannot know how a self-hosted issuer verifies an address.
 	AddressesVerified bool
 
 	// DirectoryClaim is the claim that names the organisation a person belongs to, as this

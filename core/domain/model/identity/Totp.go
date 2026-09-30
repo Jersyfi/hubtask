@@ -160,6 +160,11 @@ const (
 	// password was right and no longer meets the rule, so the sign-in continues by setting a new
 	// one. Confirming it *is* the sign-in, exactly as ENROLL already works (ADR-0068 §3).
 	PendingPassword PendingPurpose = "PASSWORD"
+	// PendingLink is the credential a provider arrival receives when the account it would connect
+	// to already holds a credential of its own (ADR-0071's addendum, E2). It completes with that
+	// account's password, and - where the account has a second factor - continues into the TOTP
+	// step with the link still carried. The provider's word alone never opens such an account.
+	PendingLink PendingPurpose = "LINK"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.
@@ -180,6 +185,17 @@ type PendingCredential struct {
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 	ConsumedAt time.Time
+	// Link is the provider identity this sign-in connects once it completes, or nil. Carried by a
+	// LINK credential, and by the TOTP credential a LINK hands on to when the account has a second
+	// factor - so the connection happens at the end of the account's own proof, never before it.
+	Link *LinkIntent
+}
+
+// LinkIntent is a provider identity waiting for the account's own proof: which provider, and the
+// subject it vouched for.
+type LinkIntent struct {
+	ProviderID shared.ID
+	Subject    string
 }
 
 // Verify decides whether the credential may still complete its sign-in. One indistinguishable
