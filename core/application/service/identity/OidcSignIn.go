@@ -172,16 +172,16 @@ type CompleteOidcSignInCommand struct {
 // about that arrival it can vouch for.
 func (h CompleteOidcSignIn) Execute(
 	ctx context.Context, cmd CompleteOidcSignInCommand,
-) (SessionPair, error) {
+) (SignInResult, error) {
 	w := h.Writer
 
 	state, err := domain.ParseOidcFlowState(cmd.State.Reveal())
 	if err != nil {
 		w.Session.failure(ctx, FailureOidc)
-		return SessionPair{}, oidcRefused()
+		return SignInResult{}, oidcRefused()
 	}
 	if cmd.TenantHeader != "" && cmd.TenantHeader != state.TenantID().String() {
-		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
+		return SignInResult{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	scope := persistence.Scope{TenantID: state.TenantID()}
 
@@ -200,7 +200,7 @@ func (h CompleteOidcSignIn) Execute(
 		flow = found
 		return nil
 	}); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	// The provider is read *after* the burn and from the flow, not from the request: which way in
@@ -209,7 +209,7 @@ func (h CompleteOidcSignIn) Execute(
 	// one becomes an identity from another.
 	configured, sealed, err := w.provider(ctx, scope, flow.ProviderID)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	identity, err := w.Relying.Exchange(ctx, provider.Config{
@@ -221,38 +221,58 @@ func (h CompleteOidcSignIn) Execute(
 	})
 	if err != nil {
 		w.Session.failure(ctx, FailureOidc)
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
-	account, err := w.settleAccount(ctx, scope, configured, identity)
+	account, owed, err := w.settleAccount(ctx, scope, configured, identity)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	// The same check every other way in makes, and the acceptance criterion names it: a
 	// suspended account is refused here and not only on its first sign-in.
 	if err := account.Verify(); err != nil {
 		w.Session.failure(ctx, FailureOidc)
-		return SessionPair{}, err
+		return SignInResult{}, err
+	}
+
+	// The account already holds a credential of its own, so the provider's word does not open it:
+	// the card asks for that credential first (ADR-0071's addendum, E2).
+	if owed {
+		challenge, err := w.challengeLink(ctx, scope, account, configured, identity, cmd)
+		if err != nil {
+			return SignInResult{}, err
+		}
+		return SignInResult{Challenge: &challenge}, nil
 	}
 
 	// No bounds resolved here: a provider sign-in never held a password, so there is nothing for
 	// the rule to judge, and the workspace's session switches reach it with the next milestone that
 	// gives this path the resolver. What it does record is how it was opened.
-	return w.Session.openSessionWith(ctx, scope, state.TenantID(), account,
+	pair, err := w.Session.openSessionWith(ctx, scope, state.TenantID(), account,
 		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
 		domain.SessionPolicy{}, domain.SignedInWithOidc)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	return SignInResult{Pair: &pair}, nil
 }
 
 // settleAccount finds the person the subject names, links them, or makes them.
 //
 // Three cases in one place, because which of them happened is the interesting part of a review
 // and splitting them would leave nobody able to see the order they are tried in.
+//
+// The second answer is whether the account the arrival matched still owes its own proof before the
+// provider may be connected to it (ADR-0071's addendum, E2). Then nothing is linked yet.
 func (w OidcWriter) settleAccount(
 	ctx context.Context, scope persistence.Scope,
 	configured domain.IdentityProvider, arriving provider.Identity,
-) (domain.Account, error) {
-	var account domain.Account
+) (domain.Account, bool, error) {
+	var (
+		account domain.Account
+		owed    bool
+	)
 	err := w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		// The subject first: on every arrival after the first, this is the whole of it.
 		found, err := w.External.FindBySubject(ctx, configured.ID, arriving.Subject)
@@ -281,6 +301,25 @@ func (w OidcWriter) settleAccount(
 			existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 			switch {
 			case err == nil:
+				// The address matched. Whether the provider may simply be connected depends on what
+				// the account already holds, not on who configured the provider: an account with a
+				// password is connected only after that password (and its second factor) is proven,
+				// and one that signs in some other way cannot give that proof here.
+				proof, err := w.proofOwed(ctx, existing)
+				if err != nil {
+					return err
+				}
+				switch proof {
+				case proofPassword:
+					account, owed = existing, true
+					return nil
+				case proofElsewhere:
+					if err := w.recordRefusal(ctx, scope.TenantID, configured); err != nil {
+						return err
+					}
+					return shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
+				}
+
 				linked, err := w.External.LinkSubject(
 					ctx, configured.ID, existing.ID, arriving.Subject, w.Session.Clock.Now())
 				if err != nil {
@@ -327,9 +366,96 @@ func (w OidcWriter) settleAccount(
 		return w.record(ctx, OidcProvisionedAction, provisioned, configured, arriving)
 	})
 	if err != nil {
-		return domain.Account{}, err
+		return domain.Account{}, false, err
 	}
-	return account, nil
+	return account, owed, nil
+}
+
+// linkProof is what an existing account demands before a provider may be connected to it.
+type linkProof int
+
+const (
+	// proofNone: the account holds no credential yet - an invitation nobody redeemed - so there is
+	// nothing to prove and nothing to take over. That is what "invited" means.
+	proofNone linkProof = iota
+	// proofPassword: the account has a password, and the card asks for it (and for the second
+	// factor, if one is armed) before connecting.
+	proofPassword
+	// proofElsewhere: no password, but a second factor or another provider's identity. Neither can
+	// be proven on this card, so the arrival is refused and pointed at the way in the account has.
+	proofElsewhere
+)
+
+// proofOwed reads what the account holds, in the transaction the arrival already opened.
+func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (linkProof, error) {
+	hash, err := w.Session.Accounts.PasswordHashOf(ctx, existing.ID)
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return proofNone, err
+	}
+	if err == nil && !hash.IsEmpty() {
+		return proofPassword, nil
+	}
+
+	if w.Session.Enrollments != nil {
+		enrollment, err := w.Session.Enrollments.Find(ctx, existing.ID)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return proofNone, err
+		}
+		if err == nil && !enrollment.ConfirmedAt.IsZero() {
+			return proofElsewhere, nil
+		}
+	}
+	held, err := w.External.HasIdentity(ctx, existing.ID)
+	if err != nil {
+		return proofNone, err
+	}
+	if held {
+		return proofElsewhere, nil
+	}
+	return proofNone, nil
+}
+
+// challengeLink hands the arrival a LINK credential carrying the identity it will connect, and the
+// card what it needs to ask for the account's password: whose account, and which provider.
+func (w OidcWriter) challengeLink(
+	ctx context.Context, scope persistence.Scope, account domain.Account,
+	configured domain.IdentityProvider, arriving provider.Identity, cmd CompleteOidcSignInCommand,
+) (SignInChallenge, error) {
+	var challenge SignInChallenge
+	err := w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		material, err := w.Session.Entropy.Bytes(domain.TokenSecretBytes)
+		if err != nil {
+			return shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
+		}
+		presented, err := domain.NewPendingToken(scope.TenantID, material)
+		if err != nil {
+			return err
+		}
+		now := w.Session.Clock.Now()
+		credential := domain.PendingCredential{
+			ID:        w.Session.IDs.NewID(),
+			TenantID:  scope.TenantID,
+			AccountID: account.ID,
+			Purpose:   domain.PendingLink,
+			UserAgent: cmd.UserAgent,
+			IPClass:   domain.IPClass(cmd.RemoteAddr),
+			CreatedAt: now.UTC(),
+			ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
+			Link:      &domain.LinkIntent{ProviderID: configured.ID, Subject: arriving.Subject},
+		}
+		if err := w.Session.Pending.Insert(ctx, credential, presented); err != nil {
+			return err
+		}
+		challenge = SignInChallenge{
+			Token:        secret.New(presented.Secret()),
+			ExpiresAt:    credential.ExpiresAt,
+			Methods:      []string{methodLink},
+			Email:        account.Email,
+			ProviderName: configured.DisplayName,
+		}
+		return nil
+	})
+	return challenge, err
 }
 
 // provider reads the configuration a flow runs under and refuses the flow when there is none or it
@@ -572,7 +698,9 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 			"with the verifier this installation kept, the identity token is verified in full, " +
 			"and the answer is the same pair a password sign-in answers - because it is the " +
 			"same session. A subject arriving for the first time is provisioned, or linked to " +
-			"an account whose verified address falls inside the configured domains.",
+			"an account whose verified address falls inside the configured domains - at once " +
+			"where that account holds no credential yet, and otherwise only after its own " +
+			"password (and second factor): the answer is then a LINK challenge instead of a pair.",
 		SideEffects: "Spends the flow, may create or link an account, opens a session, and " +
 			"writes an audit entry.",
 		Input: []usecase.Field{
@@ -601,7 +729,7 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 func (h CompleteOidcSignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	pair, err := h.Execute(ctx, CompleteOidcSignInCommand{
+	result, err := h.Execute(ctx, CompleteOidcSignInCommand{
 		Code:         in.String("code"),
 		State:        secret.New(in.String("state")),
 		UserAgent:    in.String("user_agent"),
@@ -611,7 +739,10 @@ func (h CompleteOidcSignIn) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return pairOutput(pair), nil
+	if result.Challenge != nil {
+		return challengeOutput(*result.Challenge), nil
+	}
+	return pairOutput(*result.Pair), nil
 }
 
 // directoryClaimOf is the preset's name for the claim the adapter reads the organisation out of.

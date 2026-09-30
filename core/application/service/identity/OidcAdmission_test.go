@@ -80,8 +80,9 @@ func TestTheAdmissionLadderIsWhoComesIn(t *testing.T) {
 			}
 			before := len(f.accounts.byID)
 
-			pair, err := CompleteOidcSignIn{Writer: f.writer}.
+			pairResult, err := CompleteOidcSignIn{Writer: f.writer}.
 				Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+			pair := pairOf(pairResult)
 
 			var got string
 			switch {

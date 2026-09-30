@@ -39,6 +39,9 @@ const (
 	// meets the rule, so the sign-in continues by setting a new one. Confirming it *is* the
 	// sign-in, exactly as ENROLL already works.
 	methodPasswordChange = "PASSWORD_CHANGE"
+	// methodLink is ADR-0071's addendum (E2): a provider arrival met an account that holds a
+	// password, and the sign-in continues with that password before the provider is connected.
+	methodLink = "LINK"
 )
 
 // mfaSecretPurpose binds the sealed TOTP secret to its account, E-02's discipline: a ciphertext
@@ -346,6 +349,18 @@ func (h CompleteSignIn) Execute(
 			return err
 		}
 
+		// A sign-in that began as a provider arrival connects its identity now, at the end of the
+		// account's own proof and in the same transaction as spending the credential - so the link
+		// exists exactly when the proof was complete (ADR-0071's addendum, E2).
+		if link := lookup.Credential.Link; link != nil {
+			if w.Connector == nil {
+				return challengeRefused()
+			}
+			if err := w.Connector.Connect(ctx, lookup.Account, *link); err != nil {
+				return err
+			}
+		}
+
 		account, hint = lookup.Account, lookup.Credential
 		return nil
 	})
@@ -496,6 +511,12 @@ func challengeOutput(challenge SignInChallenge) usecase.Output {
 		// Only with PASSWORD_CHANGE. Every other step has nothing to say about a password, and a
 		// field that was always there and usually null would be a field every client had to read.
 		out["password_rules"] = passwordRulesOutput(*challenge.PasswordRules)
+	}
+	if challenge.Email != "" {
+		out["email"] = challenge.Email
+	}
+	if challenge.ProviderName != "" {
+		out["provider_name"] = challenge.ProviderName
 	}
 	return out
 }

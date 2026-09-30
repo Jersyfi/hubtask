@@ -218,9 +218,10 @@ func TestAFirstArrivalIsProvisionedAndEndsInASession(t *testing.T) {
 	f := newOidcFixture(t, at)
 
 	state := start(t, f)
-	pair, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
+	pairResult, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
 		Code: "the-code", State: state, UserAgent: "Firefox", RemoteAddr: "203.0.113.7",
 	})
+	pair := pairOf(pairResult)
 	if err != nil {
 		t.Fatalf("completing: %v", err)
 	}
@@ -249,17 +250,19 @@ func TestASecondArrivalFindsTheSameAccount(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	f := newOidcFixture(t, at)
 
-	first, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
+	firstResult, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
 		Code: "one", State: start(t, f),
 	})
+	first := pairOf(firstResult)
 	if err != nil {
 		t.Fatalf("first arrival: %v", err)
 	}
 	before := len(f.accounts.byID)
 
-	second, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
+	secondResult, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
 		Code: "two", State: start(t, f),
 	})
+	second := pairOf(secondResult)
 	if err != nil {
 		t.Fatalf("second arrival: %v", err)
 	}
@@ -283,9 +286,10 @@ func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 	}
 	f := newOidcFixture(t, at, existing)
 
-	pair, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
+	pairResult, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(), CompleteOidcSignInCommand{
 		Code: "the-code", State: start(t, f),
 	})
+	pair := pairOf(pairResult)
 	if err != nil {
 		t.Fatalf("completing: %v", err)
 	}
@@ -360,8 +364,9 @@ func TestUnderAnyAVerifiedStrangerIsProvisioned(t *testing.T) {
 	f.relying.identity = provider.Identity{
 		Subject: "s-any", Email: "ada@elsewhere.org", EmailVerified: true, DisplayName: "Ada"}
 
-	pair, err := CompleteOidcSignIn{Writer: f.writer}.
+	pairResult, err := CompleteOidcSignIn{Writer: f.writer}.
 		Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+	pair := pairOf(pairResult)
 	if err != nil {
 		t.Fatalf("completing: %v", err)
 	}
@@ -519,4 +524,12 @@ func containsAction(actions []audit.Action, wanted audit.Action) bool {
 		}
 	}
 	return false
+}
+
+// pairOf is the pair a provider sign-in answered, or the zero pair where it answered a challenge.
+func pairOf(result SignInResult) SessionPair {
+	if result.Pair == nil {
+		return SessionPair{}
+	}
+	return *result.Pair
 }
