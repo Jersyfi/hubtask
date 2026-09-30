@@ -897,6 +897,9 @@ Quality
 | Template | `Template` | A predefined item tree |
 | View | `SavedView` | A saved query plus a layout hint |
 | Tenant | `Tenant` | The topmost isolation boundary (a customer or organisation) |
+| Use case | `UC-…` / an operation | Two meanings: a person-level requirement with numbered checks in [`docs/usecases/`](../usecases/README.md), and an operation of the application layer registered in three channels (domain-model.md §5) |
+| Private hub | `container.private` | A hub only its own members reach; no role higher up flows into it ([ADR-0073](../adr/ADR-0073-private-hubs.md)) |
+| Managed account | `Account.sign_in_name` | An account without a mail address, signing in with a name and a start password ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) |
 | Capability profile | `ItemCapabilityProfile` | Defines the permitted fields and features per item type |
 | Rule | `AutomationRule` | A trigger plus conditions plus actions |
 | Rule run | `RuleRun` | The execution log of a rule |

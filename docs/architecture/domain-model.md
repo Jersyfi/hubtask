@@ -92,13 +92,13 @@ In self-hosting mode exactly one tenant exists (`SINGLE`). Nothing creates it au
 |---|---|---|
 | `id`, `tenantId` | UUIDv7 | |
 | `kind` | `USER` \| `SERVICE_ACCOUNT` | |
-| `email` | string | Unique per tenant (for `USER`) |
+| `email` | string | Unique per tenant (for `USER`); absent on a managed account, which signs in with its `sign_in_name` instead ([ADR-0074](../adr/ADR-0074-managed-accounts.md)) |
 | `externalSubject` | string? | The OIDC `sub`, for JIT provisioning |
 | `locale`, `timeZone` | BCP-47 / IANA | Override the tenant default |
 | `status` | `ACTIVE` \| `INVITED` \| `DISABLED` | |
 
 `Membership(accountId, scopeType, scopeId, role)` with `scopeType ∈ {TENANT, HUB, COLLECTION, ITEM}`.
-The effective permission is the highest role along the path (inheritance downwards). One exception, by decision: a **private hub** is reached only through a membership on the hub itself — roles held higher up the path do not flow into it, and the workspace owner reaches it only through the transparent emergency access of [ADR-0073](../adr/ADR-0073-private-hubs.md).
+The effective permission is the highest role along the path (inheritance downwards). One exception, by decision: a **private hub** is reached only through a membership on the hub itself or below it — roles held higher up the path do not flow into it, and the workspace owner reaches it only through the transparent emergency access of [ADR-0073](../adr/ADR-0073-private-hubs.md).
 `Group(id, tenantId, name, members[])` — the target object for assignment strategies and
 permissions.
 
@@ -342,6 +342,11 @@ alongside continued delivery of `.v1` for at least two minor releases.
 Every use case is a `Command`/`Query` struct plus a handler, and is registered in **three**
 channels: REST, an MCP tool, and an automation action (see arc42 §4). An extract — the list is the
 implementation backlog:
+
+*Two meanings of one word.* The entries here are **operations** — what the application layer can
+do. A **use case** in [`docs/usecases/`](../usecases/README.md) is the person-level requirement
+above them: a goal, a story and numbered checks, served by one or more of these operations. A task
+names both: the use cases whose checks it makes true, and the operations it adds or changes.
 
 **Work management**
 `CreateContainer`, `RenameContainer`, `UpdateContainerPolicies`, `MoveContainer`, `ArchiveContainer`,

@@ -11,7 +11,7 @@ non-interactive, tightly scoped access. Permissions must take effect along the h
 ## Decision
 * **AuthN:** OIDC (authorization code + PKCE) with just-in-time provisioning *and* local accounts (Argon2id) as a fallback. Short-lived access tokens, rotating refresh tokens.
 * **Non-interactive:** personal access tokens (`hbt_pat_…`) and service accounts; only hashes are stored; scopes and an expiry are mandatory.
-* **AuthZ:** RBAC with the roles `OWNER`, `ADMIN`, `MEMBER`, `CONTRIBUTOR`, `VIEWER`, `GUEST`, bound to scopes; the effective role is the highest role along the path. On top of that, token scopes (`items:write`, `automation:manage`, …) act as a second, independent bound.
+* **AuthZ:** RBAC with the roles `OWNER`, `ADMIN`, `MEMBER`, `CONTRIBUTOR`, `VIEWER`, `GUEST`, bound to scopes; the effective role is the highest role along the path (*refined by [ADR-0073](./ADR-0073-private-hubs.md), 2026-09-30:* not into a private hub, which only memberships on the hub or below it reach). On top of that, token scopes (`items:write`, `automation:manage`, …) act as a second, independent bound.
 * The check happens **in the application layer** (never in an adapter), with the tenant boundary additionally enforced by RLS.
 * SAML and SCIM are later adapters, not part of 1.0.
 
