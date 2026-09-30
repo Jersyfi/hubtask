@@ -175,6 +175,10 @@ func TestSwitchingEnforcementOffIsNotTheSameAsNotMentioningIt(t *testing.T) {
 	if value != false {
 		t.Errorf("the switch reached the catalogue as %v", value)
 	}
+	// It is a change to the sign-in rule (UC-ID-12 check 2), so the proof travels with it.
+	if _, held := registry.in["step_up_token"]; !held {
+		t.Error("the old switch reached the catalogue without the step-up it now demands")
+	}
 }
 
 // An If-Match is the version the caller last read, and it is what the write guards on.

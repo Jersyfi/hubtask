@@ -68,6 +68,10 @@ func (c *RestController) UpdateWorkspace(
 			// the catalogue's input is one shape for three channels, and eighteen of them would be
 			// eighteen places for a name to drift from the one the domain knows.
 			in["sign_in_policy"] = signInPolicyChange(*body.SignInPolicy)
+		}
+		if body.SignInPolicy != nil || body.RequireAdminTotp != nil {
+			// The old boolean is a change to the rule too (UC-ID-12 check 2), so it carries the
+			// proof the rule demands.
 			in["step_up_token"] = stepUpHeaderField(params.XHubtaskStepUp)
 		}
 		return c.UseCases.Invoke(r.Context(), updateWorkspaceUseCase, actor, in)

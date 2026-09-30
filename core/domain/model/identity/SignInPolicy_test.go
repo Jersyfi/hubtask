@@ -498,3 +498,30 @@ func TestAnUndeclaredSwitchIsCarriedByNothing(t *testing.T) {
 		t.Errorf("an empty patch moved %v (%v)", moved, err)
 	}
 }
+
+// The old boolean, written, as the rule it has always meant (UC-ID-12 check 2): on is
+// "administrators or stricter", off is nobody, and a flag sent as it stands moves nothing.
+func TestTheOldFlagTranslatesIntoTheRule(t *testing.T) {
+	cases := []struct {
+		flag    bool
+		inForce MfaRequirement
+		want    MfaRequirement
+		moves   bool
+	}{
+		{true, MfaForNobody, MfaForAdmins, true},
+		{true, MfaForAdmins, MfaForAdmins, false},
+		{true, MfaForEveryone, MfaForEveryone, false},
+		{false, MfaForNobody, MfaForNobody, false},
+		{false, MfaForAdmins, MfaForNobody, true},
+		{false, MfaForEveryone, MfaForNobody, true},
+	}
+	for _, c := range cases {
+		got, moves := RequirementForAdminFlag(c.flag, c.inForce)
+		if got != c.want || moves != c.moves {
+			t.Errorf("flag %v over %s: (%s, %v), want (%s, %v)", c.flag, c.inForce, got, moves, c.want, c.moves)
+		}
+		if reads := got.CoversAdmins(); reads != c.flag {
+			t.Errorf("flag %v over %s reads back as %v", c.flag, c.inForce, reads)
+		}
+	}
+}

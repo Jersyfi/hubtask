@@ -99,14 +99,16 @@ func (w WorkspaceSettings) SignInLayer() PolicyLayer {
 func (w WorkspaceSettings) LegalLayer() LegalLayer { return LegalLayer{Links: w.Legal} }
 
 // WorkspaceChange is a merge-patch, typed: a nil pointer is a key the caller did not send, and
-// therefore a field that does not move. There is no "clear it" for any of the four - a workspace
-// always has a name, a locale, a zone and an answer to the enforcement question - which is why
-// the type has no way to express one.
+// therefore a field that does not move. There is no "clear it" for any of the three - a workspace
+// always has a name, a locale and a zone - which is why the type has no way to express one.
+//
+// `require_admin_totp` is not here any more. It was a second, unguarded way to set who needs a
+// second factor, and it came apart from the rule (UC-ID-12 checks 1 and 2); a write of it is now
+// translated into the rule's own switch, with the rule's step-up, lock and direction.
 type WorkspaceChange struct {
-	DisplayName      *string
-	DefaultLocale    *string
-	DefaultTimeZone  *string
-	RequireAdminTotp *bool
+	DisplayName     *string
+	DefaultLocale   *string
+	DefaultTimeZone *string
 }
 
 // FieldChange is one field that moved, with what it moved from and to. The strings are the
@@ -162,15 +164,6 @@ func (w Workspace) With(change WorkspaceChange, form text.Normalizer) (Workspace
 				Field: "default_time_zone", From: w.DefaultTimeZone, To: zone}
 			changed.DefaultTimeZone = zone
 		}
-	}
-
-	if change.RequireAdminTotp != nil && *change.RequireAdminTotp != w.Settings.RequireAdminTotp {
-		moved["require_admin_totp"] = FieldChange{
-			Field: "require_admin_totp",
-			From:  boolText(w.Settings.RequireAdminTotp),
-			To:    boolText(*change.RequireAdminTotp),
-		}
-		changed.Settings.RequireAdminTotp = *change.RequireAdminTotp
 	}
 
 	return changed, sortedChanges(moved), nil

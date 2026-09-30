@@ -8099,7 +8099,7 @@ type Workspace struct {
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// RequireAdminTotp Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0` and, until this operation, was writable by nothing.
+	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it was a stored value of its own until SC-06 and came apart from the rule in both directions. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
 
 	// SignInPolicy How people in this workspace prove who they are (ADR-0068 §2). Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
@@ -8144,9 +8144,11 @@ type WorkspaceUpdate struct {
 	DefaultLocale *string `json:"default_locale,omitempty"`
 
 	// DefaultTimeZone An IANA zone. One that does not load is a field error.
-	DefaultTimeZone  *string `json:"default_time_zone,omitempty"`
-	DisplayName      *string `json:"display_name,omitempty"`
-	RequireAdminTotp *bool   `json:"require_admin_totp,omitempty"`
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+	DisplayName     *string `json:"display_name,omitempty"`
+
+	// RequireAdminTotp The old name of `sign_in_policy.mfa_required_for`: true asks for `ADMINS` where the rule demands less, false for `NONE`. A change to the rule, so it demands the step-up whenever it moves anything - see the operation.
+	RequireAdminTotp *bool `json:"require_admin_totp,omitempty"`
 
 	// SignInPolicy The switches this workspace is tightening. Flat, and merge-patch like everything else here: a switch the body does not name does not move.
 	// Three refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.

@@ -4264,17 +4264,20 @@ paths:
         the permission that manages structure. Auditable, with the before and the after of every
         field that moved.
 
-        `require_admin_totp` is the field with a consequence beyond its own row: switching it on
-        makes the next sign-in of every `OWNER` and `ADMIN` two-step, and routes one who is not
-        enrolled into enrolment rather than into a refusal (H-02). It locks nobody out, and it is
-        recorded like the security decision it is.
+        `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not
+        stored as itself any more (UC-ID-12): true asks for `ADMINS` where the rule in force demands
+        less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its
+        lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for
+        nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against
+        `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 
         The slug does not move here. It is the hostname in multi mode and the base of the OIDC
         redirect this installation registered, so renaming it is the operator's operation at
         `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown
         field rather than accepted and quietly ignored.
 
-        `sign_in_policy` is the one member that demands a **step-up** (ADR-0068 §2): a workspace's
+        `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a
+        **step-up** (ADR-0068 §2): a workspace's
         sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the
         locale and the zone are not. A body without the header is `403 step_up_required`.
 
@@ -8726,9 +8729,11 @@ components:
         require_admin_totp:
           type: boolean
           description: >
-            Whether this workspace demands a second factor of its `OWNER` and `ADMIN` role
-            holders (security.md §5, H-02). It has been read by the sign-in path since `0.6.0`
-            and, until this operation, was writable by nothing.
+            Whether the rule in force demands a second factor of this workspace's `OWNER` and
+            `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`.
+            Derived from the rule and from nothing else, so the two cannot disagree (UC-ID-12); it
+            was a stored value of its own until SC-06 and came apart from the rule in both
+            directions. Kept for the clients that read it.
         audit_anchor_target_id:
           type: [string, "null"]
           format: uuid
@@ -8935,6 +8940,10 @@ components:
           description: An IANA zone. One that does not load is a field error.
         require_admin_totp:
           type: boolean
+          description: >
+            The old name of `sign_in_policy.mfa_required_for`: true asks for `ADMINS` where the rule
+            demands less, false for `NONE`. A change to the rule, so it demands the step-up whenever
+            it moves anything - see the operation.
         sign_in_policy:
           $ref: "#/components/schemas/SignInPolicyChange"
           description: >

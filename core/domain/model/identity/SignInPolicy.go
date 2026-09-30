@@ -82,6 +82,26 @@ func (r MfaRequirement) Valid() bool {
 	return r == MfaForNobody || r == MfaForAdmins || r == MfaForEveryone
 }
 
+// CoversAdmins is what the old boolean `require_admin_totp` means: administrators need a factor,
+// which "everyone" includes. The boolean is read from this and nothing else (UC-ID-12 check 2).
+func (r MfaRequirement) CoversAdmins() bool { return r.rank() >= MfaForAdmins.rank() }
+
+// RequirementForAdminFlag translates a write of the old boolean into the rule (UC-ID-12 check 2):
+// the requirement it asks for given the one in force, and whether that moves anything. On is
+// "administrators or stricter", so it never loosens "everyone" to "administrators"; off is nobody.
+func RequirementForAdminFlag(flag bool, inForce MfaRequirement) (MfaRequirement, bool) {
+	switch {
+	case flag && inForce.CoversAdmins():
+		return inForce, false
+	case flag:
+		return MfaForAdmins, true
+	case inForce == MfaForNobody:
+		return MfaForNobody, false
+	default:
+		return MfaForNobody, true
+	}
+}
+
 // The ways into a workspace. `methods` narrows them: a workspace that signs in only through its
 // provider switches the password field off for everybody, which is the reason the switch exists.
 //

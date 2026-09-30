@@ -216,6 +216,7 @@
   "admin.operator_last": "This is the last operator. An installation with none is one nobody can operate.",
   "admin.slug_taken": "That subdomain is already a workspace's. Choose another.",
   "workspace.version_conflict": "Somebody else changed the workspace. Read it again and retry.",
+  "workspace.admin_flag_contradicts_rule": "This change says two different things about who needs a second factor. Send only the rule.",
   "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
   "admin.deletion_confirmation_required": "Deleting a workspace needs its display name, typed exactly. Expected {name}.",
   "admin.multi_mode_required": "This installation runs in single mode. The control plane provisions workspaces only in multi mode.",
