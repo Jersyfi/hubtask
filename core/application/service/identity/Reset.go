@@ -411,13 +411,14 @@ func (h ResetPassword) Execute(
 		return SignInResult{}, err
 	}
 
-	return h.answer(ctx, scope, tenantID, lookup.Account, cmd)
+	// The address from the account's own row: the pending credential's read carries none.
+	return h.answer(ctx, scope, tenantID, lookup.Account, held.Account.Email, cmd)
 }
 
 // answer opens the session, or hands back the second step where the account demands one.
 func (h ResetPassword) answer(
 	ctx context.Context, scope persistence.Scope, tenantID shared.ID,
-	account domain.Account, cmd ResetPasswordCommand,
+	account domain.Account, address string, cmd ResetPasswordCommand,
 ) (SignInResult, error) {
 	session := h.Writer.Session
 
@@ -432,6 +433,10 @@ func (h ResetPassword) answer(
 		return SignInResult{}, err
 	}
 	if challenge != nil {
+		// The person arrived from the link in the mail and typed no address, so the step says
+		// whose account it is: the card's identity line, and its "Not you?" (UC-ID-04 check 5).
+		// Holding the link proved the mailbox, so the address tells them nothing they lack.
+		challenge.Email = address
 		return SignInResult{Challenge: challenge}, nil
 	}
 

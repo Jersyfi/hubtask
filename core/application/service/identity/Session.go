@@ -161,10 +161,11 @@ type SignInChallenge struct {
 	// asks for a new password needs the rule in the same answer, or the list under the field
 	// arrives a round trip after the field does.
 	PasswordRules *PasswordRulesView
-	// Email and ProviderName travel with a LINK challenge and with no other (ADR-0071's addendum):
-	// the card that asks for the account's password has to say whose account it is and which
-	// provider will sign them in afterwards, and the person arrived from the provider rather than
-	// by typing an address into step one.
+	// Email and ProviderName travel with a LINK challenge (ADR-0071's addendum): the card that asks
+	// for the account's password has to say whose account it is and which provider will sign them
+	// in afterwards, and the person arrived from the provider rather than by typing an address into
+	// step one. Email travels with every step a reset answers too, for the same reason: the person
+	// arrived from the mail's link.
 	Email        string
 	ProviderName string
 }

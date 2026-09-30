@@ -198,7 +198,7 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 		answered := passwordRulesResponse(rules)
 		challenge.PasswordRules = &answered
 	}
-	// Only with LINK (ADR-0071's addendum): whose account, and which provider will sign them in.
+	// Whose account, with LINK (ADR-0071's addendum) and after a reset; which provider, with LINK.
 	if email := out.String("email"); email != "" {
 		challenge.Email = &email
 	}
