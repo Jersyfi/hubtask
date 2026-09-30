@@ -31,7 +31,8 @@ Legend: **[L]** = best done locally with Claude Code (you see every step),
 
 What deliberately is **not** in this milestone:
 
-* **Passkeys.** The next milestone, with its own ADR — the library-or-in-house question
+* **Passkeys.** The next milestone, with its own ADR (*since 2026-09-30, milestones
+  [SC](./milestone-SC.md) and [PH](./milestone-PH.md) come first*) — the library-or-in-house question
   (`go-webauthn` against a minimal in-house verifier, the way [ADR-0053](../adr/ADR-0053-totp-qr-code.md)
   answered the QR encoder) is a supply-chain decision that deserves its own reading. What lands
   here is only what makes them cheap later: credentials in the plural, `session.signed_in_with`,

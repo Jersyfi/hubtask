@@ -45,6 +45,19 @@ Configuring a provider and consenting to use it are also two acts. `processing_a
 every configuration that does not say otherwise, so a provider can be set up, checked and left
 switched off.
 
+**Since [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) the operator may also offer
+models.** A model the installation offers is a row with no workspace; a workspace sees its name, its
+processor and its jurisdiction, never its address or key, and switching it on is the workspace's
+consent act — the same `processing_allowed`, which no installation or plan value writes. Two
+instance values bound what a workspace may use, each with a default and a lock: `ai.sources`
+(`NONE`, `OFFERED`, `OWN`, `EITHER`), and `ai.min_jurisdiction` for a workspace's own model. A lock
+can hold a workspace out of a source, never in one.
+
+**And a third person has a say: the one whose content it is.** Inside a workspace with AI on, each
+person may keep what they authored out of every prompt — unless the workspace has made AI part of
+everybody's work and named the legal basis for it, in which case people see that basis instead of
+the switch ([data-protection.md §4.1](../architecture/data-protection.md#41-three-decisions-of-2026-09-30)).
+
 ---
 
 ## 2. What is sent

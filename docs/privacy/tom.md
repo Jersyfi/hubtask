@@ -69,7 +69,7 @@ document says what the product gives them to work with, and the rest is theirs.
 | Measure | Where it is decided | Kind |
 |---|---|---|
 | Every pull request runs the gates: format, lint, unit, integration, contract, architecture, security SG-1…SG-13, privacy PG-1, PG-3…PG-6, PG-8, observability, licences, documentation | [ci-cd.md](../architecture/ci-cd.md) §3 | product |
-| The nightly runs what needs a database or the network: PG-2 (an erasure sweeps every storage location) and PG-7 (the schema reconciled against the data catalogue), the support matrix, fuzzing, the resilience suite | [ci-cd.md](../architecture/ci-cd.md) §2 | product |
+| Every pull request's data job runs PG-2 (an erasure sweeps every storage location) and PG-7 (the schema reconciled against the data catalogue) against a real database; the nightly repeats them on arm64 and runs what needs the network or time: the support matrix, fuzzing, the resilience suite | [ci-cd.md](../architecture/ci-cd.md) §2 | product |
 | `make gate-selftest` breaks each rule deliberately and expects the build to go red — the check that the checks are connected | [ci-cd.md](../architecture/ci-cd.md) §3 | product |
 | Dependencies are scanned (`govulncheck`), pinned by commit, and shipped with an SBOM and a signature | [security.md](../architecture/security.md) §11 | product |
 | Access review — who holds which role, which tokens exist, which are unused | [security.md](../architecture/security.md) §5 | operator |
@@ -79,7 +79,7 @@ document says what the product gives them to work with, and the rest is theirs.
 
 | Measure | Where it is decided | Kind |
 |---|---|---|
-| Every field holding personal data is in the data catalogue with its class, its purpose, its retention and its deletion path; a table with personal content and no entry fails the nightly | [data-catalog.md](./data-catalog.md), `make gate-privacy-full` (PG-7) | product, gated |
+| Every field holding personal data is in the data catalogue with its class, its purpose, its retention and its deletion path; a table with personal content and no entry fails the pull request | [data-catalog.md](./data-catalog.md), `make gate-privacy-full` (PG-7) | product, gated |
 | Retention rules per data kind, with a documented floor per kind and a ceiling that needs the operator's justification | [data-retention.md](../architecture/data-retention.md), `make gate-privacy` (PG-5) | product, gated |
 | Access, portability, erasure, restriction, objection and rectification exist as use cases with a deadline, and the deadline is watched | [data-protection.md](../architecture/data-protection.md) §4 | product |
 | An erasure sweeps every storage location, including the object store, and what may survive it is named per table and column with the reason | `make gate-privacy-full` (PG-2), [ADR-0018](../adr/ADR-0018-privacy-by-design.md) | product, gated |
