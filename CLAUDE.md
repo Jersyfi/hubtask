@@ -68,6 +68,7 @@ where. They load when work happens in that directory.
 | A component in `packages/design-system/src/` | `make workbench` — and it needs a story beside it, or `pnpm test` fails ([ADR-0037](docs/adr/ADR-0037-component-workbench.md)) |
 | `deploy/docker/` | `make gate-compose` — it builds the image and starts the stack |
 | Any document | `make gate-docs` |
+| A pull request description | `make gate-pr BODY=<file>` — the CI job *Pull request description* runs the same |
 
 `make tools` installs the Go tools and needs no Node.js. `make tools-node` installs pnpm and is
 only needed for `apps/` and `packages/`. **`go build ./...`, `go test ./...` and `make generate`
@@ -135,7 +136,9 @@ that instead of breaking the rule.
 6. **Check**: `make verify` must be green locally, and `/usecase-check` over the branch must find
    every named check met with evidence, before the pull request leaves draft.
 7. **Finish**: take the pull request out of draft, fill in the template completely — including the
-   *Use cases* section, check by check — move the use cases' `state:` and `checked_by:`, and work
+   *Use cases* section, check by check; start from a copy of `.github/PULL_REQUEST_TEMPLATE.md`,
+   because `gh pr create --body` never shows it, and CI refuses a description with a section
+   missing — move the use cases' `state:` and `checked_by:`, and work
    through the Definition of Done in `docs/architecture/engineering-guidelines.md` §3.
 
 ## The issue is the task
