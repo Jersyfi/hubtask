@@ -27,6 +27,14 @@ enables SSO.
    `infrastructure/httpclient.GuardedClient`, a cache, and a refetch on an unknown `kid`.
 2. `iss` equals the configured issuer exactly; `aud` contains the client id; `exp`/`iat`/`nbf`
    with skew ≤ 60 s; the `nonce` this installation minted for the flow.
+
+   *Refined by [ADR-0071](ADR-0071-provider-admission.md) §3 (2026-09-30).* "Exactly" is unchanged;
+   what that ADR settles is **what the comparand is** when a provider publishes a templated issuer.
+   Microsoft's multi-directory endpoints answer
+   `https://login.microsoftonline.com/{tenantid}/v2.0` and document the rule: substitute the token's
+   `tid`, then compare exactly. Reading `tid` first decides nothing — the signature still has to
+   come from the key set that template's own discovery published, and *which* directories may come
+   in is bounded by `allowed_directories` rather than by the comparison.
 3. An `alg` allowlist that never contains `none` and never lets the token choose the family
    (RS/ES only, per the provider's JWKS).
 4. Discovery (`/.well-known/openid-configuration`) parsed, with the issuer check RFC 8414 asks

@@ -1,6 +1,6 @@
 # ADR-0071 — Who a sign-in provider admits: the directory, not the text of an address
 
-**Status:** proposed · **Date:** 2026-09-29
+**Status:** accepted · **Date:** 2026-09-29 · **Accepted:** 2026-09-30
 
 ## Context
 
@@ -139,7 +139,8 @@ than a role, and a probe that went around it would be the one caller that does.
   somebody names a directory. Failing closed is the only direction that does not hand out accounts,
   and the screen says so.
 * **ADR-0036 is refined, not superseded.** Its four numbered requirements stand; §2's "exactly" now
-  has a sentence about what the comparand is for a templated issuer.
+  has a sentence about what the comparand is for a templated issuer, and §2 carries a note pointing
+  here so that nobody reading it alone gets the unrefined rule.
 * **`GENERIC` is unchanged**, and is still the preset with no verified addresses and therefore no
   `INVITED_ONLY` and no place at installation level.
 * **Apple is not added here.** Its client secret is a signed JWT that expires within six months,
