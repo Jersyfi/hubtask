@@ -166,6 +166,39 @@ one mechanism and one place to look at to see who may come in.
 ## What this decision does not settle
 
 Whether the installation's own provider may use a templated issuer at all. It may: an installation
-provider with a directory list is exactly the platform case. But it stays subject to §8's rule that
-a provider with no verified addresses is never an installation provider — and `GENERIC`, having no
-directory claim, is where that bites.
+provider with a directory list is exactly the platform case. The rule that bounded it here — a provider
+with no verified addresses is never an installation provider — is replaced by the addendum below:
+such a provider may be offered, as `INVITED_ONLY` only.
+
+## Addendum, 2026-09-30 — connecting an existing account asks for its own proof
+
+The concept review of 2026-09-30 found a way into other people's accounts that admission does not
+close, and the owner decided it (E2 in `docs/backlog/milestone-SC.md`).
+
+**The finding.** Under `DOMAINS` and `ANY`, a first arrival whose address matches an existing
+account was *linked* to it on the provider's word, and the session opened without the account's
+second factor. A workspace administrator may configure providers, so an administrator could point a
+self-hosted issuer they control at the owner's address and sign in as the owner. The test that
+shows it is `TestAProviderCannotOpenAnAccountThatHoldsAPasswordAndAFactor`.
+
+**The decision.** The safeguard moves from the provider kind to the act of connecting:
+
+1. **An account that already holds a credential** — a password, an armed second factor, or an
+   identity from another provider — is connected to an arriving identity only after the account's
+   own proof: its password, then its second factor if it has one. The card's step machine asks for
+   it as one more step, `LINK`; the pending credential carries which provider and which subject it
+   will connect. An account with no password but another provider cannot give that proof and is
+   refused with a sentence that names the way in it has.
+2. **An account with no credential yet** — invited, never signed in — is connected on arrival, as
+   before. That is what "invited" means.
+3. **With that in place, "a preset whose addresses this installation cannot vouch for may not be
+   `INVITED_ONLY`" is withdrawn.** It made `GENERIC` more permissive, not less: the modes left to it
+   claim accounts on the same signal *and* create new ones. `GENERIC` may be `INVITED_ONLY`.
+4. **An installation provider without a directory claim may be offered only as `INVITED_ONLY`.**
+   That replaces §8's "never an installation provider": a self-hosted issuer offered to every
+   workspace admits the people each workspace invited, and nobody else.
+5. **Configuring, changing, offering and removing a provider asks for a step-up**, like every other
+   change to how people sign in.
+
+The ladder itself — `INVITED_ONLY`, `DOMAINS`, `ANY` as "who comes in" — was confirmed by
+`TestTheAdmissionLadderIsWhoComesIn` (E1) and is unchanged.
