@@ -7,6 +7,8 @@
 
 | Deep dive | File |
 |---|---|
+| **Vision: principles, personas, deployments, non-goals** | [../vision/README.md](../vision/README.md) |
+| **Use cases: what a person can do, and how it is checked** | [../usecases/README.md](../usecases/README.md) |
 | Domain model, aggregates, invariants, events | [domain-model.md](./domain-model.md) |
 | Go project structure (hexagonal) & code conventions | [project-structure.md](./project-structure.md) |
 | API-first guidelines, errors, pagination, query DSL | [api-guidelines.md](./api-guidelines.md) |
@@ -781,6 +783,9 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0069 | A third-party brand mark is content, and the button stays ours | accepted |
 | 0070 | The instance layer: operators, instance settings, and the elevated session | accepted |
 | 0071 | Who a sign-in provider admits: the directory, not the text of an address | accepted |
+| 0072 | AI at the installation level: an offered model, and who may bring their own | accepted |
+| 0073 | A private hub narrows what the workspace's roles reach | accepted |
+| 0074 | Managed accounts: a sign-in name, a start password, and who may renew it | accepted |
 
 ---
 
