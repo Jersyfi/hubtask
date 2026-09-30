@@ -78,4 +78,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0069](./ADR-0069-third-party-brand-marks.md) | A third-party brand mark is content, and the button stays ours | accepted | Design system, legal, client |
 | [0070](./ADR-0070-the-instance-layer.md) | The instance layer: operators, instance settings, and the elevated session | accepted | Security, multi-tenancy, operations |
 | [0071](./ADR-0071-provider-admission.md) | Who a sign-in provider admits: the directory, not the text of an address | accepted | Security, identity, multi-tenancy |
-| [0072](./ADR-0072-ai-at-the-installation-level.md) | AI at the installation level: an offered model, and who may bring their own | proposed | AI, multi-tenancy, data protection |
+| [0072](./ADR-0072-ai-at-the-installation-level.md) | AI at the installation level: an offered model, and who may bring their own | accepted | AI, multi-tenancy, data protection |

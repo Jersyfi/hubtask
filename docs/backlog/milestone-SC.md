@@ -28,8 +28,8 @@ are built:
   credential yet is connected at once (SC-01).
 
 **And one design the owner asked for:** AI offered by the installation, with locks on which sources
-a workspace may use — [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md), *proposed*, to
-be accepted before SC-11 starts.
+a workspace may use — [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md), accepted on
+2026-09-30.
 
 What deliberately is **not** in this milestone, each waiting on a decision of its own:
 
@@ -218,7 +218,7 @@ version changes, for password and provider sign-ins; declining opens no session.
 
 ## SC-11 — AI offered by the installation **[L]**
 
-*Depends on: ADR-0072 accepted.*
+*Depends on: ADR-0072 (accepted 2026-09-30).*
 
 **Use cases:** UC-AI-05 (1–7), UC-AI-06 (1–5, 7, 8), UC-AI-02 (5)
 

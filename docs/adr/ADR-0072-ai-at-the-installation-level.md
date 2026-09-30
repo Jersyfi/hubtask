@@ -1,6 +1,6 @@
 # ADR-0072 — AI at the installation level: an offered model, and who may bring their own
 
-**Status:** proposed · **Date:** 2026-09-30
+**Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
 
 ## Context
 
