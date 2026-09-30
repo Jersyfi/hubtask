@@ -494,7 +494,7 @@ gate-privacy:
 gate-pr:
 	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),)
 
-## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (nightly)
+## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full
 gate-privacy-full:
 	$(call go_test,integration,./test/privacy/...,)

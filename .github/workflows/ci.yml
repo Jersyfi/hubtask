@@ -106,6 +106,9 @@ jobs:
               - 'api/**'
             db:
               - 'db/**'
+              # The data catalogue is the schema's other half: PG-7 reconciles the two, so a change
+              # to either one runs it (#246).
+              - 'docs/privacy/data-catalog.md'
             deploy:
               - 'deploy/**'
               - '.dockerignore'
@@ -527,7 +530,7 @@ jobs:
       - run: make gate-privacy
 
   data:
-    name: Data gates (migration, retention, backup, sync)
+    name: Data gates (migration, retention, backup, sync, privacy)
     needs: quick
     runs-on: ubuntu-latest
     # No service container, deliberately. This job used to start one and set HUBTASK_DB_DSN, and
@@ -552,6 +555,12 @@ jobs:
       # The backup targets come from Testcontainers, not from a service container - see the
       # integration job.
       - run: make gate-data
+      # PG-2 and PG-7, the privacy gates that need a migrated database: the erasure sweeping every
+      # storage location, and the schema reconciled against the data catalogue. They ran only in the
+      # nightly until milestone SI merged four tables without a catalogue row and nothing but the
+      # nightly arm64 job noticed, three days later (#246). Here, because this job already starts
+      # its database through Testcontainers; the half without a database stays in `security`.
+      - run: make gate-privacy-full
 
   docs:
     name: Documentation
