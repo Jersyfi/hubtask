@@ -88,7 +88,7 @@
   "auth.link_password_required": "Gib das Passwort dieses Kontos ein, um den Anbieter damit zu verbinden.",
   "auth.mfa_not_enrolled": "Für dieses Konto ist kein zweiter Faktor eingerichtet.",
   "auth.mfa_already_armed": "Ein zweiter Faktor ist bereits aktiv. Schalte ihn mit deinem Passwort ab, bevor du ihn neu einrichtest.",
-  "auth.mfa_required_by_tenant": "Dieser Workspace verlangt für deine Rolle einen zweiten Faktor. Er kann hier nicht abgeschaltet werden.",
+  "auth.mfa_required_by_tenant": "Dein Arbeitsbereich verlangt von dir einen zweiten Faktor, deshalb kann er nicht abgeschaltet werden.",
   "auth.mfa_credential_required": "Diese Operation braucht eine angemeldete Sitzung oder die ausstehende Berechtigung einer Anmeldung.",
   "auth.mfa_enrollment_pending": "Die Einrichtung ist noch nicht bestätigt. Bestätige sie mit einem Code aus deiner Authenticator-App.",
   "auth.step_up_required": "Dafür musst du zuerst nachweisen, dass du es bist: mit deinem Passwort, oder mit dem Code aus deiner Authenticator-App, falls du eine eingerichtet hast.",

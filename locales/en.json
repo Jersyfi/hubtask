@@ -160,7 +160,7 @@
   "auth.link_password_required": "Type the password of this account to connect the provider to it.",
   "auth.mfa_not_enrolled": "This account has no second factor enrolled.",
   "auth.mfa_already_armed": "A second factor is already active. Disable it with your password before enrolling again.",
-  "auth.mfa_required_by_tenant": "This workspace requires a second factor for your role. It cannot be disabled here.",
+  "auth.mfa_required_by_tenant": "Your workspace requires a second factor of you, so it cannot be turned off.",
   "auth.mfa_credential_required": "This operation needs a signed-in session or the pending credential of a sign-in.",
   "auth.mfa_enrollment_pending": "The enrolment is not confirmed yet. Confirm it with a code from your authenticator.",
   "auth.password_rule.min_length": "{minimum, plural, one {At least # character} other {At least # characters}}",
