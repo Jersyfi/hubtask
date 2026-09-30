@@ -82,6 +82,11 @@ type ExternalAccounts interface {
 	// index is what refuses a subject already spoken for, and it refuses rather than this method,
 	// because two sign-ins racing must not both win.
 	LinkSubject(ctx context.Context, providerID, accountID shared.ID, subject string, now time.Time) (bool, error)
+
+	// HasIdentity answers whether the account already signs in through any provider. Such an
+	// identity is a credential, and an account that holds one is not connected to a second provider
+	// on that provider's word (ADR-0071's addendum, E2).
+	HasIdentity(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
 // SealedProviderSecret is one row's wrapping, as a rotation needs it: which row, and what is

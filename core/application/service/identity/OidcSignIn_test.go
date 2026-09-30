@@ -88,6 +88,16 @@ func (s *externalStore) LinkSubject(
 	return true, nil
 }
 
+// HasIdentity answers whether any provider already signs the account in.
+func (s *externalStore) HasIdentity(_ context.Context, accountID shared.ID) (bool, error) {
+	for _, account := range s.bySubject {
+		if account.ID == accountID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // arriving is the identity the library would have verified.
 type arrivingDouble struct {
 	identity provider.Identity

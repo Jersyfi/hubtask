@@ -443,7 +443,7 @@ func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string
 
 const findPendingByHash = `-- name: FindPendingByHash :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
-       p.created_at, p.expires_at, p.consumed_at,
+       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -466,6 +466,8 @@ type FindPendingByHashRow struct {
 	CreatedAt          pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
 	ConsumedAt         pgtype.Timestamptz
+	LinkProviderID     pgtype.UUID
+	LinkSubject        *string
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -491,6 +493,8 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.ConsumedAt,
+		&i.LinkProviderID,
+		&i.LinkSubject,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -698,23 +702,27 @@ func (q *Queries) FindStepUpMethod(ctx context.Context, arg FindStepUpMethodPara
 const insertPendingCredential = `-- name: InsertPendingCredential :exec
 
 INSERT INTO auth_pending
-  (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
+  (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
+   link_provider_id, link_subject)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8
+  $7, $8,
+  $9, $10
 )
 `
 
 type InsertPendingCredentialParams struct {
-	ID        pgtype.UUID
-	AccountID pgtype.UUID
-	TokenHash []byte
-	Purpose   string
-	UserAgent *string
-	IpClass   *string
-	CreatedAt pgtype.Timestamptz
-	ExpiresAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	AccountID      pgtype.UUID
+	TokenHash      []byte
+	Purpose        string
+	UserAgent      *string
+	IpClass        *string
+	CreatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	LinkProviderID pgtype.UUID
+	LinkSubject    *string
 }
 
 // ====================== The pending credential (H-02) ======================
@@ -728,6 +736,8 @@ func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPending
 		arg.IpClass,
 		arg.CreatedAt,
 		arg.ExpiresAt,
+		arg.LinkProviderID,
+		arg.LinkSubject,
 	)
 	return err
 }

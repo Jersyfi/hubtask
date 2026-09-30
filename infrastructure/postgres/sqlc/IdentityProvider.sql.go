@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const accountHasIdentity = `-- name: AccountHasIdentity :one
+SELECT EXISTS (
+  SELECT 1 FROM account_identity WHERE account_id = $1
+) AS held
+`
+
+// Whether the account already signs in through some provider (ADR-0071's addendum): such an
+// identity is a credential of its own, and an account holding one is not connected to another
+// provider on that provider's word.
+func (q *Queries) AccountHasIdentity(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, accountHasIdentity, accountID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const consumeOidcFlow = `-- name: ConsumeOidcFlow :one
 UPDATE oidc_flow SET consumed_at = $1
 WHERE state_hash = $2

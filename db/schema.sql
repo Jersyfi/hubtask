@@ -378,16 +378,24 @@ CREATE TABLE auth_pending (
   account_id  uuid NOT NULL,
   token_hash  bytea NOT NULL,
   -- What the credential may complete. TOTP presents a code, ENROLL is the second factor's
-  -- enforcement route, RESET is the token a reset mail carries, and PASSWORD is the credential
-  -- the PASSWORD_CHANGE step hands out (migration 0098).
-  purpose     text NOT NULL CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD')),
+  -- enforcement route, RESET is the token a reset mail carries, PASSWORD is the credential
+  -- the PASSWORD_CHANGE step hands out (migration 0098), and LINK is a provider arrival waiting
+  -- for the account's own proof (migration 0110).
+  purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
   created_at  timestamptz NOT NULL,
   expires_at  timestamptz NOT NULL,
   consumed_at timestamptz,
+  -- The provider identity this sign-in connects once it completes (migration 0110, E2).
+  link_provider_id uuid REFERENCES identity_provider(id) ON DELETE CASCADE,
+  link_subject     text CHECK (length(link_subject) BETWEEN 1 AND 255),
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT auth_pending_purpose_check
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK')),
+  CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
+  CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
 );
 CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
 

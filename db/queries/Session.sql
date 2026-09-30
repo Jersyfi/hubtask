@@ -314,18 +314,20 @@ WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 
 -- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
-  (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
+  (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
+   link_provider_id, link_subject)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
   sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
-  sqlc.arg('created_at'), sqlc.arg('expires_at')
+  sqlc.arg('created_at'), sqlc.arg('expires_at'),
+  sqlc.narg('link_provider_id'), sqlc.narg('link_subject')
 );
 
 -- name: FindPendingByHash :one
 -- The second step's read: the pending row, its account, and the locale chain in one round trip,
 -- FindSessionForAuth's shape.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
-       p.created_at, p.expires_at, p.consumed_at,
+       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
