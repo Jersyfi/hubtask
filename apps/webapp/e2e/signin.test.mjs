@@ -422,6 +422,59 @@ test('every provider is a button of its own, and only the pressed one is working
   }
 });
 
+// UC-ID-08 check 5: the return from the provider is drawn on the signed-out card - one landmark, one
+// heading, no navigation of an application nobody is signed into - and a failure there offers the
+// way back. Before SC-03 it rendered inside the app's frame while signed out.
+test('the return from a provider happens on the card, and a refusal offers the way back', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', stubFor({ answer: refused }));
+  const page = await context.newPage();
+  try {
+    // The provider sent the browser back with a refusal rather than a code.
+    await page.goto(`${origin}/auth/callback?error=access_denied&state=the-state`);
+    await page.getByRole('heading', { name: 'Signing you in' }).waitFor();
+    assert.ok(await page.getByText('to contoso.hubtask.eu').isVisible(), 'this is not the sign-in card');
+    assert.equal(await page.locator('main').count(), 1);
+    assert.equal(await page.locator('h1').count(), 1);
+    assert.equal(await page.getByRole('navigation').count(), 0, 'the frame of the application is drawn while signed out');
+    assert.equal(new URL(page.url()).search, '', 'the provider’s answer stayed in the address');
+
+    await page.getByRole('button', { name: 'Back to sign-in' }).click();
+    await page.getByRole('heading', { name: 'Sign in' }).waitFor();
+    assert.ok(await page.locator('input[type="email"]').isVisible(), 'the way back does not lead to the form');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+test('a provider return that signs in leaves the card for the application', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const sent = {};
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/api/v1/auth/oidc:callback')) {
+      sent.callback = request.postDataJSON();
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+    await page.waitForFunction(() => location.pathname === '/', null, { timeout: 10_000 });
+    assert.deepEqual(sent.callback, { code: 'the-code', state: 'the-state' });
+    assert.equal(await page.getByRole('heading', { name: 'Signing you in' }).count(), 0, 'the card stayed after the session opened');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // ADR-0071's addendum (E2): a provider arrival whose address matches an account with a password
 // is not signed in on the provider's word. The callback hands the step to the card, the card asks
 // for the account's password once, and - where the account has a second factor - continues into the
