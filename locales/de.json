@@ -353,6 +353,7 @@
   "app.mfa.continue": "Weiter",
   "app.mfa.armed": "Der zweite Faktor ist an. Deine nächste Anmeldung fragt nach einem Code.",
   "app.mfa.title": "Zweiter Faktor",
+  "app.mfa.required_at_sign_in": "Dein Workspace verlangt einen zweiten Faktor. Richte ihn jetzt ein, um die Anmeldung abzuschließen: Das dauert eine Minute und braucht eine Authenticator-App auf deinem Handy.",
   "app.mfa.on": "An. Deine Anmeldung fragt nach einem Code aus deinem Authenticator.",
   "app.mfa.off": "Aus. Dein Passwort ist das Einzige zwischen jemandem und deinem Konto.",
   "app.mfa.disable": "Ausschalten",

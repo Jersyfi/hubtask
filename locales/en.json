@@ -1441,6 +1441,7 @@
   "app.mfa.continue": "Continue",
   "app.mfa.armed": "The second factor is on. Your next sign-in asks for a code.",
   "app.mfa.title": "Second factor",
+  "app.mfa.required_at_sign_in": "Your workspace requires a second factor. Set one up now to finish signing in: it takes a minute and an authenticator app on your phone.",
   "app.mfa.on": "On. Your sign-in asks for a code from your authenticator.",
   "app.mfa.off": "Off. Your password is the only thing between somebody and your account.",
   "app.mfa.disable": "Turn it off",

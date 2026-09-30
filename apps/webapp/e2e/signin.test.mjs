@@ -307,6 +307,12 @@ test('a setup forced during sign-in confirms in the code field and shows the cod
     await page.locator('input[autocomplete="current-password"]').fill('annas-own-password');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
+    // UC-ID-03 check 7: why this step is here, and whose account it is for.
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.ok(await page.getByText('Your workspace requires a second factor.', { exact: false }).isVisible(), 'the card does not say why');
+    assert.ok(await page.getByText('anna@contoso.example').isVisible(), 'the identity line names the account');
+    assert.ok(await page.getByRole('button', { name: 'Not you?' }).isVisible(), 'the way back is offered');
+
     await walkSetup(page, sent);
     assert.deepEqual(sent.enroll, { pending_token: 'enroll-1' });
     assert.equal(sent.confirm?.pending_token, 'enroll-1');

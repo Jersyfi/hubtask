@@ -200,13 +200,23 @@
     </form>
   </SignInCard>
 {:else if mustEnroll}
-  <!-- Not a code: this workspace demands a second factor of its administrators and this one has
-       none yet, so the server routed the sign-in into enrolment. Confirming it *is* the sign-in. -->
-  <SignInCard title={t('app.mfa.title')} step={{ index: 2, total: 2 }} {notice}>
-    <TotpEnrollment
-      pendingToken={session.pendingCredential}
-      onarmed={(pair) => pair && session.hold(pair)}
-    />
+  <!-- Not a code: this workspace demands a second factor of this person and they have none yet,
+       so the server routed the sign-in into setup. Confirming it *is* the sign-in. The card says
+       why before it asks for anything, and whose account it is for - a setup nobody explained is
+       a step somebody abandons (UC-ID-03 check 7). -->
+  <SignInCard
+    title={t('app.mfa.title')}
+    step={{ index: 2, total: 2 }}
+    lead={t('app.mfa.required_at_sign_in')}
+    {notice}
+  >
+    <Stack gap="200">
+      {@render identity()}
+      <TotpEnrollment
+        pendingToken={session.pendingCredential}
+        onarmed={(pair) => pair && session.hold(pair)}
+      />
+    </Stack>
   </SignInCard>
 {:else if mustChange}
   <SignInCard
