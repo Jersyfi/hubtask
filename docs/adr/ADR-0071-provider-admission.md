@@ -108,7 +108,8 @@ the world, and that is a decision, not a default.
 ### 4. `INVITED_ONLY` is the one mode a directory does not gate
 
 It admits anybody the provider vouched for and creates nothing: the bound is the accounts that
-already exist here. A directory list on top of it is allowed and narrows it further, which is what a
+already exist here. *Since the addendum of 2026-09-30,* an account that already holds a credential
+is connected only after its own proof, the `LINK` step. A directory list on top of it is allowed and narrows it further, which is what a
 platform wants when it offers one provider to everybody and still refuses one directory.
 
 ### 5. What a provider promises is checked, and rechecked
@@ -142,7 +143,8 @@ than a role, and a probe that went around it would be the one caller that does.
   has a sentence about what the comparand is for a templated issuer, and §2 carries a note pointing
   here so that nobody reading it alone gets the unrefined rule.
 * **`GENERIC` is unchanged**, and is still the preset with no verified addresses and therefore no
-  `INVITED_ONLY` and no place at installation level.
+  `INVITED_ONLY` and no place at installation level. *Withdrawn by the addendum of 2026-09-30:*
+  `GENERIC` may be `INVITED_ONLY`, and may be offered at installation level as `INVITED_ONLY` only.
 * **Apple is not added here.** Its client secret is a signed JWT that expires within six months,
   which is a credential-rotation problem rather than an admission one; it belongs to its own task.
 
@@ -195,7 +197,7 @@ shows it is `TestAProviderCannotOpenAnAccountThatHoldsAPasswordAndAFactor`.
    `INVITED_ONLY`" is withdrawn.** It made `GENERIC` more permissive, not less: the modes left to it
    claim accounts on the same signal *and* create new ones. `GENERIC` may be `INVITED_ONLY`.
 4. **An installation provider without a directory claim may be offered only as `INVITED_ONLY`.**
-   That replaces §8's "never an installation provider": a self-hosted issuer offered to every
+   That replaces "never an installation provider" in *What this decision does not settle* above: a self-hosted issuer offered to every
    workspace admits the people each workspace invited, and nobody else.
 5. **Configuring, changing, offering and removing a provider asks for a step-up**, like every other
    change to how people sign in.
