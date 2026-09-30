@@ -38,7 +38,11 @@ export async function walkSetup(page, sent) {
   assert.deepEqual(sent.confirm?.code, '123456');
   assert.equal(await proceed.isDisabled(), true, 'Continue is available before the codes were stored');
   await page.getByRole('button', { name: 'Show the codes' }).click();
+  assert.ok(await page.getByRole('button', { name: 'Hide the codes' }).isVisible(), 'the control says what it hides');
   assert.ok(await page.getByText(ENROLLMENT.recovery_codes[9]).isVisible(), 'the tenth code is shown');
+  // One per line: a code broken across two lines is a code copied wrong by hand.
+  const lines = (await page.getByText(ENROLLMENT.recovery_codes[0]).innerText()).split('\n');
+  assert.deepEqual(lines, ENROLLMENT.recovery_codes, 'the codes are not one per line');
   assert.ok(await page.getByRole('button', { name: 'Copy all ten' }).isVisible(), 'the ten are copyable as one block');
   await page.getByLabel('I have stored these codes. They will not be shown again.').check();
   assert.equal(await proceed.isDisabled(), false, 'ticking did not make Continue available');

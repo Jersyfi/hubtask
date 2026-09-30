@@ -161,6 +161,10 @@
     color: var(--text-primary);
     font-family: var(--font-mono);
     overflow-wrap: anywhere;
+    /* A value of several lines keeps them: ten recovery codes are handed over one per line, and
+       collapsed into one paragraph they wrapped in the middle of a code, which is where a person
+       copying them by hand writes the wrong one. A single-line value is unchanged. */
+    white-space: pre-line;
   }
 
   /* Hidden and revealed are the same box: a mask of a fixed length that then grew to the value's

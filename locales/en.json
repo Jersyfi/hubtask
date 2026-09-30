@@ -1511,6 +1511,7 @@
   "app.recovery.regenerate_hint": "The ten you have now stop working the moment the new ones appear.",
   "app.recovery.none_yet": "Ten codes come with the second factor, and there is no second factor on this account yet. Set one up and they are shown once, at the end.",
   "app.recovery.reveal": "Show the codes",
+  "app.recovery.hide": "Hide the codes",
   "app.recovery.copy": "Copy all ten",
   "app.recovery.copied": "Copied.",
   "app.recovery.acknowledge": "I have stored these codes. They will not be shown again.",

@@ -14,7 +14,8 @@
   // push of this component — and a scanner taught to ignore a path is a scanner that ignores the
   // next thing in it.
   const exampleToken = 'hbt_pat_example_value_not_a_real_token';
-  const recovery = 'ZP4T-K9WQ · 3MNB-7XRD · 2LFV-8HGS · 6CJY-1AEU · 5DKW-0QNP';
+  // One per line, as the product hands them over.
+  const recovery = ['ZP4T-K9WQ', '3MNB-7XRD', '2LFV-8HGS', '6CJY-1AEU', '5DKW-0QNP'].join('\n');
 </script>
 
 {#if mode === 'acknowledge'}
