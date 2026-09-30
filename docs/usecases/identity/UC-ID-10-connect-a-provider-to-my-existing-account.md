@@ -5,9 +5,9 @@ context: identity
 actors: [PE-member, PE-owner, PE-admin]
 deployments: [D3, D4, D5, D6]
 serves: [P-02, P-05, P-12]
-state: specified
+state: verified
 tasks: [SC-01]
-checked_by: []
+checked_by: [core/application/service/identity/OidcLinking_test.go, core/application/service/identity/OidcAdmission_test.go, core/application/service/identity/IdentityProviderConfig_test.go, core/domain/model/identity/IdentityProviderPreset_test.go, test/integration/identity_provider_test.go, apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Connect a sign-in provider to the account I already have
@@ -31,7 +31,8 @@ An invited person who never chose a password is connected at once — nothing to
 
 1. A provider arrival whose address matches an account that has a password, a second factor or
    another provider connected is **not** signed in; the card asks for that account's password and,
-   if it has one, its second factor.
+   if it has one, its second factor. An account that has no password cannot give that proof on the
+   card and is refused with a sentence that points to the way in it has.
 2. Only after both are proven is the provider identity connected and the session opened; the
    connection is recorded in the trail as a link, with the provider and without the address.
 3. A wrong password or code in that step connects nothing and counts against the account's
@@ -50,11 +51,3 @@ An invited person who never chose a password is connected at once — nothing to
 * Disconnecting a provider from an account is an administrator's tool today and is not required
   here.
 * Accounts that already have a connected identity from this provider are not asked again.
-
-## Today
-
-* **Checks 1, 2, 5, 6 and 7 fail.** Under *Anyone from these organisations* and *Anyone this
-  provider knows*, an arrival is connected to an existing account on the provider's word alone and
-  the session opens without the account's second factor (`OidcSignIn.go`, `settleAccount`). An
-  administrator may configure providers without a step-up. Decided as E2 on 2026-09-30; built in
-  SC-01.

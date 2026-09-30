@@ -127,7 +127,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-07](./identity/UC-ID-07-accept-an-invitation.md) | Accept an invitation and set up my account | identity | partial |
 | [UC-ID-08](./identity/UC-ID-08-sign-in-with-my-organisations-directory.md) | Sign in with my organisation's directory | identity | partial |
 | [UC-ID-09](./identity/UC-ID-09-sign-in-with-google-or-microsoft.md) | Sign in with my Google or Microsoft account | identity | built |
-| [UC-ID-10](./identity/UC-ID-10-connect-a-provider-to-my-existing-account.md) | Connect a sign-in provider to the account I already have | identity | specified |
+| [UC-ID-10](./identity/UC-ID-10-connect-a-provider-to-my-existing-account.md) | Connect a sign-in provider to the account I already have | identity | verified |
 | [UC-ID-11](./identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md) | Set up a sign-in provider for our workspace | identity | partial |
 | [UC-ID-12](./identity/UC-ID-12-set-the-workspaces-sign-in-rules-in-one-place.md) | Set how people in our workspace sign in, in one place | identity | partial |
 | [UC-ID-13](./identity/UC-ID-13-require-a-new-password-from-everyone.md) | Require a new password from everyone after a breach | identity | built |

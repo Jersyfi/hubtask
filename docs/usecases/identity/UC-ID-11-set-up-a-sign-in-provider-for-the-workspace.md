@@ -6,7 +6,7 @@ actors: [PE-admin, PE-owner]
 deployments: [D3, D4, D6]
 serves: [P-02, P-05, P-06, P-08, P-12]
 state: partial
-tasks: [SI-10, SI-11, SI-16]
+tasks: [SI-10, SI-11, SI-16, SC-01]
 checked_by: [core/application/service/identity/IdentityProviderConfig_test.go]
 ---
 
@@ -62,10 +62,7 @@ or a role, or a group.
 ## Today
 
 * **Check 1 fails:** the screen offers the modes as developer-style labels.
-* **Check 3 fails:** *Other OpenID Connect provider* may not be *Only invited* — the rule
-  "GENERIC may not be INVITED_ONLY", reversed by E2 on 2026-09-30 (SC-01).
 * **Check 5 fails:** there is no *New people get* setting (SC-02).
 * **Check 6 fails:** the address is inside a sentence, without a copy button.
-* **Check 7 fails:** configuring a provider needs no fresh proof.
 * **Check 8 fails:** a provider is switched on its form, on an inherited offer, and through
   `methods`, which has no control at all.
