@@ -1950,6 +1950,7 @@ func (e MembershipScope) Valid() bool {
 // Defines values for MfaChallengeMethods.
 const (
 	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
+	MfaChallengeMethodsLINK           MfaChallengeMethods = "LINK"
 	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
 	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
 	MfaChallengeMethodsTOTP           MfaChallengeMethods = "TOTP"
@@ -1959,6 +1960,8 @@ const (
 func (e MfaChallengeMethods) Valid() bool {
 	switch e {
 	case MfaChallengeMethodsENROLL:
+		return true
+	case MfaChallengeMethodsLINK:
 		return true
 	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
@@ -5283,11 +5286,14 @@ type IdentityProviderKind string
 
 // IdentityProviderPreset What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it.
 type IdentityProviderPreset struct {
-	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know, and the safe reading of "cannot know" is the one that does not give away an account. It is what decides whether `INVITED_ONLY` is available.
+	// AddressesVerified Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know. Informational since ADR-0071's addendum: what keeps an address from handing over an account is the account's own proof, so `INVITED_ONLY` is available for every preset.
 	AddressesVerified bool `json:"addresses_verified"`
 
 	// DirectoryClaim The claim this provider names an organisation in: `tid` at Microsoft, `hd` at Google. Absent for a provider that has none, and that is what decides whether `DOMAINS` reads `allowed_directories` or `allowed_email_domains` — so a screen asks for the one the server will actually consult.
 	DirectoryClaim *string `json:"directory_claim,omitempty"`
+
+	// InstallationProvisioning The modes it permits when the installation offers it to every workspace. Narrower for a preset with no directory claim: offered everywhere, it may only admit the people each workspace invited (ADR-0071's addendum).
+	InstallationProvisioning []IdentityProviderProvisioning `json:"installation_provisioning"`
 
 	// Instructions A message code (ADR-0011), rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
 	Instructions string `json:"instructions"`
@@ -5298,7 +5304,7 @@ type IdentityProviderPreset struct {
 	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
 	Particular *string `json:"particular,omitempty"`
 
-	// Provisioning The modes this preset permits, strictest first.
+	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
 	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
@@ -5804,6 +5810,15 @@ type LegalPolicySettings struct {
 	TermsUrl         SignInPolicyText `json:"terms_url"`
 }
 
+// LinkCompletion defines model for LinkCompletion.
+type LinkCompletion struct {
+	// Password The password of the account the provider's address matched.
+	Password string `json:"password"`
+
+	// PendingToken The `LINK` challenge's credential. It dies on use.
+	PendingToken string `json:"pending_token"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -5922,9 +5937,11 @@ type MembershipScope string
 
 // MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
 type MfaChallenge struct {
+	// Email Present with `LINK` and with no other step: whose account the provider's address matched, for the identity line on the card - the person arrived from the provider and typed no address.
+	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3); `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link` (ADR-0071's addendum). Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
@@ -5932,6 +5949,9 @@ type MfaChallenge struct {
 
 	// PendingToken Presented at `/auth/sessions:verify` - or, for ENROLL, at the enrolment routes.
 	PendingToken string `json:"pending_token"`
+
+	// ProviderName Present with `LINK`: the name of the provider that will sign the person in once the account is proven.
+	ProviderName *string `json:"provider_name,omitempty"`
 }
 
 // MfaChallengeMethods defines model for MfaChallenge.Methods.
@@ -9285,6 +9305,9 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 // SignInJSONRequestBody defines body for SignIn for application/json ContentType.
 type SignInJSONRequestBody = SignIn
 
+// CompleteLinkJSONRequestBody defines body for CompleteLink for application/json ContentType.
+type CompleteLinkJSONRequestBody = LinkCompletion
+
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
 
@@ -10253,6 +10276,7 @@ type ClientInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes any type of body and a specified content type.
@@ -10264,6 +10288,7 @@ type ClientInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes a body of the `application/json` content type.
@@ -10458,6 +10483,26 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
 	ElevateSession(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteLinkWithBody Prove the account before a provider is connected to it
+	//
+	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+	CompleteLinkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteLink Prove the account before a provider is connected to it
+	//
+	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+	CompleteLink(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RefreshSessionWithBody Exchange a refresh token for the next pair
 	//
@@ -14328,6 +14373,7 @@ func (c *Client) DisableTotp(ctx context.Context, body DisableTotpJSONRequestBod
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes any type of body and a specified content type.
@@ -14349,6 +14395,7 @@ func (c *Client) CompleteOidcSignInWithBody(ctx context.Context, contentType str
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes a body of the `application/json` content type.
@@ -14734,6 +14781,46 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 // Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
 func (c *Client) ElevateSession(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewElevateSessionRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteLinkWithBody Prove the account before a provider is connected to it
+//
+// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+func (c *Client) CompleteLinkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteLinkRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteLink Prove the account before a provider is connected to it
+//
+// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+func (c *Client) CompleteLink(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteLinkRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -22619,6 +22706,46 @@ func NewElevateSessionRequest(server string, params *ElevateSessionParams) (*htt
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewCompleteLinkRequest calls the generic CompleteLink builder with application/json body
+func NewCompleteLinkRequest(server string, body CompleteLinkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompleteLinkRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCompleteLinkRequestWithBody constructs an http.Request for the CompleteLink method, with any body, and a specified content type
+func NewCompleteLinkRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:link")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -34005,6 +34132,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -34016,6 +34144,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 	// What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+	// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 	// A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -34220,6 +34349,26 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
 	ElevateSessionWithResponse(ctx context.Context, params *ElevateSessionParams, reqEditors ...RequestEditorFn) (*ElevateSessionResult, error)
+
+	// CompleteLinkWithBodyWithResponse Prove the account before a provider is connected to it
+	//
+	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+	CompleteLinkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteLinkResult, error)
+
+	// CompleteLinkWithResponse Prove the account before a provider is connected to it
+	//
+	// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+	// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+	CompleteLinkWithResponse(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteLinkResult, error)
 
 	// RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 	//
@@ -39105,6 +39254,8 @@ type CompleteOidcSignInResult struct {
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
 	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
@@ -39112,6 +39263,11 @@ type CompleteOidcSignInResult struct {
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
 func (r CompleteOidcSignInResult) GetJSON201() *SessionTokens {
 	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r CompleteOidcSignInResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -39704,6 +39860,61 @@ func (r ElevateSessionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ElevateSessionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompleteLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompleteLinkResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r CompleteLinkResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompleteLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompleteLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompleteLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteLinkResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -51376,6 +51587,7 @@ func (c *ClientWithResponses) DisableTotpWithResponse(ctx context.Context, body 
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -51393,6 +51605,7 @@ func (c *ClientWithResponses) CompleteOidcSignInWithBodyWithResponse(ctx context
 //
 // The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.
 // What it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.
+// An existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.
 // A `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -51716,6 +51929,38 @@ func (c *ClientWithResponses) ElevateSessionWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseElevateSessionResult(rsp)
+}
+
+// CompleteLinkWithBodyWithResponse Prove the account before a provider is connected to it
+//
+// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+func (c *ClientWithResponses) CompleteLinkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteLinkResult, error) {
+	rsp, err := c.CompleteLinkWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteLinkResult(rsp)
+}
+
+// CompleteLinkWithResponse Prove the account before a provider is connected to it
+//
+// The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.
+// With no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
+func (c *ClientWithResponses) CompleteLinkWithResponse(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteLinkResult, error) {
+	rsp, err := c.CompleteLink(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteLinkResult(rsp)
 }
 
 // RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
@@ -57857,6 +58102,13 @@ func ParseCompleteOidcSignInResult(rsp *http.Response) (*CompleteOidcSignInResul
 		}
 		response.JSON201 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -58250,6 +58502,46 @@ func ParseElevateSessionResult(rsp *http.Response) (*ElevateSessionResult, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompleteLinkResult parses an HTTP response from a CompleteLinkWithResponse call
+func ParseCompleteLinkResult(rsp *http.Response) (*CompleteLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompleteLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

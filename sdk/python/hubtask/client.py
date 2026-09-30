@@ -523,6 +523,10 @@ class Client:
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def complete_link(self, body: "LinkCompletion") -> "SessionTokens":
+        """Prove the account before a provider is connected to it"""
+        return self._call("POST", "/auth/sessions:link", {}, None, {}, body, "json", "application/json", "json")
+
     def change_password(self, body: "PasswordChange", *, step_up: str | None = None) -> None:
         """Change the password of the signed-in account"""
         return self._call("POST", "/auth/password", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "void")

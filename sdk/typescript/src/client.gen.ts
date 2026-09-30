@@ -645,6 +645,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Prove the account before a provider is connected to it
+   * Public: sent without a bearer where the client holds none. */
+  completeLink(body: NonNullable<operations["completeLink"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeLink"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:link", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Change the password of the signed-in account */
   changePassword(body: NonNullable<operations["changePassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
     return this.call("POST", "/auth/password", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "void", options.signal);

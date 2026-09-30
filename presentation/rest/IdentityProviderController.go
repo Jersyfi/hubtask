@@ -301,10 +301,17 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 		RedirectUri:  out.String("redirect_uri"),
 		Instructions: out.String("instructions"),
 		Provisioning: []openapi.IdentityProviderProvisioning{},
+		// Required by the contract, so never absent: the installation's list is what its own
+		// screen offers (ADR-0071's addendum).
+		InstallationProvisioning: []openapi.IdentityProviderProvisioning{},
 	}
 	answer.Scopes = append(answer.Scopes, outputStrings(out["scopes"])...)
 	for _, mode := range outputStrings(out["provisioning"]) {
 		answer.Provisioning = append(answer.Provisioning,
+			openapi.IdentityProviderProvisioning(mode))
+	}
+	for _, mode := range outputStrings(out["installation_provisioning"]) {
+		answer.InstallationProvisioning = append(answer.InstallationProvisioning,
 			openapi.IdentityProviderProvisioning(mode))
 	}
 	if verified, held := out["addresses_verified"].(bool); held {
@@ -400,6 +407,12 @@ func (c *RestController) CompleteOidcSignIn(w http.ResponseWriter, r *http.Reque
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
+		return
+	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// The address matched an account with a password, which is asked for before the provider
+		// is connected to it (ADR-0071's addendum): the LINK step.
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))

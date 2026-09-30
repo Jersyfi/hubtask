@@ -56,6 +56,7 @@ var PublicRoutes = map[string]bool{
 	// pending credential in the body is the whole of what authenticates an enforcement flow,
 	// and a signed-in caller's bearer is verified exactly as on any public route.
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":    true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
 	// The relying-party flow is public for the same reason again (H-04): a person signing in

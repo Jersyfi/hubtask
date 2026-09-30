@@ -242,7 +242,7 @@ func (w OidcWriter) Connect(ctx context.Context, account domain.Account, link do
 	return w.record(ctx, OidcLinkedAction, account, configured, provider.Identity{EmailVerified: true})
 }
 
-var _ IdentityConnector = OidcWriter{}
+var _ IdentityConnector = (*OidcWriter)(nil)
 
 // Descriptor is the catalogue entry.
 func (h CompleteLink) Descriptor() usecase.Descriptor {
@@ -265,9 +265,11 @@ func (h CompleteLink) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"token's tenant, never overrule it."},
 		},
+		// Required: the link is recorded whichever way the step ends - here, or where the second
+		// factor's step completes it.
 		Audit: usecase.AuditDeclaration{
 			Action: OidcLinkedAction, TargetType: accountTarget,
-			Severity: audit.SeverityNotice, Required: false,
+			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "A sign-in is not an entry, and the item history is keyed on an entry.",

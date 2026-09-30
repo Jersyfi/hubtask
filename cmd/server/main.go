@@ -1150,6 +1150,11 @@ func run() error {
 	// the rule. Every value built from `sessionWriter` before this line reads the second factor and
 	// not the policy, which is why none of them is affected.
 	sessionWriter.Rule = passwordWriter
+	// And the second factor's step learns to finish a provider link (ADR-0071's addendum, E2): a
+	// LINK that met an armed factor connects the provider when the code is right. Assigned here for
+	// the same reason as the rule - every value built from `sessionWriter` after this line carries it,
+	// which is exactly CompleteSignIn below.
+	sessionWriter.Connector = oidcWriter
 
 	// The check (ADR-0060, F8-03): the same catalogue, compiler and authoriser the write uses,
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
@@ -1333,6 +1338,7 @@ func run() error {
 		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
+		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),

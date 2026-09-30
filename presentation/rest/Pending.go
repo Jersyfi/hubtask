@@ -157,6 +157,8 @@ func (pending) RegenerateRecoveryCodes(
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) CompleteLink(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

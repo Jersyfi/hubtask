@@ -427,6 +427,7 @@ class IdentityProviderPreset(TypedDict, total=False):
     addresses_verified: Required[bool]
     public: Required[bool]
     provisioning: Required[list["IdentityProviderProvisioning"]]
+    installation_provisioning: Required[list["IdentityProviderProvisioning"]]
     redirect_uri: Required[str]
     instructions: Required[str]
     particular: str | None
@@ -567,8 +568,14 @@ class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]
     expires_at: Required[str]
-    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE"]]]
+    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK"]]]
     password_rules: "PasswordRules"
+    email: str | None
+    provider_name: str | None
+
+class LinkCompletion(TypedDict, total=False):
+    pending_token: Required[str]
+    password: Required[str]
 
 class SignInCompletion(TypedDict, total=False):
     pending_token: Required[str]
