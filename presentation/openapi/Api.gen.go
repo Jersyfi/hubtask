@@ -8276,6 +8276,24 @@ type InviteAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
+type CreateInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveInstanceIdentityProviderParams defines parameters for RemoveInstanceIdentityProvider.
+type RemoveInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ConfigureInstanceIdentityProviderParams defines parameters for ConfigureInstanceIdentityProvider.
+type ConfigureInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListInstanceJournalParams defines parameters for ListInstanceJournal.
 type ListInstanceJournalParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -8615,6 +8633,36 @@ type CreateGroupParams struct {
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
+type ConfigureFirstIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CreateIdentityProviderParams defines parameters for CreateIdentityProvider.
+type CreateIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveIdentityProviderParams defines parameters for RemoveIdentityProvider.
+type RemoveIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ConfigureIdentityProviderParams defines parameters for ConfigureIdentityProvider.
+type ConfigureIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// OfferIdentityProviderParams defines parameters for OfferIdentityProvider.
+type OfferIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ImportEntriesParams defines parameters for ImportEntries.
@@ -9609,13 +9657,13 @@ type ServerInterface interface {
 	ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request)
 	// CreateInstanceIdentityProvider Offer every workspace a way in
 	// (POST /admin/identity-providers)
-	CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request)
+	CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, params CreateInstanceIdentityProviderParams)
 	// RemoveInstanceIdentityProvider Withdraw a provider from every workspace at once
 	// (DELETE /admin/identity-providers/{providerId})
-	RemoveInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	RemoveInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params RemoveInstanceIdentityProviderParams)
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
 	// (PUT /admin/identity-providers/{providerId})
-	ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params ConfigureInstanceIdentityProviderParams)
 	// ListInstanceJournal The installation's own record
 	// (GET /admin/journal)
 	ListInstanceJournal(w http.ResponseWriter, r *http.Request, params ListInstanceJournalParams)
@@ -9939,7 +9987,7 @@ type ServerInterface interface {
 	ReadIdentityProvider(w http.ResponseWriter, r *http.Request)
 	// ConfigureFirstIdentityProvider Set the workspace's first identity provider
 	// (PUT /identity-provider)
-	ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request)
+	ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request, params ConfigureFirstIdentityProviderParams)
 	// ListIdentityProviderPresets The providers Hubtask has a preset for, and what registering takes
 	// (GET /identity-provider-presets)
 	ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request)
@@ -9948,16 +9996,16 @@ type ServerInterface interface {
 	ListIdentityProviders(w http.ResponseWriter, r *http.Request)
 	// CreateIdentityProvider Add a provider this workspace signs its people in through
 	// (POST /identity-providers)
-	CreateIdentityProvider(w http.ResponseWriter, r *http.Request)
+	CreateIdentityProvider(w http.ResponseWriter, r *http.Request, params CreateIdentityProviderParams)
 	// RemoveIdentityProvider Remove one of the workspace's identity providers
 	// (DELETE /identity-providers/{providerId})
-	RemoveIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	RemoveIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params RemoveIdentityProviderParams)
 	// ConfigureIdentityProvider Replace one of the workspace's identity providers
 	// (PUT /identity-providers/{providerId})
-	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params ConfigureIdentityProviderParams)
 	// OfferIdentityProvider Switch a provider on or off as a way in here
 	// (POST /identity-providers/{providerId}:offer)
-	OfferIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	OfferIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params OfferIdentityProviderParams)
 	// ImportEntries Import entries from another system into a hub
 	// (POST /imports)
 	ImportEntries(w http.ResponseWriter, r *http.Request, params ImportEntriesParams)
@@ -10640,8 +10688,35 @@ func (siw *ServerInterfaceWrapper) ListInstanceIdentityProviders(w http.Response
 // CreateInstanceIdentityProvider operation middleware
 func (siw *ServerInterfaceWrapper) CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateInstanceIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateInstanceIdentityProvider(w, r)
+		siw.Handler.CreateInstanceIdentityProvider(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10666,8 +10741,32 @@ func (siw *ServerInterfaceWrapper) RemoveInstanceIdentityProvider(w http.Respons
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveInstanceIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RemoveInstanceIdentityProvider(w, r, providerId)
+		siw.Handler.RemoveInstanceIdentityProvider(w, r, providerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10692,8 +10791,32 @@ func (siw *ServerInterfaceWrapper) ConfigureInstanceIdentityProvider(w http.Resp
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConfigureInstanceIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConfigureInstanceIdentityProvider(w, r, providerId)
+		siw.Handler.ConfigureInstanceIdentityProvider(w, r, providerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14203,8 +14326,35 @@ func (siw *ServerInterfaceWrapper) ReadIdentityProvider(w http.ResponseWriter, r
 // ConfigureFirstIdentityProvider operation middleware
 func (siw *ServerInterfaceWrapper) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConfigureFirstIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConfigureFirstIdentityProvider(w, r)
+		siw.Handler.ConfigureFirstIdentityProvider(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14245,8 +14395,35 @@ func (siw *ServerInterfaceWrapper) ListIdentityProviders(w http.ResponseWriter, 
 // CreateIdentityProvider operation middleware
 func (siw *ServerInterfaceWrapper) CreateIdentityProvider(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateIdentityProvider(w, r)
+		siw.Handler.CreateIdentityProvider(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14271,8 +14448,32 @@ func (siw *ServerInterfaceWrapper) RemoveIdentityProvider(w http.ResponseWriter,
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RemoveIdentityProvider(w, r, providerId)
+		siw.Handler.RemoveIdentityProvider(w, r, providerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14297,8 +14498,32 @@ func (siw *ServerInterfaceWrapper) ConfigureIdentityProvider(w http.ResponseWrit
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConfigureIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConfigureIdentityProvider(w, r, providerId)
+		siw.Handler.ConfigureIdentityProvider(w, r, providerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14323,8 +14548,32 @@ func (siw *ServerInterfaceWrapper) OfferIdentityProvider(w http.ResponseWriter, 
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OfferIdentityProviderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.OfferIdentityProvider(w, r, providerId)
+		siw.Handler.OfferIdentityProvider(w, r, providerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

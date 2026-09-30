@@ -5333,6 +5333,11 @@
           "admin"
         ],
         "operationId": "createInstanceIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Offer every workspace a way in",
         "description": "The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.\n",
         "requestBody": {
@@ -5373,6 +5378,11 @@
           "admin"
         ],
         "operationId": "configureInstanceIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Replace one of the installation's providers",
         "description": "Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.\n",
         "requestBody": {
@@ -5406,6 +5416,11 @@
           "admin"
         ],
         "operationId": "removeInstanceIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Withdraw a provider from every workspace at once",
         "description": "Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.\n",
         "responses": {
@@ -5634,6 +5649,11 @@
           "auth"
         ],
         "operationId": "configureFirstIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Set the workspace's first identity provider",
         "description": "Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.\nThe client secret is required when there is nothing to keep, and optional afterwards, as on the collection.\n",
         "requestBody": {
@@ -5695,6 +5715,11 @@
           "auth"
         ],
         "operationId": "createIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Add a provider this workspace signs its people in through",
         "description": "Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.\nTwo refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.\nThe secret is sealed on the way in and appears in no answer afterwards. Auditable.\n",
         "requestBody": {
@@ -5735,6 +5760,11 @@
           "auth"
         ],
         "operationId": "configureIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Replace one of the workspace's identity providers",
         "description": "Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.\nA provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.\n",
         "requestBody": {
@@ -5768,6 +5798,11 @@
           "auth"
         ],
         "operationId": "removeIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Remove one of the workspace's identity providers",
         "description": "The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.\n",
         "responses": {
@@ -5791,6 +5826,11 @@
           "auth"
         ],
         "operationId": "offerIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Switch a provider on or off as a way in here",
         "description": "One verb for two stores, because it is one question: **is this a way into this workspace**.\nFor the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is (ADR-0070 §2, the concept's §8: \"für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner schaltet selbst\").\n**An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.\nThe last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.\n",
         "requestBody": {

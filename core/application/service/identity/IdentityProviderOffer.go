@@ -48,7 +48,7 @@ type OfferIdentityProvider struct {
 
 // Execute switches it.
 func (h OfferIdentityProvider) Execute(
-	ctx context.Context, actor appshared.ActorContext, id shared.ID, offered bool,
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, offered bool, stepUpToken string,
 ) (domain.IdentityProvider, error) {
 	w := h.Writer
 	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
@@ -58,6 +58,10 @@ func (h OfferIdentityProvider) Execute(
 		TokenScope: identityProviderManage,
 		TargetType: identityProviderTarget,
 	}); err != nil {
+		return domain.IdentityProvider{}, err
+	}
+	// Switching a way in on is as much a change to who signs in here as configuring one.
+	if err := w.proveChange(ctx, actor, stepUpToken); err != nil {
 		return domain.IdentityProvider{}, err
 	}
 	if id.IsZero() {
@@ -235,7 +239,9 @@ func (h OfferIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The provider to switch."},
 			{Name: "offered", Kind: usecase.KindBool, Required: true,
 				Description: "Whether it is a way into this workspace."},
+			ProviderStepUpField,
 		},
+		StepUp: providerStepUp,
 		Audit: usecase.AuditDeclaration{
 			Action: IdentityProviderOfferedAction, TargetType: identityProviderTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -254,7 +260,7 @@ func (h OfferIdentityProvider) invoke(
 	if err != nil {
 		return nil, err
 	}
-	switched, err := h.Execute(ctx, actor, id, in.Bool("offered"))
+	switched, err := h.Execute(ctx, actor, id, in.Bool("offered"), in.String("step_up_token"))
 	if err != nil {
 		return nil, err
 	}

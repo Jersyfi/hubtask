@@ -45,13 +45,16 @@ func (c *RestController) ReadIdentityProvider(w http.ResponseWriter, r *http.Req
 }
 
 // ConfigureFirstIdentityProvider answers PUT /identity-provider.
-func (c *RestController) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request) {
-	c.writeProvider(w, r, configureFirstIdentityProviderUseCase, "", http.StatusOK)
+func (c *RestController) ConfigureFirstIdentityProvider(
+	w http.ResponseWriter, r *http.Request, params openapi.ConfigureFirstIdentityProviderParams,
+) {
+	c.writeProvider(w, r, configureFirstIdentityProviderUseCase, "", params.XHubtaskStepUp, http.StatusOK)
 }
 
 // OfferIdentityProvider answers POST /identity-providers/{providerId}:offer.
 func (c *RestController) OfferIdentityProvider(
 	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.OfferIdentityProviderParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
@@ -66,8 +69,9 @@ func (c *RestController) OfferIdentityProvider(
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), offerIdentityProviderUseCase, actorOf(r), usecase.Input{
-		"id":      providerID.String(),
-		"offered": body.Offered,
+		"id":            providerID.String(),
+		"offered":       body.Offered,
+		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -104,33 +108,41 @@ func (c *RestController) listProviders(w http.ResponseWriter, r *http.Request, u
 }
 
 // CreateIdentityProvider answers POST /identity-providers.
-func (c *RestController) CreateIdentityProvider(w http.ResponseWriter, r *http.Request) {
-	c.writeProvider(w, r, configureIdentityProviderUseCase, "", http.StatusCreated)
+func (c *RestController) CreateIdentityProvider(
+	w http.ResponseWriter, r *http.Request, params openapi.CreateIdentityProviderParams,
+) {
+	c.writeProvider(w, r, configureIdentityProviderUseCase, "", params.XHubtaskStepUp, http.StatusCreated)
 }
 
 // ConfigureIdentityProvider answers PUT /identity-providers/{providerId}.
 func (c *RestController) ConfigureIdentityProvider(
 	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.ConfigureIdentityProviderParams,
 ) {
-	c.writeProvider(w, r, configureIdentityProviderUseCase, providerID.String(), http.StatusOK)
+	c.writeProvider(w, r, configureIdentityProviderUseCase, providerID.String(), params.XHubtaskStepUp, http.StatusOK)
 }
 
 // CreateInstanceIdentityProvider answers POST /admin/identity-providers.
-func (c *RestController) CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
-	c.writeProvider(w, r, configureInstanceIdentityProviderUseCase, "", http.StatusCreated)
+func (c *RestController) CreateInstanceIdentityProvider(
+	w http.ResponseWriter, r *http.Request, params openapi.CreateInstanceIdentityProviderParams,
+) {
+	c.writeProvider(w, r, configureInstanceIdentityProviderUseCase, "", params.XHubtaskStepUp, http.StatusCreated)
 }
 
 // ConfigureInstanceIdentityProvider answers PUT /admin/identity-providers/{providerId}.
 func (c *RestController) ConfigureInstanceIdentityProvider(
 	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.ConfigureInstanceIdentityProviderParams,
 ) {
-	c.writeProvider(w, r, configureInstanceIdentityProviderUseCase, providerID.String(), http.StatusOK)
+	c.writeProvider(w, r, configureInstanceIdentityProviderUseCase, providerID.String(),
+		params.XHubtaskStepUp, http.StatusOK)
 }
 
 // writeProvider decodes the body once for four routes. Which level and whether it adds or replaces
 // are the use case's name and the presence of an identifier - nothing here decides either.
 func (c *RestController) writeProvider(
-	w http.ResponseWriter, r *http.Request, useCase, providerID string, created int,
+	w http.ResponseWriter, r *http.Request, useCase, providerID string,
+	stepUp *openapi.StepUpToken, created int,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
@@ -145,8 +157,9 @@ func (c *RestController) writeProvider(
 	}
 
 	in := usecase.Input{
-		"issuer":    body.Issuer,
-		"client_id": body.ClientId,
+		"issuer":        body.Issuer,
+		"client_id":     body.ClientId,
+		"step_up_token": stepUpHeaderField(stepUp),
 	}
 	if providerID != "" {
 		in["id"] = providerID
@@ -189,19 +202,22 @@ func (c *RestController) writeProvider(
 // RemoveIdentityProvider answers DELETE /identity-providers/{providerId}.
 func (c *RestController) RemoveIdentityProvider(
 	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.RemoveIdentityProviderParams,
 ) {
-	c.removeProvider(w, r, removeIdentityProviderUseCase, providerID)
+	c.removeProvider(w, r, removeIdentityProviderUseCase, providerID, params.XHubtaskStepUp)
 }
 
 // RemoveInstanceIdentityProvider answers DELETE /admin/identity-providers/{providerId}.
 func (c *RestController) RemoveInstanceIdentityProvider(
 	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
+	params openapi.RemoveInstanceIdentityProviderParams,
 ) {
-	c.removeProvider(w, r, removeInstanceIdentityProviderUseCase, providerID)
+	c.removeProvider(w, r, removeInstanceIdentityProviderUseCase, providerID, params.XHubtaskStepUp)
 }
 
 func (c *RestController) removeProvider(
 	w http.ResponseWriter, r *http.Request, useCase string, providerID openapi.ProviderId,
+	stepUp *openapi.StepUpToken,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
@@ -210,7 +226,8 @@ func (c *RestController) removeProvider(
 	}
 
 	if _, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), usecase.Input{
-		"id": providerID.String(),
+		"id":            providerID.String(),
+		"step_up_token": stepUpHeaderField(stepUp),
 	}); err != nil {
 		WriteProblem(w, err, requestID)
 		return

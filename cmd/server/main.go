@@ -1089,6 +1089,8 @@ func run() error {
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries (SI-10).
 		RedirectURL: oidcRedirectURL,
+		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2).
+		StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 	}
 
 	// The operator register and the installation's own settings (ADR-0070 §1, §2). Built here

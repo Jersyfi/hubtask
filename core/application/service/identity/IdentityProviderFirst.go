@@ -183,7 +183,9 @@ func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The domains a verified address must be inside under DOMAINS."},
 			{Name: "enabled", Kind: usecase.KindBool,
 				Description: "Off keeps the configuration and refuses the flow."},
+			ProviderStepUpField,
 		},
+		StepUp: providerStepUp,
 		Audit: usecase.AuditDeclaration{
 			Action: IdentityProviderConfiguredAction, TargetType: identityProviderTarget,
 			Severity: audit.SeverityNotice, Required: true,

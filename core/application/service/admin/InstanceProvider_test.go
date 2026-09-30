@@ -229,7 +229,7 @@ func TestTheInstanceProviderOperationsDemandTheRegisterAsWellAsTheScope(t *testi
 		t.Errorf("a reader outside the register answered %v", err)
 	}
 	if err := (RemoveInstanceIdentityProvider{Writer: writer}).
-		Execute(t.Context(), operator(), shared.ID("01936f2a-7c1e-7000-8000-0000000000c1")); !errors.Is(err, shared.ErrForbidden) {
+		Execute(t.Context(), operator(), shared.ID("01936f2a-7c1e-7000-8000-0000000000c1"), ""); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a removal outside the register answered %v", err)
 	}
 	if len(store.rows) != 0 || len(relying.checked) != 0 {

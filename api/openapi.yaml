@@ -4062,6 +4062,8 @@ paths:
     post:
       tags: [admin]
       operationId: createInstanceIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Offer every workspace a way in
       description: >
         The same rules as a workspace's own provider - discovery before anything is stored, the
@@ -4090,6 +4092,8 @@ paths:
     put:
       tags: [admin]
       operationId: configureInstanceIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Replace one of the installation's providers
       description: >
         Set whole, with the secret's one exception: omitting it keeps the one that is sealed.
@@ -4112,6 +4116,8 @@ paths:
     delete:
       tags: [admin]
       operationId: removeInstanceIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Withdraw a provider from every workspace at once
       description: >
         Every workspace loses that way in the moment this returns. The accounts it signed in keep
@@ -4323,6 +4329,8 @@ paths:
     put:
       tags: [auth]
       operationId: configureFirstIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Set the workspace's first identity provider
       description: >
         Sets the first provider whole, or creates it where the workspace has none. The same rules
@@ -4378,6 +4386,8 @@ paths:
     post:
       tags: [auth]
       operationId: createIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Add a provider this workspace signs its people in through
       description: >
         Discovery runs before anything is stored, through the guarded client, so an issuer this
@@ -4413,6 +4423,8 @@ paths:
     put:
       tags: [auth]
       operationId: configureIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Replace one of the workspace's identity providers
       description: >
         Set whole, not patched: a provider half-changed is a provider nobody can reason about. The
@@ -4439,6 +4451,8 @@ paths:
     delete:
       tags: [auth]
       operationId: removeIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Remove one of the workspace's identity providers
       description: >
         The configuration and its sealed secret go. Accounts provisioned through it keep their
@@ -4456,6 +4470,8 @@ paths:
     post:
       tags: [auth]
       operationId: offerIdentityProvider
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       summary: Switch a provider on or off as a way in here
       description: >
         One verb for two stores, because it is one question: **is this a way into this workspace**.

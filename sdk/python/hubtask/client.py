@@ -659,17 +659,17 @@ class Client:
         """The providers this installation offers every workspace"""
         return self._call("GET", "/admin/identity-providers", {}, None, {}, None, "none", None, "json")
 
-    def create_instance_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+    def create_instance_identity_provider(self, body: "IdentityProviderConfiguration", *, step_up: str | None = None) -> "IdentityProvider":
         """Offer every workspace a way in"""
-        return self._call("POST", "/admin/identity-providers", {}, None, {}, body, "json", "application/json", "json")
+        return self._call("POST", "/admin/identity-providers", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
-    def configure_instance_identity_provider(self, provider_id: str, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+    def configure_instance_identity_provider(self, provider_id: str, body: "IdentityProviderConfiguration", *, step_up: str | None = None) -> "IdentityProvider":
         """Replace one of the installation's providers"""
-        return self._call("PUT", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+        return self._call("PUT", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
-    def remove_instance_identity_provider(self, provider_id: str) -> None:
+    def remove_instance_identity_provider(self, provider_id: str, *, step_up: str | None = None) -> None:
         """Withdraw a provider from every workspace at once"""
-        return self._call("DELETE", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
+        return self._call("DELETE", "/admin/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
     def read_encryption_status(self) -> "EncryptionStatus":
         """The keyring, and what still names each key"""
@@ -699,29 +699,29 @@ class Client:
         """The workspace's first identity provider"""
         return self._call("GET", "/identity-provider", {}, None, {}, None, "none", None, "json")
 
-    def configure_first_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+    def configure_first_identity_provider(self, body: "IdentityProviderConfiguration", *, step_up: str | None = None) -> "IdentityProvider":
         """Set the workspace's first identity provider"""
-        return self._call("PUT", "/identity-provider", {}, None, {}, body, "json", "application/json", "json")
+        return self._call("PUT", "/identity-provider", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def list_identity_providers(self) -> dict[str, Any]:
         """The providers people can sign in to this workspace through"""
         return self._call("GET", "/identity-providers", {}, None, {}, None, "none", None, "json")
 
-    def create_identity_provider(self, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+    def create_identity_provider(self, body: "IdentityProviderConfiguration", *, step_up: str | None = None) -> "IdentityProvider":
         """Add a provider this workspace signs its people in through"""
-        return self._call("POST", "/identity-providers", {}, None, {}, body, "json", "application/json", "json")
+        return self._call("POST", "/identity-providers", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
-    def configure_identity_provider(self, provider_id: str, body: "IdentityProviderConfiguration") -> "IdentityProvider":
+    def configure_identity_provider(self, provider_id: str, body: "IdentityProviderConfiguration", *, step_up: str | None = None) -> "IdentityProvider":
         """Replace one of the workspace's identity providers"""
-        return self._call("PUT", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+        return self._call("PUT", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
-    def remove_identity_provider(self, provider_id: str) -> None:
+    def remove_identity_provider(self, provider_id: str, *, step_up: str | None = None) -> None:
         """Remove one of the workspace's identity providers"""
-        return self._call("DELETE", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {}, None, "none", None, "void")
+        return self._call("DELETE", "/identity-providers/{providerId}", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
-    def offer_identity_provider(self, provider_id: str, body: "ProviderOffer") -> "IdentityProvider":
+    def offer_identity_provider(self, provider_id: str, body: "ProviderOffer", *, step_up: str | None = None) -> "IdentityProvider":
         """Switch a provider on or off as a way in here"""
-        return self._call("POST", "/identity-providers/{providerId}:offer", {"providerId": provider_id}, None, {}, body, "json", "application/json", "json")
+        return self._call("POST", "/identity-providers/{providerId}:offer", {"providerId": provider_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def list_identity_provider_presets(self) -> dict[str, Any]:
         """The providers Hubtask has a preset for, and what registering takes"""

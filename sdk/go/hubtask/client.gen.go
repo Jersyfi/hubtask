@@ -8282,6 +8282,24 @@ type InviteAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
+type CreateInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveInstanceIdentityProviderParams defines parameters for RemoveInstanceIdentityProvider.
+type RemoveInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ConfigureInstanceIdentityProviderParams defines parameters for ConfigureInstanceIdentityProvider.
+type ConfigureInstanceIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListInstanceJournalParams defines parameters for ListInstanceJournal.
 type ListInstanceJournalParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -8621,6 +8639,36 @@ type CreateGroupParams struct {
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
+type ConfigureFirstIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// CreateIdentityProviderParams defines parameters for CreateIdentityProvider.
+type CreateIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveIdentityProviderParams defines parameters for RemoveIdentityProvider.
+type RemoveIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ConfigureIdentityProviderParams defines parameters for ConfigureIdentityProvider.
+type ConfigureIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// OfferIdentityProviderParams defines parameters for OfferIdentityProvider.
+type OfferIdentityProviderParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD` and `TOTP`).
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ImportEntriesParams defines parameters for ImportEntries.
@@ -9839,7 +9887,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-	CreateInstanceIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateInstanceIdentityProviderWithBody(ctx context.Context, params *CreateInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateInstanceIdentityProvider Offer every workspace a way in
 	//
@@ -9848,14 +9896,14 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-	CreateInstanceIdentityProvider(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateInstanceIdentityProvider(ctx context.Context, params *CreateInstanceIdentityProviderParams, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveInstanceIdentityProvider Withdraw a provider from every workspace at once
 	//
 	// Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.
 	//
 	// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
-	RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *RemoveInstanceIdentityProviderParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfigureInstanceIdentityProviderWithBody Replace one of the installation's providers
 	//
@@ -9864,7 +9912,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-	ConfigureInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConfigureInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfigureInstanceIdentityProvider Replace one of the installation's providers
 	//
@@ -9873,7 +9921,7 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-	ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceJournal The installation's own record
 	//
@@ -11249,7 +11297,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-	ConfigureFirstIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConfigureFirstIdentityProviderWithBody(ctx context.Context, params *ConfigureFirstIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfigureFirstIdentityProvider Set the workspace's first identity provider
 	//
@@ -11259,7 +11307,7 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-	ConfigureFirstIdentityProvider(ctx context.Context, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConfigureFirstIdentityProvider(ctx context.Context, params *ConfigureFirstIdentityProviderParams, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListIdentityProviderPresets The providers Hubtask has a preset for, and what registering takes
 	//
@@ -11287,7 +11335,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-	CreateIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateIdentityProviderWithBody(ctx context.Context, params *CreateIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateIdentityProvider Add a provider this workspace signs its people in through
 	//
@@ -11298,14 +11346,14 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-	CreateIdentityProvider(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateIdentityProvider(ctx context.Context, params *CreateIdentityProviderParams, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveIdentityProvider Remove one of the workspace's identity providers
 	//
 	// The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
 	//
 	// Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
-	RemoveIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RemoveIdentityProvider(ctx context.Context, providerId ProviderId, params *RemoveIdentityProviderParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfigureIdentityProviderWithBody Replace one of the workspace's identity providers
 	//
@@ -11315,7 +11363,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConfigureIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfigureIdentityProvider Replace one of the workspace's identity providers
 	//
@@ -11325,7 +11373,7 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConfigureIdentityProvider(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// OfferIdentityProviderWithBody Switch a provider on or off as a way in here
 	//
@@ -11337,7 +11385,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-	OfferIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	OfferIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// OfferIdentityProvider Switch a provider on or off as a way in here
 	//
@@ -11349,7 +11397,7 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-	OfferIdentityProvider(ctx context.Context, providerId ProviderId, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	OfferIdentityProvider(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ImportEntriesWithBody Import entries from another system into a hub
 	//
@@ -13486,8 +13534,8 @@ func (c *Client) ListInstanceIdentityProviders(ctx context.Context, reqEditors .
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-func (c *Client) CreateInstanceIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateInstanceIdentityProviderRequestWithBody(c.Server, contentType, body)
+func (c *Client) CreateInstanceIdentityProviderWithBody(ctx context.Context, params *CreateInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceIdentityProviderRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -13505,8 +13553,8 @@ func (c *Client) CreateInstanceIdentityProviderWithBody(ctx context.Context, con
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-func (c *Client) CreateInstanceIdentityProvider(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateInstanceIdentityProviderRequest(c.Server, body)
+func (c *Client) CreateInstanceIdentityProvider(ctx context.Context, params *CreateInstanceIdentityProviderParams, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceIdentityProviderRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -13522,8 +13570,8 @@ func (c *Client) CreateInstanceIdentityProvider(ctx context.Context, body Create
 // Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.
 //
 // Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
-func (c *Client) RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRemoveInstanceIdentityProviderRequest(c.Server, providerId)
+func (c *Client) RemoveInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *RemoveInstanceIdentityProviderParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveInstanceIdentityProviderRequest(c.Server, providerId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -13541,8 +13589,8 @@ func (c *Client) RemoveInstanceIdentityProvider(ctx context.Context, providerId 
 // Takes any type of body and a specified content type.
 //
 // Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-func (c *Client) ConfigureInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureInstanceIdentityProviderRequestWithBody(c.Server, providerId, contentType, body)
+func (c *Client) ConfigureInstanceIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceIdentityProviderRequestWithBody(c.Server, providerId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -13560,8 +13608,8 @@ func (c *Client) ConfigureInstanceIdentityProviderWithBody(ctx context.Context, 
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-func (c *Client) ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureInstanceIdentityProviderRequest(c.Server, providerId, body)
+func (c *Client) ConfigureInstanceIdentityProvider(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceIdentityProviderRequest(c.Server, providerId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16526,8 +16574,8 @@ func (c *Client) ReadIdentityProvider(ctx context.Context, reqEditors ...Request
 // Takes any type of body and a specified content type.
 //
 // Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-func (c *Client) ConfigureFirstIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureFirstIdentityProviderRequestWithBody(c.Server, contentType, body)
+func (c *Client) ConfigureFirstIdentityProviderWithBody(ctx context.Context, params *ConfigureFirstIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureFirstIdentityProviderRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16546,8 +16594,8 @@ func (c *Client) ConfigureFirstIdentityProviderWithBody(ctx context.Context, con
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-func (c *Client) ConfigureFirstIdentityProvider(ctx context.Context, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureFirstIdentityProviderRequest(c.Server, body)
+func (c *Client) ConfigureFirstIdentityProvider(ctx context.Context, params *ConfigureFirstIdentityProviderParams, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureFirstIdentityProviderRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16604,8 +16652,8 @@ func (c *Client) ListIdentityProviders(ctx context.Context, reqEditors ...Reques
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-func (c *Client) CreateIdentityProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateIdentityProviderRequestWithBody(c.Server, contentType, body)
+func (c *Client) CreateIdentityProviderWithBody(ctx context.Context, params *CreateIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateIdentityProviderRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16625,8 +16673,8 @@ func (c *Client) CreateIdentityProviderWithBody(ctx context.Context, contentType
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-func (c *Client) CreateIdentityProvider(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateIdentityProviderRequest(c.Server, body)
+func (c *Client) CreateIdentityProvider(ctx context.Context, params *CreateIdentityProviderParams, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateIdentityProviderRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16642,8 +16690,8 @@ func (c *Client) CreateIdentityProvider(ctx context.Context, body CreateIdentity
 // The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.
 //
 // Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
-func (c *Client) RemoveIdentityProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRemoveIdentityProviderRequest(c.Server, providerId)
+func (c *Client) RemoveIdentityProvider(ctx context.Context, providerId ProviderId, params *RemoveIdentityProviderParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveIdentityProviderRequest(c.Server, providerId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -16662,8 +16710,8 @@ func (c *Client) RemoveIdentityProvider(ctx context.Context, providerId Provider
 // Takes any type of body and a specified content type.
 //
 // Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureIdentityProviderRequestWithBody(c.Server, providerId, contentType, body)
+func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureIdentityProviderRequestWithBody(c.Server, providerId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16682,8 +16730,8 @@ func (c *Client) ConfigureIdentityProviderWithBody(ctx context.Context, provider
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-func (c *Client) ConfigureIdentityProvider(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConfigureIdentityProviderRequest(c.Server, providerId, body)
+func (c *Client) ConfigureIdentityProvider(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureIdentityProviderRequest(c.Server, providerId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16704,8 +16752,8 @@ func (c *Client) ConfigureIdentityProvider(ctx context.Context, providerId Provi
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-func (c *Client) OfferIdentityProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewOfferIdentityProviderRequestWithBody(c.Server, providerId, contentType, body)
+func (c *Client) OfferIdentityProviderWithBody(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOfferIdentityProviderRequestWithBody(c.Server, providerId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16726,8 +16774,8 @@ func (c *Client) OfferIdentityProviderWithBody(ctx context.Context, providerId P
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-func (c *Client) OfferIdentityProvider(ctx context.Context, providerId ProviderId, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewOfferIdentityProviderRequest(c.Server, providerId, body)
+func (c *Client) OfferIdentityProvider(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOfferIdentityProviderRequest(c.Server, providerId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -20935,18 +20983,18 @@ func NewListInstanceIdentityProvidersRequest(server string) (*http.Request, erro
 }
 
 // NewCreateInstanceIdentityProviderRequest calls the generic CreateInstanceIdentityProvider builder with application/json body
-func NewCreateInstanceIdentityProviderRequest(server string, body CreateInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
+func NewCreateInstanceIdentityProviderRequest(server string, params *CreateInstanceIdentityProviderParams, body CreateInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateInstanceIdentityProviderRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateInstanceIdentityProviderRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewCreateInstanceIdentityProviderRequestWithBody constructs an http.Request for the CreateInstanceIdentityProvider method, with any body, and a specified content type
-func NewCreateInstanceIdentityProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateInstanceIdentityProviderRequestWithBody(server string, params *CreateInstanceIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -20971,11 +21019,26 @@ func NewCreateInstanceIdentityProviderRequestWithBody(server string, contentType
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
 // NewRemoveInstanceIdentityProviderRequest constructs an http.Request for the RemoveInstanceIdentityProvider method
-func NewRemoveInstanceIdentityProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+func NewRemoveInstanceIdentityProviderRequest(server string, providerId ProviderId, params *RemoveInstanceIdentityProviderParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -21005,22 +21068,37 @@ func NewRemoveInstanceIdentityProviderRequest(server string, providerId Provider
 		return nil, err
 	}
 
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
 // NewConfigureInstanceIdentityProviderRequest calls the generic ConfigureInstanceIdentityProvider builder with application/json body
-func NewConfigureInstanceIdentityProviderRequest(server string, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
+func NewConfigureInstanceIdentityProviderRequest(server string, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewConfigureInstanceIdentityProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+	return NewConfigureInstanceIdentityProviderRequestWithBody(server, providerId, params, "application/json", bodyReader)
 }
 
 // NewConfigureInstanceIdentityProviderRequestWithBody constructs an http.Request for the ConfigureInstanceIdentityProvider method, with any body, and a specified content type
-func NewConfigureInstanceIdentityProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+func NewConfigureInstanceIdentityProviderRequestWithBody(server string, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -21051,6 +21129,21 @@ func NewConfigureInstanceIdentityProviderRequestWithBody(server string, provider
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -26044,18 +26137,18 @@ func NewReadIdentityProviderRequest(server string) (*http.Request, error) {
 }
 
 // NewConfigureFirstIdentityProviderRequest calls the generic ConfigureFirstIdentityProvider builder with application/json body
-func NewConfigureFirstIdentityProviderRequest(server string, body ConfigureFirstIdentityProviderJSONRequestBody) (*http.Request, error) {
+func NewConfigureFirstIdentityProviderRequest(server string, params *ConfigureFirstIdentityProviderParams, body ConfigureFirstIdentityProviderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewConfigureFirstIdentityProviderRequestWithBody(server, "application/json", bodyReader)
+	return NewConfigureFirstIdentityProviderRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewConfigureFirstIdentityProviderRequestWithBody constructs an http.Request for the ConfigureFirstIdentityProvider method, with any body, and a specified content type
-func NewConfigureFirstIdentityProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewConfigureFirstIdentityProviderRequestWithBody(server string, params *ConfigureFirstIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -26079,6 +26172,21 @@ func NewConfigureFirstIdentityProviderRequestWithBody(server string, contentType
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -26138,18 +26246,18 @@ func NewListIdentityProvidersRequest(server string) (*http.Request, error) {
 }
 
 // NewCreateIdentityProviderRequest calls the generic CreateIdentityProvider builder with application/json body
-func NewCreateIdentityProviderRequest(server string, body CreateIdentityProviderJSONRequestBody) (*http.Request, error) {
+func NewCreateIdentityProviderRequest(server string, params *CreateIdentityProviderParams, body CreateIdentityProviderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateIdentityProviderRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateIdentityProviderRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewCreateIdentityProviderRequestWithBody constructs an http.Request for the CreateIdentityProvider method, with any body, and a specified content type
-func NewCreateIdentityProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateIdentityProviderRequestWithBody(server string, params *CreateIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -26174,11 +26282,26 @@ func NewCreateIdentityProviderRequestWithBody(server string, contentType string,
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
 // NewRemoveIdentityProviderRequest constructs an http.Request for the RemoveIdentityProvider method
-func NewRemoveIdentityProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+func NewRemoveIdentityProviderRequest(server string, providerId ProviderId, params *RemoveIdentityProviderParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -26208,22 +26331,37 @@ func NewRemoveIdentityProviderRequest(server string, providerId ProviderId) (*ht
 		return nil, err
 	}
 
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
 // NewConfigureIdentityProviderRequest calls the generic ConfigureIdentityProvider builder with application/json body
-func NewConfigureIdentityProviderRequest(server string, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody) (*http.Request, error) {
+func NewConfigureIdentityProviderRequest(server string, providerId ProviderId, params *ConfigureIdentityProviderParams, body ConfigureIdentityProviderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewConfigureIdentityProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+	return NewConfigureIdentityProviderRequestWithBody(server, providerId, params, "application/json", bodyReader)
 }
 
 // NewConfigureIdentityProviderRequestWithBody constructs an http.Request for the ConfigureIdentityProvider method, with any body, and a specified content type
-func NewConfigureIdentityProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+func NewConfigureIdentityProviderRequestWithBody(server string, providerId ProviderId, params *ConfigureIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -26255,22 +26393,37 @@ func NewConfigureIdentityProviderRequestWithBody(server string, providerId Provi
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
 // NewOfferIdentityProviderRequest calls the generic OfferIdentityProvider builder with application/json body
-func NewOfferIdentityProviderRequest(server string, providerId ProviderId, body OfferIdentityProviderJSONRequestBody) (*http.Request, error) {
+func NewOfferIdentityProviderRequest(server string, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewOfferIdentityProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+	return NewOfferIdentityProviderRequestWithBody(server, providerId, params, "application/json", bodyReader)
 }
 
 // NewOfferIdentityProviderRequestWithBody constructs an http.Request for the OfferIdentityProvider method, with any body, and a specified content type
-func NewOfferIdentityProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+func NewOfferIdentityProviderRequestWithBody(server string, providerId ProviderId, params *OfferIdentityProviderParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -26301,6 +26454,21 @@ func NewOfferIdentityProviderRequestWithBody(server string, providerId ProviderI
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -33669,7 +33837,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-	CreateInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error)
+	CreateInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, params *CreateInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error)
 
 	// CreateInstanceIdentityProviderWithResponse Offer every workspace a way in
 	//
@@ -33678,7 +33846,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-	CreateInstanceIdentityProviderWithResponse(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error)
+	CreateInstanceIdentityProviderWithResponse(ctx context.Context, params *CreateInstanceIdentityProviderParams, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error)
 
 	// RemoveInstanceIdentityProviderWithResponse Withdraw a provider from every workspace at once
 	//
@@ -33687,7 +33855,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
-	RemoveInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceIdentityProviderResult, error)
+	RemoveInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *RemoveInstanceIdentityProviderParams, reqEditors ...RequestEditorFn) (*RemoveInstanceIdentityProviderResult, error)
 
 	// ConfigureInstanceIdentityProviderWithBodyWithResponse Replace one of the installation's providers
 	//
@@ -33696,7 +33864,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-	ConfigureInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
+	ConfigureInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
 
 	// ConfigureInstanceIdentityProviderWithResponse Replace one of the installation's providers
 	//
@@ -33705,7 +33873,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-	ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
+	ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error)
 
 	// ListInstanceJournalWithResponse The installation's own record
 	//
@@ -35217,7 +35385,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-	ConfigureFirstIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error)
+	ConfigureFirstIdentityProviderWithBodyWithResponse(ctx context.Context, params *ConfigureFirstIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error)
 
 	// ConfigureFirstIdentityProviderWithResponse Set the workspace's first identity provider
 	//
@@ -35227,7 +35395,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-	ConfigureFirstIdentityProviderWithResponse(ctx context.Context, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error)
+	ConfigureFirstIdentityProviderWithResponse(ctx context.Context, params *ConfigureFirstIdentityProviderParams, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error)
 
 	// ListIdentityProviderPresetsWithResponse The providers Hubtask has a preset for, and what registering takes
 	//
@@ -35259,7 +35427,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-	CreateIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error)
+	CreateIdentityProviderWithBodyWithResponse(ctx context.Context, params *CreateIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error)
 
 	// CreateIdentityProviderWithResponse Add a provider this workspace signs its people in through
 	//
@@ -35270,7 +35438,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-	CreateIdentityProviderWithResponse(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error)
+	CreateIdentityProviderWithResponse(ctx context.Context, params *CreateIdentityProviderParams, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error)
 
 	// RemoveIdentityProviderWithResponse Remove one of the workspace's identity providers
 	//
@@ -35279,7 +35447,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
-	RemoveIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error)
+	RemoveIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *RemoveIdentityProviderParams, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error)
 
 	// ConfigureIdentityProviderWithBodyWithResponse Replace one of the workspace's identity providers
 	//
@@ -35289,7 +35457,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
+	ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
 
 	// ConfigureIdentityProviderWithResponse Replace one of the workspace's identity providers
 	//
@@ -35299,7 +35467,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-	ConfigureIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
+	ConfigureIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error)
 
 	// OfferIdentityProviderWithBodyWithResponse Switch a provider on or off as a way in here
 	//
@@ -35311,7 +35479,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-	OfferIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error)
+	OfferIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error)
 
 	// OfferIdentityProviderWithResponse Switch a provider on or off as a way in here
 	//
@@ -35323,7 +35491,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-	OfferIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error)
+	OfferIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error)
 
 	// ImportEntriesWithBodyWithResponse Import entries from another system into a hub
 	//
@@ -50854,8 +51022,8 @@ func (c *ClientWithResponses) ListInstanceIdentityProvidersWithResponse(ctx cont
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-func (c *ClientWithResponses) CreateInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error) {
-	rsp, err := c.CreateInstanceIdentityProviderWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, params *CreateInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error) {
+	rsp, err := c.CreateInstanceIdentityProviderWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -50869,8 +51037,8 @@ func (c *ClientWithResponses) CreateInstanceIdentityProviderWithBodyWithResponse
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /admin/identity-providers (the `CreateInstanceIdentityProvider` operationId).
-func (c *ClientWithResponses) CreateInstanceIdentityProviderWithResponse(ctx context.Context, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error) {
-	rsp, err := c.CreateInstanceIdentityProvider(ctx, body, reqEditors...)
+func (c *ClientWithResponses) CreateInstanceIdentityProviderWithResponse(ctx context.Context, params *CreateInstanceIdentityProviderParams, body CreateInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceIdentityProviderResult, error) {
+	rsp, err := c.CreateInstanceIdentityProvider(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -50884,8 +51052,8 @@ func (c *ClientWithResponses) CreateInstanceIdentityProviderWithResponse(ctx con
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with DELETE /admin/identity-providers/{providerId} (the `RemoveInstanceIdentityProvider` operationId).
-func (c *ClientWithResponses) RemoveInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceIdentityProviderResult, error) {
-	rsp, err := c.RemoveInstanceIdentityProvider(ctx, providerId, reqEditors...)
+func (c *ClientWithResponses) RemoveInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *RemoveInstanceIdentityProviderParams, reqEditors ...RequestEditorFn) (*RemoveInstanceIdentityProviderResult, error) {
+	rsp, err := c.RemoveInstanceIdentityProvider(ctx, providerId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -50899,8 +51067,8 @@ func (c *ClientWithResponses) RemoveInstanceIdentityProviderWithResponse(ctx con
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error) {
-	rsp, err := c.ConfigureInstanceIdentityProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
+func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error) {
+	rsp, err := c.ConfigureInstanceIdentityProviderWithBody(ctx, providerId, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -50914,8 +51082,8 @@ func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithBodyWithRespo
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /admin/identity-providers/{providerId} (the `ConfigureInstanceIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error) {
-	rsp, err := c.ConfigureInstanceIdentityProvider(ctx, providerId, body, reqEditors...)
+func (c *ClientWithResponses) ConfigureInstanceIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureInstanceIdentityProviderParams, body ConfigureInstanceIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceIdentityProviderResult, error) {
+	rsp, err := c.ConfigureInstanceIdentityProvider(ctx, providerId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53380,8 +53548,8 @@ func (c *ClientWithResponses) ReadIdentityProviderWithResponse(ctx context.Conte
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureFirstIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error) {
-	rsp, err := c.ConfigureFirstIdentityProviderWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) ConfigureFirstIdentityProviderWithBodyWithResponse(ctx context.Context, params *ConfigureFirstIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error) {
+	rsp, err := c.ConfigureFirstIdentityProviderWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53396,8 +53564,8 @@ func (c *ClientWithResponses) ConfigureFirstIdentityProviderWithBodyWithResponse
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /identity-provider (the `ConfigureFirstIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureFirstIdentityProviderWithResponse(ctx context.Context, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error) {
-	rsp, err := c.ConfigureFirstIdentityProvider(ctx, body, reqEditors...)
+func (c *ClientWithResponses) ConfigureFirstIdentityProviderWithResponse(ctx context.Context, params *ConfigureFirstIdentityProviderParams, body ConfigureFirstIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureFirstIdentityProviderResult, error) {
+	rsp, err := c.ConfigureFirstIdentityProvider(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53446,8 +53614,8 @@ func (c *ClientWithResponses) ListIdentityProvidersWithResponse(ctx context.Cont
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-func (c *ClientWithResponses) CreateIdentityProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error) {
-	rsp, err := c.CreateIdentityProviderWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateIdentityProviderWithBodyWithResponse(ctx context.Context, params *CreateIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error) {
+	rsp, err := c.CreateIdentityProviderWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53463,8 +53631,8 @@ func (c *ClientWithResponses) CreateIdentityProviderWithBodyWithResponse(ctx con
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /identity-providers (the `CreateIdentityProvider` operationId).
-func (c *ClientWithResponses) CreateIdentityProviderWithResponse(ctx context.Context, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error) {
-	rsp, err := c.CreateIdentityProvider(ctx, body, reqEditors...)
+func (c *ClientWithResponses) CreateIdentityProviderWithResponse(ctx context.Context, params *CreateIdentityProviderParams, body CreateIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIdentityProviderResult, error) {
+	rsp, err := c.CreateIdentityProvider(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53478,8 +53646,8 @@ func (c *ClientWithResponses) CreateIdentityProviderWithResponse(ctx context.Con
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with DELETE /identity-providers/{providerId} (the `RemoveIdentityProvider` operationId).
-func (c *ClientWithResponses) RemoveIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error) {
-	rsp, err := c.RemoveIdentityProvider(ctx, providerId, reqEditors...)
+func (c *ClientWithResponses) RemoveIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *RemoveIdentityProviderParams, reqEditors ...RequestEditorFn) (*RemoveIdentityProviderResult, error) {
+	rsp, err := c.RemoveIdentityProvider(ctx, providerId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53494,8 +53662,8 @@ func (c *ClientWithResponses) RemoveIdentityProviderWithResponse(ctx context.Con
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
-	rsp, err := c.ConfigureIdentityProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
+func (c *ClientWithResponses) ConfigureIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
+	rsp, err := c.ConfigureIdentityProviderWithBody(ctx, providerId, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53510,8 +53678,8 @@ func (c *ClientWithResponses) ConfigureIdentityProviderWithBodyWithResponse(ctx 
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /identity-providers/{providerId} (the `ConfigureIdentityProvider` operationId).
-func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
-	rsp, err := c.ConfigureIdentityProvider(ctx, providerId, body, reqEditors...)
+func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *ConfigureIdentityProviderParams, body ConfigureIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureIdentityProviderResult, error) {
+	rsp, err := c.ConfigureIdentityProvider(ctx, providerId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53528,8 +53696,8 @@ func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-func (c *ClientWithResponses) OfferIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error) {
-	rsp, err := c.OfferIdentityProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
+func (c *ClientWithResponses) OfferIdentityProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error) {
+	rsp, err := c.OfferIdentityProviderWithBody(ctx, providerId, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -53546,8 +53714,8 @@ func (c *ClientWithResponses) OfferIdentityProviderWithBodyWithResponse(ctx cont
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
-func (c *ClientWithResponses) OfferIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error) {
-	rsp, err := c.OfferIdentityProvider(ctx, providerId, body, reqEditors...)
+func (c *ClientWithResponses) OfferIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error) {
+	rsp, err := c.OfferIdentityProvider(ctx, providerId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
