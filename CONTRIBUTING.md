@@ -6,9 +6,11 @@ accident, it is the basis you work from.
 ## Before you write code
 
 1. Read `CLAUDE.md`. The fifteen rules it lists apply to humans just the same.
-2. Read the document under `docs/architecture/` that matches what you are doing, and the ADRs it
+2. Read the use cases your task names (`docs/usecases/`) and the principles they serve
+   (`docs/vision/principles.md`). They say what must be true for the person; the rest says how.
+3. Read the document under `docs/architecture/` that matches what you are doing, and the ADRs it
    links to.
-3. Open an issue before starting anything substantial. For architectural changes open an ADR
+4. Open an issue before starting anything substantial. For architectural changes open an ADR
    issue, not a pull request presenting a decision as already made.
 
 ## The loop
