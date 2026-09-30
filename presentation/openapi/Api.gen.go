@@ -3680,6 +3680,9 @@ type Account struct {
 	// The same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.
 	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
 
+	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse (P-05).
+	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
+
 	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row

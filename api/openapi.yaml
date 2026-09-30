@@ -8066,6 +8066,13 @@ components:
 
             The same number has ridden along with a sign-in since H-02, where nobody could act on
             it. Here it is beside the account, which is where the screen that makes new ones is.
+        second_factor_required:
+          type: boolean
+          description: >
+            Whether the workspace's sign-in rule in force demands a second factor of this person,
+            answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in
+            and turning the factor off make, so a screen can say "your workspace requires it"
+            instead of offering a control the server would refuse (P-05).
 
     Actor:
       type: object

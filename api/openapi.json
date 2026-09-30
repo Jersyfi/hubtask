@@ -10950,6 +10950,10 @@
           "recovery_codes_remaining": {
             "type": "integer",
             "description": "How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else (SI-09). **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not \"zero left\" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.\nThe same number has ridden along with a sign-in since H-02, where nobody could act on it. Here it is beside the account, which is where the screen that makes new ones is.\n"
+          },
+          "second_factor_required": {
+            "type": "boolean",
+            "description": "Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else (UC-ID-03). The same reading signing in and turning the factor off make, so a screen can say \"your workspace requires it\" instead of offering a control the server would refuse (P-05).\n"
           }
         }
       },

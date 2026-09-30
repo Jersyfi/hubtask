@@ -52,6 +52,15 @@ type GetOwnAccount struct {
 	// authenticator from one whose codes have all been spent, so it showed somebody with no
 	// authenticator a red "none left" and offered them two actions the server would refuse.
 	Enrollments repository.MfaEnrollments
+	// Factor answers whether the workspace's rule demands a second factor of this person - the
+	// reading signing in and turning the factor off make (UC-ID-03 check 5). Nil answers false,
+	// which is what an installation wired without the rule enforces.
+	Factor FactorRule
+}
+
+// FactorRule is the one reading of "does this workspace demand a second factor of me".
+type FactorRule interface {
+	DemandsFactorOf(ctx context.Context, actor appshared.ActorContext) (bool, error)
 }
 
 // Execute returns the account of the authenticated actor.
@@ -78,6 +87,9 @@ type OwnAccount struct {
 	// confirmed protects nobody and locks nobody out, so it counts as none here - the same reading
 	// the sign-in path takes.
 	HasSecondFactor bool
+	// SecondFactorRequired is whether the rule in force demands a factor of this person, so that a
+	// screen can say so rather than offer a control the server refuses (P-05).
+	SecondFactorRequired bool
 	// RecoveryCodesRemaining is -1 where there is nothing to count: an installation wired without
 	// the second factor, or an account that holds none. Its codes are not "zero left", they are a
 	// thing that does not exist yet, and a screen told zero sends somebody to make codes the server
@@ -146,6 +158,13 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 	}
 
 	answer := OwnAccount{Account: account, RecoveryCodesRemaining: -1}
+	if h.Factor != nil {
+		required, err := h.Factor.DemandsFactorOf(ctx, actor)
+		if err != nil {
+			return OwnAccount{}, err
+		}
+		answer.SecondFactorRequired = required
+	}
 	if h.Recovery == nil || h.Enrollments == nil {
 		return answer, nil
 	}
@@ -185,6 +204,7 @@ func (h GetOwnAccount) invoke(
 	}
 	out := accountOutput(own.Account)
 	out["has_second_factor"] = own.HasSecondFactor
+	out["second_factor_required"] = own.SecondFactorRequired
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

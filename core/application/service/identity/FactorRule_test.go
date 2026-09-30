@@ -93,3 +93,34 @@ func TestTurningOffIgnoresTheOldBooleanWhereTheRuleSaysOtherwise(t *testing.T) {
 		t.Errorf("an administrator under a rule of nobody was refused by the old boolean: %v", err)
 	}
 }
+
+// UC-ID-03 check 5: the profile learns in advance what turning the factor off would meet, from the
+// same reading (P-05) - so it can say "your workspace requires it" instead of offering the control.
+func TestTheOwnAccountSaysWhetherTheWorkspaceRequiresAFactor(t *testing.T) {
+	for _, c := range []struct {
+		requirement domain.MfaRequirement
+		role        domain.Role
+		required    bool
+	}{
+		{domain.MfaForNobody, domain.RoleOwner, false},
+		{domain.MfaForAdmins, domain.RoleMember, false},
+		{domain.MfaForAdmins, domain.RoleAdmin, true},
+		{domain.MfaForEveryone, domain.RoleMember, true},
+	} {
+		fixture := armedUnder(t, c.requirement, c.role)
+		handler := GetOwnAccount{
+			Accounts: fixture.session.writer.People, UnitOfWork: &unitOfWork{},
+			Recovery: fixture.session.writer.Recovery, Enrollments: fixture.enroll,
+			Factor: fixture.session.writer,
+		}
+		actor := signedInActor()
+		actor.Scopes = []string{accountsRead}
+		own, err := handler.ExecuteWithRecovery(t.Context(), actor)
+		if err != nil {
+			t.Fatalf("%s/%s: reading: %v", c.requirement, c.role, err)
+		}
+		if own.SecondFactorRequired != c.required {
+			t.Errorf("%s/%s: required reads %v, want %v", c.requirement, c.role, own.SecondFactorRequired, c.required)
+		}
+	}
+}
