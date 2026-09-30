@@ -388,7 +388,8 @@ CREATE TABLE auth_pending (
   expires_at  timestamptz NOT NULL,
   consumed_at timestamptz,
   -- The provider identity this sign-in connects once it completes (migration 0110, E2).
-  link_provider_id uuid REFERENCES identity_provider(id) ON DELETE CASCADE,
+  -- Its foreign key is declared after identity_provider, which this file defines further down.
+  link_provider_id uuid,
   link_subject     text CHECK (length(link_subject) BETWEEN 1 AND 255),
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -528,6 +529,10 @@ CREATE TABLE account_identity (
 );
 CREATE UNIQUE INDEX account_identity_subject_uq
   ON account_identity (tenant_id, provider_id, subject);
+
+-- auth_pending's link to a provider (migration 0110), declared here because identity_provider is.
+ALTER TABLE auth_pending ADD CONSTRAINT auth_pending_link_provider_id_fkey
+  FOREIGN KEY (link_provider_id) REFERENCES identity_provider(id) ON DELETE CASCADE;
 
 -- One browser round trip of authorization code + PKCE. The state is hashed because the caller
 -- presents it back; the verifier and the nonce are kept as they are because one travels to the
