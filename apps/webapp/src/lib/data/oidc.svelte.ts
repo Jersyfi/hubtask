@@ -44,6 +44,18 @@ interface SessionTokens {
   readonly refresh_token: string;
 }
 
+/**
+ * The `202` the callback answers when the provider's address matched an account that already holds
+ * a password (ADR-0071's addendum): the `LINK` step, with whose account and which provider.
+ */
+interface LinkOwed {
+  readonly pending_token: string;
+  readonly methods: readonly string[];
+  readonly expires_at?: string;
+  readonly email?: string | null;
+  readonly provider_name?: string | null;
+}
+
 class Oidc {
   #failure = $state<string | undefined>(undefined);
   #working = $state(false);
@@ -114,10 +126,21 @@ class Oidc {
     this.#working = true;
     this.#failure = undefined;
     try {
-      const answer = await engine.mutate<SessionTokens>('POST', CALLBACK, {
+      const answer = await engine.mutate<SessionTokens | LinkOwed>('POST', CALLBACK, {
         code: handoff.code,
         state: handoff.state,
       });
+      if ('pending_token' in answer) {
+        // The account has a password, and the provider is connected only once it is proven: the
+        // sign-in card takes the step over, exactly as it takes a second factor over. `true`,
+        // because the flow did not fail - it continues on the card.
+        session.owe(answer.pending_token, answer.methods, {
+          expiresAt: answer.expires_at,
+          email: answer.email ?? undefined,
+          providerName: answer.provider_name ?? undefined,
+        });
+        return true;
+      }
       session.hold({ access: answer.access_token, refresh: answer.refresh_token });
       return true;
     } catch (cause) {

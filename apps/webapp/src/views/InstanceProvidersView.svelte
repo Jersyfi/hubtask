@@ -100,18 +100,16 @@
   );
 
   /**
-   * The modes this preset permits, minus the one an installation's row may never hold.
+   * The modes this preset permits when the installation offers it, as the server answers them.
    *
-   * A preset whose addresses are not verified permits only `DOMAINS` and `ANY`, and neither may be
-   * an installation's: that is the whole list gone, which is what makes the kind unofferable rather
-   * than merely restricted (ADR-0070 §2).
+   * Narrower than a workspace's for a preset with no directory claim: offered to every workspace, a
+   * self-hosted issuer may admit only the people each workspace invited (ADR-0071's addendum). The
+   * server's list rather than a rule repeated here, so the two cannot disagree.
    */
-  const modes = $derived(
-    preset === undefined
-      ? []
-      : preset.addresses_verified
-        ? preset.provisioning
-        : [],
+  const modes = $derived(preset === undefined ? [] : preset.installation_provisioning);
+  /** Whether the installation's level narrows this preset to the invited, which the form says. */
+  const narrowedToInvited = $derived(
+    preset !== undefined && modes.length === 1 && preset.provisioning.length > 1,
   );
 
   // A mode the chosen preset does not permit is one the server refuses at the save, so it is
@@ -272,7 +270,6 @@
     <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
     <Button
       tone="primary"
-      disabledReason={modes.length === 0 ? t('app.instance.provider_unverified_title') : undefined}
       isBusy={working === 'configure'}
       busyLabel={t('app.instance.working')}
       onclick={() =>
@@ -295,12 +292,10 @@
       }))}
     />
 
-    {#if preset && !preset.addresses_verified}
-      <!-- Not a refusal to render later: the reason is stated where the choice is made, because a
-           save that fails after four fields is four fields of wasted typing. -->
-      <Banner tone="warning" title={t('app.instance.provider_unverified_title')}>
-        {t('app.instance.provider_unverified')}
-      </Banner>
+    {#if narrowedToInvited}
+      <!-- Said where the choice is made: the admission field below offers one answer, and a field
+           with one answer needs the sentence that says why. -->
+      <Banner tone="info">{t('app.instance.provider_invited_only')}</Banner>
     {/if}
     {#if preset?.particular}
       <Banner tone="info">{t(preset.particular, { redirect_uri: preset.redirect_uri })}</Banner>

@@ -47,6 +47,7 @@ const VERIFY = '/auth/sessions:verify';
 const REDEEM = '/auth/invitations:redeem';
 /** The step a rotated or tightened policy routes a right password into (`PASSWORD_CHANGE`). */
 const SET_PASSWORD = '/auth/sessions:set-password';
+const LINK = '/auth/sessions:link';
 
 export type SessionStatus = 'signed-out' | 'verifying' | 'signed-in';
 
@@ -85,6 +86,12 @@ export interface SecondFactorOwed {
    * time for something the server has already decided, in the one moment it knows the account.
    */
   readonly passwordRules?: unknown;
+  /**
+   * The provider that will sign this person in once the account is proven, where the step is
+   * `LINK` (ADR-0071's addendum). The person arrived from the provider, so the card has to say
+   * which one it is connecting.
+   */
+  readonly providerName?: string;
 }
 
 class Session {
@@ -191,10 +198,37 @@ class Session {
    * The reset and the password sign-in reach the same place from two doors, and a second machine
    * for the second door is a second set of bugs.
    */
-  owe(pendingToken: string, methods: readonly string[]): void {
+  owe(
+    pendingToken: string,
+    methods: readonly string[],
+    context: { expiresAt?: string; email?: string; providerName?: string } = {},
+  ): void {
     this.#pending = pendingToken;
-    this.#owed = { methods };
+    this.#owed = { methods, expiresAt: context.expiresAt, providerName: context.providerName };
+    // A provider arrival typed no address, so the identity line takes the one the server matched.
+    if (context.email !== undefined) this.#email = context.email;
     this.#status = 'signed-out';
+  }
+
+  /** Whether a provider arrival is waiting for the account's password (ADR-0071's addendum). */
+  get mustConfirmLink(): boolean {
+    return this.#owed?.methods.includes('LINK') ?? false;
+  }
+
+  /**
+   * Proves the account a provider arrival matched, with its password.
+   *
+   * The answer is the session, or the second factor's step where the account has one - `#open`
+   * reads both, the way it reads every other step. A wrong password leaves the credential in place,
+   * because it is a retry rather than the end of the attempt.
+   */
+  async confirmLink(password: string): Promise<boolean> {
+    const pending = this.#pending;
+    if (pending === undefined) return false;
+    return this.#open(
+      () => engine.mutate<SessionTokens>('POST', LINK, { pending_token: pending, password }),
+      { keepPending: true },
+    );
   }
 
   /**

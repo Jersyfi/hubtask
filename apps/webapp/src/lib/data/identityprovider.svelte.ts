@@ -39,6 +39,7 @@ import type {
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/identity-providers';
 const PRESETS = '/identity-provider-presets';
@@ -92,7 +93,11 @@ class IdentityProviderStore {
 
   /** Adds one. The listing is invalidated, so the screen sees what the server stored. */
   async add(body: IdentityProviderConfiguration): Promise<IdentityProvider> {
-    return engine.mutate<IdentityProvider>('POST', PATH, body, { invalidates: [PATH] });
+    // Every change to a way in asks for a fresh proof (ADR-0071's addendum): which provider may
+    // vouch for this workspace's people is a sign-in rule like any other.
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<IdentityProvider>('POST', PATH, body, { stepUpToken, invalidates: [PATH] }),
+    );
   }
 
   /**
@@ -104,14 +109,19 @@ class IdentityProviderStore {
    * count, and a client that kept its own would disagree with it eventually.
    */
   async offer(id: string, offered: boolean): Promise<IdentityProvider> {
-    return engine.mutate<IdentityProvider>('POST', `${PATH}/${id}:offer`, { offered }, {
-      invalidates: [PATH],
-    });
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<IdentityProvider>('POST', `${PATH}/${id}:offer`, { offered }, {
+        stepUpToken,
+        invalidates: [PATH],
+      }),
+    );
   }
 
   /** Replaces one, whole. */
   async configure(id: string, body: IdentityProviderConfiguration): Promise<IdentityProvider> {
-    return engine.mutate<IdentityProvider>('PUT', `${PATH}/${id}`, body, { invalidates: [PATH] });
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<IdentityProvider>('PUT', `${PATH}/${id}`, body, { stepUpToken, invalidates: [PATH] }),
+    );
   }
 
   /**
@@ -122,7 +132,9 @@ class IdentityProviderStore {
    * answer, and a record of something nobody understood is a record of a surprise.
    */
   async remove(id: string): Promise<void> {
-    await engine.mutate('DELETE', `${PATH}/${id}`, undefined, { invalidates: [PATH] });
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('DELETE', `${PATH}/${id}`, undefined, { stepUpToken, invalidates: [PATH] }),
+    );
   }
 }
 
