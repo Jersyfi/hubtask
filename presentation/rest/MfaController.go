@@ -15,6 +15,7 @@ import (
 // The use case names of the second factor (H-02).
 const (
 	completeSignInUseCase = "CompleteSignIn"
+	completeLinkUseCase   = "CompleteLink"
 	enrollTotpUseCase     = "EnrollTotp"
 	confirmTotpUseCase    = "ConfirmTotp"
 	disableTotpUseCase    = "DisableTotp"
@@ -43,6 +44,37 @@ func (c *RestController) CompleteSignIn(w http.ResponseWriter, r *http.Request) 
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
+}
+
+// CompleteLink answers POST /auth/sessions:link: the account's password before a provider is
+// connected to it (ADR-0071's addendum). A pair, or the second factor's step with the link carried.
+func (c *RestController) CompleteLink(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.LinkCompletion
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), completeLinkUseCase, actorOf(r), usecase.Input{
+		"pending_token": body.PendingToken,
+		"password":      body.Password,
+		"tenant_header": r.Header.Get(TenantHeader),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if required, _ := out["mfa_required"].(bool); required {
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
@@ -165,6 +197,13 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 		// field does.
 		answered := passwordRulesResponse(rules)
 		challenge.PasswordRules = &answered
+	}
+	// Only with LINK (ADR-0071's addendum): whose account, and which provider will sign them in.
+	if email := out.String("email"); email != "" {
+		challenge.Email = &email
+	}
+	if name := out.String("provider_name"); name != "" {
+		challenge.ProviderName = &name
 	}
 	return challenge
 }

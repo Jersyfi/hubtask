@@ -257,7 +257,7 @@ func TestConfiguringAndRemovingAreRecorded(t *testing.T) {
 		t.Fatalf("configuring: %v", err)
 	}
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
-		Execute(t.Context(), providerActor(), f.store.only(t).ID); err != nil {
+		Execute(t.Context(), providerActor(), f.store.only(t).ID, ""); err != nil {
 		t.Fatalf("removing: %v", err)
 	}
 
@@ -288,7 +288,7 @@ func TestRemovingAProviderThatIsNotThereIsNotAFailure(t *testing.T) {
 	f := newProviderFixture(time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC))
 
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
-		Execute(t.Context(), providerActor(), shared.ID("01936f2a-7c1e-7000-8000-00000000ffff")); err != nil {
+		Execute(t.Context(), providerActor(), shared.ID("01936f2a-7c1e-7000-8000-00000000ffff"), ""); err != nil {
 		t.Fatalf("removing nothing: %v", err)
 	}
 	if len(f.session.audit.entries) != 0 {
@@ -304,7 +304,7 @@ func TestTheAuthoriserIsAskedAndOnlyTheReadOffersTheAuditorsWay(t *testing.T) {
 	_, _ = ConfigureIdentityProvider{Writer: f.writer}.
 		Execute(t.Context(), providerActor(), configureCommand())
 	_, _ = ListIdentityProviders{Writer: f.writer}.Execute(t.Context(), providerActor())
-	_ = RemoveIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor(), f.store.only(t).ID)
+	_ = RemoveIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor(), f.store.only(t).ID, "")
 
 	if len(f.auth.requests) != 3 {
 		t.Fatalf("the authoriser was asked %d times, want 3", len(f.auth.requests))
@@ -332,7 +332,7 @@ func TestARefusedCallerChangesNothing(t *testing.T) {
 		t.Errorf("configuring answered %v", err)
 	}
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
-		Execute(t.Context(), providerActor(), shared.ID("01936f2a-7c1e-7000-8000-0000000000e1")); !errors.Is(err, shared.ErrForbidden) {
+		Execute(t.Context(), providerActor(), shared.ID("01936f2a-7c1e-7000-8000-0000000000e1"), ""); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("removing answered %v", err)
 	}
 	if len(f.store.rows) != 0 || f.store.deletes != 0 || len(f.relying.checked) != 0 {
@@ -496,5 +496,41 @@ func TestAWorkspaceMayNotConfigureMoreThanTheBound(t *testing.T) {
 	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).
 		Execute(t.Context(), providerActor(), cmd); err == nil {
 		t.Error("a workspace configured one provider past the bound")
+	}
+}
+
+// Which provider may vouch for this workspace's people is a sign-in rule, and changing it asks for a
+// fresh proof (ADR-0071's addendum, E2): without it, an administrator's stolen session - or an
+// administrator - could point a provider they control at every account here and stay unnoticed
+// until the trail is read.
+func TestChangingAWayInAsksForAFreshProof(t *testing.T) {
+	f := newProviderFixture(time.Date(2026, 9, 30, 10, 0, 0, 0, time.UTC))
+	proof := &stepUpFake{}
+	f.writer.StepUp = proof
+
+	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).
+		Execute(t.Context(), providerActor(), configureCommand()); err == nil {
+		t.Fatal("a provider was configured without a fresh proof")
+	}
+	if len(f.store.rows) != 0 {
+		t.Fatalf("a refused change stored %d rows", len(f.store.rows))
+	}
+
+	proof.satisfied = true
+	command := configureCommand()
+	command.StepUpToken = "hbt_stu_fresh"
+	stored, err := (ConfigureIdentityProvider{Writer: f.writer}).Execute(t.Context(), providerActor(), command)
+	if err != nil {
+		t.Fatalf("configuring with the proof: %v", err)
+	}
+	if got := proof.presented[len(proof.presented)-1]; got != "hbt_stu_fresh" {
+		t.Errorf("the proof presented was %q", got)
+	}
+
+	// Removing is a change to a way in as much as adding one.
+	proof.satisfied = false
+	if err := (RemoveIdentityProvider{Writer: f.writer}).
+		Execute(t.Context(), providerActor(), stored.ID, ""); err == nil {
+		t.Error("a provider was removed without a fresh proof")
 	}
 }

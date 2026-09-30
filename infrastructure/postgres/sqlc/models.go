@@ -556,16 +556,18 @@ type AuthAttempt struct {
 }
 
 type AuthPending struct {
-	ID         pgtype.UUID
-	TenantID   pgtype.UUID
-	AccountID  pgtype.UUID
-	TokenHash  []byte
-	Purpose    string
-	UserAgent  *string
-	IpClass    *string
-	CreatedAt  pgtype.Timestamptz
-	ExpiresAt  pgtype.Timestamptz
-	ConsumedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	AccountID      pgtype.UUID
+	TokenHash      []byte
+	Purpose        string
+	UserAgent      *string
+	IpClass        *string
+	CreatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	ConsumedAt     pgtype.Timestamptz
+	LinkProviderID pgtype.UUID
+	LinkSubject    *string
 }
 
 type AutoAssignPolicy struct {

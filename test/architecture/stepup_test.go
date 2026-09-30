@@ -16,11 +16,17 @@ import (
 // next privileged action ships with a declaration or fails this build - and a declaration nobody
 // meant cannot appear without being named here (H-03).
 var privilegedUseCases = map[string]string{
-	"StartRestore":          "the destructive restore modes replace data (backup-restore.md §8.3)",
-	"GrantMembership":       "granting OWNER is changing the OWNER role",
-	"RevokeMembership":      "revoking an OWNER membership is changing the OWNER role",
-	"CreateAccessToken":     "an admin-scoped token reaches the control plane",
-	"RequestTenantDeletion": "it is the request that ends a workspace (multi-tenancy.md §5, H-06)",
+	"ConfigureIdentityProvider":         "which provider may vouch for this workspace's people is a way in (ADR-0071's addendum, E2)",
+	"ConfigureFirstIdentityProvider":    "which provider may vouch for this workspace's people is a way in (ADR-0071's addendum, E2)",
+	"RemoveIdentityProvider":            "which provider may vouch for this workspace's people is a way in (ADR-0071's addendum, E2)",
+	"OfferIdentityProvider":             "which provider may vouch for this workspace's people is a way in (ADR-0071's addendum, E2)",
+	"ConfigureInstanceIdentityProvider": "a way in offered to every workspace (ADR-0071's addendum, E2)",
+	"RemoveInstanceIdentityProvider":    "a way in offered to every workspace (ADR-0071's addendum, E2)",
+	"StartRestore":                      "the destructive restore modes replace data (backup-restore.md §8.3)",
+	"GrantMembership":                   "granting OWNER is changing the OWNER role",
+	"RevokeMembership":                  "revoking an OWNER membership is changing the OWNER role",
+	"CreateAccessToken":                 "an admin-scoped token reaches the control plane",
+	"RequestTenantDeletion":             "it is the request that ends a workspace (multi-tenancy.md §5, H-06)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {

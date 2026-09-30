@@ -436,6 +436,26 @@ func (ExternalAccountRepository) LinkSubject(
 	return linked > 0, nil
 }
 
+// HasIdentity answers whether the account already signs in through some provider - a credential of
+// its own, which ADR-0071's addendum does not let another provider's word override.
+func (ExternalAccountRepository) HasIdentity(ctx context.Context, accountID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	held, err := queries.AccountHasIdentity(ctx, account)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether an account has a provider identity: %w", err))
+	}
+	return held, nil
+}
+
 var _ repository.IdentityProviderSealing = IdentityProviderRepository{}
 
 func (IdentityProviderRepository) ListSealed(

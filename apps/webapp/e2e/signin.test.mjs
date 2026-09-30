@@ -279,3 +279,65 @@ test('every provider is a button of its own, and only the pressed one is working
     await close();
   }
 });
+
+// ADR-0071's addendum (E2): a provider arrival whose address matches an account with a password
+// is not signed in on the provider's word. The callback hands the step to the card, the card asks
+// for the account's password once, and - where the account has a second factor - continues into the
+// ordinary code step. What is walked is the person's path, and what is asserted is what was sent.
+test('a provider arrival that meets a password is asked for it on the card, then for the code', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const stub = async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/oidc:callback')) {
+      sent.callback = request.postDataJSON();
+      return route.fulfill({
+        status: 202,
+        json: {
+          pending_token: 'link-1', methods: ['LINK'], expires_at: '2099-01-01T00:00:00Z',
+          email: 'anna@contoso.example', provider_name: 'Contoso Entra ID',
+        },
+      });
+    }
+    if (path.endsWith('/api/v1/auth/sessions:link')) {
+      sent.link = request.postDataJSON();
+      return route.fulfill({ status: 202, json: { pending_token: 'totp-1', methods: ['TOTP', 'RECOVERY'], expires_at: '2099-01-01T00:00:00Z' } });
+    }
+    if (path.endsWith('/api/v1/auth/sessions:verify')) {
+      sent.verify = request.postDataJSON();
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return stubFor({ answer: refused })(route);
+  };
+
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', stub);
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+
+    // The card, not the app: whose account, which provider, the password field.
+    await page.getByRole('heading', { name: 'Confirm it is your account' }).waitFor();
+    assert.ok(await page.getByText('anna@contoso.example').isVisible(), 'the identity line names the account');
+    assert.ok(await page.getByText(/Contoso Entra ID will sign you in from now on/).isVisible(), 'the card names the provider');
+    assert.deepEqual(sent.callback, { code: 'the-code', state: 'the-state' });
+
+    const password = page.locator('input[autocomplete="current-password"]');
+    await password.fill('annas-own-password');
+    await page.getByRole('button', { name: 'Confirm and connect' }).click();
+
+    // The account has a second factor: the ordinary code step follows on the same card.
+    await page.getByRole('heading', { name: 'Second factor' }).or(page.getByRole('heading', { name: 'One more step' })).first().waitFor();
+    assert.deepEqual(sent.link, { pending_token: 'link-1', password: 'annas-own-password' });
+
+    await page.locator('input[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+    assert.equal(sent.verify?.pending_token, 'totp-1', 'the code step presented the credential the LINK step handed on');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});

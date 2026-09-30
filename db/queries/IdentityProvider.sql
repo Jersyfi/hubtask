@@ -123,6 +123,14 @@ WHERE link.provider_id = sqlc.arg('provider_id')
   AND link.subject = sqlc.arg('subject')
   AND a.deleted_at IS NULL;
 
+-- name: AccountHasIdentity :one
+-- Whether the account already signs in through some provider (ADR-0071's addendum): such an
+-- identity is a credential of its own, and an account holding one is not connected to another
+-- provider on that provider's word.
+SELECT EXISTS (
+  SELECT 1 FROM account_identity WHERE account_id = sqlc.arg('account_id')
+) AS held;
+
 -- name: LinkAccountIdentity :execrows
 -- Writes the link, and races safely: the unique index on (tenant, provider, subject) is what
 -- refuses a subject already spoken for, and `DO NOTHING` is what makes a second sign-in that got

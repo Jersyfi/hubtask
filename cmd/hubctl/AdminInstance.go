@@ -399,8 +399,12 @@ func adminProviderAdd(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
+	// A way in offered to every workspace asks for a fresh proof (ADR-0071's addendum, E2): the
+	// request goes once, and again with the proof if that is what it was refused for.
 	var added openapi.IdentityProvider
-	if err := client.Post(ctx, adminProvidersPath, body, &added); err != nil {
+	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.PostWithHeader(ctx, adminProvidersPath, body, stepUpProof(stepUp), &added)
+	}); err != nil {
 		return err
 	}
 	return adminProviderList(ctx, cli, nil)
@@ -420,7 +424,9 @@ func adminProviderRemove(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := client.Delete(ctx, adminProvidersPath+"/"+rest[0], ""); err != nil {
+	if err := cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.DeleteWithHeader(ctx, adminProvidersPath+"/"+rest[0], stepUpProof(stepUp))
+	}); err != nil {
 		return err
 	}
 	return adminProviderList(ctx, cli, nil)

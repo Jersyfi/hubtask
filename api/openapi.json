@@ -4209,6 +4209,52 @@
         }
       }
     },
+    "/auth/sessions:link": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "completeLink",
+        "security": [],
+        "summary": "Prove the account before a provider is connected to it",
+        "description": "The `LINK` step (ADR-0071's addendum). A provider vouched for an address whose account already holds a password, and it is connected to that account only once the password is proven here: the provider's word alone never opens an account that has its own credential.\nWith no second factor on the account, the answer is the pair and the provider is connected. With one, the answer is the ordinary `202` with `TOTP` and `RECOVERY`, and the provider is connected when `/auth/sessions:verify` completes - never before the account's whole proof. A wrong password counts against the account like any other, and is refused as a sign-in is.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkCompletion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Connected and signed in, with the pair shown for the only time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The password was right; the account's second factor is the rest of its proof",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/password": {
       "post": {
         "tags": [
@@ -4829,7 +4875,7 @@
         "operationId": "completeOidcSignIn",
         "security": [],
         "summary": "Finish the sign-in with the code the provider issued",
-        "description": "The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.\nWhat it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.\nA `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.\n",
+        "description": "The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds (security.md §4, T-13). Any of those failing is one refusal.\nWhat it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.\nAn existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link` (ADR-0071's addendum). An account with no password but another provider or a second factor cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`.\nA `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -4847,6 +4893,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The address matched an account with a password, which is asked for first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
                 }
               }
             }
@@ -5277,6 +5333,11 @@
           "admin"
         ],
         "operationId": "createInstanceIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Offer every workspace a way in",
         "description": "The same rules as a workspace's own provider - discovery before anything is stored, the mark held to the issuer it belongs to, a public provider held to `INVITED_ONLY` - because it is the same use case underneath. Journalled in the installation's own evidence, where no workspace's trail could hold it.\n",
         "requestBody": {
@@ -5317,6 +5378,11 @@
           "admin"
         ],
         "operationId": "configureInstanceIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Replace one of the installation's providers",
         "description": "Set whole, with the secret's one exception: omitting it keeps the one that is sealed. Journalled.\n",
         "requestBody": {
@@ -5350,6 +5416,11 @@
           "admin"
         ],
         "operationId": "removeInstanceIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Withdraw a provider from every workspace at once",
         "description": "Every workspace loses that way in the moment this returns. The accounts it signed in keep their rows and their live sessions; what they lose is the way back. Journalled.\n",
         "responses": {
@@ -5578,6 +5649,11 @@
           "auth"
         ],
         "operationId": "configureFirstIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Set the workspace's first identity provider",
         "description": "Sets the first provider whole, or creates it where the workspace has none. The same rules the collection applies - discovery before anything is stored, the mark held to its issuer, a public provider held to `INVITED_ONLY`. Auditable.\nThe client secret is required when there is nothing to keep, and optional afterwards, as on the collection.\n",
         "requestBody": {
@@ -5639,6 +5715,11 @@
           "auth"
         ],
         "operationId": "createIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Add a provider this workspace signs its people in through",
         "description": "Discovery runs before anything is stored, through the guarded client, so an issuer this installation cannot reach or that disagrees with its own metadata is refused rather than saved and discovered later by a person trying to sign in.\nTwo refusals belong to the preset rather than to the form. A **public** provider - one anybody in the world holds an account at - may only be `INVITED_ONLY`, because anything else provisions every person alive an account here. And a preset whose addresses this installation cannot vouch for may not be `INVITED_ONLY` at all, because that mode hands an account that already exists to whoever arrives with its address.\nThe secret is sealed on the way in and appears in no answer afterwards. Auditable.\n",
         "requestBody": {
@@ -5679,6 +5760,11 @@
           "auth"
         ],
         "operationId": "configureIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Replace one of the workspace's identity providers",
         "description": "Set whole, not patched: a provider half-changed is a provider nobody can reason about. The client secret is the one exception - omitting it keeps the one that is sealed, which is the only way to change a name or a mode without retyping a value nothing can read back.\nA provider of the `installation` scope is answered `404` here: it is offered to this workspace and is not its to change. Auditable.\n",
         "requestBody": {
@@ -5712,6 +5798,11 @@
           "auth"
         ],
         "operationId": "removeIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Remove one of the workspace's identity providers",
         "description": "The configuration and its sealed secret go. Accounts provisioned through it keep their rows and their sessions - what they lose is the way to sign in again, which is why an account with no password is worth a thought before this call. Auditable.\n",
         "responses": {
@@ -5735,6 +5826,11 @@
           "auth"
         ],
         "operationId": "offerIdentityProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "summary": "Switch a provider on or off as a way in here",
         "description": "One verb for two stores, because it is one question: **is this a way into this workspace**.\nFor the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is (ADR-0070 §2, the concept's §8: \"für alle Arbeitsbereiche angeboten, nirgends an: jeder Owner schaltet selbst\").\n**An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.\nThe last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.\n",
         "requestBody": {
@@ -12438,6 +12534,7 @@
           "addresses_verified",
           "public",
           "provisioning",
+          "installation_provisioning",
           "redirect_uri",
           "instructions",
           "supports_templated_issuer"
@@ -12455,7 +12552,7 @@
           },
           "addresses_verified": {
             "type": "boolean",
-            "description": "Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know, and the safe reading of \"cannot know\" is the one that does not give away an account. It is what decides whether `INVITED_ONLY` is available.\n"
+            "description": "Whether this issuer's addresses are verified by construction. False is not an accusation - it is that this installation cannot know. Informational since ADR-0071's addendum: what keeps an address from handing over an account is the account's own proof, so `INVITED_ONLY` is available for every preset.\n"
           },
           "public": {
             "type": "boolean",
@@ -12466,7 +12563,14 @@
             "items": {
               "$ref": "#/components/schemas/IdentityProviderProvisioning"
             },
-            "description": "The modes this preset permits, strictest first."
+            "description": "The modes this preset permits for a workspace's own provider, strictest first."
+          },
+          "installation_provisioning": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentityProviderProvisioning"
+            },
+            "description": "The modes it permits when the installation offers it to every workspace. Narrower for a preset with no directory claim: offered everywhere, it may only admit the people each workspace invited (ADR-0071's addendum).\n"
           },
           "redirect_uri": {
             "type": "string",
@@ -13062,14 +13166,48 @@
                 "TOTP",
                 "RECOVERY",
                 "ENROLL",
-                "PASSWORD_CHANGE"
+                "PASSWORD_CHANGE",
+                "LINK"
               ]
             },
-            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3). Each of the three is a step the pending credential can complete and nothing else.\n"
+            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule (ADR-0068 §3); `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link` (ADR-0071's addendum). Each is a step the pending credential can complete and nothing else.\n"
           },
           "password_rules": {
             "$ref": "#/components/schemas/PasswordRules",
             "description": "Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.\n"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Present with `LINK` and with no other step: whose account the provider's address matched, for the identity line on the card - the person arrived from the provider and typed no address.\n"
+          },
+          "provider_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Present with `LINK`: the name of the provider that will sign the person in once the account is proven.\n"
+          }
+        }
+      },
+      "LinkCompletion": {
+        "type": "object",
+        "required": [
+          "pending_token",
+          "password"
+        ],
+        "properties": {
+          "pending_token": {
+            "type": "string",
+            "description": "The `LINK` challenge's credential. It dies on use."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "The password of the account the provider's address matched."
           }
         }
       },

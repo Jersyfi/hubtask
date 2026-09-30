@@ -19,6 +19,7 @@ import (
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	provider "github.com/Jersyfi/hubtask/core/port/identityprovider"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -75,6 +76,33 @@ type IdentityProviderWriter struct {
 	// RedirectURL is this installation's own callback, which every registration form at every
 	// provider asks for. It is what the presets' instructions are rendered with.
 	RedirectURL string
+	// StepUp is the proof a change to a way in demands (ADR-0071's addendum, E2): which provider
+	// may vouch for this workspace's people is as much a sign-in rule as the password's length, and
+	// without the proof an administrator's stolen session could point a provider it controls at
+	// every account here. Nil demands nothing, on a build wired without it.
+	StepUp stepupport.Verifier
+}
+
+// ProviderStepUpField is the input every write to a way in declares - both levels share it, so the
+// sentence a client reads beside the field is one sentence.
+var ProviderStepUpField = usecase.Field{
+	Name: "step_up_token", Kind: usecase.KindString,
+	Description: "The fresh proof a change to a way in demands (ADR-0071's addendum): the " +
+		"X-Hubtask-Step-Up header.",
+}
+
+// providerStepUp is the descriptor's own sentence for the same demand.
+const providerStepUp = "changing a way in"
+
+// proveChange demands the step-up a change to a way in carries. Only a session can prove it, the
+// policy's reasoning: a personal access token has no person at the keyboard to ask.
+func (w IdentityProviderWriter) proveChange(
+	ctx context.Context, actor appshared.ActorContext, token string,
+) error {
+	if w.StepUp == nil {
+		return nil
+	}
+	return stepupport.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, token)
 }
 
 // ListIdentityProviders answers the ways in, never a secret.
@@ -160,6 +188,8 @@ type ConfigureIdentityProviderCommand struct {
 	// (ADR-0071 §2): Microsoft tenant ids, Google Workspace domains.
 	AllowedDirectories []string
 	Enabled            bool
+	// StepUpToken is the fresh proof the change carries (the X-Hubtask-Step-Up header).
+	StepUpToken string
 }
 
 // Execute validates, asks the provider to prove it exists, seals the secret and stores the lot.
@@ -193,6 +223,11 @@ func (w IdentityProviderWriter) ConfigureAt(
 	ctx context.Context, scope persistence.Scope, actor appshared.ActorContext,
 	cmd ConfigureIdentityProviderCommand, tenantID shared.ID,
 ) (domain.IdentityProvider, error) {
+	// The proof first, before discovery calls anybody: a change nobody proved is refused before it
+	// costs a request to somebody else's server.
+	if err := w.proveChange(ctx, actor, cmd.StepUpToken); err != nil {
+		return domain.IdentityProvider{}, err
+	}
 	creating := cmd.ID.IsZero()
 	if creating && cmd.ClientSecret.IsEmpty() {
 		return domain.IdentityProvider{}, shared.ErrValidation.
@@ -278,7 +313,7 @@ type RemoveIdentityProvider struct{ Writer IdentityProviderWriter }
 // to sign in again - which is why the answer is audited and why an administrator doing this to a
 // workspace of accounts with no password is doing something worth a record.
 func (h RemoveIdentityProvider) Execute(
-	ctx context.Context, actor appshared.ActorContext, id shared.ID,
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, stepUpToken string,
 ) error {
 	w := h.Writer
 	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
@@ -290,14 +325,17 @@ func (h RemoveIdentityProvider) Execute(
 	}); err != nil {
 		return err
 	}
-	return w.RemoveAt(ctx, actor.PersistenceScope(), actor, id, actor.TenantID)
+	return w.RemoveAt(ctx, actor.PersistenceScope(), actor, id, actor.TenantID, stepUpToken)
 }
 
 // RemoveAt is shared with the control plane's half, for `ConfigureAt`'s reason.
 func (w IdentityProviderWriter) RemoveAt(
 	ctx context.Context, scope persistence.Scope, actor appshared.ActorContext,
-	id shared.ID, tenantID shared.ID,
+	id shared.ID, tenantID shared.ID, stepUpToken string,
 ) error {
+	if err := w.proveChange(ctx, actor, stepUpToken); err != nil {
+		return err
+	}
 	if id.IsZero() {
 		return shared.ErrValidation.WithDetail("identity_provider.not_found")
 	}
@@ -413,7 +451,10 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 		"public":             preset.Public,
 		"redirect_uri":       redirectURL,
 		"instructions":       preset.Instructions,
-		"provisioning":       provisioningOf(preset),
+		"provisioning":       provisioningOf(preset, false),
+		// The installation's own list is narrower for a preset with no directory claim (ADR-0071's
+		// addendum): offered to every workspace, it may only admit the people each one invited.
+		"installation_provisioning": provisioningOf(preset, true),
 		// What a screen needs to ask for the list the server will actually read (ADR-0071 §2),
 		// rather than the one that would be ignored.
 		"supports_templated_issuer": preset.SupportsTemplatedIssuer,
@@ -427,18 +468,19 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 	return out
 }
 
-// provisioningOf is the modes a preset permits, in the order they tighten. What it is for is a
-// screen that can offer only what would be accepted, rather than one that offers three and has two
-// refused.
-func provisioningOf(preset domain.ProviderPreset) []any {
-	if preset.Public {
+// provisioningOf is the modes a preset permits at a level, in the order they loosen. What it is for
+// is a screen that can offer only what would be accepted, rather than one that offers three and has
+// two refused.
+//
+// INVITED_ONLY is on every list since ADR-0071's addendum (E2): what keeps an address from handing
+// over an account is the account's own proof, not the provider kind.
+func provisioningOf(preset domain.ProviderPreset, installation bool) []any {
+	if preset.Public || (installation && preset.DirectoryClaim == "") {
 		return []any{string(domain.ProvisionInvitedOnly)}
 	}
-	modes := []any{}
-	if preset.AddressesVerified {
-		modes = append(modes, string(domain.ProvisionInvitedOnly))
+	return []any{
+		string(domain.ProvisionInvitedOnly), string(domain.ProvisionDomains), string(domain.ProvisionAny),
 	}
-	return append(modes, string(domain.ProvisionDomains), string(domain.ProvisionAny))
 }
 
 // ListIdentityProviderPresets answers what can be configured and what it takes.
@@ -531,7 +573,9 @@ func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The organisations this provider admits under DOMAINS, in its own identifiers: Microsoft tenant ids, Google Workspace domains. Read instead of the domains where the preset has one."},
 			{Name: "enabled", Kind: usecase.KindBool,
 				Description: "Off keeps the configuration and refuses the flow."},
+			ProviderStepUpField,
 		},
+		StepUp: providerStepUp,
 		Audit: usecase.AuditDeclaration{
 			Action: IdentityProviderConfiguredAction, TargetType: identityProviderTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -583,6 +627,7 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 		AllowedEmailDomains: domains,
 		AllowedDirectories:  directories,
 		Enabled:             enabled,
+		StepUpToken:         in.String("step_up_token"),
 	}
 	id, err := in.ID("id")
 	if err != nil {
@@ -603,7 +648,9 @@ func (h RemoveIdentityProvider) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "id", Kind: usecase.KindString, Required: true,
 				Description: "The provider to remove."},
+			ProviderStepUpField,
 		},
+		StepUp: providerStepUp,
 		Audit: usecase.AuditDeclaration{
 			Action: IdentityProviderRemovedAction, TargetType: identityProviderTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -622,7 +669,7 @@ func (h RemoveIdentityProvider) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, id); err != nil {
+	if err := h.Execute(ctx, actor, id, in.String("step_up_token")); err != nil {
 		return nil, err
 	}
 	return usecase.Output{}, nil

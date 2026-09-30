@@ -59,9 +59,19 @@ type AuthSignals interface {
 	AuthFailure(ctx context.Context, reason string)
 }
 
+// IdentityConnector finishes connecting a provider identity to an account once the account's own
+// proof is complete (ADR-0071's addendum, E2). The OIDC writer implements it; the second factor's
+// step calls it, because that step is where a LINK that met an armed factor ends.
+type IdentityConnector interface {
+	Connect(ctx context.Context, account domain.Account, link domain.LinkIntent) error
+}
+
 // SessionWriter is what the session use cases share, AccessTokenWriter's shape: one dependency
 // set, because the rules about one credential pair belong in one place.
 type SessionWriter struct {
+	// Connector finishes a provider link at the end of the second factor's step (E2). Nil where
+	// nothing links - a sign-in that never began at a provider carries no link to finish.
+	Connector  IdentityConnector
 	Accounts   repository.SignInAccounts
 	Sessions   repository.Sessions
 	Refresh    repository.RefreshTokens
@@ -130,6 +140,12 @@ type SignInChallenge struct {
 	// asks for a new password needs the rule in the same answer, or the list under the field
 	// arrives a round trip after the field does.
 	PasswordRules *PasswordRulesView
+	// Email and ProviderName travel with a LINK challenge and with no other (ADR-0071's addendum):
+	// the card that asks for the account's password has to say whose account it is and which
+	// provider will sign them in afterwards, and the person arrived from the provider rather than
+	// by typing an address into step one.
+	Email        string
+	ProviderName string
 }
 
 // SignInResult is one of two answers: the pair, or the challenge that stands between the

@@ -410,6 +410,58 @@ func TestOneWorkspacesSignInFlowsAndSubjectsStayHome(t *testing.T) {
 		if _, err := external.FindBySubject(ctx, idpRowA, "subject-at-the-other"); err == nil {
 			t.Error("one provider answered another provider's subject")
 		}
+		// The account holds an identity now, which is a credential ADR-0071's addendum protects.
+		held, err := external.HasIdentity(ctx, idpAccount)
+		if err != nil || !held {
+			t.Errorf("A's linked account holds no identity: (%v, %v)", held, err)
+		}
+		return nil
+	})
+
+	// Gate SG-3 for HasIdentity: B cannot learn that A's account signs in through a provider.
+	inTenant(t, uow, idpTenantB, func(ctx context.Context) error {
+		held, err := external.HasIdentity(ctx, idpAccount)
+		if err != nil {
+			t.Fatalf("B asking about A's account: %v", err)
+		}
+		if held {
+			t.Error("B learnt that A's account holds a provider identity")
+		}
+		return nil
+	})
+	// A provider arrival waiting for the account's own proof (migration 0110): the pending row
+	// carries which provider and which subject it will connect, reads them back in A, and is
+	// nothing in B.
+	pending, _ := mfaStores(ctx, t)
+	presented, err := domain.NewPendingToken(idpTenantA, sessionSecretOf(0xE2))
+	if err != nil {
+		t.Fatalf("minting a pending token: %v", err)
+	}
+	waiting := domain.PendingCredential{
+		ID: shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc31"), TenantID: idpTenantA,
+		AccountID: idpAccount, Purpose: domain.PendingLink,
+		CreatedAt: now, ExpiresAt: now.Add(domain.PendingLifetime),
+		Link: &domain.LinkIntent{ProviderID: idpRowA, Subject: "waiting-subject"},
+	}
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		return pending.Insert(ctx, waiting, presented)
+	})
+	inTenant(t, uow, idpTenantB, func(ctx context.Context) error {
+		if _, err := pending.FindByToken(ctx, presented); err == nil {
+			t.Error("B found A's pending link")
+		}
+		return nil
+	})
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		lookup, err := pending.FindByToken(ctx, presented)
+		if err != nil {
+			t.Fatalf("A reading its pending link: %v", err)
+		}
+		link := lookup.Credential.Link
+		if lookup.Credential.Purpose != domain.PendingLink || link == nil ||
+			link.ProviderID != idpRowA || link.Subject != "waiting-subject" {
+			t.Errorf("the pending link came back as %+v", lookup.Credential)
+		}
 		return nil
 	})
 }

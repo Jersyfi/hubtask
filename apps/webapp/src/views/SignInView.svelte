@@ -52,6 +52,9 @@
   /** The enforcement path: enrolment rather than a code. */
   const mustEnroll = $derived(owed?.methods.includes('ENROLL') ?? false);
   const mustChange = $derived(session.mustChangePassword);
+  /** A provider arrival met an account with a password, which is proven before it is connected. */
+  const mustConfirmLink = $derived(session.mustConfirmLink);
+  let linkPassword = $state('');
   const hasRecovery = $derived(owed?.methods.includes('RECOVERY') ?? false);
   /**
    * The providers, with the one this browser used last at the top.
@@ -89,6 +92,17 @@
     event.preventDefault();
     await session.setPasswordAndSignIn(newPassword);
     newPassword = '';
+  }
+
+  /**
+   * The LINK step (ADR-0071's addendum): the provider vouched for an address whose account already
+   * has a password, so the password is asked once before the provider may sign this person in. The
+   * answer is the session, or the second factor's step on this same card.
+   */
+  async function confirmLink(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    await session.confirmLink(linkPassword);
+    linkPassword = '';
   }
 
   /**
@@ -203,6 +217,37 @@
         <div class="row">
           <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
             {t('app.sign_in.must_change_submit')}
+          </Button>
+        </div>
+      </Stack>
+    </form>
+  </SignInCard>
+{:else if mustConfirmLink}
+  <SignInCard
+    title={t('app.sign_in.link_title')}
+    step={{ index: 2, total: 2 }}
+    lead={t('app.sign_in.link_body', { provider: owed?.providerName ?? '' })}
+    {notice}
+  >
+    <form onsubmit={confirmLink}>
+      <Stack gap="200">
+        {@render identity()}
+        <Input
+          label={t('app.sign_in.password_label')}
+          bind:value={linkPassword}
+          type="password"
+          autocomplete="current-password"
+          spellcheck={false}
+          revealLabel={t('app.password.reveal')}
+          hideLabel={t('app.password.hide')}
+          isRequired
+        />
+        {#if expiry}
+          <p class="expiry">{t('app.sign_in.expires_in', { remaining: expiry })}</p>
+        {/if}
+        <div class="row">
+          <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
+            {t('app.sign_in.link_submit')}
           </Button>
         </div>
       </Stack>

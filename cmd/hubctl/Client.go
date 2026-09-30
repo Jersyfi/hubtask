@@ -308,6 +308,12 @@ func (c *Client) Delete(ctx context.Context, path, ifMatch string) error {
 	return c.call(ctx, http.MethodDelete, path, nil, nil, header, nil)
 }
 
+// DeleteWithHeader removes with the headers an operation's own parameters declare - the step-up
+// proof, where a removal is a privileged act (removing a way in, ADR-0071's addendum).
+func (c *Client) DeleteWithHeader(ctx context.Context, path string, header map[string][]string) error {
+	return c.call(ctx, http.MethodDelete, path, nil, nil, header, nil)
+}
+
 func (c *Client) call(
 	ctx context.Context, method, path string, query url.Values, body any,
 	header map[string][]string, into any,

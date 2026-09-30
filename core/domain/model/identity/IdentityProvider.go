@@ -146,19 +146,20 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		return IdentityProvider{}, err
 	}
 
-	provisioning, err := resolvedProvisioning(in.Provisioning, preset)
+	provisioning, err := resolvedProvisioning(in.Provisioning, preset, in.TenantID.IsZero())
 	if err != nil {
 		return IdentityProvider{}, err
 	}
 
-	// The second half of the concept's §8 security sentence: a provider whose addresses this
-	// installation cannot vouch for "kann nur ANY oder DOMAINS sein **und ist deshalb nie
-	// Installations-Anbieter**". The reason is the blast radius: an installation's provider is
-	// offered to every workspace, and one that can only be DOMAINS or ANY provisions accounts in
-	// each of them.
-	if in.TenantID.IsZero() && !preset.AddressesVerified {
+	// An installation's provider is offered to every workspace, so what it admits is multiplied by
+	// the number of workspaces that take the offer. One with a directory claim is bounded by the
+	// directories it names; one without - a self-hosted issuer - is bounded by nothing but the
+	// address domain, which is the wrong thing to authorise on (ADR-0071 §1). Offered as
+	// INVITED_ONLY it admits the people each workspace invited and nobody else, which is what
+	// ADR-0071's addendum (E2, 2026-09-30) replaced "never an installation provider" with.
+	if in.TenantID.IsZero() && preset.DirectoryClaim == "" && provisioning != ProvisionInvitedOnly {
 		return IdentityProvider{}, shared.ErrValidation.
-			WithDetail("identity_provider.installation_unverified").
+			WithDetail("identity_provider.installation_invited_only").
 			WithParams(map[string]string{"kind": string(kind)})
 	}
 
@@ -314,18 +315,23 @@ func multiDirectoryIssuer(issuer string) bool {
 
 // resolvedProvisioning reads the mode and holds it to what the preset permits.
 //
-// Two refusals, and each is a hole somebody would otherwise configure by accident:
+// One refusal: a **public** issuer may only be INVITED_ONLY. Anything else means every person who
+// holds an account at that provider - which is everybody - is provisioned one here.
 //
-//   - A **public** issuer may only be INVITED_ONLY. Anything else means every person who holds an
-//     account at that provider - which is everybody - is provisioned one here.
-//   - A preset whose addresses this installation cannot vouch for may **not** be INVITED_ONLY,
-//     because that mode gives an existing account away on the strength of an address.
+// There used to be a second - "a preset whose addresses this installation cannot vouch for may not
+// be INVITED_ONLY, because that mode gives an existing account away on the strength of an address".
+// It protected nothing: the modes it left such a provider claimed existing accounts on exactly the
+// same signal and created new ones besides. What stops an address from handing over an account is
+// now the account's own proof, asked when an arrival would connect to an account that already holds
+// a credential (ADR-0071's addendum, E2). INVITED_ONLY is therefore the strictest mode for every
+// preset, and every preset may have it.
 //
-// Nothing stated is the safe value rather than the permissive one: a public provider defaults to
-// INVITED_ONLY, and everything else to what this installation did before the column existed.
-func resolvedProvisioning(stated string, preset ProviderPreset) (Provisioning, error) {
+// Nothing stated is the safe value rather than the permissive one: a public provider, and an
+// installation's provider with no directory to bound it, default to INVITED_ONLY; everything else to
+// what this installation did before the column existed.
+func resolvedProvisioning(stated string, preset ProviderPreset, installation bool) (Provisioning, error) {
 	if strings.TrimSpace(stated) == "" {
-		if preset.Public {
+		if preset.Public || (installation && preset.DirectoryClaim == "") {
 			return ProvisionInvitedOnly, nil
 		}
 		return ProvisionDomains, nil
@@ -338,11 +344,6 @@ func resolvedProvisioning(stated string, preset ProviderPreset) (Provisioning, e
 	if preset.Public && mode != ProvisionInvitedOnly {
 		return "", shared.ErrValidation.
 			WithDetail("identity_provider.provisioning_public").
-			WithParams(map[string]string{"kind": string(preset.Kind)})
-	}
-	if mode == ProvisionInvitedOnly && !preset.AddressesVerified {
-		return "", shared.ErrValidation.
-			WithDetail("identity_provider.provisioning_unverified").
 			WithParams(map[string]string{"kind": string(preset.Kind)})
 	}
 	return mode, nil

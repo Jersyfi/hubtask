@@ -73,7 +73,7 @@ func TestTakingAnInstallationsProviderWritesTheWorkspaceAndNotTheRow(t *testing.
 	f.own(t, true) // another way in, so the guard is not what is being measured here
 	id := f.installation(t)
 
-	switched, err := f.offer.Execute(t.Context(), providerActor(), id, true)
+	switched, err := f.offer.Execute(t.Context(), providerActor(), id, true, "")
 	if err != nil {
 		t.Fatalf("switching on: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestGivingAnInstallationsProviderBackClearsOnlyTheWorkspacesSwitch(t *testi
 	id := f.installation(t)
 	f.workspaces.row.Settings = f.workspaces.row.Settings.WithOffer(id, true)
 
-	switched, err := f.offer.Execute(t.Context(), providerActor(), id, false)
+	switched, err := f.offer.Execute(t.Context(), providerActor(), id, false, "")
 	if err != nil {
 		t.Fatalf("switching off: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestSwitchingTheWorkspacesOwnProviderWritesTheRow(t *testing.T) {
 	f.workspaces.row.Settings = f.workspaces.row.Settings.WithOffer(
 		shared.MustParseID("22222222-2222-4222-8222-222222222222"), true)
 
-	switched, err := f.offer.Execute(t.Context(), providerActor(), id, false)
+	switched, err := f.offer.Execute(t.Context(), providerActor(), id, false, "")
 	if err != nil {
 		t.Fatalf("switching off: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestTheLastWayInCannotBeSwitchedOff(t *testing.T) {
 	onlyProvider := []string{domain.MethodOidc}
 	f.workspaces.row.Settings.SignIn.Methods = &onlyProvider
 
-	_, err := f.offer.Execute(t.Context(), providerActor(), id, false)
+	_, err := f.offer.Execute(t.Context(), providerActor(), id, false, "")
 	if err == nil {
 		t.Fatal("the only way in was switched off")
 	}
@@ -162,7 +162,7 @@ func TestAProviderMayBeSwitchedOffWhileAPasswordOpensTheWorkspace(t *testing.T) 
 	f := newOfferFixture(time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC))
 	id := f.own(t, true)
 
-	if _, err := f.offer.Execute(t.Context(), providerActor(), id, false); err != nil {
+	if _, err := f.offer.Execute(t.Context(), providerActor(), id, false, ""); err != nil {
 		t.Fatalf("switching off: %v", err)
 	}
 }
@@ -177,7 +177,7 @@ func TestAnotherWayInMayBeAnInstallationsProviderThisWorkspaceTook(t *testing.T)
 	f.workspaces.row.Settings.SignIn.Methods = &onlyProvider
 	f.workspaces.row.Settings = f.workspaces.row.Settings.WithOffer(offered, true)
 
-	if _, err := f.offer.Execute(t.Context(), providerActor(), id, false); err != nil {
+	if _, err := f.offer.Execute(t.Context(), providerActor(), id, false, ""); err != nil {
 		t.Fatalf("switching off while another provider is on here: %v", err)
 	}
 
@@ -188,7 +188,7 @@ func TestAnotherWayInMayBeAnInstallationsProviderThisWorkspaceTook(t *testing.T)
 	g.installation(t)
 	g.workspaces.row.Settings.SignIn.Methods = &onlyProvider
 
-	if _, err := g.offer.Execute(t.Context(), providerActor(), other, false); err == nil {
+	if _, err := g.offer.Execute(t.Context(), providerActor(), other, false, ""); err == nil {
 		t.Fatal("an offer nobody took was counted as a way in")
 	}
 }
@@ -199,7 +199,7 @@ func TestSwitchingIsRecorded(t *testing.T) {
 	f.own(t, true)
 	id := f.installation(t)
 
-	if _, err := f.offer.Execute(t.Context(), providerActor(), id, true); err != nil {
+	if _, err := f.offer.Execute(t.Context(), providerActor(), id, true, ""); err != nil {
 		t.Fatalf("switching on: %v", err)
 	}
 	if len(f.session.audit.entries) != 1 {

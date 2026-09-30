@@ -127,14 +127,14 @@ type RemoveInstanceIdentityProvider struct{ Writer InstanceProviderWriter }
 // signed in keep their rows: what they lose is the way back, exactly as when a workspace removes its
 // own.
 func (h RemoveInstanceIdentityProvider) Execute(
-	ctx context.Context, actor appshared.ActorContext, id shared.ID,
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, stepUpToken string,
 ) error {
 	w := h.Writer
 	if err := w.Instance.authorize(ctx, actor); err != nil {
 		return err
 	}
 	if err := w.Configure.RemoveAt(
-		ctx, persistence.SystemScope(), actor, id, shared.ID("")); err != nil {
+		ctx, persistence.SystemScope(), actor, id, shared.ID(""), stepUpToken); err != nil {
 		return err
 	}
 	return w.journal(ctx, actor, journalProviderRemoved, id, "")
@@ -221,7 +221,9 @@ func (h ConfigureInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The organisations this provider admits under DOMAINS, in its own identifiers - and required for a multi-directory issuer, which without one is every organisation in the world (ADR-0071)."},
 			{Name: "enabled", Kind: usecase.KindBool,
 				Description: "Off keeps the configuration and refuses the flow, for every workspace at once."},
+			identityservice.ProviderStepUpField,
 		},
+		StepUp: "changing a way in every workspace is offered",
 		Audit: usecase.AuditDeclaration{
 			Action: instanceProviderConfiguredAction, TargetType: instanceProviderTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -258,7 +260,9 @@ func (h RemoveInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "id", Kind: usecase.KindString, Required: true,
 				Description: "The provider to remove."},
+			identityservice.ProviderStepUpField,
 		},
+		StepUp: "changing a way in every workspace is offered",
 		Audit: usecase.AuditDeclaration{
 			Action: instanceProviderRemovedAction, TargetType: instanceProviderTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -277,7 +281,7 @@ func (h RemoveInstanceIdentityProvider) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, id); err != nil {
+	if err := h.Execute(ctx, actor, id, in.String("step_up_token")); err != nil {
 		return nil, err
 	}
 	return usecase.Output{}, nil

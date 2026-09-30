@@ -157,6 +157,8 @@ func (pending) RegenerateRecoveryCodes(
 // The MFA operations of H-02, pending until each use case lands.
 func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) CompleteLink(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -1013,12 +1015,12 @@ func (pending) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-func (pending) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request) {
+func (pending) ConfigureFirstIdentityProvider(w http.ResponseWriter, r *http.Request, _ openapi.ConfigureFirstIdentityProviderParams) {
 	notAvailable(w, r)
 }
 
 func (pending) OfferIdentityProvider(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId, _ openapi.OfferIdentityProviderParams,
 ) {
 	notAvailable(w, r)
 }
@@ -1027,18 +1029,18 @@ func (pending) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-func (pending) CreateIdentityProvider(w http.ResponseWriter, r *http.Request) {
+func (pending) CreateIdentityProvider(w http.ResponseWriter, r *http.Request, _ openapi.CreateIdentityProviderParams) {
 	notAvailable(w, r)
 }
 
 func (pending) ConfigureIdentityProvider(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId, _ openapi.ConfigureIdentityProviderParams,
 ) {
 	notAvailable(w, r)
 }
 
 func (pending) RemoveIdentityProvider(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId, _ openapi.RemoveIdentityProviderParams,
 ) {
 	notAvailable(w, r)
 }
@@ -1063,18 +1065,18 @@ func (pending) ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Requ
 	notAvailable(w, r)
 }
 
-func (pending) CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request) {
+func (pending) CreateInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, _ openapi.CreateInstanceIdentityProviderParams) {
 	notAvailable(w, r)
 }
 
 func (pending) ConfigureInstanceIdentityProvider(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId, _ openapi.ConfigureInstanceIdentityProviderParams,
 ) {
 	notAvailable(w, r)
 }
 
 func (pending) RemoveInstanceIdentityProvider(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId,
+	w http.ResponseWriter, r *http.Request, _ openapi.ProviderId, _ openapi.RemoveInstanceIdentityProviderParams,
 ) {
 	notAvailable(w, r)
 }

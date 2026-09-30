@@ -45,8 +45,6 @@ installation puts it on everywhere and removes the switch.
 
 ## Today
 
-* **Check 3 fails:** an *Other OpenID Connect provider* may not be offered at all (it may not be
-  *Only invited*) — reversed by E2, built in SC-01.
 * **Check 6 fails:** the re-seal runs per workspace only; the installation's provider secrets stay
   under the key they were sealed with (ADR-0070, "one gap").
 * **Check 5 is not verified:** nobody has checked yet whether withdrawing keeps the connected

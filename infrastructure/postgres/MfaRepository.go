@@ -265,7 +265,7 @@ func (r MfaRepository) Insert(
 	if err != nil {
 		return err
 	}
-	if err := queries.InsertPendingCredential(ctx, sqlc.InsertPendingCredentialParams{
+	params := sqlc.InsertPendingCredentialParams{
 		ID:        id,
 		AccountID: account,
 		TokenHash: r.pendingHasher.Hash(presented.Secret()),
@@ -274,7 +274,15 @@ func (r MfaRepository) Insert(
 		IpClass:   nullableString(credential.IPClass),
 		CreatedAt: pgtype.Timestamptz{Time: credential.CreatedAt, Valid: true},
 		ExpiresAt: pgtype.Timestamptz{Time: credential.ExpiresAt, Valid: true},
-	}); err != nil {
+	}
+	if link := credential.Link; link != nil {
+		// The provider identity waiting for the account's proof (migration 0110).
+		if params.LinkProviderID, err = uuidOf(link.ProviderID); err != nil {
+			return err
+		}
+		params.LinkSubject = nullableString(link.Subject)
+	}
+	if err := queries.InsertPendingCredential(ctx, params); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the pending credential: %w", err))
@@ -308,6 +316,15 @@ func (r MfaRepository) FindByToken(
 		return repository.PendingLookup{}, err
 	}
 
+	var link *identity.LinkIntent
+	if row.LinkProviderID.Valid {
+		providerID, err := idFrom(row.LinkProviderID)
+		if err != nil {
+			return repository.PendingLookup{}, err
+		}
+		link = &identity.LinkIntent{ProviderID: providerID, Subject: stringFrom(row.LinkSubject)}
+	}
+
 	return repository.PendingLookup{
 		Credential: identity.PendingCredential{
 			ID:         credentialID,
@@ -319,6 +336,7 @@ func (r MfaRepository) FindByToken(
 			CreatedAt:  timeFrom(row.CreatedAt),
 			ExpiresAt:  timeFrom(row.ExpiresAt),
 			ConsumedAt: timeFrom(row.ConsumedAt),
+			Link:       link,
 		},
 		Account: identity.Account{
 			ID:          accountID,
