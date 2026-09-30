@@ -297,7 +297,9 @@ Three things decided while SI-05 and SI-06 were built, and seven more while SI-1
    meaningful on a ceiling — "Tarif, Ausnahme je Bereich" — and **forbidden** on a language, which
    §5.7 says in its own words: "eine Instanz gibt einen Standard, nie ein Schloss". So
    `LocalisationDefaults` has nowhere to put a lock and a write that carries one is refused rather
-   than partly obeyed. A type that cannot hold the thing cannot grow it by accident.
+   than partly obeyed. A type that cannot hold the thing cannot grow it by accident. *A fifth area,
+   `ai`, is added by [ADR-0072](ADR-0072-ai-at-the-installation-level.md) §2 (2026-09-30), with
+   locks.*
 
 7. **The quota level resolves as `Effective(product, instance, plan, workspace)` from the first
    day.** §6.7 asks for exactly that, with `plan = nil` until there are plans, and `Resolve` takes

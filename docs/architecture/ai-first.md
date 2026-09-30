@@ -93,7 +93,10 @@ dimensions and the moment travel with the batch, which is what lets the search n
 ([ADR-0049](../adr/ADR-0049-ai-provider-surface.md) decision 4).
 
 Adapters: `OpenAiCompatible` (covers OpenAI, Azure, Mistral, vLLM, LiteLLM), `Ollama` (local),
-`NoopAi` (the default). Configured per tenant, so that a provider can give its customers a choice.
+`NoopAi` (the default). Configured per tenant, so that a provider can give its customers a choice — or offered by the
+installation as a row with no workspace, which a workspace may choose where the instance value
+`ai.sources` allows, with `ai.min_jurisdiction` bounding its own model
+([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)).
 Every adapter reaches its endpoint through `infrastructure/httpclient.GuardedClient` and none of
 them brings a dependency — the wire is two JSON endpoints wide, and the timeout, the retry policy
 and the SSRF refusal are the guarded client's (ADR-0049 decision 1). A refusal is always
@@ -126,9 +129,12 @@ three is a defect in this file rather than a plan.
 * No automatic deletion or completion of items by AI without an explicit rule.
 * Data protection: AI use is opt-in per tenant; which fields are transmitted is documented; the
   self-hosting default is `NoopAi` or a local Ollama. A per-tenant `ai_processing_allowed` field is
-  checked before every call.
+  checked before every call, whichever source answers, and no installation or plan value sets it
+  (ADR-0072 §3). Inside the workspace a person may keep their own content out, unless the
+  workspace names a legal basis for AI as part of everybody's work
+  ([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)).
 * Cost and latency: AI calls run asynchronously as jobs, never in the critical write path;
-  timeouts, a per-tenant budget counter, and a circuit breaker for provider outages.
+  timeouts, a budget per source (ADR-0072 §4), and a circuit breaker for provider outages.
 * **The one call somebody waits for is the search's**, and it is bounded rather than excepted
   (J-10). Embedding what somebody typed cannot be a job — the answer is wanted now — so it gets the
   shortest timeout in the product, 800 ms, and every way of not getting an answer is a **lexical

@@ -2,6 +2,10 @@
 
 **Status:** accepted · **Date:** 2026-09-08 · **Accepted:** 2026-09-17
 
+*Extended by [ADR-0072](./ADR-0072-ai-at-the-installation-level.md) (2026-09-30): the installation
+may offer models of its own, and the budget counts per source. The surface decided here is
+unchanged.*
+
 ## Context
 
 [ADR-0012](./ADR-0012-ai-first-mcp.md) decided the outbound direction in one sentence —

@@ -158,7 +158,10 @@ circuit answer, so nothing that calls AI has a second way to degrade. Unlimited 
 because a self-hoster is either running a local model or paying their own provider directly, and
 a default ceiling there would be this project deciding how much of somebody's own machine they
 may use; a real number in multi because AI is the one feature whose marginal cost leaves the
-installation.
+installation. *Since [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4 the budget counts
+per source:* `ai_tokens_per_day` limits the model the installation **offers**, which the provider
+pays for; a workspace's own model is limited only by its own optional `ai_own_tokens_per_day`, off
+by default.
 
 Further fairness mechanisms: a weighted job queue (one tenant cannot monopolise the workers), query
 timeouts (`statement_timeout` per role), and cost estimation for query DSL requests with rejection
