@@ -82,7 +82,7 @@ permitted child types. No schema change, no API change.
 | `defaultTimeZone` | IANA | e.g. `Europe/Berlin` |
 | `settings` | JSONB | Retention, feature toggles, automation quotas |
 
-In self-hosting mode exactly one tenant exists (`SINGLE`), created automatically.
+In self-hosting mode exactly one tenant exists (`SINGLE`). Nothing creates it automatically yet: until SC-04 it is created by `scripts/dev-workspace.sh --bootstrap` or the admin API, and from SC-04 by the first start's setup ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)).
 
 ### 3.2 `Account`, `Membership`, `Group`
 

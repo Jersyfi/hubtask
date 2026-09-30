@@ -9,7 +9,7 @@ on which a service provider serves thousands of end customers — comparable to 
 
 | Mode | `HUBTASK_TENANCY_MODE` | Behaviour |
 |---|---|---|
-| Single | `single` (default) | Exactly one tenant is created on first startup; no tenant selection in the API; registration optionally open |
+| Single | `single` (default) | Exactly one tenant — today created by `scripts/dev-workspace.sh --bootstrap` or the admin API, from SC-04 by the web app's *Set up Hubtask* with a one-time code the first start prints ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); no tenant selection in the API; registration optionally open |
 | Multi | `multi` | Tenants are provisioned through the control/admin API; resolved by subdomain, header, or token claim; self-service signup optional |
 
 The code **always** knows about a tenant; "single" is merely the special case with one row in
