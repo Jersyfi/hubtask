@@ -154,6 +154,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-14](./admin/UC-INS-14-tell-a-platform-what-happened.md) | Tell the purchase platform what happened, without it asking | admin | specified |
 | [UC-INS-15](./admin/UC-INS-15-give-a-workspace-its-own-domain.md) | Give a workspace its own domain | admin | specified |
 | [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin | partial |
+| [UC-INS-17](./admin/UC-INS-17-run-hubtask-on-my-own-hardware.md) | Run Hubtask on the hardware I have | admin | built |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work | partial |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work | built |
 | [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work | built |
@@ -235,6 +236,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-PRV-05](./privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md) | Object to an optional use of my data | privacy | partial |
 | [UC-PRV-06](./privacy/UC-PRV-06-answer-a-request-across-the-whole-installation.md) | Answer a request across every workspace of the installation | privacy | partial |
 | [UC-PRV-07](./privacy/UC-PRV-07-correct-what-we-hold-about-a-person.md) | Correct what the workspace holds about a person | privacy | built |
+| [UC-PRV-08](./privacy/UC-PRV-08-know-what-the-installation-stores-about-people.md) | Know what the installation stores about people, and how each piece is deleted | privacy | partial |
 | [UC-AUD-01](./audit/UC-AUD-01-look-up-what-happened-in-the-workspace.md) | Look up what happened in the workspace | audit | built |
 | [UC-AUD-02](./audit/UC-AUD-02-prove-the-trail-is-intact.md) | Prove the trail has not been changed | audit | verified |
 | [UC-AUD-03](./audit/UC-AUD-03-anchor-the-trail-outside-the-database.md) | Anchor the trail outside the database | audit | partial |
