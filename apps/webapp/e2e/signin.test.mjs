@@ -16,6 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
+import { ENROLLMENT, walkSetup } from './secondfactor.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -270,6 +271,48 @@ test('a reset of an account with a second factor continues into the code step, t
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.locator('input[autocomplete="one-time-code"]').waitFor({ state: 'detached' });
     assert.deepEqual(sent.verify, { pending_token: 'totp-after-reset', code: '123456' });
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-03 checks 1 and 2 during a sign-in the workspace routed into setup: the same field and the
+// same panel as on the profile, and only *Continue* opens the session.
+test('a setup forced during sign-in confirms in the code field and shows the codes once', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/mfa/totp:enroll')) {
+      sent.enroll = request.postDataJSON();
+      return route.fulfill({ json: ENROLLMENT });
+    }
+    if (path.endsWith('/api/v1/auth/mfa/totp:confirm')) {
+      sent.confirm = request.postDataJSON();
+      return route.fulfill({ json: { armed: true, tokens: { access_token: 'e2e-access', refresh_token: 'e2e-refresh' } } });
+    }
+    return stubFor({
+      answer: () => ({ status: 202, json: { pending_token: 'enroll-1', methods: ['ENROLL'], expires_at: new Date(Date.now() + 300_000).toISOString() } }),
+    })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.waitForSelector('text=to contoso.hubtask.eu');
+    await page.locator('input[type="email"]').fill('anna@contoso.example');
+    await page.locator('input[autocomplete="current-password"]').fill('annas-own-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    await walkSetup(page, sent);
+    assert.deepEqual(sent.enroll, { pending_token: 'enroll-1' });
+    assert.equal(sent.confirm?.pending_token, 'enroll-1');
+    // Continue is what signs in: the card is gone.
+    await page.getByRole('button', { name: 'Continue' }).waitFor({ state: 'detached' });
+    assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
   } finally {
     await browser.close();
     await close();

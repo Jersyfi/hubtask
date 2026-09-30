@@ -106,10 +106,16 @@ class Mfa {
   ): Promise<{ armed: boolean; tokens?: { access: string; refresh: string } } | undefined> {
     let answer: Confirmed | undefined;
     const ok = await this.#attempt(async () => {
-      answer = await engine.mutate<Confirmed>('POST', CONFIRM, {
-        code,
-        ...(pendingToken ? { pending_token: pendingToken } : {}),
-      });
+      // Invalidating nothing, on purpose. The default re-reads every open resource, `/accounts/me`
+      // among them, and the answer now says `has_second_factor: true` - which is what the profile
+      // switches its panel on, so the ten codes the setup still has to show were torn down with it
+      // before anybody saw them. The caller re-reads the account at *Continue* instead.
+      answer = await engine.mutate<Confirmed>(
+        'POST',
+        CONFIRM,
+        { code, ...(pendingToken ? { pending_token: pendingToken } : {}) },
+        { invalidates: [] },
+      );
       return true;
     });
     if (!ok || !answer) return undefined;
