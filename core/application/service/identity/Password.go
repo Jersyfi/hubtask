@@ -745,11 +745,6 @@ func (w PasswordWriter) JudgeSignIn(
 	}
 	policy := rules.Effective.Policy
 
-	held, err := w.AccountFor(ctx, tenantID, account.ID)
-	if err != nil {
-		return SignInVerdict{}, err
-	}
-
 	verdict := SignInVerdict{
 		Rules:          passwordRulesView(rules, true),
 		FactorRequired: policy.MfaRequiredFor,
@@ -758,12 +753,19 @@ func (w PasswordWriter) JudgeSignIn(
 	}
 
 	if password.IsEmpty() {
-		// No candidate to judge. Two callers ask that way on purpose - the second step of a sign-in,
-		// where the password was settled at the first, and a reset, where it was just judged in
-		// full - and both want the verdict's *other* answers: who a factor is demanded of, and what
-		// bounds the session. Treating an absent password as one that fails the rule would put the
+		// No candidate to judge. Callers ask that way on purpose - the second step of a sign-in,
+		// where the password was settled at the first, a reset, where it was just judged in full,
+		// and a provider arrival, which never held one - and all want the verdict's *other*
+		// answers: who a factor is demanded of, and what bounds the session. Treating an absent password as one that fails the rule would put the
 		// change step in front of the very password the rule had accepted.
 		return verdict, nil
+	}
+
+	// The account's row only where there is a password to judge: a provider-only account has no
+	// moment to compare, and the two callers above want nothing from it.
+	held, err := w.AccountFor(ctx, tenantID, account.ID)
+	if err != nil {
+		return SignInVerdict{}, err
 	}
 
 	// The rule as it stands, against the password as it is. Only the local half: the lists and the

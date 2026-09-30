@@ -299,10 +299,15 @@ func (h ConfirmTotp) Execute(
 		return ConfirmedEnrollment{}, nil
 	}
 	// The enrolment's own step ends in a session, and it was opened with a password and a code -
-	// the code having just been confirmed is what the enforcement flow is.
+	// the code having just been confirmed is what the enforcement flow is. Bounded as the ordinary
+	// second step's session is.
+	bounds, err := w.sessionBounds(ctx, caller.tenantID, caller.account)
+	if err != nil {
+		return ConfirmedEnrollment{}, err
+	}
 	pair, err := w.openSessionWithHint(ctx, scope, caller.tenantID, caller.account,
 		caller.pending.UserAgent, caller.pending.IPClass, SignedInAction,
-		domain.SessionPolicy{}, domain.SignedInWithPasswordTotp)
+		bounds, domain.SignedInWithPasswordTotp)
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}

@@ -246,12 +246,15 @@ func (h CompleteOidcSignIn) Execute(
 		return SignInResult{Challenge: &challenge}, nil
 	}
 
-	// No bounds resolved here: a provider sign-in never held a password, so there is nothing for
-	// the rule to judge, and the workspace's session switches reach it with the next milestone that
-	// gives this path the resolver. What it does record is how it was opened.
+	// A provider sign-in holds no password for the rule to judge, but its session answers to the
+	// workspace's bounds like every other (UC-ID-08 check 4), and it records how it was opened.
+	bounds, err := w.Session.sessionBounds(ctx, state.TenantID(), account)
+	if err != nil {
+		return SignInResult{}, err
+	}
 	pair, err := w.Session.openSessionWith(ctx, scope, state.TenantID(), account,
 		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
-		domain.SessionPolicy{}, domain.SignedInWithOidc)
+		bounds, domain.SignedInWithOidc)
 	if err != nil {
 		return SignInResult{}, err
 	}
