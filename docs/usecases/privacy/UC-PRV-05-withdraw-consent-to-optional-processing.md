@@ -49,8 +49,9 @@ the objection case.
    ask; a withdrawal recorded earlier stops taking effect, and each person it affects is told once.
 10. A formal objection under Art. 21 is still recorded as an objection case and decided by the
     controller; recording it switches nothing off by itself.
-11. The installation and a plan can set the workspace's position as a default or lock it, and the
-    workspace's screen says which level decided.
+11. The installation and a plan can lock the workspace at *each person may keep their content out*,
+    and the workspace's screen says which level decided; neither can set or lock *AI for
+    everybody*, which only the workspace chooses, with its basis.
 12. Administrators see in the consent register who keeps their content out; the list appears
     nowhere else.
 

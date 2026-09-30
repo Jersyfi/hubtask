@@ -164,8 +164,13 @@ milestone PH.
     possible as a data subject request, which the controller decides — it switches nothing off by
     itself.
 
-  The installation and a plan may set the position as a default or lock it, like every workspace
-  value ([P-07](../vision/principles.md#p-07-the-stricter-level-wins-and-says-who-decided)).
+  The installation and a plan may set a default and lock it only **towards the person**: they may
+  hold a workspace at *each person may keep their content out*, never at *AI for everybody* —
+  that position needs a legal basis, and only the controller, the workspace, can name one
+  ([P-07](../vision/principles.md#p-07-the-stricter-level-wins-and-says-who-decided),
+  [P-14](../vision/principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place); decided
+  2026-10-01, the same shape as [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §2's lock
+  that holds a workspace out of a source, never in one).
   Administrators see who objected in the consent register, which is where accountability needs it,
   and nowhere else.
 
