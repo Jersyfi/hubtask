@@ -434,7 +434,7 @@ test('the return from a provider happens on the card, and a refusal offers the w
   try {
     // The provider sent the browser back with a refusal rather than a code.
     await page.goto(`${origin}/auth/callback?error=access_denied&state=the-state`);
-    await page.getByRole('heading', { name: 'Signing you in' }).waitFor();
+    await page.getByRole('heading', { name: 'Not signed in' }).waitFor();
     assert.ok(await page.getByText('to contoso.hubtask.eu').isVisible(), 'this is not the sign-in card');
     assert.equal(await page.locator('main').count(), 1);
     assert.equal(await page.locator('h1').count(), 1);

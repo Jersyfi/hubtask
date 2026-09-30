@@ -1518,6 +1518,7 @@
   "app.recovery.not_acknowledged": "Confirm you have stored them, then this can be closed.",
   "app.recovery.dismiss": "Done",
   "app.callback.title": "Signing you in",
+  "app.callback.failed_title": "Not signed in",
   "app.callback.working": "Finishing the sign-in with your provider.",
   "app.callback.back": "Back to sign-in",
   "app.nav.administration": "Workspace administration",

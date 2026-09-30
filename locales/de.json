@@ -372,6 +372,7 @@
   "app.sign_in.provider": "Mit dem Anbieter meiner Organisation anmelden",
   "app.sign_in.provider_working": "Du wirst weitergereicht",
   "app.callback.title": "Du wirst angemeldet",
+  "app.callback.failed_title": "Nicht angemeldet",
   "app.callback.working": "Die Anmeldung bei deinem Anbieter wird abgeschlossen.",
   "app.callback.back": "Zurück zur Anmeldung",
   "app.nav.administration": "Verwaltung des Arbeitsbereichs",

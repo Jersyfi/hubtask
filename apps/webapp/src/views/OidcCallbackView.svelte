@@ -74,7 +74,9 @@
   {/if}
 {/snippet}
 
-<SignInCard title={t('app.callback.title')} {notice}>
+<!-- The heading says the state and the banner the reason: "Signing you in" above a refusal would be
+     two sentences that contradict each other. -->
+<SignInCard title={t(oidc.failure ? 'app.callback.failed_title' : 'app.callback.title')} {notice}>
   {#if oidc.failure}
     <div>
       <Button tone="secondary" onclick={() => onnavigate?.('/')}>{t('app.callback.back')}</Button>
