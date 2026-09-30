@@ -268,7 +268,7 @@
   <SignInCard
     title={t('app.sign_in.second_factor')}
     step={{ index: 2, total: 2 }}
-    lead={t('app.sign_in.second_factor_hint')}
+    lead={t(owed.afterReset ? 'app.sign_in.second_factor_after_reset' : 'app.sign_in.second_factor_hint')}
     {notice}
   >
     <form onsubmit={complete}>

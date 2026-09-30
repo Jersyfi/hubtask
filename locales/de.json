@@ -367,6 +367,7 @@
   "app.sign_in.use_recovery": "Ich habe meinen Authenticator nicht",
   "app.sign_in.use_code": "Stattdessen einen Code verwenden",
   "app.sign_in.second_factor_hint": "Dein Passwort war richtig. Dieses Konto fragt zusätzlich nach einem Code aus deinem Authenticator.",
+  "app.sign_in.second_factor_after_reset": "Dein neues Passwort ist gesetzt. Dieses Konto fragt zusätzlich nach einem Code aus deinem Authenticator, bevor du angemeldet bist.",
   "app.sign_in.must_enrol": "Dein Passwort war richtig. Dieser Arbeitsbereich verlangt von seinen Administratoren einen zweiten Faktor, und du hast noch keinen – richte jetzt einen ein.",
   "app.sign_in.provider": "Mit dem Anbieter meiner Organisation anmelden",
   "app.sign_in.provider_working": "Du wirst weitergereicht",

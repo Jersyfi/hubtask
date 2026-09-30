@@ -36,6 +36,10 @@ interface ResetAnswer {
   readonly refresh_token?: string;
   readonly pending_token?: string;
   readonly methods?: readonly string[];
+  /** When the second step's credential dies, for the card's clock. */
+  readonly expires_at?: string;
+  /** Whose account, for the card's identity line: the person arrived from a link, not an address. */
+  readonly email?: string | null;
 }
 
 class Password {
@@ -103,7 +107,13 @@ class Password {
         return true;
       }
       if (answer.pending_token) {
-        session.owe(answer.pending_token, answer.methods ?? []);
+        // Everything the card's step shows: the clock, whose account, and that the password it
+        // follows was just set rather than typed (UC-ID-04 check 5).
+        session.owe(answer.pending_token, answer.methods ?? [], {
+          expiresAt: answer.expires_at,
+          email: answer.email ?? undefined,
+          afterReset: true,
+        });
         return false;
       }
       this.#problem = { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };

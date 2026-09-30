@@ -227,6 +227,55 @@ test('a recovery code is taken as it was shown, dashes and all, with a text keyb
   }
 });
 
+// UC-ID-04 check 5: a reset of an account with a second factor continues on the card into the code
+// step - whose account, how long the step waits, the code field - and only the code signs in.
+// Before SC-03 the reset card stayed on its form after the 202, with the link already spent.
+test('a reset of an account with a second factor continues into the code step, to the end', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const inFourMinutes = new Date(Date.now() + 4 * 60 * 1000).toISOString();
+  const { browser, page } = await open(origin, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/password:reset')) {
+      sent.reset = request.postDataJSON();
+      return route.fulfill({
+        status: 202,
+        json: {
+          pending_token: 'totp-after-reset', methods: ['TOTP', 'RECOVERY'],
+          expires_at: inFourMinutes, email: 'anna@contoso.example',
+        },
+      });
+    }
+    if (path.endsWith('/api/v1/auth/sessions:verify')) {
+      sent.verify = request.postDataJSON();
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  try {
+    await page.goto(`${origin}/reset#token=e2e-reset`);
+    await page.getByLabel('New password').fill('seven blue lanterns above the harbour');
+    await page.getByRole('button', { name: 'Set the password' }).click();
+
+    // The same card moves on: the step, whose account, the clock, the code field.
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.deepEqual(sent.reset, { token: 'e2e-reset', password: 'seven blue lanterns above the harbour' });
+    assert.ok(await page.getByText('anna@contoso.example').isVisible(), 'the identity line names the account');
+    assert.ok(await page.getByRole('button', { name: 'Not you?' }).isVisible(), 'the way back is offered');
+    assert.match(await page.getByText(/This sign-in waits/).innerText(), /[34]:\d\d/, 'the remaining time is shown');
+    assert.ok(await page.getByText(/new password is set/i).isVisible(), 'the step says the password was set, not that it was right');
+
+    await page.locator('input[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.locator('input[autocomplete="one-time-code"]').waitFor({ state: 'detached' });
+    assert.deepEqual(sent.verify, { pending_token: 'totp-after-reset', code: '123456' });
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 test('the rules under a password are the workspace’s, and the server’s lines wait for the local ones', async () => {
   const { origin, close } = await serve(DIST);
   const asked = [];
