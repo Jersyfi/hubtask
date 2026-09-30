@@ -6,7 +6,7 @@ actors: [PE-admin, PE-owner, PE-scripter, PE-operator]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-12]
 state: partial
-tasks: [E-10, E-12, H-13, F4-20]
+tasks: [E-10, E-12, H-13, F4-20, PH-02]
 checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml]
 ---
 
@@ -49,14 +49,21 @@ so it does not depend on somebody opening the screen.
    `dsr.started`, `dsr.completed`, `dsr.rejected`) with the right as its legal basis and no note
    text.
 8. A member without the administrator's right neither sees the register nor records a case.
+9. An open case whose original deadline has not passed can be extended **once**, to at most three
+   months after receipt, with a reason — complexity or the number of requests — and the date the
+   person was informed; without either it is refused. A second extension is refused.
+10. After an extension the register shows the original and the extended date, and the watch and
+    *owed soon* read the extended one; the extension writes `privacy.request_extended` with the
+    reason and no note text. An installation-wide case is extended by the operator and every
+    workspace it touches records it.
 
 ## Where it ends
 
 * The person does not file the request in Hubtask themselves; it reaches the controller by any
   channel and the controller records it. Checking the requester's identity happens before
   recording and is not a feature.
-* Extending a deadline after the case was recorded (GDPR Art. 12(3)) is not covered; whether it
-  should be is an open question for the owner.
+* Hubtask does not inform the person of an extension; it records that the controller did
+  (decided 2026-09-30, [data-protection.md](../../architecture/data-protection.md) §4.1).
 * No correspondence with the requester from inside Hubtask.
 * Each kind's work is its own use case: a copy of the data, erasure, restriction, objection.
 
@@ -69,3 +76,4 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
   (`core/application/service/privacy/Deadlines.go`).
 * **Check 6 fails in the web app.** The record form has no deadline field; the API and
   `hubctl dsr create --due` take one.
+* **Checks 9 and 10 are not built.** Decided 2026-09-30; milestone PH, task PH-02.

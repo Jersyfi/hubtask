@@ -91,7 +91,7 @@ and deadline monitoring. They live in the **Privacy & Compliance** bounded conte
 | Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | Two-stage: **anonymisation** (authorship remains as "former user", the tenant's content is preserved) or **full deletion** including the person's own comments — the choice rests with the controller, because tenant data can belong to third parties |
 | Restriction (Art. 18) | `RestrictProcessing` | Account status `RESTRICTED`: readable, not processed, excluded from automation and AI |
 | Portability (Art. 20) | `CreateDataSubjectRequest(PORTABILITY)` | A machine-readable, documented format (JSON Lines + schema), not just a PDF |
-| Objection (Art. 21) | `WithdrawConsent` | Affects optional processing (AI, metering, notification channels); the core features stay usable |
+| Objection (Art. 21) | `WithdrawConsent`; a formal case as `CreateDataSubjectRequest(OBJECTION)` | Affects optional processing (AI, metering, notification channels); the core features stay usable. For AI, whether a person may keep their own content out is the workspace's setting (§4.1) |
 | No automated individual decision-making (Art. 22) | — | AI results are exclusively **suggestions** with provenance; automatic assignment is a work-organisation measure with no legal effect, overridable at any time and traceable in the audit |
 
 Carried technically by the `data_subject_request` table with a state machine
@@ -122,6 +122,52 @@ Built with E-10, and four things about it are decisions rather than mechanics:
   `audit.md` §5 says an instance administrator has no blanket insight into a tenant's data without a
   documented occasion, and the occasion belongs where that tenant's own administrator can see it.
   No repository method takes a tenant as an argument, which a gate now keeps true.
+
+### 4.1 Three decisions of 2026-09-30
+
+Taken by the owner while the use cases were written ([`UC-PRV-01`](../usecases/privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md),
+[`UC-PRV-03`](../usecases/privacy/UC-PRV-03-erase-a-person-on-request.md),
+[`UC-PRV-05`](../usecases/privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)); built in
+milestone PH.
+
+* **A deadline is extended once, with a reason and a record that the person was told
+  (Art. 12(3)).** An open case whose original deadline has not passed may be extended once, to at
+  most three months after receipt, naming the reason — `COMPLEXITY` or `NUMBER_OF_REQUESTS` — and
+  the date the person was informed, without which the extension is refused. Hubtask does not write
+  to the person; it records that the controller did. The watch and the register read the extended
+  date; both dates stay visible; the extension is audited (`privacy.request_extended`). An
+  installation-wide case is extended by the operator and every workspace it touches records it.
+* **A legal hold wins over an erasure, exactly as far as it reaches (Art. 17(3)(e), Art. 18).**
+  The erasure runs for everything no hold covers. What a hold covers is kept and *restricted* — out
+  of automation, AI and every export but the hold's own — and the case closes as partly completed,
+  naming what was kept, under which hold and why, because the person is owed that answer
+  (Art. 12(4)). The remainder is recorded on the case, and releasing the hold is the write that
+  seeds its erasure: nothing has to remember it, and nothing visits workspaces. An `ACCOUNT` hold
+  covers everything that person contributed to the workspace — the entries they created, their
+  comments, their attachments, and the account itself — and stops its erasure and its deletion,
+  not its sign-in. This answers R-3 in [`data-retention.md`](./data-retention.md) §9.
+* **AI: the workspace decides, and it decides whether a person may keep their own content out.**
+  The workspace's consent to AI processing stays the workspace's
+  ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)). Beside it the workspace chooses one
+  of two positions for the people in it:
+  * **Each person may keep their content out** (the default). A person's *Keep my content out of AI*
+    is an objection with effect: what they authored — entries they created, their comments, their
+    notes — goes into no prompt, their name is replaced by a neutral placeholder, and AI actions are
+    not offered to them. For everybody else AI stays as the workspace set it. The switch appears only
+    where the workspace has AI on and more than one person; alone, the workspace's decision is the
+    person's own.
+  * **AI is part of the work for everybody.** For a company that uses AI on a basis that does not
+    rest on each person's agreement — the employment contract, a works agreement, a legal
+    obligation — the workspace switches the personal opt-out off and must name that basis. People
+    see no switch (P-05) but a sentence naming the basis and whom to ask; a withdrawal a person had
+    recorded stops taking effect, and they are told so once. A formal objection under Art. 21 stays
+    possible as a data subject request, which the controller decides — it switches nothing off by
+    itself.
+
+  The installation and a plan may set the position as a default or lock it, like every workspace
+  value ([P-07](../vision/principles.md#p-07-the-stricter-level-wins-and-says-who-decided)).
+  Administrators see who objected in the consent register, which is where accountability needs it,
+  and nowhere else.
 
 ---
 

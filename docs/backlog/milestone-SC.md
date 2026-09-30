@@ -31,12 +31,12 @@ are built:
 a workspace may use — [ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md), accepted on
 2026-09-30.
 
-What deliberately is **not** in this milestone, each waiting on a decision of its own:
+What deliberately is **not** in this milestone:
 
-* **A private hub no administrator can open** ([UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md)) —
-  the authorization model only adds rights; a narrowing membership needs an ADR.
-* **Accounts without a mail address** ([UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md)) —
-  touches the account model and P-02; needs an ADR.
+* **A private hub no administrator can open** ([UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md))
+  and **accounts without a mail address** ([UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md))
+  — decided on 2026-09-30 as ADR-0073 and ADR-0074 and cut into
+  [milestone PH](./milestone-PH.md) with the three data protection decisions.
 * **Plans, platform events and usage, own domains** — their own milestones, in the order the
   concept set: passkeys, then plans, then domains.
 

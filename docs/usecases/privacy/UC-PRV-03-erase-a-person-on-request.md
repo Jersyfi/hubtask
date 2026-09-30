@@ -6,7 +6,7 @@ actors: [PE-owner, PE-admin, PE-scripter]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-08, P-11]
 state: partial
-tasks: [E-10, E-11, H-13, F4-20]
+tasks: [E-10, E-11, H-13, F4-20, PH-01]
 checked_by: [core/application/service/privacy/Erasure_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_test.go, test/privacy/PG2_deletion_test.go, core/domain/model/privacy/Request_test.go]
 ---
 
@@ -47,7 +47,17 @@ trail the person's old entries stay, and every read of them now shows a pseudony
 8. In the web app, starting an erasure asks for a confirmation that names the person and what the
    chosen mode removes, before anything happens.
 9. After erasure, no storage location — rows, media, search index, outbox, rule runs, deliveries —
-   still holds the person's personal data, apart from the trail's metadata.
+   still holds the person's personal data, apart from the trail's metadata **and what a legal hold
+   keeps** (check 10).
+10. Data a legal hold covers — a hold on the workspace, a hub, a collection, an entry, or on the
+    person's account — is not erased or anonymised but restricted: out of automation, AI and every
+    export except the hold's own. Everything no hold covers is erased as usual.
+11. A case that kept something closes as partly completed and names how much was kept, under which
+    hold, and the legal basis (Art. 17(3)(e)); the confirmation before starting says in advance
+    what a hold will keep.
+12. Releasing the hold carries out the rest of the erasure by itself, and the case records it.
+13. A hold on an account covers the entries that person created, their comments, their attachments
+    and the account itself, and stops the account's erasure and deletion — not its sign-in.
 
 ## Where it ends
 
@@ -58,8 +68,8 @@ trail the person's old entries stay, and every read of them now shows a pseudony
 * No erasure of other people's content that mentions the person.
 * No undo: once carried out, an erasure is final (P-04's grace is the step from *received* to
   *in progress*).
-* Whether a legal hold stops an erasure is not decided here: holds on a single account are refused
-  today (open point R-3 in [data-retention.md](../../architecture/data-retention.md) §9).
+* A hold wins over an erasure only as far as it reaches — decided 2026-09-30
+  ([data-protection.md](../../architecture/data-protection.md) §4.1, which also answers R-3).
 
 See [data-protection.md](../../architecture/data-protection.md) §4–5.
 
@@ -68,3 +78,6 @@ See [data-protection.md](../../architecture/data-protection.md) §4–5.
 * **Check 8 fails.** *Start answering it* on an erasure case starts the job at once, with no
   confirmation naming the person or the loss (`apps/webapp/src/views/PrivacyView.svelte`, the
   start button). The mode's explanation is shown beside the choice, which is not the same.
+* **Checks 9–13 fail: the erasure reads no legal hold at all**, not even one on the whole workspace
+  (`core/application/service/privacy/Erasure.go`), and a hold on an account is refused. Milestone PH,
+  task PH-01.

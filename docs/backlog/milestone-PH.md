@@ -1,0 +1,152 @@
+# Milestone PH — Privacy and the household
+
+The goal: **a household can share one Hubtask and still keep things to itself, a child or a
+grandparent can have an account without a mailbox, and a data protection officer can answer every
+right the law gives — including where the law and a legal hold pull in different directions.**
+
+Five decisions of 2026-09-30, each measured against the deployments `D1`–`D7`, are the source:
+
+* [data-protection.md](../architecture/data-protection.md) §4.1 — the deadline extension, a legal
+  hold against an erasure (which also answers R-3), and AI objection per person with the workspace's
+  choice to make AI part of the work for everybody.
+* [ADR-0073](../adr/ADR-0073-private-hubs.md) — private hubs with a transparent emergency access.
+* [ADR-0074](../adr/ADR-0074-managed-accounts.md) — managed accounts without a mail address.
+
+**One defect comes first.** The erasure reads no legal hold at all today — not even one on the whole
+workspace — so a hold placed for a lawsuit does not protect what it names from an erasure request.
+PH-01 fixes it before anything is added.
+
+Every task names its use cases; a task is done when the named checks hold, with the evidence in the
+pull request. Every task is **[L]** in the initial phase.
+
+---
+
+## PH-01 — A legal hold wins over an erasure, as far as it reaches **[L]**
+
+*Depends on: nothing. First, because it is a defect.*
+
+**Use cases:** UC-PRV-03 (9, 10, 11, 12, 13), UC-LIF-06
+
+The erasure asks the holds before it removes anything: whatever a hold on the workspace, a hub, a
+collection, an entry or the person's account covers is restricted rather than erased; the rest is
+erased. The case closes as partly completed with the count, the hold and the legal basis, and records
+the remainder; releasing the hold is the write that seeds the remainder's erasure. `ACCOUNT` holds are
+accepted and cover the person's contributions and the account. The confirmation before starting says
+what a hold will keep.
+
+**Acceptance:** a test per hold scope proving what is kept and what goes; a test that the release
+completes the rest; the integration suite green.
+
+---
+
+## PH-02 — Extending a deadline once, with a reason **[L]**
+
+*Depends on: nothing.*
+
+**Use cases:** UC-PRV-01 (9, 10)
+
+`data_subject_request` gains the extended date, the reason (`COMPLEXITY`, `NUMBER_OF_REQUESTS`) and
+the date the person was informed; one extension, at most three months after receipt, before the
+original deadline; the watch and the register read the extended date; `privacy.request_extended`.
+Every door: web app, API, `hubctl dsr extend`, MCP.
+
+**Acceptance:** tests for the bounds (twice, too late, too long, no reason, no informed date); the
+register shows both dates.
+
+---
+
+## PH-03 — Keeping one's own content out of AI, and the workspace's choice **[L]**
+
+*Depends on: ADR-0072's installation level (SC-11) for the lock; the workspace half stands alone.*
+
+**Use cases:** UC-PRV-05 (4, 5, 7, 8, 9, 10, 11, 12)
+
+The workspace value `ai.person_opt_out` — `OFFERED` (default) or `NOT_OFFERED` with a required legal
+basis — with the installation's and the plan's default and lock. The profile's *Keep my content out
+of AI*, shown only where AI is on and the workspace has more than one person. The prompt builder
+reads the objections: authored content excluded, names replaced, AI actions not offered to the
+person. `NOT_OFFERED` shows the basis instead of the switch and tells each person whose earlier
+withdrawal stops taking effect. A person may withdraw their own consent in the web app.
+
+**Acceptance:** a test that an objecting person's comment never reaches a prompt the adapter
+receives; a walk in both positions.
+
+---
+
+## PH-04 — Private hubs: the rule and every reader **[L]**
+
+*Depends on: nothing.*
+
+**Use cases:** UC-ID-16 (1, 2, 3, 5, 6, 8)
+
+`container.private` on hubs; `EffectiveRole` ignores memberships above a private hub; every reader
+that narrows by readable scopes honours it — navigation, hub list, search, overview, calendar feed,
+saved views, automation and AI run for somebody else — and a gate test lists them. Any person may
+create a private hub for themselves where the workspace allows it. Administrators see owner and size
+without the name. The last member leaving sends the hub to the trash and tells the owner. Export and
+backup mark it; restore keeps the mark. The offline replica of a non-member never receives it.
+
+**Acceptance:** a table test over roles × scopes with a private hub on the path; a cross-tenant and a
+cross-member negative test for every reader; a walk as two parents and a child.
+
+---
+
+## PH-05 — Private hubs: the emergency access and the setting **[L]**
+
+*Depends on: PH-04.*
+
+**Use cases:** UC-ID-16 (4, 7)
+
+The owner's emergency access — step-up, reason, one hour, not renewable — with an immediate
+notification to every member (a new notification category) and an audit action. The workspace
+setting *Private hubs allowed* with the installation's and the plan's default and lock.
+
+**Acceptance:** a test that the access notifies before it answers any read; a walk of the access and
+of the setting switched off.
+
+---
+
+## PH-06 — Managed accounts: creating one and signing in **[L]**
+
+*Depends on: nothing.*
+
+**Use cases:** UC-ID-20 (1, 2, 3, 4, 6, 8)
+
+`account.sign_in_name` (unique per workspace, nullable) and its catalogue row; *Add someone without an
+address* with the start password drawn by Hubtask and shown once through `OneTimeSecret`; sign-in by
+address or sign-in name with the same refusal and ledgers; the first sign-in routed into
+`PASSWORD_CHANGE`; "not possible without a mailbox" where mail is needed; the workspace setting with
+the installation's and the plan's default and lock.
+
+**Acceptance:** a walk creating a child's account and signing in as the child; tests that a sign-in
+name and an address are indistinguishable in every refusal.
+
+---
+
+## PH-07 — Managed accounts: a new start password, and an address later **[L]**
+
+*Depends on: PH-06.*
+
+**Use cases:** UC-ID-20 (5, 7)
+
+The administrator's *New start password* for managed accounts only — step-up, trail, every session
+ended, second factor still demanded — and adding an address with its confirmation, after which the
+account is an ordinary one and keeps its sign-in name.
+
+**Acceptance:** a test that the action is refused for any account with an address; a walk of the
+renewal and the upgrade.
+
+---
+
+## PH-08 — The walk, by use case and deployment **[L]**
+
+*Depends on: all.*
+
+**Use cases:** UC-PRV-01, UC-PRV-03, UC-PRV-05, UC-ID-16, UC-ID-20
+
+`/usecase-check PH`, then a walk per deployment: `D2` a household with two parents, a teenager with a
+private hub and a grandparent with a managed account; `D4` a company with a legal hold, an erasure
+request and AI made part of the work; `D5` a consumer alone in a workspace, where none of it appears.
+The evidence under `docs/evidence/`; the use cases move to `built` or `verified`.
+
+**Acceptance:** the milestone's use cases have no *Today* entry that names a PH task.

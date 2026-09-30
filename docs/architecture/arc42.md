@@ -784,6 +784,8 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0070 | The instance layer: operators, instance settings, and the elevated session | accepted |
 | 0071 | Who a sign-in provider admits: the directory, not the text of an address | accepted |
 | 0072 | AI at the installation level: an offered model, and who may bring their own | accepted |
+| 0073 | A private hub narrows what the workspace's roles reach | accepted |
+| 0074 | Managed accounts: a sign-in name, a start password, and who may renew it | accepted |
 
 ---
 
