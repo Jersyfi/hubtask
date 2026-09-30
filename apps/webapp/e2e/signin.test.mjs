@@ -166,6 +166,8 @@ test('a second factor becomes the second step, with the code field and the ident
 
     await page.waitForSelector('text=Signing in as');
     assert.ok(await page.locator('text=walker@example.invalid').count());
+    // UC-ID-02 check 7: the step carries the name the profile gives the feature.
+    assert.equal(await page.locator('h1').innerText(), 'Second factor');
 
     // One field, six places: pasting works, which is what one field buys and six do not.
     const code = page.getByLabel('Code from your authenticator');
@@ -371,7 +373,7 @@ test('a provider arrival that meets a password is asked for it on the card, then
     await page.getByRole('button', { name: 'Confirm and connect' }).click();
 
     // The account has a second factor: the ordinary code step follows on the same card.
-    await page.getByRole('heading', { name: 'Second factor' }).or(page.getByRole('heading', { name: 'One more step' })).first().waitFor();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
     assert.deepEqual(sent.link, { pending_token: 'link-1', password: 'annas-own-password' });
 
     await page.locator('input[autocomplete="one-time-code"]').fill('123456');

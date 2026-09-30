@@ -337,7 +337,7 @@
   "app.sign_in.link_title": "Bestätige, dass es dein Konto ist",
   "app.sign_in.link_body": "Für diese Adresse gibt es hier schon ein Konto. Gib einmal sein Passwort ein, danach meldet dich {provider} an.",
   "app.sign_in.link_submit": "Bestätigen und verbinden",
-  "app.sign_in.second_factor": "Noch ein Schritt",
+  "app.sign_in.second_factor": "Zweiter Faktor",
   "app.mfa.intro": "Ein zweiter Faktor heißt: ein Code von deinem Telefon zusätzlich zu deinem Passwort. Das Einrichten dauert eine Minute und macht den Unterschied zwischen einem gestohlenen Passwort und einem gestohlenen Konto.",
   "app.mfa.start": "Zweiten Faktor einrichten",
   "app.mfa.starting": "Wird vorbereitet",

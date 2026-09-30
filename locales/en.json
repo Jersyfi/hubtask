@@ -1425,7 +1425,7 @@
   "app.sign_in.link_title": "Confirm it is your account",
   "app.sign_in.link_body": "An account for this address already exists here. Enter its password once, and {provider} will sign you in from now on.",
   "app.sign_in.link_submit": "Confirm and connect",
-  "app.sign_in.second_factor": "One more step",
+  "app.sign_in.second_factor": "Second factor",
   "app.mfa.intro": "A second factor means a code from your phone as well as your password. It takes a minute to set up and it is the difference between a stolen password and a stolen account.",
   "app.mfa.start": "Set up a second factor",
   "app.mfa.starting": "Preparing",
