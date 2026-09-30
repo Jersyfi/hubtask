@@ -88,15 +88,15 @@ and deadline monitoring. They live in the **Privacy & Compliance** bounded conte
 |---|---|---|
 | Access (Art. 15) | `CreateDataSubjectRequest(ACCESS)` | An asynchronous job produces a complete copy of all the person's data across *every* tenant of the installation in which they are a member; structured JSON plus media plus metadata (purpose, recipients, deadline) |
 | Rectification (Art. 16) | Ordinary write operations | No special handling needed, the change appears in the audit |
-| Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | Two-stage: **anonymisation** (authorship remains as "former user", the tenant's content is preserved) or **full deletion** including the person's own comments — the choice rests with the controller, because tenant data can belong to third parties |
+| Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | Two-stage: **anonymisation** (authorship remains as "former user", the tenant's content is preserved) or **full deletion** including the person's own comments — the choice rests with the controller, because tenant data can belong to third parties. What a legal hold covers is kept and restricted, and the case closes partly completed (§4.1) |
 | Restriction (Art. 18) | `RestrictProcessing` | Account status `RESTRICTED`: readable, not processed, excluded from automation and AI |
 | Portability (Art. 20) | `CreateDataSubjectRequest(PORTABILITY)` | A machine-readable, documented format (JSON Lines + schema), not just a PDF |
 | Objection (Art. 21) | `WithdrawConsent`; a formal case as `CreateDataSubjectRequest(OBJECTION)` | Affects optional processing (AI, metering, notification channels); the core features stay usable. For AI, whether a person may keep their own content out is the workspace's setting (§4.1) |
 | No automated individual decision-making (Art. 22) | — | AI results are exclusively **suggestions** with provenance; automatic assignment is a work-organisation measure with no legal effect, overridable at any time and traceable in the audit |
 
 Carried technically by the `data_subject_request` table with a state machine
-(`RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`), the statutory deadline (30 days by default), an
-assignee, a reason on rejection, and a deadline alert (`A-19`) as it approaches. Without deadline
+(`RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`), the statutory deadline (30 days by default,
+extended once with a reason under §4.1), an assignee, a reason on rejection, and a deadline alert (`A-19`) as it approaches. Without deadline
 monitoring, the right gets violated in practice even though the feature exists.
 
 Built with E-10, and four things about it are decisions rather than mechanics:
@@ -299,6 +299,7 @@ every runbook in that directory answers an alert.
 | Setting | Default |
 |---|---|
 | AI processing | Off |
+| A person's objection to AI for their own content | Offered; a workspace may withdraw the offer only on a named legal basis (§4.1) |
 | External search index | Off (PostgreSQL full text is data-local) |
 | Telemetry / usage statistics sent to the project | Does not exist |
 | Metering (usage figures for billing) | Off; when enabled, aggregates only, no content |

@@ -411,8 +411,9 @@ reaches only what is assigned to it does not get to keep somebody else's work ou
 rule.
 
 Placing a legal hold asks for the owner's right too, and it is the sharpest case for that line in
-the system: a hold overrides the workspace's own configured retention periods *and* a person
-emptying their own trash. Somebody who can freeze a workspace's data against the workspace's own
+the system: a hold overrides the workspace's own configured retention periods, a person
+emptying their own trash *and* an erasure request, as far as the hold reaches
+([data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30)). Somebody who can freeze a workspace's data against the workspace's own
 decisions is exercising the owner's authority rather than an administrator's. Reading which holds
 exist is `STRUCTURE`, for the reason listing backup targets is: somebody who may not place one still
 has to be able to see that one exists.
