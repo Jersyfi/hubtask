@@ -98,7 +98,7 @@ In self-hosting mode exactly one tenant exists (`SINGLE`), created automatically
 | `status` | `ACTIVE` \| `INVITED` \| `DISABLED` | |
 
 `Membership(accountId, scopeType, scopeId, role)` with `scopeType ∈ {TENANT, HUB, COLLECTION, ITEM}`.
-The effective permission is the highest role along the path (inheritance downwards).
+The effective permission is the highest role along the path (inheritance downwards). One exception, by decision: a **private hub** is reached only through a membership on the hub itself — roles held higher up the path do not flow into it, and the workspace owner reaches it only through the transparent emergency access of [ADR-0073](../adr/ADR-0073-private-hubs.md).
 `Group(id, tenantId, name, members[])` — the target object for assignment strategies and
 permissions.
 

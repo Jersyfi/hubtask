@@ -57,8 +57,11 @@ coverage.*
 /presentation/webui/dist/*
 !/presentation/webui/dist/index.html
 
-# Local Claude Code tooling (launch configurations); session-specific, not project content.
-.claude/
+# Local Claude Code tooling (launch configurations, settings, worktrees); session-specific, not
+# project content. The project's skills are the exception: they are how a session checks work
+# against the use cases (docs/usecases/README.md), and every session needs the same ones.
+/.claude/*
+!/.claude/skills/
 
 # Python bytecode from running the SDK example or its test
 __pycache__/

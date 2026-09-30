@@ -25,6 +25,9 @@
 //     session is told to read.
 //   - The support matrix and the workflows agree in both directions, so that support can neither
 //     be claimed without a job nor removed by deleting one (see matrix.go).
+//   - The use cases cite personas, deployments and principles that exist, carry the sections that
+//     make them checkable, agree with their index, and every UC-… cited anywhere exists
+//     (see usecases.go).
 package main
 
 import (
@@ -57,6 +60,7 @@ func main() {
 	problems = append(problems, checkGoVersion(root)...)
 	problems = append(problems, checkSupportMatrix(root)...)
 	problems = append(problems, checkCoverageReport(root)...)
+	problems = append(problems, checkUseCases(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)

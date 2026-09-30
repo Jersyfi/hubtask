@@ -23,6 +23,8 @@ The architecture is fully documented and ready to implement. Start here:
 
 | Document | Contents |
 |---|---|
+| [docs/vision/README.md](./docs/vision/README.md) | **Why**: the vision, fifteen product principles, personas, the seven deployments, non-goals |
+| [docs/usecases/README.md](./docs/usecases/README.md) | **What**: every use case in plain language, by bounded context, with the checks that prove it and its state |
 | [docs/architecture/arc42.md](./docs/architecture/arc42.md) | **Main document**, following arc42: goals, constraints, context, solution strategy, building blocks, runtime, deployment, cross-cutting concepts, quality, risks, glossary |
 | [docs/architecture/domain-model.md](./docs/architecture/domain-model.md) | Aggregates, capability matrix, invariants, events, use case catalogue |
 | [docs/architecture/project-structure.md](./docs/architecture/project-structure.md) | Go directory tree, dependency rules, conventions |

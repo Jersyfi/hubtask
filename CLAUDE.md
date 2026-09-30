@@ -14,6 +14,8 @@ One repository holds the Go core, both first-party clients, and the design syste
 ([ADR-0027](docs/adr/ADR-0027-monorepo-structure.md)).
 
 ```text
+docs/vision/   WHY: principles, personas, deployments, non-goals — the owner's, rarely changed
+docs/usecases/ WHAT: one file per use case, by bounded context — the yardstick every task is checked against
 core/          the domain and the application layer — technology-free
 presentation/  inbound adapters: rest, mcp, sse, calendar, worker, webui
 infrastructure/outbound adapters: postgres, storage, mail, httpclient, …
@@ -74,6 +76,12 @@ must keep working in a checkout where Node was never installed** — that is wha
 
 ## Reading order
 
+**Before any of it:** the use cases the task names in its `**Use cases:**` line, completely —
+*Goal*, *How to check*, *Where it ends* — and the principles they serve in
+`docs/vision/principles.md`. They say what must be true for the person; everything below says how
+it is built. A task that names none was cut before use cases existed: find the use cases of its
+context in `docs/usecases/` and say in the pull request which checks the work meets.
+
 1. `docs/architecture/arc42.md` — chapters 1, 4, 5, 8
 2. `docs/architecture/domain-model.md` — aggregates, capability matrix, use case catalogue
 3. `docs/architecture/project-structure.md` — where each kind of code belongs
@@ -111,9 +119,10 @@ that instead of breaking the rule.
 
 ## The loop for every task
 
-1. **Understand**: read the task **and its issue**, read the documents they name, locate the use
-   case in the catalogue in `domain-model.md`. If something contradicts the documentation, ask —
-   do not guess.
+1. **Understand**: read the task **and its issue**, read the use cases they name and the documents
+   they name, locate the operation in the catalogue in `domain-model.md`. If something contradicts
+   the documentation — or a use case's check cannot be met the way the task describes — ask, do not
+   guess, and never soften the check.
 2. **Plan in steps**: split the task into steps of roughly one commit each, and record that split
    in a **draft pull request** that closes the issue (§ "The issue is the task" and § "Steps and
    commits" below).
@@ -123,9 +132,11 @@ that instead of breaking the rule.
    One step, one commit, pushed immediately.
 5. **Test**: domain logic with table tests and no infrastructure. Repositories with Testcontainers.
    A cross-tenant negative test for every new repository method — otherwise gate SG-3 fails.
-6. **Check**: `make verify` must be green locally before the pull request leaves draft.
-7. **Finish**: take the pull request out of draft, fill in the template completely, work through
-   the Definition of Done in `docs/architecture/engineering-guidelines.md` §3.
+6. **Check**: `make verify` must be green locally, and `/usecase-check` over the branch must find
+   every named check met with evidence, before the pull request leaves draft.
+7. **Finish**: take the pull request out of draft, fill in the template completely — including the
+   *Use cases* section, check by check — move the use cases' `state:` and `checked_by:`, and work
+   through the Definition of Done in `docs/architecture/engineering-guidelines.md` §3.
 
 ## The issue is the task
 
@@ -210,6 +221,8 @@ Continue at the first unticked box. Do not start over, and do not rewrite what i
 
 A piece of work is finished when, in addition to working code:
 
+- Every check of every use case the task names is met, with a test or a walk as evidence, and the
+  use case's `state:`, `checked_by:` and *Today* say so
 - The use case is registered in the registry → available via REST, MCP, and automation (parity test)
 - A metric and a trace span exist (gate RT-12)
 - Any auditable action is in the `AuditableAction` registry (gate SG-13)
@@ -244,6 +257,8 @@ Report back instead of acting on your own for:
 - Any change to `api/openapi.yaml` that renames or removes an existing field
 - Any change to the licence model, the security gates, or the retention safeguards
 - Anything that could irrecoverably delete user data
+- Any change to a use case's *Goal*, *How to check* or *Where it ends*, and anything in
+  `docs/vision/` — the yardstick is not adjusted to the work
 
 In those cases, write a draft ADR under `docs/adr/` rather than a pull request presenting a fait
 accompli.

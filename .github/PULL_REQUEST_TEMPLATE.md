@@ -4,6 +4,16 @@
 
 Closes #
 
+## Use cases
+
+<!-- The use cases and checks this pull request makes true — copy them from the task's
+     `**Use cases:**` line (docs/usecases/README.md). One line per check: met or not, and how it was
+     confirmed (a test, a walk, a screenshot). A check that cannot be met is reported here and in the
+     issue; it is never rewritten to match the code. Move `state:` and `checked_by:` in the use case
+     in this same pull request. "n/a" only for a change no use case describes (tooling, CI). -->
+
+- UC-…: check n — met / not met — confirmed by …
+
 ## Affected areas
 
 <!-- Tick what this touches, and apply the matching `area:` labels. This is a personal
