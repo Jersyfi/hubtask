@@ -11,12 +11,13 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011, F1-07).
   import AppFrame from './lib/frame/AppFrame.svelte';
-  import { t } from './lib/i18n/i18n.svelte.ts';
+  import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { ROUTES, paneFor } from './lib/routes.ts';
   import { ADMINISTRATION, firstScreen } from './lib/navigation.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
+  import { manifest } from './lib/data/capabilities.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
@@ -106,6 +107,26 @@ import ContainerView from './views/ContainerView.svelte';
    */
   $effect(() => {
     if (session.isSignedIn && route.name === 'administration') router.replace(firstScreen(ADMINISTRATION));
+  });
+
+  /**
+   * The one place the language is decided, because it is the one place that knows both halves:
+   * what the reader prefers (their account, then their browser) and what the installation has
+   * (the manifest). `i18n-l10n.md` §2's order, with the parenthesis that inverts its top - the
+   * account wins over `Accept-Language`, which is what answers before there is an account.
+   *
+   * Here rather than in the frame, because the signed-out card is not inside the frame: decided
+   * there, the card, the reset and the provider's return rendered the source language whatever the
+   * browser asked for, which is exactly the half of the table that speaks before an account does.
+   *
+   * It runs again whenever either half changes, which is what makes the manifest's arrival turn
+   * the document round on an installation that serves a right-to-left locale.
+   */
+  $effect(() => {
+    messages.adopt(
+      { account: actor.locale, requested: navigator.languages },
+      manifest.supportedLocales,
+    );
   });
 
   /**

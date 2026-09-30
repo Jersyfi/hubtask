@@ -325,6 +325,38 @@ test('a setup forced during sign-in confirms in the code field and shows the cod
   }
 });
 
+// Before there is an account, the browser's language decides (i18n-l10n.md §2) - on the signed-out
+// card as much as inside the application. The card used to render the source language whatever the
+// browser asked for, because only the frame read the installation's list of languages.
+test('the signed-out card speaks the browser’s language where the installation has it', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'de-DE' });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/meta/capabilities')) {
+      return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true } } });
+    }
+    return stubFor({ answer: owed })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.getByRole('heading', { name: 'Anmelden' }).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.lang), 'de');
+
+    // And the second step with it: the identity line and the clock, in the same language.
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.locator('button[type="submit"]').click();
+    await page.getByRole('heading', { name: 'Zweiter Faktor' }).waitFor();
+    assert.ok(await page.getByText('Anmeldung als').isVisible(), 'the identity line is not German');
+    assert.ok(await page.getByRole('button', { name: 'Nicht du?' }).isVisible());
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 test('the rules under a password are the workspace’s, and the server’s lines wait for the local ones', async () => {
   const { origin, close } = await serve(DIST);
   const asked = [];
