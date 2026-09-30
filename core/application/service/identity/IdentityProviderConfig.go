@@ -6,7 +6,6 @@ package identity
 import (
 	"context"
 	"errors"
-	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"strconv"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -20,6 +19,7 @@ import (
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	provider "github.com/Jersyfi/hubtask/core/port/identityprovider"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )

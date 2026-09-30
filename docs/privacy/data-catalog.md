@@ -44,6 +44,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | MFA secret (sealed), recovery codes (hashed) | `account_mfa`, `account_recovery_code` | `SECRET` | Two-factor authentication (H-02) | Contract / legal obligation | The lifetime of the enrolment | `CASCADE` |
 | Two-step sign-in pending credential (hash, user agent, IP class) | `auth_pending` | `PERSONAL_TECHNICAL` | Completing a two-step sign-in | Legitimate interest | Minutes; swept with the sessions | `RETENTION`, `CASCADE` |
 | External identity (OIDC `sub`, issuer) | `account_identity` | `PERSONAL_BASIC` | Single sign-on | Contract | The lifetime of the link | `CASCADE` |
+| A provider identity waiting to be connected (OIDC `sub`, provider) | `auth_pending.link_subject`, `link_provider_id` | `PERSONAL_BASIC` | Connecting a provider to an existing account only after the account's own proof (ADR-0071's addendum) | Legitimate interest | Minutes: the row's lifetime, swept with the sessions; gone with the account or the provider | `RETENTION`, `CASCADE` |
 | Membership, role, groups | `membership`, `account_group_member` | `PERSONAL_BASIC` | Permissions | Contract | The lifetime of the membership | `CASCADE` |
 | Token hash, scopes, label | `access_token` | `SECRET` (+ `PERSONAL_BASIC` for the name) | API access | Contract | Until revocation/expiry, max. 1 year | `CASCADE` |
 | Last token use (time, truncated IP) | `access_token` | `PERSONAL_TECHNICAL` | Abuse detection | Legitimate interest | 90 days | `RETENTION` |
