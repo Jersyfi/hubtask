@@ -337,7 +337,7 @@ clean deletion concept becomes untrue over two years.
 | Gate | Runs in | Note |
 |---|---|---|
 | PG-1, PG-3, PG-4, PG-5, PG-6, PG-8 | `make gate-privacy`, part of `make verify` and of every pull request | They read the source and the declarations; no database, a second or two |
-| PG-2, PG-7 | `make gate-privacy-full`, in the nightly with containers | Both need a migrated database; PG-2 additionally runs the real erasure |
+| PG-2, PG-7 | `make gate-privacy-full`, in every pull request's data job and in the nightly on arm64, with containers | Both need a migrated database; PG-2 additionally runs the real erasure. In the pull request since #246, when four tables reached `main` uncatalogued |
 
 Each one is proved to go red by `make gate-selftest` against a deliberate violation — which is what
 distinguishes a gate from a table like this one. The probes for PG-2 and PG-7 are skipped where

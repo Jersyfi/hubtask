@@ -5,9 +5,9 @@ context: privacy
 actors: [PE-auditor, PE-operator, PE-owner, PE-selfhoster]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-03, P-09, P-11]
-state: partial
+state: built
 tasks: [E-10, F4-20]
-checked_by: [test/privacy/PG7_catalogue_test.go, test/privacy/PG2_deletion_test.go, test/privacy/PG1_classification_test.go]
+checked_by: [test/privacy/PG7_catalogue_test.go, test/privacy/PG2_deletion_test.go, test/privacy/PG1_classification_test.go, .github/workflows/ci.yml]
 ---
 
 # Know what the installation stores about people, and how each piece is deleted
@@ -46,11 +46,3 @@ the same page to know what an erasure request would have to reach.
 * Hubtask does not produce the operator's record of processing for them; it gives them the part
   only the software can know.
 * No legal assessment of the legal bases for a given operator.
-
-## Today
-
-* **Check 5 fails.** The PG gates run in the nightly suite, not on every pull request: milestone SI
-  merged four tables without rows (`account_password_history`, `identity_provider`, `operator`,
-  `instance_setting`) and only the nightly `matrix-arm64` job noticed — issue #246, whose fix adds
-  the rows. Moving the PG gates into the pull request check changes a gate and is the owner's
-  decision.
