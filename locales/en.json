@@ -2213,7 +2213,7 @@
   "app.step_up.working": "Checking",
   "app.step_up.cancel": "Not now",
   "app.step_up.no_method": "This account holds no way to confirm this here: no password, no second factor and no provider switched on in this workspace. An administrator of this workspace can help.",
-  "app.step_up.provider_in_browser": "This account confirms with a fresh sign-in at its provider, which takes a browser. Confirm in the web app, then run this again.",
+  "app.step_up.provider_in_browser": "This account confirms with a fresh sign-in at its provider, which takes a browser - a terminal cannot do it. Do this in the web app instead.",
   "app.sign_out.everywhere": "Sign out everywhere",
   "app.sign_out.everywhere_warning": "This ends every session of your account, including this one. You will be asked to sign in again here.",
   "app.redeem.title": "Set your password",
