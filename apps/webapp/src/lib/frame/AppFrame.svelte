@@ -21,7 +21,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -247,9 +247,10 @@
     const left = session.takeRecoveryLeft();
     if (left === undefined) return;
     recoveryNote.hold(left);
-    announcer.say(
-      left === 0 ? t('app.sign_in.recovery_none') : t('app.sign_in.recovery_left', { count: String(left) }),
-    );
+    // At zero the note is an alert, which speaks for itself; said here as well it would be said
+    // twice. Above zero the note is a status drawn with its text already in it, which nothing was
+    // watching - so the announcer says it, once.
+    if (left > 0) announcer.say(t('app.sign_in.recovery_left', { count: String(left) }));
   });
 
 </script>
@@ -374,7 +375,17 @@
                 ? t('app.recovery_note.none')
                 : t('app.recovery_note.left', { count: String(recoveryNote.note.left), total: '10' })}
               {#snippet action()}
-                <Button tone="subtle" onclick={() => go('/profile/security')}>{t('app.recovery_note.replace')}</Button>
+                <!-- A link, because it goes somewhere: announced as one, and it opens in a new tab
+                     for whoever asks it to. The click stays inside the application. -->
+                <a
+                  href="/profile/security"
+                  onclick={(event) => {
+                    event.preventDefault();
+                    go('/profile/security');
+                  }}
+                >
+                  {t('app.recovery_note.replace')}
+                </a>
               {/snippet}
             </Banner>
           </div>

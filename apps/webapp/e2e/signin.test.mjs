@@ -291,7 +291,7 @@ test('a recovery code leaves a note that survives a reload and leads to the repl
     await page.reload();
     await note.waitFor({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Replace your authenticator' }).first().click();
+    await page.getByRole('link', { name: 'Replace your authenticator' }).click();
     await page.waitForURL('**/profile/security');
     assert.equal(await page.locator('details[open] summary', { hasText: 'Replace your authenticator' }).count(), 1,
       'the replacement is not open where the note leads');

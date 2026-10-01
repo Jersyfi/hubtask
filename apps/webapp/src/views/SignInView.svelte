@@ -83,7 +83,9 @@
   // address kept in its field, both code fields emptied, and a sentence saying the sign-in waited
   // too long. The window is not extended - it is a security bound.
   $effect(() => {
-    if (phase !== 'over') return;
+    // Not under a request in flight: its answer - a session, or the server's own refusal of the
+    // spent credential - is what the card shows next.
+    if (phase !== 'over' || isBusy) return;
     code = '';
     recoveryCode = '';
     linkPassword = '';
@@ -168,11 +170,12 @@
 </script>
 
 {#snippet closing()}
-  <!-- The last minute, said under the countdown and through a live region: inserted once, so it is
-       heard once rather than every second the countdown moves (UC-ID-02 check 2). -->
-  {#if phase === 'closing'}
-    <p class="closing" role="status">{t('app.sign_in.expires_soon')}</p>
-  {/if}
+  <!-- The last minute, said under the countdown and through a live region (UC-ID-02 check 2). The
+       region stands empty for the whole step and is filled when the minute begins: a region created
+       at the moment it has something to say is one nothing was watching. Filled once, it is heard
+       once - not every second the countdown moves. The card is outside the frame, so the frame's
+       announcer is not here to say it. -->
+  <p class="closing" role="status">{phase === 'closing' ? t('app.sign_in.expires_soon') : ''}</p>
 {/snippet}
 
 {#snippet notice()}
