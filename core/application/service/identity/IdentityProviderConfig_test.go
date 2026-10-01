@@ -29,6 +29,9 @@ type providerStore struct {
 	// scope is the workspace the fake is standing in for. A row of another tenant is invisible to
 	// it, and a row of no tenant is readable and not writable - which is what the policy does.
 	scope shared.ID
+	// afterFind runs once a Find has answered: a test's way to change the row between a use case's
+	// read and its write, which is what another administrator's request does.
+	afterFind func()
 }
 
 func newProviderStore(scope shared.ID) *providerStore {
@@ -73,6 +76,9 @@ func (s *providerStore) Count(context.Context) (int, error) {
 func (s *providerStore) Find(_ context.Context, id shared.ID) (domain.IdentityProvider, error) {
 	for _, row := range s.visible() {
 		if row.ID == id {
+			if s.afterFind != nil {
+				s.afterFind()
+			}
 			return row, nil
 		}
 	}
@@ -114,6 +120,17 @@ func (s *providerStore) Update(
 		s.sealed[stored.ID] = *sealed
 	}
 	return stored, true, nil
+}
+
+// Reconfigure is Update with the row's own switch kept, as the statement's COALESCE keeps it.
+func (s *providerStore) Reconfigure(
+	ctx context.Context, configured domain.IdentityProvider,
+	sealed *cryptoport.Sealed, now time.Time,
+) (domain.IdentityProvider, bool, error) {
+	if at := s.writable(configured.ID); at >= 0 {
+		configured.Enabled = s.rows[at].Enabled
+	}
+	return s.Update(ctx, configured, sealed, now)
 }
 
 func (s *providerStore) Delete(_ context.Context, id shared.ID) (bool, error) {

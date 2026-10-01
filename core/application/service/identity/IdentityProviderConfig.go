@@ -367,7 +367,13 @@ func (w IdentityProviderWriter) ConfigureAt(
 		if err := w.holdSwitch(ctx, cmd, &configured); err != nil {
 			return err
 		}
-		written, found, err := w.Providers.Update(ctx, configured, sealed, w.Session.Clock.Now())
+		write := w.Providers.Update
+		if cmd.switchInList {
+			// The form's write leaves the switch to the statement, so a switch made in the list
+			// between the read above and this write is kept rather than written back.
+			write = w.Providers.Reconfigure
+		}
+		written, found, err := write(ctx, configured, sealed, w.Session.Clock.Now())
 		if err != nil {
 			return err
 		}
@@ -387,8 +393,9 @@ func (w IdentityProviderWriter) ConfigureAt(
 }
 
 // holdSwitch settles a replaced row's switch inside the write's transaction. At a workspace's door it
-// reads the row and keeps its `enabled`, so a form saved while somebody switched the provider in the
-// list does not switch it back; the installation's half has no row to compare and writes the form's.
+// reads the row and refuses a form whose `enabled` differs from it; the write that follows is
+// Reconfigure, which does not touch the switch at all. The installation's half has no list, so its
+// form still writes the offer.
 func (w IdentityProviderWriter) holdSwitch(
 	ctx context.Context, cmd ConfigureIdentityProviderCommand, configured *domain.IdentityProvider,
 ) error {

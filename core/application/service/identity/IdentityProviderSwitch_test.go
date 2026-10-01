@@ -59,6 +59,30 @@ func TestAChangedEnabledIsRefusedOnTheFormAndAnEchoedOneAccepted(t *testing.T) {
 	}
 }
 
+// A save does not write the switch at all, so one made in the list while the form was open stands -
+// the race a read-then-write would lose.
+func TestASaveKeepsASwitchMadeWhileTheFormWasOpen(t *testing.T) {
+	f := newOfferFixture(time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC))
+	id := f.own(t, true)
+	f.installation(t)
+	f.writer.Workspaces = f.workspaces
+
+	command := configureCommand()
+	command.ID = id
+	command.Enabled = boolOf(true) // echoed as the form read it
+	f.store.afterFind = func() {
+		f.store.afterFind = nil
+		f.store.rows[0].Enabled = false // somebody switched it off in the list a moment later
+	}
+	saved, err := ConfigureIdentityProvider{Writer: f.writer}.Execute(t.Context(), providerActor(), command)
+	if err != nil {
+		t.Fatalf("saving: %v", err)
+	}
+	if saved.Enabled || f.store.rows[0].Enabled {
+		t.Error("the save wrote back the switch the list had just turned off")
+	}
+}
+
 func TestANewProviderIsCreatedSwitchedOff(t *testing.T) {
 	f := newProviderFixture(time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC))
 

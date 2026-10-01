@@ -87,6 +87,14 @@ func (s *instanceProviderStore) Update(
 	return domain.IdentityProvider{}, false, nil
 }
 
+// Reconfigure is never the installation's: its form still writes the offer. A call here is a
+// defect the test should see.
+func (s *instanceProviderStore) Reconfigure(
+	context.Context, domain.IdentityProvider, *cryptoport.Sealed, time.Time,
+) (domain.IdentityProvider, bool, error) {
+	panic("the installation's form reconfigured without its switch")
+}
+
 func (s *instanceProviderStore) Delete(_ context.Context, id shared.ID) (bool, error) {
 	for i, row := range s.rows {
 		if row.ID == id {

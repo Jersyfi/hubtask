@@ -182,9 +182,27 @@ func (IdentityProviderRepository) Insert(
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
 }
 
-func (IdentityProviderRepository) Update(
+func (r IdentityProviderRepository) Update(
 	ctx context.Context, configured identity.IdentityProvider,
 	sealed *crypto.Sealed, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	enabled := configured.Enabled
+	return r.write(ctx, configured, sealed, &enabled, now)
+}
+
+// Reconfigure writes everything but the switch, which the statement's COALESCE keeps as the row
+// holds it (ADR-0076 §5).
+func (r IdentityProviderRepository) Reconfigure(
+	ctx context.Context, configured identity.IdentityProvider,
+	sealed *crypto.Sealed, now time.Time,
+) (identity.IdentityProvider, bool, error) {
+	return r.write(ctx, configured, sealed, nil, now)
+}
+
+// write is the one statement behind both: nil `enabled` is "leave the switch alone".
+func (IdentityProviderRepository) write(
+	ctx context.Context, configured identity.IdentityProvider,
+	sealed *crypto.Sealed, enabled *bool, now time.Time,
 ) (identity.IdentityProvider, bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -205,7 +223,7 @@ func (IdentityProviderRepository) Update(
 		Position:            int32(configured.Position), //nolint:gosec // G115: 0..99 by construction
 		AllowedEmailDomains: configured.AllowedEmailDomains,
 		AllowedDirectories:  configured.AllowedDirectories,
-		Enabled:             configured.Enabled,
+		Enabled:             enabled,
 		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
 	}
 	// Nil is "keep what is sealed", which the statement's COALESCE reads from these two being
