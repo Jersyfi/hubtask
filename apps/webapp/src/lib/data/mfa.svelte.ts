@@ -132,16 +132,17 @@ class Mfa {
   }
 
   /**
-   * Takes it off, with the password afresh.
+   * Takes it off, behind the step-up like every privileged action (ADR-0075 §3).
    *
-   * The one case where "recently signed in" is not enough, because a stolen session removing the
-   * second factor is exactly the attack the factor exists against (`security.md` §5). Under tenant
-   * enforcement an `OWNER` or `ADMIN` cannot disable at all, and the refusal names the switch —
-   * which is the sentence the screen renders rather than one this client invents.
+   * "Recently signed in" is not enough, because a stolen session removing the second factor is
+   * exactly the attack the factor exists against (`security.md` §5) - and the proof is whatever the
+   * account holds, so an account that signs in only through a provider proves it with the code, a
+   * recovery code or its provider. Where the workspace's rule requires the factor the refusal names
+   * the rule, which is the sentence the screen renders rather than one this client invents.
    */
-  async disable(password: string): Promise<boolean> {
+  async disable(): Promise<boolean> {
     return this.#attempt(async () => {
-      await engine.mutate('POST', DISABLE, { password });
+      await stepUp.around((stepUpToken) => engine.mutate('POST', DISABLE, {}, { stepUpToken }));
       return true;
     });
   }

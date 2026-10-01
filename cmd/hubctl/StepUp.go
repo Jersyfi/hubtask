@@ -133,7 +133,7 @@ func (cli *CLI) stepUp(ctx context.Context, client *Client, methods string) (str
 func (cli *CLI) stepUpRequest(methods string) (openapi.StepUpRequest, error) {
 	if methods == noMethod {
 		message, _ := cli.Catalogue.Message("app.step_up.no_method", nil)
-		return openapi.StepUpRequest{}, errorString(message + "\n  Set up a second factor on your profile in the web app, then run this again.")
+		return openapi.StepUpRequest{}, errorString(message)
 	}
 	offered := strings.Fields(methods)
 	offers := func(method string) bool { return methods == "" || slices.Contains(offered, method) }

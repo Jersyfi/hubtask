@@ -27,7 +27,7 @@
   // off" on its own names neither the thing nor the consequence.
 
   import { canCopy } from '@hubtask/design-system/components';
-  import { Banner, Button, EmptyState, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, EmptyState, OneTimeSecret, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
@@ -52,7 +52,6 @@
   // defence of its own: the panel that reads it is inside that branch.
   const left = $derived(actor.recoveryCodesLeft);
 
-  let disablePassword = $state('');
   let newPassword = $state('');
   let notice = $state<string | undefined>(undefined);
 
@@ -83,11 +82,8 @@
     await actor.reread();
   }
 
-  async function disableFactor(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const password = disablePassword;
-    disablePassword = '';
-    if (await mfa.disable(password)) {
+  async function disableFactor(): Promise<void> {
+    if (await mfa.disable()) {
       notice = t('app.mfa.disabled');
       announcer.say(notice);
       await actor.reread();
@@ -198,33 +194,20 @@
               <!-- Not a switch the server would refuse (P-05): the workspace's rule demands the
                    factor of this person, and the sentence says so where the control would be. -->
               <p class="quiet">{t('app.mfa.required_by_workspace')}</p>
-            {:else if !actor.hasPassword}
-              <!-- Turning the factor off asks for the password afresh, and this account has none.
-                   No field it cannot fill (UC-ID-05 check 5); the sentence says why. -->
-              <p class="quiet">{t('app.mfa.disable_needs_password')}</p>
             {:else}
+            <!-- Offered wherever the rule does not require the factor, to every account: the proof
+                 is the step-up's, with whatever the account holds (ADR-0075 §3), so an account
+                 without a password is no longer turned away here. -->
             <details>
               <summary>{t('app.mfa.disable_summary')}</summary>
               <Stack gap="150">
                 <p class="quiet">{t('app.mfa.disable_body')}</p>
                 <p class="quiet">{t('app.mfa.disable_hint')}</p>
-                <form onsubmit={disableFactor}>
-                  <Stack gap="150">
-                    <Input
-                      label={t('app.step_up.password_label')}
-                      bind:value={disablePassword}
-                      type="password"
-                      autocomplete="current-password"
-                      spellcheck={false}
-                      isRequired
-                    />
-                    <div>
-                      <Button type="submit" tone="danger" isBusy={mfa.isWorking} busyLabel={t('app.mfa.disabling')}>
-                        {t('app.mfa.disable')}
-                      </Button>
-                    </div>
-                  </Stack>
-                </form>
+                <div>
+                  <Button tone="danger" isBusy={mfa.isWorking} busyLabel={t('app.mfa.disabling')} onclick={() => void disableFactor()}>
+                    {t('app.mfa.disable')}
+                  </Button>
+                </div>
               </Stack>
             </details>
             {/if}
